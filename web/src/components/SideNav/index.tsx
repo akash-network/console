@@ -83,7 +83,7 @@ export default function SideNav(props: any) {
           </Breadcrumbs>
           <div className="grow">{/* flex grow spacer */}</div>
           {
-            wallet.status
+            wallet.isConnected
               ? <Button variant="outlined" onClick={handleDisconnectWallet}>
                 <Box marginRight="0.5rem">
                   <Icon type='wallet' />

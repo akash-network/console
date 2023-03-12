@@ -52,7 +52,7 @@ export const PreflightCheck: React.FC<{}> = () => {
   }, [keplr]);
 
   const handleConnectWallet = async () => {
-    if (!wallet.status) {
+    if (!wallet.isConnected) {
       wallet.connect();
     }
   };

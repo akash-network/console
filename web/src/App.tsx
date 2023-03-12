@@ -99,13 +99,13 @@ const AppRouter = () => {
 export default function App() {
   const [keplr, setKeplr] = useRecoilState(keplrState);
   const [certificate, setCertificate] = useRecoilState(activeCertificate);
-  const { status } = useWallet();
+  const { isConnected } = useWallet();
 
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
 
     const checkKeplr = async () => {
-      if (status && window.keplr && keplr.accounts.length > 0 && keplr.accounts[0].address) {
+      if (isConnected && window.keplr && keplr.accounts.length > 0 && keplr.accounts[0].address) {
         const wallet = window.keplr.getOfflineSigner('akashnet-2');
 
         try {
@@ -139,7 +139,7 @@ export default function App() {
         clearTimeout(timer);
       }
     }
-  }, [status, certificate, setCertificate, keplr, setKeplr]);
+  }, [isConnected, certificate, setCertificate, keplr, setKeplr]);
 
   return (
     <Logging>

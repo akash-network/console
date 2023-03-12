@@ -17,7 +17,7 @@ type MyDeploymentsPlaceholderProps = {
 
 const MyDeploymentsPlaceholder: React.FC<MyDeploymentsPlaceholderProps> = ({ hidden }) => {
   const navigate = useNavigate();
-  const { status, connect } = useWallet();
+  const { isConnected, connect } = useWallet();
 
   const handleCreateDeployment = () => {
     navigate('/new-deployment');
@@ -37,7 +37,7 @@ const MyDeploymentsPlaceholder: React.FC<MyDeploymentsPlaceholderProps> = ({ hid
       )}
     </Typography >
     <Stack direction="row" padding="1.5rem" gap="1rem" justifyContent="center">
-      {status
+      {isConnected
         ? (
           <Button variant="contained" onClick={handleCreateDeployment}>
             <Box paddingRight="0.5rem">
@@ -95,7 +95,7 @@ const MyDeployments: React.FC<{}> = () => {
       <Stack direction="row" spacing={1} alignItems="center" sx={{ marginBottom: '24px' }}>
         <WordSwitch on="Active only" off="All" checked={!showAll} onChange={handleToggleAll} />
       </Stack>
-      {wallet.status
+      {wallet.isConnected
         ? <MyDeploymentsTable showAll={showAll} />
         : <MyDeploymentsPlaceholder hidden={0} />
       }

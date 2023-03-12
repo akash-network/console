@@ -47,7 +47,7 @@ export function useWallet() {
   };
 
   return {
-    status: isConnected,
+    isConnected,
     connect: connectWallet,
     disconnect: disconnectWallet,
   };

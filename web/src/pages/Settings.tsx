@@ -33,6 +33,7 @@ import {
 import { AntSwitch } from '../components/Switch/AntSwitch';
 import { Address } from '../components/Address';
 import { useQuery } from 'react-query';
+import { useWallet } from "../hooks/useWallet";
 
 const queryCertificates = (query: any) => {
   const { queryKey: [, owner] } = query;
@@ -96,6 +97,11 @@ const Settings: React.FC<{}> = () => {
   const [showProgress, setShowProgress] = React.useState(false);
   const [fields, setFields] = React.useState<FieldInfo<string | TLSCertificate>[]>([]);
   const [optInto, setOptInto] = useRecoilState(optIntoAnalytics);
+  const wallet = useWallet();
+
+  const handleConnectWallet = (): void => {
+    wallet.connect();
+  }
 
   const availableCertificates = useMemo(
     () => getAvailableCertificates(keplr?.accounts[0]?.address),
@@ -240,9 +246,14 @@ const Settings: React.FC<{}> = () => {
 
               {obj.title === 'Certificates' ? (
                 <div className="flex-none mb-2">
-                  <Button variant="outlined" onClick={() => setCreateOpen(true)}>
-                    Generate New Certificate
-                  </Button>
+                  {wallet.isConnected ?
+                    <Button variant="outlined"
+                            onClick={() => setCreateOpen(true)}>
+                      Generate New Certificate
+                    </Button> :
+                    <Button variant="contained" onClick={handleConnectWallet}>
+                      Connect Wallet
+                    </Button>}
                 </div>
               ) : (
                 <div className="flex-none mb-2">{obj.value}</div>
