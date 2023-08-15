@@ -1,0 +1,29 @@
+name: Indexer CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Check for changes
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            indexer:
+              - 'indexer/**'
+            shared:
+              - 'shared/**'
+
+      - name: Build the Docker image
+        if: steps.filter.outputs.indexer == 'true' || steps.filter.outputs.shared == 'true'
+        run: docker build . --file ./indexer/Dockerfile

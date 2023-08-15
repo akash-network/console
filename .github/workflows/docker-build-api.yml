@@ -1,0 +1,29 @@
+name: API CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Check for changes
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'api/**'
+            shared:
+              - 'shared/**'
+
+      - name: Build the Docker image for API
+        if: steps.filter.outputs.api == 'true' || steps.filter.outputs.shared == 'true'
+        run: docker build . --file ./api/Dockerfile

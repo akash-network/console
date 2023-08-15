@@ -1,0 +1,715 @@
+{
+  "host": {
+    "key": "host",
+    "type": "string",
+    "required": true,
+    "description": "Name of the host. Ex.: 'd3akash.cloud'."
+  },
+  "email": {
+    "key": "email",
+    "type": "string",
+    "required": true,
+    "description": "Email associated with the provider."
+  },
+  "organization": {
+    "key": "organization",
+    "type": "string",
+    "required": true,
+    "description": "Name of the organization that owns the provider."
+  },
+  "website": {
+    "key": "website",
+    "type": "string",
+    "required": false,
+    "description": "Link to the organization's website."
+  },
+  "status-page": {
+    "key": "status-page",
+    "type": "string",
+    "required": false,
+    "description": "Link to a status page for the provider."
+  },
+  "location-region": {
+    "key": "location-region",
+    "type": "option",
+    "required": true,
+    "description": "Geo location region of the provider. Based on the United Nations geoscheme. https://en.wikipedia.org/wiki/United_Nations_geoscheme",
+    "values": [
+      {
+        "key": "na-ca-west",
+        "description": "North America Canada West coast. Provinces: (BC)."
+      },
+      {
+        "key": "na-ca-central",
+        "description": "North America Canada Central. Provinces: (QC, ON)."
+      },
+      {
+        "key": "na-ca-prairie",
+        "description": "North America Canada Prairie. Provinces: (AB, SK, MB)."
+      },
+      {
+        "key": "na-ca-atlantic",
+        "description": "North America Canada Atlantic. Provinces: (NL, PE, NS, NB)."
+      },
+      {
+        "key": "na-ca-north",
+        "description": "North America Canada North. Provinces: (NU, NT, YT)."
+      },
+      {
+        "key": "na-us-west",
+        "description": "North America United States of America West. States: (CA, OR, WA, ID, MT, WY, UT, CO, NV, AK, HI)"
+      },
+      {
+        "key": "na-us-southwest",
+        "description": "North America United States of America Southwest. States: (AZ, NM, TX, OK)"
+      },
+      {
+        "key": "na-us-midwest",
+        "description": "North America United States of America Midwest. States: (ND, SD, NE, KS, MN, IA, MO, WI, IL, MI, IN, OH)"
+      },
+      {
+        "key": "na-us-southeast",
+        "description": "North America United States of America Southeast. States: (AR, LA, MS, AL, TN, KY, WV, VA, NC, SC, GA, FL)"
+      },
+      {
+        "key": "na-us-northeast",
+        "description": "North America United States of America Northeast. States: (PA, NY, VT, NH, ME, MA, RI, CT, NJ, DE, MD)"
+      },
+      {
+        "key": "central-america",
+        "description": "Central America. Countries: (BZ, CR, SV, GT, HN, NI, PA)"
+      },
+      {
+        "key": "caribbean",
+        "description": "Caribbean. Countries: (AI, AG, AW, BS, BB, BQ, VG, KY, CU, CW, DM, DO, GD, GP, HT, JM, MQ, MS, VE, PR, BQ, BL, KN, LC, MF, VC, SX, TT, TC, VI)"
+      },
+      {
+        "key": "sa-north",
+        "description": "South America North. Countries: (CO, VE, GY, SR, GF)"
+      },
+      {
+        "key": "sa-west",
+        "description": "South America West. Countries: (PE, EC, BO)"
+      },
+      {
+        "key": "sa-south",
+        "description": "South America South. Countries: (AR, UY, CL, PY)"
+      },
+      {
+        "key": "sa-brazil",
+        "description": "South America Brazil."
+      },
+      {
+        "key": "eu-central",
+        "description": "Central Europe. Countries (SI, HU, SK, PL, CZ, AT, CH, DE)"
+      },
+      {
+        "key": "eu-east",
+        "description": "Eastern Europe. Countries (MD, UA, BY, LT, LV, EE, RU)"
+      },
+      {
+        "key": "eu-north",
+        "description": "Northern Europe. Countries (DK, SE, NO, FI, IS)"
+      },
+      {
+        "key": "eu-southeast",
+        "description": "South-eastern Europe. Countries (AL, MK, BG, RO, RS, XK, ME, BA, HR)"
+      },
+      {
+        "key": "eu-south",
+        "description": "Southern Europe. Countries (IT, GR)"
+      },
+      {
+        "key": "eu-southwest",
+        "description": "South-western Europe. Countries (PT, ES, AD)"
+      },
+      {
+        "key": "eu-west",
+        "description": "Western Europe. Countries (FR, LU, BE, NL, GB, IE)"
+      },
+      {
+        "key": "af-east",
+        "description": "Eastern Africa. Countries (MZ, ZW, ZM, MW, TZ, BI, RW, KE, UG, SO, ET, DJ, ER, SS)"
+      },
+      {
+        "key": "af-middle",
+        "description": "Middle Africa. Countries (TD, CF, CM, GQ, GA, CG, CD, AO)"
+      },
+      {
+        "key": "af-north",
+        "description": "Northern Africa. Countries (EH, MA, DZ, TN, LY, EG, SD)"
+      },
+      {
+        "key": "af-south",
+        "description": "Southern Africa. Countries (NA, BW, ZA, LS, SZ)"
+      },
+      {
+        "key": "af-west",
+        "description": "Western Africa. Countries (MR, ML, NE, NG, BJ, TG, GH, BF, CI, LR, GN, SL, GW, GM, SN)"
+      },
+      {
+        "key": "as-central",
+        "description": "Central Asia. Countries (KZ, KG, TJ, TM, UZ)"
+      },
+      {
+        "key": "as-east",
+        "description": "Eastern Asia. Countries (CN, JP, KP, KR, MN, HK, MO, TW)"
+      },
+      {
+        "key": "as-southeast",
+        "description": "South-eastern Asia. Countries (MM, LA, TH, VN, KH, MY, SG, ID, TL, PH)"
+      },
+      {
+        "key": "as-south",
+        "description": "Southern Asia. Countries (IR, AF, PK, IN, BD, BT, NP, LK, MV)"
+      },
+      {
+        "key": "as-west",
+        "description": "Western Asia. Countries (TR, GE, AM, AZ, SY, LB, JO, IL, IQ, KW, SA, YE, OM, AE, QA, BH, CY, PS)"
+      },
+      {
+        "key": "oc-aus",
+        "description": "Oceania Australia. Countries (AU)"
+      },
+      {
+        "key": "oc-nz",
+        "description": "Oceania New Zealand. Countries (NZ)"
+      },
+      {
+        "key": "oc-mel",
+        "description": "Oceania Melanesia. Countries (PG, NR, SB, VU, NC, FJ)"
+      },
+      {
+        "key": "oc-mic",
+        "description": "Oceania Micronesia. Countries (PW, MP, GU, FM, MH, KI)"
+      },
+      {
+        "key": "oc-pol",
+        "description": "Oceania Polynesia. Countries (TV, WF, TK, AS, TO, NU, CK, PF, PN)"
+      }
+    ]
+  },
+  "country": {
+    "key": "country",
+    "type": "string",
+    "required": false,
+    "description": "Country ISO 3166 Alpha-2 code of the provider. https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes"
+  },
+  "city": {
+    "key": "city",
+    "type": "string",
+    "required": false,
+    "description": "City 3 letter code code of the provider. https://www.hh-express.com/en/support/three_code/harbor.html"
+  },
+  "timezone": {
+    "key": "timezone",
+    "type": "option",
+    "required": false,
+    "description": "Timezone UTC-12 to UTC+14 of the provider. https://www.timeanddate.com/time/map/",
+    "values": [
+      {
+        "key": "utc-12",
+        "description": "UTC-12"
+      },
+      {
+        "key": "utc-11",
+        "description": "UTC-11"
+      },
+      {
+        "key": "utc-10",
+        "description": "UTC-10"
+      },
+      {
+        "key": "utc-9",
+        "description": "UTC-9"
+      },
+      {
+        "key": "utc-8",
+        "description": "UTC-8"
+      },
+      {
+        "key": "utc-7",
+        "description": "UTC-7"
+      },
+      {
+        "key": "utc-6",
+        "description": "UTC-6"
+      },
+      {
+        "key": "utc-5",
+        "description": "UTC-5"
+      },
+      {
+        "key": "utc-4",
+        "description": "UTC-4"
+      },
+      {
+        "key": "utc-3",
+        "description": "UTC-3"
+      },
+      {
+        "key": "utc-2",
+        "description": "UTC-2"
+      },
+      {
+        "key": "utc-1",
+        "description": "UTC-1"
+      },
+      {
+        "key": "utc+0",
+        "description": "UTC+0"
+      },
+      {
+        "key": "utc+1",
+        "description": "UTC+1"
+      },
+      {
+        "key": "utc+2",
+        "description": "UTC+2"
+      },
+      {
+        "key": "utc+3",
+        "description": "UTC+3"
+      },
+      {
+        "key": "utc+4",
+        "description": "UTC+4"
+      },
+      {
+        "key": "utc+5",
+        "description": "UTC+5"
+      },
+      {
+        "key": "utc+6",
+        "description": "UTC+6"
+      },
+      {
+        "key": "utc+7",
+        "description": "UTC+7"
+      },
+      {
+        "key": "utc+8",
+        "description": "UTC+8"
+      },
+      {
+        "key": "utc+9",
+        "description": "UTC+9"
+      },
+      {
+        "key": "utc+10",
+        "description": "UTC+10"
+      },
+      {
+        "key": "utc+11",
+        "description": "UTC+11"
+      },
+      {
+        "key": "utc+12",
+        "description": "UTC+12"
+      },
+      {
+        "key": "utc+13",
+        "description": "UTC+13"
+      },
+      {
+        "key": "utc+14",
+        "description": "UTC+14"
+      }
+    ]
+  },
+  "location-type": {
+    "key": "location-type",
+    "type": "option",
+    "required": false,
+    "description": "One of: datacenter, colo, home, office, mix.",
+    "values": [
+      {
+        "key": "datacenter",
+        "description": "Datacenter"
+      },
+      {
+        "key": "colo",
+        "description": "Co-location facility"
+      },
+      {
+        "key": "home",
+        "description": "Home"
+      },
+      {
+        "key": "office",
+        "description": "Office"
+      },
+      {
+        "key": "mix",
+        "description": "Mix of the above"
+      }
+    ]
+  },
+  "hosting-provider": {
+    "key": "hosting-provider",
+    "type": "string",
+    "required": false,
+    "description": "Name of the datacenter, colo, public cloud, etc where hosted."
+  },
+  "hardware-cpu": {
+    "key": "capabilities/cpu",
+    "type": "option",
+    "required": true,
+    "description": "CPU manufacturer.",
+    "values": [
+      {
+        "key": "intel",
+        "description": "Intel"
+      },
+      {
+        "key": "amd",
+        "description": "AMD"
+      },
+      {
+        "key": "arm",
+        "description": "Arm"
+      }
+    ]
+  },
+  "hardware-cpu-arch": {
+    "key": "capabilities/cpu/arch",
+    "type": "option",
+    "required": false,
+    "description": "CPU architecture.",
+    "values": [
+      {
+        "key": "x86",
+        "description": "x86"
+      },
+      {
+        "key": "x86-64",
+        "description": "x86-64"
+      },
+      {
+        "key": "arm",
+        "description": "arm"
+      },
+      {
+        "key": "arm-64",
+        "description": "arm-64"
+      }
+    ]
+  },
+  "hardware-gpu": {
+    "key": "capabilities/gpu",
+    "type": "option",
+    "required": false,
+    "description": "GPU manufacturer.",
+    "values": [
+      {
+        "key": "nvidia",
+        "description": "Nvidia"
+      },
+      {
+        "key": "amd",
+        "description": "AMD"
+      },
+      {
+        "key": "intel",
+        "description": "Intel"
+      },
+      {
+        "key": "xilinx",
+        "description": "Xilinx"
+      }
+    ]
+  },
+  "hardware-gpu-model": {
+    "key": "capabilities/gpu/model",
+    "type": "multiple-option",
+    "required": false,
+    "description": "GPU model.",
+    "values": [
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/h100",
+        "description": "Nvidia h100",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/a100",
+        "description": "Nvidia a100",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/a40",
+        "description": "Nvidia a40",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/a16",
+        "description": "Nvidia a16",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/t4",
+        "description": "Nvidia t4",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/v100",
+        "description": "Nvidia v100",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/p4",
+        "description": "Nvidia tesla-p4",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/p100",
+        "description": "Nvidia tesla-p100",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/k80",
+        "description": "Nvidia tesla-k80",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/3050",
+        "description": "Nvidia rtx-3050",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/3060",
+        "description": "Nvidia rtx-3060",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/3060ti",
+        "description": "Nvidia rtx-3060-ti",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/3070",
+        "description": "Nvidia rtx-3070",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/3070ti",
+        "description": "Nvidia rtx-3070-ti",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/3080",
+        "description": "Nvidia rtx-3080",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/3080ti",
+        "description": "Nvidia rtx-3080-ti",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/3090",
+        "description": "Nvidia rtx-3090",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/3090ti",
+        "description": "Nvidia rtx-3090-ti",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/1050",
+        "description": "Nvidia gtx-1050",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/1050ti",
+        "description": "Nvidia gtx-1050-ti",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/1060",
+        "description": "Nvidia gtx-1060",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/1070",
+        "description": "Nvidia gtx-1070",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/1070ti",
+        "description": "Nvidia gtx-1070-ti",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/1080",
+        "description": "Nvidia gtx-1080",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/1080ti",
+        "description": "Nvidia gtx-1080-ti",
+        "value": true
+      }
+    ]
+  },
+  "hardware-disk": {
+    "key": "capabilities/storage",
+    "type": "multiple-option",
+    "required": true,
+    "description": "Storage type.",
+    "values": [
+      {
+        "key": "capabilities/storage/1/class",
+        "description": "hdd",
+        "value": "default"
+      },
+      {
+        "key": "capabilities/storage/2/class",
+        "description": "ssd",
+        "value": "beta2"
+      },
+      {
+        "key": "capabilities/storage/3/class",
+        "description": "nvme",
+        "value": "beta3"
+      }
+    ]
+  },
+  "hardware-memory": {
+    "key": "capabilities/memory",
+    "type": "option",
+    "required": true,
+    "description": "Memory (RAM) type.",
+    "values": [
+      {
+        "key": "ddr2",
+        "description": "DDR2"
+      },
+      {
+        "key": "ddr3",
+        "description": "DDR3"
+      },
+      {
+        "key": "ddr3ecc",
+        "description": "DDR3ECC"
+      },
+      {
+        "key": "ddr4",
+        "description": "DDR4"
+      },
+      {
+        "key": "ddr4ecc",
+        "description": "DDR4ECC"
+      },
+      {
+        "key": "ddr5",
+        "description": "DDR5"
+      },
+      {
+        "key": "ddr5ecc",
+        "description": "DDR5ECC"
+      }
+    ]
+  },
+  "network-provider": {
+    "key": "network-provider",
+    "type": "string",
+    "required": false,
+    "description": "Internet service provider."
+  },
+  "network-speed-up": {
+    "key": "network-speed-up",
+    "type": "number",
+    "required": false,
+    "description": "Upload Bandwidth in mbps."
+  },
+  "network-speed-down": {
+    "key": "network-speed-down",
+    "type": "number",
+    "required": false,
+    "description": "Download Bandwidth in mbps."
+  },
+  "feat-persistent-storage": {
+    "key": "feat-persistent-storage",
+    "type": "boolean",
+    "required": true,
+    "description": "True if the provider offers persistent storage."
+  },
+  "feat-persistent-storage-type": {
+    "key": "feat-persistent-storage",
+    "type": "multiple-option",
+    "required": false,
+    "description": "Type of persistent storage offered.",
+    "values": [
+      {
+        "key": "capabilities/storage/1/persistent",
+        "description": "hdd",
+        "value": true
+      },
+      {
+        "key": "capabilities/storage/2/persistent",
+        "description": "ssd",
+        "value": true
+      },
+      {
+        "key": "capabilities/storage/3/persistent",
+        "description": "nvme",
+        "value": true
+      }
+    ]
+  },
+  "tier": {
+    "key": "tier",
+    "type": "option",
+    "required": false,
+    "description": "Is this an Akash hosted provider or community hosted?",
+    "values": [
+      {
+        "key": "akash",
+        "description": "Akash hosted provider"
+      },
+      {
+        "key": "community",
+        "description": "Community hosted provider"
+      }
+    ]
+  },
+  "workload-support-chia": {
+    "key": "workload-support-chia",
+    "type": "boolean",
+    "required": false,
+    "description": "Does this provider support Chia plotting?"
+  },
+  "workload-support-chia-capabilities": {
+    "key": "workload-support-chia-capabilities",
+    "type": "multiple-option",
+    "required": false,
+    "description": "What specific capabilities does the provider support for Chia?",
+    "values": [
+      {
+        "key": "bladebit",
+        "description": "bladebit"
+      },
+      {
+        "key": "madmax",
+        "description": "madmax"
+      },
+      {
+        "key": "bladebit-disk",
+        "description": "bladebit-disk"
+      }
+    ]
+  },
+  "feat-endpoint-ip": {
+    "key": "feat-endpoint-ip",
+    "type": "boolean",
+    "required": false,
+    "description": "Does this provider support leasing of IP addresses?"
+  },
+  "feat-endpoint-custom-domain": {
+    "key": "feat-endpoint-custom-domain",
+    "type": "boolean",
+    "required": false,
+    "description": "Does this provider support custom domains?"
+  }
+}

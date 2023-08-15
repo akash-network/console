@@ -1,0 +1,47 @@
+{
+  "name": "cloudmos-block-explorer",
+  "version": "2.5.0",
+  "description": "Landing page for Cloudmos",
+  "author": "Cloudmos",
+  "private": true,
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "next -p 3001",
+    "build": "next build",
+    "start": "next start",
+    "type-check": "tsc"
+  },
+  "dependencies": {
+    "@emotion/cache": "^11.7.1",
+    "@emotion/css": "^11.7.1",
+    "@emotion/react": "^11.8.1",
+    "@emotion/server": "^11.4.0",
+    "@emotion/styled": "^11.8.1",
+    "@mui/icons-material": "^5.4.4",
+    "@mui/material": "^5.4.4",
+    "@react-spring/web": "^9.3.1",
+    "@sentry/nextjs": "7.11.1",
+    "next": "^12.1.5",
+    "next-dark-mode": "^3.0.0",
+    "next-pwa": "^5.4.6",
+    "next-seo": "^5.5.0",
+    "nextjs-google-analytics": "^2.0.0",
+    "notistack": "^2.0.5",
+    "nprogress": "^0.2.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-error-boundary": "^3.1.4",
+    "react-hook-form": "^7.34.2",
+    "react-intl": "^5.24.6",
+    "react-player": "^2.10.1",
+    "react-wavify": "^1.8.0",
+    "tss-react": "^3.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^12.12.21",
+    "@types/nprogress": "^0.2.0",
+    "@types/react": "^17.0.2",
+    "@types/react-dom": "^17.0.1",
+    "typescript": "^4.5.5"
+  }
+}
