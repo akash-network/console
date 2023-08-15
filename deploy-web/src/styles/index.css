@@ -1,0 +1,54 @@
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markdownContainer table th,
+.markdownContainer table td {
+  padding: 6px 13px;
+  border: 1px solid #d0d7de;
+}
+
+.markdownContainer table tr:nth-child(2n) {
+  background-color: #f6f8fa;
+}
+.markdownContainer table tr {
+  background-color: #ffffff;
+  border-top: 1px solid hsla(210, 18%, 87%, 1);
+}
+.markdownContainer table {
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+.markdownContainer code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  border-radius: 6px;
+}
+
+.markdownContainer-dark table th,
+.markdownContainer-dark table td {
+  padding: 6px 13px;
+  border: 1px solid #242526;
+}
+
+.markdownContainer-dark table tr:nth-child(2n) {
+  background-color: #161616;
+}
+.markdownContainer-dark table tr {
+  background-color: #242424;
+  border-top: 1px solid hsl(210deg 5% 15%);
+}
+.markdownContainer-dark table {
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+.markdownContainer-dark code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  background-color: rgba(175, 184, 193, 0.2);
+  border-radius: 6px;
+}

@@ -1,0 +1,27 @@
+[
+   {
+    "id": "cryptoandcoffee.com",
+    "api": "https://akash-api.global.ssl.fastly.net",
+    "rpc": "https://akash-rpc.global.ssl.fastly.net"
+  },
+  {
+    "id": "akashnet.net",
+    "api": "https://api.akashnet.net:443",
+    "rpc": "https://rpc.akashnet.net:443"
+  },
+  {
+    "id": "lavenderfive.com",
+    "api": "https://akash-api.lavenderfive.com:443",
+    "rpc": "https://akash-rpc.lavenderfive.com:443"
+  },
+  {
+    "id": "polkachu.com",
+    "api": "https://akash-api.polkachu.com:443",
+    "rpc": "https://akash-rpc.polkachu.com:443"
+  },
+  {
+    "id": "notional.ventures",
+    "api": "https://api-akash-ia.cosmosia.notional.ventures",
+    "rpc": "https://rpc-akash-ia.cosmosia.notional.ventures:443"
+  }
+]

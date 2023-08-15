@@ -1,0 +1,7 @@
+**/node_modules
+**/data
+**/npm-debug.log
+**/.git
+**/.env
+*.md
+build.ps1

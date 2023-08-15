@@ -1,0 +1,15 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Disallow: /maintenance
+
+# Prevent google from crawling urls found in the NextJS json (https://github.com/vercel/next.js/discussions/37833)
+Disallow: /graph/%5Bsnapshot%5D
+Disallow: /transactions/%5Bhash%5D
+Disallow: /blocks/%5Bheight%5D
+Disallow: /addresses/%5Baddress%5D
+Disallow: /akash.*.v1beta1.*
+Disallow: /akash.*.v1beta2.*
+Disallow: /cosmos.*.v1beta1.*
+Disallow: /cosmos.crypto.*.PubKey
+Disallow: /ibc.*.*.v1.*
+Disallow: /api/*
