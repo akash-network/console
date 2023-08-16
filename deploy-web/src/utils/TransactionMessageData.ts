@@ -154,7 +154,7 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getGrantMsg(granter, grantee, spendLimit, expiration) {
+  static getGrantMsg(granter: string, grantee: string, spendLimit: number, expiration: Date) {
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_GRANT,
       value: {
