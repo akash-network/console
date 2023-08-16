@@ -225,8 +225,8 @@ const TemplateGalleryPage: React.FunctionComponent<Props> = ({}) => {
             <Box
               sx={{ gridTemplateColumns: { xs: "repeat(1,1fr)", sm: "repeat(2,1fr)", md: "repeat(2,1fr)", lg: "repeat(3,1fr)" }, display: "grid", gap: "1rem" }}
             >
-              {shownTemplates.map(template => (
-                <TemplateBox key={template.id} template={template} />
+              {shownTemplates.map((template, id) => (
+                <TemplateBox key={`${template.id}_${id}`} template={template} />
               ))}
             </Box>
 

@@ -195,11 +195,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     try {
       const messages = bidKeys.map(gseq => selectedBids[gseq]).map(bid => TransactionMessageData.getCreateLeaseMsg(bid));
 
-      // if (isProd) {
-      //   const feeMessage = TransactionMessageData.getSendTokensMsg(address, treasuryAddress, cloudmosFee.fee);
-      //   messages.push(feeMessage as any);
-      // }
-
       const response = await signAndBroadcastTx([...messages]);
 
       if (!response) throw new Error("Rejected transaction");
@@ -227,7 +222,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
       try {
         const yamlJson = yaml.load(localDeploymentData.manifest);
-        const mani = deploymentData.Manifest(yamlJson);
+        const mani = deploymentData.getManifest(yamlJson, true);
 
         for (let i = 0; i < bidKeys.length; i++) {
           const currentBid = selectedBids[bidKeys[i]];
@@ -373,7 +368,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
         {(isLoadingBids || bids.length === 0) && !maxRequestsReached && !isSendingManifest && (
           <Box textAlign="center" paddingTop="1rem">
-            <CircularProgress color="secondary" size="3rem" />
+            <CircularProgress color="secondary" size="4rem" />
             <Box paddingTop="1rem">
               <Typography variant="body1">Waiting for bids...</Typography>
             </Box>

@@ -9,7 +9,7 @@ import { Snackbar } from "@src/components/shared/Snackbar";
 import { customRegistry } from "@src/utils/customRegistry";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { OpenInNew } from "@mui/icons-material";
-import { Box, CircularProgress, Typography, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { useRouter } from "next/router";

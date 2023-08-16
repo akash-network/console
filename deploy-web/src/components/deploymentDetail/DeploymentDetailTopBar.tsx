@@ -28,7 +28,7 @@ const useStyles = makeStyles()(theme => ({
     marginLeft: ".5rem",
     display: "flex",
     alignItems: "center",
-    "& .MuiButtonBase-root:first-child": {
+    "& .MuiButtonBase-root:first-of-type": {
       marginLeft: 0
     }
   },
@@ -130,7 +130,7 @@ export function DeploymentDetailTopBar({ address, loadDeploymentDetail, removeLe
         sx={{
           display: "flex",
           alignItems: "center",
-          padding: "0 .5rem .5rem",
+          padding: "0 .5rem .5rem"
         }}
       >
         <IconButton aria-label="back" onClick={handleBackClick} size="small">

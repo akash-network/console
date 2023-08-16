@@ -277,31 +277,31 @@ export const Popup: React.FC<PopupProps> = props => {
     case "custom": {
       const leftButtons = props.actions
         ?.filter(x => x.side === "left")
-        .map((_, idx) => (
-          <Button key={`dialog-action-button-${idx}`} className={classes.genericDialogActionButton} disableElevation {..._}>
-            {_.isLoading ? (
+        .map(({ isLoading, isLoadingColor, side, label, color, ...rest }, idx) => (
+          <Button key={`dialog-action-button-${idx}`} className={classes.genericDialogActionButton} disableElevation {...rest}>
+            {isLoading ? (
               <CircularProgress
                 size="1.5rem"
-                color={_.isLoadingColor ? _.isLoadingColor : "secondary"}
-                sx={{ color: !_.isLoadingColor && _.color === "secondary" ? theme.palette.secondary.contrastText : "" }}
+                color={isLoadingColor ? isLoadingColor : "secondary"}
+                sx={{ color: !isLoadingColor && color === "secondary" ? theme.palette.secondary.contrastText : "" }}
               />
             ) : (
-              _.label
+              label
             )}
           </Button>
         ));
       const rightButtons = props.actions
         ?.filter(x => x.side === "right")
-        .map((_, idx) => (
-          <Button key={`dialog-action-button-${idx}`} className={classes.genericDialogActionButton} disableElevation {..._}>
-            {_.isLoading ? (
+        .map(({ isLoading, isLoadingColor, side, label, color, ...rest }, idx) => (
+          <Button key={`dialog-action-button-${idx}`} className={classes.genericDialogActionButton} disableElevation {...rest}>
+            {isLoading ? (
               <CircularProgress
                 size="1.5rem"
-                color={_.isLoadingColor ? _.isLoadingColor : "secondary"}
-                sx={{ color: !_.isLoadingColor && _.color === "secondary" ? theme.palette.secondary.contrastText : "" }}
+                color={isLoadingColor ? isLoadingColor : "secondary"}
+                sx={{ color: !isLoadingColor && color === "secondary" ? theme.palette.secondary.contrastText : "" }}
               />
             ) : (
-              _.label
+              label
             )}
           </Button>
         ));
