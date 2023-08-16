@@ -1,7 +1,7 @@
 import { setNetworkVersion } from "./constants";
 import { registerTypes } from "./customRegistry";
 import { initDeploymentData } from "./deploymentData";
-import { initProtoTypes } from "./protoTypes";
+import { initProtoTypes } from "./proto";
 import { setMessageTypes } from "./TransactionMessageData";
 
 export const initAppTypes = () => {

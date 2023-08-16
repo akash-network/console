@@ -9,37 +9,47 @@ import axios from "axios";
 import { Validator } from "@shared/dbSchemas/base";
 import { Op } from "sequelize";
 import { Provider, ProviderAttribute } from "@shared/dbSchemas/akash";
+import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 
 const apiNodeUrl = process.env.Network === "testnet" ? "https://api.testnet-02.aksh.pw:443" : "https://rest.cosmos.directory/akash";
 const betaTypeVersion = process.env.Network === "testnet" ? "v1beta3" : "v1beta2";
 
 export async function getChainStats() {
-  const bondedTokensQuery = axios.get(`${apiNodeUrl}/cosmos/staking/v1beta1/pool`);
-  const supplyQuery = axios.get(`${apiNodeUrl}/cosmos/bank/v1beta1/supply`);
-  const communityPoolQuery = axios.get(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
-  const inflationQuery = axios.get(`${apiNodeUrl}/cosmos/mint/v1beta1/inflation`);
-  const distributionQuery = axios.get(`${apiNodeUrl}/cosmos/distribution/v1beta1/params`);
+  const result: { communityPool: number; inflation: number; communityTax: number; bondedTokens: number; totalSupply: number } = await cacheResponse(
+    60 * 5, // 5 minutes
+    cacheKeys.getChainStats,
+    async () => {
+      const bondedTokensQuery = axios.get(`${apiNodeUrl}/cosmos/staking/v1beta1/pool`);
+      const supplyQuery = axios.get(`${apiNodeUrl}/cosmos/bank/v1beta1/supply`);
+      const communityPoolQuery = axios.get(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
+      const inflationQuery = axios.get(`${apiNodeUrl}/cosmos/mint/v1beta1/inflation`);
+      const distributionQuery = axios.get(`${apiNodeUrl}/cosmos/distribution/v1beta1/params`);
 
-  const [bondedTokensResponse, supplyResponse, communityPoolResponse, inflationResponse, distributionResponse] = await Promise.all([
-    bondedTokensQuery,
-    supplyQuery,
-    communityPoolQuery,
-    inflationQuery,
-    distributionQuery
-  ]);
+      const [bondedTokensResponse, supplyResponse, communityPoolResponse, inflationResponse, distributionResponse] = await Promise.all([
+        bondedTokensQuery,
+        supplyQuery,
+        communityPoolQuery,
+        inflationQuery,
+        distributionQuery
+      ]);
 
-  const communityPool = parseFloat(communityPoolResponse.data.pool.find((x) => x.denom === "uakt").amount);
-  const inflation = parseFloat(inflationResponse.data.inflation);
-  const communityTax = parseFloat(distributionResponse.data.params.community_tax);
-  const bondedTokens = parseInt(bondedTokensResponse.data.pool.bonded_tokens);
-  const totalSupply = parseInt(supplyResponse.data.supply.find((x) => x.denom === "uakt").amount);
+      return {
+        communityPool: parseFloat(communityPoolResponse.data.pool.find((x) => x.denom === "uakt").amount),
+        inflation: parseFloat(inflationResponse.data.inflation),
+        communityTax: parseFloat(distributionResponse.data.params.community_tax),
+        bondedTokens: parseInt(bondedTokensResponse.data.pool.bonded_tokens),
+        totalSupply: parseInt(supplyResponse.data.supply.find((x) => x.denom === "uakt").amount)
+      };
+    },
+    true
+  );
 
   return {
-    bondedTokens: bondedTokens,
-    totalSupply: totalSupply,
-    communityPool: communityPool,
-    inflation: inflation,
-    stakingAPR: (inflation * (1 - communityTax)) / (bondedTokens / totalSupply)
+    bondedTokens: result.bondedTokens,
+    totalSupply: result.totalSupply,
+    communityPool: result.communityPool,
+    inflation: result.inflation,
+    stakingAPR: (result.inflation * (1 - result.communityTax)) / (result.bondedTokens / result.totalSupply)
   };
 }
 

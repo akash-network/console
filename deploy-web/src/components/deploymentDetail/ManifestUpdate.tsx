@@ -11,9 +11,8 @@ import { deploymentData } from "@src/utils/deploymentData";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import { Snackbar } from "../shared/Snackbar";
-import { Alert, Box, Button, CircularProgress, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Typography } from "@mui/material";
 import { LinkTo } from "../shared/LinkTo";
-import { cx } from "@emotion/css";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import ViewPanel from "../shared/ViewPanel";
 import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
@@ -52,7 +51,7 @@ export function ManifestUpdate({ deployment, leases, closeManifestEditor }) {
         setEditedManifest(localDeploymentData?.manifest);
 
         const yamlVersion = yaml.load(localDeploymentData?.manifest);
-        const version = await deploymentData.getManifestVersion(yamlVersion);
+        const version = await deploymentData.getManifestVersion(yamlVersion, true);
 
         setDeploymentVersion(version);
       } else {
@@ -129,7 +128,7 @@ export function ManifestUpdate({ deployment, leases, closeManifestEditor }) {
       const doc = yaml.load(editedManifest);
 
       const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, doc, parseInt(deployment.dseq), address); // TODO Flags
-      const mani = deploymentData.Manifest(doc);
+      const mani = deploymentData.getManifest(doc, true);
 
       // If it's actual update, send a transaction, else just send the manifest
       if (dd.version !== deployment.version) {

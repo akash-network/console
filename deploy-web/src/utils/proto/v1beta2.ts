@@ -1,3 +1,5 @@
+export { ProviderInfo } from "@akashnetwork/akashjs/build/protobuf/akash/provider/v1beta2/provider";
+export { Attribute } from "@akashnetwork/akashjs/build/protobuf/akash/base/v1beta2/attribute";
 export { MsgSignProviderAttributes, MsgDeleteProviderAttributes } from "@akashnetwork/akashjs/build/protobuf/akash/audit/v1beta2/audit";
 export { MsgCreateCertificate, MsgRevokeCertificate } from "@akashnetwork/akashjs/build/protobuf/akash/cert/v1beta2/cert";
 export { MsgCloseGroup, MsgPauseGroup, MsgStartGroup } from "@akashnetwork/akashjs/build/protobuf/akash/deployment/v1beta2/groupmsg";

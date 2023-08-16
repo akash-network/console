@@ -49,6 +49,7 @@ export async function syncProvidersInfo() {
             error: null,
             lastCheckDate: checkDate,
             cosmosSdkVersion: versionResponse.data.akash.cosmosSdkVersion,
+            akashVersion: versionResponse.data.akash.version,
             deploymentCount: response.data.manifest.deployments,
             leaseCount: response.data.cluster.leases,
             activeCPU: activeResources.cpu,

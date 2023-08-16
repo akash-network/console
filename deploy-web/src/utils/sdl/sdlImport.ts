@@ -1,8 +1,8 @@
 import { Expose, ImportService } from "@src/types";
 import { nanoid } from "nanoid";
 import { capitalizeFirstLetter } from "../stringUtils";
-import { CustomValidationError } from "./deploymentData/helpers";
 import yaml from "js-yaml";
+import { CustomValidationError } from "../deploymentData";
 
 export const importSimpleSdl = yamlStr => {
   try {

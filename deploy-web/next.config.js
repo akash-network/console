@@ -30,6 +30,13 @@ const moduleExports = {
   sentry: {
     hideSourceMaps: true
   },
+  webpack: config => {
+    // Fixes npm packages that depend on `node:crypto` module
+    config.externals.push({
+      "node:crypto": "crypto"
+    });
+    return config;
+  },
   redirects: async () => {
     return [
       {
