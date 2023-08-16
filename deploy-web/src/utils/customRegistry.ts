@@ -1,7 +1,7 @@
 import { Registry } from "@cosmjs/proto-signing";
 import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
 import { MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
-import { protoTypes } from "./protoTypes";
+import { protoTypes } from "./proto";
 import { TransactionMessageData } from "./TransactionMessageData";
 
 export let customRegistry: Registry;

@@ -37,7 +37,7 @@ import { LinkTo } from "../shared/LinkTo";
 import { SpecDetail } from "../shared/SpecDetail";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
-import { getAvgCostPerMonth, uaktToAKT } from "@src/utils/priceUtils";
+import { uaktToAKT } from "@src/utils/priceUtils";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { FavoriteButton } from "../shared/FavoriteButton";
@@ -187,7 +187,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
     setIsSendingManifest(true);
     try {
       const doc = yaml.load(deploymentManifest);
-      const manifest = deploymentData.Manifest(doc);
+      const manifest = deploymentData.getManifest(doc, true);
 
       await sendManifestToProvider(providerInfo, manifest, dseq, localCert);
 

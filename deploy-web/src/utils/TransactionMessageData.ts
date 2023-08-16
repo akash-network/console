@@ -1,6 +1,4 @@
-import { protoTypes } from "./protoTypes";
 import { networkVersion } from "./constants";
-import { Attribute, ProviderInfo } from "./proto/akash/v1beta3";
 
 export function setMessageTypes() {
   TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT = `/akash.deployment.${networkVersion}.MsgCloseDeployment`;
@@ -45,10 +43,6 @@ export class TransactionMessageData {
       }
     };
 
-    const err = protoTypes.MsgRevokeCertificate.verify(message.value);
-
-    if (err) throw err;
-
     return message;
   }
 
@@ -62,10 +56,6 @@ export class TransactionMessageData {
       }
     };
 
-    const err = protoTypes.MsgCreateCertificate.verify(message.value);
-
-    if (err) throw err;
-
     return message;
   }
 
@@ -73,7 +63,7 @@ export class TransactionMessageData {
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_CREATE_LEASE,
       value: {
-        bid_id: {
+        bidId: {
           owner: bid.owner,
           dseq: parseInt(bid.dseq),
           gseq: bid.gseq,
@@ -82,10 +72,6 @@ export class TransactionMessageData {
         }
       }
     };
-
-    const err = protoTypes.MsgCreateLease.verify(message.value);
-
-    if (err) throw err;
 
     return message;
   }
@@ -102,11 +88,6 @@ export class TransactionMessageData {
       }
     };
 
-    // TODO
-    //const err = protoTypes.MsgCreateDeployment.verify(txData.value);
-    let err = null;
-    if (err) throw err;
-
     return message;
   }
 
@@ -118,11 +99,6 @@ export class TransactionMessageData {
         version: deploymentData.version
       }
     };
-
-    // const err = protoTypes.MsgUpdateDeployment.verify(txData.value);
-
-    let err = null;
-    if (err) throw err;
 
     return message;
   }
@@ -143,10 +119,6 @@ export class TransactionMessageData {
       }
     };
 
-    const err = protoTypes.MsgDepositDeployment.verify(message.value);
-
-    if (err) throw err;
-
     return message;
   }
 
@@ -160,10 +132,6 @@ export class TransactionMessageData {
         }
       }
     };
-
-    const err = protoTypes.MsgCloseDeployment.verify(message.value);
-
-    if (err) throw err;
 
     return message;
   }
@@ -186,7 +154,7 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getGrantMsg(granter: string, grantee: string, spendLimit: number, expiration: Date) {
+  static getGrantMsg(granter, grantee, spendLimit, expiration) {
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_GRANT,
       value: {

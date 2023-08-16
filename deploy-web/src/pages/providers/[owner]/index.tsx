@@ -56,17 +56,22 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner }) => {
     enabled: false,
     retry: false,
     onSuccess: _providerStatus => {
-      setProvider(provider => (provider ? { ...provider, ...providerStatus } : providerStatus));
+      setProvider(provider => (provider ? { ...provider, ..._providerStatus } : _providerStatus));
     }
   });
   const isLoading = isLoadingProviders || isLoadingStatus || isLoadingLeases || isLoadingSchema;
 
   useEffect(() => {
-    if (provider) {
-      refresh();
-    }
+    getProviders();
+    getLeases();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provider]);
+  }, []);
+
+  useEffect(() => {
+    if (provider && !providerStatus) {
+      getProviderStatus();
+    }
+  }, [provider, providerStatus]);
 
   useEffect(() => {
     const providerFromList = providers?.find(d => d.owner === owner);
@@ -98,7 +103,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner }) => {
           </Box>
         )}
 
-        {provider && !provider.isActive && (
+        {provider && !provider.isActive && !isLoading && (
           <Alert
             variant="outlined"
             severity="warning"

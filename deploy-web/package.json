@@ -12,7 +12,7 @@
     "type-check": "tsc"
   },
   "dependencies": {
-    "@akashnetwork/akashjs": "^0.4.0",
+    "@akashnetwork/akashjs": "^0.4.8",
     "@auth0/nextjs-auth0": "^1.9.1",
     "@cosmjs/encoding": "^0.29.5",
     "@cosmjs/stargate": "^0.29.5",
