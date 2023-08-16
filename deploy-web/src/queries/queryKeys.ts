@@ -20,8 +20,6 @@ export class QueryKeys {
   static getTemplateKey = (id: string) => ["SDL_TEMPLATES", id];
   static getUserTemplatesKey = (username: string) => ["USER_TEMPLATES", username];
   static getUserFavoriteTemplatesKey = (userId: string) => ["USER_FAVORITES_TEMPLATES", userId];
-  static getAlertsKey = (userId: string) => ["ALERTS", userId];
-  static getAlertEventsKey = (userId: string, alertId: string, skip: number, limit: number) => ["ALERT_EVENTS", userId, alertId, skip, limit];
   static getGranterGrants = (address: string) => ["GRANTER_GRANTS", address];
   static getGranteeGrants = (address: string) => ["GRANTEE_GRANTS", address];
 

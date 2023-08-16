@@ -197,19 +197,6 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     router.push(url);
   };
 
-  // TODO Alerts
-  // const onSetAlert = () => {
-  //   window.open(
-  //     UrlService.alertsCreate(null, "akash", "deployment-balance-monitor", {
-  //       owner: { operator: "eq", value: address },
-  //       dseq: { operator: "eq", value: deployment.dseq }
-  //     }),
-  //     "_ blank"
-  //   );
-
-  //   handleMenuClose();
-  // };
-
   return (
     <>
       <CustomTableRow className={classes.root} onClick={() => viewDeployment()}>
@@ -348,7 +335,6 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         {isActive && <CustomMenuItem onClick={() => setIsDepositingDeployment(true)} icon={<AddIcon fontSize="small" />} text="Add funds" />}
         <CustomMenuItem onClick={() => changeDeploymentName(deployment.dseq)} icon={<EditIcon fontSize="small" />} text="Edit name" />
         {storageDeploymentData?.manifest && <CustomMenuItem onClick={() => redeploy()} icon={<PublishIcon fontSize="small" />} text="Redeploy" />}
-        {/* {isActive && <CustomMenuItem onClick={() => onSetAlert()} icon={<AddAlertIcon fontSize="small" />} text="Balance Alert" />} */}
         {isActive && <CustomMenuItem onClick={() => onCloseDeployment()} icon={<CancelPresentationIcon fontSize="small" />} text="Close" />}
       </Menu>
 

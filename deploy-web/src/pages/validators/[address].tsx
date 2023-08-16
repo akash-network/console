@@ -56,7 +56,6 @@ const ValidatorDetailPage: React.FunctionComponent<Props> = ({ address, validato
           </Box>
 
           <LabelValue label="Operator Address" value={validator.operatorAddress} />
-          {/** TODO Alerts */}
           {/* <LabelValue
             label="Address"
             value={
