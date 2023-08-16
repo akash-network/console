@@ -1,5 +1,5 @@
 import ReactMarkdown from "react-markdown";
-import { darken, lighten, useTheme } from "@mui/material";
+import { lighten, useTheme } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
 
 import remarkGfm from "remark-gfm";
@@ -17,9 +17,6 @@ const useStyles = makeStyles()(theme => ({
     wordBreak: "break-word",
     ".codeStyle, pre, code, code span": {
       // Your SyntaxHighlighter override styles here
-    },
-    "p:first-child": {
-      margin: 0
     },
     code: {
       // Your general code styles here
