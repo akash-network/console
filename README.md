@@ -394,4 +394,3 @@ Created when a user "favorite" a template
 |youtubeUsername|varchar
 |twitterUsername|varchar
 |githubUsername|varchar
-|accountType|varchar|`CLOUDMOS` or `BLOCKSPY`

@@ -143,9 +143,9 @@ userRouter.post(
   express.json(),
   asyncHandler(async (req: JWTRequest, res) => {
     const userId = req.auth?.sub;
-    const { wantedUsername, email, emailVerified, subscribedToNewsletter, accountType } = req.body;
+    const { wantedUsername, email, emailVerified, subscribedToNewsletter } = req.body;
 
-    const settings = await getSettingsOrInit(userId, wantedUsername, email, !!emailVerified, subscribedToNewsletter, accountType);
+    const settings = await getSettingsOrInit(userId, wantedUsername, email, !!emailVerified, subscribedToNewsletter);
 
     res.send(settings);
   })

@@ -2,13 +2,12 @@ import { Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-ty
 import { DataTypes, UUIDV4 } from "sequelize";
 import { Required } from "../decorators/requiredDecorator";
 import { Template } from "./template";
-import { UserAlert } from "./userAlert";
 
 @Table({
   modelName: "userSetting",
   indexes: [
     { unique: true, fields: ["userId"] },
-    { unique: true, fields: ["username", "accountType"] }
+    { unique: true, fields: ["username"] }
   ]
 })
 export class UserSetting extends Model {
@@ -23,12 +22,6 @@ export class UserSetting extends Model {
   @Column youtubeUsername?: string;
   @Column twitterUsername?: string;
   @Column githubUsername?: string;
-  // Temporary field to identify the type of account between cloudmos and blockspy.io
-  @Required
-  @Default("cloudmos")
-  @Column
-  accountType: string;
 
   @HasMany(() => Template, { foreignKey: "userId", sourceKey: "userId" }) templates: Template[];
-  @HasMany(() => UserAlert, { foreignKey: "userId", sourceKey: "userId" }) userAlerts: UserAlert[];
 }
