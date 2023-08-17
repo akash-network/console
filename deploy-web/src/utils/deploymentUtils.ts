@@ -1,7 +1,8 @@
 import axios from "axios";
 import { PROVIDER_PROXY_URL } from "./constants";
+import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 
-export const sendManifestToProvider = async (providerInfo, manifest, dseq, localCert) => {
+export const sendManifestToProvider = async (providerInfo, manifest, dseq: string, localCert: LocalCert) => {
   console.log("Sending manifest to " + providerInfo?.owner);
 
   let jsonStr = JSON.stringify(manifest);

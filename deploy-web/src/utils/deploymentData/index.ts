@@ -4,7 +4,7 @@ import { mainnetId, testnetId, sandboxId } from "../constants";
 export * from "./helpers";
 
 export let deploymentData;
-export let selectedNetworkId;
+export let selectedNetworkId: string;
 
 export function initDeploymentData() {
   selectedNetworkId = localStorage.getItem("selectedNetworkId");

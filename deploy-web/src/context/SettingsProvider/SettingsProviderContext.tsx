@@ -6,7 +6,6 @@ import { mainnetId, mainnetNodes } from "@src/utils/constants";
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 import { initAppTypes } from "@src/utils/init";
-import { Box, CircularProgress, Typography } from "@mui/material";
 
 type Node = {
   api: string;

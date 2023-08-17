@@ -1,6 +1,6 @@
 import rs from "jsrsasign";
 
-export async function openCert(certPem, encryptedKeyPem) {
+export async function openCert(certPem: string, encryptedKeyPem: string) {
   if (!certPem || !encryptedKeyPem) return null;
 
   const key = rs.KEYUTIL.getKeyFromPlainPrivatePKCS8PEM(encryptedKeyPem);

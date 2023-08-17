@@ -63,8 +63,6 @@ const ValidatorDetailPage: React.FunctionComponent<Props> = ({ address, validato
                 <Link href={UrlService.address(validator.address)}>
                   <a>{validator.address}</a>
                 </Link>
-
-                <AddressAlertCreateButtonLink sx={{ marginLeft: "1rem" }} address={address} />
               </Box>
             }
           /> */}

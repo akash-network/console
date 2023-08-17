@@ -1,7 +1,7 @@
 import { DeploymentDto, LeaseDto, RpcDeployment, RpcLease } from "@src/types/deployment";
 import { coinToUAkt } from "./priceUtils";
 
-export function deploymentResourceSum(deployment, resourceSelector) {
+export function deploymentResourceSum(deployment: RpcDeployment, resourceSelector) {
   return deployment.groups.map(g => g.group_spec.resources.map(r => r.count * resourceSelector(r.resources)).reduce((a, b) => a + b)).reduce((a, b) => a + b);
 }
 
@@ -37,8 +37,8 @@ export function deploymentToDto(d: RpcDeployment): DeploymentDto {
   };
 }
 
-export function convertToArrayIfNeeded(arrayOrItem) {
-  return arrayOrItem.map ? arrayOrItem : [arrayOrItem];
+export function convertToArrayIfNeeded<T>(arrayOrItem: T | T[]) {
+  return Array.isArray(arrayOrItem) ? arrayOrItem : [arrayOrItem];
 }
 
 export const getStorageAmount = resource => {

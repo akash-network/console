@@ -1,4 +1,5 @@
 import { networkVersion } from "./constants";
+import { BidDto } from "@src/types/deployment";
 
 export function setMessageTypes() {
   TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT = `/akash.deployment.${networkVersion}.MsgCloseDeployment`;
@@ -32,7 +33,7 @@ export class TransactionMessageData {
     MSG_REVOKE: "/cosmos.authz.v1beta1.MsgRevoke"
   };
 
-  static getRevokeCertificateMsg(address, serial) {
+  static getRevokeCertificateMsg(address: string, serial: string) {
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_REVOKE_CERTIFICATE,
       value: {
@@ -46,7 +47,7 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getCreateCertificateMsg(address, crtpem, pubpem) {
+  static getCreateCertificateMsg(address: string, crtpem: string, pubpem: string) {
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_CREATE_CERTIFICATE,
       value: {
@@ -59,7 +60,7 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getCreateLeaseMsg(bid) {
+  static getCreateLeaseMsg(bid: BidDto) {
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_CREATE_LEASE,
       value: {
@@ -122,7 +123,7 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getCloseDeploymentMsg(address, dseq) {
+  static getCloseDeploymentMsg(address: string, dseq: string) {
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT,
       value: {
@@ -136,7 +137,7 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getSendTokensMsg(address, recipient, amount) {
+  static getSendTokensMsg(address: string, recipient: string, amount: number) {
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_SEND_TOKENS,
       value: {
