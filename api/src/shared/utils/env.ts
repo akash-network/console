@@ -11,6 +11,7 @@ export const env = {
   AkashTestnetDatabaseCS: process.env.AkashTestnetDatabaseCS,
   UserDatabaseCS: process.env.UserDatabaseCS,
   Network: process.env.Network ?? "mainnet",
+  RestApiNodeUrl: process.env.RestApiNodeUrl,
   AkashlyticsGithubPAT: process.env.AkashlyticsGithubPAT,
   Auth0JWKSUri: process.env.Auth0JWKSUri,
   Auth0Audience: process.env.Auth0Audience,
