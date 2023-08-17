@@ -1,4 +1,19 @@
-# Cloudmos
+<div align="left">
+  
+  <a href="https://aimeos.org/">
+    <img src="./deploy-web/public/android-chrome-192x192.png" alt="Cloudmos logo" title="Cloudmos" align="left" height="40" />
+</a>
+  
+  # Cloudmos
+ 
+**Cloudmos** is an app that let's you deploy any [docker container](https://www.docker.com/) on the [Akash Network](https://akash.network) in a few clicks... 🛠
+  
+![version](https://img.shields.io/github/stars/akash-network/cloudmos)
+![license](https://img.shields.io/github/license/akash-network/cloudmos)
+[![Twitter URL](https://img.shields.io/twitter/url/https/twitter.com/bukotsunikki.svg?style=social&label=Follow%20%cloudmosio)](https://twitter.com/cloudmosio)
+[![https://discord.gg/akash](https://img.shields.io/badge/discord-join-7289DA.svg?logo=discord&longCache=true&style=flat)](https://discord.gg/akash)
+  
+</div>
 
 - [Services](#services)
 - [Monitoring](#monitoring)
