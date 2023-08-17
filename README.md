@@ -10,7 +10,7 @@
   
 ![version](https://img.shields.io/github/stars/akash-network/cloudmos)
 ![license](https://img.shields.io/github/license/akash-network/cloudmos)
-[![Twitter URL](https://img.shields.io/twitter/url/https/twitter.com/bukotsunikki.svg?style=social&label=Follow%20%cloudmosio)](https://twitter.com/cloudmosio)
+[![Twitter URL](https://img.shields.io/twitter/url/https/twitter.com/bukotsunikki.svg?style=social&label=Follow%20cloudmosio)](https://twitter.com/cloudmosio)
 [![https://discord.gg/akash](https://img.shields.io/badge/discord-join-7289DA.svg?logo=discord&longCache=true&style=flat)](https://discord.gg/akash)
   
 </div>
