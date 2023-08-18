@@ -1,4 +1,4 @@
-export function stringToBoolean(str: string) {
+export function stringToBoolean(str: string = "") {
   switch (str.toLowerCase()) {
     case "false":
     case "no":
