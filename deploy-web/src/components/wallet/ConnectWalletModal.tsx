@@ -82,7 +82,7 @@ export const ConnectWalletModal: React.FunctionComponent<Props> = ({ onClose }) 
       <DialogContent className={classes.content}>
         <Paper className={classes.connectionContainer} sx={{ mb: "1rem" }} onClick={onConnectKeplrClick}>
           <Box sx={{ width: "64px", height: "64px" }}>
-            <Image alt="Keplr Wallet Logo" src="/images/keplr-logo.png" quality={100} layout="fixed" width="64px" height="64px" priority />
+            <Image alt="Keplr Wallet Logo" src="/images/keplr-logo.png" quality={100} layout="fixed" width="64" height="64" priority />
           </Box>
 
           <Box sx={{ padding: "0 1rem" }}>
@@ -105,7 +105,7 @@ export const ConnectWalletModal: React.FunctionComponent<Props> = ({ onClose }) 
 
         <Paper className={classes.disabledConnectionContainer}>
           <Box sx={{ width: "64px", height: "64px" }}>
-            <Image alt="Wallet Connect Logo" src="/images/wallet-connect-logo.png" quality={100} layout="fixed" width="64px" height="64px" priority />
+            <Image alt="Wallet Connect Logo" src="/images/wallet-connect-logo.png" quality={100} layout="fixed" width="64" height="64" priority />
           </Box>
 
           <Box sx={{ padding: "0 1rem" }}>
