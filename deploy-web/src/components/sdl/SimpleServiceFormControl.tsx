@@ -268,11 +268,14 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                             ),
                             endAdornment: (
                               <InputAdornment position="end">
-                                <Link href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`} passHref>
-                                  <IconButton component="a" size="small" target="_blank">
-                                    <OpenInNewIcon fontSize="small" />
-                                  </IconButton>
-                                </Link>
+                                <IconButton
+                                  href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`}
+                                  component={Link}
+                                  size="small"
+                                  target="_blank"
+                                >
+                                  <OpenInNewIcon fontSize="small" />
+                                </IconButton>
                               </InputAdornment>
                             )
                           }}

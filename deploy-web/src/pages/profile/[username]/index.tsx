@@ -49,23 +49,22 @@ const UserProfilePage: React.FunctionComponent<Props> = ({ username, user }) => 
               <Typography variant="body2">No public templates.</Typography>
 
               {username === _user?.username && (
-                <Link href={UrlService.sdlBuilder()} passHref>
-                  <Button
-                    component="a"
-                    variant="contained"
-                    color="secondary"
-                    sx={{ marginTop: "1rem" }}
-                    size="small"
-                    onClick={() => {
-                      event(AnalyticsEvents.CREATE_SDL_TEMPLATE_LINK, {
-                        category: "profile",
-                        label: "Create SDL template link from profile"
-                      });
-                    }}
-                  >
-                    Create one!
-                  </Button>
-                </Link>
+                <Button
+                  component={Link}
+                  href={UrlService.sdlBuilder()}
+                  variant="contained"
+                  color="secondary"
+                  sx={{ marginTop: "1rem" }}
+                  size="small"
+                  onClick={() => {
+                    event(AnalyticsEvents.CREATE_SDL_TEMPLATE_LINK, {
+                      category: "profile",
+                      label: "Create SDL template link from profile"
+                    });
+                  }}
+                >
+                  Create one!
+                </Button>
               )}
             </Box>
           )}

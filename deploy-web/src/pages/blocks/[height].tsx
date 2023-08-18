@@ -45,7 +45,7 @@ const BlockDetailPage: React.FunctionComponent<Props> = ({ height, block }) => {
             label="Poposer"
             value={
               <Link href={UrlService.validator(block.proposer.operatorAddress)}>
-                <a>{block.proposer.moniker}</a>
+                {block.proposer.moniker}
               </Link>
             }
           />

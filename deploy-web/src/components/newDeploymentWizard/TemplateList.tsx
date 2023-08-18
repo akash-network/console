@@ -133,11 +133,9 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
           <strong>Staff Picks</strong>
         </Typography>
 
-        <Link href={UrlService.templates()} passHref>
-          <Box component="a" sx={{ display: "flex", alignItems: "center", fontSize: "1rem", marginLeft: "1rem" }}>
-            Search marketplace <ArrowForwardIcon fontSize="small" sx={{ marginLeft: ".5rem" }} />
-          </Box>
-        </Link>
+        <Box component={Link} href={UrlService.templates()} sx={{ display: "flex", alignItems: "center", fontSize: "1rem", marginLeft: "1rem" }}>
+          Search marketplace <ArrowForwardIcon fontSize="small" sx={{ marginLeft: ".5rem" }} />
+        </Box>
       </Box>
 
       <Box sx={{ marginBottom: "2rem" }}>
@@ -166,11 +164,9 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
       </Box>
 
       <Box sx={{ textAlign: "center", paddingBottom: "2rem" }}>
-        <Link href={UrlService.templates()} passHref>
-          <Button variant="contained" color="secondary">
-            See all categories
-          </Button>
-        </Link>
+        <Button href={UrlService.templates()} component={Link} variant="contained" color="secondary">
+          See all categories
+        </Button>
       </Box>
     </>
   );

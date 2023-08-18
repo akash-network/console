@@ -27,7 +27,7 @@ export const TemplateGridButton: React.FunctionComponent<Props> = ({ template, o
 
   return (
     <Grid item xs={12} sm={6} lg={3}>
-      <Link href={UrlService.template(template.id)} passHref>
+      <Link href={UrlService.template(template.id)}>
         <Paper className={classes.templateButton} onClick={onClick}>
           <Typography variant="body1" sx={{ fontWeight: "bold" }}>
             {template.title}

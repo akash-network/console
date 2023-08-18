@@ -43,7 +43,7 @@ export const Delegations: React.FunctionComponent<Props> = ({ delegations }) => 
             <CustomTableRow key={delegation.validator.operatorAddress}>
               <TableCell>
                 <Link href={UrlService.validator(delegation.validator.operatorAddress)}>
-                  <a>{getShortText(delegation.validator.moniker, 20)}</a>
+                  {getShortText(delegation.validator.moniker, 20)}
                 </Link>
               </TableCell>
               <TableCell align="right">

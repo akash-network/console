@@ -143,8 +143,10 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
 
       <TableCell align="center">
         {provider.name ? (
-          <Link href={UrlService.providerDetail(provider.owner)}>
-            <a onClick={e => e.stopPropagation()}>{provider.name?.length > 25 ? getSplitText(provider.name, 10, 10) : provider.name}</a>
+          <Link
+            href={UrlService.providerDetail(provider.owner)}
+            onClick={e => e.stopPropagation()}>
+            {provider.name?.length > 25 ? getSplitText(provider.name, 10, 10) : provider.name}
           </Link>
         ) : (
           <div>

@@ -79,20 +79,18 @@ export const Header: React.FunctionComponent<Props> = ({ children, isMobileOpen,
         <ErrorBoundary FallbackComponent={ErrorFallback}>
           {!isMobileSearch && (
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Link href={UrlService.home()}>
-                <Box sx={{ height: "35px", width: "140px" }}>
-                  <Image
-                    alt="Cloudmos Logo"
-                    src={theme.palette.mode === "dark" ? "/images/cloudmos-logo.png" : "/images/cloudmos-logo-light.png"}
-                    layout="responsive"
-                    quality={100}
-                    width={140}
-                    height={35}
-                    loading="eager"
-                    priority
-                  />
-                </Box>
-              </Link>
+              <Box href={UrlService.home()} component={Link} sx={{ height: "35px", width: "140px" }}>
+                <Image
+                  alt="Cloudmos Logo"
+                  src={theme.palette.mode === "dark" ? "/images/cloudmos-logo.png" : "/images/cloudmos-logo-light.png"}
+                  layout="responsive"
+                  quality={100}
+                  width={140}
+                  height={35}
+                  loading="eager"
+                  priority
+                />
+              </Box>
             </Box>
           )}
 
@@ -121,21 +119,19 @@ export const Header: React.FunctionComponent<Props> = ({ children, isMobileOpen,
           <Box sx={{ maxHeight: `${accountBarHeight}px`, alignItems: "center", display: { xs: "none", sm: "none", md: "flex" } }}>
             <div>
               <Link passHref href={UrlService.getStarted()}>
-                <a>
-                  <StyledBadge overlap="circular" anchorOrigin={{ vertical: "top", horizontal: "right" }} variant="dot">
-                    <Button
-                      variant="text"
-                      sx={{
-                        textTransform: "initial",
-                        color: router.pathname === UrlService.getStarted() ? theme.palette.secondary.main : "",
-                        fontSize: "1rem"
-                      }}
-                      disableRipple
-                    >
-                      Get Started
-                    </Button>
-                  </StyledBadge>
-                </a>
+                <StyledBadge overlap="circular" anchorOrigin={{ vertical: "top", horizontal: "right" }} variant="dot">
+                  <Button
+                    variant="text"
+                    sx={{
+                      textTransform: "initial",
+                      color: router.pathname === UrlService.getStarted() ? theme.palette.secondary.main : "",
+                      fontSize: "1rem"
+                    }}
+                    disableRipple
+                  >
+                    Get Started
+                  </Button>
+                </StyledBadge>
               </Link>
             </div>
 

@@ -52,9 +52,9 @@ const ProviderEditPage: React.FunctionComponent<Props> = ({ owner }) => {
         {provider && providerAttributesSchema && (
           <>
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Link href={UrlService.providerDetail(provider.owner)} passHref>
-                <Button startIcon={<ChevronLeftIcon />}>Back</Button>
-              </Link>
+              <Button component={Link} href={UrlService.providerDetail(provider.owner)} startIcon={<ChevronLeftIcon />}>
+                Back
+              </Button>
 
               <Typography variant="h1" sx={{ fontSize: "1.5rem", marginLeft: "1.5rem" }}>
                 Edit Provider <strong>{getProviderNameFromUri(provider.host_uri)}</strong>

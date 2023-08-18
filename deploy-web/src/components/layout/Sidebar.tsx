@@ -204,23 +204,32 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           width: "100%"
         }}
       >
-        <Link href={UrlService.newDeployment()} passHref>
-          {_isNavOpen ? (
-            <Button size="large" variant="contained" color="secondary" fullWidth sx={{ height: "45px", lineHeight: "1rem" }} onClick={onDeployClick}>
-              Deploy <RocketLaunchIcon sx={{ marginLeft: "1rem" }} fontSize="small" />
-            </Button>
-          ) : (
-            <Button
-              size="large"
-              variant="contained"
-              color="secondary"
-              sx={{ padding: ".5rem 0", minWidth: _isNavOpen ? "initial" : 0, width: "45px", height: "45px" }}
-              onClick={onDeployClick}
-            >
-              <RocketLaunchIcon fontSize="medium" />
-            </Button>
-          )}
-        </Link>
+        {_isNavOpen ? (
+          <Button
+            component={Link}
+            href={UrlService.newDeployment()}
+            size="large"
+            variant="contained"
+            color="secondary"
+            fullWidth
+            sx={{ height: "45px", lineHeight: "1rem" }}
+            onClick={onDeployClick}
+          >
+            Deploy <RocketLaunchIcon sx={{ marginLeft: "1rem" }} fontSize="small" />
+          </Button>
+        ) : (
+          <Button
+            size="large"
+            component={Link}
+            href={UrlService.newDeployment()}
+            variant="contained"
+            color="secondary"
+            sx={{ padding: ".5rem 0", minWidth: _isNavOpen ? "initial" : 0, width: "45px", height: "45px" }}
+            onClick={onDeployClick}
+          >
+            <RocketLaunchIcon fontSize="medium" />
+          </Button>
+        )}
 
         {routeGroups.map((g, i) => (
           <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={_isNavOpen} />

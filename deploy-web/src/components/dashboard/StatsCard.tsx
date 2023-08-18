@@ -135,14 +135,12 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({
 
       {graphPath && (
         <CardActions sx={{ alignSelf: "flex-start", padding: 0, paddingBottom: ".5rem", paddingLeft: "1rem" }}>
-          <Link href={graphPath} passHref>
-            <Button aria-label="graph" size="small" classes={{ text: classes.actionButtonLabel }}>
-              <Box component="span" marginRight=".5rem">
-                Graph
-              </Box>
-              <TimelineIcon className={classes.actionIcon} />
-            </Button>
-          </Link>
+          <Button component={Link} href={graphPath} aria-label="graph" size="small" classes={{ text: classes.actionButtonLabel }}>
+            <Box component="span" marginRight=".5rem">
+              Graph
+            </Box>
+            <TimelineIcon className={classes.actionIcon} />
+          </Button>
 
           {actionButton}
         </CardActions>

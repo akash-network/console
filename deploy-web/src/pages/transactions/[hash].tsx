@@ -46,7 +46,7 @@ const TransactionDetailPage: React.FunctionComponent<Props> = ({ transaction, ha
             label="Height"
             value={
               <Link href={UrlService.block(transaction.height)}>
-                <a>{transaction.height}</a>
+                {transaction.height}
               </Link>
             }
           />

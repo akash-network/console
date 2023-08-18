@@ -67,9 +67,9 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ owner, dseq, dep
                 label="Owner"
                 value={
                   <Link href={UrlService.address(deployment.owner)}>
-                    <a>
-                      <Address address={deployment.owner} />
-                    </a>
+
+                    <Address address={deployment.owner} />
+
                   </Link>
                 }
                 labelWidth="12rem"
@@ -132,8 +132,8 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ owner, dseq, dep
                     {deployment.events.map((event, i) => (
                       <CustomTableRow key={`${event.txHash}_${i}`}>
                         <TableCell>
-                          <Link href={UrlService.transaction(event.txHash)}>
-                            <a target="_blank">{getSplitText(event.txHash, 6, 6)}</a>
+                          <Link href={UrlService.transaction(event.txHash)} target="_blank">
+                            {getSplitText(event.txHash, 6, 6)}
                           </Link>
                         </TableCell>
                         <TableCell align="center">{useFriendlyMessageType(event.type)}</TableCell>
@@ -194,8 +194,10 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ owner, dseq, dep
                     label="Provider"
                     value={
                       <>
-                        <Link href={UrlService.address(lease.provider.address)}>
-                          <a title={lease.provider.address}>{getSplitText(lease.provider.address, 10, 10)}</a>
+                        <Link
+                          href={UrlService.address(lease.provider.address)}
+                          title={lease.provider.address}>
+                          {getSplitText(lease.provider.address, 10, 10)}
                         </Link>
                         <br />
                         {new URL(lease.provider.hostUri).hostname}

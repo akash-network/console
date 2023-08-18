@@ -151,22 +151,22 @@ const TemplatePage: React.FunctionComponent<Props> = ({ id, template }) => {
             Deploy
           </Button>
 
-          <Link href={UrlService.sdlBuilder(template.id)} passHref>
-            <Button
-              variant="text"
-              color="secondary"
-              size="small"
-              sx={{ marginLeft: "1rem" }}
-              onClick={() => {
-                event(AnalyticsEvents.CLICK_EDIT_SDL_TEMPLATE, {
-                  category: "sdl_builder",
-                  label: "Click on edit SDL template"
-                });
-              }}
-            >
-              Edit
-            </Button>
-          </Link>
+          <Button
+            href={UrlService.sdlBuilder(template.id)}
+            component={Link}
+            variant="text"
+            color="secondary"
+            size="small"
+            sx={{ marginLeft: "1rem" }}
+            onClick={() => {
+              event(AnalyticsEvents.CLICK_EDIT_SDL_TEMPLATE, {
+                category: "sdl_builder",
+                label: "Click on edit SDL template"
+              });
+            }}
+          >
+            Edit
+          </Button>
 
           <Box sx={{ marginLeft: "1rem" }}>
             <UserFavoriteButton

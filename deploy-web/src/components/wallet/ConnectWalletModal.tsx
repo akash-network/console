@@ -121,7 +121,7 @@ export const ConnectWalletModal: React.FunctionComponent<Props> = ({ onClose }) 
           <Alert severity="info" icon={false} sx={{ fontSize: ".7rem" }}>
             By connecting a wallet, you acknowledge that you have read and understand our{" "}
             <Link href={UrlService.termsOfService()}>
-              <a>Terms of Service.</a>
+              Terms of Service.
             </Link>
           </Alert>
         </Box>

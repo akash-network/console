@@ -45,12 +45,12 @@ export const Redelegations: React.FunctionComponent<Props> = ({ redelegations })
             <CustomTableRow key={`${redelegation.srcAddress.operatorAddress}_${redelegation.dstAddress.operatorAddress}`}>
               <TableCell>
                 <Link href={UrlService.validator(redelegation.srcAddress.operatorAddress)}>
-                  <a>{getShortText(redelegation.srcAddress.moniker, 20)}</a>
+                  {getShortText(redelegation.srcAddress.moniker, 20)}
                 </Link>
               </TableCell>
               <TableCell>
                 <Link href={UrlService.validator(redelegation.dstAddress.operatorAddress)}>
-                  <a>{getShortText(redelegation.dstAddress.moniker, 20)}</a>
+                  {getShortText(redelegation.dstAddress.moniker, 20)}
                 </Link>
               </TableCell>
               <TableCell align="right">

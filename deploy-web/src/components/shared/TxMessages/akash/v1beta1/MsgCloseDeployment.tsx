@@ -9,17 +9,15 @@ type TxMessageProps = {
 };
 
 export const MsgCloseDeployment: React.FunctionComponent<TxMessageProps> = ({ message }) => {
-  return (
-    <>
-      <LabelValue label="Owner" value={<AddressLink address={message?.data?.id?.owner} />} />
-      <LabelValue
-        label="dseq"
-        value={
-          <Link href={UrlService.publicDeploymentDetails(message?.data?.id?.owner, message?.data?.id?.dseq)}>
-            <a>{message?.data?.id?.dseq}</a>
-          </Link>
-        }
-      />
-    </>
-  );
+  return <>
+    <LabelValue label="Owner" value={<AddressLink address={message?.data?.id?.owner} />} />
+    <LabelValue
+      label="dseq"
+      value={
+        <Link href={UrlService.publicDeploymentDetails(message?.data?.id?.owner, message?.data?.id?.dseq)}>
+          {message?.data?.id?.dseq}
+        </Link>
+      }
+    />
+  </>;
 };
