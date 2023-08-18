@@ -3,7 +3,7 @@ import Layout from "@src/components/layout/Layout";
 import { NextSeo } from "next-seo";
 import { DeploymentDetailTopBar } from "@src/components/deploymentDetail/DeploymentDetailTopBar";
 import { DeploymentSubHeader } from "@src/components/deploymentDetail/DeploymentSubHeader";
-import { Alert, Box, Button, CircularProgress, Tab, Tabs } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Tab, Tabs, Typography } from "@mui/material";
 import { LeaseRow } from "@src/components/deploymentDetail/LeaseRow";
 import { useRouter } from "next/router";
 import { createRef, useEffect, useState } from "react";
@@ -22,6 +22,8 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useSettings } from "@src/context/SettingsProvider";
 import PageContainer from "@src/components/shared/PageContainer";
+import Link from "next/link";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
 type Props = {
   dseq: string;
@@ -52,7 +54,8 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ dseq }) => {
   const {
     data: deployment,
     isFetching: isLoadingDeployment,
-    refetch: getDeploymentDetail
+    refetch: getDeploymentDetail,
+    error: deploymentError
   } = useDeploymentDetail(address, dseq, {
     enabled: false,
     onSuccess: _deploymentDetail => {
@@ -92,6 +95,7 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ dseq }) => {
       }
     }
   });
+  const isDeploymentNotFound = deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found");
   const hasLeases = leases && leases.length > 0;
   const { isLocalCertMatching, localCert, isCreatingCert, createCertificate } = useCertificate();
   const [deploymentManifest, setDeploymentManifest] = useState(null);
@@ -158,6 +162,21 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ dseq }) => {
           setActiveTab={setActiveTab}
           deployment={deployment}
         />
+
+        {isDeploymentNotFound && (
+          <Box sx={{ textAlign: "center", marginTop: 10 }}>
+            <Typography variant="h1">404</Typography>
+            <Typography variant="subtitle1">This deployment does not exist or it was created using another wallet.</Typography>
+            <Box sx={{ paddingTop: "1rem" }}>
+              <Link href={UrlService.home()} passHref>
+                <Button variant="contained" color="secondary" sx={{ display: "inline-flex", alignItems: "center", textTransform: "initial" }}>
+                  Go to homepage&nbsp;
+                  <ArrowForwardIcon fontSize="small" />
+                </Button>
+              </Link>
+            </Box>
+          </Box>
+        )}
 
         {deployment && (
           <>

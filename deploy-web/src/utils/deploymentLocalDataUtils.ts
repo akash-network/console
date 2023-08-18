@@ -10,6 +10,9 @@ export type LocalDeploymentData = {
 export function getDeploymentLocalData(dseq: string | number) {
   const selectedNetworkId = localStorage.getItem("selectedNetworkId");
   const selectedWallet = getSelectedStorageWallet();
+
+  if (!selectedWallet) return null;
+
   const dataStr = localStorage.getItem(`${selectedNetworkId}/${selectedWallet.address}/deployments/${dseq}.data`);
   if (!dataStr) return null;
 
