@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@akashnetwork/akashjs": "^0.4.9",
-    "@auth0/nextjs-auth0": "^1.9.1",
+    "@auth0/nextjs-auth0": "^3.1.0",
     "@cosmjs/encoding": "^0.29.5",
     "@cosmjs/stargate": "^0.29.5",
     "@emotion/cache": "^11.7.1",
@@ -28,7 +28,7 @@
     "@nivo/line": "^0.80.0",
     "@nivo/pie": "^0.80.0",
     "@react-spring/web": "^9.3.1",
-    "@sentry/nextjs": "7.11.1",
+    "@sentry/nextjs": "^7.64.0",
     "@stripe/react-stripe-js": "^1.12.0",
     "@stripe/stripe-js": "^1.41.0",
     "@textea/json-viewer": "^3.0.0",

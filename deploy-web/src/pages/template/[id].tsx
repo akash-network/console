@@ -13,7 +13,7 @@ import { LeaseSpecDetail } from "@src/components/shared/LeaseSpecDetail";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { useEffect, useState } from "react";
-import { getSession, getServerSidePropsWrapper } from "@auth0/nextjs-auth0";
+import { getSession } from "@auth0/nextjs-auth0";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
@@ -230,9 +230,9 @@ const TemplatePage: React.FunctionComponent<Props> = ({ id, template }) => {
 
 export default TemplatePage;
 
-export const getServerSideProps = getServerSidePropsWrapper(async function getServerSideProps({ params, req, res }) {
+export const getServerSideProps = async function getServerSideProps({ params, req, res }) {
   try {
-    const session = getSession(req, res);
+    const session = await getSession(req, res);
     let config = {};
 
     if (session) {
@@ -260,4 +260,4 @@ export const getServerSideProps = getServerSidePropsWrapper(async function getSe
       throw error;
     }
   }
-});
+};

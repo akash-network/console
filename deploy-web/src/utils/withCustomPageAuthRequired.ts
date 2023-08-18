@@ -1,12 +1,12 @@
-import { getSession, PageRoute, withPageAuthRequired, WithPageAuthRequiredOptions } from "@auth0/nextjs-auth0";
+import { getSession, PageRoute, withPageAuthRequired, WithPageAuthRequiredPageRouterOptions } from "@auth0/nextjs-auth0";
 import { ParsedUrlQuery } from "querystring";
 import { UrlService } from "./urlUtils";
 
-export function withCustomPageAuthRequired(opts: WithPageAuthRequiredOptions<{}, ParsedUrlQuery>): PageRoute<{}, ParsedUrlQuery> {
+export function withCustomPageAuthRequired(opts: WithPageAuthRequiredPageRouterOptions<{}, ParsedUrlQuery>): PageRoute<{}, ParsedUrlQuery> {
   return withPageAuthRequired({
     ...opts,
     getServerSideProps: async params => {
-      const session = getSession(params.req, params.res);
+      const session = await getSession(params.req, params.res);
 
       const accessTokenExpiry = new Date(session.accessTokenExpiresAt * 1_000);
 

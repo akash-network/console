@@ -3,12 +3,12 @@ import { BASE_API_MAINNET_URL } from "@src/utils/constants";
 import httpProxy from "http-proxy";
 
 export default (req, res) => {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     // removes the api prefix from url
     req.url = req.url.replace(/^\/api\/proxy/, "");
 
     console.log("proxy:", req.url);
-    const session = getSession(req, res);
+    const session = await getSession(req, res);
 
     // don't forwards the cookies to the target server
     req.headers.cookie = "";
