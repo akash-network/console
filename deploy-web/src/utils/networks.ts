@@ -135,9 +135,9 @@ export let networks = [
         // The name of the chain to be displayed to the user.
         chainName: "Akash-Sandbox",
         // RPC endpoint of the chain. In this case we are using blockapsis, as it's accepts connections from any host currently. No Cors limitations.
-        rpc: "https://rpc.sandbox.ny.aksh.pw",
+        rpc: "https://api.sandbox-01.aksh.pw",
         // REST endpoint of the chain.
-        rest: "https://api.sandbox.ny.aksh.pw",
+        rest: "https://rpc.sandbox-01.aksh.pw",
         // Staking coin information
         stakeCurrency: {
           // Coin denomination to be displayed to the user.
