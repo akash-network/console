@@ -4,12 +4,12 @@ import { makeStyles } from "tss-react/mui";
 import { useRouter } from "next/router";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import Layout from "@src/components/layout/Layout";
-import { NextSeo } from "next-seo";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { ProviderDetail } from "@src/types/provider";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
 import ProviderDetailLayout, { ProviderDetailTabs } from "@src/components/providers/ProviderDetailLayout";
 import { DynamicReactJson } from "@src/components/shared/DynamicJsonView";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 
 type Props = {
   owner: string;
@@ -64,7 +64,7 @@ const ProviderRawPage: React.FunctionComponent<Props> = ({ owner }) => {
 
   return (
     <Layout isLoading={isLoadingLeases || isLoadingProviders || isLoadingStatus}>
-      <NextSeo title={`Provider raw data ${owner}`} />
+      <CustomNextSeo title={`Provider raw data for ${owner}`} url={`https://deploy.cloudmos.io/providers/${owner}/raw`} />
 
       <ProviderDetailLayout address={owner} page={ProviderDetailTabs.RAW} refresh={refresh} provider={provider}>
         {provider && <DynamicReactJson src={JSON.parse(JSON.stringify(provider))} collapsed={1} />}

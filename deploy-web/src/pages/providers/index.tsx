@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   IconButton,
-  Grid,
   FormControlLabel,
   Checkbox,
   TextField,
@@ -25,7 +24,6 @@ import { useAkashProviders } from "@src/context/AkashProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import Layout from "@src/components/layout/Layout";
-import { NextSeo } from "next-seo";
 import { useNetworkCapacity } from "@src/queries/useProvidersQuery";
 import PageContainer from "@src/components/shared/PageContainer";
 import { ProviderMap } from "@src/components/providers/ProviderMap";
@@ -33,6 +31,7 @@ import { ProviderList } from "@src/components/providers/ProviderList";
 import { useSelectedNetwork } from "@src/utils/networks";
 import dynamic from "next/dynamic";
 import LaunchIcon from "@mui/icons-material/Launch";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 
 const NetworkCapacity = dynamic(() => import("../../components/providers/NetworkCapacity"), {
   ssr: false
@@ -185,7 +184,7 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
 
   return (
     <Layout isLoading={isLoadingProviders || isLoadingLeases || isLoadingNetworkCapacity}>
-      <NextSeo title="Providers" />
+      <CustomNextSeo title="Providers" url={`https://deploy.cloudmos.io/providers`} description="Explore all the providers available on the Akash Network." />
 
       <PageContainer>
         <Typography variant="h1" className={classes.title} sx={{ marginBottom: ".2rem" }}>

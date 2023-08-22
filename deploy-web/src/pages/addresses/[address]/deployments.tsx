@@ -3,7 +3,6 @@ import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import { useTheme } from "@mui/material/styles";
 import Layout from "@src/components/layout/Layout";
-import { NextSeo } from "next-seo";
 import {
   CircularProgress,
   FormControl,
@@ -23,6 +22,7 @@ import { useAddressDeployments } from "@src/queries/useTransactionsQuery";
 import SearchOffIcon from "@mui/icons-material/SearchOff";
 import AddressLayout from "@src/components/address/AddressLayout";
 import { DeploymentRow } from "@src/components/deployment/DeploymentRow";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 
 type Props = {
   address: string;
@@ -58,7 +58,7 @@ const AddressDeploymentsPage: React.FunctionComponent<Props> = ({ address }) => 
 
   return (
     <Layout>
-      <NextSeo title={`Account ${address} deployments`} />
+      <CustomNextSeo title={`Account ${address} deployments`} url={`https://deploy.cloudmos.io/addresses/${address}/deployments`} />
 
       <AddressLayout page="deployments" address={address}>
         <Box sx={{ mt: "1rem" }}>

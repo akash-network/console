@@ -22,7 +22,6 @@ import { Redelegations } from "@src/components/address/Redelegations";
 import { FormattedDecimal } from "@src/components/shared/FormattedDecimal";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { Title } from "@src/components/shared/Title";
-import { NextSeo } from "next-seo";
 import HelpIcon from "@mui/icons-material/Help";
 import { getSplitText } from "@src/hooks/useShortText";
 import QrCodeIcon from "@mui/icons-material/QrCode";
@@ -42,6 +41,7 @@ import { useAddressBook } from "@src/context/AddressBookProvider";
 import AddressLayout from "@src/components/address/AddressLayout";
 import { TransactionRow } from "@src/components/blockchain/TransactionRow";
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 
 type Props = {
   address: string;
@@ -101,7 +101,7 @@ const AddressDetailPage: React.FunctionComponent<Props> = ({ address, addressDet
 
   return (
     <Layout>
-      <NextSeo title={`Account ${address}`} />
+      <CustomNextSeo title={`Account ${address}`} url={`https://deploy.cloudmos.io/addresses/${address}`} />
       <SendAktModal onClose={() => setIsShowingSendModal(false)} open={isShowingSendModal} toAddress={address} />
       {showMustConnectModal && <MustConnectModal message={showMustConnectModal} onClose={() => setShowMustConnectModal(null)} />}
 

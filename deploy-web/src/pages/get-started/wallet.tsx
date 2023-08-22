@@ -2,16 +2,15 @@ import React from "react";
 import { makeStyles } from "tss-react/mui";
 import Layout from "@src/components/layout/Layout";
 import PageContainer from "@src/components/shared/PageContainer";
-import { NextSeo } from "next-seo";
 import { Breadcrumbs, Card, CardContent, CardHeader, Paper, Typography, useTheme } from "@mui/material";
 import { useRouter } from "next/router";
 import { UrlService } from "@src/utils/urlUtils";
 import { NoWalletSection } from "@src/components/get-started/NoWalletSection";
 import Link from "next/link";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
-import { CreateWalletSection } from "@src/components/get-started/CreateWalletSection";
 import { NoKeplrSection } from "@src/components/get-started/NoKeplrSection";
 import { WithKeplrSection } from "@src/components/get-started/WithKeplrSection";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 
 const useStyles = makeStyles()(theme => ({
   paper: {
@@ -66,7 +65,11 @@ const GetStartedWallet: React.FunctionComponent<Props> = ({}) => {
 
   return (
     <Layout>
-      <NextSeo title="Setup wallet" description="Follow the steps to install Keplr and get tokens!" />
+      <CustomNextSeo
+        title="Setup wallet"
+        url={`https://deploy.cloudmos.io/get-started/wallet`}
+        description="Follow the steps to install Keplr and get tokens!"
+      />
 
       <PageContainer>
         <Breadcrumbs sx={{ marginBottom: "1rem" }} separator={<NavigateNextIcon fontSize="small" />}>

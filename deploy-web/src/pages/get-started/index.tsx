@@ -2,9 +2,9 @@ import React from "react";
 import { makeStyles } from "tss-react/mui";
 import Layout from "@src/components/layout/Layout";
 import PageContainer from "@src/components/shared/PageContainer";
-import { NextSeo } from "next-seo";
 import { Card, CardContent, CardHeader, useTheme } from "@mui/material";
 import { GetStartedStepper } from "@src/components/get-started/GetStartedStepper";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 
 const useStyles = makeStyles()(theme => ({}));
 
@@ -16,7 +16,11 @@ const GetStarted: React.FunctionComponent<Props> = ({}) => {
 
   return (
     <Layout>
-      <NextSeo title="Get started with Cloudmos" description="Follow the steps to get started with Cloudmos!" />
+      <CustomNextSeo
+        title="Get started with Cloudmos"
+        url={`https://deploy.cloudmos.io/get-started`}
+        description="Follow the steps to get started with Cloudmos!"
+      />
 
       <PageContainer>
         <Card elevation={1}>

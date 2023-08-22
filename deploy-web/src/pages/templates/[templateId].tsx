@@ -7,7 +7,6 @@ import { useTemplates } from "../../context/TemplatesProvider";
 import { makeStyles } from "tss-react/mui";
 import { useRouter } from "next/router";
 import Layout from "@src/components/layout/Layout";
-import { NextSeo } from "next-seo";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import ViewPanel from "@src/components/shared/ViewPanel";
@@ -18,6 +17,8 @@ import { BASE_API_MAINNET_URL, RouteStepKeys } from "@src/utils/constants";
 import axios from "axios";
 import { ApiTemplate } from "@src/types";
 import Markdown from "@src/components/shared/Markdown";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { getShortText } from "@src/utils/stringUtils";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -68,7 +69,11 @@ const TemplateDetailPage: React.FunctionComponent<Props> = ({ templateId, templa
 
   return (
     <Layout>
-      <NextSeo title={`Template detail${_template ? " " + _template?.name : ""}`} />
+      <CustomNextSeo
+        title={`Template detail${_template ? " " + _template?.name : ""}`}
+        url={`https://deploy.cloudmos.io/templates/${templateId}`}
+        description={getShortText(_template.summary || "", 140)}
+      />
 
       <div className={classes.root}>
         <Tabs

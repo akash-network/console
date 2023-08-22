@@ -27,6 +27,8 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
 import { UserFavoriteButton } from "@src/components/shared/UserFavoriteButton";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { getShortText } from "@src/utils/stringUtils";
 
 type Props = {
   id: string;
@@ -77,6 +79,12 @@ const TemplatePage: React.FunctionComponent<Props> = ({ id, template }) => {
   };
   return (
     <Layout>
+      <CustomNextSeo
+        title={`${template.title}`}
+        url={`https://deploy.cloudmos.io/template/${id}`}
+        description={getShortText(template.description || "", 140)}
+      />
+
       <Popup
         fullWidth
         variant="custom"
@@ -105,9 +113,6 @@ const TemplatePage: React.FunctionComponent<Props> = ({ id, template }) => {
       >
         Are you sure you want to delete template: "{template.title}"?
       </Popup>
-
-      <NextSeo title={template.title} />
-      {/* <SdlViewer sdl={template.sdl} onClose={() => setIsViewingSdl(false)} open={isViewingSdl} /> */}
 
       <PageContainer>
         <Box sx={{ display: "flex", alignItems: "baseline", marginBottom: "1rem" }}>

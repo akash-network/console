@@ -113,7 +113,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
         if (!isConnectionEstablished) {
           // Welcome message
           terminalRef.current.reset();
-          terminalRef.current.write("Welcome to Cloudmos Deploy Shell! ☁️");
+          terminalRef.current.write("Welcome to Cloudmos Shell! ☁️");
           terminalRef.current.write("\n\r");
           terminalRef.current.write("You're now connected just as ssh to your docker instance.");
           terminalRef.current.write("\n\r");
@@ -271,7 +271,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
               <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
                 {isConnectionClosed && (
                   <Alert variant="standard" severity="warning" sx={{ borderRadius: 0 }}>
-                    The connection to your Cloudmos Deploy Shell was lost.
+                    The connection to your Cloudmos Shell was lost.
                   </Alert>
                 )}
                 <XTerm ref={terminalRef} onKey={onTerminalKey} onTerminalPaste={onTerminalPaste} />

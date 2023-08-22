@@ -2,9 +2,9 @@ import { useTheme } from "@mui/material/styles";
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import PageContainer from "@src/components/shared/PageContainer";
-import { NextSeo } from "next-seo";
-import { Box, Chip } from "@mui/material";
+import { Chip } from "@mui/material";
 import { SimpleSDLBuilderForm } from "@src/components/sdl/SimpleSdlBuilderForm";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 
 type Props = {};
 
@@ -13,7 +13,11 @@ const SDLBuilderPage: React.FunctionComponent<Props> = ({}) => {
 
   return (
     <Layout>
-      <NextSeo title="SDL Builder" />
+      <CustomNextSeo
+        title="SDL Builder"
+        url="https://deploy.cloudmos.io/sdl-builder"
+        description="Build your own SDL configuration to deploy a docker container on the Akash Network, the #1 decentralized supercloud."
+      />
 
       <PageContainer>
         <Title

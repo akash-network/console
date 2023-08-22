@@ -4,12 +4,12 @@ import { makeStyles } from "tss-react/mui";
 import { useRouter } from "next/router";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import Layout from "@src/components/layout/Layout";
-import { NextSeo } from "next-seo";
 import { LeaseList } from "@src/components/providers/LeaseList";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { ProviderDetail } from "@src/types/provider";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
 import ProviderDetailLayout, { ProviderDetailTabs } from "@src/components/providers/ProviderDetailLayout";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 
 type Props = {
   owner: string;
@@ -77,7 +77,7 @@ const ProviderLeasesPage: React.FunctionComponent<Props> = ({ owner }) => {
 
   return (
     <Layout isLoading={isLoadingLeases || isLoadingProviders || isLoadingStatus}>
-      <NextSeo title={`Provider leases ${owner}`} />
+      <CustomNextSeo title={`Provider leases for ${owner}`} url={`https://deploy.cloudmos.io/providers/${owner}/leases`} />
 
       <ProviderDetailLayout address={owner} page={ProviderDetailTabs.LEASES} refresh={refresh} provider={provider}>
         <div className={classes.root}>

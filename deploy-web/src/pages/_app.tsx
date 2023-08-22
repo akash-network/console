@@ -63,7 +63,7 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
   return (
     <>
       <Head>
-        <title>Cloudmos Deploy</title>
+        <title>Cloudmos</title>
       </Head>
 
       <CacheProvider value={emotionCache}>
