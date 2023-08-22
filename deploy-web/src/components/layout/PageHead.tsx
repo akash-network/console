@@ -16,19 +16,29 @@ const PageHead: React.FunctionComponent<Props> = ({}) => {
       </Head>
 
       <DefaultSeo
+        title="Cloudmos"
         titleTemplate="%s | Cloudmos"
         description="Cloudmos is the #1 platform to deploy docker containers on the Akash Network, a decentralized cloud compute marketplace. Explore, deploy and track all in one place!"
-        // openGraph={{
-        //   type: "website",
-        //   locale: "en_IE",
-        //   url: "https://www.url.ie/",
-        //   site_name: "SiteName"
-        // }}
-        // twitter={{
-        //   handle: "@handle",
-        //   site: "@site",
-        //   cardType: "summary_large_image"
-        // }}
+        openGraph={{
+          type: "website",
+          locale: "en_US",
+          url: "https://cloudmos.io/",
+          site_name: "Cloudmos",
+          description: "Deploy docker containers on the decentralized supercloud Akash Network.",
+          images: [
+            {
+              url: 'https://www.cloudmos.io/cloudmos-cover.png',
+              width: 800,
+              height: 600,
+              alt: 'Og Image Alt',
+            }
+          ],
+        }}
+        twitter={{
+          handle: "@cloudmosio",
+          site: "@cloudmosio",
+          cardType: "summary_large_image"
+        }}
       />
     </>
   );
