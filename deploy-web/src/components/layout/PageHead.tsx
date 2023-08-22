@@ -18,7 +18,7 @@ const PageHead: React.FunctionComponent<Props> = ({}) => {
       <DefaultSeo
         title="Cloudmos"
         titleTemplate="%s | Cloudmos"
-        description="Cloudmos is the #1 platform to deploy docker containers on the Akash Network, a decentralized cloud compute marketplace. Explore, deploy and track all in one place!"
+        description="Cloudmos is the #1 platform to deploy docker containers on the Akash Network, a decentralized super cloud compute marketplace. Explore, deploy and track all in one place!"
         openGraph={{
           type: "website",
           locale: "en_US",
@@ -28,9 +28,9 @@ const PageHead: React.FunctionComponent<Props> = ({}) => {
           images: [
             {
               url: 'https://www.cloudmos.io/cloudmos-cover.png',
-              width: 800,
-              height: 600,
-              alt: 'Og Image Alt',
+              width: 1600,
+              height: 529,
+              alt: 'Cloudmos Cover Image',
             }
           ],
         }}
