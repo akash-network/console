@@ -22,9 +22,7 @@ export const DeploymentRow: React.FunctionComponent<Props> = ({ deployment }) =>
   return (
     <CustomTableRow>
       <TableCell>
-        <Link
-          href={UrlService.publicDeploymentDetails(deployment.owner, deployment.dseq)}
-          target="_blank">
+        <Link href={UrlService.publicDeploymentDetails(deployment.owner, deployment.dseq)} target="_blank">
           {deployment.dseq}
         </Link>
       </TableCell>

@@ -19,11 +19,9 @@ export const AddressLink: React.FunctionComponent<Props> = ({ address, addressBo
 
   if (href) {
     return (
-      (<Link href={href}>
-
+      <Link href={href}>
         <Address address={address} addressBookMode={addressBookMode} disableTruncate />
-
-      </Link>)
+      </Link>
     );
   } else {
     return <Address address={address} disableTruncate isCopyable />;

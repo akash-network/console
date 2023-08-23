@@ -29,7 +29,7 @@ export const DiscordLogo = (props: React.SVGProps<SVGSVGElement>) => {
 };
 
 interface Props extends React.SVGProps<SVGSVGElement> {
-  width?: number; 
+  width?: number;
   height?: number;
   children?: ReactNode;
 }

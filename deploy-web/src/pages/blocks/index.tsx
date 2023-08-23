@@ -57,11 +57,7 @@ const BlocksPage: React.FunctionComponent<Props> = ({}) => {
                   </TableRow>
                 </CustomTableHeader>
 
-                <TableBody>
-                  {blocks?.map(block => (
-                    <BlockRow key={block.height} block={block} />
-                  ))}
-                </TableBody>
+                <TableBody>{blocks?.map(block => <BlockRow key={block.height} block={block} />)}</TableBody>
               </Table>
             </TableContainer>
           )}

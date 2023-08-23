@@ -202,7 +202,14 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ open, control,
                     control={control}
                     name={`services.${serviceIndex}.expose.${expIndex}.proto`}
                     render={({ field }) => (
-                      <Select value={field.value || ""} onChange={field.onChange} variant="outlined" size="small" fullWidth MenuProps={{ disableScrollLock: true }}>
+                      <Select
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        variant="outlined"
+                        size="small"
+                        fullWidth
+                        MenuProps={{ disableScrollLock: true }}
+                      >
                         {protoTypes.map(t => (
                           <MenuItem key={t.id} value={t.name}>
                             {t.name}

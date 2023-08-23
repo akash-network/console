@@ -36,7 +36,6 @@ const MemoLeaseRow: React.FunctionComponent<Props> = ({ lease }) => {
       </TableCell>
       <TableCell>
         <Link href={UrlService.deploymentDetails(lease.dseq)} passHref>
-
           {lease.dseq}
           {deploymentName && (
             <Box component="span" fontWeight="normal">
@@ -44,7 +43,6 @@ const MemoLeaseRow: React.FunctionComponent<Props> = ({ lease }) => {
               - {deploymentName}
             </Box>
           )}
-
         </Link>
       </TableCell>
       <TableCell>

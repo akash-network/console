@@ -67,9 +67,7 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ owner, dseq, dep
                 label="Owner"
                 value={
                   <Link href={UrlService.address(deployment.owner)}>
-
                     <Address address={deployment.owner} />
-
                   </Link>
                 }
                 labelWidth="12rem"
@@ -194,9 +192,7 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ owner, dseq, dep
                     label="Provider"
                     value={
                       <>
-                        <Link
-                          href={UrlService.address(lease.provider.address)}
-                          title={lease.provider.address}>
+                        <Link href={UrlService.address(lease.provider.address)} title={lease.provider.address}>
                           {getSplitText(lease.provider.address, 10, 10)}
                         </Link>
                         <br />

@@ -10,17 +10,12 @@ type TxMessageProps = {
 };
 
 export const MsgDeleteProviderAttributes: React.FunctionComponent<TxMessageProps> = ({ message }) => {
-  return <>
-    <LabelValue
-      label="Provider"
-      value={
-        <Link href={UrlService.address(message?.data?.owner)}>
-          {message?.data?.owner}
-        </Link>
-      }
-    />
-    {/* TODO: Add link to provider page */}
-    <LabelValue label="Auditor" value={<AddressLink address={message?.data?.auditor} />} />
-    <LabelValue label="Keys" value={<DynamicReactJson src={JSON.parse(JSON.stringify(message?.data?.keys))} />} />
-  </>;
+  return (
+    <>
+      <LabelValue label="Provider" value={<Link href={UrlService.address(message?.data?.owner)}>{message?.data?.owner}</Link>} />
+      {/* TODO: Add link to provider page */}
+      <LabelValue label="Auditor" value={<AddressLink address={message?.data?.auditor} />} />
+      <LabelValue label="Keys" value={<DynamicReactJson src={JSON.parse(JSON.stringify(message?.data?.keys))} />} />
+    </>
+  );
 };

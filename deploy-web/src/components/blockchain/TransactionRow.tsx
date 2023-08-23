@@ -54,9 +54,7 @@ export const TransactionRow: React.FunctionComponent<Props> = ({ transaction, bl
         </>
       )}
       <TableCell align="center">
-        <Link href={UrlService.block(blockHeight)}>
-          {blockHeight}
-        </Link>
+        <Link href={UrlService.block(blockHeight)}>{blockHeight}</Link>
       </TableCell>
       <TableCell align="center">
         <Typography variant="caption">

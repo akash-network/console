@@ -9,18 +9,13 @@ type TxMessageProps = {
 };
 
 export const MsgVote: React.FunctionComponent<TxMessageProps> = ({ message }) => {
-  return <>
-    <LabelValue
-      label="Proposal Id"
-      value={
-        <Link href={UrlService.proposal(message?.data?.proposalId)}>
-          #{message?.data?.proposalId}
-        </Link>
-      }
-    />
-    <LabelValue label="Voter" value={<AddressLink address={message?.data?.voter} />} />
-    <LabelValue label="Option" value={getVoteDescription(message?.data?.option)} />
-  </>;
+  return (
+    <>
+      <LabelValue label="Proposal Id" value={<Link href={UrlService.proposal(message?.data?.proposalId)}>#{message?.data?.proposalId}</Link>} />
+      <LabelValue label="Voter" value={<AddressLink address={message?.data?.voter} />} />
+      <LabelValue label="Option" value={getVoteDescription(message?.data?.option)} />
+    </>
+  );
 };
 
 function getVoteDescription(voteOption: string) {

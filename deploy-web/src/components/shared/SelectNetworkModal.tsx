@@ -72,12 +72,7 @@ export const SelectNetworkModal = ({ onClose }) => {
         <List className={classes.list}>
           {networks.map(network => {
             return (
-              <ListItemButton
-                key={network.id}
-                dense
-                onClick={() => handleSelectNetwork(network)}
-                disabled={!network.enabled}
-              >
+              <ListItemButton key={network.id} dense onClick={() => handleSelectNetwork(network)} disabled={!network.enabled}>
                 <ListItemIcon>
                   <Radio checked={localSelectedNetworkId === network.id} value={network.id} color="secondary" />
                 </ListItemIcon>

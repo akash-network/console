@@ -68,11 +68,7 @@ const TransactionsPage: React.FunctionComponent<Props> = ({}) => {
                   </TableRow>
                 </CustomTableHeader>
 
-                <TableBody>
-                  {transactions?.map(tx => (
-                    <TransactionRow key={tx.hash} transaction={tx} blockHeight={tx.height} />
-                  ))}
-                </TableBody>
+                <TableBody>{transactions?.map(tx => <TransactionRow key={tx.hash} transaction={tx} blockHeight={tx.height} />)}</TableBody>
               </Table>
             </TableContainer>
           )}
@@ -85,7 +81,6 @@ const TransactionsPage: React.FunctionComponent<Props> = ({}) => {
 export default TransactionsPage;
 
 export async function getServerSideProps({ params }) {
-
   return {
     props: {}
   };

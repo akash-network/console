@@ -51,9 +51,7 @@ export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider, provid
           label="GPU Models"
           value={getProviderAttributeValue("hardware-gpu-model", provider, providerAttributesSchema)
             ?.split(",")
-            .map(x => (
-              <Chip key={x} label={x} size="small" sx={{ marginRight: ".5rem" }} />
-            ))}
+            .map(x => <Chip key={x} label={x} size="small" sx={{ marginRight: ".5rem" }} />)}
         />
         <LabelValue label="CPU Architecture" value={getProviderAttributeValue("hardware-cpu-arch", provider, providerAttributesSchema)} />
         <LabelValue label="Disk Storage" value={getProviderAttributeValue("hardware-disk", provider, providerAttributesSchema)} />

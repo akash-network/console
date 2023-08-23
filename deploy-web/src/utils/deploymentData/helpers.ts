@@ -1,6 +1,6 @@
 import axios from "axios";
-import { SDL } from '@akashnetwork/akashjs/build/sdl';
-import { v2Sdl } from '@akashnetwork/akashjs/build/sdl/types';
+import { SDL } from "@akashnetwork/akashjs/build/sdl";
+import { v2Sdl } from "@akashnetwork/akashjs/build/sdl/types";
 
 export class CustomValidationError extends Error {
   constructor(message) {
@@ -40,7 +40,7 @@ export async function getCurrentHeight(apiEndpoint) {
 
 export function parseSizeStr(str) {
   try {
-    const suffix = Object.keys(specSuffixes).find((s) => str.toString().toLowerCase().endsWith(s.toLowerCase()));
+    const suffix = Object.keys(specSuffixes).find(s => str.toString().toLowerCase().endsWith(s.toLowerCase()));
 
     if (suffix) {
       const suffixPos = str.length - suffix.length;
@@ -55,10 +55,10 @@ export function parseSizeStr(str) {
   }
 }
 
-type NetworkType = 'beta2' | 'beta3';
+type NetworkType = "beta2" | "beta3";
 
 function isString(value: unknown): value is string {
-  return typeof value === 'object' && value !== null && value.constructor === String;
+  return typeof value === "object" && value !== null && value.constructor === String;
 }
 
 export function getSdl(yamlJson: string | v2Sdl, networkType: NetworkType) {

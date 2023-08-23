@@ -79,7 +79,6 @@ const AddressDetailPage: React.FunctionComponent<Props> = ({ address, addressDet
       options={{
         type: "image/jpeg",
         quality: 0.3,
-        level: "M",
         margin: 2,
         scale: 4,
         width: 175,
@@ -299,9 +298,7 @@ const AddressDetailPage: React.FunctionComponent<Props> = ({ address, addressDet
                   </CustomTableHeader>
 
                   <TableBody>
-                    {addressDetail.latestTransactions?.map(tx => (
-                      <TransactionRow key={tx.hash} transaction={tx} blockHeight={tx.height} />
-                    ))}
+                    {addressDetail.latestTransactions?.map(tx => <TransactionRow key={tx.hash} transaction={tx} blockHeight={tx.height} />)}
                   </TableBody>
                 </Table>
               </TableContainer>

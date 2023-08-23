@@ -23,17 +23,13 @@ export const BlockRow: React.FunctionComponent<Props> = ({ block }) => {
   return (
     <CustomTableRow>
       <TableCell align="center">
-        <Link href={UrlService.block(block.height)}>
-          {block.height}
-        </Link>
+        <Link href={UrlService.block(block.height)}>{block.height}</Link>
       </TableCell>
       <TableCell align="center">
         <Link href={UrlService.validator(block.proposer.operatorAddress)}>
-
           <Box component="span" className="text-truncate" sx={{ maxWidht: "150px" }}>
             {getShortText(block.proposer.moniker, 20)}
           </Box>
-
         </Link>
       </TableCell>
       <TableCell
