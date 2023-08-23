@@ -43,7 +43,7 @@ import Link from "next/link";
 import { PriceValue } from "../shared/PriceValue";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { averageDaysInMonth } from "@src/utils/dateUtils";
-import Image from "next/image";
+import Image from "next/legacy/image";
 
 type Props = {
   service: Service;

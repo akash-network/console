@@ -2,7 +2,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import React, { ReactNode, useState } from "react";
 import { makeStyles } from "tss-react/mui";
-import Image from "next/image";
+import Image from "next/legacy/image";
 import { CustomDialogTitle } from "@src/components/shared/CustomDialogTitle";
 import Paper from "@mui/material/Paper";
 import Box from "@mui/material/Box";

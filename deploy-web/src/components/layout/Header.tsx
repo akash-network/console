@@ -7,7 +7,7 @@ import { ErrorFallback } from "../shared/ErrorFallback";
 import { accountBarHeight } from "@src/utils/constants";
 import { Badge, Button, IconButton, styled, useMediaQuery, useTheme } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
-import Image from "next/image";
+import Image from "next/legacy/image";
 import { KeplrWalletStatus } from "./KeplrWalletStatus";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
