@@ -1,4 +1,4 @@
-import { PriceValue } from "./PriceValue";
+import { AktPriceValue } from "./PriceValue";
 import InfoIcon from "@mui/icons-material/Info";
 import { averageBlockTime, getAvgCostPerMonth, uaktToAKT } from "@src/utils/priceUtils";
 import { averageDaysInMonth } from "@src/utils/dateUtils";
@@ -32,21 +32,21 @@ export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value }) 
           <Typography variant="caption">Price estimation:</Typography>
           <div>
             <strong>
-              <PriceValue value={_value} />
+              <AktPriceValue value={_value} />
             </strong>
             &nbsp; per block (~{averageBlockTime}sec.)
           </div>
 
           <div>
             <strong>
-              <PriceValue value={_value * (60 / averageBlockTime) * 60 * 24} />
+              <AktPriceValue value={_value * (60 / averageBlockTime) * 60 * 24} />
             </strong>
             &nbsp; per day
           </div>
 
           <div>
             <strong>
-              <PriceValue value={_value * (60 / averageBlockTime) * 60 * 24 * averageDaysInMonth} />
+              <AktPriceValue value={_value * (60 / averageBlockTime) * 60 * 24 * averageDaysInMonth} />
             </strong>
             &nbsp; per month
           </div>

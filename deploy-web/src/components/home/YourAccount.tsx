@@ -3,7 +3,7 @@ import { ResponsivePie } from "@nivo/pie";
 import { makeStyles } from "tss-react/mui";
 import { Box, Button, Card, CardContent, CardHeader, Chip, CircularProgress, lighten, Typography, useTheme } from "@mui/material";
 import { uaktToAKT } from "@src/utils/priceUtils";
-import { PriceValue } from "../shared/PriceValue";
+import { AktPriceValue } from "../shared/PriceValue";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { StatusPill } from "../shared/StatusPill";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
@@ -284,7 +284,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                       <div className={classes.legendValue}>{uaktToAKT(balance.value, 2)} AKT</div>
                       {!!balance.value && (
                         <div>
-                          <PriceValue value={uaktToAKT(balance.value, 6)} />
+                          <AktPriceValue value={uaktToAKT(balance.value, 6)} />
                         </div>
                       )}
                     </div>
@@ -299,7 +299,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     {!!total && (
                       <div>
                         <strong>
-                          <PriceValue value={uaktToAKT(total, 6)} />
+                          <AktPriceValue value={uaktToAKT(total, 6)} />
                         </strong>
                       </div>
                     )}

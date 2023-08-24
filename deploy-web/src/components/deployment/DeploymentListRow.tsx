@@ -27,7 +27,7 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { NamedDeploymentDto } from "@src/types/deployment";
 import { MergedProvider } from "@src/types/provider";
 import { CustomTableRow } from "../shared/CustomTable";
-import { PriceValue } from "../shared/PriceValue";
+import { AktPriceValue } from "../shared/PriceValue";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import { PricePerMonth } from "../shared/PricePerMonth";
@@ -227,7 +227,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         <TableCell align="center">
           {isActive && !!escrowBalance && (
             <Box marginLeft={isValidTimeLeft ? "1rem" : 0} display="flex">
-              <PriceValue value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.escrow : escrowBalance, 6)} />
+              <AktPriceValue value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.escrow : escrowBalance, 6)} />
               <CustomTooltip
                 arrow
                 title={

@@ -10,7 +10,7 @@ type Props = {
   showLt?: boolean;
 };
 
-export const PriceValue: React.FunctionComponent<Props> = ({ value, showLt }) => {
+export const AktPriceValue: React.FunctionComponent<Props> = ({ value, showLt }) => {
   const { isLoaded, price } = usePricing();
   const _value = (typeof value === "string" ? parseFloat(value) : value) * price;
   const computedValue = _value > 0 ? ceilDecimal(_value) : 0;

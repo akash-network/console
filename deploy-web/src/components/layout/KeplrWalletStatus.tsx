@@ -11,7 +11,7 @@ import { Chip, CircularProgress, IconButton, Menu } from "@mui/material";
 import { usePopupState, bindTrigger, bindMenu } from "material-ui-popup-state/hooks";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { Address } from "../shared/Address";
-import { PriceValue } from "../shared/PriceValue";
+import { AktPriceValue } from "../shared/PriceValue";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { CustomMenuItem } from "../shared/CustomMenuItem";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
@@ -19,6 +19,8 @@ import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import { GrantModal } from "../wallet/GrantModal";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
+import { FormattedNumber } from "react-intl";
+import { useWalletBalance } from "@src/hooks/useWalletBalance";
 
 type Props = {
   children?: ReactNode;
@@ -40,6 +42,7 @@ export const KeplrWalletStatus: React.FunctionComponent<Props> = ({}) => {
   const { classes } = useStyles();
   const { isKeplrConnected, walletName, address, walletBalances, logout, isWalletLoaded } = useKeplr();
   const [isShowingGrantModal, setIsShowingGrantModal] = useState(false);
+  const walletBalance = useWalletBalance();
 
   function onDisconnectClick() {
     popupState.close();
@@ -80,14 +83,33 @@ export const KeplrWalletStatus: React.FunctionComponent<Props> = ({}) => {
                     <CustomTooltip
                       title={
                         <Box sx={{ fontSize: "1rem" }}>
-                          <FormattedDecimal value={udenomToDenom(walletBalances.uakt, 2)} />
-                          <Box component="span" sx={{ marginLeft: ".2rem", fontSize: ".6rem" }}>
-                            AKT
-                          </Box>
+                          <div>
+                            <FormattedDecimal value={udenomToDenom(walletBalances.uakt, 2)} />
+                            <Box component="span" sx={{ marginLeft: ".2rem", fontSize: ".6rem" }}>
+                              AKT
+                            </Box>
+                          </div>
+                          <div>
+                            <FormattedDecimal value={udenomToDenom(walletBalances.usdc, 2)} />
+                            <Box component="span" sx={{ marginLeft: ".2rem", fontSize: ".6rem" }}>
+                              USDC
+                            </Box>
+                          </div>
                         </Box>
                       }
                     >
-                      <Chip label={<PriceValue value={uaktToAKT(walletBalances.uakt, 6)} />} size="small" sx={{ fontSize: ".75rem", fontWeight: "bold" }} />
+                      <Chip
+                        label={
+                          <FormattedNumber
+                            value={walletBalance}
+                            // eslint-disable-next-line react/style-prop-object
+                            style="currency"
+                            currency="USD"
+                          />
+                        }
+                        size="small"
+                        sx={{ fontSize: ".75rem", fontWeight: "bold" }}
+                      />
                     </CustomTooltip>
                   </div>
                 )}

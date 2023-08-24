@@ -9,7 +9,7 @@ import { SignedByFormControl, SignedByRefType } from "./SignedByFormControl";
 import { AttributesFormControl, AttributesRefType } from "./AttributesFormControl";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
-import { PriceValue } from "../shared/PriceValue";
+import { AktPriceValue } from "../shared/PriceValue";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 
 type Props = {
@@ -176,7 +176,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ open, contr
                       <br />
                       <div>
                         <strong>
-                          ~<PriceValue value={getAvgCostPerMonth(_placement.pricing.amount)} />
+                          ~<AktPriceValue value={getAvgCostPerMonth(_placement.pricing.amount)} />
                         </strong>
                         &nbsp; per month
                       </div>

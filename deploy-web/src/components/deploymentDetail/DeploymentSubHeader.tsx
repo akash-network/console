@@ -5,7 +5,7 @@ import isValid from "date-fns/isValid";
 import { makeStyles } from "tss-react/mui";
 import { getAvgCostPerMonth, uaktToAKT, useRealTimeLeft } from "@src/utils/priceUtils";
 import { Box } from "@mui/material";
-import { PriceValue } from "../shared/PriceValue";
+import { AktPriceValue } from "../shared/PriceValue";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import { StatusPill } from "../shared/StatusPill";
 import { CustomTooltip } from "../shared/CustomTooltip";
@@ -41,7 +41,7 @@ export function DeploymentSubHeader({ deployment, leases }) {
           labelWidth="6rem"
           value={
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <PriceValue value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance, 6)} />
+              <AktPriceValue value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance, 6)} />
               <CustomTooltip
                 arrow
                 title={
@@ -86,7 +86,7 @@ export function DeploymentSubHeader({ deployment, leases }) {
           labelWidth="6rem"
           value={
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <PriceValue value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.amountSpent : deployment.transferred.amount, 6)} />
+              <AktPriceValue value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.amountSpent : deployment.transferred.amount, 6)} />
 
               <CustomTooltip
                 arrow
