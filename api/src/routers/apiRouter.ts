@@ -368,7 +368,7 @@ apiRouter.get(
   "/getAuditors",
   asyncHandler(async (req, res) => {
     const response = await cacheResponse(60 * 5, cacheKeys.getAuditors, async () => {
-      const res = await axios.get("https://raw.githubusercontent.com/ovrclk/cloudmos-config/master/auditors.json");
+      const res = await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/auditors.json");
       return res.data;
     });
     res.send(response);
@@ -379,7 +379,7 @@ apiRouter.get(
   "/getMainnetNodes",
   asyncHandler(async (req, res) => {
     const response = await cacheResponse(60 * 2, cacheKeys.getMainnetNodes, async () => {
-      const res = await axios.get("https://raw.githubusercontent.com/ovrclk/cloudmos-config/master/mainnet-nodes.json");
+      const res = await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/mainnet-nodes.json");
       return res.data;
     });
     res.send(response);
@@ -390,7 +390,7 @@ apiRouter.get(
   "/getTestnetNodes",
   asyncHandler(async (req, res) => {
     const response = await cacheResponse(60 * 2, cacheKeys.getTestnetNodes, async () => {
-      const res = await axios.get("https://raw.githubusercontent.com/ovrclk/cloudmos-config/master/testnet-nodes.json");
+      const res = await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/testnet-nodes.json");
       return res.data;
     });
     res.send(response);
@@ -401,7 +401,7 @@ apiRouter.get(
   "/getSandboxNodes",
   asyncHandler(async (req, res) => {
     const response = await cacheResponse(60 * 2, cacheKeys.getSandboxNodes, async () => {
-      const res = await axios.get("https://raw.githubusercontent.com/ovrclk/cloudmos-config/master/sandbox-nodes.json");
+      const res = await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/sandbox-nodes.json");
       return res.data;
     });
     res.send(response);
