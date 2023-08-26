@@ -20,7 +20,7 @@ import { GrantModal } from "../wallet/GrantModal";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { FormattedNumber } from "react-intl";
-import { useWalletBalance } from "@src/hooks/useWalletBalance";
+import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 
 type Props = {
   children?: ReactNode;
@@ -42,7 +42,7 @@ export const KeplrWalletStatus: React.FunctionComponent<Props> = ({}) => {
   const { classes } = useStyles();
   const { isKeplrConnected, walletName, address, walletBalances, logout, isWalletLoaded } = useKeplr();
   const [isShowingGrantModal, setIsShowingGrantModal] = useState(false);
-  const walletBalance = useWalletBalance();
+  const walletBalance = useTotalWalletBalance();
 
   function onDisconnectClick() {
     popupState.close();

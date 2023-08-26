@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { useState, useEffect } from "react";
 import { SigningStargateClient } from "@cosmjs/stargate";
-import { mainnetId, selectedNetworkId, testnetId, uDenom, usdcIbcDenom } from "@src/utils/constants";
+import { mainnetId, selectedNetworkId, testnetId, uAktDenom, usdcIbcDenom } from "@src/utils/constants";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useSnackbar } from "notistack";
@@ -248,7 +248,7 @@ export const KeplrWalletProvider = ({ children }) => {
           amount: [
             {
               amount: "0.025",
-              denom: uDenom
+              denom: uAktDenom
             }
           ],
           gas: Math.ceil(simulation * 1.25).toString()
@@ -360,7 +360,7 @@ export const KeplrWalletProvider = ({ children }) => {
 
     if (client) {
       const balances = await client.getAllBalances(_address);
-      const uaktBalance = balances.find(b => b.denom === uDenom);
+      const uaktBalance = balances.find(b => b.denom === uAktDenom);
       const usdcBalance = balances.find(b => b.denom === usdcIbcDenom);
 
       const walletBalances = {
