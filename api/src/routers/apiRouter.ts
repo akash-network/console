@@ -14,7 +14,6 @@ import {
 } from "@src/providers/apiNodeProvider";
 import { getNetworkCapacity, getProviders } from "@src/providers/providerStatusProvider";
 import { getDashboardData, getGraphData, getProviderActiveLeasesGraphData, getProviderGraphData } from "@src/db/statsProvider";
-import * as marketDataProvider from "@src/providers/marketDataProvider";
 import { round } from "@src/shared/utils/math";
 import { isValidBech32Address } from "@src/shared/utils/addresses";
 import { getAkashPricing, getAWSPricing, getAzurePricing, getGCPPricing } from "@src/shared/utils/pricing";
@@ -233,9 +232,9 @@ apiRouter.get(
   })
 );
 
-apiRouter.get("/marketData", (req, res) => {
-  const marketData = marketDataProvider.getAktMarketData();
-  res.send(marketData);
+apiRouter.get("/marketData", async (req, res) => {
+  const response = await cacheResponse(60, cacheKeys.getMarketData, getAktMarketData);
+  res.send(response);
 });
 
 apiRouter.get(
@@ -440,3 +439,6 @@ apiRouter.get(
     res.send(response);
   })
 );
+function getAktMarketData(): Promise<any> {
+  throw new Error("Function not implemented.");
+}

@@ -1,4 +1,4 @@
-import fetch from "node-fetch";
+import axios from "axios";
 
 interface AktMarketData {
   price: number;
@@ -9,26 +9,17 @@ interface AktMarketData {
   priceChangePercentage24: number;
 }
 
-let aktMarketData: AktMarketData = null;
-
-export async function fetchLatestData() {
+export async function getMarketData(): Promise<AktMarketData> {
   const endpointUrl = "https://api.coingecko.com/api/v3/coins/akash-network";
-
   console.log("Fetching latest market data from " + endpointUrl);
+  const response = await axios.get(endpointUrl);
 
-  const response = await fetch(endpointUrl);
-  const data = await response.json();
-
-  aktMarketData = {
-    price: parseFloat(data.market_data.current_price.usd),
-    volume: parseInt(data.market_data.total_volume.usd),
-    marketCap: parseInt(data.market_data.market_cap.usd),
-    marketCapRank: data.market_cap_rank,
-    priceChange24h: parseFloat(data.market_data.price_change_24h),
-    priceChangePercentage24: parseFloat(data.market_data.price_change_percentage_24h)
+  return {
+    price: parseFloat(response.data.market_data.current_price.usd),
+    volume: parseInt(response.data.market_data.total_volume.usd),
+    marketCap: parseInt(response.data.market_data.market_cap.usd),
+    marketCapRank: response.data.market_cap_rank,
+    priceChange24h: parseFloat(response.data.market_data.price_change_24h),
+    priceChangePercentage24: parseFloat(response.data.market_data.price_change_percentage_24h)
   };
 }
-
-export const getAktMarketData = () => {
-  return aktMarketData;
-};
