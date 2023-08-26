@@ -1,5 +1,5 @@
 import { CustomValidationError, DeploymentGroups, Manifest, ManifestVersion, getCurrentHeight, getSdl, parseSizeStr } from "./helpers";
-import { defaultInitialDeposit, testnetId } from "../constants";
+import { defaultInitialDeposit } from "../constants";
 import { stringToBoolean } from "../stringUtils";
 const path = require("path");
 
@@ -210,19 +210,33 @@ export async function getManifestVersion(yamlJson, asString = false) {
   }
 }
 
+const getDenomFromSdl = (groups: any[]): string => {
+  console.log(groups);
+
+  const denoms = groups
+    .map(g => g.resources)
+    .flat()
+    .map(resource => resource.price.denom);
+
+  console.log(denoms);
+
+  return denoms[0];
+};
+
 export async function NewDeploymentData(apiEndpoint, yamlJson, dseq, fromAddress, deposit = defaultInitialDeposit, depositorAddress = null) {
   // Validate the integrity of the yaml
   validate(yamlJson);
 
   const groups = DeploymentGroups(yamlJson, "beta3");
   const mani = Manifest(yamlJson, "beta3");
+  const denom = getDenomFromSdl(groups);
   const ver = await ManifestVersion(yamlJson, "beta3");
   const id = {
     owner: fromAddress,
     dseq: dseq
   };
   const _deposit = {
-    denom: "uakt",
+    denom,
     amount: deposit.toString()
   };
 

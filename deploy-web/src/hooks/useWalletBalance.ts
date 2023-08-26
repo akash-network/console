@@ -10,7 +10,7 @@ export const useWalletBalance = () => {
   const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && walletBalances) {
       const aktUsdValue = uaktToAKT(walletBalances.uakt, 6) * price;
       const totalUsdValue = udenomToDenom(walletBalances.usdc, 6);
 

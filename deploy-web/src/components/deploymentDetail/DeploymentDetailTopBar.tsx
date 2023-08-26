@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Dispatch, ReactNode, SetStateAction, useState } from "react";
 import { DeploymentDepositModal } from "./DeploymentDepositModal";
 import PublishIcon from "@mui/icons-material/Publish";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
@@ -17,6 +17,7 @@ import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { DeploymentDto } from "@src/types/deployment";
 
 const useStyles = makeStyles()(theme => ({
   title: {
@@ -38,7 +39,16 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export function DeploymentDetailTopBar({ address, loadDeploymentDetail, removeLeases, setActiveTab, deployment }) {
+type Props = {
+  address: string;
+  loadDeploymentDetail: () => void;
+  removeLeases: () => void;
+  setActiveTab: Dispatch<SetStateAction<string>>;
+  deployment: DeploymentDto;
+  children?: ReactNode;
+};
+
+export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address, loadDeploymentDetail, removeLeases, setActiveTab, deployment }) => {
   const { classes } = useStyles();
   const [anchorEl, setAnchorEl] = useState(null);
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
@@ -47,7 +57,6 @@ export function DeploymentDetailTopBar({ address, loadDeploymentDetail, removeLe
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const deploymentName = getDeploymentName(deployment?.dseq);
-  const isActive = deployment?.state === "active";
 
   function handleBackClick() {
     router.back();
@@ -196,7 +205,13 @@ export function DeploymentDetailTopBar({ address, loadDeploymentDetail, removeLe
         )}
       </Box>
 
-      {isDepositingDeployment && <DeploymentDepositModal handleCancel={() => setIsDepositingDeployment(false)} onDeploymentDeposit={onDeploymentDeposit} />}
+      {isDepositingDeployment && (
+        <DeploymentDepositModal
+          denom={deployment.escrowAccount.balance.denom}
+          handleCancel={() => setIsDepositingDeployment(false)}
+          onDeploymentDeposit={onDeploymentDeposit}
+        />
+      )}
     </>
   );
-}
+};

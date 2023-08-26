@@ -330,7 +330,11 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
       </Menu>
 
       {isActive && isDepositingDeployment && (
-        <DeploymentDepositModal handleCancel={() => setIsDepositingDeployment(false)} onDeploymentDeposit={onDeploymentDeposit} />
+        <DeploymentDepositModal
+          denom={deployment.escrowAccount.balance.denom}
+          handleCancel={() => setIsDepositingDeployment(false)}
+          onDeploymentDeposit={onDeploymentDeposit}
+        />
       )}
     </>
   );

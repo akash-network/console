@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, ReactNode } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useSettings } from "../../context/SettingsProvider";
 import { useSnackbar } from "notistack";
@@ -47,7 +47,16 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export function DeploymentDepositModal({ handleCancel, onDeploymentDeposit, min = 0, infoText = null }) {
+type Props = {
+  infoText?: string | ReactNode;
+  min?: number;
+  denom: string;
+  onDeploymentDeposit: (deposit: number, depositorAddress: string) => void;
+  handleCancel: () => void;
+  children?: ReactNode;
+};
+
+export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleCancel, onDeploymentDeposit, denom, min = 0, infoText = null }) => {
   const { classes } = useStyles();
   const formRef = useRef(null);
   const { settings } = useSettings();
@@ -269,4 +278,4 @@ export function DeploymentDepositModal({ handleCancel, onDeploymentDeposit, min 
       </DialogActions>
     </Dialog>
   );
-}
+};
