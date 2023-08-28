@@ -90,11 +90,9 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
             <Button variant="contained" color="secondary" onClick={handleNext} sx={{ mt: 1, mr: 1 }}>
               Next
             </Button>
-            <Link href={UrlService.getStartedWallet()} passHref>
-              <Box component="a" sx={{ marginLeft: "1rem" }}>
-                Learn how
-              </Box>
-            </Link>
+            <Box component={Link} href={UrlService.getStartedWallet()} sx={{ marginLeft: "1rem" }}>
+              Learn how
+            </Box>
           </Box>
 
           {!isKeplrInstalled && (
@@ -177,11 +175,9 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
               <ExternalLink href="https://docs.docker.com/get-started/" text="Learn how" />
             </Box>
 
-            <Link href={UrlService.templates()} passHref>
-              <Box component="a" sx={{ marginLeft: "1rem", padding: "1rem 0" }}>
-                Explore Marketplace
-              </Box>
-            </Link>
+            <Box href={UrlService.templates()} component={Link} sx={{ marginLeft: "1rem", padding: "1rem 0" }}>
+              Explore Marketplace
+            </Box>
           </Box>
         </StepContent>
       </Step>
@@ -196,11 +192,15 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
             <ExternalLink href="https://github.com/maxmaxlabs/hello-akash-world" text="source code here" />.
           </Typography>
           <Box sx={{ mb: 2, mt: 2 }}>
-            <Link href={UrlService.newDeployment({ templateId: "hello-world", step: RouteStepKeys.editDeployment })} passHref>
-              <Button variant="contained" endIcon={<RocketLaunchIcon />} color="secondary">
-                Deploy!
-              </Button>
-            </Link>
+            <Button
+              component={Link}
+              href={UrlService.newDeployment({ templateId: "hello-world", step: RouteStepKeys.editDeployment })}
+              variant="contained"
+              endIcon={<RocketLaunchIcon />}
+              color="secondary"
+            >
+              Deploy!
+            </Button>
 
             <Button onClick={handleReset} sx={{ ml: 2 }} endIcon={<RestartAltIcon />}>
               Reset

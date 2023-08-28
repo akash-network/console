@@ -85,13 +85,11 @@ export const ValidatorRow: React.FunctionComponent<Props> = ({ validator, reward
       </TableCell>
       <TableCell>
         <Box sx={{ display: "flex", alignItems: "center" }}>
-          <Link href={UrlService.validator(validator.operatorAddress)}>
-            <a style={{ display: "inline-flex", alignItems: "center" }}>
-              <Box mr={1}>
-                <Avatar src={validator.keybaseAvatarUrl} sx={{ width: "26px", height: "26px" }} />
-              </Box>
-              {getShortText(validator.moniker, 20)}
-            </a>
+          <Link href={UrlService.validator(validator.operatorAddress)} style={{ display: "inline-flex", alignItems: "center" }}>
+            <Box mr={1}>
+              <Avatar src={validator.keybaseAvatarUrl} sx={{ width: "26px", height: "26px" }} />
+            </Box>
+            {getShortText(validator.moniker, 20)}
           </Link>
         </Box>
       </TableCell>

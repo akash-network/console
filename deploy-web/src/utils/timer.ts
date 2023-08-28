@@ -2,7 +2,7 @@ export const Timer = (ms: number) => {
   let id;
 
   const start = () =>
-    new Promise((resolve) => {
+    new Promise(resolve => {
       if (id === -1) {
         throw new Error("Timer already aborted");
       }

@@ -41,14 +41,7 @@ const BlockDetailPage: React.FunctionComponent<Props> = ({ height, block }) => {
         <Title value={`Details for Block #${height}`} />
         <Paper sx={{ padding: 2 }} elevation={2}>
           <LabelValue label="Height" value={block.height} />
-          <LabelValue
-            label="Poposer"
-            value={
-              <Link href={UrlService.validator(block.proposer.operatorAddress)}>
-                <a>{block.proposer.moniker}</a>
-              </Link>
-            }
-          />
+          <LabelValue label="Poposer" value={<Link href={UrlService.validator(block.proposer.operatorAddress)}>{block.proposer.moniker}</Link>} />
           <LabelValue
             label="Block Time"
             value={

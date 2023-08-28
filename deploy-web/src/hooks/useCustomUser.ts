@@ -1,4 +1,4 @@
-import { useUser } from "@auth0/nextjs-auth0";
+import { useUser } from "@auth0/nextjs-auth0/client";
 import { CustomUserProfile } from "@src/types/user";
 import { plans } from "@src/utils/plans";
 

@@ -10,7 +10,7 @@ const management = new ManagementClient({
 export default async function resendConfirmationEmail(req, res) {
   console.log("Resending confirmation email");
   try {
-    const { user } = getSession(req, res);
+    const { user } = await getSession(req, res);
 
     await management.sendEmailVerification({ user_id: user.sub });
 

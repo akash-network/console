@@ -43,7 +43,7 @@ import Link from "next/link";
 import { PriceValue } from "../shared/PriceValue";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { averageDaysInMonth } from "@src/utils/dateUtils";
-import Image from "next/image";
+import Image from "next/legacy/image";
 
 type Props = {
   service: Service;
@@ -268,11 +268,14 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                             ),
                             endAdornment: (
                               <InputAdornment position="end">
-                                <Link href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`} passHref>
-                                  <IconButton component="a" size="small" target="_blank">
-                                    <OpenInNewIcon fontSize="small" />
-                                  </IconButton>
-                                </Link>
+                                <IconButton
+                                  href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`}
+                                  component={Link}
+                                  size="small"
+                                  target="_blank"
+                                >
+                                  <OpenInNewIcon fontSize="small" />
+                                </IconButton>
                               </InputAdornment>
                             )
                           }}

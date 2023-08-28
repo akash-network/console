@@ -41,9 +41,7 @@ export const SidebarGroupMenu: React.FunctionComponent<Props> = ({ group, hasDiv
         )}
 
         {group.routes.map(route => {
-          return (
-              <SidebarRouteButton key={route.title} route={route} isNavOpen={isNavOpen} />
-          );
+          return <SidebarRouteButton key={route.title} route={route} isNavOpen={isNavOpen} />;
         })}
       </List>
     </Box>

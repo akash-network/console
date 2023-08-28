@@ -110,12 +110,17 @@ const TemplateDetailPage: React.FunctionComponent<Props> = ({ templateId, templa
               </IconButton>
             </Box>
 
-            <Link href={UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: _template?.id })} passHref>
-              <Button sx={{ marginLeft: { xs: "1rem", sm: "1rem", md: "2rem" } }} variant="contained" size="medium" color="secondary">
-                <PublishIcon />
-                &nbsp;Deploy
-              </Button>
-            </Link>
+            <Button
+              href={UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: _template?.id })}
+              component={Link}
+              sx={{ marginLeft: { xs: "1rem", sm: "1rem", md: "2rem" } }}
+              variant="contained"
+              size="medium"
+              color="secondary"
+            >
+              <PublishIcon />
+              &nbsp;Deploy
+            </Button>
           </Box>
         </Container>
 

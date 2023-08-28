@@ -33,7 +33,6 @@ import { AKTAmount } from "@src/components/shared/AKTAmount";
 import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import SearchOffIcon from "@mui/icons-material/SearchOff";
-import { useUser } from "@auth0/nextjs-auth0";
 import { SendAktModal } from "@src/components/address/SendAktModal";
 import { MustConnectModal } from "@src/components/shared/MustConnectModal";
 import { CustomTooltip } from "@src/components/shared/CustomTooltip";
@@ -42,6 +41,7 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { useAddressBook } from "@src/context/AddressBookProvider";
 import AddressLayout from "@src/components/address/AddressLayout";
 import { TransactionRow } from "@src/components/blockchain/TransactionRow";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 
 type Props = {
   address: string;
@@ -64,7 +64,7 @@ const AddressDetailPage: React.FunctionComponent<Props> = ({ address, addressDet
   const [showMustConnectModal, setShowMustConnectModal] = useState<string>(null);
   const [assetTab, setAssetTab] = useState("delegations");
   const [isShowingSendModal, setIsShowingSendModal] = useState<boolean>(false);
-  const { user } = useUser();
+  const { user } = useCustomUser();
   const { classes } = useStyles();
   const { Canvas } = useQRCode();
   const theme = useTheme();
@@ -79,7 +79,6 @@ const AddressDetailPage: React.FunctionComponent<Props> = ({ address, addressDet
       options={{
         type: "image/jpeg",
         quality: 0.3,
-        level: "M",
         margin: 2,
         scale: 4,
         width: 175,
@@ -299,9 +298,7 @@ const AddressDetailPage: React.FunctionComponent<Props> = ({ address, addressDet
                   </CustomTableHeader>
 
                   <TableBody>
-                    {addressDetail.latestTransactions?.map(tx => (
-                      <TransactionRow key={tx.hash} transaction={tx} blockHeight={tx.height} />
-                    ))}
+                    {addressDetail.latestTransactions?.map(tx => <TransactionRow key={tx.hash} transaction={tx} blockHeight={tx.height} />)}
                   </TableBody>
                 </Table>
               </TableContainer>

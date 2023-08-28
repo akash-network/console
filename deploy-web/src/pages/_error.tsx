@@ -27,12 +27,16 @@ const Error: NextPage<Props> = ({ statusCode }) => {
           <Typography variant="body1">{statusCode ? `An error ${statusCode} occurred on server` : "An error occurred on client"}</Typography>
 
           <Box sx={{ paddingTop: "1rem" }}>
-            <Link href={UrlService.home()} passHref>
-              <Button variant="contained" color="secondary" sx={{ display: "inline-flex", alignItems: "center", textTransform: "initial" }}>
-                Go to homepage&nbsp;
-                <ArrowForwardIcon fontSize="small" />
-              </Button>
-            </Link>
+            <Button
+              href={UrlService.home()}
+              component={Link}
+              variant="contained"
+              color="secondary"
+              sx={{ display: "inline-flex", alignItems: "center", textTransform: "initial" }}
+            >
+              Go to homepage&nbsp;
+              <ArrowForwardIcon fontSize="small" />
+            </Button>
           </Box>
         </Box>
       </PageContainer>

@@ -42,14 +42,7 @@ const TransactionDetailPage: React.FunctionComponent<Props> = ({ transaction, ha
         <Paper sx={{ padding: 2 }} elevation={2}>
           <LabelValue label="Hash" value={transaction.hash} />
           <LabelValue label="Status" value={transaction.isSuccess ? "Success" : "Failed"} />
-          <LabelValue
-            label="Height"
-            value={
-              <Link href={UrlService.block(transaction.height)}>
-                <a>{transaction.height}</a>
-              </Link>
-            }
-          />
+          <LabelValue label="Height" value={<Link href={UrlService.block(transaction.height)}>{transaction.height}</Link>} />
           <LabelValue
             label="Time"
             value={

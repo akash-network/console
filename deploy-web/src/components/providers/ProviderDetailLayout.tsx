@@ -95,11 +95,9 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
 
         {provider && walletAddress === address && (
           <Box sx={{ marginLeft: "1rem" }}>
-            <Link href={UrlService.providerDetailEdit(provider.owner)} passHref>
-              <Button size="small" variant="contained" color="secondary">
-                Edit
-              </Button>
-            </Link>
+            <Button href={UrlService.providerDetailEdit(provider.owner)} component={Link} size="small" variant="contained" color="secondary">
+              Edit
+            </Button>
           </Box>
         )}
       </Box>

@@ -42,9 +42,7 @@ export const Delegations: React.FunctionComponent<Props> = ({ delegations }) => 
           {delegations.map(delegation => (
             <CustomTableRow key={delegation.validator.operatorAddress}>
               <TableCell>
-                <Link href={UrlService.validator(delegation.validator.operatorAddress)}>
-                  <a>{getShortText(delegation.validator.moniker, 20)}</a>
-                </Link>
+                <Link href={UrlService.validator(delegation.validator.operatorAddress)}>{getShortText(delegation.validator.moniker, 20)}</Link>
               </TableCell>
               <TableCell align="right">
                 <AKTAmount uakt={delegation.amount} showAKTLabel />

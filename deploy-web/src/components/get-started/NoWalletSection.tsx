@@ -32,11 +32,9 @@ export const NoWalletSection: React.FunctionComponent<Props> = ({}) => {
 
   return (
     <Box>
-      <Link href={UrlService.getStartedWallet()} passHref>
-        <Button startIcon={<ChevronLeftIcon />} sx={{ color: theme.palette.secondary.main }}>
-          Back
-        </Button>
-      </Link>
+      <Button component={Link} href={UrlService.getStartedWallet()} startIcon={<ChevronLeftIcon />} sx={{ color: theme.palette.secondary.main }}>
+        Back
+      </Button>
       <Box component="ul" className={classes.list}>
         <li>
           Install <ExternalLink href="https://chrome.google.com/webstore/detail/keplr/dmkamcknogkgcdfhhbddcghachkejeap" text="Keplr" />

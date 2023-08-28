@@ -14,11 +14,7 @@ export const MsgUpdateDeployment: React.FunctionComponent<TxMessageProps> = ({ m
       <LabelValue label="Owner" value={<AddressLink address={message?.data?.id?.owner} />} />
       <LabelValue
         label="dseq"
-        value={
-          <Link href={UrlService.publicDeploymentDetails(message?.data?.id?.owner, message?.data?.id?.dseq)}>
-            <a>{message?.data?.id?.dseq}</a>
-          </Link>
-        }
+        value={<Link href={UrlService.publicDeploymentDetails(message?.data?.id?.owner, message?.data?.id?.dseq)}>{message?.data?.id?.dseq}</Link>}
       />
       <LabelValue label="Version" value={message?.data?.version} />
     </>
