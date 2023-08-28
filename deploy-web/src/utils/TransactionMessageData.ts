@@ -103,7 +103,7 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getDepositDeploymentMsg(address, dseq, depositAmount, depositorAddress = null) {
+  static getDepositDeploymentMsg(address: string, dseq: string, depositAmount: number, denom: string, depositorAddress: string = null) {
     let message = {
       typeUrl: TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT,
       value: {
@@ -112,7 +112,7 @@ export class TransactionMessageData {
           dseq: parseInt(dseq)
         },
         amount: {
-          denom: "uakt",
+          denom,
           amount: depositAmount.toString()
         },
         depositor: depositorAddress || address

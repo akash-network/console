@@ -220,6 +220,7 @@ const getDenomFromSdl = (groups: any[]): string => {
 
   console.log(denoms);
 
+  // TODO handle multiple denoms in an sdl? (different denom for each service?)
   return denoms[0];
 };
 

@@ -4,6 +4,7 @@ import axios from "axios";
 import { useSettings } from "../context/SettingsProvider";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { Balances } from "@src/types";
+import { uAktDenom, usdcIbcDenom } from "@src/utils/constants";
 
 // Account balances
 async function getBalances(apiEndpoint: string, address: string): Promise<Balances> {
@@ -23,24 +24,27 @@ async function getBalances(apiEndpoint: string, address: string): Promise<Balanc
 
   // Balance
   const balanceData = balanceResponse.data;
-  const balance = balanceData.balances.some(b => b.denom === "uakt") ? parseInt(balanceData.balances.find(b => b.denom === "uakt").amount) : 0;
+  const balance = balanceData.balances.some(b => b.denom === uAktDenom) ? parseFloat(balanceData.balances.find(b => b.denom === uAktDenom).amount) : 0;
+  const balanceUsdc = balanceData.balances.some(b => b.denom === usdcIbcDenom)
+    ? parseFloat(balanceData.balances.find(b => b.denom === usdcIbcDenom).amount)
+    : 0;
 
   // Rewards
   const rewardsData = rewardsResponse.data;
-  const rewards = rewardsData.total.some(b => b.denom === "uakt") ? parseInt(rewardsData.total.find(b => b.denom === "uakt").amount) : 0;
+  const rewards = rewardsData.total.some(b => b.denom === uAktDenom) ? parseFloat(rewardsData.total.find(b => b.denom === uAktDenom).amount) : 0;
 
   // Redelegations
   const redelegationsData = redelegationsResponse.data;
   const redelegations =
     redelegationsData.redelegation_responses.length > 0
-      ? redelegationsData.redelegation_responses.map(x => x.entries.map(y => parseInt(y.balance)).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0)
+      ? redelegationsData.redelegation_responses.map(x => x.entries.map(y => parseFloat(y.balance)).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0)
       : 0;
 
   // Unbondings
   const unbondingsData = unbondingsResponse.data;
   const unbondings =
     unbondingsData.unbonding_responses.length > 0
-      ? unbondingsData.unbonding_responses.map(x => x.entries.map(y => parseInt(y.balance)).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0)
+      ? unbondingsData.unbonding_responses.map(x => x.entries.map(y => parseFloat(y.balance)).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0)
       : 0;
 
   // Delegations
@@ -50,16 +54,17 @@ async function getBalances(apiEndpoint: string, address: string): Promise<Balanc
     const delegationsResponse = await axios.get(ApiUrlService.delegations(apiEndpoint, address));
     const delegationsData = delegationsResponse.data;
 
-    delegations = delegationsData.delegation_responses.some(b => b.balance.denom === "uakt")
+    delegations = delegationsData.delegation_responses.some(b => b.balance.denom === uAktDenom)
       ? delegationsData.delegation_responses
-          .filter(x => x.balance.denom === "uakt")
-          .map(x => parseInt(x.balance.amount))
+          .filter(x => x.balance.denom === uAktDenom)
+          .map(x => parseFloat(x.balance.amount))
           .reduce((a, b) => a + b, 0)
       : 0;
   } catch (error) {}
 
   return {
     balance,
+    balanceUsdc,
     rewards,
     delegations,
     redelegations,

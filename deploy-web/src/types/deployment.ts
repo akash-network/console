@@ -4,6 +4,7 @@ export interface DeploymentDetail {
   balance: number;
   status: string;
   totalMonthlyCostAKT: number;
+  denom: string;
   totalMonthlyCostUSD: number;
   leases: {
     oseq: number;

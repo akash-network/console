@@ -101,11 +101,17 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
     router.push(url);
   };
 
-  const onDeploymentDeposit = async (deposit, depositorAddress) => {
+  const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
     setIsDepositingDeployment(false);
 
     try {
-      const message = TransactionMessageData.getDepositDeploymentMsg(address, deployment.dseq, deposit, depositorAddress);
+      const message = TransactionMessageData.getDepositDeploymentMsg(
+        address,
+        deployment.dseq,
+        deposit,
+        deployment.escrowAccount.balance.denom,
+        depositorAddress
+      );
       const response = await signAndBroadcastTx([message]);
       if (response) {
         loadDeploymentDetail();

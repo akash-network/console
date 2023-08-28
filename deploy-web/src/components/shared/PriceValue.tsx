@@ -5,13 +5,15 @@ import { ReactNode } from "react";
 import { usePricing } from "@src/context/PricingProvider";
 
 type Props = {
-  children?: ReactNode;
+  denom: string;
   value: string | number;
   showLt?: boolean;
+  children?: ReactNode;
 };
 
-export const AktPriceValue: React.FunctionComponent<Props> = ({ value, showLt }) => {
-  const { isLoaded, price } = usePricing();
+export const PriceValue: React.FunctionComponent<Props> = ({ denom, value, showLt }) => {
+  const { isLoaded, getPriceForDenom } = usePricing();
+  const price = getPriceForDenom(denom);
   const _value = (typeof value === "string" ? parseFloat(value) : value) * price;
   const computedValue = _value > 0 ? ceilDecimal(_value) : 0;
 

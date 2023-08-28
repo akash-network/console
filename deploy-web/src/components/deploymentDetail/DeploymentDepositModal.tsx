@@ -17,7 +17,7 @@ import { AKTAmount } from "../shared/AKTAmount";
 import { useGranteeGrants } from "@src/queries/useGrantsQuery";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { Popup } from "../shared/Popup";
-import { useDepositData } from "@src/hooks/useWalletBalance";
+import { useDenomData } from "@src/hooks/useWalletBalance";
 
 type Props = {
   infoText?: string | ReactNode;
@@ -52,7 +52,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
     }
   });
   const { amount, useDepositor, depositorAddress } = watch();
-  const depositData = useDepositData(denom);
+  const depositData = useDenomData(denom);
 
   useEffect(() => {
     clearErrors();

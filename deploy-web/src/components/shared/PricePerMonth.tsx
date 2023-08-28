@@ -1,14 +1,22 @@
-import { Typography } from "@mui/material";
+import { Typography, TypographyVariant, TypographyProps } from "@mui/material";
 import { averageDaysInMonth } from "@src/utils/dateUtils";
 import { averageBlockTime } from "@src/utils/priceUtils";
-import { AktPriceValue } from "./PriceValue";
+import { PriceValue } from "./PriceValue";
+import { ReactNode } from "react";
 
-export const PricePerMonth = ({ perBlockValue, typoVariant = "body1", ...rest }) => {
-  //** TODO Type */
+interface IProps extends TypographyProps {
+  perBlockValue: number;
+  denom: string;
+  typoVariant?: TypographyVariant;
+  children?: ReactNode;
+}
+
+export const PricePerMonth: React.FunctionComponent<IProps> = ({ perBlockValue, denom, typoVariant = "body1", ...rest }) => {
+  const value = perBlockValue * (60 / averageBlockTime) * 60 * 24 * averageDaysInMonth;
   return (
-    <Typography variant={typoVariant as any} {...rest}>
+    <Typography variant={typoVariant} {...rest}>
       <strong>
-        <AktPriceValue value={perBlockValue * (60 / averageBlockTime) * 60 * 24 * averageDaysInMonth} />
+        <PriceValue value={value} denom={denom} />
       </strong>{" "}
       / month
     </Typography>

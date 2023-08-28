@@ -22,6 +22,7 @@ import { ProviderStatsKey } from "@src/types/graph";
 import { getProviderAttributesSchema } from "@src/providers/providerAttributesProvider";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import axios from "axios";
+import { getMarketData } from "@src/providers/marketDataProvider";
 
 export const apiRouter = express.Router();
 
@@ -233,7 +234,7 @@ apiRouter.get(
 );
 
 apiRouter.get("/marketData", async (req, res) => {
-  const response = await cacheResponse(60, cacheKeys.getMarketData, getAktMarketData);
+  const response = await cacheResponse(60 * 5, cacheKeys.getMarketData, getMarketData);
   res.send(response);
 });
 
@@ -439,6 +440,3 @@ apiRouter.get(
     res.send(response);
   })
 );
-function getAktMarketData(): Promise<any> {
-  throw new Error("Function not implemented.");
-}

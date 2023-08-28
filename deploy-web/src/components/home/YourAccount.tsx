@@ -3,12 +3,12 @@ import { ResponsivePie } from "@nivo/pie";
 import { makeStyles } from "tss-react/mui";
 import { Box, Button, Card, CardContent, CardHeader, Chip, CircularProgress, lighten, Typography, useTheme } from "@mui/material";
 import { uaktToAKT } from "@src/utils/priceUtils";
-import { AktPriceValue } from "../shared/PriceValue";
+import { PriceValue } from "../shared/PriceValue";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { StatusPill } from "../shared/StatusPill";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { bytesToShrink } from "@src/utils/unitUtils";
-import { roundDecimal } from "@src/utils/mathHelpers";
+import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
@@ -21,6 +21,8 @@ import { Balances } from "@src/types";
 import { RpcProvider } from "@src/types/provider";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
+import { usePricing } from "@src/context/PricingProvider";
+import { uAktDenom, usdcIbcDenom } from "@src/utils/constants";
 
 const useStyles = makeStyles()(theme => ({
   legendRow: {
@@ -78,6 +80,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const _ram = bytesToShrink(totalMemory);
   const _storage = bytesToShrink(totalStorage);
   const [deploySdl, setDeploySdl] = useAtom(sdlStore.deploySdl);
+  const { price, isLoaded } = usePricing();
 
   const colors = {
     balance: "#dd4320",
@@ -104,9 +107,21 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const filteredData = data.filter(x => x.value);
 
   useEffect(() => {
-    if (leases && providers) {
+    if (leases && providers && price && isLoaded) {
       const activeLeases = leases.filter(x => x.state === "active");
-      const totalCost = activeLeases.map(x => parseFloat(x.price.amount)).reduce((a, b) => a + b, 0);
+      const totalCost = activeLeases
+        .map(x => {
+          switch (x.price.denom) {
+            case uAktDenom:
+              return parseFloat(x.price.amount) * price;
+            case usdcIbcDenom:
+              return parseFloat(x.price.amount);
+
+            default:
+              return 0;
+          }
+        })
+        .reduce((a, b) => a + b, 0);
 
       const _userProviders = activeLeases
         .map(x => x.provider)
@@ -120,7 +135,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
       setCostPerMonth(totalCost);
       setUserProviders(_userProviders);
     }
-  }, [leases, providers]);
+  }, [leases, providers, price, isLoaded]);
 
   const _getColor = bar => getColor(bar.id, selectedDataId);
 
@@ -185,7 +200,12 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     </Typography>
 
                     <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <PricePerMonth perBlockValue={uaktToAKT(costPerMonth, 6)} />
+                      <Typography variant="body1">
+                        <strong>
+                          <PriceValue value={udenomToDenom(costPerMonth, 6)} denom={usdcIbcDenom} />
+                        </strong>{" "}
+                        / month
+                      </Typography>
                     </Box>
                   </Box>
 
@@ -284,7 +304,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                       <div className={classes.legendValue}>{uaktToAKT(balance.value, 2)} AKT</div>
                       {!!balance.value && (
                         <div>
-                          <AktPriceValue value={uaktToAKT(balance.value, 6)} />
+                          <PriceValue denom={uAktDenom} value={uaktToAKT(balance.value, 6)} />
                         </div>
                       )}
                     </div>
@@ -299,7 +319,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     {!!total && (
                       <div>
                         <strong>
-                          <AktPriceValue value={uaktToAKT(total, 6)} />
+                          <PriceValue denom={uAktDenom} value={uaktToAKT(total, 6)} />
                         </strong>
                       </div>
                     )}

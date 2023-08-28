@@ -11,8 +11,6 @@ import { Chip, CircularProgress, IconButton, Menu } from "@mui/material";
 import { usePopupState, bindTrigger, bindMenu } from "material-ui-popup-state/hooks";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { Address } from "../shared/Address";
-import { AktPriceValue } from "../shared/PriceValue";
-import { uaktToAKT } from "@src/utils/priceUtils";
 import { CustomMenuItem } from "../shared/CustomMenuItem";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";

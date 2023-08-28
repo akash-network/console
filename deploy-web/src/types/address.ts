@@ -37,6 +37,7 @@ export interface AssetDetail {
 
 export interface Balances {
   balance: number;
+  balanceUsdc: number;
   rewards: number;
   delegations: number;
   redelegations: number;

@@ -2,7 +2,7 @@ import fetch from "node-fetch";
 import { getDeploymentRelatedMessages } from "../db/deploymentProvider";
 import { averageBlockCountInAMonth } from "@src/shared/constants";
 import { round } from "@src/shared/utils/math";
-import { getAktMarketData } from "./marketDataProvider";
+import { getMarketData } from "./marketDataProvider";
 import { coinToAsset } from "@src/shared/utils/coin";
 import { getTransactionByAddress } from "@src/db/transactionsProvider";
 import axios from "axios";
@@ -339,7 +339,9 @@ export async function getDeployment(owner: string, dseq: string) {
     include: [{ model: ProviderAttribute }]
   });
 
-  const aktPrice = getAktMarketData()?.price;
+  const marketData = await getMarketData();
+  const aktPrice = marketData?.price;
+  const deploymentDenom = deploymentData.escrow_account.balance.denom;
 
   const leases = leasesData.leases.map((x) => {
     const provider = providers.find((p) => p.owner === x.lease.lease_id.provider);
@@ -359,8 +361,10 @@ export async function getDeployment(owner: string, dseq: string) {
         }))
       },
       status: x.lease.state,
+      denom: deploymentDenom,
       monthlyCostAKT: round(monthlyUAKT / 1_000_000, 2),
-      monthlyCostUSD: aktPrice ? round((monthlyUAKT / 1_000_000) * aktPrice, 2) : null,
+      // TODO Improve
+      monthlyCostUSD: deploymentDenom === "uakt" ? (aktPrice ? round((monthlyUAKT / 1_000_000) * aktPrice, 2) : round(monthlyUAKT / 1_000_000, 2)) : null,
       cpuUnits: group.group_spec.resources.map((r) => parseInt(r.resources.cpu.units.val) * r.count).reduce((a, b) => a + b, 0),
       gpuUnits: group.group_spec.resources.map((r) => parseInt(r.resources.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0),
       memoryQuantity: group.group_spec.resources.map((r) => parseInt(r.resources.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0),

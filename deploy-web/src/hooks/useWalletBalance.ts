@@ -22,20 +22,20 @@ export const useTotalWalletBalance = () => {
   return walletBalance;
 };
 
-type DepositData = {
+type DenomData = {
   label: string;
   balance: number;
   inputMax: number;
 };
 
-export const useDepositData = (denom: string) => {
+export const useDenomData = (denom: string) => {
   const { isLoaded, price } = usePricing();
   const { walletBalances } = useKeplr();
-  const [depositData, setDepositData] = useState<DepositData>(null);
+  const [depositData, setDepositData] = useState<DenomData>(null);
 
   useEffect(() => {
     if (isLoaded && walletBalances) {
-      let depositData: DepositData = null;
+      let depositData: DenomData = null;
       switch (denom) {
         case uAktDenom:
           depositData = {

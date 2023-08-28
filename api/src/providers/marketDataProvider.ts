@@ -11,6 +11,7 @@ interface AktMarketData {
 
 export async function getMarketData(): Promise<AktMarketData> {
   const endpointUrl = "https://api.coingecko.com/api/v3/coins/akash-network";
+  // TODO USDC https://api.coingecko.com/api/v3/coins/usd-coin
   console.log("Fetching latest market data from " + endpointUrl);
   const response = await axios.get(endpointUrl);
 

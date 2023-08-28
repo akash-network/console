@@ -47,8 +47,8 @@ const MemoLeaseRow: React.FunctionComponent<Props> = ({ lease }) => {
       </TableCell>
       <TableCell>
         <div className={classes.flexCenter}>
-          <PricePerMonth perBlockValue={uaktToAKT(lease.price.amount, 6)} />
-          <PriceEstimateTooltip value={lease.price.amount} />
+          <PricePerMonth denom={lease.price.denom} perBlockValue={uaktToAKT(lease.price.amount, 6)} />
+          <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} />
         </div>
       </TableCell>
     </CustomTableRow>

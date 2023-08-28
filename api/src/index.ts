@@ -84,10 +84,6 @@ app.get("/status", (req, res) => {
 app.use(Sentry.Handlers.errorHandler());
 
 function startScheduler() {
-  scheduler.registerTask("Sync AKT Market Data", marketDataProvider.fetchLatestData, "5 minutes", true, {
-    id: env.HealthChecks_SyncAKTMarketData,
-    measureDuration: true
-  });
   scheduler.start();
 }
 

@@ -41,7 +41,7 @@ import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { isProd, treasuryAddress } from "@src/utils/constants";
 import { uaktToAKT } from "@src/utils/priceUtils";
-import { AktPriceValue } from "../shared/PriceValue";
+import { PriceValue } from "../shared/PriceValue";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { BidDto } from "@src/types/deployment";
 import { BidCountdownTimer } from "./BidCountdownTimer";
