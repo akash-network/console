@@ -27,26 +27,24 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
   const { classes } = useStyles();
 
   return (
-    <Link href={linkHref ? linkHref : UrlService.templateDetails(template.id)}>
-      <Card className={classes.root}>
-        <CardHeader
-          avatar={
-            template.logoUrl ? (
-              <Avatar src={template.logoUrl} variant="circular" />
-            ) : (
-              <Avatar variant="circular">
-                <ImageIcon />
-              </Avatar>
-            )
-          }
-          title={template.name}
-        ></CardHeader>
-        <CardContent sx={{ paddingTop: "0", paddingBottom: "1rem !important" }}>
-          <Typography variant="caption" color="textSecondary">
-            {getShortText(template.summary, 128)}
-          </Typography>
-        </CardContent>
-      </Card>
-    </Link>
+    <Card component={Link} href={linkHref ? linkHref : UrlService.templateDetails(template.id)} className={classes.root}>
+      <CardHeader
+        avatar={
+          template.logoUrl ? (
+            <Avatar src={template.logoUrl} variant="circular" />
+          ) : (
+            <Avatar variant="circular">
+              <ImageIcon />
+            </Avatar>
+          )
+        }
+        title={template.name}
+      ></CardHeader>
+      <CardContent sx={{ paddingTop: "0", paddingBottom: "1rem !important" }}>
+        <Typography variant="caption" color="textSecondary">
+          {getShortText(template.summary, 128)}
+        </Typography>
+      </CardContent>
+    </Card>
   );
 };

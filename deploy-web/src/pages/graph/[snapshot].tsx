@@ -125,9 +125,9 @@ export const GraphPage: React.FunctionComponent<IGraphProps> = ({ snapshot: snap
       <PageContainer sx={{ padding: { xs: "0 .5rem" } }}>
         <div className={classes.root}>
           <Box sx={{ marginBottom: "2rem" }}>
-            <Link href={UrlService.analytics()} passHref>
-              <Button startIcon={<ArrowBackIcon />}>Back</Button>
-            </Link>
+            <Button component={Link} href={UrlService.analytics()} startIcon={<ArrowBackIcon />}>
+              Back
+            </Button>
           </Box>
 
           <Box sx={{ marginBottom: 1 }}>

@@ -34,45 +34,45 @@ export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, sx =
 
   return (
     <ListItem sx={{ padding: "4px 0" }}>
-      <Link href={route.url} passHref>
-        <Button
-          fullWidth
-          color="inherit"
-          className={cx({
-            [classes.selected]: isSelected,
-            [classes.notSelected]: !isSelected
-          })}
-          sx={{
-            justifyContent: "flex-start",
-            textTransform: "initial",
-            fontSize: "1rem",
-            height: "40px",
-            padding: isNavOpen ? ".2rem 1rem" : ".5rem",
-            minWidth: isNavOpen ? "initial" : 0,
-            ...sx
-          }}
-        >
-          <ListItemIcon sx={{ minWidth: 0, zIndex: 100, margin: isNavOpen ? "initial" : "0 auto" }}>
-            {route.icon({ color: isSelected ? "secondary" : "disabled" })}
-          </ListItemIcon>
+      <Button
+        fullWidth
+        href={route.url}
+        component={Link}
+        color="inherit"
+        className={cx({
+          [classes.selected]: isSelected,
+          [classes.notSelected]: !isSelected
+        })}
+        sx={{
+          justifyContent: "flex-start",
+          textTransform: "initial",
+          fontSize: "1rem",
+          height: "40px",
+          padding: isNavOpen ? ".2rem 1rem" : ".5rem",
+          minWidth: isNavOpen ? "initial" : 0,
+          ...sx
+        }}
+      >
+        <ListItemIcon sx={{ minWidth: 0, zIndex: 100, margin: isNavOpen ? "initial" : "0 auto" }}>
+          {route.icon({ color: isSelected ? "secondary" : "disabled" })}
+        </ListItemIcon>
 
-          {isNavOpen && (
-            <ListItemText
-              sx={{ marginLeft: "1rem", whiteSpace: "nowrap" }}
-              primaryTypographyProps={{
-                className: cx({ [classes.selected]: isSelected, [classes.notSelected]: !isSelected }),
-                style: { opacity: isNavOpen ? 1 : 0 }
-              }}
-              primary={
-                <>
-                  {route.title}
-                  {route.isNew && <Chip variant="outlined" sx={{ marginLeft: 2, cursor: "pointer" }} label="NEW" size="small" color="secondary" />}
-                </>
-              }
-            />
-          )}
-        </Button>
-      </Link>
+        {isNavOpen && (
+          <ListItemText
+            sx={{ marginLeft: "1rem", whiteSpace: "nowrap" }}
+            primaryTypographyProps={{
+              className: cx({ [classes.selected]: isSelected, [classes.notSelected]: !isSelected }),
+              style: { opacity: isNavOpen ? 1 : 0 }
+            }}
+            primary={
+              <>
+                {route.title}
+                {route.isNew && <Chip variant="outlined" sx={{ marginLeft: 2, cursor: "pointer" }} label="NEW" size="small" color="secondary" />}
+              </>
+            }
+          />
+        )}
+      </Button>
     </ListItem>
   );
 };

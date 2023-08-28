@@ -30,8 +30,8 @@ export const TransactionRow: React.FunctionComponent<Props> = ({ transaction, bl
   return (
     <CustomTableRow>
       <TableCell>
-        <Link href={UrlService.transaction(transaction.hash)}>
-          <a target="_blank">{txHash}</a>
+        <Link href={UrlService.transaction(transaction.hash)} target="_blank">
+          {txHash}
         </Link>
       </TableCell>
       <TableCell align="center">
@@ -54,9 +54,7 @@ export const TransactionRow: React.FunctionComponent<Props> = ({ transaction, bl
         </>
       )}
       <TableCell align="center">
-        <Link href={UrlService.block(blockHeight)}>
-          <a>{blockHeight}</a>
-        </Link>
+        <Link href={UrlService.block(blockHeight)}>{blockHeight}</Link>
       </TableCell>
       <TableCell align="center">
         <Typography variant="caption">

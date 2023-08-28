@@ -418,11 +418,9 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
               </Table>
             </TableContainer>
 
-            <Link href={UrlService.blocks()} passHref>
-              <Button variant="outlined" color="inherit" className={classes.loadMoreButton}>
-                Load More
-              </Button>
-            </Link>
+            <Button component={Link} href={UrlService.blocks()} variant="outlined" color="inherit" className={classes.loadMoreButton}>
+              Load More
+            </Button>
           </Paper>
         </Grid>
 
@@ -455,11 +453,9 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
               </Table>
             </TableContainer>
 
-            <Link href={UrlService.transactions()} passHref>
-              <Button variant="outlined" color="inherit" className={classes.loadMoreButton}>
-                Load More
-              </Button>
-            </Link>
+            <Button component={Link} href={UrlService.transactions()} variant="outlined" color="inherit" className={classes.loadMoreButton}>
+              Load More
+            </Button>
           </Paper>
         </Grid>
       </Grid>

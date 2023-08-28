@@ -23,7 +23,7 @@ import { TemplatesProvider } from "@src/context/TemplatesProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { isProd } from "@src/utils/constants";
 import { GoogleAnalytics } from "nextjs-google-analytics";
-import { UserProvider } from "@auth0/nextjs-auth0";
+import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { Provider } from "jotai";
 

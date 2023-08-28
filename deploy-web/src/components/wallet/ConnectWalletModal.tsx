@@ -2,7 +2,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import React, { ReactNode, useState } from "react";
 import { makeStyles } from "tss-react/mui";
-import Image from "next/image";
+import Image from "next/legacy/image";
 import { CustomDialogTitle } from "@src/components/shared/CustomDialogTitle";
 import Paper from "@mui/material/Paper";
 import Box from "@mui/material/Box";
@@ -82,7 +82,7 @@ export const ConnectWalletModal: React.FunctionComponent<Props> = ({ onClose }) 
       <DialogContent className={classes.content}>
         <Paper className={classes.connectionContainer} sx={{ mb: "1rem" }} onClick={onConnectKeplrClick}>
           <Box sx={{ width: "64px", height: "64px" }}>
-            <Image alt="Keplr Wallet Logo" src="/images/keplr-logo.png" quality={100} layout="fixed" width="64px" height="64px" priority />
+            <Image alt="Keplr Wallet Logo" src="/images/keplr-logo.png" quality={100} layout="fixed" width="64" height="64" priority />
           </Box>
 
           <Box sx={{ padding: "0 1rem" }}>
@@ -105,7 +105,7 @@ export const ConnectWalletModal: React.FunctionComponent<Props> = ({ onClose }) 
 
         <Paper className={classes.disabledConnectionContainer}>
           <Box sx={{ width: "64px", height: "64px" }}>
-            <Image alt="Wallet Connect Logo" src="/images/wallet-connect-logo.png" quality={100} layout="fixed" width="64px" height="64px" priority />
+            <Image alt="Wallet Connect Logo" src="/images/wallet-connect-logo.png" quality={100} layout="fixed" width="64" height="64" priority />
           </Box>
 
           <Box sx={{ padding: "0 1rem" }}>
@@ -119,10 +119,7 @@ export const ConnectWalletModal: React.FunctionComponent<Props> = ({ onClose }) 
 
         <Box sx={{ marginTop: "1rem" }}>
           <Alert severity="info" icon={false} sx={{ fontSize: ".7rem" }}>
-            By connecting a wallet, you acknowledge that you have read and understand our{" "}
-            <Link href={UrlService.termsOfService()}>
-              <a>Terms of Service.</a>
-            </Link>
+            By connecting a wallet, you acknowledge that you have read and understand our <Link href={UrlService.termsOfService()}>Terms of Service.</Link>
           </Alert>
         </Box>
       </DialogContent>

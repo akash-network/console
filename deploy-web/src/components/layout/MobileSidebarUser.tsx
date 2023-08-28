@@ -100,11 +100,9 @@ export const MobileSidebarUser: React.FunctionComponent<Props> = ({}) => {
       ) : (
         <Box sx={{ padding: ".5rem" }}>
           <ListItem className={classes.listItem}>
-            <Link href={UrlService.signup()} passHref>
-              <Button color="secondary" variant="contained" fullWidth>
-                Sign up
-              </Button>
-            </Link>
+            <Button component={Link} href={UrlService.signup()} color="secondary" variant="contained" fullWidth>
+              Sign up
+            </Button>
           </ListItem>
           <ListItem component="a" href={UrlService.login()} sx={{ justifyContent: "center" }}>
             Sign in

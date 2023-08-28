@@ -225,20 +225,19 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
             </Typography>
 
             <Box sx={{ marginLeft: "1.5rem" }}>
-              <Link href={UrlService.template(router.query.id as string)}>
-                <Box
-                  component="a"
-                  sx={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}
-                  onClick={() => {
-                    event(AnalyticsEvents.CLICK_VIEW_TEMPLATE, {
-                      category: "sdl_builder",
-                      label: "Click on view SDL template"
-                    });
-                  }}
-                >
-                  View template <ArrowForwardIcon sx={{ marginLeft: ".5rem" }} fontSize="small" />
-                </Box>
-              </Link>
+              <Box
+                href={UrlService.template(router.query.id as string)}
+                component={Link}
+                sx={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}
+                onClick={() => {
+                  event(AnalyticsEvents.CLICK_VIEW_TEMPLATE, {
+                    category: "sdl_builder",
+                    label: "Click on view SDL template"
+                  });
+                }}
+              >
+                View template <ArrowForwardIcon sx={{ marginLeft: ".5rem" }} fontSize="small" />
+              </Box>
             </Box>
           </Box>
         )}

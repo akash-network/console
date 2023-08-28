@@ -68,13 +68,11 @@ export const KeplrWalletStatus: React.FunctionComponent<Props> = ({}) => {
               <Box sx={{ textAlign: "left", display: "flex", alignItems: "center" }}>
                 <Box sx={{ fontWeight: "bold", fontSize: ".9rem", display: "flex", alignItems: "center" }}>
                   <AccountBalanceWalletIcon fontSize="small" sx={{ fontSize: "1rem" }} color="disabled" />
-                  <Link href={UrlService.address(address)} passHref>
-                    <Box sx={{ marginLeft: ".5rem", lineHeight: ".9rem", cursor: "pointer" }} component="a">
-                      <CustomTooltip arrow title={<Address address={address} isCopyable />}>
-                        <span>{walletName}</span>
-                      </CustomTooltip>
-                    </Box>
-                  </Link>
+                  <Box sx={{ marginLeft: ".5rem", lineHeight: ".9rem", cursor: "pointer" }} component={Link} href={UrlService.address(address)}>
+                    <CustomTooltip arrow title={<Address address={address} isCopyable />}>
+                      <span>{walletName}</span>
+                    </CustomTooltip>
+                  </Box>
                 </Box>
 
                 {walletBalances && (

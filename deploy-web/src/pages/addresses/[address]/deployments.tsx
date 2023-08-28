@@ -101,11 +101,7 @@ const AddressDeploymentsPage: React.FunctionComponent<Props> = ({ address }) => 
                     </TableRow>
                   </TableHead>
 
-                  <TableBody>
-                    {deploymentsResult?.results.map(deployment => (
-                      <DeploymentRow key={deployment.dseq} deployment={deployment} />
-                    ))}
-                  </TableBody>
+                  <TableBody>{deploymentsResult?.results.map(deployment => <DeploymentRow key={deployment.dseq} deployment={deployment} />)}</TableBody>
                 </Table>
               </TableContainer>
             )}

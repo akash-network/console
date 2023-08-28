@@ -159,10 +159,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                 <Typography variant="body1" sx={{ marginLeft: activeDeployments.length > 0 ? "1rem" : 0 }}>
                   You have{" "}
                   <Link href={UrlService.deploymentList()} passHref>
-                    <a>
-                      {activeDeployments.length} active{" "}
-                      <FormattedPlural value={activeDeployments.length} zero="deployment" one="deployment" other="deployments" />
-                    </a>
+                    {activeDeployments.length}active <FormattedPlural value={activeDeployments.length} zero="deployment" one="deployment" other="deployments" />
                   </Link>
                 </Typography>
               </Box>
@@ -214,12 +211,18 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                   </Box>
                 </>
               ) : (
-                <Link href={UrlService.newDeployment()} passHref>
-                  <Button variant="contained" size="medium" color="secondary" sx={{ marginTop: "1rem" }} onClick={onDeployClick}>
-                    Deploy
-                    <RocketLaunchIcon sx={{ marginLeft: "1rem" }} fontSize="small" />
-                  </Button>
-                </Link>
+                <Button
+                  href={UrlService.newDeployment()}
+                  component={Link}
+                  variant="contained"
+                  size="medium"
+                  color="secondary"
+                  sx={{ marginTop: "1rem" }}
+                  onClick={onDeployClick}
+                >
+                  Deploy
+                  <RocketLaunchIcon sx={{ marginLeft: "1rem" }} fontSize="small" />
+                </Button>
               )}
             </Box>
 

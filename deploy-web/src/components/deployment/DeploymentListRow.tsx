@@ -271,9 +271,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         <TableCell align="center">
           {hasLeases && (
             <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap" }}>
-              {filteredLeases?.map(lease => (
-                <LeaseChip key={lease.id} lease={lease} providers={providers} />
-              ))}
+              {filteredLeases?.map(lease => <LeaseChip key={lease.id} lease={lease} providers={providers} />)}
             </Box>
           )}
           {isLoadingLeases && <CircularProgress size="1rem" color="secondary" />}

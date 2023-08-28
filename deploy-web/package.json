@@ -9,11 +9,12 @@
     "dev": "next -p 3000",
     "build": "next build",
     "start": "next start",
-    "type-check": "tsc"
+    "type-check": "tsc",
+    "pretty": "prettier --write \"./**/*.{js,jsx,ts,tsx,json}\""
   },
   "dependencies": {
     "@akashnetwork/akashjs": "^0.4.9",
-    "@auth0/nextjs-auth0": "^1.9.1",
+    "@auth0/nextjs-auth0": "^3.1.0",
     "@cosmjs/encoding": "^0.29.5",
     "@cosmjs/stargate": "^0.29.5",
     "@emotion/cache": "^11.7.1",
@@ -28,7 +29,7 @@
     "@nivo/line": "^0.80.0",
     "@nivo/pie": "^0.80.0",
     "@react-spring/web": "^9.3.1",
-    "@sentry/nextjs": "7.11.1",
+    "@sentry/nextjs": "^7.64.0",
     "@stripe/react-stripe-js": "^1.12.0",
     "@stripe/stripe-js": "^1.41.0",
     "@textea/json-viewer": "^3.0.0",
@@ -36,6 +37,7 @@
     "axios": "^0.27.2",
     "cosmjs-types": "^0.6.1",
     "date-fns": "^2.29.3",
+    "eslint-config-next": "^13.4.18",
     "file-saver": "^2.0.5",
     "http-proxy": "^1.18.1",
     "jotai": "^2.0.4",
@@ -46,12 +48,12 @@
     "lodash": "^4.17.21",
     "material-ui-popup-state": "^4.0.2",
     "nanoid": "^3.3.4",
-    "next": "^12.3.4",
+    "next": "^13.4.18",
     "next-dark-mode": "^3.0.0",
     "next-pwa": "^5.6.0",
     "next-qrcode": "^2.1.0",
-    "next-seo": "^5.5.0",
-    "nextjs-google-analytics": "^2.0.0",
+    "next-seo": "^6.1.0",
+    "nextjs-google-analytics": "^2.3.3",
     "notistack": "^2.0.5",
     "nprogress": "^0.2.0",
     "react": "^18.2.0",
@@ -87,6 +89,7 @@
     "@types/react": "^17.0.2",
     "@types/react-dom": "^17.0.1",
     "@types/react-simple-maps": "^3.0.0",
+    "prettier": "^3.0.2",
     "typescript": "^4.5.5"
   }
 }

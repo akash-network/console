@@ -22,16 +22,16 @@ export const DeploymentRow: React.FunctionComponent<Props> = ({ deployment }) =>
   return (
     <CustomTableRow>
       <TableCell>
-        <Link href={UrlService.publicDeploymentDetails(deployment.owner, deployment.dseq)}>
-          <a target="_blank">{deployment.dseq}</a>
+        <Link href={UrlService.publicDeploymentDetails(deployment.owner, deployment.dseq)} target="_blank">
+          {deployment.dseq}
         </Link>
       </TableCell>
       <TableCell align="center">
         <Chip label={deployment.status} size="small" color={getStatusColor(deployment.status)} sx={{ height: "1rem", fontSize: ".75rem", maxWidth: "120px" }} />
       </TableCell>
       <TableCell align="center">
-        <Link href={UrlService.block(deployment.createdHeight)}>
-          <a target="_blank">{deployment.createdHeight}</a>
+        <Link href={UrlService.block(deployment.createdHeight)} target="_blank">
+          {deployment.createdHeight}
         </Link>
       </TableCell>
       <TableCell>

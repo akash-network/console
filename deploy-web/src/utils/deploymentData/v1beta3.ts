@@ -6,7 +6,6 @@ const path = require("path");
 const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
 const endpointKindIP = "ip";
 
-
 function validate(yamlJson) {
   const sdl = getSdl(yamlJson, "beta3");
 

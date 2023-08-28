@@ -15,21 +15,12 @@ export const MsgCloseLease: React.FunctionComponent<TxMessageProps> = ({ message
       <LabelValue
         label="dseq"
         value={
-          <Link href={UrlService.publicDeploymentDetails(message?.data?.leaseId?.owner, message?.data?.leaseId?.dseq)}>
-            <a>{message?.data?.leaseId?.dseq}</a>
-          </Link>
+          <Link href={UrlService.publicDeploymentDetails(message?.data?.leaseId?.owner, message?.data?.leaseId?.dseq)}>{message?.data?.leaseId?.dseq}</Link>
         }
       />
       <LabelValue label="gseq" value={message?.data?.leaseId?.gseq} />
       <LabelValue label="oseq" value={message?.data?.leaseId?.oseq} />
-      <LabelValue
-        label="Provider"
-        value={
-          <Link href={UrlService.address(message?.data?.leaseId?.provider)}>
-            <a>{message?.data?.leaseId?.provider}</a>
-          </Link>
-        }
-      />
+      <LabelValue label="Provider" value={<Link href={UrlService.address(message?.data?.leaseId?.provider)}>{message?.data?.leaseId?.provider}</Link>} />
       {/* TODO: Add link to provider page */}
     </>
   );

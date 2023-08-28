@@ -73,11 +73,7 @@ const AddressDetailPage: React.FunctionComponent<Props> = ({ address }) => {
                   </TableRow>
                 </CustomTableHeader>
 
-                <TableBody>
-                  {transactionsResult?.results.map(tx => (
-                    <TransactionRow key={tx.hash} transaction={tx} blockHeight={tx.height} />
-                  ))}
-                </TableBody>
+                <TableBody>{transactionsResult?.results.map(tx => <TransactionRow key={tx.hash} transaction={tx} blockHeight={tx.height} />)}</TableBody>
               </Table>
             </TableContainer>
           )}

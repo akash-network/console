@@ -194,12 +194,18 @@ const DeploymentsPage: React.FunctionComponent<Props> = ({}) => {
                 )}
 
                 {filteredDeployments?.length > 0 && (
-                  <Link href={UrlService.newDeployment()} passHref>
-                    <Button className={classes.createBtn} variant="contained" size="medium" color="secondary" onClick={onDeployClick}>
-                      Deploy
-                      <RocketLaunchIcon sx={{ marginLeft: "1rem" }} fontSize="small" />
-                    </Button>
-                  </Link>
+                  <Button
+                    href={UrlService.newDeployment()}
+                    component={Link}
+                    className={classes.createBtn}
+                    variant="contained"
+                    size="medium"
+                    color="secondary"
+                    onClick={onDeployClick}
+                  >
+                    Deploy
+                    <RocketLaunchIcon sx={{ marginLeft: "1rem" }} fontSize="small" />
+                  </Button>
                 )}
               </>
             )}
@@ -235,12 +241,18 @@ const DeploymentsPage: React.FunctionComponent<Props> = ({}) => {
                 {isFilteringActive ? "No active deployments" : "No deployments"}
               </Typography>
 
-              <Link href={UrlService.newDeployment()} passHref>
-                <Button variant="contained" size="large" color="secondary" sx={{ marginTop: "1rem" }} onClick={onDeployClick}>
-                  Deploy
-                  <RocketLaunchIcon sx={{ marginLeft: "1rem" }} fontSize="small" />
-                </Button>
-              </Link>
+              <Button
+                href={UrlService.newDeployment()}
+                component={Link}
+                variant="contained"
+                size="large"
+                color="secondary"
+                sx={{ marginTop: "1rem" }}
+                onClick={onDeployClick}
+              >
+                Deploy
+                <RocketLaunchIcon sx={{ marginLeft: "1rem" }} fontSize="small" />
+              </Button>
             </Box>
           )}
 
