@@ -65,7 +65,6 @@ const IndexPage: React.FunctionComponent<Props> = ({}) => {
   const { settings, isSettingsInit } = useSettings();
   const { apiEndpoint } = settings;
   const { data: balances, isFetching: isLoadingBalances, refetch: getBalances } = useBalances(address, { enabled: false });
-  const escrowSum = activeDeployments.map(x => x.escrowBalance).reduce((a, b) => a + b, 0);
   const { providers, isLoadingProviders } = useAkashProviders();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
 
@@ -98,7 +97,6 @@ const IndexPage: React.FunctionComponent<Props> = ({}) => {
             <YourAccount
               isLoadingBalances={isLoadingBalances}
               balances={balances}
-              escrowSum={escrowSum}
               activeDeployments={activeDeployments}
               leases={leases}
               providers={providers}

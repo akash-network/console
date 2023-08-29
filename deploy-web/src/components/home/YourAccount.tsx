@@ -9,10 +9,9 @@ import { StatusPill } from "../shared/StatusPill";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
-import { PricePerMonth } from "../shared/PricePerMonth";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
-import { FormattedPlural } from "react-intl";
+import { FormattedNumber, FormattedPlural } from "react-intl";
 import { useRouter } from "next/router";
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
@@ -57,13 +56,12 @@ const useStyles = makeStyles()(theme => ({
 type Props = {
   balances: Balances;
   isLoadingBalances: boolean;
-  escrowSum: number;
   activeDeployments: Array<DeploymentDto>;
   leases: Array<LeaseDto>;
   providers: Array<RpcProvider>;
 };
 
-export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadingBalances, escrowSum, activeDeployments, leases, providers }) => {
+export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadingBalances, activeDeployments, leases, providers }) => {
   const { classes } = useStyles();
   const theme = useTheme();
   const router = useRouter();
@@ -71,8 +69,17 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const [selectedDataId, setSelectedDataId] = useState(null);
   const [costPerMonth, setCostPerMonth] = useState(null);
   const [userProviders, setUserProviders] = useState(null);
-  const total = balances ? balances.balance + escrowSum : 0;
-  const hasBalance = balances && total !== 0;
+  const escrowUAktSum = activeDeployments
+    .filter(x => x.escrowAccount.balance.denom === uAktDenom)
+    .map(x => x.escrowBalance)
+    .reduce((a, b) => a + b, 0);
+  const escrowUsdcSum = activeDeployments
+    .filter(x => x.escrowAccount.balance.denom === usdcIbcDenom)
+    .map(x => x.escrowBalance)
+    .reduce((a, b) => a + b, 0);
+  const totalUAkt = balances ? balances.balance + escrowUAktSum : 0;
+  const totalUsdc = balances ? balances.balanceUsdc + escrowUsdcSum : 0;
+  const hasBalance = balances && totalUAkt !== 0;
   const totalCpu = activeDeployments.map(d => d.cpuAmount).reduce((a, b) => a + b, 0);
   const totalGpu = activeDeployments.map(d => d.gpuAmount).reduce((a, b) => a + b, 0);
   const totalMemory = activeDeployments.map(d => d.memoryAmount).reduce((a, b) => a + b, 0);
@@ -83,28 +90,57 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const { price, isLoaded } = usePricing();
 
   const colors = {
-    balance: "#dd4320",
-    deployment: theme.palette.success.dark
+    balance_akt: "#dd4320",
+    balance_usdc: "#dd4320",
+    deployment_akt: theme.palette.success.dark,
+    deployment_usdc: theme.palette.success.dark
   };
 
-  const getData = (balances: Balances, escrowSum: number) => {
+  const getAktData = (balances: Balances, escrowUAktSum: number, escrowUsdcSum: number) => {
     return [
       {
-        id: "balance",
+        id: "balance_akt",
         label: "Balance",
+        denom: uAktDenom,
+        denomLabel: "AKT",
         value: balances.balance,
-        color: colors.balance
+        color: colors.balance_akt
       },
       {
-        id: "deployment",
+        id: "deployment_akt",
         label: "Deployment",
-        value: escrowSum,
-        color: colors.deployment
+        denom: uAktDenom,
+        denomLabel: "AKT",
+        value: escrowUAktSum,
+        color: colors.deployment_akt
       }
     ];
   };
-  const data = balances ? getData(balances, escrowSum) : [];
-  const filteredData = data.filter(x => x.value);
+  const getUsdcData = (balances: Balances, escrowUAktSum: number, escrowUsdcSum: number) => {
+    return [
+      {
+        id: "balance_usdc",
+        label: "Balance",
+        denom: usdcIbcDenom,
+        denomLabel: "USDC",
+        value: balances.balanceUsdc,
+        color: colors.balance_usdc
+      },
+      {
+        id: "deployment_usdc",
+        label: "Deployment",
+        denom: usdcIbcDenom,
+        denomLabel: "USDC",
+        value: escrowUsdcSum,
+        color: colors.deployment_usdc
+      }
+    ];
+  };
+  const aktData = balances ? getAktData(balances, escrowUAktSum, escrowUsdcSum) : [];
+  const usdcData = balances ? getUsdcData(balances, escrowUAktSum, escrowUsdcSum) : [];
+  const filteredAktData = aktData.filter(x => x.value);
+  const filteredUsdcData = usdcData.filter(x => x.value);
+  const allData = [...aktData, ...usdcData];
 
   useEffect(() => {
     if (leases && providers && price && isLoaded) {
@@ -138,7 +174,6 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   }, [leases, providers, price, isLoaded]);
 
   const _getColor = bar => getColor(bar.id, selectedDataId);
-
   const getColor = (id, selectedId) => {
     if (!selectedId || id === selectedId) {
       return colors[id];
@@ -174,7 +209,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                 <Typography variant="body1" sx={{ marginLeft: activeDeployments.length > 0 ? "1rem" : 0 }}>
                   You have{" "}
                   <Link href={UrlService.deploymentList()} passHref>
-                    {activeDeployments.length}active <FormattedPlural value={activeDeployments.length} zero="deployment" one="deployment" other="deployments" />
+                    {activeDeployments.length} active{" "}
+                    <FormattedPlural value={activeDeployments.length} zero="deployment" one="deployment" other="deployments" />
                   </Link>
                 </Typography>
               </Box>
@@ -256,43 +292,15 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
               }}
             >
               {hasBalance && (
-                <Box height="200px" width="220px" display="flex" alignItems="center" justifyContent="center">
-                  <ResponsivePie
-                    data={filteredData}
-                    margin={{ top: 15, right: 15, bottom: 15, left: 0 }}
-                    innerRadius={0.4}
-                    padAngle={2}
-                    cornerRadius={4}
-                    activeOuterRadiusOffset={8}
-                    colors={_getColor}
-                    borderWidth={0}
-                    borderColor={{
-                      from: "color",
-                      modifiers: [["darker", 0.2]]
-                    }}
-                    valueFormat={value => `${uaktToAKT(value, 2)} AKT`}
-                    enableArcLinkLabels={false}
-                    arcLabelsSkipAngle={10}
-                    theme={{
-                      background: theme.palette.mode === "dark" ? lighten(theme.palette.background.paper, 0.0525) : theme.palette.background.paper,
-                      textColor: "#fff",
-                      fontSize: 12,
-                      tooltip: {
-                        basic: {
-                          color: theme.palette.mode === "dark" ? theme.palette.primary.contrastText : theme.palette.primary.main
-                        },
-                        container: {
-                          backgroundColor: theme.palette.mode === "dark" ? theme.palette.primary.main : theme.palette.primary.contrastText
-                        }
-                      }
-                    }}
-                  />
+                <Box>
+                  <BalancePie data={filteredAktData} getColor={_getColor} label="AKT" />
+                  <BalancePie data={filteredUsdcData} getColor={_getColor} label="USDC" />
                 </Box>
               )}
 
               {balances && (
                 <Box padding={hasBalance ? 0 : "1rem"} onMouseLeave={() => setSelectedDataId(null)}>
-                  {data.map((balance, i) => (
+                  {allData.map((balance, i) => (
                     <div
                       className={classes.legendRow}
                       key={i}
@@ -301,10 +309,12 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     >
                       <div className={classes.legendColor} style={{ backgroundColor: balance.color }} />
                       <div className={classes.legendLabel}>{balance.label}</div>
-                      <div className={classes.legendValue}>{uaktToAKT(balance.value, 2)} AKT</div>
+                      <div className={classes.legendValue}>
+                        {udenomToDenom(balance.value, 2)} {balance.denomLabel}
+                      </div>
                       {!!balance.value && (
                         <div>
-                          <PriceValue denom={uAktDenom} value={uaktToAKT(balance.value, 6)} />
+                          <PriceValue denom={balance.denom} value={udenomToDenom(balance.value, 6)} />
                         </div>
                       )}
                     </div>
@@ -314,12 +324,52 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     <div className={classes.legendColor} />
                     <div className={classes.legendLabel}>Total</div>
                     <div className={classes.legendValue}>
-                      <strong>{uaktToAKT(total, 2)} AKT</strong>
+                      <strong>{uaktToAKT(totalUAkt, 2)} AKT</strong>
                     </div>
-                    {!!total && (
+                    {!!totalUAkt && (
                       <div>
                         <strong>
-                          <PriceValue denom={uAktDenom} value={uaktToAKT(total, 6)} />
+                          <PriceValue denom={uAktDenom} value={uaktToAKT(totalUAkt, 6)} />
+                        </strong>
+                      </div>
+                    )}
+                  </Box>
+                  <Box className={classes.legendRow} sx={{ fontSize: ".9rem !important" }}>
+                    <div className={classes.legendColor} />
+                    <div className={classes.legendLabel}></div>
+                    <div className={classes.legendValue}>
+                      <strong>{udenomToDenom(totalUsdc, 2)} USDC</strong>
+                    </div>
+                    {!!totalUsdc && (
+                      <div>
+                        <strong>
+                          <PriceValue denom={usdcIbcDenom} value={udenomToDenom(totalUsdc, 6)} />
+                        </strong>
+                      </div>
+                    )}
+                  </Box>
+
+                  <Box
+                    className={classes.legendRow}
+                    sx={{
+                      fontSize: ".9rem !important",
+                      marginTop: ".5rem",
+                      paddingTop: ".5rem",
+                      borderTop: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200]}`
+                    }}
+                  >
+                    <div className={classes.legendColor} />
+                    <div className={classes.legendLabel}></div>
+                    <div className={classes.legendValue}></div>
+                    {!!totalUsdc && (
+                      <div>
+                        <strong>
+                          <FormattedNumber
+                            value={udenomToDenom(totalUsdc, 6) + udenomToDenom(totalUAkt, 6) * price}
+                            // eslint-disable-next-line react/style-prop-object
+                            style="currency"
+                            currency="USD"
+                          />
                         </strong>
                       </div>
                     )}
@@ -333,5 +383,56 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
         {!address && <ConnectWallet text="Connect your wallet to deploy!" />}
       </CardContent>
     </Card>
+  );
+};
+
+type BalancePieProps = {
+  label: string;
+  data: Array<any>;
+  getColor: (bar: any) => string;
+};
+
+const BalancePie: React.FunctionComponent<BalancePieProps> = ({ label, data, getColor }) => {
+  const theme = useTheme();
+  return (
+    <Box height="200px" width="220px" display="flex" alignItems="center" justifyContent="center">
+      <ResponsivePie
+        data={data}
+        margin={{ top: 15, right: 15, bottom: 15, left: 0 }}
+        innerRadius={0.4}
+        padAngle={2}
+        cornerRadius={4}
+        activeOuterRadiusOffset={8}
+        colors={getColor}
+        borderWidth={0}
+        borderColor={{
+          from: "color",
+          modifiers: [["darker", 0.2]]
+        }}
+        valueFormat={value => {
+          return `${udenomToDenom(value, 2)} ${label}`;
+        }}
+        tooltip={value => (
+          <Box sx={{ backgroundColor: theme.palette.grey[900], padding: ".5rem 1rem", borderRadius: ".5rem" }}>
+            {value.datum.label}: {value.datum.formattedValue}
+          </Box>
+        )}
+        enableArcLinkLabels={false}
+        arcLabelsSkipAngle={10}
+        theme={{
+          background: theme.palette.mode === "dark" ? lighten(theme.palette.background.paper, 0.0525) : theme.palette.background.paper,
+          textColor: "#fff",
+          fontSize: 12,
+          tooltip: {
+            basic: {
+              color: theme.palette.mode === "dark" ? theme.palette.primary.contrastText : theme.palette.primary.main
+            },
+            container: {
+              backgroundColor: theme.palette.mode === "dark" ? theme.palette.primary.main : theme.palette.primary.contrastText
+            }
+          }
+        }}
+      />
+    </Box>
   );
 };
