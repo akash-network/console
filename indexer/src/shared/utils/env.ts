@@ -15,5 +15,6 @@ export const env = {
   JunoDatabaseCS: process.env.JunoDatabaseCS,
   ActiveChain: process.env.ActiveChain,
   KeepCache: process.env.KeepCache === "true",
-  Standby: process.env.Standby === "true"
+  Standby: process.env.Standby === "true",
+  DataFolder: process.env.DataFolder ?? "./data"
 };

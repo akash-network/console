@@ -1,5 +1,6 @@
 import { activeChain } from "@shared/chainDefinitions";
 import { env } from "./utils/env";
+import path from "path";
 
 export const averageBlockTime = 6.174;
 export const averageDaysInMonth = 30.437;
@@ -17,5 +18,5 @@ export enum ExecutionMode {
 export const executionMode: ExecutionMode = ExecutionMode.SyncOnly;
 export const lastBlockToSync = Number.POSITIVE_INFINITY;
 
-export const dataFolderPath = activeChain.dataFolder;
+export const dataFolderPath = path.join(env.DataFolder, activeChain.code);
 export const concurrentNodeQuery = 5;
