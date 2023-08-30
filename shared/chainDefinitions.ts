@@ -391,8 +391,4 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
   }
 };
 
-if (!(process.env.ActiveChain in chainDefinitions)) {
-  throw new Error(`Unknown chain with code: ${process.env.ActiveChain}`);
-}
-
 export const activeChain = chainDefinitions[process.env.ActiveChain || "akash"];

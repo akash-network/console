@@ -39,6 +39,8 @@ export const getDashboardData = async () => {
       dailyLeaseCount: latestBlockStats.totalLeaseCount - compareBlockStats.totalLeaseCount,
       totalUAktSpent: latestBlockStats.totalUAktSpent,
       dailyUAktSpent: latestBlockStats.totalUAktSpent - compareBlockStats.totalUAktSpent,
+      totalUUsdcSpent: latestBlockStats.totalUUsdcSpent,
+      dailyUUsdcSpent: latestBlockStats.totalUUsdcSpent - compareBlockStats.totalUUsdcSpent,
       activeCPU: latestBlockStats.activeCPU,
       activeGPU: latestBlockStats.activeGPU,
       activeMemory: latestBlockStats.activeMemory,
@@ -52,6 +54,8 @@ export const getDashboardData = async () => {
       dailyLeaseCount: compareBlockStats.totalLeaseCount - secondCompareBlockStats.totalLeaseCount,
       totalUAktSpent: compareBlockStats.totalUAktSpent,
       dailyUAktSpent: compareBlockStats.totalUAktSpent - secondCompareBlockStats.totalUAktSpent,
+      totalUUsdcSpent: compareBlockStats.totalUUsdcSpent,
+      dailyUUsdcSpent: compareBlockStats.totalUUsdcSpent - secondCompareBlockStats.totalUUsdcSpent,
       activeCPU: compareBlockStats.activeCPU,
       activeGPU: compareBlockStats.activeGPU,
       activeMemory: compareBlockStats.activeMemory,
@@ -151,6 +155,15 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
     },
     true
   );
+
+  // TODO
+  if (result.length < 2) {
+    return {
+      currentValue: 0,
+      compareValue: 0,
+      snapshots: []
+    };
+  }
 
   const currentValue = result[result.length - 1] as ProviderStats;
   const compareValue = result[result.length - 2] as ProviderStats;

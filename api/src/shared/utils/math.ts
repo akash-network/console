@@ -9,3 +9,7 @@ export function round(amount: number, precision: number = 2) {
 export function uaktToAKT(amount: number, precision = 2) {
   return round(amount / 1_000_000, precision);
 }
+
+export function udenomToDenom(amount: number, precision = 2) {
+  return round(amount / 1_000_000, precision);
+}

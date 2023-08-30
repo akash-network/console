@@ -3,7 +3,7 @@ import { Day } from "@shared/dbSchemas/base";
 import { AkashBlock as Block } from "@shared/dbSchemas/akash";
 import { add } from "date-fns";
 import { getTodayUTC } from "@src/shared/utils/date";
-import { round, uaktToAKT } from "@src/shared/utils/math";
+import { round, uaktToAKT, udenomToDenom } from "@src/shared/utils/math";
 
 export const getWeb3IndexRevenue = async (debug?: boolean) => {
   const dailyNetworkRevenues = await getDailyRevenue();
@@ -12,6 +12,7 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
     date: r.date.getTime() / 1000,
     revenue: round(r.usd, 2),
     revenueUAkt: r.uakt,
+    revenueUUsdc: r.uusdc,
     aktPrice: r.aktPrice,
     dateStr: r.date
   }));
@@ -40,6 +41,14 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
     thirtyDaysAgoRevenueUAkt: number = 0,
     sixtyDaysAgoRevenueUAkt: number = 0,
     ninetyDaysAgoRevenueUAkt: number = 0;
+  let totalRevenueUUsdc: number = 0,
+    oneDayAgoRevenueUUsdc: number = 0,
+    twoDaysAgoRevenueUUsdc: number = 0,
+    oneWeekAgoRevenueUUsdc: number = 0,
+    twoWeeksAgoRevenueUUsdc: number = 0,
+    thirtyDaysAgoRevenueUUsdc: number = 0,
+    sixtyDaysAgoRevenueUUsdc: number = 0,
+    ninetyDaysAgoRevenueUUsdc: number = 0;
 
   days.forEach((b) => {
     const date = new Date(b.date * 1000);
@@ -47,6 +56,7 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
     if (date <= ninetyDaysAgo) {
       ninetyDaysAgoRevenue += b.revenue;
       ninetyDaysAgoRevenueUAkt += b.revenueUAkt;
+      ninetyDaysAgoRevenueUUsdc += b.revenueUUsdc;
     }
     if (date <= sixtyDaysAgo) {
       sixtyDaysAgoRevenue += b.revenue;
@@ -121,7 +131,7 @@ async function getDailyRevenue() {
       {
         model: Block,
         as: "lastBlockYet",
-        attributes: ["totalUAktSpent"],
+        attributes: ["totalUAktSpent", "totalUUsdcSpent"],
         required: true
       }
     ],
@@ -134,13 +144,15 @@ async function getDailyRevenue() {
   let stats = result.map((day) => ({
     date: day.date,
     totalUAktSpent: (day.lastBlockYet as Block).totalUAktSpent,
+    totalUUsdcSpent: (day.lastBlockYet as Block).totalUUsdcSpent,
     aktPrice: day.aktPrice // TODO handle no price
   }));
 
-  let relativeStats = stats.reduce((arr, dataPoint, index) => {
+  let relativeStats: { date: Date; uakt: number; uusdc: number; aktPrice: number }[] = stats.reduce((arr, dataPoint, index) => {
     arr[index] = {
       date: dataPoint.date,
       uakt: dataPoint.totalUAktSpent - (index > 0 ? stats[index - 1].totalUAktSpent : 0),
+      uusdc: dataPoint.totalUUsdcSpent - (index > 0 ? stats[index - 1].totalUUsdcSpent : 0),
       aktPrice: dataPoint.aktPrice
     };
 
@@ -151,7 +163,9 @@ async function getDailyRevenue() {
     date: x.date,
     uakt: x.uakt,
     akt: uaktToAKT(x.uakt, 6),
-    usd: uaktToAKT(x.uakt, 6) * x.aktPrice,
+    uusdc: x.uusdc,
+    usdc: udenomToDenom(x.uusdc),
+    usd: uaktToAKT(x.uakt, 6) * x.aktPrice + x.uusdc,
     aktPrice: x.aktPrice
   }));
 }

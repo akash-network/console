@@ -13,7 +13,7 @@ import { bytesToHumanReadableSize } from "./shared/utils/files";
 import { getCacheSize } from "./chain/dataStore";
 import { env } from "./shared/utils/env";
 import { nodeAccessor } from "./chain/nodeAccessor";
-import { activeChain } from "@shared/chainDefinitions";
+import { activeChain, chainDefinitions } from "@shared/chainDefinitions";
 import { addressBalanceMonitor, deploymentBalanceMonitor } from "./monitors";
 import { updateProvidersLocation } from "./providers/ipLocationProvider";
 import { sleep } from "./shared/utils/delay";
@@ -122,6 +122,10 @@ async function initApp() {
       while (true) {
         await sleep(5_000);
       }
+    }
+
+    if (!(process.env.ActiveChain in chainDefinitions)) {
+      throw new Error(`Unknown chain with code: ${process.env.ActiveChain}`);
     }
 
     await initDatabase();
