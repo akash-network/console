@@ -96,7 +96,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
     deployment_usdc: theme.palette.success.dark
   };
 
-  const getAktData = (balances: Balances, escrowUAktSum: number, escrowUsdcSum: number) => {
+  const getAktData = (balances: Balances, escrowUAktSum: number) => {
     return [
       {
         id: "balance_akt",
@@ -116,7 +116,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
       }
     ];
   };
-  const getUsdcData = (balances: Balances, escrowUAktSum: number, escrowUsdcSum: number) => {
+  const getUsdcData = (balances: Balances, escrowUsdcSum: number) => {
     return [
       {
         id: "balance_usdc",
@@ -136,8 +136,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
       }
     ];
   };
-  const aktData = balances ? getAktData(balances, escrowUAktSum, escrowUsdcSum) : [];
-  const usdcData = balances ? getUsdcData(balances, escrowUAktSum, escrowUsdcSum) : [];
+  const aktData = balances ? getAktData(balances, escrowUAktSum) : [];
+  const usdcData = balances ? getUsdcData(balances, escrowUsdcSum) : [];
   const filteredAktData = aktData.filter(x => x.value);
   const filteredUsdcData = usdcData.filter(x => x.value);
   const allData = [...aktData, ...usdcData];

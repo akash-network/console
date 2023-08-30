@@ -36,7 +36,7 @@ export const WelcomeModal = ({ open, onClose }) => {
 
           <Typography variant="body2" color="textSecondary">
             Our app is currently in the BETA stage, which means that we are still in the process of testing and improving it. To ensure a safe and enjoyable
-            experience, we recommend that you create a new wallet and start with a small amount of AKT.
+            experience, we recommend that you create a new wallet and start with a small amount of AKT/USDC.
             <br />
             <br />
             Please note that while we are doing our best to make sure the app is safe and functional, there may be some bugs and issues that we haven't

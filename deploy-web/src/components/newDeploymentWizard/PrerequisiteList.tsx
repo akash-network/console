@@ -32,7 +32,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       setIsLoadingPrerequisites(true);
 
       const balance = await refreshBalances();
-      const isBalanceValidated = balance.uakt >= 5000000;
+      const isBalanceValidated = balance.uakt >= 5000000 || balance.usdc >= 5000000;
 
       setIsBalanceValidated(isBalanceValidated);
       setIsLoadingPrerequisites(false);
@@ -46,7 +46,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       loadPrerequisites();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletBalances?.uakt]);
+  }, [walletBalances?.uakt, walletBalances?.usdc]);
 
   return (
     <Popup
@@ -86,7 +86,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
               </ListItemIcon>
               <ListItemText
                 primary="Wallet Balance"
-                secondary="The balance of the wallet needs to be of at least 5 AKT. If you do not have 5 AKT, you will need to specify an authorized depositor."
+                secondary="The balance of the wallet needs to be of at least 5 AKT or USDC. If you do not have 5 AKT, you will need to specify an authorized depositor."
               />
             </ListItem>
           </List>

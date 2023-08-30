@@ -34,6 +34,7 @@ export const PROVIDER_PROXY_URL_WS = getProviderProxyWsUrl();
 export const auth0TokenNamespace = "https://cloudmos.io";
 
 export const uAktDenom = "uakt";
+// TODO Handle denom for mainnet/testnet/sandbox
 export const usdcIbcDenom = "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84";
 
 // Cloudmos fee
