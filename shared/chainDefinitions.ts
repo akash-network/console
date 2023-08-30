@@ -76,13 +76,39 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
   },
   akashTestnet: {
     code: "akash-testnet",
-    rpcNodes: [
-      "https://rpc.testnet-02.aksh.pw:443",
-      "https://akash-testnet-rpc.cosmonautstakes.com:443"
-    ],
+    rpcNodes: ["https://rpc.testnet-02.aksh.pw:443", "https://akash-testnet-rpc.cosmonautstakes.com:443"],
     cosmosDirectoryId: "akash",
     connectionString: process.env.AkashTestnetDatabaseCS,
     genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/testnet-02/genesis.json",
+    coinGeckoId: "akash-network",
+    logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
+    logoUrlPNG: "https://cloudmos.io/images/chains/akash.png",
+    customIndexers: ["AkashStatsIndexer"],
+    bech32Prefix: "akash",
+    denom: "akt",
+    udenom: "uakt",
+    customBlockModel: AkashBlock,
+    customMessageModel: AkashMessage,
+    customModels: [
+      AkashBlock,
+      AkashMessage,
+      Bid,
+      Deployment,
+      DeploymentGroup,
+      DeploymentGroupResource,
+      Lease,
+      Provider,
+      ProviderAttribute,
+      ProviderAttributeSignature,
+      ProviderSnapshot
+    ]
+  },
+  akashSandbox: {
+    code: "akash-sandbox",
+    rpcNodes: ["https://rpc.sandbox-01.aksh.pw"],
+    cosmosDirectoryId: "akash",
+    connectionString: process.env.AkashSandboxDatabaseCS,
+    genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/sandbox/genesis.json",
     coinGeckoId: "akash-network",
     logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
     logoUrlPNG: "https://cloudmos.io/images/chains/akash.png",
@@ -364,5 +390,9 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
     startHeight: 12_975_265
   }
 };
+
+if (!(process.env.ActiveChain in chainDefinitions)) {
+  throw new Error(`Unknown chain with code: ${process.env.ActiveChain}`);
+}
 
 export const activeChain = chainDefinitions[process.env.ActiveChain || "akash"];

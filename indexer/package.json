@@ -19,7 +19,7 @@
   },
   "homepage": "https://github.com/akash-network/cloudmos",
   "dependencies": {
-    "@akashnetwork/akashjs": "0.4.5",
+    "@akashnetwork/akashjs": "0.4.9",
     "@cosmjs/crypto": "^0.28.11",
     "@cosmjs/encoding": "^0.28.11",
     "@cosmjs/math": "^0.28.11",

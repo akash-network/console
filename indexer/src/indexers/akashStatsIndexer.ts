@@ -28,8 +28,14 @@ class ITotalResources {
   memorySum: number;
   ephemeralStorageSum: number;
   persistentStorageSum: number;
-  priceSum: number;
+  priceSumUAKT: number;
+  priceSumUUSDC: number;
 }
+
+const denomMapping = {
+  uakt: "uakt",
+  "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84": "uusdc" // USDC on Sandbox
+};
 
 export class AkashStatsIndexer extends Indexer {
   private totalLeaseCount = 0;
@@ -169,7 +175,8 @@ export class AkashStatsIndexer extends Indexer {
     currentBlock.activeMemory = this.totalResources.memorySum;
     currentBlock.activeEphemeralStorage = this.totalResources.ephemeralStorageSum;
     currentBlock.activePersistentStorage = this.totalResources.persistentStorageSum;
-    currentBlock.totalUAktSpent = (previousBlock?.totalUAktSpent || 0) + this.totalResources.priceSum;
+    currentBlock.totalUAktSpent = (previousBlock?.totalUAktSpent || 0) + this.totalResources.priceSumUAKT;
+    currentBlock.totalUUsdcSpent = (previousBlock?.totalUUsdcSpent || 0) + this.totalResources.priceSumUUSDC;
   }
 
   @benchmark.measureMethodAsync
@@ -188,7 +195,7 @@ export class AkashStatsIndexer extends Indexer {
   @benchmark.measureMethodAsync
   private async getTotalResources(blockGroupTransaction, height: number) {
     const totalResources = await Lease.findAll({
-      attributes: ["cpuUnits", "gpuUnits", "memoryQuantity", "ephemeralStorageQuantity", "persistentStorageQuantity", "price"],
+      attributes: ["cpuUnits", "gpuUnits", "memoryQuantity", "ephemeralStorageQuantity", "persistentStorageQuantity", "price", "denom"],
       where: {
         closedHeight: { [Op.is]: null },
         predictedClosedHeight: { [Op.gt]: height }
@@ -203,7 +210,14 @@ export class AkashStatsIndexer extends Indexer {
       memorySum: totalResources.map((x) => x.memoryQuantity).reduce((a, b) => a + b, 0),
       ephemeralStorageSum: totalResources.map((x) => x.ephemeralStorageQuantity).reduce((a, b) => a + b, 0),
       persistentStorageSum: totalResources.map((x) => x.persistentStorageQuantity).reduce((a, b) => a + b, 0),
-      priceSum: totalResources.map((x) => x.price).reduce((a, b) => a + b, 0)
+      priceSumUAKT: totalResources
+        .filter((x) => x.denom === "uakt")
+        .map((x) => x.price)
+        .reduce((a, b) => a + b, 0),
+      priceSumUUSDC: totalResources
+        .filter((x) => x.denom === "uusdc")
+        .map((x) => x.price)
+        .reduce((a, b) => a + b, 0)
     };
   }
 
@@ -245,6 +259,7 @@ export class AkashStatsIndexer extends Indexer {
         deposit: parseInt(decodedMessage.deposit.amount),
         balance: parseInt(decodedMessage.deposit.amount),
         withdrawnAmount: 0,
+        denom: "uakt",
         createdHeight: height,
         closedHeight: null
       },
@@ -295,6 +310,7 @@ export class AkashStatsIndexer extends Indexer {
         deposit: parseInt(decodedMessage.deposit.amount),
         balance: parseInt(decodedMessage.deposit.amount),
         withdrawnAmount: 0,
+        denom: "uakt",
         createdHeight: height,
         closedHeight: null
       },
@@ -343,6 +359,10 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCreateDeploymentV3(decodedMessage: v1beta3.MsgCreateDeployment, height: number, blockGroupTransaction, msg: Message) {
+    if (!(decodedMessage.deposit.denom in denomMapping)) {
+      throw "Unknown denom: " + decodedMessage.deposit.denom;
+    }
+
     const created = await Deployment.create(
       {
         id: uuid.v4(),
@@ -351,6 +371,7 @@ export class AkashStatsIndexer extends Indexer {
         deposit: parseInt(decodedMessage.deposit.amount),
         balance: parseInt(decodedMessage.deposit.amount),
         withdrawnAmount: 0,
+        denom: denomMapping[decodedMessage.deposit.denom],
         createdHeight: height,
         closedHeight: null
       },
@@ -375,21 +396,21 @@ export class AkashStatsIndexer extends Indexer {
       this.addToDeploymentGroupIdCache(createdGroup.owner, createdGroup.dseq, createdGroup.gseq, createdGroup.id);
 
       for (const groupResource of group.resources) {
-        const { vendor: gpuVendor, model: gpuModel } = getGPUAttributes(groupResource.resources.gpu);
+        const { vendor: gpuVendor, model: gpuModel } = getGPUAttributes(groupResource.resource.gpu);
 
         await DeploymentGroupResource.create(
           {
             deploymentGroupId: createdGroup.id,
-            cpuUnits: parseInt(uint8arrayToString(groupResource.resources.cpu.units.val)),
-            gpuUnits: parseInt(uint8arrayToString(groupResource.resources.gpu.units.val)),
+            cpuUnits: parseInt(uint8arrayToString(groupResource.resource.cpu.units.val)),
+            gpuUnits: parseInt(uint8arrayToString(groupResource.resource.gpu.units.val)),
             gpuVendor: gpuVendor,
             gpuModel: gpuModel,
-            memoryQuantity: parseInt(uint8arrayToString(groupResource.resources.memory.quantity.val)),
-            ephemeralStorageQuantity: groupResource.resources.storage
+            memoryQuantity: parseInt(uint8arrayToString(groupResource.resource.memory.quantity.val)),
+            ephemeralStorageQuantity: groupResource.resource.storage
               .filter((x) => !isPersistentStorage(x))
               .map((x) => parseInt(uint8arrayToString(x.quantity.val)))
               .reduce((a, b) => a + b, 0),
-            persistentStorageQuantity: groupResource.resources.storage
+            persistentStorageQuantity: groupResource.resource.storage
               .filter((x) => isPersistentStorage(x))
               .map((x) => parseInt(uint8arrayToString(x.quantity.val)))
               .reduce((a, b) => a + b, 0),
@@ -499,6 +520,7 @@ export class AkashStatsIndexer extends Indexer {
         createdHeight: height,
         predictedClosedHeight: predictedClosedHeight,
         price: bid.price,
+        denom: deployment.denom,
 
         // Stats
         cpuUnits: deploymentGroups.map((x) => x.cpuUnits * x.count).reduce((a, b) => a + b, 0),
