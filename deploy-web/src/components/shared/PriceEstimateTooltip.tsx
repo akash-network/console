@@ -57,7 +57,7 @@ export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, de
             &nbsp; per month
           </div>
 
-          <Box sx={{ fontSize: ".7rem", marginTop: ".5rem" }}>({`~${udenomToDenom(getAvgCostPerMonth(value))} ${denomData.label}/month`})</Box>
+          <Box sx={{ fontSize: ".7rem", marginTop: ".5rem" }}>({`~${udenomToDenom(getAvgCostPerMonth(value as number))} ${denomData?.label}/month`})</Box>
         </Box>
       }
     >
