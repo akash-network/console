@@ -43,15 +43,18 @@ export const useDenomData = (denom: string) => {
             balance: uaktToAKT(walletBalances.uakt, 6),
             inputMax: uaktToAKT(walletBalances.uakt - txFeeBuffer, 6)
           };
+          break;
         case usdcIbcDenom:
           depositData = {
             label: "UDSC",
             balance: udenomToDenom(walletBalances.usdc, 6),
             inputMax: udenomToDenom(walletBalances.usdc - txFeeBuffer, 6)
           };
+          break;
         default:
           break;
       }
+      console.log(denom, depositData);
 
       setDepositData(depositData);
     }
