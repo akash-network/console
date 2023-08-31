@@ -31,6 +31,7 @@ AkashDatabaseCS|ex: `postgres://user:password@localhost:5432/cloudmos-akash`|Aka
 ActiveChain|ex: `akash`|Chain code from [chainDefinitions.ts](../shared/chainDefinitions.ts)
 KeepCache|`true` or `false`|Specify if the [block & block response cache](#block-cache-structure) should be kept on drive. Takes a lot of space, but allow rebuilding the database without redownloading every blocks.
 Standby|`true` or `false`|If `true`, indexer will not start. Useful for stopping an indexer deployed on akash without needing to close the lease.
+DataFolder|ex: `./data/`|Directory where block cache and node statuses should be saved. Defaults to `./data/`.
 
 ## Scheduled Tasks
 
