@@ -25,7 +25,7 @@ COPY . .
 RUN npm run build
 
 # Production image, copy all the files and run next
-FROM base AS runner
+FROM node:18 AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
@@ -42,10 +42,17 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+#RUN apk update
+RUN apt-get update
+RUN apt-get install libcap2-bin -y
+RUN setcap cap_net_bind_service=+ep `readlink -f \`which node\``
+
 USER nextjs
 
-EXPOSE 3001
+#EXPOSE 3001
+EXPOSE 80
 
-ENV PORT 3001
+#ENV PORT 3001
+ENV PORT 80
 
 CMD ["node", "server.js"]
