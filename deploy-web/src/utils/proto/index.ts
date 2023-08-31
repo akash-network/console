@@ -15,7 +15,7 @@ export function initProtoTypes() {
       protoTypes = v1beta3;
       break;
     case sandboxId:
-      protoTypes = v1beta2;
+      protoTypes = v1beta3;
       break;
 
     default:

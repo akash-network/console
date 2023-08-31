@@ -231,10 +231,10 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                 title={
                   <>
                     <strong>
-                      {udenomToDenom(isActive && hasActiveLeases ? realTimeLeft?.escrow : escrowBalance, 6)}&nbsp;{denomData.label}
+                      {udenomToDenom(isActive && hasActiveLeases ? realTimeLeft?.escrow : escrowBalance, 6)}&nbsp;{denomData?.label}
                     </strong>
                     <Box display="flex">
-                      {udenomToDenom(amountSpent, 2)} {denomData.label} spent
+                      {udenomToDenom(amountSpent, 2)} {denomData?.label} spent
                     </Box>
                     <br />
                     The escrow account balance will be fully returned to your wallet balance when the deployment is closed.{" "}
@@ -266,7 +266,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                   arrow
                   title={
                     <span>
-                      {avgCost} {denomData.label} / month
+                      {avgCost} {denomData?.label} / month
                     </span>
                   }
                 >

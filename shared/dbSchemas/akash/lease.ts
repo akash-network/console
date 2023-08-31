@@ -28,6 +28,7 @@ export class Lease extends Model {
   @Required @Column(DataTypes.BIGINT) predictedClosedHeight: number;
   @Required @Column(DataTypes.DOUBLE) price: number;
   @Required @Default(0) @Column(DataTypes.DOUBLE) withdrawnAmount: number;
+  @Required @Column denom: string;
 
   // Stats
   @Required @Column cpuUnits: number;

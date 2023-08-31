@@ -8,7 +8,8 @@ import { chainDefinitions } from "@shared/chainDefinitions";
 
 const csMap = {
   mainnet: env.AkashDatabaseCS,
-  testnet: env.AkashTestnetDatabaseCS
+  testnet: env.AkashTestnetDatabaseCS,
+  sandbox: env.AkashSandboxDatabaseCS
 };
 
 if (!(env.Network in csMap)) {

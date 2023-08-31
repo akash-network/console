@@ -13,6 +13,7 @@ export class Deployment extends Model {
   @Required @Column createdHeight: number;
   @Required @Column(DataTypes.DOUBLE) balance: number;
   @Required @Column(DataTypes.BIGINT) deposit: number;
+  @Required @Column denom: string;
   @Column lastWithdrawHeight?: number;
   @Required @Column(DataTypes.DOUBLE) withdrawnAmount!: number;
   @Column closedHeight?: number;

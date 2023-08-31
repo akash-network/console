@@ -2,13 +2,13 @@ import { DeploymentDto, LeaseDto, RpcDeployment, RpcLease } from "@src/types/dep
 import { coinToUAkt } from "./priceUtils";
 
 export function deploymentResourceSum(deployment: RpcDeployment, resourceSelector) {
-  return deployment.groups.map(g => g.group_spec.resources.map(r => r.count * resourceSelector(r.resources)).reduce((a, b) => a + b)).reduce((a, b) => a + b);
+  return deployment.groups.map(g => g.group_spec.resources.map(r => r.count * resourceSelector(r.resources ?? r.resource)).reduce((a, b) => a + b)).reduce((a, b) => a + b);
 }
 
 export function deploymentGroupResourceSum(group, resourceSelector) {
   if (!group || !group.group_spec || !group.group_spec) return 0;
 
-  return group.group_spec.resources.map(r => r.count * resourceSelector(r.resources)).reduce((a, b) => a + b);
+  return group.group_spec.resources.map(r => r.count * resourceSelector(r.resources ?? r.resource)).reduce((a, b) => a + b);
 }
 
 export function deploymentToDto(d: RpcDeployment): DeploymentDto {

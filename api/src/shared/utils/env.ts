@@ -9,6 +9,7 @@ export const env = {
   HealthchecksEnabled: process.env.HealthchecksEnabled,
   AkashDatabaseCS: process.env.AkashDatabaseCS,
   AkashTestnetDatabaseCS: process.env.AkashTestnetDatabaseCS,
+  AkashSandboxDatabaseCS: process.env.AkashSandboxDatabaseCS,
   UserDatabaseCS: process.env.UserDatabaseCS,
   Network: process.env.Network ?? "mainnet",
   RestApiNodeUrl: process.env.RestApiNodeUrl,
