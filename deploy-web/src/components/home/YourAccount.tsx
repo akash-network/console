@@ -21,7 +21,8 @@ import { RpcProvider } from "@src/types/provider";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
 import { usePricing } from "@src/context/PricingProvider";
-import { uAktDenom, usdcIbcDenom } from "@src/utils/constants";
+import { uAktDenom } from "@src/utils/constants";
+import { useUsdcDenom } from "@src/hooks/useDenom";
 
 const useStyles = makeStyles()(theme => ({
   legendRow: {
@@ -66,6 +67,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const theme = useTheme();
   const router = useRouter();
   const { address } = useKeplr();
+  const usdcIbcDenom = useUsdcDenom();
   const [selectedDataId, setSelectedDataId] = useState(null);
   const [costPerMonth, setCostPerMonth] = useState(null);
   const [userProviders, setUserProviders] = useState(null);

@@ -4,7 +4,7 @@ import axios from "axios";
 import { useSettings } from "../context/SettingsProvider";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { Balances } from "@src/types";
-import { uAktDenom, usdcIbcDenom } from "@src/utils/constants";
+import { uAktDenom } from "@src/utils/constants";
 import {
   RestApiBalancesResponseType,
   RestApiDelegationsType,
@@ -12,10 +12,12 @@ import {
   RestApiRewardsResponseType,
   RestApiUnbondingsResponseType
 } from "@src/types/balances";
+import { getUsdcDenom } from "@src/hooks/useDenom";
 
 // Account balances
 async function getBalances(apiEndpoint: string, address: string): Promise<Balances> {
   if (!address) return {} as Balances;
+  const usdcIbcDenom = getUsdcDenom();
 
   const balancePromise = axios.get<RestApiBalancesResponseType>(ApiUrlService.balance(apiEndpoint, address));
   const rewardsPromise = axios.get<RestApiRewardsResponseType>(ApiUrlService.rewards(apiEndpoint, address));

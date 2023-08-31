@@ -1,7 +1,8 @@
 import React from "react";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { useMarketData } from "@src/queries";
-import { uAktDenom, usdcIbcDenom } from "@src/utils/constants";
+import { uAktDenom } from "@src/utils/constants";
+import { useUsdcDenom } from "@src/hooks/useDenom";
 
 type ContextType = {
   isLoaded: boolean;
@@ -23,6 +24,7 @@ const PricingProviderContext = React.createContext<ContextType>({
 
 export const PricingProvider = ({ children }) => {
   const { data: marketData, isLoading } = useMarketData({ refetchInterval: 60_000 });
+  const usdcIbcDenom = useUsdcDenom();
 
   function uaktToUSD(amount: number) {
     if (!marketData) return null;

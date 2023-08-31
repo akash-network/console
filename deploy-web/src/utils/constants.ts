@@ -1,5 +1,9 @@
 import { ApiUrlService } from "./apiUtils";
 
+export const mainnetId = "mainnet";
+export const testnetId = "testnet";
+export const sandboxId = "sandbox";
+
 export enum SelectedRange {
   "7D" = 7,
   "1M" = 30,
@@ -34,9 +38,10 @@ export const PROVIDER_PROXY_URL_WS = getProviderProxyWsUrl();
 export const auth0TokenNamespace = "https://cloudmos.io";
 
 export const uAktDenom = "uakt";
-// TODO Handle denom for mainnet/testnet/sandbox
-export const usdcIbcDenom = "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84";
-export const mainnetUsdcIdbDenom = "ibc/F8D2BEE806C3F969B256416B37FF6E7E0B927F372993114B8E0B9E57DC8CD327";
+export const usdcIbcDenoms = {
+  [mainnetId]: "ibc/F8D2BEE806C3F969B256416B37FF6E7E0B927F372993114B8E0B9E57DC8CD327",
+  [sandboxId]: "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84"
+};
 
 // Cloudmos fee
 export const feePercent = 3;
@@ -97,10 +102,6 @@ export const testnetNodes = ApiUrlService.testnetNodes();
 export const sandboxNodes = ApiUrlService.sandboxNodes();
 
 // export const cloudmosApi = "https://api.cloudmos.io/api";
-
-export const mainnetId = "mainnet";
-export const testnetId = "testnet";
-export const sandboxId = "sandbox";
 
 export let selectedNetworkId = "";
 
