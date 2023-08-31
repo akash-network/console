@@ -113,7 +113,7 @@ export function setNetworkVersion() {
 
   switch (_selectedNetworkId) {
     case mainnetId:
-      networkVersion = "v1beta2";
+      networkVersion = "v1beta3";
       selectedNetworkId = mainnetId;
       break;
     case testnetId:
@@ -126,7 +126,7 @@ export function setNetworkVersion() {
       break;
 
     default:
-      networkVersion = "v1beta2";
+      networkVersion = "v1beta3";
       selectedNetworkId = mainnetId;
       break;
   }
