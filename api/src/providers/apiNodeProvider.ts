@@ -339,7 +339,7 @@ export async function getDeployment(owner: string, dseq: string) {
     include: [{ model: ProviderAttribute }]
   });
 
-  const marketData = await getMarketData();
+  const marketData = await cacheResponse(60 * 5, cacheKeys.getMarketData, getMarketData);
   const aktPrice = marketData?.price;
   const deploymentDenom = deploymentData.escrow_account.balance.denom;
 
