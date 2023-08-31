@@ -58,7 +58,10 @@ export interface RpcDeployment {
   escrow_account: EscrowAccount;
 }
 
-interface DeploymentGroup {
+// TODO Change after mainnet6 upgrade
+type DeploymentGroup = DeploymentGroup_v2 | DeploymentGroup_v3;
+
+interface DeploymentGroup_v2 {
   group_id: {
     owner: string;
     dseq: string;
@@ -79,6 +82,67 @@ interface DeploymentGroup {
     };
     resources: Array<{
       resources: {
+        cpu: {
+          units: {
+            val: string;
+          };
+          attributes: any[];
+        };
+        gpu: {
+          units: {
+            val: string;
+          };
+          attributes: any[];
+        };
+        memory: {
+          quantity: {
+            val: string;
+          };
+          attributes: any[];
+        };
+        storage: Array<{
+          name: string;
+          quantity: {
+            val: string;
+          };
+          attributes: any[];
+        }>;
+        endpoints: Array<{
+          kind: string;
+          sequence_number: number;
+        }>;
+      };
+      count: number;
+      price: {
+        denom: string;
+        amount: string;
+      };
+    }>;
+  };
+  created_at: string;
+}
+
+interface DeploymentGroup_v3 {
+  group_id: {
+    owner: string;
+    dseq: string;
+    gseq: number;
+  };
+  state: string;
+  group_spec: {
+    name: string;
+    requirements: {
+      signed_by: {
+        all_of: string[];
+        any_of: string[];
+      };
+      attributes: Array<{
+        key: string;
+        value: string;
+      }>;
+    };
+    resources: Array<{
+      resource: {
         cpu: {
           units: {
             val: string;

@@ -124,14 +124,14 @@ export let networks = [
     title: "Sandbox",
     description: "Sandbox of the mainnet version.",
     nodesUrl: sandboxNodes,
-    chainId: "sandbox",
+    chainId: "sandbox-01",
     versionUrl: ApiUrlService.sandboxVersion(),
     version: null, // Set asynchronously
     enabled: true,
     suggestKeplrChain: async () => {
       await window.keplr.experimentalSuggestChain({
         // Chain-id of the Craft chain.
-        chainId: "sandbox",
+        chainId: "sandbox-01",
         // The name of the chain to be displayed to the user.
         chainName: "Akash-Sandbox",
         // RPC endpoint of the chain. In this case we are using blockapsis, as it's accepts connections from any host currently. No Cors limitations.
