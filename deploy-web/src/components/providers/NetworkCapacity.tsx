@@ -166,7 +166,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
           Storage
         </Typography>
         <Typography variant="caption" color="textSecondary">
-          {`${roundDecimal(_activeStorage.value, 2)} ${_activeStorage.unit}`}&nbsp;/&nbsp;{`${roundDecimal(_totalStorage.value, 2)} ${_activeStorage.unit}`}
+          {`${roundDecimal(_activeStorage.value, 2)} ${_activeStorage.unit}`}&nbsp;/&nbsp;{`${roundDecimal(_totalStorage.value, 2)} ${_totalStorage.unit}`}
         </Typography>
         <Box sx={{ height: "200px", width: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <ResponsivePie

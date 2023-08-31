@@ -365,7 +365,7 @@ export async function getDeployment(owner: string, dseq: string) {
       status: x.lease.state,
       denom: deploymentDenom,
       monthlyCostAKT: round(monthlyUAKT / 1_000_000, 2),
-      // TODO Improve
+      // TODO Improve: Add USDC into calculation
       monthlyCostUSD: deploymentDenom === "uakt" ? (aktPrice ? round((monthlyUAKT / 1_000_000) * aktPrice, 2) : round(monthlyUAKT / 1_000_000, 2)) : null,
       cpuUnits: group.group_spec.resources.map((r) => parseInt(r.resources.cpu.units.val) * r.count).reduce((a, b) => a + b, 0),
       gpuUnits: group.group_spec.resources.map((r) => parseInt(r.resources.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0),
