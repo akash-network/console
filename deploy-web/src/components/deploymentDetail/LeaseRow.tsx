@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { SetStateAction, useCallback } from "react";
 import { useEffect, useState } from "react";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
 import LaunchIcon from "@mui/icons-material/Launch";
@@ -37,7 +37,6 @@ import { LinkTo } from "../shared/LinkTo";
 import { SpecDetail } from "../shared/SpecDetail";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
-import { uaktToAKT } from "@src/utils/priceUtils";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { FavoriteButton } from "../shared/FavoriteButton";
@@ -45,6 +44,9 @@ import { AuditorButton } from "../providers/AuditorButton";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { cx } from "@emotion/css";
 import { getSplitText } from "@src/hooks/useShortText";
+import { MergedProvider } from "@src/types/provider";
+import { LeaseDto } from "@src/types/deployment";
+import { udenomToDenom } from "@src/utils/mathHelpers";
 
 const yaml = require("js-yaml");
 
@@ -94,18 +96,17 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-// TODO Types
 type Props = {
-  lease;
-  setActiveTab;
-  deploymentManifest;
-  dseq;
-  providers;
-  loadDeploymentDetail;
+  lease: LeaseDto;
+  setActiveTab: (value: SetStateAction<string>) => void;
+  deploymentManifest: string;
+  dseq: string;
+  providers: MergedProvider[];
+  loadDeploymentDetail: () => void;
 };
 
 export type AcceptRefType = {
-  getLeaseStatus: any; // TODO types
+  getLeaseStatus: () => void;
 };
 
 export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActiveTab, deploymentManifest, dseq, providers, loadDeploymentDetail }, ref) => {
@@ -265,8 +266,8 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
               label="Price:"
               value={
                 <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <PricePerMonth perBlockValue={uaktToAKT(lease.price.amount, 6)} sx={{ fontSize: "1.25rem" }} />
-                  <PriceEstimateTooltip value={lease.price.amount} />
+                  <PricePerMonth denom={lease.price.denom} perBlockValue={udenomToDenom(lease.price.amount, 6)} sx={{ fontSize: "1.25rem" }} />
+                  <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} />
                 </Box>
               }
             />

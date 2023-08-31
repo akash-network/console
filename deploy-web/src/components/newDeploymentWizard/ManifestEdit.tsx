@@ -55,6 +55,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
+  const [sdlDenom, setSdlDenom] = useState("uakt");
   const { settings } = useSettings();
   const { address, signAndBroadcastTx } = useKeplr();
   const router = useRouter();
@@ -97,6 +98,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       const doc = yaml.load(yamlStr);
       const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, doc, dseq, address, deposit, depositorAddress);
       validateDeploymentData(dd);
+
+      setSdlDenom(dd.deposit.denom);
 
       setParsingError(null);
 
@@ -289,11 +292,12 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
         <DeploymentDepositModal
           handleCancel={() => setIsDepositingDeployment(false)}
           onDeploymentDeposit={onDeploymentDeposit}
-          min={5}
+          min={5} // TODO Query from chain params
+          denom={sdlDenom}
           infoText={
             <Alert severity="info" className={classes.alert} variant="outlined">
               <Typography variant="caption">
-                To create a deployment, you need to have at least <b>5 AKT</b> in an escrow account.{" "}
+                To create a deployment, you need to have at least <b>5 AKT</b> or <b>5 USDC</b> in an escrow account.{" "}
                 <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/glossary/escrow#escrow-accounts")}>
                   <strong>Learn more.</strong>
                 </LinkTo>

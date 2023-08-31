@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { useState, useEffect } from "react";
 import { SigningStargateClient } from "@cosmjs/stargate";
-import { mainnetId, selectedNetworkId, testnetId, uDenom } from "@src/utils/constants";
+import { mainnetId, selectedNetworkId, testnetId, uAktDenom, usdcIbcDenom } from "@src/utils/constants";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useSnackbar } from "notistack";
@@ -21,6 +21,7 @@ import { LinkTo } from "@src/components/shared/LinkTo";
 
 type Balances = {
   uakt: number;
+  usdc: number;
 };
 
 type ContextType = {
@@ -247,7 +248,7 @@ export const KeplrWalletProvider = ({ children }) => {
           amount: [
             {
               amount: "0.025",
-              denom: uDenom
+              denom: uAktDenom
             }
           ],
           gas: Math.ceil(simulation * 1.25).toString()
@@ -353,23 +354,27 @@ export const KeplrWalletProvider = ({ children }) => {
     );
   };
 
-  async function refreshBalances(address?: string) {
+  async function refreshBalances(address?: string): Promise<{ uakt: number; usdc: number }> {
     const _address = address || walletAddress;
     const client = await getStargateClient();
 
     if (client) {
       const balances = await client.getAllBalances(_address);
-      const balance = balances.find(b => b.denom === uDenom);
-      const uakt = {
-        uakt: balance ? parseInt(balance.amount) : 0
+      const uaktBalance = balances.find(b => b.denom === uAktDenom);
+      const usdcBalance = balances.find(b => b.denom === usdcIbcDenom);
+
+      const walletBalances = {
+        uakt: uaktBalance ? parseInt(uaktBalance.amount) : 0,
+        usdc: usdcBalance ? parseInt(usdcBalance.amount) : 0
       };
 
-      setWalletBalances(uakt);
+      setWalletBalances(walletBalances);
 
-      return uakt;
+      return walletBalances;
     } else {
       return {
-        uakt: 0
+        uakt: 0,
+        usdc: 0
       };
     }
   }

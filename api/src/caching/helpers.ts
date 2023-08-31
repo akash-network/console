@@ -50,6 +50,7 @@ export const cacheKeys = {
   getProviderActiveLeasesGraphData: "getProviderActiveLeasesGraphData",
   getProviderAttributesSchema: "getProviderAttributesSchema",
   getTemplates: "getTemplates",
+  getMarketData: "getMarketData",
   getAuditors: "getAuditors",
   getChainStats: "getChainStats",
   getMainnetNodes: "getMainnetNodes",
@@ -57,5 +58,5 @@ export const cacheKeys = {
   getSandboxNodes: "getSandboxNodes",
   getMainnetVersion: "getMainnetVersion",
   getTestnetVersion: "getTestnetVersion",
-  getSandboxVersion: "getSandboxVersion",
+  getSandboxVersion: "getSandboxVersion"
 };

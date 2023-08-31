@@ -39,9 +39,6 @@ import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import ViewPanel from "../shared/ViewPanel";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { isProd, treasuryAddress } from "@src/utils/constants";
-import { uaktToAKT } from "@src/utils/priceUtils";
-import { PriceValue } from "../shared/PriceValue";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { BidDto } from "@src/types/deployment";
 import { BidCountdownTimer } from "./BidCountdownTimer";
@@ -326,15 +323,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
             <Box
               sx={{ display: "flex", alignItems: "center", width: { xs: "100%", sm: "100%", md: "auto" }, margin: { xs: ".5rem 0", sm: ".4rem 0", md: "0" } }}
             >
-              {/* <Typography
-                variant="caption"
-                color="textSecondary"
-                sx={{ textAlign: "center", padding: "0 .5rem", lineHeight: "1rem", fontSize: ".65rem", whiteSpace: "nowrap" }}
-              >
-                Cloudmos fee
-                <br />
-                {uaktToAKT(cloudmosFee.fee)} AKT | <PriceValue value={uaktToAKT(cloudmosFee.fee)} />
-              </Typography> */}
               <Button
                 variant="contained"
                 color="secondary"

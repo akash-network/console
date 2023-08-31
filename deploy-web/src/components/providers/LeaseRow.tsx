@@ -1,19 +1,18 @@
 import React from "react";
-import { TableRow, TableCell, Box } from "@mui/material";
-import { FormattedNumber } from "react-intl";
+import { TableCell, Box } from "@mui/material";
 import isEqual from "lodash/isEqual";
 import { makeStyles } from "tss-react/mui";
 import { StatusPill } from "../shared/StatusPill";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { PricePerMonth } from "../shared/PricePerMonth";
-import { getAvgCostPerMonth, uaktToAKT } from "@src/utils/priceUtils";
+import { uaktToAKT } from "@src/utils/priceUtils";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { CustomTableRow } from "../shared/CustomTable";
 import { LeaseDto } from "@src/types/deployment";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 
-const useStyles = makeStyles()(theme => ({
+const useStyles = makeStyles()(() => ({
   flexCenter: {
     display: "flex",
     alignItems: "center"
@@ -26,7 +25,7 @@ type Props = {
 
 const MemoLeaseRow: React.FunctionComponent<Props> = ({ lease }) => {
   const { classes } = useStyles();
-  const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
+  const { getDeploymentName } = useLocalNotes();
   const deploymentName = getDeploymentName(lease.dseq);
 
   return (
@@ -47,8 +46,8 @@ const MemoLeaseRow: React.FunctionComponent<Props> = ({ lease }) => {
       </TableCell>
       <TableCell>
         <div className={classes.flexCenter}>
-          <PricePerMonth perBlockValue={uaktToAKT(lease.price.amount, 6)} />
-          <PriceEstimateTooltip value={lease.price.amount} />
+          <PricePerMonth denom={lease.price.denom} perBlockValue={uaktToAKT(lease.price.amount, 6)} />
+          <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} />
         </div>
       </TableCell>
     </CustomTableRow>

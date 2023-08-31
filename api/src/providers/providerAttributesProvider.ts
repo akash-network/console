@@ -6,7 +6,7 @@ export const getProviderAttributesSchema = async () => {
   const response = await cacheResponse(
     30,
     cacheKeys.getProviderAttributesSchema,
-    async () => await axios.get("https://raw.githubusercontent.com/ovrclk/cloudmos-config/master/provider-attributes.json")
+    async () => await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/provider-attributes.json")
   );
 
   return response.data;

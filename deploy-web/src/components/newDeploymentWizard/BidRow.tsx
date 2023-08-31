@@ -3,7 +3,6 @@ import CloudOffIcon from "@mui/icons-material/CloudOff";
 import { useEffect, useState } from "react";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { PricePerMonth } from "../shared/PricePerMonth";
-import { uaktToAKT } from "@src/utils/priceUtils";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { FavoriteButton } from "../shared/FavoriteButton";
 import { AuditorButton } from "../providers/AuditorButton";
@@ -18,6 +17,7 @@ import { MergedProvider } from "@src/types/provider";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
 import { cx } from "@emotion/css";
 import { Uptime } from "../providers/Uptime";
+import { udenomToDenom } from "@src/utils/mathHelpers";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -116,8 +116,8 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
     <CustomTableRow key={bid.id} className={cx({ [classes.root]: bid.state === "open", [classes.selectedRow]: isCurrentBid })} onClick={onRowClick}>
       <TableCell align="center">
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <PricePerMonth perBlockValue={uaktToAKT(bid.price.amount, 6)} className={classes.pricePerMonth} />
-          <PriceEstimateTooltip value={bid.price.amount} />
+          <PricePerMonth denom={bid.price.denom} perBlockValue={udenomToDenom(bid.price.amount, 6)} className={classes.pricePerMonth} />
+          <PriceEstimateTooltip denom={bid.price.denom} value={bid.price.amount} />
         </Box>
       </TableCell>
 
