@@ -1,4 +1,4 @@
-import { lighten, Box, IconButton, darken } from "@mui/material";
+import { lighten, Box, IconButton } from "@mui/material";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
 import { useSnackbar } from "notistack";
 import { useRef } from "react";
@@ -30,7 +30,7 @@ const useStyles = makeStyles()(theme => ({
 export const CodeSnippet = ({ code }) => {
   const { classes } = useStyles();
   const { enqueueSnackbar } = useSnackbar();
-  const codeRef = useRef();
+  const codeRef = useRef<HTMLElement>();
 
   const onCopyClick = () => {
     copyTextToClipboard(code);

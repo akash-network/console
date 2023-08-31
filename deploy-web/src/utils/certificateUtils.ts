@@ -1,6 +1,6 @@
 import rs from "jsrsasign";
 
-export async function openCert(certPem, encryptedKeyPem) {
+export async function openCert(certPem: string, encryptedKeyPem: string) {
   if (!certPem || !encryptedKeyPem) return null;
 
   const key = rs.KEYUTIL.getKeyFromPlainPrivatePKCS8PEM(encryptedKeyPem);
@@ -44,9 +44,9 @@ export const generateCertificate = (address: string) => {
   const prv = kp.prvKeyObj;
   const pub = kp.pubKeyObj;
 
-  const encryptedKey = rs.KEYUTIL.getPEM(prv, "PKCS8PRV");
+  const encryptedKey = rs.KEYUTIL.getPEM(prv, "PKCS8PRV") as string;
 
-  const pubpem = rs.KEYUTIL.getPEM(pub, "PKCS8PUB").replaceAll("PUBLIC KEY", "EC PUBLIC KEY");
+  const pubpem = rs.KEYUTIL.getPEM(pub, "PKCS8PUB").replaceAll("PUBLIC KEY", "EC PUBLIC KEY") as string;
 
   // STEP2. specify certificate parameters
   const cert = new rs.KJUR.asn1.x509.Certificate({
@@ -70,7 +70,7 @@ export const generateCertificate = (address: string) => {
     cakey: prv // can specify private key object or PEM string
   });
 
-  const crtpem = cert.getPEM();
+  const crtpem = cert.getPEM() as string;
 
   return { cert, crtpem, pubpem, encryptedKey };
 };

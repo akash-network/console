@@ -1,7 +1,7 @@
 import { CustomValidationError, ManifestVersion, getCurrentHeight, Manifest, DeploymentGroups, getSdl, parseSizeStr } from "./helpers";
 import { defaultInitialDeposit } from "../constants";
 import { stringToBoolean } from "../stringUtils";
-const path = require("path");
+import path from "path";
 
 const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
 const endpointKindIP = "ip";

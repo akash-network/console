@@ -15,7 +15,7 @@ import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { makeStyles } from "tss-react/mui";
 import { useRouter } from "next/router";
 import { getAvgCostPerMonth, getTimeLeft, useRealTimeLeft } from "@src/utils/priceUtils";
-import { Box, Checkbox, CircularProgress, darken, IconButton, Menu, TableCell, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Box, Checkbox, CircularProgress, darken, IconButton, Menu, TableCell, Tooltip, Typography } from "@mui/material";
 import { UrlService } from "@src/utils/urlUtils";
 import { cx } from "@emotion/css";
 import { CustomMenuItem } from "../shared/CustomMenuItem";
@@ -112,7 +112,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const hasActiveLeases = hasLeases && filteredLeases.some(l => l.state === "active");
   const deploymentCost = hasLeases ? filteredLeases.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) : 0;
   const timeLeft = getTimeLeft(deploymentCost, deployment.escrowBalance);
-  const realTimeLeft = useRealTimeLeft(deploymentCost, deployment.escrowBalance, deployment.escrowAccount.settled_at, deployment.createdAt);
+  const realTimeLeft = useRealTimeLeft(deploymentCost, deployment.escrowBalance, parseFloat(deployment.escrowAccount.settled_at), deployment.createdAt);
   const deploymentName = deployment.name ? (
     <>
       <Typography variant="body2" className="text-truncate" title={deployment.name}>
@@ -125,9 +125,8 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   );
   const showWarning = differenceInCalendarDays(timeLeft, new Date()) < 7;
   const escrowBalance = isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance;
-  const amountSpent = isActive && hasActiveLeases ? realTimeLeft?.amountSpent : deployment.transferred.amount;
+  const amountSpent = isActive && hasActiveLeases ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount);
   const isValidTimeLeft = isActive && hasActiveLeases && isValid(realTimeLeft?.timeLeft);
-  const theme = useTheme();
   const avgCost = udenomToDenom(getAvgCostPerMonth(deploymentCost));
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const denomData = useDenomData(deployment.escrowAccount.balance.denom);
@@ -196,19 +195,6 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     const url = UrlService.newDeployment({ redeploy: deployment.dseq });
     router.push(url);
   };
-
-  // TODO Alerts
-  // const onSetAlert = () => {
-  //   window.open(
-  //     UrlService.alertsCreate(null, "akash", "deployment-balance-monitor", {
-  //       owner: { operator: "eq", value: address },
-  //       dseq: { operator: "eq", value: deployment.dseq }
-  //     }),
-  //     "_ blank"
-  //   );
-
-  //   handleMenuClose();
-  // };
 
   return (
     <>
@@ -348,7 +334,6 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         {isActive && <CustomMenuItem onClick={() => setIsDepositingDeployment(true)} icon={<AddIcon fontSize="small" />} text="Add funds" />}
         <CustomMenuItem onClick={() => changeDeploymentName(deployment.dseq)} icon={<EditIcon fontSize="small" />} text="Edit name" />
         {storageDeploymentData?.manifest && <CustomMenuItem onClick={() => redeploy()} icon={<PublishIcon fontSize="small" />} text="Redeploy" />}
-        {/* {isActive && <CustomMenuItem onClick={() => onSetAlert()} icon={<AddAlertIcon fontSize="small" />} text="Balance Alert" />} */}
         {isActive && <CustomMenuItem onClick={() => onCloseDeployment()} icon={<CancelPresentationIcon fontSize="small" />} text="Close" />}
       </Menu>
 

@@ -151,12 +151,12 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     setIsDepositingDeployment(true);
   };
 
-  const onDeploymentDeposit = async (deposit, depositorAddress) => {
+  const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
     setIsDepositingDeployment(false);
     await handleCreateClick(deposit, depositorAddress);
   };
 
-  async function handleCreateClick(deposit, depositorAddress) {
+  async function handleCreateClick(deposit: number, depositorAddress: string) {
     setIsCreatingDeployment(true);
     const dd = await createAndValidateDeploymentData(editedManifest, null, deposit, depositorAddress);
 
@@ -170,7 +170,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     try {
       const messages = [];
       const hasValidCert = isCertificateValidated && isLocalCertificateValidated;
-      let _crtpem, _encryptedKey;
+      let _crtpem: string;
+      let _encryptedKey: string;
 
       // Create a cert if the user doesn't have one
       if (!hasValidCert) {

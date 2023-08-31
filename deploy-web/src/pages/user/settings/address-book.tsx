@@ -56,8 +56,6 @@ const UserAddressBookPage: React.FunctionComponent<Props> = ({}) => {
                       </TableCell>
                       <TableCell>{name}</TableCell>
                       <TableCell>
-                        {/** TODO Alerts */}
-                        {/* <AddressAlertCreateButtonLink address={address} /> */}
                         <IconButton
                           size="small"
                           onClick={() => {

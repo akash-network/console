@@ -1,23 +1,23 @@
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { useEffect, useState } from "react";
-import { useEventListener, useLocalStorage as useLs } from "usehooks-ts";
+import { useEventListener } from "usehooks-ts";
 
 export const useLocalStorage = () => {
   const { address } = useKeplr();
 
-  const getLocalStorageItem = key => {
+  const getLocalStorageItem = (key: string) => {
     const selectedNetworkId = localStorage.getItem("selectedNetworkId");
 
     return localStorage.getItem(`${selectedNetworkId}${address ? "/" + address : ""}/${key}`);
   };
 
-  const setLocalStorageItem = (key, value) => {
+  const setLocalStorageItem = (key: string, value: string) => {
     const selectedNetworkId = localStorage.getItem("selectedNetworkId");
 
     localStorage.setItem(`${selectedNetworkId}${address ? "/" + address : ""}/${key}`, value);
   };
 
-  const removeLocalStorageItem = key => {
+  const removeLocalStorageItem = (key: string) => {
     const selectedNetworkId = localStorage.getItem("selectedNetworkId");
     localStorage.removeItem(`${selectedNetworkId}${address ? "/" + address : ""}/${key}`);
   };
@@ -29,7 +29,7 @@ export const useLocalStorage = () => {
   };
 };
 
-export function useCustomLocalStorage(key, initialValue) {
+export function useCustomLocalStorage<T>(key: string, initialValue: T) {
   // Get from local storage then
   // parse stored json or return initialValue
   const readValue = () => {
@@ -40,7 +40,7 @@ export function useCustomLocalStorage(key, initialValue) {
 
     try {
       const item = window.localStorage.getItem(key);
-      return item ? parseJSON(item) : initialValue;
+      return item ? (parseJSON(item) as T) : initialValue;
     } catch (error) {
       console.warn(`Error reading localStorage key “${key}”:`, error);
       return initialValue;
@@ -49,11 +49,11 @@ export function useCustomLocalStorage(key, initialValue) {
 
   // State to store our value
   // Pass initial state function to useState so logic is only executed once
-  const [storedValue, setStoredValue] = useState(readValue);
+  const [storedValue, setStoredValue] = useState<T>(readValue);
 
   // Return a wrapped version of useState's setter function that ...
   // ... persists the new value to localStorage.
-  const setValue = value => {
+  const setValue = (value: T | ((newValue: T) => T)) => {
     // Prevent build error "window is undefined" but keeps working
     if (typeof window == "undefined") {
       console.warn(`Tried setting localStorage key “${key}” even though environment is not a client`);
@@ -96,7 +96,7 @@ export function useCustomLocalStorage(key, initialValue) {
 }
 
 // A wrapper for "JSON.parse()"" to support "undefined" value
-function parseJSON(value) {
+function parseJSON(value: string) {
   try {
     return value === "undefined" ? undefined : JSON.parse(value ?? "");
   } catch (error) {

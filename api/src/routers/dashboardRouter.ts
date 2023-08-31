@@ -10,7 +10,7 @@ dashboardRouter.use(privateMiddleware);
 dashboardRouter.get(
   "/stats",
   asyncHandler(async (req, res) => {
-    const userCountRequest = UserSetting.count({ where: { accountType: "cloudmos" } });
+    const userCountRequest = UserSetting.count();
     const publicTemplateCountRequest = Template.count({
       where: { isPublic: true }
     });

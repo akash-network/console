@@ -26,8 +26,7 @@ export default handleAuth({
                 wantedUsername: session.user.nickname,
                 email: session.user.email,
                 emailVerified: session.user.email_verified,
-                subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true",
-                accountType: "cloudmos"
+                subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true"
               },
               {
                 headers: {

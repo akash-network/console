@@ -30,7 +30,7 @@ const specSuffixes = {
   Eb: 1000 * 1000 * 1000 * 1000 * 1000 * 1000
 };
 
-export async function getCurrentHeight(apiEndpoint) {
+export async function getCurrentHeight(apiEndpoint: string) {
   const response = await axios.get(`${apiEndpoint}/blocks/latest`);
   const data = response.data;
 
@@ -38,9 +38,9 @@ export async function getCurrentHeight(apiEndpoint) {
   return height;
 }
 
-export function parseSizeStr(str) {
+export function parseSizeStr(str: string) {
   try {
-    const suffix = Object.keys(specSuffixes).find(s => str.toString().toLowerCase().endsWith(s.toLowerCase()));
+    const suffix = Object.keys(specSuffixes).find(s => str.toLowerCase().endsWith(s.toLowerCase()));
 
     if (suffix) {
       const suffixPos = str.length - suffix.length;

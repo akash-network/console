@@ -20,7 +20,7 @@ const FourOhFour: React.FunctionComponent<Props> = ({}) => {
       <NextSeo title="Page not found" />
 
       <PageContainer>
-        <Box sx={{ textAlign: "center" }}>
+        <Box sx={{ textAlign: "center", marginTop: 10 }}>
           <Typography variant="h1">404</Typography>
 
           <Title value="Page not found." />

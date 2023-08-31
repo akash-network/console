@@ -20,9 +20,6 @@ export enum AnalyticsEvents {
   AUTHORIZE_SPEND = "authorize_spend",
   NAVIGATE_TAB = "navigate_tab_", // Append tab
 
-  ADD_ALERT_SEND_TOKENS = "add_alert_send_tokens",
-  ADD_ALERT_RECEIVE_TOKENS = "add_alert_receive_tokens",
-
   // SDL Builder
   DEPLOY_SDL = "deploy_sdl",
   IMPORT_SDL = "import_sdl",

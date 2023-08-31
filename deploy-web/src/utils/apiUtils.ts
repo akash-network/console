@@ -3,40 +3,40 @@ import axios from "axios";
 import { appendSearchParams } from "./urlUtils";
 
 export class ApiUrlService {
-  static deploymentList(apiEndpoint, address) {
+  static deploymentList(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/akash/deployment/${networkVersion}/deployments/list?filters.owner=${address}`;
   }
-  static deploymentDetail(apiEndpoint, address, dseq) {
+  static deploymentDetail(apiEndpoint: string, address: string, dseq: string) {
     return `${apiEndpoint}/akash/deployment/${networkVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`;
   }
-  static bidList(apiEndpoint, address, dseq) {
+  static bidList(apiEndpoint: string, address: string, dseq: string) {
     return `${apiEndpoint}/akash/market/${networkVersion}/bids/list?filters.owner=${address}&filters.dseq=${dseq}`;
   }
-  static leaseList(apiEndpoint, address, dseq) {
+  static leaseList(apiEndpoint: string, address: string, dseq: string) {
     return `${apiEndpoint}/akash/market/${networkVersion}/leases/list?filters.owner=${address}${dseq ? "&filters.dseq=" + dseq : ""}`;
   }
-  static providers(apiEndpoint) {
+  static providers(apiEndpoint: string) {
     return `${apiEndpoint}/akash/provider/${networkVersion}/providers`;
   }
-  static providerDetail(apiEndpoint, owner) {
+  static providerDetail(apiEndpoint: string, owner: string) {
     return `${apiEndpoint}/akash/provider/${networkVersion}/providers/${owner}`;
   }
-  static block(apiEndpoint, id) {
+  static block(apiEndpoint: string, id: string) {
     return `${apiEndpoint}/blocks/${id}`;
   }
-  static balance(apiEndpoint, address) {
+  static balance(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/cosmos/bank/v1beta1/balances/${address}`;
   }
-  static rewards(apiEndpoint, address) {
+  static rewards(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/cosmos/distribution/v1beta1/delegators/${address}/rewards`;
   }
-  static redelegations(apiEndpoint, address) {
+  static redelegations(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/cosmos/staking/v1beta1/delegators/${address}/redelegations`;
   }
-  static delegations(apiEndpoint, address) {
+  static delegations(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/cosmos/staking/v1beta1/delegations/${address}`;
   }
-  static unbonding(apiEndpoint, address) {
+  static unbonding(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/cosmos/staking/v1beta1/delegators/${address}/unbonding_delegations`;
   }
   static granteeGrants(apiEndpoint: string, address: string) {
@@ -114,7 +114,7 @@ export class ApiUrlService {
   }
 }
 
-export async function loadWithPagination(baseUrl, dataKey, limit) {
+export async function loadWithPagination(baseUrl: string, dataKey: string, limit: number) {
   let items = [];
   let nextKey = null;
   // let callCount = 1;
@@ -144,6 +144,6 @@ export async function loadWithPagination(baseUrl, dataKey, limit) {
   return items.filter(item => item);
 }
 
-function hasQueryParam(url) {
+function hasQueryParam(url: string) {
   return /[?&]/gm.test(url);
 }
