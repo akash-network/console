@@ -130,7 +130,7 @@ export function ManifestUpdate({ deployment, leases, closeManifestEditor }) {
       const mani = deploymentData.getManifest(doc, true);
 
       // If it's actual update, send a transaction, else just send the manifest
-      if (dd.version !== deployment.version) {
+      if (Buffer.from(dd.version).toString("base64") !== deployment.version) {
         const message = TransactionMessageData.getUpdateDeploymentMsg(dd);
         response = await signAndBroadcastTx([message]);
       } else {
