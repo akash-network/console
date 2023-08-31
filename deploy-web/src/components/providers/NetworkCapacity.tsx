@@ -4,7 +4,6 @@ import { bytesToShrink } from "@src/utils/unitUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { useRouter } from "next/router";
 import { useSelectedNetwork } from "@src/utils/networks";
-import { mainnetId, testnetId } from "@src/utils/constants";
 
 type Props = {
   activeCPU: number;
@@ -52,8 +51,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
   const memoryData = useData(activeMemoryBytes, availableMemoryBytes);
   const storageData = useData(activeStorageBytes, availableStorageBytes);
   const pieTheme = usePieTheme();
-  const selectedNetwork = useSelectedNetwork();
-  const flexBasis = selectedNetwork.id === mainnetId ? "33.3333%" : "25%";
+  const flexBasis = "25%";
 
   const _getColor = bar => getColor(bar.id);
 
@@ -97,36 +95,34 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
         </Box>
       </Box>
 
-      {selectedNetwork.id === testnetId && (
-        <Box sx={{ flexBasis: flexBasis }}>
-          <Typography variant="body1" sx={{ lineHeight: "1rem" }}>
-            GPU
-          </Typography>
-          <Typography variant="caption" color="textSecondary">
-            {Math.round(activeGPU + pendingGPU)}&nbsp;GPU&nbsp;/&nbsp;{Math.round(totalGPU)}&nbsp;GPU
-          </Typography>
-          <Box sx={{ height: "200px", width: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <ResponsivePie
-              data={gpuData}
-              margin={{ top: 15, right: 15, bottom: 15, left: 0 }}
-              innerRadius={0.3}
-              padAngle={2}
-              cornerRadius={4}
-              activeOuterRadiusOffset={8}
-              colors={_getColor}
-              borderWidth={0}
-              borderColor={{
-                from: "color",
-                modifiers: [["darker", 0.2]]
-              }}
-              valueFormat={value => `${roundDecimal(value, 2)} GPU`}
-              enableArcLinkLabels={false}
-              arcLabelsSkipAngle={10}
-              theme={pieTheme}
-            />
-          </Box>
+      <Box sx={{ flexBasis: flexBasis }}>
+        <Typography variant="body1" sx={{ lineHeight: "1rem" }}>
+          GPU
+        </Typography>
+        <Typography variant="caption" color="textSecondary">
+          {Math.round(activeGPU + pendingGPU)}&nbsp;GPU&nbsp;/&nbsp;{Math.round(totalGPU)}&nbsp;GPU
+        </Typography>
+        <Box sx={{ height: "200px", width: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <ResponsivePie
+            data={gpuData}
+            margin={{ top: 15, right: 15, bottom: 15, left: 0 }}
+            innerRadius={0.3}
+            padAngle={2}
+            cornerRadius={4}
+            activeOuterRadiusOffset={8}
+            colors={_getColor}
+            borderWidth={0}
+            borderColor={{
+              from: "color",
+              modifiers: [["darker", 0.2]]
+            }}
+            valueFormat={value => `${roundDecimal(value, 2)} GPU`}
+            enableArcLinkLabels={false}
+            arcLabelsSkipAngle={10}
+            theme={pieTheme}
+          />
         </Box>
-      )}
+      </Box>
 
       <Box sx={{ flexBasis: flexBasis }}>
         <Typography variant="body1" sx={{ lineHeight: "1rem" }}>

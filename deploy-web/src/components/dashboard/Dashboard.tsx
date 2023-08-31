@@ -27,7 +27,6 @@ import { uaktToAKT } from "@src/utils/priceUtils";
 import { BlockRow } from "../blockchain/BlockRow";
 import { TransactionRow } from "../blockchain/TransactionRow";
 import { useSelectedNetwork } from "@src/utils/networks";
-import { testnetId } from "@src/utils/constants";
 
 interface IDashboardProps {
   dashboardData: DashboardData;
@@ -87,7 +86,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
   const capacityMemoryDiff = bytesToShrink(dashboardData.networkCapacityStats.now.memory - dashboardData.networkCapacityStats.compare.memory);
   const capacityStorageDiff = bytesToShrink(dashboardData.networkCapacityStats.now.storage - dashboardData.networkCapacityStats.compare.storage);
   const selectedNetwork = useSelectedNetwork();
-  const statsGridWidth = selectedNetwork.id === testnetId ? 2.4 : 3;
+  const statsGridWidth = 2.4;
 
   return (
     <>
@@ -212,22 +211,20 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
           />
         </Grid>
 
-        {selectedNetwork.id === testnetId && (
-          <Grid item xs={12} lg={statsGridWidth}>
-            <StatsCard
-              number={
-                <>
-                  <FormattedNumber value={dashboardData.now.activeGPU} maximumFractionDigits={2} />
-                  <small style={{ paddingLeft: "5px", fontWeight: "bold", fontSize: 16 }}>GPU</small>
-                </>
-              }
-              text="Graphics"
-              graphPath={UrlService.graph(SnapshotsUrlParam.graphics)}
-              diffNumber={dashboardData.now.activeGPU - dashboardData.compare.activeGPU}
-              diffPercent={percIncrease(dashboardData.compare.activeGPU, dashboardData.now.activeGPU)}
-            />
-          </Grid>
-        )}
+        <Grid item xs={12} lg={statsGridWidth}>
+          <StatsCard
+            number={
+              <>
+                <FormattedNumber value={dashboardData.now.activeGPU} maximumFractionDigits={2} />
+                <small style={{ paddingLeft: "5px", fontWeight: "bold", fontSize: 16 }}>GPU</small>
+              </>
+            }
+            text="Graphics"
+            graphPath={UrlService.graph(SnapshotsUrlParam.graphics)}
+            diffNumber={dashboardData.now.activeGPU - dashboardData.compare.activeGPU}
+            diffPercent={percIncrease(dashboardData.compare.activeGPU, dashboardData.now.activeGPU)}
+          />
+        </Grid>
 
         <Grid item xs={12} lg={statsGridWidth}>
           <StatsCard
@@ -286,22 +283,20 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
           />
         </Grid>
 
-        {selectedNetwork.id === testnetId && (
-          <Grid item xs={12} lg={statsGridWidth}>
-            <StatsCard
-              number={
-                <>
-                  <FormattedNumber value={dashboardData.networkCapacity.totalGPU} maximumFractionDigits={0} />
-                  <small style={{ paddingLeft: ".25rem", fontWeight: "bold", fontSize: 16 }}>GPU</small>
-                </>
-              }
-              text="Graphics"
-              graphPath={UrlService.providerGraph(ProviderSnapshotsUrlParam.gpu)}
-              diffNumber={dashboardData.networkCapacityStats.now.gpu - dashboardData.networkCapacityStats.compare.gpu}
-              diffPercent={percIncrease(dashboardData.networkCapacityStats.compare.gpu, dashboardData.networkCapacityStats.now.gpu)}
-            />
-          </Grid>
-        )}
+        <Grid item xs={12} lg={statsGridWidth}>
+          <StatsCard
+            number={
+              <>
+                <FormattedNumber value={dashboardData.networkCapacity.totalGPU} maximumFractionDigits={0} />
+                <small style={{ paddingLeft: ".25rem", fontWeight: "bold", fontSize: 16 }}>GPU</small>
+              </>
+            }
+            text="Graphics"
+            graphPath={UrlService.providerGraph(ProviderSnapshotsUrlParam.gpu)}
+            diffNumber={dashboardData.networkCapacityStats.now.gpu - dashboardData.networkCapacityStats.compare.gpu}
+            diffPercent={percIncrease(dashboardData.networkCapacityStats.compare.gpu, dashboardData.networkCapacityStats.now.gpu)}
+          />
+        </Grid>
 
         <Grid item xs={12} lg={statsGridWidth}>
           <StatsCard

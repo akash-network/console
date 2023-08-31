@@ -15,7 +15,6 @@ import { UrlService } from "@src/utils/urlUtils";
 import { FormattedNumber } from "react-intl";
 import { Uptime } from "./Uptime";
 import { useSelectedNetwork } from "@src/utils/networks";
-import { testnetId } from "@src/utils/constants";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -38,16 +37,14 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
   const { classes } = useStyles();
   const theme = useTheme();
   const router = useRouter();
-  const selectedNetwork = useSelectedNetwork();
   const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
   const isFavorite = favoriteProviders.some(x => provider.owner === x);
   const activeCPU = provider.isActive ? provider.activeStats.cpu / 1000 : 0;
   const pendingCPU = provider.isActive ? provider.pendingStats.cpu / 1000 : 0;
   const totalCPU = provider.isActive ? (provider.availableStats.cpu + provider.pendingStats.cpu + provider.activeStats.cpu) / 1000 : 0;
-  const activeGPU = provider.isActive && selectedNetwork.id === testnetId ? provider.activeStats.gpu : 0;
-  const pendingGPU = provider.isActive && selectedNetwork.id === testnetId ? provider.pendingStats.gpu : 0;
-  const totalGPU =
-    provider.isActive && selectedNetwork.id === testnetId ? provider.availableStats.gpu + provider.pendingStats.gpu + provider.activeStats.gpu : 0;
+  const activeGPU = provider.isActive && provider.activeStats.gpu;
+  const pendingGPU = provider.isActive && provider.pendingStats.gpu;
+  const totalGPU = provider.isActive && provider.availableStats.gpu + provider.pendingStats.gpu + provider.activeStats.gpu;
   const _activeMemory = provider.isActive ? bytesToShrink(provider.activeStats.memory + provider.pendingStats.memory) : null;
   const _totalMemory = provider.isActive ? bytesToShrink(provider.availableStats.memory + provider.pendingStats.memory + provider.activeStats.memory) : null;
   const _activeStorage = provider.isActive ? bytesToShrink(provider.activeStats.storage + provider.pendingStats.storage) : null;
@@ -133,28 +130,26 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
         )}
       </TableCell>
 
-      {selectedNetwork.id === testnetId && (
-        <TableCell align="center">
-          {provider.isActive && (
-            <CustomTooltip
-              title={
-                <Typography fontSize=".7rem" variant="caption">
-                  {Math.round(activeGPU + pendingGPU)}&nbsp;/&nbsp;{Math.round(totalGPU)}&nbsp;GPU
+      <TableCell align="center">
+        {provider.isActive && (
+          <CustomTooltip
+            title={
+              <Typography fontSize=".7rem" variant="caption">
+                {Math.round(activeGPU + pendingGPU)}&nbsp;/&nbsp;{Math.round(totalGPU)}&nbsp;GPU
+              </Typography>
+            }
+          >
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <CapacityIcon value={(activeGPU + pendingGPU) / totalGPU} />
+              {totalGPU > 0 && (
+                <Typography variant="caption" color="textSecondary">
+                  <FormattedNumber style="percent" maximumFractionDigits={2} value={roundDecimal((activeGPU + pendingGPU) / totalGPU, 2)} />
                 </Typography>
-              }
-            >
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <CapacityIcon value={(activeGPU + pendingGPU) / totalGPU} />
-                {totalGPU > 0 && (
-                  <Typography variant="caption" color="textSecondary">
-                    <FormattedNumber style="percent" maximumFractionDigits={2} value={roundDecimal((activeGPU + pendingGPU) / totalGPU, 2)} />
-                  </Typography>
-                )}
-              </Box>
-            </CustomTooltip>
-          )}
-        </TableCell>
-      )}
+              )}
+            </Box>
+          </CustomTooltip>
+        )}
+      </TableCell>
 
       <TableCell align="center">
         {provider.isActive && (
