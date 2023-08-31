@@ -11,7 +11,7 @@ export function initDeploymentData() {
 
   switch (selectedNetworkId) {
     case mainnetId:
-      deploymentData = v1beta2;
+      deploymentData = v1beta3;
       break;
     case testnetId:
       deploymentData = v1beta3;
@@ -21,7 +21,7 @@ export function initDeploymentData() {
       break;
 
     default:
-      deploymentData = v1beta2;
+      deploymentData = v1beta3;
       break;
   }
 }
