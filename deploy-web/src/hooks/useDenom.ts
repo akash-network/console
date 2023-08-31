@@ -8,5 +8,5 @@ export const useUsdcDenom = () => {
 
 export const getUsdcDenom = () => {
   const selectedNetwork = getSelectedNetwork();
-  return selectedNetwork.id;
+  return usdcIbcDenoms[selectedNetwork.id];
 };
