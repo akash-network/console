@@ -29,7 +29,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const { classes } = useStyles();
   const hasLeases = leases && leases.length > 0;
   const deploymentCost = hasLeases ? leases.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) : 0;
-  const realTimeLeft = useRealTimeLeft(deploymentCost, deployment.escrowBalance, deployment.escrowAccount.settled_at, deployment.createdAt);
+  const realTimeLeft = useRealTimeLeft(deploymentCost, deployment.escrowBalance, parseFloat(deployment.escrowAccount.settled_at), deployment.createdAt);
   const avgCost = uaktToAKT(getAvgCostPerMonth(deploymentCost));
   const isActive = deployment.state === "active";
   const hasActiveLeases = hasLeases && leases.some(l => l.state === "active");
@@ -99,12 +99,12 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
             <Box sx={{ display: "flex", alignItems: "center" }}>
               <PriceValue
                 denom={deployment.escrowAccount.balance.denom}
-                value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.amountSpent : deployment.transferred.amount, 6)}
+                value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount), 6)}
               />
 
               <CustomTooltip
                 arrow
-                title={<span>{uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.amountSpent : deployment.transferred.amount, 6)} AKT</span>}
+                title={<span>{uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount), 6)} AKT</span>}
               >
                 <InfoIcon fontSize="small" color="disabled" sx={{ marginLeft: ".5rem" }} />
               </CustomTooltip>
