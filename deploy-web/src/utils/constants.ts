@@ -33,7 +33,9 @@ export const PROVIDER_PROXY_URL_WS = getProviderProxyWsUrl();
 
 export const auth0TokenNamespace = "https://cloudmos.io";
 
-export const uDenom = "uakt";
+export const uAktDenom = "uakt";
+// TODO Handle denom for mainnet/testnet/sandbox
+export const usdcIbcDenom = "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84";
 
 // Cloudmos fee
 export const feePercent = 3;
@@ -119,7 +121,7 @@ export function setNetworkVersion() {
       selectedNetworkId = testnetId;
       break;
     case sandboxId:
-      networkVersion = "v1beta2";
+      networkVersion = "v1beta3";
       selectedNetworkId = sandboxId;
       break;
 

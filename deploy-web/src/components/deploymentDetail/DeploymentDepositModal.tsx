@@ -1,29 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, ReactNode } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useSettings } from "../../context/SettingsProvider";
 import { useSnackbar } from "notistack";
 import compareAsc from "date-fns/compareAsc";
-import { makeStyles } from "tss-react/mui";
-import { aktToUakt, coinToUAkt, uaktToAKT } from "@src/utils/priceUtils";
+import { coinToUAkt, uaktToAKT } from "@src/utils/priceUtils";
 import { Snackbar } from "../shared/Snackbar";
-import { txFeeBuffer } from "@src/utils/constants";
-import {
-  Alert,
-  Box,
-  Button,
-  Checkbox,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControl,
-  FormControlLabel,
-  InputAdornment,
-  MenuItem,
-  Select,
-  TextField
-} from "@mui/material";
+import { uAktDenom, usdcIbcDenom } from "@src/utils/constants";
+import { Alert, Box, Checkbox, FormControl, FormControlLabel, InputAdornment, MenuItem, Select, TextField } from "@mui/material";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { LinkTo } from "../shared/LinkTo";
 import { event } from "nextjs-google-analytics";
@@ -32,23 +15,20 @@ import { Address } from "../shared/Address";
 import { FormattedDate } from "react-intl";
 import { AKTAmount } from "../shared/AKTAmount";
 import { useGranteeGrants } from "@src/queries/useGrantsQuery";
+import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
+import { Popup } from "../shared/Popup";
+import { useDenomData } from "@src/hooks/useWalletBalance";
 
-const useStyles = makeStyles()(theme => ({
-  alert: {
-    marginTop: "1rem"
-  },
-  dialogContent: {
-    padding: "1rem"
-  },
-  dialogActions: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between"
-  }
-}));
+type Props = {
+  infoText?: string | ReactNode;
+  min?: number;
+  denom: string;
+  onDeploymentDeposit: (deposit: number, depositorAddress: string) => void;
+  handleCancel: () => void;
+  children?: ReactNode;
+};
 
-export function DeploymentDepositModal({ handleCancel, onDeploymentDeposit, min = 0, infoText = null }) {
-  const { classes } = useStyles();
+export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleCancel, onDeploymentDeposit, denom, min = 0, infoText = null }) => {
   const formRef = useRef(null);
   const { settings } = useSettings();
   const { enqueueSnackbar } = useSnackbar();
@@ -72,6 +52,7 @@ export function DeploymentDepositModal({ handleCancel, onDeploymentDeposit, min 
     }
   });
   const { amount, useDepositor, depositorAddress } = watch();
+  const depositData = useDenomData(denom);
 
   useEffect(() => {
     clearErrors();
@@ -130,7 +111,7 @@ export function DeploymentDepositModal({ handleCancel, onDeploymentDeposit, min 
 
   const onBalanceClick = () => {
     clearErrors();
-    setValue("amount", uaktToAKT(walletBalances.uakt - txFeeBuffer, 6));
+    setValue("amount", depositData.inputMax);
   };
 
   const onDepositClick = event => {
@@ -141,9 +122,9 @@ export function DeploymentDepositModal({ handleCancel, onDeploymentDeposit, min 
   const onSubmit = async ({ amount }) => {
     setError("");
     clearErrors();
-    const deposit = aktToUakt(amount);
+    const deposit = denomToUdenom(amount);
 
-    if (deposit < aktToUakt(min)) {
+    if (deposit < denomToUdenom(min)) {
       setError(`Deposit amount must be greater or equal than ${min}.`);
       return;
     }
@@ -158,8 +139,11 @@ export function DeploymentDepositModal({ handleCancel, onDeploymentDeposit, min 
         category: "deployments",
         label: "Use depositor to deposit in deployment"
       });
-    } else if (deposit > walletBalances.uakt) {
-      setError(`You can't deposit more than you currently have in your balance. Current balance is: ${uaktToAKT(walletBalances.uakt)}AKT.`);
+    } else if (denom === uAktDenom && deposit > walletBalances.uakt) {
+      setError(`You can't deposit more than you currently have in your balance. Current balance is: ${uaktToAKT(walletBalances.uakt)} AKT.`);
+      return;
+    } else if (denom === usdcIbcDenom && deposit > walletBalances.usdc) {
+      setError(`You can't deposit more than you currently have in your balance. Current balance is: ${udenomToDenom(walletBalances.usdc)} USDC.`);
       return;
     }
 
@@ -167,106 +151,123 @@ export function DeploymentDepositModal({ handleCancel, onDeploymentDeposit, min 
   };
 
   return (
-    <Dialog maxWidth="xs" fullWidth aria-labelledby="deposit-deployment-dialog-title" open={true} onClose={onClose}>
-      <DialogTitle id="deposit-deployment-dialog-title">Deployment Deposit</DialogTitle>
-      <DialogContent dividers className={classes.dialogContent}>
-        <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-          {infoText}
+    <Popup
+      fullWidth
+      open
+      variant="custom"
+      actions={[
+        {
+          label: "Cancel",
+          color: "primary",
+          variant: "text",
+          side: "left",
+          onClick: onClose
+        },
+        {
+          label: "Continue",
+          color: "secondary",
+          variant: "contained",
+          side: "right",
+          disabled: !amount || isCheckingDepositor,
+          isLoading: isCheckingDepositor,
+          onClick: onDepositClick
+        }
+      ]}
+      onClose={onClose}
+      maxWidth="xs"
+      enableCloseOnBackdropClick
+      title="Deployment Deposit"
+    >
+      <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+        {infoText}
 
-          <Box marginBottom=".5rem" marginTop={infoText ? 0 : ".5rem"} textAlign="right">
-            <LinkTo onClick={() => onBalanceClick()}>Balance: {uaktToAKT(walletBalances.uakt, 6)} AKT</LinkTo>
-          </Box>
+        <Box marginBottom=".5rem" marginTop={infoText ? 0 : ".5rem"} textAlign="right">
+          <LinkTo onClick={() => onBalanceClick()}>
+            Balance: {depositData?.balance} {depositData?.label}
+          </LinkTo>
+        </Box>
 
-          <FormControl error={!errors.amount} fullWidth>
-            <Controller
-              control={control}
-              name="amount"
-              rules={{
-                required: true
-              }}
-              render={({ fieldState, field }) => {
-                const helperText = fieldState.error?.type === "validate" ? "Invalid amount." : "Amount is required.";
+        <FormControl error={!errors.amount} fullWidth>
+          <Controller
+            control={control}
+            name="amount"
+            rules={{
+              required: true
+            }}
+            render={({ fieldState, field }) => {
+              const helperText = fieldState.error?.type === "validate" ? "Invalid amount." : "Amount is required.";
 
-                return (
-                  <TextField
-                    {...field}
-                    type="number"
-                    variant="outlined"
-                    label="Amount"
-                    autoFocus
-                    error={!!fieldState.error}
-                    helperText={fieldState.error && helperText}
-                    inputProps={{ min: min, step: 0.000001, max: uaktToAKT(walletBalances.uakt - txFeeBuffer, 6) }}
-                    InputProps={{
-                      startAdornment: <InputAdornment position="start">AKT</InputAdornment>
-                    }}
-                  />
-                );
-              }}
-            />
-          </FormControl>
-
-          <FormControl fullWidth>
-            <Controller
-              control={control}
-              name="useDepositor"
-              render={({ fieldState, field }) => {
-                return <FormControlLabel control={<Checkbox {...field} color="secondary" />} label="Use another address to fund" />;
-              }}
-            />
-          </FormControl>
-
-          {useDepositor && (
-            <FormControl fullWidth>
-              <FormControl fullWidth>
-                <Controller
-                  control={control}
-                  name="depositorAddress"
-                  defaultValue=""
-                  rules={{
-                    required: true
-                  }}
-                  render={({ fieldState, field }) => {
-                    return (
-                      <Select labelId="theme-select" {...field} label="Theme" size="small">
-                        {granteeGrants
-                          .filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1)
-                          .map(grant => (
-                            <MenuItem key={grant.granter} value={grant.granter}>
-                              <Address address={grant.granter} />
-                              &nbsp;&nbsp;&nbsp;
-                              <AKTAmount uakt={coinToUAkt(grant.authorization.spend_limit)} />
-                              AKT &nbsp;
-                              <small>
-                                (Exp:&nbsp;
-                                <FormattedDate value={new Date(grant.expiration)} />
-                              </small>
-                              )
-                            </MenuItem>
-                          ))}
-                      </Select>
-                    );
+              return (
+                <TextField
+                  {...field}
+                  type="number"
+                  variant="outlined"
+                  label="Amount"
+                  autoFocus
+                  error={!!fieldState.error}
+                  helperText={fieldState.error && helperText}
+                  inputProps={{ min: min, step: 0.000001, max: depositData?.inputMax }}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">{depositData?.label}</InputAdornment>
                   }}
                 />
-              </FormControl>
-            </FormControl>
-          )}
+              );
+            }}
+          />
+        </FormControl>
 
-          {error && (
-            <Alert severity="warning" className={classes.alert}>
-              {error}
-            </Alert>
-          )}
-        </form>
-      </DialogContent>
-      <DialogActions className={classes.dialogActions}>
-        <Button autoFocus onClick={onClose}>
-          Cancel
-        </Button>
-        <Button onClick={onDepositClick} disabled={!amount || isCheckingDepositor} variant="contained" color="secondary">
-          {isCheckingDepositor ? <CircularProgress size="24px" color="secondary" /> : "Deposit"}
-        </Button>
-      </DialogActions>
-    </Dialog>
+        <FormControl fullWidth>
+          <Controller
+            control={control}
+            name="useDepositor"
+            render={({ fieldState, field }) => {
+              return <FormControlLabel control={<Checkbox {...field} color="secondary" />} label="Use another address to fund" />;
+            }}
+          />
+        </FormControl>
+
+        {useDepositor && (
+          <FormControl fullWidth>
+            <FormControl fullWidth>
+              <Controller
+                control={control}
+                name="depositorAddress"
+                defaultValue=""
+                rules={{
+                  required: true
+                }}
+                render={({ fieldState, field }) => {
+                  return (
+                    <Select labelId="theme-select" {...field} label="Theme" size="small">
+                      {granteeGrants
+                        .filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1)
+                        .map(grant => (
+                          <MenuItem key={grant.granter} value={grant.granter}>
+                            <Address address={grant.granter} />
+                            &nbsp;&nbsp;&nbsp;
+                            <AKTAmount uakt={coinToUAkt(grant.authorization.spend_limit)} />
+                            AKT &nbsp;
+                            <small>
+                              (Exp:&nbsp;
+                              <FormattedDate value={new Date(grant.expiration)} />
+                            </small>
+                            )
+                          </MenuItem>
+                        ))}
+                    </Select>
+                  );
+                }}
+              />
+            </FormControl>
+          </FormControl>
+        )}
+
+        {error && (
+          <Alert severity="warning" sx={{ marginTop: "1rem" }}>
+            {error}
+          </Alert>
+        )}
+      </form>
+    </Popup>
   );
-}
+};

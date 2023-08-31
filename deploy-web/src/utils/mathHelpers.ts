@@ -25,8 +25,8 @@ export function udenomToDenom(_amount: string | number, precision = 6, decimals:
   return roundDecimal(amount / decimals, precision);
 }
 
-export function denomToUdenom(amount: number) {
-  return amount * 1_000_000;
+export function denomToUdenom(amount: number, decimals: number = 1_000_000) {
+  return amount * decimals;
 }
 
 export function randomInteger(min: number, max: number) {

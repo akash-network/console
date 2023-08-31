@@ -17,7 +17,7 @@ export function initDeploymentData() {
       deploymentData = v1beta3;
       break;
     case sandboxId:
-      deploymentData = v1beta2;
+      deploymentData = v1beta3;
       break;
 
     default:

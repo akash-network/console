@@ -2,7 +2,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export const env = {
-  HealthChecks_SyncAKTMarketData: process.env.HealthChecks_SyncAKTMarketData,
   SentryDSN: process.env.SentryDSN,
   AKASHLYTICS_CORS_WEBSITE_URLS: process.env.AKASHLYTICS_CORS_WEBSITE_URLS,
   NODE_ENV: process.env.NODE_ENV,

@@ -1,4 +1,3 @@
-import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import Layout from "@src/components/layout/Layout";
 import { NextSeo } from "next-seo";
@@ -44,7 +43,6 @@ const useStyles = makeStyles()(theme => ({
 
 const DeploymentDetailPage: React.FunctionComponent<Props> = ({ dseq }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
   const [selectedLogsMode, setSelectedLogsMode] = useState<LOGS_MODE>("logs");

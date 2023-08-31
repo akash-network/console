@@ -277,13 +277,13 @@ export const Popup: React.FC<PopupProps> = props => {
     case "custom": {
       const leftButtons = props.actions
         ?.filter(x => x.side === "left")
-        .map(({ isLoading, isLoadingColor, side, label, color, ...rest }, idx) => (
+        .map(({ isLoading, isLoadingColor, side, label, ...rest }, idx) => (
           <Button key={`dialog-action-button-${idx}`} className={classes.genericDialogActionButton} disableElevation {...rest}>
             {isLoading ? (
               <CircularProgress
                 size="1.5rem"
                 color={isLoadingColor ? isLoadingColor : "secondary"}
-                sx={{ color: !isLoadingColor && color === "secondary" ? theme.palette.secondary.contrastText : "" }}
+                sx={{ color: !isLoadingColor && rest.color === "secondary" ? theme.palette.secondary.contrastText : "" }}
               />
             ) : (
               label
@@ -292,13 +292,13 @@ export const Popup: React.FC<PopupProps> = props => {
         ));
       const rightButtons = props.actions
         ?.filter(x => x.side === "right")
-        .map(({ isLoading, isLoadingColor, side, label, color, ...rest }, idx) => (
+        .map(({ isLoading, isLoadingColor, side, label, ...rest }, idx) => (
           <Button key={`dialog-action-button-${idx}`} className={classes.genericDialogActionButton} disableElevation {...rest}>
             {isLoading ? (
               <CircularProgress
                 size="1.5rem"
                 color={isLoadingColor ? isLoadingColor : "secondary"}
-                sx={{ color: !isLoadingColor && color === "secondary" ? theme.palette.secondary.contrastText : "" }}
+                sx={{ color: !isLoadingColor && rest.color === "secondary" ? theme.palette.secondary.contrastText : "" }}
               />
             ) : (
               label

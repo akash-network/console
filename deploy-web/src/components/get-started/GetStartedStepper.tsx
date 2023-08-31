@@ -17,6 +17,7 @@ import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { RouteStepKeys } from "@src/utils/constants";
+import { udenomToDenom } from "@src/utils/mathHelpers";
 
 const useStyles = makeStyles()(theme => ({
   stepLabel: {
@@ -38,6 +39,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
   const [activeStep, setActiveStep] = useState(0);
   const { isKeplrInstalled, isKeplrConnected, walletBalances } = useKeplr();
   const aktBalance = walletBalances ? uaktToAKT(walletBalances.uakt) : null;
+  const usdcBalance = walletBalances ? udenomToDenom(walletBalances.usdc) : null;
 
   useEffect(() => {
     const getStartedStep = localStorage.getItem("getStartedStep");
@@ -82,8 +84,8 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
 
         <StepContent>
           <Typography variant="body2" color="textSecondary">
-            You need at least 5 AKT in your wallet to deploy on Akash. If you don't have 5 AKT, you can request for some tokens to get started on our{" "}
-            <ExternalLink href="https://discord.gg/akash" text="Discord" />.
+            You need at least 5 AKT or USDC in your wallet to deploy on Akash. If you don't have 5 AKT or USDC, you can request for some tokens to get started
+            on our <ExternalLink href="https://discord.gg/akash" text="Discord" />.
           </Typography>
 
           <Box sx={{ mt: 1, mb: 2, display: "flex", alignItems: "center" }}>
@@ -125,15 +127,15 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
                 </Box>
               )}
 
-              {aktBalance && (
+              {walletBalances && (
                 <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
-                  {aktBalance >= 5 ? (
+                  {aktBalance >= 5 || usdcBalance >= 5 ? (
                     <CheckIcon color="success" sx={{ marginRight: ".5rem" }} />
                   ) : (
                     <CustomTooltip
                       title={
                         <>
-                          If you don't have 5 AKT, you can request authorization for some tokens to get started on our{" "}
+                          If you don't have 5 AKT or USDC, you can request authorization for some tokens to get started on our{" "}
                           <ExternalLink href="https://discord.gg/akash" text="Discord" />.
                         </>
                       }
@@ -141,7 +143,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
                       <WarningIcon color="warning" sx={{ marginRight: ".5rem" }} />
                     </CustomTooltip>
                   )}
-                  You have {aktBalance} AKT
+                  You have {aktBalance} AKT and {usdcBalance} USDC
                 </Box>
               )}
             </>

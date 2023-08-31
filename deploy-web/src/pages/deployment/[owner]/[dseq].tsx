@@ -24,8 +24,11 @@ import { CustomTableHeader, CustomTableRow } from "@src/components/shared/Custom
 import { AKTAmount } from "@src/components/shared/AKTAmount";
 import AddIcon from "@mui/icons-material/Add";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
-import { DepositModal } from "@src/components/deployment/DepositModal";
 import { useState } from "react";
+import { DeploymentDepositModal } from "@src/components/deploymentDetail/DeploymentDepositModal";
+import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import { event } from "nextjs-google-analytics";
+import { AnalyticsEvents } from "@src/utils/analytics";
 
 type Props = {
   owner: string;
@@ -39,7 +42,7 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ owner, dseq, dep
   const [showDepositModal, setShowDepositModal] = useState(false);
   const { classes } = useStyles();
   const theme = useTheme();
-  const { address } = useKeplr();
+  const { address, signAndBroadcastTx } = useKeplr();
 
   const canDeposit = address && address === owner && deployment?.status === "active";
 
@@ -47,11 +50,31 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ owner, dseq, dep
     setShowDepositModal(true);
   }
 
+  const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
+    setShowDepositModal(false);
+
+    try {
+      const message = TransactionMessageData.getDepositDeploymentMsg(address, deployment.dseq, deposit, deployment.denom, depositorAddress);
+      const response = await signAndBroadcastTx([message]);
+      if (response) {
+        event(AnalyticsEvents.DEPLOYMENT_DEPOSIT, {
+          category: "deployments",
+          label: "Deposit deployment in deployment detail"
+        });
+        // TODO reload page?
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+
   return (
     <Layout>
       <NextSeo title={`Deployment ${owner}/${dseq}`} />
 
-      <DepositModal open={showDepositModal} owner={owner} dseq={dseq} onClose={() => setShowDepositModal(false)} />
+      {showDepositModal && (
+        <DeploymentDepositModal denom={deployment.denom} handleCancel={() => setShowDepositModal(false)} onDeploymentDeposit={onDeploymentDeposit} />
+      )}
 
       <PageContainer>
         <Box sx={{ marginBottom: "2rem" }}>

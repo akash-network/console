@@ -38,12 +38,12 @@ export function coinToAkt(coin: { denom: string; amount: string }) {
   return akt;
 }
 
-export function getAvgCostPerMonth(pricePerBlock) {
+export function getAvgCostPerMonth(pricePerBlock: number) {
   const averagePrice = (pricePerBlock * averageDaysInMonth * 24 * 60 * 60) / averageBlockTime;
   return averagePrice;
 }
 
-export function getTimeLeft(pricePerBlock, balance) {
+export function getTimeLeft(pricePerBlock: number, balance: number) {
   const blocksLeft = balance / pricePerBlock;
   const timestamp = new Date().getTime();
   return add(new Date(timestamp), { seconds: blocksLeft * averageBlockTime });

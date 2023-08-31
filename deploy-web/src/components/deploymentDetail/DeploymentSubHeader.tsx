@@ -10,6 +10,8 @@ import { PricePerMonth } from "../shared/PricePerMonth";
 import { StatusPill } from "../shared/StatusPill";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { LabelValue } from "../shared/LabelValue";
+import { ReactNode } from "react";
+import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 
 const useStyles = makeStyles()(theme => ({
   warningIcon: {
@@ -17,10 +19,16 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export function DeploymentSubHeader({ deployment, leases }) {
+type Props = {
+  deployment: DeploymentDto;
+  leases: LeaseDto[];
+  children?: ReactNode;
+};
+
+export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment, leases }) => {
   const { classes } = useStyles();
   const hasLeases = leases && leases.length > 0;
-  const deploymentCost = hasLeases ? leases.reduce((prev, current) => prev + current.price.amount, 0) : 0;
+  const deploymentCost = hasLeases ? leases.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) : 0;
   const realTimeLeft = useRealTimeLeft(deploymentCost, deployment.escrowBalance, deployment.escrowAccount.settled_at, deployment.createdAt);
   const avgCost = uaktToAKT(getAvgCostPerMonth(deploymentCost));
   const isActive = deployment.state === "active";
@@ -41,7 +49,10 @@ export function DeploymentSubHeader({ deployment, leases }) {
           labelWidth="6rem"
           value={
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <PriceValue value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance, 6)} />
+              <PriceValue
+                denom={deployment.escrowAccount.balance.denom}
+                value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance, 6)}
+              />
               <CustomTooltip
                 arrow
                 title={
@@ -72,7 +83,7 @@ export function DeploymentSubHeader({ deployment, leases }) {
           value={
             !!deploymentCost && (
               <Box sx={{ display: "flex", alignItems: "center" }}>
-                <PricePerMonth perBlockValue={uaktToAKT(deploymentCost, 6)} typoVariant="body1" />
+                <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={uaktToAKT(deploymentCost, 6)} typoVariant="body1" />
 
                 <CustomTooltip arrow title={<span>{avgCost} AKT / month</span>}>
                   <InfoIcon fontSize="small" color="disabled" sx={{ marginLeft: ".5rem" }} />
@@ -86,7 +97,10 @@ export function DeploymentSubHeader({ deployment, leases }) {
           labelWidth="6rem"
           value={
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <PriceValue value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.amountSpent : deployment.transferred.amount, 6)} />
+              <PriceValue
+                denom={deployment.escrowAccount.balance.denom}
+                value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.amountSpent : deployment.transferred.amount, 6)}
+              />
 
               <CustomTooltip
                 arrow
@@ -115,4 +129,4 @@ export function DeploymentSubHeader({ deployment, leases }) {
       </Box>
     </Box>
   );
-}
+};

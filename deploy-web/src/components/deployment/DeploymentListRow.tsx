@@ -14,7 +14,7 @@ import { SpecDetailList } from "../shared/SpecDetailList";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { makeStyles } from "tss-react/mui";
 import { useRouter } from "next/router";
-import { getAvgCostPerMonth, getTimeLeft, uaktToAKT, useRealTimeLeft } from "@src/utils/priceUtils";
+import { getAvgCostPerMonth, getTimeLeft, useRealTimeLeft } from "@src/utils/priceUtils";
 import { Box, Checkbox, CircularProgress, darken, IconButton, Menu, TableCell, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { UrlService } from "@src/utils/urlUtils";
 import { cx } from "@emotion/css";
@@ -32,6 +32,8 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import PublishIcon from "@mui/icons-material/Publish";
+import { udenomToDenom } from "@src/utils/mathHelpers";
+import { useDenomData } from "@src/hooks/useWalletBalance";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -126,8 +128,9 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const amountSpent = isActive && hasActiveLeases ? realTimeLeft?.amountSpent : deployment.transferred.amount;
   const isValidTimeLeft = isActive && hasActiveLeases && isValid(realTimeLeft?.timeLeft);
   const theme = useTheme();
-  const avgCost = uaktToAKT(getAvgCostPerMonth(deploymentCost));
+  const avgCost = udenomToDenom(getAvgCostPerMonth(deploymentCost));
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
+  const denomData = useDenomData(deployment.escrowAccount.balance.denom);
 
   function viewDeployment() {
     router.push(UrlService.deploymentDetails(deployment.dseq));
@@ -147,7 +150,13 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     setIsDepositingDeployment(false);
 
     try {
-      const message = TransactionMessageData.getDepositDeploymentMsg(address, deployment.dseq, deposit, depositorAddress);
+      const message = TransactionMessageData.getDepositDeploymentMsg(
+        address,
+        deployment.dseq,
+        deposit,
+        deployment.escrowAccount.balance.denom,
+        depositorAddress
+      );
       const response = await signAndBroadcastTx([message]);
       if (response) {
         refreshDeployments();
@@ -227,13 +236,20 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         <TableCell align="center">
           {isActive && !!escrowBalance && (
             <Box marginLeft={isValidTimeLeft ? "1rem" : 0} display="flex">
-              <PriceValue value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.escrow : escrowBalance, 6)} />
+              <PriceValue
+                denom={deployment.escrowAccount.balance.denom}
+                value={udenomToDenom(isActive && hasActiveLeases ? realTimeLeft?.escrow : escrowBalance, 6)}
+              />
               <CustomTooltip
                 arrow
                 title={
                   <>
-                    <strong>{uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.escrow : escrowBalance, 6)}&nbsp;AKT</strong>
-                    <Box display="flex">{uaktToAKT(amountSpent, 2)} AKT spent</Box>
+                    <strong>
+                      {udenomToDenom(isActive && hasActiveLeases ? realTimeLeft?.escrow : escrowBalance, 6)}&nbsp;{denomData.label}
+                    </strong>
+                    <Box display="flex">
+                      {udenomToDenom(amountSpent, 2)} {denomData.label} spent
+                    </Box>
                     <br />
                     The escrow account balance will be fully returned to your wallet balance when the deployment is closed.{" "}
                   </>
@@ -258,9 +274,16 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
           {isActive && !!deploymentCost && (
             <Box marginLeft="1rem" display="flex">
               <Box sx={{ display: "flex", alignItems: "center" }}>
-                <PricePerMonth perBlockValue={uaktToAKT(deploymentCost, 6)} typoVariant="body1" />
+                <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={udenomToDenom(deploymentCost, 6)} typoVariant="body1" />
 
-                <CustomTooltip arrow title={<span>{avgCost} AKT / month</span>}>
+                <CustomTooltip
+                  arrow
+                  title={
+                    <span>
+                      {avgCost} {denomData.label} / month
+                    </span>
+                  }
+                >
                   <InfoIcon fontSize="small" color="disabled" sx={{ marginLeft: ".5rem" }} />
                 </CustomTooltip>
               </Box>
@@ -330,7 +353,11 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
       </Menu>
 
       {isActive && isDepositingDeployment && (
-        <DeploymentDepositModal handleCancel={() => setIsDepositingDeployment(false)} onDeploymentDeposit={onDeploymentDeposit} />
+        <DeploymentDepositModal
+          denom={deployment.escrowAccount.balance.denom}
+          handleCancel={() => setIsDepositingDeployment(false)}
+          onDeploymentDeposit={onDeploymentDeposit}
+        />
       )}
     </>
   );

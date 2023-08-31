@@ -11,6 +11,7 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import { PriceValue } from "../shared/PriceValue";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
+import { uAktDenom } from "@src/utils/constants";
 
 type Props = {
   open: boolean;
@@ -176,7 +177,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ open, contr
                       <br />
                       <div>
                         <strong>
-                          ~<PriceValue value={getAvgCostPerMonth(_placement.pricing.amount)} />
+                          ~<PriceValue denom={uAktDenom} value={getAvgCostPerMonth(_placement.pricing.amount)} />
                         </strong>
                         &nbsp; per month
                       </div>

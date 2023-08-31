@@ -64,7 +64,7 @@ const ProviderEditPage: React.FunctionComponent<Props> = ({ owner }) => {
             <Box>
               <Typography variant="caption">
                 This form is based on the provider attribute schema established here&nbsp;
-                <a target="_blank" href="https://github.com/ovrclk/cloudmos-config/blob/main/provider-attributes.json" rel="noreferrer noopener">
+                <a target="_blank" href="https://github.com/akash-network/cloudmos/blob/main/config/provider-attributes.json" rel="noreferrer noopener">
                   on github.
                 </a>
               </Typography>
