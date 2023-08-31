@@ -14,7 +14,7 @@ import { env } from "@src/shared/utils/env";
 
 const defaultNodeUrl = env.Network === "testnet" ? "https://api.testnet-02.aksh.pw:443" : "https://rest.cosmos.directory/akash";
 const apiNodeUrl = env.RestApiNodeUrl ?? defaultNodeUrl;
-const betaTypeVersion = env.Network === "testnet" ? "v1beta3" : "v1beta2";
+const betaTypeVersion = env.Network === "testnet" ? "v1beta3" : "v1beta3";
 
 export async function getChainStats() {
   const result: { communityPool: number; inflation: number; communityTax: number; bondedTokens: number; totalSupply: number } = await cacheResponse(
@@ -367,11 +367,11 @@ export async function getDeployment(owner: string, dseq: string) {
       monthlyCostAKT: round(monthlyUAKT / 1_000_000, 2),
       // TODO Improve: Add USDC into calculation
       monthlyCostUSD: deploymentDenom === "uakt" ? (aktPrice ? round((monthlyUAKT / 1_000_000) * aktPrice, 2) : round(monthlyUAKT / 1_000_000, 2)) : null,
-      cpuUnits: group.group_spec.resources.map((r) => parseInt(r.resources.cpu.units.val) * r.count).reduce((a, b) => a + b, 0),
-      gpuUnits: group.group_spec.resources.map((r) => parseInt(r.resources.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0),
-      memoryQuantity: group.group_spec.resources.map((r) => parseInt(r.resources.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0),
+      cpuUnits: group.group_spec.resources.map((r) => parseInt(r.resource.cpu.units.val) * r.count).reduce((a, b) => a + b, 0),
+      gpuUnits: group.group_spec.resources.map((r) => parseInt(r.resource.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0),
+      memoryQuantity: group.group_spec.resources.map((r) => parseInt(r.resource.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0),
       storageQuantity: group.group_spec.resources
-        .map((r) => r.resources.storage.map((s) => parseInt(s.quantity.val)).reduce((a, b) => a + b, 0) * r.count)
+        .map((r) => r.resource.storage.map((s) => parseInt(s.quantity.val)).reduce((a, b) => a + b, 0) * r.count)
         .reduce((a, b) => a + b, 0)
     };
   });
@@ -409,18 +409,18 @@ export async function getAddressDeployments(owner: string, skip: number, limit: 
       status: x.deployment.state,
       createdHeight: parseInt(x.deployment.created_at),
       cpuUnits: x.groups
-        .map((g) => g.group_spec.resources.map((r) => parseInt(r.resources.cpu.units.val) * r.count).reduce((a, b) => a + b, 0))
+        .map((g) => g.group_spec.resources.map((r) => parseInt(r.resource.cpu.units.val) * r.count).reduce((a, b) => a + b, 0))
         .reduce((a, b) => a + b, 0),
       gpuUnits: x.groups
-        .map((g) => g.group_spec.resources.map((r) => parseInt(r.resources.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0))
+        .map((g) => g.group_spec.resources.map((r) => parseInt(r.resource.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0))
         .reduce((a, b) => a + b, 0),
       memoryQuantity: x.groups
-        .map((g) => g.group_spec.resources.map((r) => parseInt(r.resources.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0))
+        .map((g) => g.group_spec.resources.map((r) => parseInt(r.resource.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0))
         .reduce((a, b) => a + b, 0),
       storageQuantity: x.groups
         .map((g) =>
           g.group_spec.resources
-            .map((r) => r.resources.storage.map((s) => parseInt(s.quantity.val)).reduce((a, b) => a + b, 0) * r.count)
+            .map((r) => r.resource.storage.map((s) => parseInt(s.quantity.val)).reduce((a, b) => a + b, 0) * r.count)
             .reduce((a, b) => a + b, 0)
         )
         .reduce((a, b) => a + b, 0)
