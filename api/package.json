@@ -1,6 +1,6 @@
 {
   "name": "cloudmos-api",
-  "version": "2.5.7",
+  "version": "2.6.0",
   "description": "Api providing data to the deploy tool",
   "author": "Cloudmos",
   "license": "Apache-2.0",
@@ -15,7 +15,7 @@
     "url": "git+https://github.com/akash-network/cloudmos"
   },
   "dependencies": {
-    "@akashnetwork/akashjs": "0.4.5",
+    "@akashnetwork/akashjs": "0.4.11",
     "@chain-registry/assets": "^0.7.1",
     "@cosmjs/crypto": "^0.28.11",
     "@cosmjs/encoding": "^0.28.11",
