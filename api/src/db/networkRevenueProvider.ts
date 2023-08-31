@@ -165,7 +165,7 @@ async function getDailyRevenue() {
     akt: uaktToAKT(x.uakt, 6),
     uusdc: x.uusdc,
     usdc: udenomToDenom(x.uusdc),
-    usd: uaktToAKT(x.uakt, 6) * x.aktPrice + x.uusdc,
+    usd: uaktToAKT(x.uakt, 6) * x.aktPrice + udenomToDenom(x.uusdc),
     aktPrice: x.aktPrice
   }));
 }

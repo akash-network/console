@@ -156,7 +156,6 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
     true
   );
 
-  // TODO
   if (result.length < 2) {
     return {
       currentValue: 0,
