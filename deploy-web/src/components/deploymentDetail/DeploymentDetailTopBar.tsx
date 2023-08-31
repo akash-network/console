@@ -126,19 +126,6 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
     }
   };
 
-  // TODO Alerts
-  // const onSetAlert = () => {
-  //   window.open(
-  //     UrlService.alertsCreate(null, "akash", "deployment-balance-monitor", {
-  //       owner: { operator: "eq", value: address },
-  //       dseq: { operator: "eq", value: deployment.dseq }
-  //     }),
-  //     "_blank"
-  //   );
-
-  //   handleMenuClose();
-  // };
-
   return (
     <>
       <Box
@@ -188,7 +175,6 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
             >
               <CustomMenuItem onClick={() => onChangeName()} icon={<EditIcon fontSize="small" />} text="Edit Name" />
               {storageDeploymentData?.manifest && <CustomMenuItem onClick={() => redeploy()} icon={<PublishIcon fontSize="small" />} text="Redeploy" />}
-              {/* {isActive && <CustomMenuItem onClick={() => onSetAlert()} icon={<AddAlertIcon fontSize="small" />} text="Balance Alert" />} */}
               <CustomMenuItem onClick={() => onCloseDeployment()} icon={<CancelPresentationIcon fontSize="small" />} text="Close" />
             </Menu>
           </Box>

@@ -1,4 +1,4 @@
-export function stringToBoolean(str = "") {
+export function stringToBoolean(str: string = "") {
   switch (str.toLowerCase()) {
     case "false":
     case "no":
@@ -14,19 +14,16 @@ export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-export function isUrl(val) {
-  let url;
-
+export function isUrl(val: string) {
   try {
-    url = new URL(val);
+    const url = new URL(val);
+    return url.protocol === "http:" || url.protocol === "https:";
   } catch (_) {
     return false;
   }
-
-  return url.protocol === "http:" || url.protocol === "https:";
 }
 
-export function selectText(node) {
+export function selectText(node: HTMLElement) {
   if ((document.body as any).createTextRange) {
     const range = (document.body as any).createTextRange();
     range.moveToElementText(node);

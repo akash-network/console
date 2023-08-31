@@ -100,7 +100,7 @@ The database schemas is defined using [sequelize-typescript](https://github.com/
 
 - **base** - Tables which are cosmos generic and are used for every chains
 - **akash** - Tables which are akash specific (they are not created when initializing a database for another chain)
-- **user** - Tables which are user specific. Contains tables for user settings, templates and alerts (BlockSpy specific)
+- **user** - Tables which are user specific. Contains tables for user settings and templates
 
 ## Block
 |Column|Type|Note|
@@ -394,4 +394,3 @@ Created when a user "favorite" a template
 |youtubeUsername|varchar
 |twitterUsername|varchar
 |githubUsername|varchar
-|accountType|varchar|`CLOUDMOS` or `BLOCKSPY`

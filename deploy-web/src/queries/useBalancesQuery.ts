@@ -5,15 +5,22 @@ import { useSettings } from "../context/SettingsProvider";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { Balances } from "@src/types";
 import { uAktDenom, usdcIbcDenom } from "@src/utils/constants";
+import {
+  RestApiBalancesResponseType,
+  RestApiDelegationsType,
+  RestApiRedelegationsResponseType,
+  RestApiRewardsResponseType,
+  RestApiUnbondingsResponseType
+} from "@src/types/balances";
 
 // Account balances
 async function getBalances(apiEndpoint: string, address: string): Promise<Balances> {
   if (!address) return {} as Balances;
 
-  const balancePromise = axios.get(ApiUrlService.balance(apiEndpoint, address));
-  const rewardsPromise = axios.get(ApiUrlService.rewards(apiEndpoint, address));
-  const redelegationsPromise = axios.get(ApiUrlService.redelegations(apiEndpoint, address));
-  const unbondingsPromise = axios.get(ApiUrlService.unbonding(apiEndpoint, address));
+  const balancePromise = axios.get<RestApiBalancesResponseType>(ApiUrlService.balance(apiEndpoint, address));
+  const rewardsPromise = axios.get<RestApiRewardsResponseType>(ApiUrlService.rewards(apiEndpoint, address));
+  const redelegationsPromise = axios.get<RestApiRedelegationsResponseType>(ApiUrlService.redelegations(apiEndpoint, address));
+  const unbondingsPromise = axios.get<RestApiUnbondingsResponseType>(ApiUrlService.unbonding(apiEndpoint, address));
 
   const [balanceResponse, rewardsResponse, redelegationsResponse, unbondingsResponse] = await Promise.all([
     balancePromise,
@@ -51,7 +58,7 @@ async function getBalances(apiEndpoint: string, address: string): Promise<Balanc
   let delegations = 0;
   // Delegations endpoint throws an error if there are no delegations
   try {
-    const delegationsResponse = await axios.get(ApiUrlService.delegations(apiEndpoint, address));
+    const delegationsResponse = await axios.get<RestApiDelegationsType>(ApiUrlService.delegations(apiEndpoint, address));
     const delegationsData = delegationsResponse.data;
 
     delegations = delegationsData.delegation_responses.some(b => b.balance.denom === uAktDenom)

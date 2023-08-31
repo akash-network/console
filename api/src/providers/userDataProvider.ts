@@ -7,7 +7,7 @@ function randomIntFromInterval(min: number, max: number) {
 }
 
 export async function checkUsernameAvailable(username: string, dbTransaction?: Transaction): Promise<boolean> {
-  const existingUser = await UserSetting.findOne({ where: { username: username, accountType: "cloudmos" }, transaction: dbTransaction });
+  const existingUser = await UserSetting.findOne({ where: { username: username }, transaction: dbTransaction });
   return !existingUser;
 }
 
@@ -60,14 +60,7 @@ export async function updateSettings(
   await settings.save();
 }
 
-export async function getSettingsOrInit(
-  userId: string,
-  wantedUsername: string,
-  email: string,
-  emailVerified: boolean,
-  subscribedToNewsletter: boolean,
-  accountType: string = "cloudmos"
-) {
+export async function getSettingsOrInit(userId: string, wantedUsername: string, email: string, emailVerified: boolean, subscribedToNewsletter: boolean) {
   let [userSettings, created] = await UserSetting.findCreateFind({
     where: { userId: userId },
     defaults: {
@@ -76,8 +69,7 @@ export async function getSettingsOrInit(
       email: email,
       emailVerified: emailVerified,
       stripeCustomerId: null,
-      subscribedToNewsletter: subscribedToNewsletter,
-      accountType: accountType
+      subscribedToNewsletter: subscribedToNewsletter
     }
   });
 
@@ -86,7 +78,6 @@ export async function getSettingsOrInit(
   } else if (userSettings.email !== email || userSettings.emailVerified !== emailVerified) {
     userSettings.email = email;
     userSettings.emailVerified = emailVerified;
-    userSettings.accountType = accountType;
     await userSettings.save();
   }
 

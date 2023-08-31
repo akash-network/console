@@ -21,8 +21,7 @@ import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { useAkashProviders } from "@src/context/AkashProvider";
 import { CustomTooltip } from "../shared/CustomTooltip";
-
-const yaml = require("js-yaml");
+import yaml from "js-yaml";
 
 export const useStyles = makeStyles()(theme => ({
   title: {

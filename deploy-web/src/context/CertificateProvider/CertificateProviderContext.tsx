@@ -10,8 +10,9 @@ import { useKeplr } from "../KeplrWalletProvider";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { RestApiCertificatesResponseType } from "@src/types/certificate";
 
-type LocalCert = {
+export type LocalCert = {
   certPem: string;
   keyPem: string;
   address: string;
@@ -76,7 +77,9 @@ export const CertificateProvider = ({ children }) => {
       setIsLoadingCertificates(true);
 
       try {
-        const response = await axios.get(`${apiEndpoint}/akash/cert/${networkVersion}/certificates/list?filter.state=valid&filter.owner=${address}`);
+        const response = await axios.get<RestApiCertificatesResponseType>(
+          `${apiEndpoint}/akash/cert/${networkVersion}/certificates/list?filter.state=valid&filter.owner=${address}`
+        );
         const certs = (response.data.certificates || []).map(cert => {
           const parsed = atob(cert.certificate.cert);
           const pem = getCertPem(parsed);
@@ -156,7 +159,7 @@ export const CertificateProvider = ({ children }) => {
 
       certs.push(_cert);
 
-      if (_wallet.address === currentWallet.address) {
+      if (_wallet.address === currentWallet?.address) {
         setLocalCert(_cert);
       }
     }

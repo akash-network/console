@@ -269,22 +269,6 @@ const DeploymentsPage: React.FunctionComponent<Props> = ({}) => {
                   You have {orderedDeployments.length}
                   {isFilteringActive ? " active" : ""} deployments
                 </Typography>
-
-                {/** TODO Alerts */}
-                {/* <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}>
-                  Monitor your deployment balances with
-                  <Link
-                    href={UrlService.alertsCreate(null, "akash", "deployment-balance-monitor", {
-                      owner: { operator: "eq", value: address }
-                    })}
-                  >
-                    <a target="_blank">
-                      <Box component="span" display="flex" alignItems="center" sx={{ marginLeft: ".5rem" }}>
-                        Cloudmos Alerts <LaunchIcon fontSize="small" />
-                      </Box>
-                    </a>
-                  </Link>
-                </Box> */}
               </Box>
             )}
 

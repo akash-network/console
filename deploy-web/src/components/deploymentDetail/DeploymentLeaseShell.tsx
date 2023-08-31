@@ -1,22 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useCertificate } from "../../context/CertificateProvider";
-// import { ShellDownloadModal } from "./ShellDownloadModal";
 import { LeaseSelect } from "./LeaseSelect";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { Alert, Box, Button, CircularProgress } from "@mui/material";
 import ViewPanel from "../shared/ViewPanel";
 import { ServiceSelect } from "./ServiceSelect";
 import { ShellDownloadModal } from "./ShellDownloadModal";
-import useWebSocket from "react-use-websocket";
 import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
 import { XTermRefType } from "@src/lib/XTerm/XTerm";
 import { XTerm } from "@src/lib/XTerm";
 import { LeaseShellCode } from "@src/types/shell";
 import { useAkashProviders } from "@src/context/AkashProvider";
 import { useCustomWebSocket } from "@src/hooks/useCustomWebSocket";
+import { LeaseDto } from "@src/types/deployment";
 
 type Props = {
-  leases: Array<any>; // Type
+  leases: LeaseDto[];
 };
 
 export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases }) => {
@@ -26,7 +25,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const [isConnectionClosed, setIsConnectionClosed] = useState(false);
   const [services, setServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
-  const [selectedLease, setSelectedLease] = useState(null);
+  const [selectedLease, setSelectedLease] = useState<LeaseDto>(null);
   const [isShowingDownloadModal, setIsShowingDownloadModal] = useState(false);
   const [isChangingSocket, setIsChangingSocket] = useState(false);
   const { providers } = useAkashProviders();
@@ -36,7 +35,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
     data: leaseStatus,
     refetch: getLeaseStatus,
     isFetching: isLoadingStatus
-  } = useLeaseStatus(providerInfo?.host_uri, selectedLease || {}, {
+  } = useLeaseStatus(providerInfo?.host_uri, selectedLease, {
     enabled: false
   });
   const currentUrl = useRef(null);

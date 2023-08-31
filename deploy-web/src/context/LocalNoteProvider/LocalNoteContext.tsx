@@ -1,4 +1,4 @@
-import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
+import { LocalDeploymentData, getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { getProviderLocalData, updateProviderLocalData } from "@src/utils/providerUtils";
 import React, { useState, useEffect } from "react";
 import { DeploymentNameModal } from "./DeploymentNameModal";
@@ -6,16 +6,16 @@ import { DeploymentNameModal } from "./DeploymentNameModal";
 type ContextType = {
   getDeploymentName: (dseq: string | number) => string;
   changeDeploymentName: (dseq: string | number) => void;
-  getDeploymentData: (dseq: string | number) => any; // TODO Type
-  favoriteProviders: any; // TODO: type
-  updateFavoriteProviders: (newFavorites: any) => void; // TODO
+  getDeploymentData: (dseq: string | number) => LocalDeploymentData;
+  favoriteProviders: string[];
+  updateFavoriteProviders: (newFavorites: string[]) => void;
 };
 
 const LocalNoteProviderContext = React.createContext<Partial<ContextType>>({});
 
 export const LocalNoteProvider = ({ children }) => {
-  const [dseq, setDseq] = useState(null);
-  const [favoriteProviders, setFavoriteProviders] = useState([]);
+  const [dseq, setDseq] = useState<number | string | null>(null);
+  const [favoriteProviders, setFavoriteProviders] = useState<string[]>([]);
 
   useEffect(() => {
     const localProviderData = getProviderLocalData();
@@ -24,7 +24,7 @@ export const LocalNoteProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const updateFavoriteProviders = newFavorites => {
+  const updateFavoriteProviders = (newFavorites: string[]) => {
     updateProviderLocalData({ favorites: newFavorites });
     setFavoriteProviders(newFavorites);
   };
@@ -42,11 +42,7 @@ export const LocalNoteProvider = ({ children }) => {
   const getDeploymentData = (dseq: string | number) => {
     const localData = getDeploymentLocalData(dseq);
 
-    if (localData) {
-      return localData;
-    }
-
-    return null;
+    return localData ?? null;
   };
 
   const changeDeploymentName = (dseq: string | number) => {

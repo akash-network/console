@@ -10,9 +10,11 @@ import { Validator } from "@shared/dbSchemas/base";
 import { Op } from "sequelize";
 import { Provider, ProviderAttribute } from "@shared/dbSchemas/akash";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
+import { env } from "@src/shared/utils/env";
 
-const apiNodeUrl = process.env.Network === "testnet" ? "https://api.testnet-02.aksh.pw:443" : "https://rest.cosmos.directory/akash";
-const betaTypeVersion = process.env.Network === "testnet" ? "v1beta3" : "v1beta2";
+const defaultNodeUrl = env.Network === "testnet" ? "https://api.testnet-02.aksh.pw:443" : "https://rest.cosmos.directory/akash";
+const apiNodeUrl = env.RestApiNodeUrl ?? defaultNodeUrl;
+const betaTypeVersion = env.Network === "testnet" ? "v1beta3" : "v1beta2";
 
 export async function getChainStats() {
   const result: { communityPool: number; inflation: number; communityTax: number; bondedTokens: number; totalSupply: number } = await cacheResponse(

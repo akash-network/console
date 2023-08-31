@@ -1,7 +1,10 @@
-import { ProviderDetail, ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
-import { roundDecimal } from "./mathHelpers";
+import { ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
 import { ISnapshotMetadata, ProviderSnapshots } from "@src/types";
 import { bytesToShrink } from "./unitUtils";
+
+export type LocalProviderData = {
+  favorites: string[];
+};
 
 export function providerStatusToDto(providerStatus: ProviderStatus, providerVersion: ProviderVersion): ProviderStatusDto {
   return {
@@ -18,41 +21,6 @@ export function providerStatusToDto(providerStatus: ProviderStatus, providerVers
   };
 }
 
-function getStorageFromResource(resource) {
-  return Object.keys(resource).includes("storage_ephemeral") ? resource.storage_ephemeral : resource.storage;
-}
-
-export function getTotalProviderResource(resources) {
-  const resourcesArr = resources?.nodes || resources;
-
-  const result = resourcesArr
-    ?.map(x => {
-      return {
-        cpu: getCpuValue(x.cpu),
-        memory: getByteValue(x.memory),
-        storage: getByteValue(getStorageFromResource(x))
-      };
-    })
-    .reduce((prev, current) => {
-      return {
-        cpu: prev?.cpu + current.cpu,
-        memory: prev?.memory + current.memory,
-        storage: prev?.storage + current.storage
-      };
-    });
-
-  return result || { cpu: 0, memory: 0, storage: 0 };
-}
-
-function getCpuValue(cpu) {
-  const _cpu = typeof cpu === "number" ? cpu : parseInt(cpu.units.val);
-  return roundDecimal(_cpu / 1000, 1);
-}
-
-function getByteValue(val) {
-  return typeof val === "number" ? val : parseInt(val.size.val);
-}
-
 export function getNetworkCapacityDto(networkCapacity) {
   return {
     ...networkCapacity,
@@ -63,19 +31,19 @@ export function getNetworkCapacityDto(networkCapacity) {
   };
 }
 
-export function getProviderLocalData() {
+export function getProviderLocalData(): LocalProviderData {
   const selectedNetworkId = localStorage.getItem("selectedNetworkId");
   const dataStr = localStorage.getItem(`${selectedNetworkId}/provider.data`);
   if (!dataStr) {
     return { favorites: [] };
   }
 
-  const parsedData = JSON.parse(dataStr);
+  const parsedData = JSON.parse(dataStr) as LocalProviderData;
 
   return parsedData;
 }
 
-export function updateProviderLocalData(data) {
+export function updateProviderLocalData(data: LocalProviderData) {
   const oldData = getProviderLocalData();
   const newData = { ...oldData, ...data };
 
@@ -83,7 +51,7 @@ export function updateProviderLocalData(data) {
   localStorage.setItem(`${selectedNetworkId}/provider.data`, JSON.stringify(newData));
 }
 
-export const getSnapshotMetadata = (snapshot?: ProviderSnapshots): { unitFn: (number) => ISnapshotMetadata; legend?: string } => {
+export const getSnapshotMetadata = (snapshot?: ProviderSnapshots): { unitFn: (number: number) => ISnapshotMetadata; legend?: string } => {
   switch (snapshot) {
     case ProviderSnapshots.cpu:
       return {

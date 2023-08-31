@@ -148,9 +148,6 @@ const AddressDetailPage: React.FunctionComponent<Props> = ({ address, addressDet
                         {address in addressNames ? <BookmarkIcon /> : <BookmarkAddIcon />}
                       </IconButton>
                     </CustomTooltip>
-
-                    {/** TODO Alerts */}
-                    {/* <AddressAlertCreateButtonLink sx={{ marginLeft: ".5rem" }} address={address} /> */}
                   </Box>
                 }
                 labelWidth="10rem"
