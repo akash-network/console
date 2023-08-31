@@ -4,7 +4,6 @@ import { MergedProvider } from "@src/types/provider";
 import { CustomTableHeader } from "../shared/CustomTable";
 import { ProviderListRow } from "./ProviderListRow";
 import { useSelectedNetwork } from "@src/utils/networks";
-import { testnetId } from "@src/utils/constants";
 
 const useStyles = makeStyles()(theme => ({}));
 
@@ -36,11 +35,9 @@ export const ProviderList: React.FunctionComponent<Props> = ({ providers }) => {
             <TableCell align="center" width="10%">
               CPU
             </TableCell>
-            {selectedNetwork.id === testnetId && (
-              <TableCell align="center" width="10%">
-                GPU
-              </TableCell>
-            )}
+            <TableCell align="center" width="10%">
+              GPU
+            </TableCell>
             <TableCell align="center" width="10%">
               Memory
             </TableCell>

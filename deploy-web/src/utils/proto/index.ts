@@ -9,7 +9,7 @@ export function initProtoTypes() {
 
   switch (selectedNetworkId) {
     case mainnetId:
-      protoTypes = v1beta2;
+      protoTypes = v1beta3;
       break;
     case testnetId:
       protoTypes = v1beta3;
@@ -19,7 +19,7 @@ export function initProtoTypes() {
       break;
 
     default:
-      protoTypes = v1beta2;
+      protoTypes = v1beta3;
       break;
   }
 }
