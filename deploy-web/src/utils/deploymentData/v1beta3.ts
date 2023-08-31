@@ -194,14 +194,14 @@ function validate(yamlJson) {
   }
 }
 
-export function getManifest(yamlJson) {
-  const manifest = Manifest(yamlJson, "beta3");
+export function getManifest(yamlJson, asString: boolean) {
+  const manifest = Manifest(yamlJson, "beta3", asString);
 
   return manifest;
 }
 
 export async function getManifestVersion(yamlJson, asString = false) {
-  const version = await ManifestVersion(yamlJson, "beta2");
+  const version = await ManifestVersion(yamlJson, "beta3");
 
   if (asString) {
     return Buffer.from(version).toString("base64");
