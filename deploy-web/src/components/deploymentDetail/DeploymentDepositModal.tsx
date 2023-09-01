@@ -5,7 +5,7 @@ import { useSnackbar } from "notistack";
 import compareAsc from "date-fns/compareAsc";
 import { coinToUAkt, uaktToAKT } from "@src/utils/priceUtils";
 import { Snackbar } from "../shared/Snackbar";
-import { uAktDenom, usdcIbcDenom } from "@src/utils/constants";
+import { uAktDenom } from "@src/utils/constants";
 import { Alert, Box, Checkbox, FormControl, FormControlLabel, InputAdornment, MenuItem, Select, TextField } from "@mui/material";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { LinkTo } from "../shared/LinkTo";
@@ -18,6 +18,7 @@ import { useGranteeGrants } from "@src/queries/useGrantsQuery";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { Popup } from "../shared/Popup";
 import { useDenomData } from "@src/hooks/useWalletBalance";
+import { useUsdcDenom } from "@src/hooks/useDenom";
 
 type Props = {
   infoText?: string | ReactNode;
@@ -53,6 +54,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   });
   const { amount, useDepositor, depositorAddress } = watch();
   const depositData = useDenomData(denom);
+  const usdcIbcDenom = useUsdcDenom();
 
   useEffect(() => {
     clearErrors();
