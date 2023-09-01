@@ -1,9 +1,10 @@
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { usePricing } from "@src/context/PricingProvider";
-import { txFeeBuffer, uAktDenom, usdcIbcDenom } from "@src/utils/constants";
+import { txFeeBuffer, uAktDenom } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { useEffect, useState } from "react";
+import { useUsdcDenom } from "./useDenom";
 
 export const useTotalWalletBalance = () => {
   const { isLoaded, price } = usePricing();
@@ -32,6 +33,7 @@ export const useDenomData = (denom: string) => {
   const { isLoaded, price } = usePricing();
   const { walletBalances } = useKeplr();
   const [depositData, setDepositData] = useState<DenomData>(null);
+  const usdcIbcDenom = useUsdcDenom();
 
   useEffect(() => {
     if (isLoaded && walletBalances) {

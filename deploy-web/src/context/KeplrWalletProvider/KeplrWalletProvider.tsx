@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { useState, useEffect } from "react";
 import { SigningStargateClient } from "@cosmjs/stargate";
-import { mainnetId, selectedNetworkId, testnetId, uAktDenom, usdcIbcDenom } from "@src/utils/constants";
+import { mainnetId, selectedNetworkId, testnetId, uAktDenom } from "@src/utils/constants";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useSnackbar } from "notistack";
@@ -18,6 +18,7 @@ import { useSettings } from "../SettingsProvider";
 import axios from "axios";
 import { getSelectedNetwork } from "@src/utils/networks";
 import { LinkTo } from "@src/components/shared/LinkTo";
+import { useUsdcDenom } from "@src/hooks/useDenom";
 
 type Balances = {
   uakt: number;
@@ -65,6 +66,7 @@ export const KeplrWalletProvider = ({ children }) => {
   const sigingClient = useRef<SigningStargateClient>(null);
   const router = useRouter();
   const { settings, isSettingsInit } = useSettings();
+  const usdcIbcDenom = useUsdcDenom();
 
   useEffect(() => {
     console.log("useKeplr on mount");
