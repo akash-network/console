@@ -218,8 +218,6 @@ const getDenomFromSdl = (groups: any[]): string => {
     .flat()
     .map(resource => resource.price.denom);
 
-  console.log(denoms);
-
   // TODO handle multiple denoms in an sdl? (different denom for each service?)
   return denoms[0];
 };
