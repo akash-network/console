@@ -128,7 +128,10 @@ export function ManifestUpdate({ deployment, leases, closeManifestEditor }) {
 
       const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, doc, parseInt(deployment.dseq), address); // TODO Flags
       const mani = deploymentData.getManifest(doc, true);
-
+      
+      // const sdl = getSdl(doc as any, "beta3");
+      // console.log("Sorted Manifest", sdl.manifestSortedJSON());
+      
       // If it's actual update, send a transaction, else just send the manifest
       if (Buffer.from(dd.version).toString("base64") !== deployment.version) {
         const message = TransactionMessageData.getUpdateDeploymentMsg(dd);
@@ -165,6 +168,7 @@ export function ManifestUpdate({ deployment, leases, closeManifestEditor }) {
         closeManifestEditor();
       }
     } catch (error) {
+      console.error(error);
       setIsSendingManifest(false);
       closeSnackbar(sendManifestKey);
     }
