@@ -19,6 +19,7 @@ import { ApiTemplate } from "@src/types";
 import Markdown from "@src/components/shared/Markdown";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { getShortText } from "@src/utils/stringUtils";
+import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -57,10 +58,14 @@ const TemplateDetailPage: React.FunctionComponent<Props> = ({ templateId, templa
   const router = useRouter();
   const { classes } = useStyles();
   const _template = template || getTemplateById(templateId);
-  const theme = useTheme();
+  const previousRoute = usePreviousRoute();
 
   function handleBackClick() {
-    router.back();
+    if (previousRoute !== router.asPath) {
+      router.back();
+    } else {
+      router.push(UrlService.templates());
+    }
   }
 
   function handleOpenGithub() {

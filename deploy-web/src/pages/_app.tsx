@@ -15,7 +15,6 @@ import { KeplrWalletProvider } from "@src/context/KeplrWalletProvider";
 import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import Head from "next/head";
 import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
-import { useMediaQuery } from "@mui/material";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { CertificateProvider } from "@src/context/CertificateProvider";
 import { AkashProvider } from "@src/context/AkashProvider";
@@ -26,6 +25,7 @@ import { GoogleAnalytics } from "nextjs-google-analytics";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { Provider } from "jotai";
+import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 
 interface Props extends AppProps {
   emotionCache?: EmotionCache;
@@ -44,7 +44,7 @@ Router.events.on("routeChangeError", () => NProgress.done());
 const clientSideEmotionCache = createEmotionCache();
 
 const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCache = clientSideEmotionCache }) => {
-  const isMobile = useMediaQuery("(max-width:600px)");
+  usePreviousRoute();
 
   useEffect(() => {
     // Remove the server-side injected CSS.

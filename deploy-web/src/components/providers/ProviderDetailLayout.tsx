@@ -14,6 +14,7 @@ import { ProviderSummary } from "./ProviderSummary";
 import { ProviderDetail } from "@src/types/provider";
 import Link from "next/link";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 
 export enum ProviderDetailTabs {
   DETAIL = 1,
@@ -50,6 +51,7 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
   const { classes } = useStyles();
   const router = useRouter();
   const { address: walletAddress } = useKeplr();
+  const previousRoute = usePreviousRoute();
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: ProviderDetailTabs) => {
     switch (newValue) {
@@ -67,7 +69,11 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
   };
 
   function handleBackClick() {
-    router.back();
+    if (previousRoute !== router.asPath) {
+      router.back();
+    } else {
+      router.push(UrlService.providers());
+    }
   }
 
   return (
