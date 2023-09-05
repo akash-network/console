@@ -7,6 +7,8 @@ import * as fs from "fs";
 import { Octokit } from "@octokit/rest";
 import { getLogoFromPath } from "./templateReposLogos";
 import { dataFolderPath } from "@src/shared/constants";
+import { GithubChainRegistryAssetListResponse } from "@src/types";
+import { GithubDirectoryItem } from "@src/types/github";
 
 let generatingTasks = {};
 let lastServedData = null;
@@ -139,7 +141,7 @@ async function fetchOmnibusTemplates(octokit: Octokit, repoVersion: string) {
 
   githubRequestsRemaining = response.headers["x-ratelimit-remaining"];
 
-  if (!(response.data instanceof Array)) throw "Counld not fetch list of files from akash-network/cosmos-omnibus";
+  if (!Array.isArray(response.data)) throw "Could not fetch list of files from akash-network/cosmos-omnibus";
 
   const folders = response.data.filter((f) => f.type === "dir" && !f.name.startsWith(".") && !f.name.startsWith("_"));
   const templates = folders.map((x) => ({
@@ -159,7 +161,7 @@ async function fetchOmnibusTemplates(octokit: Octokit, repoVersion: string) {
 
       if (assetListResponse.status !== 200) throw "Could not fetch assetlist.json";
 
-      const assetList = await assetListResponse.json();
+      const assetList = (await assetListResponse.json()) as GithubChainRegistryAssetListResponse;
       if (assetList.assets.length === 0) {
         throw "No asset found";
       }
@@ -336,6 +338,8 @@ export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories
           }
         });
 
+        if (!Array.isArray(response.data)) throw "Response data is not an array";
+
         githubRequestsRemaining = response.headers["x-ratelimit-remaining"];
 
         const readme = await findFileContentAsync("README.md", response.data);
@@ -418,6 +422,8 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
           }
         });
 
+        if (!Array.isArray(response.data)) throw "Response data is not an array";
+
         githubRequestsRemaining = response.headers["x-ratelimit-remaining"];
 
         const readme = await findFileContentAsync("README.md", response.data);
@@ -464,7 +470,7 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
 }
 
 // Find a github file by name and dowload it
-async function findFileContentAsync(filename, fileList) {
+async function findFileContentAsync(filename: string | string[], fileList: GithubDirectoryItem[]) {
   const filenames = typeof filename === "string" ? [filename] : filename;
   const fileDef = fileList.find((f) => filenames.some((x) => x.toLowerCase() === f.name.toLowerCase()));
 
