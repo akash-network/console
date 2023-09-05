@@ -5,6 +5,7 @@ import PageContainer from "@src/components/shared/PageContainer";
 import { Chip } from "@mui/material";
 import { SimpleSDLBuilderForm } from "@src/components/sdl/SimpleSdlBuilderForm";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {};
 
@@ -15,7 +16,7 @@ const SDLBuilderPage: React.FunctionComponent<Props> = ({}) => {
     <Layout>
       <CustomNextSeo
         title="SDL Builder"
-        url="https://deploy.cloudmos.io/sdl-builder"
+        url={`https://deploy.cloudmos.io${UrlService.sdlBuilder()}`}
         description="Build your own SDL configuration to deploy a docker container on the Akash Network, the #1 decentralized supercloud."
       />
 

@@ -42,6 +42,7 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import { BidDto } from "@src/types/deployment";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
+import { RouteStepKeys } from "@src/utils/constants";
 
 const yaml = require("js-yaml");
 
@@ -269,7 +270,10 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
   return (
     <>
-      <CustomNextSeo title="Create Deployment - Create Lease" url="https://deploy.cloudmos.io/new-deployment?step=create-leases" />
+      <CustomNextSeo
+        title="Create Deployment - Create Lease"
+        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.createLeases })}`}
+      />
 
       <Box>
         {!isLoadingBids && bids.length > 0 && !allClosed && (

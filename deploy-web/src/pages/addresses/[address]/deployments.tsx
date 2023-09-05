@@ -23,6 +23,7 @@ import SearchOffIcon from "@mui/icons-material/SearchOff";
 import AddressLayout from "@src/components/address/AddressLayout";
 import { DeploymentRow } from "@src/components/deployment/DeploymentRow";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
   address: string;
@@ -58,7 +59,7 @@ const AddressDeploymentsPage: React.FunctionComponent<Props> = ({ address }) => 
 
   return (
     <Layout>
-      <CustomNextSeo title={`Account ${address} deployments`} url={`https://deploy.cloudmos.io/addresses/${address}/deployments`} />
+      <CustomNextSeo title={`Account ${address} deployments`} url={`https://deploy.cloudmos.io${UrlService.addressDeployments(address)}`} />
 
       <AddressLayout page="deployments" address={address}>
         <Box sx={{ mt: "1rem" }}>

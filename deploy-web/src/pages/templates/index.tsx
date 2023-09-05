@@ -140,7 +140,7 @@ const TemplateGalleryPage: React.FunctionComponent<Props> = ({}) => {
     <Layout isLoading={isLoadingTemplates}>
       <CustomNextSeo
         title="Template Gallery"
-        url={`https://deploy.cloudmos.io/templates`}
+        url={`https://deploy.cloudmos.io${UrlService.templates()}`}
         description="Explore all the templates made by the community to easily deploy any docker container on the Akash Network."
       />
 

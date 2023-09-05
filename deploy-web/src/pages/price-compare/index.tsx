@@ -196,7 +196,7 @@ export const PriceCompare: React.FunctionComponent<IPriceCompareProps> = ({}) =>
     <Layout isLoading={isLoadingPricing}>
       <CustomNextSeo
         title="Price comparision"
-        url={`https://deploy.cloudmos.io/price-compare`}
+        url={`https://deploy.cloudmos.io${UrlService.priceCompare()}`}
         description="Compare Akash cost savings against the cloud giants like Amazon Web Services (aws), Google Cloud Platform (gcp) and Microsoft Azure."
       />
 

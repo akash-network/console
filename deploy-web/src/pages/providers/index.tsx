@@ -32,6 +32,7 @@ import { useSelectedNetwork } from "@src/utils/networks";
 import dynamic from "next/dynamic";
 import LaunchIcon from "@mui/icons-material/Launch";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { UrlService } from "@src/utils/urlUtils";
 
 const NetworkCapacity = dynamic(() => import("../../components/providers/NetworkCapacity"), {
   ssr: false
@@ -184,7 +185,11 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
 
   return (
     <Layout isLoading={isLoadingProviders || isLoadingLeases || isLoadingNetworkCapacity}>
-      <CustomNextSeo title="Providers" url={`https://deploy.cloudmos.io/providers`} description="Explore all the providers available on the Akash Network." />
+      <CustomNextSeo
+        title="Providers"
+        url={`https://deploy.cloudmos.io${UrlService.providers()}`}
+        description="Explore all the providers available on the Akash Network."
+      />
 
       <PageContainer>
         <Typography variant="h1" className={classes.title} sx={{ marginBottom: ".2rem" }}>

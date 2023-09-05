@@ -42,6 +42,7 @@ import AddressLayout from "@src/components/address/AddressLayout";
 import { TransactionRow } from "@src/components/blockchain/TransactionRow";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
   address: string;
@@ -101,7 +102,7 @@ const AddressDetailPage: React.FunctionComponent<Props> = ({ address, addressDet
 
   return (
     <Layout>
-      <CustomNextSeo title={`Account ${address}`} url={`https://deploy.cloudmos.io/addresses/${address}`} />
+      <CustomNextSeo title={`Account ${address}`} url={`https://deploy.cloudmos.io${UrlService.address(address)}`} />
       <SendAktModal onClose={() => setIsShowingSendModal(false)} open={isShowingSendModal} toAddress={address} />
       {showMustConnectModal && <MustConnectModal message={showMustConnectModal} onClose={() => setShowMustConnectModal(null)} />}
 

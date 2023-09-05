@@ -221,7 +221,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
   return (
     <>
-      <CustomNextSeo title="Create Deployment - Manifest Edit" url="https://deploy.cloudmos.io/new-deployment?step=edit-deployment" />
+      <CustomNextSeo
+        title="Create Deployment - Manifest Edit"
+        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`}
+      />
 
       <Box
         sx={{

@@ -81,7 +81,7 @@ const TemplatePage: React.FunctionComponent<Props> = ({ id, template }) => {
     <Layout>
       <CustomNextSeo
         title={`${template.title}`}
-        url={`https://deploy.cloudmos.io/template/${id}`}
+        url={`https://deploy.cloudmos.io${UrlService.template(id)}`}
         description={getShortText(template.description || "", 140)}
       />
 

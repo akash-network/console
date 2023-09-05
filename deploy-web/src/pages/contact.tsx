@@ -9,6 +9,7 @@ import { DiscordIcon } from "@src/components/shared/icons";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import TwitterIcon from "@mui/icons-material/Twitter";
 import GitHubIcon from "@mui/icons-material/GitHub";
+import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
   children?: ReactNode;
@@ -49,7 +50,7 @@ const ContactPage: React.FunctionComponent<Props> = ({}) => {
 
   return (
     <Layout>
-      <CustomNextSeo title="Contact" url="https://deploy.cloudmos.io/contact" />
+      <CustomNextSeo title="Contact" url={`https://deploy.cloudmos.io${UrlService.contact()}`} />
 
       <PageContainer>
         <Box sx={{ textAlign: "center", padding: "3rem 0" }}>

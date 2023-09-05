@@ -83,7 +83,10 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
 
   return (
     <>
-      <CustomNextSeo title="Create Deployment - Template List" url="https://deploy.cloudmos.io/new-deployment?step=choose-template" />
+      <CustomNextSeo
+        title="Create Deployment - Template List"
+        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.chooseTemplate })}`}
+      />
 
       <Typography variant="h1" sx={{ marginBottom: "2rem", fontSize: "2rem", marginTop: "2rem" }}>
         <strong>What do you want to deploy?</strong>

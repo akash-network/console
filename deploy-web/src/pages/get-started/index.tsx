@@ -5,6 +5,7 @@ import PageContainer from "@src/components/shared/PageContainer";
 import { Card, CardContent, CardHeader, useTheme } from "@mui/material";
 import { GetStartedStepper } from "@src/components/get-started/GetStartedStepper";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { UrlService } from "@src/utils/urlUtils";
 
 const useStyles = makeStyles()(theme => ({}));
 
@@ -18,7 +19,7 @@ const GetStarted: React.FunctionComponent<Props> = ({}) => {
     <Layout>
       <CustomNextSeo
         title="Get started with Cloudmos"
-        url={`https://deploy.cloudmos.io/get-started`}
+        url={`https://deploy.cloudmos.io${UrlService.getStarted()}`}
         description="Follow the steps to get started with Cloudmos!"
       />
 

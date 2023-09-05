@@ -10,6 +10,7 @@ import { ProviderDetail } from "@src/types/provider";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
 import ProviderDetailLayout, { ProviderDetailTabs } from "@src/components/providers/ProviderDetailLayout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
   owner: string;
@@ -77,7 +78,7 @@ const ProviderLeasesPage: React.FunctionComponent<Props> = ({ owner }) => {
 
   return (
     <Layout isLoading={isLoadingLeases || isLoadingProviders || isLoadingStatus}>
-      <CustomNextSeo title={`Provider leases for ${owner}`} url={`https://deploy.cloudmos.io/providers/${owner}/leases`} />
+      <CustomNextSeo title={`Provider leases for ${owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetailLeases(owner)}`} />
 
       <ProviderDetailLayout address={owner} page={ProviderDetailTabs.LEASES} refresh={refresh} provider={provider}>
         <div className={classes.root}>

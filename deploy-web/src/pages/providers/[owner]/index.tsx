@@ -19,6 +19,7 @@ import { ActiveLeasesGraph } from "@src/components/providers/ActiveLeasesGraph";
 import { makeStyles } from "tss-react/mui";
 import CheckIcon from "@mui/icons-material/Check";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { UrlService } from "@src/utils/urlUtils";
 
 const NetworkCapacity = dynamic(() => import("../../../components/providers/NetworkCapacity"), {
   ssr: false
@@ -96,7 +97,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner }) => {
   return (
     <Layout isLoading={isLoading}>
       {/** TODO Add endpoint to retrieve and render server side with provider info + add description */}
-      <CustomNextSeo title={`Provider detail ${owner}`} url={`https://deploy.cloudmos.io/providers/${owner}`} />
+      <CustomNextSeo title={`Provider detail ${owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetail(owner)}`} />
 
       <ProviderDetailLayout address={owner} page={ProviderDetailTabs.DETAIL} refresh={refresh} provider={provider}>
         {!provider && isLoading && (
