@@ -210,6 +210,7 @@ export interface DeploymentDto {
   dseq: string;
   state: string;
   version: string;
+  denom: string;
   createdAt: number;
   escrowBalance: number;
   transferred: {

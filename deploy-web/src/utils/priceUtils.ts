@@ -2,6 +2,8 @@ import { useBlock } from "@src/queries/useBlocksQuery";
 import add from "date-fns/add";
 import { averageDaysInMonth } from "./dateUtils";
 import { Coin } from "@cosmjs/stargate";
+import { denomToUdenom } from "./mathHelpers";
+import { getUsdcDenom } from "@src/hooks/useDenom";
 
 export const averageBlockTime = 6.098;
 
@@ -18,6 +20,21 @@ export function coinToUAkt(coin: Coin) {
   if (coin.denom === "akt") {
     uakt = aktToUakt(parseFloat(coin.amount));
   } else if (coin.denom === "uakt") {
+    uakt = parseFloat(coin.amount);
+  } else {
+    throw Error("Unrecognized denom: " + coin.denom);
+  }
+
+  return uakt;
+}
+
+export function coinToUDenom(coin: Coin) {
+  let uakt: number = null;
+  const usdcDenom = getUsdcDenom();
+
+  if (coin.denom === "akt") {
+    uakt = denomToUdenom(parseFloat(coin.amount));
+  } else if (coin.denom === "uakt" || coin.denom === usdcDenom) {
     uakt = parseFloat(coin.amount);
   } else {
     throw Error("Unrecognized denom: " + coin.denom);

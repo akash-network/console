@@ -21,7 +21,7 @@ export function nFormatter(num: number, digits: number) {
 }
 
 export function udenomToDenom(_amount: string | number, precision = 6, decimals: number = 1_000_000) {
-  const amount = typeof _amount === "string" ? parseInt(_amount) : _amount;
+  const amount = typeof _amount === "string" ? parseFloat(_amount) : _amount;
   return roundDecimal(amount / decimals, precision);
 }
 
@@ -39,7 +39,7 @@ export function roundDecimal(value: number, precision = 2) {
 }
 
 export function ceilDecimal(value: number) {
-  return Math.ceil((value + Number.EPSILON) * 100) / 100;
+  return Math.ceil((value + Number.EPSILON) * 1000) / 1000;
 }
 
 export function coinsToAmount(coins: Coin[] | Coin, denom: string) {
