@@ -1,12 +1,7 @@
 import {
   Alert,
   Box,
-  Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   List,
   ListItemButton,
   ListItemIcon,
@@ -19,12 +14,9 @@ import { networks } from "@src/utils/networks";
 import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { useSettings } from "../../context/SettingsProvider";
+import { Popup } from "./Popup";
 
 const useStyles = makeStyles()(theme => ({
-  list: {},
-  dialogContent: {
-    padding: "0 .5rem"
-  },
   experimentalChip: {
     height: "16px",
     marginLeft: "1rem",
@@ -36,11 +28,6 @@ const useStyles = makeStyles()(theme => ({
   },
   alert: {
     marginBottom: "1rem"
-  },
-  dialogActions: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between"
   }
 }));
 
@@ -66,10 +53,32 @@ export const SelectNetworkModal = ({ onClose }) => {
   };
 
   return (
-    <Dialog open={true} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Select Network</DialogTitle>
-      <DialogContent dividers className={classes.dialogContent}>
-        <List className={classes.list}>
+      <Popup
+      fullWidth
+      open
+      variant="custom"
+      title="Select Network"
+      actions={[
+        {
+          label: "Close",
+          color: "primary",
+          variant: "text",
+          side: "left",
+          onClick: onClose
+        },
+        {
+          label: "Save",
+          color: "secondary",
+          variant: "contained",
+          side: "right",
+          onClick: handleSaveChanges
+        }
+      ]}
+      onClose={onClose}
+      maxWidth="xs"
+      enableCloseOnBackdropClick
+    >
+        <List>
           {networks.map(network => {
             return (
               <ListItemButton key={network.id} dense onClick={() => handleSelectNetwork(network)} disabled={!network.enabled}>
@@ -105,15 +114,6 @@ export const SelectNetworkModal = ({ onClose }) => {
             <Typography variant="body2">Changing networks will restart the app and some features are experimental.</Typography>
           </Alert>
         )}
-      </DialogContent>
-      <DialogActions className={classes.dialogActions}>
-        <Button onClick={onClose} type="button" autoFocus>
-          Close
-        </Button>
-        <Button variant="contained" onClick={handleSaveChanges} color="secondary" type="button">
-          Save
-        </Button>
-      </DialogActions>
-    </Dialog>
+      </Popup>
   );
 };

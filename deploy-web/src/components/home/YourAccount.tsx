@@ -240,7 +240,12 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     <Box sx={{ display: "flex", alignItems: "center" }}>
                       <Typography variant="body1">
                         <strong>
-                          <PriceValue value={udenomToDenom(costPerMonth, 6)} denom={usdcIbcDenom} />
+                          <FormattedNumber
+                            value={costPerMonth}
+                            // eslint-disable-next-line react/style-prop-object
+                            style="currency"
+                            currency="USD"
+                          />
                         </strong>{" "}
                         / month
                       </Typography>
@@ -314,11 +319,10 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                       <div className={classes.legendValue}>
                         {udenomToDenom(balance.value, 2)} {balance.denomLabel}
                       </div>
-                      {!!balance.value && (
-                        <div>
-                          <PriceValue denom={balance.denom} value={udenomToDenom(balance.value, 6)} />
-                        </div>
-                      )}
+
+                      <div>
+                        <PriceValue denom={balance.denom} value={udenomToDenom(balance.value, 6)} />
+                      </div>
                     </div>
                   ))}
 
@@ -328,13 +332,12 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     <div className={classes.legendValue}>
                       <strong>{uaktToAKT(totalUAkt, 2)} AKT</strong>
                     </div>
-                    {!!totalUAkt && (
-                      <div>
-                        <strong>
-                          <PriceValue denom={uAktDenom} value={uaktToAKT(totalUAkt, 6)} />
-                        </strong>
-                      </div>
-                    )}
+
+                    <div>
+                      <strong>
+                        <PriceValue denom={uAktDenom} value={uaktToAKT(totalUAkt, 6)} />
+                      </strong>
+                    </div>
                   </Box>
                   <Box className={classes.legendRow} sx={{ fontSize: ".9rem !important" }}>
                     <div className={classes.legendColor} />
@@ -342,13 +345,12 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     <div className={classes.legendValue}>
                       <strong>{udenomToDenom(totalUsdc, 2)} USDC</strong>
                     </div>
-                    {!!totalUsdc && (
-                      <div>
-                        <strong>
-                          <PriceValue denom={usdcIbcDenom} value={udenomToDenom(totalUsdc, 6)} />
-                        </strong>
-                      </div>
-                    )}
+
+                    <div>
+                      <strong>
+                        <PriceValue denom={usdcIbcDenom} value={udenomToDenom(totalUsdc, 6)} />
+                      </strong>
+                    </div>
                   </Box>
 
                   <Box
@@ -363,18 +365,17 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     <div className={classes.legendColor} />
                     <div className={classes.legendLabel}></div>
                     <div className={classes.legendValue}></div>
-                    {!!totalUsdc && (
-                      <div>
-                        <strong>
-                          <FormattedNumber
-                            value={udenomToDenom(totalUsdc, 6) + udenomToDenom(totalUAkt, 6) * price}
-                            // eslint-disable-next-line react/style-prop-object
-                            style="currency"
-                            currency="USD"
-                          />
-                        </strong>
-                      </div>
-                    )}
+
+                    <div>
+                      <strong>
+                        <FormattedNumber
+                          value={udenomToDenom(totalUsdc, 6) + udenomToDenom(totalUAkt, 6) * price}
+                          // eslint-disable-next-line react/style-prop-object
+                          style="currency"
+                          currency="USD"
+                        />
+                      </strong>
+                    </div>
                   </Box>
                 </Box>
               )}
