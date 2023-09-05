@@ -56,11 +56,11 @@ export const useDenomData = (denom: string) => {
         default:
           break;
       }
-      console.log(denom, depositData);
+      console.log(walletBalances, denom, depositData);
 
       setDepositData(depositData);
     }
-  }, [isLoaded, price, walletBalances]);
+  }, [isLoaded, price, walletBalances, usdcIbcDenom]);
 
   return depositData;
 };

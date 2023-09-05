@@ -3,7 +3,7 @@ import WarningIcon from "@mui/icons-material/Warning";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import isValid from "date-fns/isValid";
 import { makeStyles } from "tss-react/mui";
-import { getAvgCostPerMonth, uaktToAKT, useRealTimeLeft } from "@src/utils/priceUtils";
+import { getAvgCostPerMonth, useRealTimeLeft } from "@src/utils/priceUtils";
 import { Box } from "@mui/material";
 import { PriceValue } from "../shared/PriceValue";
 import { PricePerMonth } from "../shared/PricePerMonth";
@@ -12,6 +12,8 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import { LabelValue } from "../shared/LabelValue";
 import { ReactNode } from "react";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import { udenomToDenom } from "@src/utils/mathHelpers";
+import { useDenomData } from "@src/hooks/useWalletBalance";
 
 const useStyles = makeStyles()(theme => ({
   warningIcon: {
@@ -30,9 +32,10 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const hasLeases = leases && leases.length > 0;
   const deploymentCost = hasLeases ? leases.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) : 0;
   const realTimeLeft = useRealTimeLeft(deploymentCost, deployment.escrowBalance, parseFloat(deployment.escrowAccount.settled_at), deployment.createdAt);
-  const avgCost = uaktToAKT(getAvgCostPerMonth(deploymentCost));
+  const avgCost = udenomToDenom(getAvgCostPerMonth(deploymentCost));
   const isActive = deployment.state === "active";
   const hasActiveLeases = hasLeases && leases.some(l => l.state === "active");
+  const denomData = useDenomData(deployment.escrowAccount.balance.denom);
 
   return (
     <Box
@@ -51,13 +54,15 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
             <Box sx={{ display: "flex", alignItems: "center" }}>
               <PriceValue
                 denom={deployment.escrowAccount.balance.denom}
-                value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance, 6)}
+                value={udenomToDenom(isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance, 6)}
               />
               <CustomTooltip
                 arrow
                 title={
                   <>
-                    <strong>{uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance, 6)}&nbsp;AKT</strong>
+                    <strong>
+                      {udenomToDenom(isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance, 6)}&nbsp;{denomData?.label}
+                    </strong>
                     <br />
                     The escrow account balance will be fully returned to your wallet balance when the deployment is closed.{" "}
                   </>
@@ -83,9 +88,16 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           value={
             !!deploymentCost && (
               <Box sx={{ display: "flex", alignItems: "center" }}>
-                <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={uaktToAKT(deploymentCost, 6)} typoVariant="body1" />
+                <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={udenomToDenom(deploymentCost, 6)} typoVariant="body1" />
 
-                <CustomTooltip arrow title={<span>{avgCost} AKT / month</span>}>
+                <CustomTooltip
+                  arrow
+                  title={
+                    <span>
+                      {avgCost} {denomData?.label} / month
+                    </span>
+                  }
+                >
                   <InfoIcon fontSize="small" color="disabled" sx={{ marginLeft: ".5rem" }} />
                 </CustomTooltip>
               </Box>
@@ -99,12 +111,16 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
             <Box sx={{ display: "flex", alignItems: "center" }}>
               <PriceValue
                 denom={deployment.escrowAccount.balance.denom}
-                value={uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount), 6)}
+                value={udenomToDenom(isActive && hasActiveLeases ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount), 6)}
               />
 
               <CustomTooltip
                 arrow
-                title={<span>{uaktToAKT(isActive && hasActiveLeases ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount), 6)} AKT</span>}
+                title={
+                  <span>
+                    {udenomToDenom(isActive && hasActiveLeases ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount), 6)} {denomData?.label}
+                  </span>
+                }
               >
                 <InfoIcon fontSize="small" color="disabled" sx={{ marginLeft: ".5rem" }} />
               </CustomTooltip>

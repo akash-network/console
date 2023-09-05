@@ -1,8 +1,10 @@
 import { DeploymentDto, LeaseDto, RpcDeployment, RpcLease } from "@src/types/deployment";
-import { coinToUAkt } from "./priceUtils";
+import { coinToUAkt, coinToUDenom } from "./priceUtils";
 
 export function deploymentResourceSum(deployment: RpcDeployment, resourceSelector) {
-  return deployment.groups.map(g => g.group_spec.resources.map(r => r.count * resourceSelector(r.resources ?? r.resource)).reduce((a, b) => a + b)).reduce((a, b) => a + b);
+  return deployment.groups
+    .map(g => g.group_spec.resources.map(r => r.count * resourceSelector(r.resources ?? r.resource)).reduce((a, b) => a + b))
+    .reduce((a, b) => a + b);
 }
 
 export function deploymentGroupResourceSum(group, resourceSelector) {
@@ -12,15 +14,16 @@ export function deploymentGroupResourceSum(group, resourceSelector) {
 }
 
 export function deploymentToDto(d: RpcDeployment): DeploymentDto {
-  let escrowBalanceUAkt = coinToUAkt(d.escrow_account.balance);
+  let escrowBalanceUAkt = coinToUDenom(d.escrow_account.balance);
   if (d.escrow_account.funds) {
-    escrowBalanceUAkt += coinToUAkt(d.escrow_account.funds);
+    escrowBalanceUAkt += coinToUDenom(d.escrow_account.funds);
   }
 
   return {
     dseq: d.deployment.deployment_id.dseq,
     state: d.deployment.state,
     version: d.deployment.version,
+    denom: d.escrow_account.balance.denom,
     createdAt: parseInt(d.deployment.created_at),
     escrowBalance: escrowBalanceUAkt,
     transferred: d.escrow_account.transferred,
