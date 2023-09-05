@@ -42,7 +42,7 @@ export let networks = [
     nodesUrl: testnetNodes,
     chainId: "testnet-02",
     versionUrl: ApiUrlService.testnetVersion(),
-    enabled: true,
+    enabled: false,
     version: null, // Set asynchronously
     suggestKeplrChain: async () => {
       await window.keplr.experimentalSuggestChain({

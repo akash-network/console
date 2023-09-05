@@ -6,13 +6,14 @@ import { mainnetId, mainnetNodes } from "@src/utils/constants";
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 import { initAppTypes } from "@src/utils/init";
+import { NodeStatus } from "@src/types/node";
 
 type Node = {
   api: string;
   rpc: string;
   status: string;
   latency: number;
-  nodeInfo: any; // TODO map type from API
+  nodeInfo: NodeStatus;
   id: string;
 };
 
