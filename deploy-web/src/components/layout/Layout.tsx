@@ -163,7 +163,7 @@ const Loading: React.FunctionComponent<{ text: string }> = ({ text }) => {
   return (
     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", width: "100%", flexDirection: "column", padding: "3rem 0" }}>
       <Box sx={{ paddingBottom: "1rem" }}>
-        <CircularProgress size="3rem" color="secondary" />
+        <CircularProgress size="5rem" color="secondary" />
       </Box>
       <div>
         <Typography variant="h5">{text}</Typography>

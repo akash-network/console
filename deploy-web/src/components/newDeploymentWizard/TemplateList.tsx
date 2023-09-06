@@ -7,7 +7,6 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { makeStyles } from "tss-react/mui";
 import { useRouter } from "next/router";
 import { UrlService } from "@src/utils/urlUtils";
-import { NextSeo } from "next-seo";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import { TemplateBox } from "../templates/TemplateBox";
@@ -15,7 +14,8 @@ import { DeployOptionBox } from "./DeployOptionBox";
 import Link from "next/link";
 import { BuildCircleTwoTone } from "@mui/icons-material";
 import { TemplateCreation } from "@src/types";
-import { emptyTemplate, helloWorldTemplate, sdlBuilderTemplate, ubuntuTemplate } from "@src/utils/templates";
+import { emptyTemplate, helloWorldTemplate, ubuntuTemplate } from "@src/utils/templates";
+import { CustomNextSeo } from "../shared/CustomNextSeo";
 
 const useStyles = makeStyles()(theme => ({}));
 
@@ -83,7 +83,10 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
 
   return (
     <>
-      <NextSeo title="Create Deployment - Template List" />
+      <CustomNextSeo
+        title="Create Deployment - Template List"
+        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.chooseTemplate })}`}
+      />
 
       <Typography variant="h1" sx={{ marginBottom: "2rem", fontSize: "2rem", marginTop: "2rem" }}>
         <strong>What do you want to deploy?</strong>

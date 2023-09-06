@@ -3,12 +3,17 @@ import Layout from "@src/components/layout/Layout";
 import { Box } from "@mui/material";
 import PageContainer from "@src/components/shared/PageContainer";
 import { Title } from "@src/components/shared/Title";
-import { NextSeo } from "next-seo";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { UrlService } from "@src/utils/urlUtils";
 
 export function TermsOfService() {
   return (
     <Layout>
-      <NextSeo title="Terms of service" description="Cloudmos webiste terms of service." />
+      <CustomNextSeo
+        title="Terms of service"
+        url={`https://deploy.cloudmos.io${UrlService.termsOfService()}`}
+        description="Cloudmos webiste terms of service."
+      />
 
       <PageContainer>
         <Box sx={{ marginBottom: "2rem" }}>
