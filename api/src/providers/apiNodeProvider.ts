@@ -12,9 +12,14 @@ import { Provider, ProviderAttribute } from "@shared/dbSchemas/akash";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { env } from "@src/shared/utils/env";
 
-const defaultNodeUrl = env.Network === "testnet" ? "https://api.testnet-02.aksh.pw:443" : "https://rest.cosmos.directory/akash";
-const apiNodeUrl = env.RestApiNodeUrl ?? defaultNodeUrl;
-const betaTypeVersion = env.Network === "testnet" ? "v1beta3" : "v1beta3";
+const defaultNodeUrlMapping = {
+  mainnet: "https://rest.cosmos.directory/akash",
+  sandbox: "https://api.sandbox-01.aksh.pw",
+  testnet: "https://api.testnet-02.aksh.pw"
+};
+
+const apiNodeUrl = env.RestApiNodeUrl ?? defaultNodeUrlMapping[env.Network] ?? defaultNodeUrlMapping.mainnet;
+const betaTypeVersion = "v1beta3";
 
 export async function getChainStats() {
   const result: { communityPool: number; inflation: number; communityTax: number; bondedTokens: number; totalSupply: number } = await cacheResponse(
