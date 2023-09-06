@@ -300,8 +300,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
             >
               {hasBalance && (
                 <Box>
-                  <BalancePie data={filteredAktData} getColor={_getColor} label="AKT" />
-                  <BalancePie data={filteredUsdcData} getColor={_getColor} label="USDC" />
+                  {filteredAktData.length > 0 && <BalancePie data={filteredAktData} getColor={_getColor} label="AKT" />}
+                  {filteredUsdcData.length > 0 && <BalancePie data={filteredUsdcData} getColor={_getColor} label="USDC" />}
                 </Box>
               )}
 

@@ -26,6 +26,7 @@ import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { Provider } from "jotai";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
+import { PageHead } from "@src/components/layout/PageHead";
 
 interface Props extends AppProps {
   emotionCache?: EmotionCache;
@@ -62,9 +63,7 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
 
   return (
     <>
-      <Head>
-        <title>Cloudmos</title>
-      </Head>
+      <PageHead />
 
       <CacheProvider value={emotionCache}>
         <QueryClientProvider client={queryClient}>
