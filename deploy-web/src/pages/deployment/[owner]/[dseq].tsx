@@ -16,12 +16,11 @@ import { bytesToShrink } from "@src/utils/unitUtils";
 import { DeploymentDetail } from "@src/types/deployment";
 import { Address } from "@src/components/shared/Address";
 import { LeaseSpecDetail } from "@src/components/shared/LeaseSpecDetail";
-import { roundDecimal } from "@src/utils/mathHelpers";
+import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { Title } from "@src/components/shared/Title";
 import { NextSeo } from "next-seo";
 import { CustomTableHeader, CustomTableRow } from "@src/components/shared/CustomTable";
-import { AKTAmount } from "@src/components/shared/AKTAmount";
 import AddIcon from "@mui/icons-material/Add";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { useState } from "react";
@@ -29,6 +28,7 @@ import { DeploymentDepositModal } from "@src/components/deploymentDetail/Deploym
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { PriceValue } from "@src/components/shared/PriceValue";
 
 type Props = {
   owner: string;
@@ -105,7 +105,7 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ owner, dseq, dep
                 label="Balance"
                 value={
                   <>
-                    <AKTAmount uakt={deployment.balance} showAKTLabel showUSD />
+                    <PriceValue value={udenomToDenom(deployment.balance)} denom={deployment.denom} />
                     {canDeposit && (
                       <Box mt={1}>
                         <Button variant="outlined" color="secondary" size="small" onClick={onDepositClick}>
@@ -124,11 +124,13 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ owner, dseq, dep
                   value={
                     <>
                       <Typography variant="body1">
-                        <FormattedNumber style="currency" currency="USD" value={deployment.totalMonthlyCostUSD} /> per month
+                        <PriceValue value={udenomToDenom(deployment.totalMonthlyCostUDenom)} denom={deployment.denom} />
                       </Typography>
-                      <Typography variant="caption">
-                        <FormattedNumber value={deployment.totalMonthlyCostAKT} /> $AKT per month
-                      </Typography>
+                      {deployment.denom === "uakt" && (
+                        <Typography variant="caption">
+                          <FormattedNumber value={udenomToDenom(deployment.totalMonthlyCostUDenom)} /> $AKT per month
+                        </Typography>
+                      )}
                     </>
                   }
                   labelWidth="12rem"
@@ -190,11 +192,13 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ owner, dseq, dep
                     value={
                       <>
                         <Typography variant="body1">
-                          <FormattedNumber style="currency" currency="USD" value={lease.monthlyCostUSD} /> per month
+                          <PriceValue value={udenomToDenom(lease.monthlyCostUDenom)} denom={deployment.denom} /> per month
                         </Typography>
-                        <Typography variant="caption">
-                          <FormattedNumber value={lease.monthlyCostAKT} /> $AKT per month
-                        </Typography>
+                        {deployment.denom === "uakt" && (
+                          <Typography variant="caption">
+                            <FormattedNumber value={lease.monthlyCostUDenom} /> $AKT per month
+                          </Typography>
+                        )}
                       </>
                     }
                     labelWidth="12rem"

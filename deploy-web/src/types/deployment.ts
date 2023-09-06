@@ -3,15 +3,13 @@ export interface DeploymentDetail {
   dseq: string;
   balance: number;
   status: string;
-  totalMonthlyCostAKT: number;
   denom: string;
-  totalMonthlyCostUSD: number;
+  totalMonthlyCostUDenom: number;
   leases: {
     oseq: number;
     gseq: number;
     status: string;
-    monthlyCostAKT: number;
-    monthlyCostUSD: number;
+    monthlyCostUDenom: number;
     cpuUnits: number;
     gpuUnits: number;
     memoryQuantity: number;
