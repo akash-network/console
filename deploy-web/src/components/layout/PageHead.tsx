@@ -6,7 +6,7 @@ type Props = {
   children?: ReactNode;
 };
 
-const PageHead: React.FunctionComponent<Props> = ({}) => {
+export const PageHead: React.FunctionComponent<Props> = ({}) => {
   return (
     <>
       <Head>
@@ -43,4 +43,3 @@ const PageHead: React.FunctionComponent<Props> = ({}) => {
     </>
   );
 };
-export default PageHead;
