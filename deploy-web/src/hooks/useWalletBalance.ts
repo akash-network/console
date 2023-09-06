@@ -56,7 +56,6 @@ export const useDenomData = (denom: string) => {
         default:
           break;
       }
-      console.log(walletBalances, denom, depositData);
 
       setDepositData(depositData);
     }

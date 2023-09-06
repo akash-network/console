@@ -310,18 +310,6 @@ export const SettingsProvider = ({ children }) => {
       }}
     >
       {children}
-      {/* {isSettingsInit ? (
-        children
-      ) : (
-        <Box display="flex" alignItems="center" justifyContent="center" height="100%" width="100%" flexDirection="column">
-          <Box paddingBottom="1rem">
-            <CircularProgress size="3rem" color="secondary" />
-          </Box>
-          <div>
-            <Typography variant="h5">Loading settings...</Typography>
-          </div>
-        </Box>
-      )} */}
     </SettingsProviderContext.Provider>
   );
 };

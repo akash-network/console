@@ -34,7 +34,6 @@ import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { Snackbar } from "../shared/Snackbar";
 import { deploymentData } from "@src/utils/deploymentData";
 import { UrlService } from "@src/utils/urlUtils";
-import { NextSeo } from "next-seo";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import ViewPanel from "../shared/ViewPanel";
 import { event } from "nextjs-google-analytics";
@@ -42,6 +41,8 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { BidDto } from "@src/types/deployment";
 import { BidCountdownTimer } from "./BidCountdownTimer";
+import { CustomNextSeo } from "../shared/CustomNextSeo";
+import { RouteStepKeys } from "@src/utils/constants";
 
 const yaml = require("js-yaml");
 
@@ -269,7 +270,10 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
   return (
     <>
-      <NextSeo title="Create Deployment - Create Lease" />
+      <CustomNextSeo
+        title="Create Deployment - Create Lease"
+        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.createLeases })}`}
+      />
 
       <Box>
         {!isLoadingBids && bids.length > 0 && !allClosed && (

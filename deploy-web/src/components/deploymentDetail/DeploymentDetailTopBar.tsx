@@ -18,6 +18,7 @@ import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { DeploymentDto } from "@src/types/deployment";
+import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 
 const useStyles = makeStyles()(theme => ({
   title: {
@@ -57,9 +58,14 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const deploymentName = getDeploymentName(deployment?.dseq);
+  const previousRoute = usePreviousRoute();
 
   function handleBackClick() {
-    router.back();
+    if (previousRoute !== router.asPath) {
+      router.back();
+    } else {
+      router.push(UrlService.deploymentList());
+    }
   }
 
   const onCloseDeployment = async () => {

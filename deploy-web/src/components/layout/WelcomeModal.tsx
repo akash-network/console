@@ -23,7 +23,7 @@ export const WelcomeModal = ({ open, onClose }) => {
         </Typography>
         <Paper elevation={2} sx={{ padding: "1rem", margin: "1rem 0 0", backgroundColor: theme.palette.mode === "dark" ? "" : theme.palette.grey[200] }}>
           <Typography variant="body2" color="textSecondary">
-            Thank you for choosing Cloudmos Deploy!
+            Thank you for choosing Cloudmos!
           </Typography>
           <br />
           <Typography variant="body2" color="textSecondary">
@@ -43,7 +43,7 @@ export const WelcomeModal = ({ open, onClose }) => {
             discovered yet. As with any BETA product, use at your own discretion.
             <br />
             <br />
-            We appreciate your understanding and support as we work to make Cloudmos Deploy even better. If you encounter any problems or have suggestions for
+            We appreciate your understanding and support as we work to make Cloudmos even better. If you encounter any problems or have suggestions for
             improvement, please don't hesitate to reach out to us. We're here to help!
           </Typography>
         </Paper>

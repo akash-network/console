@@ -5,7 +5,6 @@ import CloseIcon from "@mui/icons-material/Close";
 import { makeStyles } from "tss-react/mui";
 import { useRouter } from "next/router";
 import { UrlService } from "@src/utils/urlUtils";
-import { NextSeo } from "next-seo";
 import Layout from "@src/components/layout/Layout";
 import PageContainer from "@src/components/shared/PageContainer";
 import { TemplateBox } from "@src/components/templates/TemplateBox";
@@ -13,6 +12,7 @@ import SearchOffIcon from "@mui/icons-material/SearchOff";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { MobileTemplatesFilter } from "@src/components/templates/MobileTemplatesFilter";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 
 type Props = {};
 
@@ -138,7 +138,11 @@ const TemplateGalleryPage: React.FunctionComponent<Props> = ({}) => {
 
   return (
     <Layout isLoading={isLoadingTemplates}>
-      <NextSeo title="Template Gallery" />
+      <CustomNextSeo
+        title="Template Gallery"
+        url={`https://deploy.cloudmos.io${UrlService.templates()}`}
+        description="Explore all the templates made by the community to easily deploy any docker container on the Akash Network."
+      />
 
       <PageContainer>
         <Box sx={{ textAlign: "center", marginBottom: { xs: "1.5rem", sm: "2rem", md: "3rem" } }}>

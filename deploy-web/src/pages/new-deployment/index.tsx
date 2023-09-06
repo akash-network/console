@@ -16,6 +16,7 @@ import { TemplateCreation } from "@src/types";
 import { hardcodedTemplates } from "@src/utils/templates";
 import sdlStore from "@src/store/sdlStore";
 import { useAtomValue } from "jotai";
+import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 
 const steps = ["Choose Template", "Create Deployment", "Choose providers"];
 
@@ -42,6 +43,7 @@ const NewDeploymentPage: React.FunctionComponent<Props> = ({}) => {
   const { getTemplateById } = useTemplates();
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const router = useRouter();
+  const previousRoute = usePreviousRoute();
 
   useEffect(() => {
     if (!templates) return;
@@ -114,7 +116,11 @@ const NewDeploymentPage: React.FunctionComponent<Props> = ({}) => {
   };
 
   function handleBackClick() {
-    router.back();
+    if (previousRoute !== router.asPath) {
+      router.back();
+    } else {
+      router.push(UrlService.deploymentList());
+    }
   }
 
   function getStepIndexByParam(step) {

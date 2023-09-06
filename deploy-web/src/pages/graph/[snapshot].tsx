@@ -19,7 +19,6 @@ import { GradientText } from "@src/components/shared/GradientText";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { NextSeo } from "next-seo";
 import { parseAsync } from "json2csv";
-import { useCustomUser } from "@src/hooks/useCustomUser";
 import DownloadIcon from "@mui/icons-material/Download";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { TimeRange } from "@src/components/shared/TimeRange";
@@ -77,7 +76,6 @@ export interface IGraphProps {
 }
 
 export const GraphPage: React.FunctionComponent<IGraphProps> = ({ snapshot: snapshotUrlParam }) => {
-  const { user, isLoading: isLoadingUser } = useCustomUser();
   const [selectedRange, setSelectedRange] = useState(SelectedRange["7D"]);
   const snapshot = urlParamToSnapshot(snapshotUrlParam as SnapshotsUrlParam);
   const { data: snapshotData, status } = useGraphSnapshot(snapshot);

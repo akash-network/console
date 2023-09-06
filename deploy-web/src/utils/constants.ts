@@ -96,7 +96,7 @@ function getProviderProxyWsUrl() {
   return "ws://localhost:3040";
 }
 
-// CLOUDMOS DEPLOY
+// CLOUDMOS
 export const mainnetNodes = ApiUrlService.mainnetNodes();
 export const testnetNodes = ApiUrlService.testnetNodes();
 export const sandboxNodes = ApiUrlService.sandboxNodes();

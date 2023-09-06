@@ -85,7 +85,7 @@ const IndexPage: React.FunctionComponent<Props> = ({}) => {
 
   return (
     <Layout isLoading={isLoadingDeployments || isLoadingBalances || isLoadingProviders || isLoadingLeases}>
-      <NextSeo title="Cloudmos Deploy" />
+      <NextSeo title="Cloudmos" />
 
       <PageContainer sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
         <div>

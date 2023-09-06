@@ -9,7 +9,7 @@ import { useRouter } from "next/router";
 import { Timer } from "@src/utils/timer";
 import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
-import { NextSeo } from "next-seo";
+import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { LinkTo } from "../shared/LinkTo";
 import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
 import ViewPanel from "../shared/ViewPanel";
@@ -221,7 +221,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
   return (
     <>
-      <NextSeo title="Create Deployment - Manifest Edit" />
+      <CustomNextSeo
+        title="Create Deployment - Manifest Edit"
+        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`}
+      />
 
       <Box
         sx={{

@@ -2,13 +2,14 @@ import { ReactNode } from "react";
 import PageContainer from "@src/components/shared/PageContainer";
 import { Box, Grid, Typography, useTheme } from "@mui/material";
 import { Title } from "@src/components/shared/Title";
-import { NextSeo } from "next-seo";
+import { CustomNextSeo } from "../components/shared/CustomNextSeo";
 import Layout from "@src/components/layout/Layout";
 import { makeStyles } from "tss-react/mui";
 import { DiscordIcon } from "@src/components/shared/icons";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import TwitterIcon from "@mui/icons-material/Twitter";
 import GitHubIcon from "@mui/icons-material/GitHub";
+import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
   children?: ReactNode;
@@ -49,7 +50,7 @@ const ContactPage: React.FunctionComponent<Props> = ({}) => {
 
   return (
     <Layout>
-      <NextSeo title="Contact" />
+      <CustomNextSeo title="Contact" url={`https://deploy.cloudmos.io${UrlService.contact()}`} />
 
       <PageContainer>
         <Box sx={{ textAlign: "center", padding: "3rem 0" }}>
@@ -78,11 +79,11 @@ const ContactPage: React.FunctionComponent<Props> = ({}) => {
                 <TwitterIcon className={classes.socialIcon} />
               </a>
             </Grid>
-            {/* <Grid item xs={6} sm={3}>
+            <Grid item xs={6} sm={3}>
               <a href="https://github.com/akash-network/cloudmos" target="_blank" className={classes.socialLink}>
                 <GitHubIcon className={classes.socialIcon} />
               </a>
-            </Grid> */}
+            </Grid>
           </Grid>
         </Box>
       </PageContainer>

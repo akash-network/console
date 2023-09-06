@@ -19,6 +19,7 @@ import { LinkTo } from "../shared/LinkTo";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import TwitterIcon from "@mui/icons-material/Twitter";
 import LaunchIcon from "@mui/icons-material/Launch";
+import GitHubIcon from "@mui/icons-material/GitHub";
 import { DiscordIcon } from "../shared/icons";
 import { NodeStatusBar } from "./NodeStatusBar";
 import MenuOpenIcon from "@mui/icons-material/MenuOpen";
@@ -280,11 +281,11 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
                     <TwitterIcon className={classes.socialIcon} />
                   </LinkTo>
                 </li>
-                {/* <li>
+                <li>
                   <LinkTo onClick={() => window.open("https://github.com/akash-network/cloudmos", "_blank")} className={classes.socialLinks}>
                     <GitHubIcon className={classes.socialIcon} />
                   </LinkTo>
-                </li> */}
+                </li>
               </ul>
 
               {version}

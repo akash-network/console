@@ -168,11 +168,11 @@ export const Footer: React.FunctionComponent<IFooterProps> = ({}) => {
                 <TwitterIcon className={classes.socialIcon} />
               </a>
             </li>
-            {/* <li>
+            <li>
               <a href="https://github.com/akash-network/cloudmos" target="_blank" className={classes.socialLink}>
                 <GitHubIcon className={classes.socialIcon} />
               </a>
-            </li> */}
+            </li>
           </ul>
 
           <Box sx={{ margin: { xs: ".5rem 0 1rem", sm: 0 }, display: "flex", alignItems: "center" }}>

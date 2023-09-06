@@ -7,10 +7,11 @@ import { Dashboard } from "@src/components/dashboard/Dashboard";
 import { FormattedDate, FormattedTime } from "react-intl";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useTheme } from "@mui/material";
-import { NextSeo } from "next-seo";
 import Layout from "@src/components/layout/Layout";
 import { useSelectedNetwork } from "@src/utils/networks";
 import { GradientText } from "@src/components/shared/GradientText";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
   children?: ReactNode;
@@ -23,7 +24,11 @@ const DashboardPage: React.FunctionComponent<Props> = ({}) => {
 
   return (
     <Layout isUsingSettings={false} isUsingWallet={false}>
-      <NextSeo title="Dashboard" />
+      <CustomNextSeo
+        title="Analytics"
+        url={`https://deploy.cloudmos.io${UrlService.analytics()}`}
+        description="Akash Network's #1 analytics hub. Explore the number of $AKT spent, the network capacity (CPU, GPU, RAM, DISK), historical data and much more!"
+      />
 
       <PageContainer>
         <Box sx={{ marginTop: "2rem" }}>

@@ -33,6 +33,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { CustomTableHeader, CustomTableRow } from "@src/components/shared/CustomTable";
 import debounce from "lodash/debounce";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 
 const selectableUnits = ["MB", "GB", "MiB", "GiB"];
 
@@ -193,8 +194,9 @@ export const PriceCompare: React.FunctionComponent<IPriceCompareProps> = ({}) =>
 
   return (
     <Layout isLoading={isLoadingPricing}>
-      <NextSeo
+      <CustomNextSeo
         title="Price comparision"
+        url={`https://deploy.cloudmos.io${UrlService.priceCompare()}`}
         description="Compare Akash cost savings against the cloud giants like Amazon Web Services (aws), Google Cloud Platform (gcp) and Microsoft Azure."
       />
 
