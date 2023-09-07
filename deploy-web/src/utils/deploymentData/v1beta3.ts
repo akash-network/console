@@ -17,7 +17,6 @@ function validate(yamlJson) {
     .flatMap(g => g.resources)
     .map(resource => resource.price.denom);
   const invalidDenom = denoms.find(denom => denom !== "uakt" && denom !== usdcDenom);
-  console.log(denoms, invalidDenom);
   if (invalidDenom) throw new CustomValidationError(`Invalid denom: "${invalidDenom}". Only uakt and ${usdcDenom} are supported.`);
 
   // ENDPOINT VALIDATION
