@@ -1,2 +1,2 @@
-export * from "./lease-list-response";
-export * from "./deployment-info-response";
+export * from "./leaseListResponse";
+export * from "./deploymentInfoResponse";

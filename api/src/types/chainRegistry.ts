@@ -3,16 +3,10 @@ export type GithubChainRegistryAssetListResponse = {
   chain_name: string;
   assets: {
     description: string;
-    denom_units: [
-      {
-        denom: string;
-        exponent: number;
-      },
-      {
-        denom: string;
-        exponent: number;
-      }
-    ];
+    denom_units: {
+      denom: string;
+      exponent: number;
+    }[];
     base: string;
     name: string;
     display: string;

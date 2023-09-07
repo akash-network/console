@@ -39,6 +39,7 @@ export function getNetworkBaseApiUrl(network: string) {
     case testnetId:
       return BASE_API_TESTNET_URL;
     case sandboxId:
+      console.log("Use sandbox base api");
       return BASE_API_SANDBOX_URL;
     default:
       return BASE_API_MAINNET_URL;

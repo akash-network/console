@@ -321,7 +321,6 @@ export async function getProposal(id: number) {
 export async function getDeployment(owner: string, dseq: string) {
   const deploymentQuery = fetch(`${apiNodeUrl}/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${owner}&id.dseq=${dseq}`);
   const leasesQuery = fetch(`${apiNodeUrl}/akash/market/${betaTypeVersion}/leases/list?filters.owner=${owner}&filters.dseq=${dseq}&pagination.limit=1000`);
-  console.log(`${apiNodeUrl}/akash/market/${betaTypeVersion}/leases/list?filters.owner=${owner}&filters.dseq=${dseq}&pagination.limit=1000`);
   const relatedMessagesQuery = getDeploymentRelatedMessages(owner, dseq);
 
   const [deploymentResponse, leasesResponse, relatedMessages] = await Promise.all([deploymentQuery, leasesQuery, relatedMessagesQuery]);
@@ -353,7 +352,6 @@ export async function getDeployment(owner: string, dseq: string) {
   });
 
   const marketData = await cacheResponse(60 * 5, cacheKeys.getMarketData, getMarketData);
-  const aktPrice = marketData?.price;
   const deploymentDenom = deploymentData.escrow_account.balance.denom;
 
   const leases = leasesData.leases.map((x) => {
