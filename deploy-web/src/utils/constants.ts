@@ -34,12 +34,12 @@ export const BASE_API_TESTNET_URL = getApiTestnetUrl();
 export const BASE_API_SANDBOX_URL = getApiSandboxUrl();
 
 export const BASE_API_URL = getApiUrl();
+
 export function getNetworkBaseApiUrl(network: string) {
   switch (network) {
     case testnetId:
       return BASE_API_TESTNET_URL;
     case sandboxId:
-      console.log("Use sandbox base api");
       return BASE_API_SANDBOX_URL;
     default:
       return BASE_API_MAINNET_URL;
@@ -94,7 +94,7 @@ function getApiUrl() {
   if (window.location?.hostname === "deploy.cloudmos.io") {
     try {
       const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
-      return _selectedNetworkId === "testnet" ? productionTestnetApiUrl : productionMainnetApiUrl;
+      return getNetworkBaseApiUrl(_selectedNetworkId);
     } catch (e) {
       console.error(e);
       return productionMainnetApiUrl;
@@ -129,7 +129,7 @@ export let selectedNetworkId = "";
 // 5AKT aka 5000000uakt
 export const defaultInitialDeposit = 5000000;
 
-export let networkVersion;
+export let networkVersion: "v1beta2" | "v1beta3";
 
 export function setNetworkVersion() {
   const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
