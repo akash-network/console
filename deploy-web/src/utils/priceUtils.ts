@@ -17,9 +17,11 @@ export function aktToUakt(amount: number | string) {
 
 export function coinToUAkt(coin: Coin) {
   let uakt: number = null;
+  const usdcDenom = getUsdcDenom();
+
   if (coin.denom === "akt") {
     uakt = aktToUakt(parseFloat(coin.amount));
-  } else if (coin.denom === "uakt") {
+  } else if (coin.denom === "uakt" || coin.denom === usdcDenom) {
     uakt = parseFloat(coin.amount);
   } else {
     throw Error("Unrecognized denom: " + coin.denom);

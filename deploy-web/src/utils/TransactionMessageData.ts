@@ -157,7 +157,7 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getGrantMsg(granter: string, grantee: string, spendLimit: number, expiration: Date) {
+  static getGrantMsg(granter: string, grantee: string, spendLimit: number, expiration: Date, denom: string) {
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_GRANT,
       value: {
@@ -168,7 +168,7 @@ export class TransactionMessageData {
             type_url: TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT_AUTHZ,
             value: {
               spend_limit: {
-                denom: "uakt",
+                denom: denom,
                 amount: spendLimit.toString()
               }
             }
@@ -184,13 +184,16 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getRevokeMsg(granter: string, grantee: string) {
+  static getRevokeMsg(granter: string, grantee: string, grantType: string) {
+    const version = grantType.split(".")[2];
+    const msgTypeUrl = `/akash.deployment.${version}.MsgDepositDeployment`;
+
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_REVOKE,
       value: {
         granter: granter,
         grantee: grantee,
-        msgTypeUrl: TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT
+        msgTypeUrl: msgTypeUrl
       }
     };
 

@@ -28,12 +28,12 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [deletingGrant, setDeletingGrant] = useState<GrantType | null>(null);
   const { data: granterGrants, isLoading: isLoadingGranterGrants, refetch: refetchGranterGrants } = useGranterGrants(address);
-  const { data: granteeGrants, isLoading: isLoadingGranteeGrants } = useGranteeGrants(address);
+  const { data: granteeGrants, isLoading: isLoadingGranteeGrants, refetch: refetchGranteeGrants } = useGranteeGrants(address);
 
   const { signAndBroadcastTx } = useKeplr();
 
   async function onDeleteGrantConfirmed() {
-    const message = TransactionMessageData.getRevokeMsg(address, deletingGrant.grantee);
+    const message = TransactionMessageData.getRevokeMsg(address, deletingGrant.grantee, deletingGrant.authorization["@type"]);
 
     const response = await signAndBroadcastTx([message]);
 
@@ -52,6 +52,11 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   function onEditGrant(grant: GrantType) {
     setEditingGrant(grant);
     setShowGrantModal(true);
+  }
+
+  function onGrantClose() {
+    refetchGranteeGrants();
+    setShowGrantModal(false);
   }
 
   return (
@@ -176,7 +181,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
               will revoke their ability to spend your funds on deployments.
             </Popup>
           )}
-          {showGrantModal && <GrantModal editingGrant={editingGrant} address={address} onClose={() => setShowGrantModal(false)} />}
+          {showGrantModal && <GrantModal editingGrant={editingGrant} address={address} onClose={onGrantClose} />}
         </PageContainer>
       </SettingsLayout>
     </Layout>

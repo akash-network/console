@@ -3,7 +3,7 @@ import { useForm, Controller } from "react-hook-form";
 import { useSettings } from "../../context/SettingsProvider";
 import { useSnackbar } from "notistack";
 import compareAsc from "date-fns/compareAsc";
-import { coinToUAkt, uaktToAKT } from "@src/utils/priceUtils";
+import { coinToUAkt, coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { Snackbar } from "../shared/Snackbar";
 import { uAktDenom } from "@src/utils/constants";
 import { Alert, Box, Checkbox, FormControl, FormControlLabel, InputAdornment, MenuItem, Select, TextField } from "@mui/material";
@@ -74,7 +74,6 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
       const response = await fetch(`${settings.apiEndpoint}/cosmos/authz/v1beta1/grants?granter=${depositorAddress}&grantee=${address}`);
       const data = await response.json();
 
-      // TODO handle other than v1beta2
       const grant = data.grants?.find(
         x =>
           x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization" ||
@@ -94,10 +93,10 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
         return false;
       }
 
-      let spendLimitUAkt = coinToUAkt(grant.authorization.spend_limit);
+      let spendLimitUDenom = coinToUDenom(grant.authorization.spend_limit);
 
-      if (depositAmount > spendLimitUAkt) {
-        setError(`Spend limit remaining: ${uaktToAKT(spendLimitUAkt)}akt`);
+      if (depositAmount > spendLimitUDenom) {
+        setError(`Spend limit remaining: ${udenomToDenom(spendLimitUDenom)} ${depositData.label}`);
         return false;
       }
 
@@ -234,37 +233,35 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
 
         {useDepositor && (
           <FormControl fullWidth>
-            <FormControl fullWidth>
-              <Controller
-                control={control}
-                name="depositorAddress"
-                defaultValue=""
-                rules={{
-                  required: true
-                }}
-                render={({ fieldState, field }) => {
-                  return (
-                    <Select labelId="theme-select" {...field} label="Theme" size="small">
-                      {granteeGrants
-                        .filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1)
-                        .map(grant => (
-                          <MenuItem key={grant.granter} value={grant.granter}>
-                            <Address address={grant.granter} />
-                            &nbsp;&nbsp;&nbsp;
-                            <AKTAmount uakt={coinToUAkt(grant.authorization.spend_limit)} />
-                            AKT &nbsp;
-                            <small>
-                              (Exp:&nbsp;
-                              <FormattedDate value={new Date(grant.expiration)} />
-                            </small>
-                            )
-                          </MenuItem>
-                        ))}
-                    </Select>
-                  );
-                }}
-              />
-            </FormControl>
+            <Controller
+              control={control}
+              name="depositorAddress"
+              defaultValue=""
+              rules={{
+                required: true
+              }}
+              render={({ fieldState, field }) => {
+                return (
+                  <Select {...field} label="Theme" size="small" error={!!fieldState.error}>
+                    {granteeGrants
+                      .filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1)
+                      .map(grant => (
+                        <MenuItem key={grant.granter} value={grant.granter}>
+                          <Address address={grant.granter} />
+                          &nbsp;&nbsp;&nbsp;
+                          <AKTAmount uakt={coinToUAkt(grant.authorization.spend_limit)} />
+                          AKT &nbsp;
+                          <small>
+                            (Exp:&nbsp;
+                            <FormattedDate value={new Date(grant.expiration)} />
+                          </small>
+                          )
+                        </MenuItem>
+                      ))}
+                  </Select>
+                );
+              }}
+            />
           </FormControl>
         )}
 
