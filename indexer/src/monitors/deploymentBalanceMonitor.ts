@@ -36,7 +36,7 @@ export class DeploymentBalanceMonitor {
 
   async getDeploymentBalance(target: string): Promise<number> {
     const [owner, dseq] = target.split("/");
-    const response = await axios.get(`https://rest.cosmos.directory/akash/akash/deployment/v1beta2/deployments/info?id.owner=${owner}&id.dseq=${dseq}`, {
+    const response = await axios.get(`https://rest.cosmos.directory/akash/akash/deployment/v1beta3/deployments/info?id.owner=${owner}&id.dseq=${dseq}`, {
       timeout: 15_000
     });
 
