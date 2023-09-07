@@ -5,7 +5,7 @@ import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import Layout from "@src/components/layout/Layout";
 import PageContainer from "@src/components/shared/PageContainer";
-import { BASE_API_MAINNET_URL, BASE_API_TESTNET_URL } from "@src/utils/constants";
+import { getNetworkBaseApiUrl } from "@src/utils/constants";
 import axios from "axios";
 import { TransactionDetail } from "@src/types";
 import { FormattedDate, FormattedRelativeTime } from "react-intl";
@@ -121,7 +121,7 @@ export async function getServerSideProps({ params, query }) {
 }
 
 async function fetchTransactionData(hash: string, network: string) {
-  const apiUrl = network === "testnet" ? BASE_API_TESTNET_URL : BASE_API_MAINNET_URL;
+  const apiUrl = getNetworkBaseApiUrl(network);
   const response = await axios.get(`${apiUrl}/transactions/${hash}`);
   return response.data;
 }
