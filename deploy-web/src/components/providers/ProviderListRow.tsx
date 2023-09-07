@@ -123,7 +123,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               <CapacityIcon value={(activeCPU + pendingCPU) / totalCPU} />
               <Typography variant="caption" color="textSecondary">
-                <FormattedNumber style="percent" maximumFractionDigits={2} value={roundDecimal((activeCPU + pendingCPU) / totalCPU, 2)} />
+                <FormattedNumber style="percent" maximumFractionDigits={2} value={roundDecimal((activeCPU + pendingCPU) / totalCPU, 2) || 0} />
               </Typography>
             </Box>
           </CustomTooltip>
@@ -141,11 +141,9 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
           >
             <Box sx={{ display: "flex", alignItems: "center" }}>
               <CapacityIcon value={(activeGPU + pendingGPU) / totalGPU} />
-              {totalGPU > 0 && (
-                <Typography variant="caption" color="textSecondary">
-                  <FormattedNumber style="percent" maximumFractionDigits={2} value={roundDecimal((activeGPU + pendingGPU) / totalGPU, 2)} />
-                </Typography>
-              )}
+              <Typography variant="caption" color="textSecondary">
+                <FormattedNumber style="percent" maximumFractionDigits={2} value={roundDecimal((activeGPU + pendingGPU) / totalGPU, 2) || 0} />
+              </Typography>
             </Box>
           </CustomTooltip>
         )}
@@ -171,11 +169,13 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
                 <FormattedNumber
                   style="percent"
                   maximumFractionDigits={2}
-                  value={roundDecimal(
-                    (provider.activeStats.memory + provider.pendingStats.memory) /
-                      (provider.availableStats.memory + provider.pendingStats.memory + provider.activeStats.memory),
-                    2
-                  )}
+                  value={
+                    roundDecimal(
+                      (provider.activeStats.memory + provider.pendingStats.memory) /
+                        (provider.availableStats.memory + provider.pendingStats.memory + provider.activeStats.memory),
+                      2
+                    ) || 0
+                  }
                 />
               </Typography>
             </Box>
@@ -203,11 +203,13 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
                 <FormattedNumber
                   style="percent"
                   maximumFractionDigits={2}
-                  value={roundDecimal(
-                    (provider.activeStats.storage + provider.pendingStats.storage) /
-                      (provider.availableStats.storage + provider.pendingStats.storage + provider.activeStats.storage),
-                    2
-                  )}
+                  value={
+                    roundDecimal(
+                      (provider.activeStats.storage + provider.pendingStats.storage) /
+                        (provider.availableStats.storage + provider.pendingStats.storage + provider.activeStats.storage),
+                      2
+                    ) || 0
+                  }
                 />
               </Typography>
             </Box>
