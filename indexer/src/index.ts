@@ -89,7 +89,7 @@ function startScheduler() {
   });
   scheduler.registerTask("Address Balance Monitor", () => addressBalanceMonitor.run(), "10 minutes");
 
-  if (env.ActiveChain === "akash" || env.ActiveChain === "akashTestnet") {
+  if (env.ActiveChain === "akash" || env.ActiveChain === "akashTestnet" || env.ActiveChain === "akashSandbox") {
     scheduler.registerTask("Sync Providers Info", syncProvidersInfo, "15 minutes", true, {
       id: env.HealthChecks_SyncProviderInfo,
       measureDuration: true

@@ -3,7 +3,7 @@ import Paper from "@mui/material/Paper";
 import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import Layout from "@src/components/layout/Layout";
-import { BASE_API_MAINNET_URL, BASE_API_TESTNET_URL } from "@src/utils/constants";
+import { getNetworkBaseApiUrl } from "@src/utils/constants";
 import axios from "axios";
 import TableContainer from "@mui/material/TableContainer";
 import TableBody from "@mui/material/TableBody";
@@ -332,7 +332,7 @@ export const getServerSideProps = async ({ params, query }) => {
 };
 
 async function fetchAddressData(address: string, network: string) {
-  const apiUrl = network === "testnet" ? BASE_API_TESTNET_URL : BASE_API_MAINNET_URL;
+  const apiUrl = getNetworkBaseApiUrl(network);
   const response = await axios.get(`${apiUrl}/addresses/${address}`);
   return response.data;
 }

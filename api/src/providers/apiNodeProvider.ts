@@ -11,10 +11,16 @@ import { Op } from "sequelize";
 import { Provider, ProviderAttribute } from "@shared/dbSchemas/akash";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { env } from "@src/shared/utils/env";
+import { RestDeploymentInfoResponse, RestLeaseListResponse } from "@src/types/rest";
 
-const defaultNodeUrl = env.Network === "testnet" ? "https://api.testnet-02.aksh.pw:443" : "https://rest.cosmos.directory/akash";
-const apiNodeUrl = env.RestApiNodeUrl ?? defaultNodeUrl;
-const betaTypeVersion = env.Network === "testnet" ? "v1beta3" : "v1beta3";
+const defaultNodeUrlMapping = {
+  mainnet: "https://rest.cosmos.directory/akash",
+  sandbox: "https://api.sandbox-01.aksh.pw",
+  testnet: "https://api.testnet-02.aksh.pw"
+};
+
+const apiNodeUrl = env.RestApiNodeUrl ?? defaultNodeUrlMapping[env.Network] ?? defaultNodeUrlMapping.mainnet;
+const betaTypeVersion = "v1beta3";
 
 export async function getChainStats() {
   const result: { communityPool: number; inflation: number; communityTax: number; bondedTokens: number; totalSupply: number } = await cacheResponse(
@@ -323,13 +329,17 @@ export async function getDeployment(owner: string, dseq: string) {
     return null;
   }
 
-  const deploymentData = await deploymentResponse.json();
+  const deploymentData = (await deploymentResponse.json()) as RestDeploymentInfoResponse;
 
-  if (deploymentData.message?.toLowerCase().includes("deployment not found")) {
-    return null;
+  if ("code" in deploymentData) {
+    if (deploymentData.message?.toLowerCase().includes("deployment not found")) {
+      return null;
+    } else {
+      throw new Error(deploymentData.message);
+    }
   }
 
-  const leasesData = await leasesResponse.json();
+  const leasesData = (await leasesResponse.json()) as RestLeaseListResponse;
 
   const providerAddresses = leasesData.leases.map((x) => x.lease.lease_id.provider);
   const providers = await Provider.findAll({
@@ -342,12 +352,10 @@ export async function getDeployment(owner: string, dseq: string) {
   });
 
   const marketData = await cacheResponse(60 * 5, cacheKeys.getMarketData, getMarketData);
-  const aktPrice = marketData?.price;
   const deploymentDenom = deploymentData.escrow_account.balance.denom;
 
   const leases = leasesData.leases.map((x) => {
     const provider = providers.find((p) => p.owner === x.lease.lease_id.provider);
-    const monthlyUAKT = Math.round(parseFloat(x.lease.price.amount) * averageBlockCountInAMonth);
     const group = deploymentData.groups.find((g) => g.group_id.gseq === x.lease.lease_id.gseq);
 
     return {
@@ -363,10 +371,7 @@ export async function getDeployment(owner: string, dseq: string) {
         }))
       },
       status: x.lease.state,
-      denom: deploymentDenom,
-      monthlyCostAKT: round(monthlyUAKT / 1_000_000, 2),
-      // TODO Improve: Add USDC into calculation
-      monthlyCostUSD: deploymentDenom === "uakt" ? (aktPrice ? round((monthlyUAKT / 1_000_000) * aktPrice, 2) : round(monthlyUAKT / 1_000_000, 2)) : null,
+      monthlyCostUDenom: Math.round(parseFloat(x.lease.price.amount) * averageBlockCountInAMonth),
       cpuUnits: group.group_spec.resources.map((r) => parseInt(r.resource.cpu.units.val) * r.count).reduce((a, b) => a + b, 0),
       gpuUnits: group.group_spec.resources.map((r) => parseInt(r.resource.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0),
       memoryQuantity: group.group_spec.resources.map((r) => parseInt(r.resource.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0),
@@ -380,9 +385,9 @@ export async function getDeployment(owner: string, dseq: string) {
     owner: deploymentData.deployment.deployment_id.owner,
     dseq: deploymentData.deployment.deployment_id.dseq,
     balance: parseFloat(deploymentData.escrow_account.balance.amount),
+    denom: deploymentDenom,
     status: deploymentData.deployment.state,
-    totalMonthlyCostAKT: leases.map((x) => x.monthlyCostAKT).reduce((a, b) => a + b, 0),
-    totalMonthlyCostUSD: leases.map((x) => x.monthlyCostUSD).reduce((a, b) => a + b, 0),
+    totalMonthlyCostUDenom: leases.map((x) => x.monthlyCostUDenom).reduce((a, b) => a + b, 0),
     leases: leases,
     events: relatedMessages || [],
     other: deploymentData

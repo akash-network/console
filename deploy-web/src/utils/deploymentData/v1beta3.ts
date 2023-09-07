@@ -2,12 +2,22 @@ import { CustomValidationError, DeploymentGroups, Manifest, ManifestVersion, get
 import { defaultInitialDeposit } from "../constants";
 import { stringToBoolean } from "../stringUtils";
 import path from "path";
+import { getUsdcDenom } from "@src/hooks/useDenom";
 
 const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
 const endpointKindIP = "ip";
 
 function validate(yamlJson) {
   const sdl = getSdl(yamlJson, "beta3");
+
+  // DENOM VALIDATION
+  const usdcDenom = getUsdcDenom();
+  const denoms = sdl
+    .groups()
+    .flatMap(g => g.resources)
+    .map(resource => resource.price.denom);
+  const invalidDenom = denoms.find(denom => denom !== "uakt" && denom !== usdcDenom);
+  if (invalidDenom) throw new CustomValidationError(`Invalid denom: "${invalidDenom}". Only uakt and ${usdcDenom} are supported.`);
 
   // ENDPOINT VALIDATION
   if (yamlJson.endpoints) {
@@ -213,10 +223,7 @@ export async function getManifestVersion(yamlJson, asString = false) {
 const getDenomFromSdl = (groups: any[]): string => {
   console.log(groups);
 
-  const denoms = groups
-    .map(g => g.resources)
-    .flat()
-    .map(resource => resource.price.denom);
+  const denoms = groups.flatMap(g => g.resources).map(resource => resource.price.denom);
 
   // TODO handle multiple denoms in an sdl? (different denom for each service?)
   return denoms[0];
