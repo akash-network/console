@@ -13,7 +13,13 @@ import {
   getValidators
 } from "@src/providers/apiNodeProvider";
 import { getNetworkCapacity, getProviders } from "@src/providers/providerStatusProvider";
-import { getDashboardData, getGraphData, getProviderActiveLeasesGraphData, getProviderGraphData } from "@src/db/statsProvider";
+import {
+  getDashboardData,
+  getGraphData,
+  getProviderActiveLeasesGraphData,
+  getProviderGraphData,
+  getTotalUsdSpentGraphData
+} from "@src/db/statsProvider";
 import { round } from "@src/shared/utils/math";
 import { isValidBech32Address } from "@src/shared/utils/addresses";
 import { getAkashPricing, getAWSPricing, getAzurePricing, getGCPPricing } from "@src/shared/utils/pricing";
@@ -23,6 +29,7 @@ import { getProviderAttributesSchema } from "@src/providers/providerAttributesPr
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import axios from "axios";
 import { getMarketData } from "@src/providers/marketDataProvider";
+import { getWeb3IndexRevenue } from "@src/db/networkRevenueProvider";
 
 export const apiRouter = express.Router();
 
@@ -275,7 +282,7 @@ apiRouter.get(
       "dailyUUsdSpent",
       "dailyLeaseCount",
       "totalUAktSpent",
-      "totalUUsdcSpent", 
+      "totalUUsdcSpent",
       "totalUUsdSpent",
       "activeLeaseCount",
       "totalLeaseCount",
@@ -291,8 +298,13 @@ apiRouter.get(
       return;
     }
 
-    const graphData = await getGraphData(dataName);
-    res.send(graphData);
+    if (dataName === "totalUUsdSpent") {
+      const graphData = await getTotalUsdSpentGraphData();
+      res.send(graphData);
+    } else {
+      const graphData = await getGraphData(dataName);
+      res.send(graphData);
+    }
   })
 );
 

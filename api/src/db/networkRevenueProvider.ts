@@ -12,7 +12,7 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
     date: r.date.getTime() / 1000,
     revenue: round(r.usd, 2),
     revenueUAkt: r.uakt,
-    revenueUUsdc: r.uusdc,
+    revenueUUsdc: r.uusdc,// TODO: Include in web3index? Maybe should only include akt spending
     aktPrice: r.aktPrice,
     dateStr: r.date
   }));
@@ -124,7 +124,7 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
   return responseObj;
 };
 
-async function getDailyRevenue() {
+export async function getDailyRevenue() {
   const result = await Day.findAll({
     attributes: ["date", "aktPrice"],
     include: [
@@ -163,6 +163,7 @@ async function getDailyRevenue() {
     date: x.date,
     uakt: x.uakt,
     akt: uaktToAKT(x.uakt, 6),
+    aktInUsd: uaktToAKT(x.uakt, 6) * x.aktPrice,
     uusdc: x.uusdc,
     usdc: udenomToDenom(x.uusdc),
     usd: uaktToAKT(x.uakt, 6) * x.aktPrice + udenomToDenom(x.uusdc),

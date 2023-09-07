@@ -5,6 +5,14 @@ import { Op, QueryTypes } from "sequelize";
 import { chainDb } from "./dbConnection";
 import { ProviderActiveLeasesStats, ProviderStats, ProviderStatsKey } from "@src/types/graph";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
+import { getDailyRevenue, getWeb3IndexRevenue } from "./networkRevenueProvider";
+import { startOfDay } from "@src/shared/utils/date";
+
+type GraphData = {
+  currentValue: number;
+  compareValue: number;
+  snapshots: { date: Date; value: number }[];
+};
 
 export const getDashboardData = async () => {
   const latestBlockStats = await Block.findOne({
@@ -64,7 +72,98 @@ export const getDashboardData = async () => {
   };
 };
 
-export const getGraphData = async (dataName: string) => {
+export async function getTotalUsdSpentGraphData(): Promise<GraphData> {
+  const latestBlockStats = await Block.findOne({
+    where: {
+      isProcessed: true
+    },
+    include: [{ model: Day, required: true }],
+    order: [["height", "DESC"]]
+  });
+
+  const compareDate = subHours(latestBlockStats.datetime, 24);
+  const compareBlockStats = await Block.findOne({
+    order: [["datetime", "ASC"]],
+    include: [{ model: Day, required: true }],
+    where: {
+      datetime: { [Op.gte]: compareDate }
+    }
+  });
+
+  const dailyRevenue = await getDailyRevenue();
+  const dailyCummulativeRevenue = dailyRevenue.map((day, index, arr) => {
+    const previousDay = index > 0 ? arr[index - 1] : null;
+    return {
+      ...day,
+      totalUAkt: day.uakt + (previousDay?.uakt ?? 0),
+      totalAktInUUsd: day.aktInUsd + (previousDay?.aktInUsd ?? 0),
+      totalUUsdc: day.uusdc + (previousDay?.uusdc ?? 0),
+      totalUsd: day.usd + (previousDay?.usd ?? 0)
+    };
+  });
+
+  const currentUsdSpending = calculateUUsdSpending(dailyCummulativeRevenue, latestBlockStats);
+  const compareUsdSpending = calculateUUsdSpending(dailyCummulativeRevenue, compareBlockStats);
+
+  return {
+    currentValue: currentUsdSpending,
+    compareValue: compareUsdSpending,
+    snapshots: dailyCummulativeRevenue.map((day) => ({
+      date: day.date,
+      value: day.totalUsd
+    }))
+  };
+}
+
+function calculateUUsdSpending(dailyRevenue: { date: Date; totalUAkt: number; totalUUsdc: number; totalAktInUUsd: number }[], blockStats: Block) {
+  if (!blockStats.day) throw new Error("blockStats.day is null");
+
+  const startOfDayRevenue = dailyRevenue.sort((a, b) => (a.date > b.date ? -1 : 1)).find((x) => x.date <= startOfDay(blockStats.datetime)); // TODO: Check Sorting
+  const uaktSpentStartOfDay = startOfDayRevenue.totalUAkt;
+  const uaktSpentDuringTheDay = blockStats.totalUAktSpent - uaktSpentStartOfDay;
+  const aktSpentDuringTheDayInUUsd = uaktSpentDuringTheDay * (blockStats.day.aktPrice ?? 0);
+  const uusdcSpentDuringTheDay = blockStats.totalUUsdcSpent - startOfDayRevenue.totalUUsdc;
+
+  const totalAktSpentInUsd = uaktSpentStartOfDay + aktSpentDuringTheDayInUUsd;
+  const totalUsdcSpent = startOfDayRevenue.totalUUsdc + uusdcSpentDuringTheDay;
+
+  console.log(startOfDayRevenue);
+  console.table([
+    {
+      blockTime: blockStats.datetime,
+      startOfDayTime: startOfDay(blockStats.datetime),
+      uaktSpentStartOfDay,
+      uaktSpentDuringTheDay,
+      aktSpentDuringTheDayInUUsd,
+      uusdcSpentDuringTheDay
+    }
+  ]);
+
+  return totalAktSpentInUsd + totalUsdcSpent;
+
+  // const totalSpentStartOfToday = dailyRevenue
+  //   .filter((x) => x.date < startOfDay(blockStats.datetime))
+  //   .map((x) => ({ uakt: x.uakt, aktInUUsd: (x.uakt / 1_000_000) * x.aktPrice }))
+  //   .reduce((a, b) => ({ uakt: a.uakt + b.uakt, aktInUUsd: a.aktInUUsd + b.aktInUUsd }), { uakt: 0, aktInUUsd: 0 });
+  // const uaktSpentDuringTheDay = blockStats.totalUAktSpent - totalSpentStartOfToday.uakt;
+  // const aktSpentDuringTheDayInUUsd = uaktSpentDuringTheDay * (blockStats.day.aktPrice ?? 0);
+
+  // return blockStats.totalUUsdcSpent + totalSpentStartOfToday.aktInUUsd + aktSpentDuringTheDayInUUsd;
+}
+
+// async function getBlockByDate(date: Date) {
+//   const result = await Block.findOne({
+//     where: {
+//       datetime: { [Op.gte]: date }
+//     },
+//     include: [{ model: Day, required: true }],
+//     order: [["datetime", "ASC"]]
+//   });
+
+//   return result;
+// }
+
+export async function getGraphData(dataName: string): Promise<GraphData> {
   console.log("getGraphData: " + dataName);
 
   let attributes = [dataName];
@@ -131,7 +230,7 @@ export const getGraphData = async (dataName: string) => {
     compareValue: dashboardData.compare[dataName],
     snapshots: stats
   };
-};
+}
 
 export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
   console.log("getProviderGraphData: " + dataName);
