@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { useState, useEffect } from "react";
 import { SigningStargateClient } from "@cosmjs/stargate";
-import { mainnetId, selectedNetworkId, testnetId, uAktDenom } from "@src/utils/constants";
+import { uAktDenom } from "@src/utils/constants";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useSnackbar } from "notistack";
@@ -411,16 +411,7 @@ export function useKeplr() {
 
 const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
   const theme = useTheme();
-
-  const transactionLink = (txHash: string, networkId: string) => {
-    if (networkId === mainnetId || networkId === testnetId) {
-      return UrlService.transaction(txHash);
-    }
-
-    return null;
-  };
-
-  const txUrl = transactionHash && transactionLink(transactionHash, selectedNetworkId);
+  const txUrl = transactionHash && UrlService.transaction(transactionHash);
 
   return (
     <>
