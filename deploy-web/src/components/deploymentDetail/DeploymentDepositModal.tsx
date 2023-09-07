@@ -75,7 +75,11 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
       const data = await response.json();
 
       // TODO handle other than v1beta2
-      const grant = data.grants?.find(x => x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization");
+      const grant = data.grants?.find(
+        x =>
+          x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization" ||
+          x.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
+      );
 
       if (!grant) {
         setError("You are not authorized by this depositor.");

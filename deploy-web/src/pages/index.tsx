@@ -1,7 +1,5 @@
 import Layout from "../components/layout/Layout";
 import { ReactNode, useEffect, useState } from "react";
-import { NextSeo } from "next-seo";
-import { makeStyles } from "tss-react/mui";
 import React from "react";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
@@ -20,26 +18,7 @@ type Props = {
   children?: ReactNode;
 };
 
-const useStyles = makeStyles()(theme => ({
-  titleContainer: {
-    padding: "0 1rem 1rem",
-    display: "flex",
-    alignItems: "center"
-  },
-  title: {
-    fontSize: "1.5rem",
-    fontWeight: "bold"
-  },
-  noActiveDeployments: {
-    marginBottom: "1rem"
-  },
-  createBtn: {
-    marginLeft: "auto"
-  }
-}));
-
 const IndexPage: React.FunctionComponent<Props> = ({}) => {
-  const { classes } = useStyles();
   const { address, isWalletLoaded } = useKeplr();
   const [activeDeployments, setActiveDeployments] = useState([]);
   const { isFetching: isLoadingDeployments, refetch: getDeployments } = useDeploymentList(address, {

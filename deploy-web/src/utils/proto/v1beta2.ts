@@ -1,3 +1,4 @@
+export { DepositDeploymentAuthorization } from "@akashnetwork/akashjs/build/protobuf/akash/deployment/v1beta2/authz";
 export { ProviderInfo } from "@akashnetwork/akashjs/build/protobuf/akash/provider/v1beta2/provider";
 export { Attribute } from "@akashnetwork/akashjs/build/protobuf/akash/base/v1beta2/attribute";
 export { MsgSignProviderAttributes, MsgDeleteProviderAttributes } from "@akashnetwork/akashjs/build/protobuf/akash/audit/v1beta2/audit";

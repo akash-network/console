@@ -1,4 +1,3 @@
-import { makeStyles } from "tss-react/mui";
 import Layout from "@src/components/layout/Layout";
 import { NextSeo } from "next-seo";
 import PageContainer from "@src/components/shared/PageContainer";
@@ -22,8 +21,6 @@ import { useGranteeGrants, useGranterGrants } from "@src/queries/useGrantsQuery"
 import { Popup } from "@src/components/shared/Popup";
 
 type Props = {};
-
-const useStyles = makeStyles()(theme => ({}));
 
 const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   const { address } = useKeplr();

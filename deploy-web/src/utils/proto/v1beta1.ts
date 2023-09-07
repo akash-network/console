@@ -1,3 +1,4 @@
+export { DepositDeploymentAuthorization } from "@akashnetwork/akashjs/build/protobuf/akash/deployment/v1beta1/authz";
 export { MsgSignProviderAttributes, MsgDeleteProviderAttributes } from "@akashnetwork/akashjs/build/protobuf/akash/audit/v1beta1/audit";
 export { MsgCreateCertificate, MsgRevokeCertificate } from "@akashnetwork/akashjs/build/protobuf/akash/cert/v1beta1/cert";
 export { MsgCloseGroup, MsgPauseGroup, MsgStartGroup } from "@akashnetwork/akashjs/build/protobuf/akash/deployment/v1beta1/group";
