@@ -1,7 +1,6 @@
 import fetch from "node-fetch";
 import { getDeploymentRelatedMessages } from "../db/deploymentProvider";
 import { averageBlockCountInAMonth } from "@src/shared/constants";
-import { round } from "@src/shared/utils/math";
 import { getMarketData } from "./marketDataProvider";
 import { coinToAsset } from "@src/shared/utils/coin";
 import { getTransactionByAddress } from "@src/db/transactionsProvider";

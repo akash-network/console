@@ -42,8 +42,9 @@ export class DeploymentBalanceMonitor {
 
     const balance = response.data.escrow_account.balance;
     const funds = response.data.escrow_account.funds;
+    const isAktDenom = balance.denom === activeChain.denom && balance.denom === activeChain.udenom;
 
-    if (!balance || !funds) {
+    if (!balance || !funds || !isAktDenom) {
       return null;
     }
 
