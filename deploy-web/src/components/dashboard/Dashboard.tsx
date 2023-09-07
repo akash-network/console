@@ -175,6 +175,75 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
           />
         </Grid>
       </Grid>
+
+      <Grid container spacing={2} sx={{ mb: 4 }}>
+        <Grid item xs={12}>
+          <Title value="Spent Assets" subTitle sx={{ textAlign: { sm: "center" } }} />
+        </Grid>
+
+        <Grid item xs={12} lg={3}>
+          <StatsCard
+            number={
+              <>
+                <span>
+                  <FormattedNumber value={udenomToDenom(dashboardData.now.dailyUAktSpent)} maximumFractionDigits={2} />
+                </span>
+                <AKTLabel />
+              </>
+            }
+            text="AKT spent (24h)"
+            tooltip="Last 24h"
+            graphPath={UrlService.graph(SnapshotsUrlParam.dailyAktSpent)}
+            diffNumber={udenomToDenom(dashboardData.now.dailyUAktSpent - dashboardData.compare.dailyUAktSpent)}
+            diffPercent={percIncrease(dashboardData.compare.dailyUAktSpent, dashboardData.now.dailyUAktSpent)}
+          />
+        </Grid>
+        <Grid item xs={12} lg={3}>
+          <StatsCard
+            number={
+              <>
+                <FormattedNumber value={udenomToDenom(dashboardData.now.totalUAktSpent)} maximumFractionDigits={2} /> <AKTLabel />
+              </>
+            }
+            text="Total spent AKT"
+            tooltip="This is the total amount of akt spent to rent computing power on the akash network since the beginning of the network. (March 2021)"
+            graphPath={UrlService.graph(SnapshotsUrlParam.totalAKTSpent)}
+            diffNumber={udenomToDenom(dashboardData.now.totalUAktSpent - dashboardData.compare.totalUAktSpent)}
+            diffPercent={percIncrease(dashboardData.compare.totalUAktSpent, dashboardData.now.totalUAktSpent)}
+          />
+        </Grid>
+        <Grid item xs={12} lg={3}>
+          <StatsCard
+            number={
+              <>
+                <span>
+                  <FormattedNumber value={udenomToDenom(dashboardData.now.dailyUUsdcSpent)} maximumFractionDigits={2} />
+                </span>
+                USDC
+              </>
+            }
+            text="USDC spent (24h)"
+            tooltip="Last 24h"
+            graphPath={UrlService.graph(SnapshotsUrlParam.dailyUsdcSpent)}
+            diffNumber={udenomToDenom(dashboardData.now.dailyUUsdcSpent - dashboardData.compare.dailyUUsdcSpent)}
+            diffPercent={percIncrease(dashboardData.compare.dailyUUsdcSpent, dashboardData.now.dailyUUsdcSpent)}
+          />
+        </Grid>
+        <Grid item xs={12} lg={3}>
+          <StatsCard
+            number={
+              <>
+                <FormattedNumber value={udenomToDenom(dashboardData.now.totalUUsdcSpent)} maximumFractionDigits={2} /> USDC
+              </>
+            }
+            text="Total spent USDC"
+            tooltip="This is the total amount of usdc spent to rent computing power on the akash network since the beginning of the network. (March 2021)"
+            graphPath={UrlService.graph(SnapshotsUrlParam.totalUSDCSpent)}
+            diffNumber={udenomToDenom(dashboardData.now.totalUUsdcSpent - dashboardData.compare.totalUUsdcSpent)}
+            diffPercent={percIncrease(dashboardData.compare.totalUUsdcSpent, dashboardData.now.totalUUsdcSpent)}
+          />
+        </Grid>
+      </Grid>
       <Grid container spacing={2} sx={{ mb: 4 }}>
         <Grid item xs={12}>
           <Title value="Total resources leased" subTitle sx={{ textAlign: { sm: "center" } }} />

@@ -69,22 +69,27 @@ export const getGraphData = async (dataName: string) => {
 
   let attributes = [dataName];
   let isRelative = false;
-  let getter = (block: Block) => block[dataName];
+  let getter = (block: Block) => block[dataName] as number;
 
   switch (dataName) {
     case "dailyUAktSpent":
       attributes = ["totalUAktSpent"];
-      getter = (block: Block) => block["totalUAktSpent"];
+      getter = (block: Block) => block.totalUAktSpent;
+      isRelative = true;
+      break;
+    case "dailyUUsdcSpent":
+      attributes = ["totalUUsdcSpent"];
+      getter = (block: Block) => block.totalUUsdcSpent;
       isRelative = true;
       break;
     case "dailyLeaseCount":
       attributes = ["totalLeaseCount"];
-      getter = (block: Block) => block["totalLeaseCount"];
+      getter = (block: Block) => block.totalLeaseCount;
       isRelative = true;
       break;
     case "activeStorage":
       attributes = ["activeEphemeralStorage", "activePersistentStorage"];
-      getter = (block: Block) => block["activeEphemeralStorage"] + block["activePersistentStorage"];
+      getter = (block: Block) => block.activeEphemeralStorage + block.activePersistentStorage;
       break;
   }
 
