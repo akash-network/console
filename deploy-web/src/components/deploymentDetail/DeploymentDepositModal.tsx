@@ -156,8 +156,6 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
     onDeploymentDeposit(deposit, depositorAddress);
   };
 
-  console.log(denom)
-
   return (
     <Popup
       fullWidth
