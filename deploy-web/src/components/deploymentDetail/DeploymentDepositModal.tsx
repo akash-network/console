@@ -3,7 +3,7 @@ import { useForm, Controller } from "react-hook-form";
 import { useSettings } from "../../context/SettingsProvider";
 import { useSnackbar } from "notistack";
 import compareAsc from "date-fns/compareAsc";
-import { coinToUAkt, coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
+import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { Snackbar } from "../shared/Snackbar";
 import { uAktDenom } from "@src/utils/constants";
 import { Alert, Box, Checkbox, FormControl, FormControlLabel, InputAdornment, MenuItem, Select, TextField } from "@mui/material";
@@ -249,7 +249,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
                         <MenuItem key={grant.granter} value={grant.granter}>
                           <Address address={grant.granter} />
                           &nbsp;&nbsp;&nbsp;
-                          <AKTAmount uakt={coinToUAkt(grant.authorization.spend_limit)} />
+                          <AKTAmount uakt={coinToUDenom(grant.authorization.spend_limit)} />
                           AKT &nbsp;
                           <small>
                             (Exp:&nbsp;

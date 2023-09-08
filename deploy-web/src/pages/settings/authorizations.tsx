@@ -8,7 +8,7 @@ import { useState } from "react";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { CustomTableHeader, CustomTableRow } from "@src/components/shared/CustomTable";
 import { AKTAmount } from "@src/components/shared/AKTAmount";
-import { coinToUAkt } from "@src/utils/priceUtils";
+import { coinToUDenom } from "@src/utils/priceUtils";
 import { FormattedTime } from "react-intl";
 import { Address } from "@src/components/shared/Address";
 import { GrantModal } from "@src/components/wallet/GrantModal";
@@ -100,7 +100,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
                               <Address address={grant.grantee} isCopyable />
                             </TableCell>
                             <TableCell align="right">
-                              <AKTAmount uakt={coinToUAkt(grant.authorization.spend_limit)} /> AKT
+                              <AKTAmount uakt={coinToUDenom(grant.authorization.spend_limit)} /> AKT
                             </TableCell>
                             <TableCell align="right">
                               <FormattedTime year="numeric" month={"numeric"} day={"numeric"} value={grant.expiration} />
@@ -148,7 +148,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
                               <Address address={grant.granter} isCopyable />
                             </TableCell>
                             <TableCell align="right">
-                              <AKTAmount uakt={coinToUAkt(grant.authorization.spend_limit)} /> AKT
+                              <AKTAmount uakt={coinToUDenom(grant.authorization.spend_limit)} /> AKT
                             </TableCell>
                             <TableCell align="right">
                               <FormattedTime year="numeric" month={"numeric"} day={"numeric"} value={grant.expiration} />

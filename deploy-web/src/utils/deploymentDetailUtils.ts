@@ -1,5 +1,5 @@
 import { DeploymentDto, LeaseDto, RpcDeployment, RpcLease } from "@src/types/deployment";
-import { coinToUAkt, coinToUDenom } from "./priceUtils";
+import { coinToUDenom } from "./priceUtils";
 
 export function deploymentResourceSum(deployment: RpcDeployment, resourceSelector) {
   return deployment.groups
