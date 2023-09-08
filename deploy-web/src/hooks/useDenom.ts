@@ -1,5 +1,5 @@
 import { usdcIbcDenoms } from "@src/utils/constants";
-import { getSelectedNetwork, useSelectedNetwork } from "@src/utils/networks";
+import { getSelectedNetwork, useSelectedNetwork } from "./useSelectedNetwork";
 
 export const useUsdcDenom = () => {
   const selectedNetwork = useSelectedNetwork();

@@ -14,7 +14,6 @@ import { useRouter } from "next/router";
 import { UrlService } from "@src/utils/urlUtils";
 import { FormattedNumber } from "react-intl";
 import { Uptime } from "./Uptime";
-import { useSelectedNetwork } from "@src/utils/networks";
 
 const useStyles = makeStyles()(theme => ({
   root: {

@@ -1,7 +1,7 @@
 import { useEffectOnce } from "usehooks-ts";
-import { mainnetId } from "./constants";
 import { useAtom } from "jotai";
 import networkStore, { networks } from "@src/store/networkStore";
+import { mainnetId } from "@src/utils/constants";
 
 export const getSelectedNetwork = () => {
   const selectedNetworkId = localStorage.getItem("selectedNetworkId") ?? mainnetId;

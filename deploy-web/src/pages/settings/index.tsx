@@ -9,9 +9,9 @@ import SettingsLayout, { SettingsTabs } from "@src/components/settings/SettingsL
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { useState } from "react";
 import { SelectNetworkModal } from "@src/components/shared/SelectNetworkModal";
-import { useSelectedNetwork } from "@src/utils/networks";
 import EditIcon from "@mui/icons-material/Edit";
 import { CertificateList } from "@src/components/certificates/CertificateList";
+import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 
 type Props = {};
 
