@@ -75,7 +75,9 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
         <PageContainer>
           <Fieldset label="Authorizations Given">
             {isLoadingGranterGrants || !granterGrants ? (
-              <CircularProgress size="1.5rem" color="secondary" />
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <CircularProgress size="2rem" color="secondary" />
+              </Box>
             ) : (
               <>
                 {granterGrants.length > 0 ? (
@@ -106,7 +108,9 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
 
           <Fieldset label="Authorizations Received">
             {isLoadingGranteeGrants || !granteeGrants ? (
-              <CircularProgress size="1.5rem" color="secondary" />
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <CircularProgress size="2rem" color="secondary" />
+              </Box>
             ) : (
               <>
                 {granteeGrants.length > 0 ? (

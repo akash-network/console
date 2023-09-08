@@ -19,5 +19,5 @@ export const useSelectedNetwork = () => {
     setSelectedNetwork(networks.find(n => n.id === selectedNetworkId) || networks[0]);
   });
 
-  return selectedNetwork;
+  return selectedNetwork ?? networks[0];
 };
