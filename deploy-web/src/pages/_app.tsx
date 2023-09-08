@@ -13,7 +13,6 @@ import { QueryClientProvider } from "react-query";
 import { queryClient } from "@src/queries";
 import { KeplrWalletProvider } from "@src/context/KeplrWalletProvider";
 import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
-import Head from "next/head";
 import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { CertificateProvider } from "@src/context/CertificateProvider";

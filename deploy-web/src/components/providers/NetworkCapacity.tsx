@@ -3,7 +3,6 @@ import { Box, Typography, useTheme } from "@mui/material";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { useRouter } from "next/router";
-import { useSelectedNetwork } from "@src/utils/networks";
 
 type Props = {
   activeCPU: number;

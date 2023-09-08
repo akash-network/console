@@ -16,9 +16,9 @@ import { useRouter } from "next/router";
 import { UrlService } from "@src/utils/urlUtils";
 import { useSettings } from "../SettingsProvider";
 import axios from "axios";
-import { getSelectedNetwork } from "@src/utils/networks";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useUsdcDenom } from "@src/hooks/useDenom";
+import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 
 type Balances = {
   uakt: number;

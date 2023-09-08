@@ -95,7 +95,7 @@ export function SpecDetail({ cpuAmount, memoryAmount, storageAmount, gpuAmount =
                 [classes.specDetailLarge]: size === "large"
               })}
             >
-              {cpuAmount + " CPU"}
+              {roundDecimal(cpuAmount, 2) + " CPU"}
             </Box>
           </div>
         }

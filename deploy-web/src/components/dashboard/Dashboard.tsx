@@ -26,7 +26,7 @@ import { useTheme } from "@mui/material";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { BlockRow } from "../blockchain/BlockRow";
 import { TransactionRow } from "../blockchain/TransactionRow";
-import { useSelectedNetwork } from "@src/utils/networks";
+import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 
 interface IDashboardProps {
   dashboardData: DashboardData;

@@ -1,29 +1,10 @@
-import { useEffectOnce } from "usehooks-ts";
-import { mainnetNodes, testnetNodes, sandboxNodes, mainnetId, testnetId, sandboxId } from "./constants";
+import { Network } from "@src/types/network";
+import { ApiUrlService } from "@src/utils/apiUtils";
+import { mainnetId, mainnetNodes, sandboxId, sandboxNodes, testnetId, testnetNodes } from "@src/utils/constants";
 import axios from "axios";
-import { useState } from "react";
-import { ApiUrlService } from "./apiUtils";
+import { atom } from "jotai";
 
-export const getSelectedNetwork = () => {
-  const selectedNetworkId = localStorage.getItem("selectedNetworkId") ?? mainnetId;
-  const selectedNetwork = networks.find(n => n.id === selectedNetworkId);
-
-  // return mainnet if selected network is not found
-  return selectedNetwork ?? networks[0];
-};
-
-export const useSelectedNetwork = () => {
-  const [selectedNetwork, setSelectedNetwork] = useState(networks[0]);
-
-  useEffectOnce(() => {
-    const selectedNetworkId = localStorage.getItem("selectedNetworkId") ?? mainnetId;
-    setSelectedNetwork(networks.find(n => n.id === selectedNetworkId) || networks[0]);
-  });
-
-  return selectedNetwork;
-};
-
-export let networks = [
+export let networks: Network[] = [
   {
     id: mainnetId,
     title: "Mainnet",
@@ -225,4 +206,10 @@ export const initiateNetworkData = async () => {
       };
     })
   );
+};
+
+const selectedNetwork = atom<Network>(networks[0]);
+
+export default {
+  selectedNetwork
 };

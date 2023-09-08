@@ -61,7 +61,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   const previousRoute = usePreviousRoute();
 
   function handleBackClick() {
-    if (previousRoute !== router.asPath) {
+    if (previousRoute) {
       router.back();
     } else {
       router.push(UrlService.deploymentList());

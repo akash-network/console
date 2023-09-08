@@ -3,10 +3,10 @@ import { useForm, Controller } from "react-hook-form";
 import { useSettings } from "../../context/SettingsProvider";
 import { useSnackbar } from "notistack";
 import compareAsc from "date-fns/compareAsc";
-import { coinToUAkt, uaktToAKT } from "@src/utils/priceUtils";
+import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { Snackbar } from "../shared/Snackbar";
 import { uAktDenom } from "@src/utils/constants";
-import { Alert, Box, Checkbox, FormControl, FormControlLabel, InputAdornment, MenuItem, Select, TextField } from "@mui/material";
+import { Alert, Box, Checkbox, FormControl, FormControlLabel, InputAdornment, InputLabel, MenuItem, Select, TextField } from "@mui/material";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { LinkTo } from "../shared/LinkTo";
 import { event } from "nextjs-google-analytics";
@@ -19,6 +19,7 @@ import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { Popup } from "../shared/Popup";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useUsdcDenom } from "@src/hooks/useDenom";
+import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
 
 type Props = {
   infoText?: string | ReactNode;
@@ -74,8 +75,11 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
       const response = await fetch(`${settings.apiEndpoint}/cosmos/authz/v1beta1/grants?granter=${depositorAddress}&grantee=${address}`);
       const data = await response.json();
 
-      // TODO handle other than v1beta2
-      const grant = data.grants?.find(x => x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization");
+      const grant = data.grants?.find(
+        x =>
+          x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization" ||
+          x.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
+      );
 
       if (!grant) {
         setError("You are not authorized by this depositor.");
@@ -90,10 +94,10 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
         return false;
       }
 
-      let spendLimitUAkt = coinToUAkt(grant.authorization.spend_limit);
+      let spendLimitUDenom = coinToUDenom(grant.authorization.spend_limit);
 
-      if (depositAmount > spendLimitUAkt) {
-        setError(`Spend limit remaining: ${uaktToAKT(spendLimitUAkt)}akt`);
+      if (depositAmount > spendLimitUDenom) {
+        setError(`Spend limit remaining: ${udenomToDenom(spendLimitUDenom)} ${depositData.label}`);
         return false;
       }
 
@@ -218,7 +222,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
           />
         </FormControl>
 
-        <FormControl fullWidth>
+        <FormControl>
           <Controller
             control={control}
             name="useDepositor"
@@ -229,38 +233,29 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
         </FormControl>
 
         {useDepositor && (
-          <FormControl fullWidth>
-            <FormControl fullWidth>
-              <Controller
-                control={control}
-                name="depositorAddress"
-                defaultValue=""
-                rules={{
-                  required: true
-                }}
-                render={({ fieldState, field }) => {
-                  return (
-                    <Select labelId="theme-select" {...field} label="Theme" size="small">
-                      {granteeGrants
-                        .filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1)
-                        .map(grant => (
-                          <MenuItem key={grant.granter} value={grant.granter}>
-                            <Address address={grant.granter} />
-                            &nbsp;&nbsp;&nbsp;
-                            <AKTAmount uakt={coinToUAkt(grant.authorization.spend_limit)} />
-                            AKT &nbsp;
-                            <small>
-                              (Exp:&nbsp;
-                              <FormattedDate value={new Date(grant.expiration)} />
-                            </small>
-                            )
-                          </MenuItem>
-                        ))}
-                    </Select>
-                  );
-                }}
-              />
-            </FormControl>
+          <FormControl fullWidth sx={{ marginTop: ".5rem" }}>
+            <InputLabel id="deposit-grantee-address">Address</InputLabel>
+            <Controller
+              control={control}
+              name="depositorAddress"
+              defaultValue=""
+              rules={{
+                required: true
+              }}
+              render={({ fieldState, field }) => {
+                return (
+                  <Select {...field} labelId="deposit-grantee-address" label="Address" error={!!fieldState.error}>
+                    {granteeGrants
+                      .filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1 && x.authorization.spend_limit.denom === denom)
+                      .map(grant => (
+                        <MenuItem key={grant.granter} value={grant.granter}>
+                          <GranteeDepositMenuItem grant={grant} />
+                        </MenuItem>
+                      ))}
+                  </Select>
+                );
+              }}
+            />
           </FormControl>
         )}
 

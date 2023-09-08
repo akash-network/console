@@ -1,29 +1,23 @@
-import { makeStyles } from "tss-react/mui";
 import Layout from "@src/components/layout/Layout";
 import { NextSeo } from "next-seo";
 import PageContainer from "@src/components/shared/PageContainer";
 import SettingsLayout, { SettingsTabs } from "@src/components/settings/SettingsLayout";
 import { Fieldset } from "@src/components/shared/Fieldset";
-import { Box, Button, CircularProgress, IconButton, Table, TableBody, TableCell, TableContainer, TableRow } from "@mui/material";
+import { Box, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableRow, Typography } from "@mui/material";
 import { useState } from "react";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
-import { CustomTableHeader, CustomTableRow } from "@src/components/shared/CustomTable";
-import { AKTAmount } from "@src/components/shared/AKTAmount";
-import { coinToUAkt } from "@src/utils/priceUtils";
-import { FormattedTime } from "react-intl";
+import { CustomTableHeader } from "@src/components/shared/CustomTable";
 import { Address } from "@src/components/shared/Address";
 import { GrantModal } from "@src/components/wallet/GrantModal";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
 import { GrantType } from "@src/types/grant";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import { useGranteeGrants, useGranterGrants } from "@src/queries/useGrantsQuery";
 import { Popup } from "@src/components/shared/Popup";
+import { GranterRow } from "@src/components/settings/GranterRow";
+import { GranteeRow } from "@src/components/settings/GranteeRow";
 
 type Props = {};
-
-const useStyles = makeStyles()(theme => ({}));
 
 const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   const { address } = useKeplr();
@@ -31,12 +25,12 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [deletingGrant, setDeletingGrant] = useState<GrantType | null>(null);
   const { data: granterGrants, isLoading: isLoadingGranterGrants, refetch: refetchGranterGrants } = useGranterGrants(address);
-  const { data: granteeGrants, isLoading: isLoadingGranteeGrants } = useGranteeGrants(address);
+  const { data: granteeGrants, isLoading: isLoadingGranteeGrants, refetch: refetchGranteeGrants } = useGranteeGrants(address);
 
   const { signAndBroadcastTx } = useKeplr();
 
   async function onDeleteGrantConfirmed() {
-    const message = TransactionMessageData.getRevokeMsg(address, deletingGrant.grantee);
+    const message = TransactionMessageData.getRevokeMsg(address, deletingGrant.grantee, deletingGrant.authorization["@type"]);
 
     const response = await signAndBroadcastTx([message]);
 
@@ -55,6 +49,11 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   function onEditGrant(grant: GrantType) {
     setEditingGrant(grant);
     setShowGrantModal(true);
+  }
+
+  function onGrantClose() {
+    refetchGranteeGrants();
+    setShowGrantModal(false);
   }
 
   return (
@@ -76,7 +75,9 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
         <PageContainer>
           <Fieldset label="Authorizations Given">
             {isLoadingGranterGrants || !granterGrants ? (
-              <CircularProgress size="1.5rem" color="secondary" />
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <CircularProgress size="2rem" color="secondary" />
+              </Box>
             ) : (
               <>
                 {granterGrants.length > 0 ? (
@@ -93,31 +94,13 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
 
                       <TableBody>
                         {granterGrants.map(grant => (
-                          <CustomTableRow key={grant.grantee}>
-                            <TableCell>
-                              <Address address={grant.grantee} isCopyable />
-                            </TableCell>
-                            <TableCell align="right">
-                              <AKTAmount uakt={coinToUAkt(grant.authorization.spend_limit)} /> AKT
-                            </TableCell>
-                            <TableCell align="right">
-                              <FormattedTime year="numeric" month={"numeric"} day={"numeric"} value={grant.expiration} />
-                            </TableCell>
-                            <TableCell>
-                              <IconButton onClick={() => onEditGrant(grant)}>
-                                <EditIcon />
-                              </IconButton>
-                              <IconButton onClick={() => setDeletingGrant(grant)}>
-                                <DeleteIcon />
-                              </IconButton>
-                            </TableCell>
-                          </CustomTableRow>
+                          <GranterRow key={grant.grantee} grant={grant} onEditGrant={onEditGrant} setDeletingGrant={setDeletingGrant} />
                         ))}
                       </TableBody>
                     </Table>
                   </TableContainer>
                 ) : (
-                  <p>No authorizations given</p>
+                  <Typography variant="caption">No authorizations given.</Typography>
                 )}
               </>
             )}
@@ -125,7 +108,9 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
 
           <Fieldset label="Authorizations Received">
             {isLoadingGranteeGrants || !granteeGrants ? (
-              <CircularProgress size="1.5rem" color="secondary" />
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <CircularProgress size="2rem" color="secondary" />
+              </Box>
             ) : (
               <>
                 {granteeGrants.length > 0 ? (
@@ -141,23 +126,13 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
 
                       <TableBody>
                         {granteeGrants.map(grant => (
-                          <CustomTableRow key={grant.granter}>
-                            <TableCell>
-                              <Address address={grant.granter} isCopyable />
-                            </TableCell>
-                            <TableCell align="right">
-                              <AKTAmount uakt={coinToUAkt(grant.authorization.spend_limit)} /> AKT
-                            </TableCell>
-                            <TableCell align="right">
-                              <FormattedTime year="numeric" month={"numeric"} day={"numeric"} value={grant.expiration} />
-                            </TableCell>
-                          </CustomTableRow>
+                          <GranteeRow key={grant.granter} grant={grant} />
                         ))}
                       </TableBody>
                     </Table>
                   </TableContainer>
                 ) : (
-                  <p>No authorizations received</p>
+                  <Typography variant="caption">No authorizations received.</Typography>
                 )}
               </>
             )}
@@ -171,6 +146,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
               onClose={() => setDeletingGrant(null)}
               onCancel={() => setDeletingGrant(null)}
               onValidate={onDeleteGrantConfirmed}
+              enableCloseOnBackdropClick
             >
               Deleting grant to{" "}
               <strong>
@@ -179,7 +155,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
               will revoke their ability to spend your funds on deployments.
             </Popup>
           )}
-          {showGrantModal && <GrantModal editingGrant={editingGrant} address={address} onClose={() => setShowGrantModal(false)} />}
+          {showGrantModal && <GrantModal editingGrant={editingGrant} address={address} onClose={onGrantClose} />}
         </PageContainer>
       </SettingsLayout>
     </Layout>

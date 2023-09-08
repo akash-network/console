@@ -4,6 +4,7 @@ import { averageDaysInMonth } from "./dateUtils";
 import { Coin } from "@cosmjs/stargate";
 import { denomToUdenom } from "./mathHelpers";
 import { getUsdcDenom } from "@src/hooks/useDenom";
+import { uAktDenom } from "./constants";
 
 export const averageBlockTime = 6.098;
 
@@ -15,45 +16,34 @@ export function aktToUakt(amount: number | string) {
   return Math.round((typeof amount === "string" ? parseFloat(amount) : amount) * 1_000_000);
 }
 
-export function coinToUAkt(coin: Coin) {
-  let uakt: number = null;
-  if (coin.denom === "akt") {
-    uakt = aktToUakt(parseFloat(coin.amount));
-  } else if (coin.denom === "uakt") {
-    uakt = parseFloat(coin.amount);
-  } else {
-    throw Error("Unrecognized denom: " + coin.denom);
-  }
-
-  return uakt;
-}
-
 export function coinToUDenom(coin: Coin) {
-  let uakt: number = null;
+  let value: number = null;
   const usdcDenom = getUsdcDenom();
 
   if (coin.denom === "akt") {
-    uakt = denomToUdenom(parseFloat(coin.amount));
-  } else if (coin.denom === "uakt" || coin.denom === usdcDenom) {
-    uakt = parseFloat(coin.amount);
+    value = denomToUdenom(parseFloat(coin.amount));
+  } else if (coin.denom === uAktDenom || coin.denom === usdcDenom) {
+    value = parseFloat(coin.amount);
   } else {
     throw Error("Unrecognized denom: " + coin.denom);
   }
 
-  return uakt;
+  return value;
 }
 
-export function coinToAkt(coin: Coin) {
-  let akt: number = null;
+export function coinToDenom(coin: Coin) {
+  let value: number = null;
+  const usdcDenom = getUsdcDenom();
+
   if (coin.denom === "akt") {
-    akt = parseFloat(coin.amount);
-  } else if (coin.denom === "uakt") {
-    akt = uaktToAKT(parseFloat(coin.amount));
+    value = parseFloat(coin.amount);
+  } else if (coin.denom === uAktDenom || coin.denom === usdcDenom) {
+    value = uaktToAKT(parseFloat(coin.amount));
   } else {
     throw Error("Unrecognized denom: " + coin.denom);
   }
 
-  return akt;
+  return value;
 }
 
 export function getAvgCostPerMonth(pricePerBlock: number) {

@@ -15,7 +15,6 @@ type Props = {
 export const AKTAmount: React.FunctionComponent<Props> = ({ uakt, showUSD, showAKTLabel }) => {
   const theme = useTheme();
   const { isLoaded: isPriceLoaded, aktToUSD } = usePricing();
-
   const aktAmount = udenomToDenom(uakt, 6);
 
   return (

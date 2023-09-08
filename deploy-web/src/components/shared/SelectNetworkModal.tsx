@@ -1,20 +1,10 @@
-import {
-  Alert,
-  Box,
-  Chip,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Radio,
-  Typography
-} from "@mui/material";
+import { Alert, Box, Chip, List, ListItemButton, ListItemIcon, ListItemText, Radio, Typography } from "@mui/material";
 import { mainnetId } from "@src/utils/constants";
-import { networks } from "@src/utils/networks";
 import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { useSettings } from "../../context/SettingsProvider";
 import { Popup } from "./Popup";
+import { networks } from "@src/store/networkStore";
 
 const useStyles = makeStyles()(theme => ({
   experimentalChip: {
@@ -53,7 +43,7 @@ export const SelectNetworkModal = ({ onClose }) => {
   };
 
   return (
-      <Popup
+    <Popup
       fullWidth
       open
       variant="custom"
@@ -78,42 +68,42 @@ export const SelectNetworkModal = ({ onClose }) => {
       maxWidth="xs"
       enableCloseOnBackdropClick
     >
-        <List>
-          {networks.map(network => {
-            return (
-              <ListItemButton key={network.id} dense onClick={() => handleSelectNetwork(network)} disabled={!network.enabled}>
-                <ListItemIcon>
-                  <Radio checked={localSelectedNetworkId === network.id} value={network.id} color="secondary" />
-                </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <Box display="flex" alignItems="center" justifyContent="space-between" fontSize="1rem">
-                      <span>
-                        {network.title}
-                        {" - "}
-                        <Typography variant="caption" className={classes.version}>
-                          {network.version}
-                        </Typography>
-                      </span>
-                      {network.id !== mainnetId && <Chip label="Experimental" size="small" color="secondary" className={classes.experimentalChip} />}
-                    </Box>
-                  }
-                  secondary={network.description}
-                />
-              </ListItemButton>
-            );
-          })}
-        </List>
+      <List>
+        {networks.map(network => {
+          return (
+            <ListItemButton key={network.id} dense onClick={() => handleSelectNetwork(network)} disabled={!network.enabled}>
+              <ListItemIcon>
+                <Radio checked={localSelectedNetworkId === network.id} value={network.id} color="secondary" />
+              </ListItemIcon>
+              <ListItemText
+                primary={
+                  <Box display="flex" alignItems="center" justifyContent="space-between" fontSize="1rem">
+                    <span>
+                      {network.title}
+                      {" - "}
+                      <Typography variant="caption" className={classes.version}>
+                        {network.version}
+                      </Typography>
+                    </span>
+                    {network.id !== mainnetId && <Chip label="Experimental" size="small" color="secondary" className={classes.experimentalChip} />}
+                  </Box>
+                }
+                secondary={network.description}
+              />
+            </ListItemButton>
+          );
+        })}
+      </List>
 
-        {localSelectedNetworkId !== mainnetId && (
-          <Alert variant="outlined" severity="warning" className={classes.alert}>
-            <Typography variant="body1">
-              <strong>Warning</strong>
-            </Typography>
+      {localSelectedNetworkId !== mainnetId && (
+        <Alert variant="outlined" severity="warning" className={classes.alert}>
+          <Typography variant="body1">
+            <strong>Warning</strong>
+          </Typography>
 
-            <Typography variant="body2">Changing networks will restart the app and some features are experimental.</Typography>
-          </Alert>
-        )}
-      </Popup>
+          <Typography variant="body2">Changing networks will restart the app and some features are experimental.</Typography>
+        </Alert>
+      )}
+    </Popup>
   );
 };

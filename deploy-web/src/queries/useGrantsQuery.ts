@@ -8,7 +8,11 @@ async function getGranterGrants(apiEndpoint: string, address: string) {
   if (!address) return null;
 
   const response = await axios.get(ApiUrlService.granterGrants(apiEndpoint, address));
-  const filteredGrants = response.data.grants.filter(x => x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization");
+  const filteredGrants = response.data.grants.filter(
+    x =>
+      x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization" ||
+      x.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
+  );
 
   return filteredGrants;
 }
@@ -23,7 +27,11 @@ async function getGranteeGrants(apiEndpoint: string, address: string) {
   if (!address) return null;
 
   const response = await axios.get(ApiUrlService.granteeGrants(apiEndpoint, address));
-  const filteredGrants = response.data.grants.filter(x => x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization");
+  const filteredGrants = response.data.grants.filter(
+    x =>
+      x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization" ||
+      x.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
+  );
 
   return filteredGrants;
 }

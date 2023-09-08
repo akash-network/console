@@ -119,7 +119,7 @@ export function SpecDetailList({ cpuAmount, memoryAmount, storageAmount, gpuAmou
       </div>
       <div className={cx(classes.serverRow, classes.defaultColor, { [classes.activeColor]: isActive })}>
         <SpeedIcon className={cx(classes.specIcon, classes.defaultColor, { [classes.activeColor]: isActive, [classes.activeIcon]: isActive })} />
-        <div className={cx(classes.specDetail, classes.defaultColor, { [classes.activeColor]: isActive })}>{cpuAmount + " cpu"}</div>
+        <div className={cx(classes.specDetail, classes.defaultColor, { [classes.activeColor]: isActive })}>{roundDecimal(cpuAmount, 2) + " cpu"}</div>
       </div>
 
       {gpuAmount > 0 && (

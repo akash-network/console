@@ -16,8 +16,8 @@ export const PageHead: React.FunctionComponent<Props> = ({}) => {
       </Head>
 
       <DefaultSeo
-        title="Cloudmos"
         titleTemplate="%s | Cloudmos"
+        defaultTitle="Cloudmos"
         description="Cloudmos is the #1 platform to deploy docker containers on the Akash Network, a decentralized super cloud compute marketplace. Explore, deploy and track all in one place!"
         openGraph={{
           type: "website",
@@ -27,12 +27,12 @@ export const PageHead: React.FunctionComponent<Props> = ({}) => {
           description: "Deploy docker containers on the decentralized supercloud Akash Network.",
           images: [
             {
-              url: 'https://deploy.cloudmos.io/cloudmos-cover.png',
+              url: "https://deploy.cloudmos.io/cloudmos-cover.png",
               width: 1600,
               height: 529,
-              alt: 'Cloudmos Cover Image',
+              alt: "Cloudmos Cover Image"
             }
-          ],
+          ]
         }}
         twitter={{
           handle: "@cloudmosio",

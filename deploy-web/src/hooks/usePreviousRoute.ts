@@ -1,14 +1,23 @@
+import routeStore from "@src/store/routeStore";
+import { useAtom } from "jotai";
 import { useRouter } from "next/router";
-import { useEffect, useRef } from "react";
+import { useEffectOnce } from "usehooks-ts";
 
 export const usePreviousRoute = () => {
-  const { asPath } = useRouter();
+  const router = useRouter();
+  const [previousRoute, setPreviousRoute] = useAtom(routeStore.previousRoute);
 
-  const ref = useRef<string | null>(null);
+  useEffectOnce(() => {
+    const handleRouteChange = (url: string) => {
+      setPreviousRoute(url);
+    };
 
-  useEffect(() => {
-    ref.current = asPath;
-  }, [asPath]);
+    router.events?.on("routeChangeStart", handleRouteChange);
 
-  return ref.current;
+    return () => {
+      router.events?.off("routeChangeStart", handleRouteChange);
+    };
+  });
+
+  return previousRoute;
 };

@@ -69,7 +69,7 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
   };
 
   function handleBackClick() {
-    if (previousRoute !== router.asPath) {
+    if (previousRoute) {
       router.back();
     } else {
       router.push(UrlService.providers());
