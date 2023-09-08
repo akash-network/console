@@ -6,7 +6,7 @@ import compareAsc from "date-fns/compareAsc";
 import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { Snackbar } from "../shared/Snackbar";
 import { uAktDenom } from "@src/utils/constants";
-import { Alert, Box, Checkbox, FormControl, FormControlLabel, InputAdornment, MenuItem, Select, TextField } from "@mui/material";
+import { Alert, Box, Checkbox, FormControl, FormControlLabel, InputAdornment, InputLabel, MenuItem, Select, TextField } from "@mui/material";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { LinkTo } from "../shared/LinkTo";
 import { event } from "nextjs-google-analytics";
@@ -19,6 +19,7 @@ import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { Popup } from "../shared/Popup";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useUsdcDenom } from "@src/hooks/useDenom";
+import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
 
 type Props = {
   infoText?: string | ReactNode;
@@ -155,6 +156,8 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
     onDeploymentDeposit(deposit, depositorAddress);
   };
 
+  console.log(denom)
+
   return (
     <Popup
       fullWidth
@@ -221,7 +224,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
           />
         </FormControl>
 
-        <FormControl fullWidth>
+        <FormControl>
           <Controller
             control={control}
             name="useDepositor"
@@ -232,7 +235,8 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
         </FormControl>
 
         {useDepositor && (
-          <FormControl fullWidth>
+          <FormControl fullWidth sx={{ marginTop: ".5rem" }}>
+            <InputLabel id="deposit-grantee-address">Address</InputLabel>
             <Controller
               control={control}
               name="depositorAddress"
@@ -242,20 +246,12 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
               }}
               render={({ fieldState, field }) => {
                 return (
-                  <Select {...field} label="Theme" size="small" error={!!fieldState.error}>
+                  <Select {...field} labelId="deposit-grantee-address" label="Address" error={!!fieldState.error}>
                     {granteeGrants
-                      .filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1)
+                      .filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1 && x.authorization.spend_limit.denom === denom)
                       .map(grant => (
                         <MenuItem key={grant.granter} value={grant.granter}>
-                          <Address address={grant.granter} />
-                          &nbsp;&nbsp;&nbsp;
-                          <AKTAmount uakt={coinToUDenom(grant.authorization.spend_limit)} />
-                          AKT &nbsp;
-                          <small>
-                            (Exp:&nbsp;
-                            <FormattedDate value={new Date(grant.expiration)} />
-                          </small>
-                          )
+                          <GranteeDepositMenuItem grant={grant} />
                         </MenuItem>
                       ))}
                   </Select>

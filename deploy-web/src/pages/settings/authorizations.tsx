@@ -3,7 +3,7 @@ import { NextSeo } from "next-seo";
 import PageContainer from "@src/components/shared/PageContainer";
 import SettingsLayout, { SettingsTabs } from "@src/components/settings/SettingsLayout";
 import { Fieldset } from "@src/components/shared/Fieldset";
-import { Box, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableRow } from "@mui/material";
+import { Box, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableRow, Typography } from "@mui/material";
 import { useState } from "react";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { CustomTableHeader } from "@src/components/shared/CustomTable";
@@ -100,7 +100,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
                     </Table>
                   </TableContainer>
                 ) : (
-                  <p>No authorizations given</p>
+                  <Typography variant="caption">No authorizations given.</Typography>
                 )}
               </>
             )}
@@ -132,7 +132,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
                     </Table>
                   </TableContainer>
                 ) : (
-                  <p>No authorizations received</p>
+                  <Typography variant="caption">No authorizations received.</Typography>
                 )}
               </>
             )}
