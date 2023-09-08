@@ -189,7 +189,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
                   autoFocus
                   error={!!fieldState.error}
                   helperText={fieldState.error && helperText}
-                  inputProps={{ min: 0, step: 0.000001 }}
+                  inputProps={{ min: 0, step: 0.000001, max: depositData?.inputMax }}
                   sx={{ flexGrow: 1, marginLeft: "1rem" }}
                 />
               );
