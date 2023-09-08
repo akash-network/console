@@ -1,6 +1,5 @@
 import { useSettings } from "../../context/SettingsProvider";
 import { makeStyles } from "tss-react/mui";
-import { useSelectedNetwork } from "@src/utils/networks";
 import { Box, Typography, useTheme } from "@mui/material";
 import { NodeStatus } from "../shared/NodeStatus";
 import { LinkTo } from "../shared/LinkTo";
@@ -8,6 +7,7 @@ import { useRouter } from "next/router";
 import { UrlService } from "@src/utils/urlUtils";
 import { getSplitText } from "@src/hooks/useShortText";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
+import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 
 const useStyles = makeStyles()(theme => ({
   link: {

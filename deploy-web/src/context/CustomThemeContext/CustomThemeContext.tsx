@@ -122,7 +122,10 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
         },
         a: {
           textDecoration: "none",
-          color: customColors.main
+          color: customColors.main,
+          "&:hover": {
+            textDecoration: "underline"
+          }
         }
       }
     },

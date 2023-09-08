@@ -28,11 +28,11 @@ import { useNetworkCapacity } from "@src/queries/useProvidersQuery";
 import PageContainer from "@src/components/shared/PageContainer";
 import { ProviderMap } from "@src/components/providers/ProviderMap";
 import { ProviderList } from "@src/components/providers/ProviderList";
-import { useSelectedNetwork } from "@src/utils/networks";
 import dynamic from "next/dynamic";
 import LaunchIcon from "@mui/icons-material/Launch";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { UrlService } from "@src/utils/urlUtils";
+import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 
 const NetworkCapacity = dynamic(() => import("../../components/providers/NetworkCapacity"), {
   ssr: false

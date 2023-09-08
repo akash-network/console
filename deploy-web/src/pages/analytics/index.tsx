@@ -8,10 +8,10 @@ import { FormattedDate, FormattedTime } from "react-intl";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useTheme } from "@mui/material";
 import Layout from "@src/components/layout/Layout";
-import { useSelectedNetwork } from "@src/utils/networks";
 import { GradientText } from "@src/components/shared/GradientText";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { UrlService } from "@src/utils/urlUtils";
+import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 
 type Props = {
   children?: ReactNode;

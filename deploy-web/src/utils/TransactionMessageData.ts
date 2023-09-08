@@ -5,6 +5,7 @@ export function setMessageTypes() {
   TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT = `/akash.deployment.${networkVersion}.MsgCloseDeployment`;
   TransactionMessageData.Types.MSG_CREATE_DEPLOYMENT = `/akash.deployment.${networkVersion}.MsgCreateDeployment`;
   TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT = `/akash.deployment.${networkVersion}.MsgDepositDeployment`;
+  TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT_AUTHZ = `/akash.deployment.${networkVersion}.DepositDeploymentAuthorization`;
   TransactionMessageData.Types.MSG_UPDATE_DEPLOYMENT = `/akash.deployment.${networkVersion}.MsgUpdateDeployment`;
   TransactionMessageData.Types.MSG_CREATE_LEASE = `/akash.market.${networkVersion}.MsgCreateLease`;
   TransactionMessageData.Types.MSG_REVOKE_CERTIFICATE = `/akash.cert.${networkVersion}.MsgRevokeCertificate`;
@@ -18,6 +19,7 @@ export class TransactionMessageData {
     MSG_CLOSE_DEPLOYMENT: "",
     MSG_CREATE_DEPLOYMENT: "",
     MSG_DEPOSIT_DEPLOYMENT: "",
+    MSG_DEPOSIT_DEPLOYMENT_AUTHZ: "",
     MSG_UPDATE_DEPLOYMENT: "",
     // TODO MsgCloseGroup
     // TODO MsgPauseGroup
@@ -155,7 +157,7 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getGrantMsg(granter: string, grantee: string, spendLimit: number, expiration: Date) {
+  static getGrantMsg(granter: string, grantee: string, spendLimit: number, expiration: Date, denom: string) {
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_GRANT,
       value: {
@@ -163,10 +165,10 @@ export class TransactionMessageData {
         grantee: grantee,
         grant: {
           authorization: {
-            type_url: "/akash.deployment.v1beta2.DepositDeploymentAuthorization",
+            type_url: TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT_AUTHZ,
             value: {
               spend_limit: {
-                denom: "uakt",
+                denom: denom,
                 amount: spendLimit.toString()
               }
             }
@@ -182,13 +184,16 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getRevokeMsg(granter: string, grantee: string) {
+  static getRevokeMsg(granter: string, grantee: string, grantType: string) {
+    const version = grantType.split(".")[2];
+    const msgTypeUrl = `/akash.deployment.${version}.MsgDepositDeployment`;
+
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_REVOKE,
       value: {
         granter: granter,
         grantee: grantee,
-        msgTypeUrl: "/akash.deployment.v1beta2.MsgDepositDeployment"
+        msgTypeUrl: msgTypeUrl
       }
     };
 
