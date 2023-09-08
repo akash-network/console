@@ -4,14 +4,14 @@ import { FormControl, TextField, Typography, Box, Alert, Select, MenuItem, Input
 import { addYears, format } from "date-fns";
 import { makeStyles } from "tss-react/mui";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
-import { aktToUakt, coinToAkt } from "@src/utils/priceUtils";
+import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { LinkTo } from "../shared/LinkTo";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { GrantType } from "@src/types/grant";
 import { Popup } from "../shared/Popup";
-import { getUsdcDenom } from "@src/hooks/useDenom";
+import { getUsdcDenom, useUsdcDenom } from "@src/hooks/useDenom";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { uAktDenom } from "@src/utils/constants";
@@ -39,6 +39,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
   const [error, setError] = useState("");
   const { classes } = useStyles();
   const { signAndBroadcastTx } = useKeplr();
+  const usdcDenom = useUsdcDenom();
   const {
     handleSubmit,
     control,
@@ -48,8 +49,8 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     setValue
   } = useForm({
     defaultValues: {
-      token: "akt",
-      amount: editingGrant ? coinToAkt(editingGrant.authorization.spend_limit) : 0,
+      token: editingGrant ? (editingGrant.authorization.spend_limit.denom === usdcDenom ? "usdc" : "akt") : "akt",
+      amount: editingGrant ? coinToDenom(editingGrant.authorization.spend_limit) : 0,
       expiration: format(addYears(new Date(), 1), "yyyy-MM-dd'T'HH:mm"),
       useDepositor: false,
       granteeAddress: editingGrant?.grantee ?? ""
@@ -57,7 +58,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
   });
   const { amount, granteeAddress, expiration, token } = watch();
   const selectedToken = supportedTokens.find(x => x.id === token);
-  const denom = token === "akt" ? uAktDenom : getUsdcDenom();
+  const denom = token === "akt" ? uAktDenom : usdcDenom;
   const depositData = useDenomData(denom);
 
   const onDepositClick = event => {

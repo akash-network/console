@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { queryClient } from "@src/queries";
-import { initiateNetworkData, networks } from "@src/utils/networks";
 import { mainnetId, mainnetNodes } from "@src/utils/constants";
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 import { initAppTypes } from "@src/utils/init";
 import { NodeStatus } from "@src/types/node";
+import { initiateNetworkData, networks } from "@src/store/networkStore";
 
 type Node = {
   api: string;
