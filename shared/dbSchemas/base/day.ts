@@ -18,6 +18,7 @@ export class Day extends Model {
   @Required @Column firstBlockHeight: number;
   @Column lastBlockHeight?: number;
   @Required @Column lastBlockHeightYet: number;
+  @Required @Default(false) @Column aktPriceChanged: boolean;
 
   @HasMany(() => Block, { foreignKey: "dayId", constraints: false }) blocks: Block[];
   @BelongsTo(() => Block, { foreignKey: "firstBlockHeight", constraints: false }) firstBlock: Block;

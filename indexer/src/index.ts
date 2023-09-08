@@ -17,6 +17,7 @@ import { activeChain, chainDefinitions } from "@shared/chainDefinitions";
 import { addressBalanceMonitor, deploymentBalanceMonitor } from "./monitors";
 import { updateProvidersLocation } from "./providers/ipLocationProvider";
 import { sleep } from "./shared/utils/delay";
+import { updateUsdcSpending } from "./tasks/usdSpendingTracker";
 
 const app = express();
 
@@ -80,9 +81,9 @@ app.get("/nodes", async (req, res) => {
 });
 
 function startScheduler() {
-  scheduler.registerTask("Sync Blocks", syncBlocks, "7 seconds", true, {
-    id: env.HealthChecks_SyncBlocks
-  });
+  // scheduler.registerTask("Sync Blocks", syncBlocks, "7 seconds", true, {
+  //   id: env.HealthChecks_SyncBlocks
+  // });
   scheduler.registerTask("Sync Price History", syncPriceHistory, "1 hour", true, {
     id: env.HealthChecks_SyncAKTPriceHistory,
     measureDuration: true
@@ -90,20 +91,21 @@ function startScheduler() {
   scheduler.registerTask("Address Balance Monitor", () => addressBalanceMonitor.run(), "10 minutes");
 
   if (env.ActiveChain === "akash" || env.ActiveChain === "akashTestnet" || env.ActiveChain === "akashSandbox") {
-    scheduler.registerTask("Sync Providers Info", syncProvidersInfo, "15 minutes", true, {
-      id: env.HealthChecks_SyncProviderInfo,
-      measureDuration: true
-    });
+    // scheduler.registerTask("Sync Providers Info", syncProvidersInfo, "15 minutes", true, {
+    //   id: env.HealthChecks_SyncProviderInfo,
+    //   measureDuration: true
+    // });
 
-    scheduler.registerTask("Deployment Balance Monitor", () => deploymentBalanceMonitor.run(), "10 minutes");
-    scheduler.registerTask("Provider IP Lookup", () => updateProvidersLocation(), "30 minutes", true);
+    // scheduler.registerTask("Deployment Balance Monitor", () => deploymentBalanceMonitor.run(), "10 minutes");
+    // scheduler.registerTask("Provider IP Lookup", () => updateProvidersLocation(), "30 minutes", true);
+    scheduler.registerTask("USD Spending Tracker", () => updateUsdcSpending(), "1 minute", true);
   }
 
   if (!activeChain.startHeight) {
-    scheduler.registerTask("Sync Keybase Info", fetchValidatorKeybaseInfos, "6 hours", true, {
-      id: env.HealthChecks_SyncKeybaseInfo,
-      measureDuration: true
-    });
+    // scheduler.registerTask("Sync Keybase Info", fetchValidatorKeybaseInfos, "6 hours", true, {
+    //   id: env.HealthChecks_SyncKeybaseInfo,
+    //   measureDuration: true
+    // });
   }
 
   scheduler.start();

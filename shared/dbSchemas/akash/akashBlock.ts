@@ -5,6 +5,7 @@ import { Block } from "../base";
 export class AkashBlock extends Block {
   @Column(DataTypes.DOUBLE) totalUAktSpent?: number;
   @Column(DataTypes.DOUBLE) totalUUsdcSpent?: number;
+  @Column(DataTypes.DOUBLE) totalUUsdSpent?: number;
   @Column activeLeaseCount?: number;
   @Column totalLeaseCount?: number;
   @Column activeCPU?: number;
