@@ -35,11 +35,12 @@ export const syncPriceHistory = async () => {
   });
 
   for (const day of days) {
-    console.log("Checking day " + day.date)
+    console.log("Checking day " + day.date);
     const priceData = apiPrices.find((x) => isSameDay(new Date(x.date), day.date));
 
     if (priceData && priceData.price != day.aktPrice) {
       day.aktPrice = priceData.price;
+      day.aktPriceChanged = true;
       await day.save();
     }
   }
