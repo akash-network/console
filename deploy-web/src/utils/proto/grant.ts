@@ -1,4 +1,6 @@
 import { Field, Type } from "protobufjs";
+export { MsgGrantAllowance, MsgRevokeAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
+export { BasicAllowance, PeriodicAllowance, AllowedMsgAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
 
 // TODO: Find a solution to the MsgGrant proto type not working from cosmjs-types
 

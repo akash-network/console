@@ -1,5 +1,7 @@
 import { networkVersion } from "./constants";
 import { BidDto } from "@src/types/deployment";
+import { BasicAllowance, MsgGrantAllowance } from "./proto/grant";
+import { longify } from "@cosmjs/stargate/build/queryclient";
 
 export function setMessageTypes() {
   TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT = `/akash.deployment.${networkVersion}.MsgCloseDeployment`;
@@ -32,7 +34,9 @@ export class TransactionMessageData {
     // Cosmos
     MSG_SEND_TOKENS: "/cosmos.bank.v1beta1.MsgSend",
     MSG_GRANT: "/cosmos.authz.v1beta1.MsgGrant",
-    MSG_REVOKE: "/cosmos.authz.v1beta1.MsgRevoke"
+    MSG_REVOKE: "/cosmos.authz.v1beta1.MsgRevoke",
+    MSG_GRANT_ALLOWANCE: "/cosmos.feegrant.v1beta1.MsgGrantAllowance",
+    MSG_REVOKE_ALLOWANCE: "/cosmos.feegrant.v1beta1.MsgRevokeAllowance"
   };
 
   static getRevokeCertificateMsg(address: string, serial: string) {
@@ -194,6 +198,78 @@ export class TransactionMessageData {
         granter: granter,
         grantee: grantee,
         msgTypeUrl: msgTypeUrl
+      }
+    };
+
+    return message;
+  }
+
+  static getGrantBasicAllowanceMsg(granter: string, grantee: string, spendLimit: number, denom: string, expiration?: Date) {
+    const allowance = {
+      typeUrl: "/cosmos.feegrant.v1beta1.BasicAllowance",
+      value: Uint8Array.from(
+        BasicAllowance.encode({
+          spendLimit: [
+            {
+              denom: "ucosm",
+              amount: "1234567"
+            }
+          ],
+          expiration: expiration
+            ? {
+                seconds: longify(Math.floor(expiration.getTime() / 1_000)),
+                nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
+              }
+            : undefined
+        }).finish()
+      )
+    };
+
+    const message = {
+      typeUrl: TransactionMessageData.Types.MSG_GRANT_ALLOWANCE,
+      value: MsgGrantAllowance.fromPartial({
+        granter: granter,
+        grantee: grantee,
+        allowance: allowance
+      })
+    };
+
+    return message;
+  }
+
+  // static getGrantPeriodicAllowanceMsg(granter: string, grantee: string, spendLimit: number, denom: string, expiration?: Date) {
+  //   const message = {
+  //     typeUrl: TransactionMessageData.Types.MSG_GRANT_ALLOWANCE,
+  //     value: {
+  //       granter: granter,
+  //       grantee: grantee,
+  //       allowance: {
+  //         typeUrl: "/cosmos.feegrant.v1beta1.PeriodicAllowance",
+  //         value: {
+  //           spend_limit: [{ denom: denom, amount: spendLimit.toString() }],
+  //           // Can be undefined, the grant will be valid forever
+  //           expiration: undefined
+  //         }
+  //       }
+  //     }
+  //   };
+
+  //   if (expiration) {
+  //     message.value.allowance.value.expiration = {
+  //       seconds: Math.floor(expiration.getTime() / 1_000), // Convert milliseconds to seconds
+  //       nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000) // Convert reminder into nanoseconds
+  //     };
+  //   }
+
+  //   return message;
+  // }
+
+  static getRevokeAllowanceMsg(granter: string, grantee: string) {
+    const message = {
+      typeUrl: TransactionMessageData.Types.MSG_REVOKE_ALLOWANCE,
+      value: {
+        granter: granter,
+        grantee: grantee
       }
     };
 
