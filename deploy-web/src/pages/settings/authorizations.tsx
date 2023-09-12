@@ -4,7 +4,7 @@ import PageContainer from "@src/components/shared/PageContainer";
 import SettingsLayout, { SettingsTabs } from "@src/components/settings/SettingsLayout";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { Box, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableRow, Typography } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { CustomTableHeader } from "@src/components/shared/CustomTable";
 import { Address } from "@src/components/shared/Address";
@@ -19,6 +19,8 @@ import { GranteeRow } from "@src/components/settings/GranteeRow";
 import { AllowanceModal } from "@src/components/wallet/AllowanceModal";
 import { AllowanceIssuedRow } from "@src/components/settings/AllowanceIssuedRow";
 import { makeStyles } from "tss-react/mui";
+import { averageBlockTime } from "@src/utils/priceUtils";
+import { AllowanceGrantedRow } from "@src/components/settings/AllowanceGrantedRow";
 
 type Props = {};
 
@@ -30,6 +32,10 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
+type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "allowancesGranted" | null;
+const defaultRefetchInterval = 30 * 1000;
+const refreshingInterval = 1000;
+
 const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   const { classes } = useStyles();
   const { address } = useKeplr();
@@ -39,12 +45,35 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   const [showAllowanceModal, setShowAllowanceModal] = useState(false);
   const [deletingGrant, setDeletingGrant] = useState<GrantType | null>(null);
   const [deletingAllowance, setDeletingAllowance] = useState<AllowanceType | null>(null);
-  const { data: granterGrants, isLoading: isLoadingGranterGrants, refetch: refetchGranterGrants } = useGranterGrants(address);
-  const { data: granteeGrants, isLoading: isLoadingGranteeGrants, refetch: refetchGranteeGrants } = useGranteeGrants(address);
-  const { data: allowancesIssued, isLoading: isLoadingAllowancesIssued, refetch: refetchAllowancesIssued } = useAllowancesIssued(address);
-  const { data: allowancesGranted, isLoading: isLoadingAllowancesGranted, refetch: refetchAllowancesGranted } = useAllowancesGranted(address);
-
+  const [isRefreshing, setIsRefreshing] = useState<RefreshingType>(null);
+  const { data: granterGrants, isLoading: isLoadingGranterGrants } = useGranterGrants(address, {
+    refetchInterval: isRefreshing === "granterGrants" ? refreshingInterval : defaultRefetchInterval
+  });
+  const { data: granteeGrants, isLoading: isLoadingGranteeGrants } = useGranteeGrants(address, {
+    refetchInterval: isRefreshing === "granteeGrants" ? refreshingInterval : defaultRefetchInterval
+  });
+  const { data: allowancesIssued, isLoading: isLoadingAllowancesIssued } = useAllowancesIssued(address, {
+    refetchInterval: isRefreshing === "allowancesIssued" ? refreshingInterval : defaultRefetchInterval
+  });
+  const { data: allowancesGranted, isLoading: isLoadingAllowancesGranted } = useAllowancesGranted(address, {
+    refetchInterval: isRefreshing === "allowancesGranted" ? refreshingInterval : defaultRefetchInterval
+  });
   const { signAndBroadcastTx } = useKeplr();
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (isRefreshing) {
+      timeout = setTimeout(() => {
+        setIsRefreshing(null);
+      }, averageBlockTime + 1000);
+    }
+
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, [isRefreshing]);
 
   async function onDeleteGrantConfirmed() {
     const message = TransactionMessageData.getRevokeMsg(address, deletingGrant.grantee, deletingGrant.authorization["@type"]);
@@ -52,7 +81,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
     const response = await signAndBroadcastTx([message]);
 
     if (response) {
-      refetchGranterGrants();
+      setIsRefreshing("granterGrants");
       setDeletingGrant(null);
     }
   }
@@ -63,7 +92,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
     const response = await signAndBroadcastTx([message]);
 
     if (response) {
-      refetchAllowancesIssued();
+      setIsRefreshing("allowancesIssued");
       setDeletingAllowance(null);
     }
   }
@@ -71,7 +100,6 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   function onCreateNewGrant() {
     setEditingGrant(null);
     setShowGrantModal(true);
-    refetchGranterGrants();
   }
 
   function onEditGrant(grant: GrantType) {
@@ -80,18 +108,17 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   }
 
   function onGrantClose() {
-    refetchGranteeGrants();
+    setIsRefreshing("granterGrants");
     setShowGrantModal(false);
   }
 
   function onCreateNewAllowance() {
     setEditingAllowance(null);
     setShowAllowanceModal(true);
-    refetchAllowancesIssued();
   }
 
   function onAllowanceClose() {
-    refetchAllowancesIssued();
+    setIsRefreshing("allowancesIssued");
     setShowAllowanceModal(false);
   }
 
@@ -101,7 +128,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   }
 
   return (
-    <Layout isLoading={isLoadingAllowancesIssued || isLoadingAllowancesGranted || isLoadingGranteeGrants || isLoadingGranterGrants}>
+    <Layout isLoading={!!isRefreshing || isLoadingAllowancesIssued || isLoadingAllowancesGranted || isLoadingGranteeGrants || isLoadingGranterGrants}>
       <NextSeo title="Settings Authorizations" />
 
       <SettingsLayout
@@ -111,14 +138,15 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
           <Box sx={{ marginLeft: { xs: 0, sm: 0, md: "1rem" } }}>
             <Button onClick={onCreateNewGrant} color="secondary" variant="contained">
               <AccountBalanceIcon />
-              &nbsp;Authorize Spending
+              &nbsp;Authorize Spend
             </Button>
           </Box>
         }
       >
         <PageContainer sx={{ paddingTop: "1rem" }}>
           <Typography variant="h6" className={classes.subTitle}>
-            These authorizations allow you authorize other addresses to spend on deployments using your funds. You can revoke these authorizations at any time.
+            These authorizations allow you authorize other addresses to spend on deployments or deployment deposits using your funds. You can revoke these
+            authorizations at any time.
           </Typography>
           <Fieldset label="Authorizations Given">
             {isLoadingGranterGrants || !granterGrants ? (
@@ -135,7 +163,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
                           <TableCell>Grantee</TableCell>
                           <TableCell align="right">Spending Limit</TableCell>
                           <TableCell align="right">Expiration</TableCell>
-                          <TableCell></TableCell>
+                          <TableCell align="right"></TableCell>
                         </TableRow>
                       </CustomTableHeader>
 
@@ -195,7 +223,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
             }}
           >
             <Typography variant="h1" sx={{ fontSize: "2rem", fontWeight: "bold" }}>
-              Fee Authorizations
+              Tx Fee Authorizations
             </Typography>
             <Button onClick={onCreateNewAllowance} color="secondary" variant="contained" sx={{ marginLeft: { xs: 0, sm: 0, md: "1rem" } }}>
               <AccountBalanceIcon />
@@ -204,7 +232,8 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
           </Box>
 
           <Typography variant="h6" className={classes.subTitle}>
-            These authorizations allow you authorize other addresses to spend on fees using your funds. You can revoke these authorizations at any time.
+            These authorizations allow you authorize other addresses to spend on transaction fees using your funds. You can revoke these authorizations at any
+            time.
           </Typography>
 
           <Fieldset label="Authorizations Given">
@@ -223,7 +252,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
                           <TableCell>Grantee</TableCell>
                           <TableCell align="right">Spending Limit</TableCell>
                           <TableCell align="right">Expiration</TableCell>
-                          <TableCell></TableCell>
+                          <TableCell align="right"></TableCell>
                         </TableRow>
                       </CustomTableHeader>
 
@@ -247,32 +276,33 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
           </Fieldset>
 
           <Fieldset label="Authorizations Received">
-            {isLoadingGranteeGrants || !granteeGrants ? (
+            {isLoadingAllowancesGranted || !allowancesGranted ? (
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <CircularProgress size="2rem" color="secondary" />
               </Box>
             ) : (
               <>
-                {granteeGrants.length > 0 ? (
+                {allowancesGranted.length > 0 ? (
                   <TableContainer>
                     <Table size="small">
                       <CustomTableHeader>
                         <TableRow>
-                          <TableCell>Granter</TableCell>
-                          <TableCell align="right">Spending Limit</TableCell>
+                          <TableCell>Type</TableCell>
+                          <TableCell>Grantee</TableCell>
+                          <TableCell>Spending Limit</TableCell>
                           <TableCell align="right">Expiration</TableCell>
                         </TableRow>
                       </CustomTableHeader>
 
                       <TableBody>
-                        {granteeGrants.map(grant => (
-                          <GranteeRow key={grant.granter} grant={grant} />
+                        {allowancesGranted.map(allowance => (
+                          <AllowanceGrantedRow key={allowance.granter} allowance={allowance} />
                         ))}
                       </TableBody>
                     </Table>
                   </TableContainer>
                 ) : (
-                  <Typography variant="caption">No authorizations received.</Typography>
+                  <Typography variant="caption">No allowances received.</Typography>
                 )}
               </>
             )}

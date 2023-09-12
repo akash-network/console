@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { FormControl, TextField, Typography, Box, Alert, Select, MenuItem, InputLabel, InputAdornment } from "@mui/material";
+import { FormControl, TextField, Typography, Box, Alert, InputAdornment } from "@mui/material";
 import { addYears, format } from "date-fns";
 import { makeStyles } from "tss-react/mui";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
@@ -9,10 +9,8 @@ import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { LinkTo } from "../shared/LinkTo";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { AllowanceType, GrantType } from "@src/types/grant";
+import { AllowanceType } from "@src/types/grant";
 import { Popup } from "../shared/Popup";
-import { getUsdcDenom, useUsdcDenom } from "@src/hooks/useDenom";
-import { denomToUdenom } from "@src/utils/mathHelpers";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { uAktDenom } from "@src/utils/constants";
 import { FormattedDate } from "react-intl";
@@ -34,7 +32,6 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
   const [error, setError] = useState("");
   const { classes } = useStyles();
   const { signAndBroadcastTx } = useKeplr();
-  const usdcDenom = useUsdcDenom();
   const {
     handleSubmit,
     control,
@@ -52,8 +49,6 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
   });
   const { amount, granteeAddress, expiration } = watch();
   const denomData = useDenomData(uAktDenom);
-
-  console.log(coinToDenom(editingAllowance.allowance.spend_limit[0]));
 
   const onDepositClick = event => {
     event.preventDefault();
@@ -214,7 +209,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
         {!!amount && granteeAddress && (
           <Alert severity="info" variant="outlined">
             <Typography variant="caption">
-              This address will be able to spend up to {amount} AKT on fees on your behalf ending on{" "}
+              This address will be able to spend up to {amount} AKT on <b>transaction fees</b> on your behalf ending on{" "}
               <FormattedDate value={expiration} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />.
             </Typography>
           </Alert>

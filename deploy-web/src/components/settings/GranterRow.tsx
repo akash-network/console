@@ -31,7 +31,7 @@ export const GranterRow: React.FunctionComponent<Props> = ({ children, grant, on
       <TableCell align="right">
         <FormattedTime year="numeric" month={"numeric"} day={"numeric"} value={grant.expiration} />
       </TableCell>
-      <TableCell>
+      <TableCell align="right">
         <IconButton onClick={() => onEditGrant(grant)}>
           <EditIcon />
         </IconButton>

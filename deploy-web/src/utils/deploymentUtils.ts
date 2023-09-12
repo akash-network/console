@@ -1,6 +1,7 @@
 import axios from "axios";
 import { PROVIDER_PROXY_URL } from "./constants";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
+import { wait } from "./timer";
 
 export const sendManifestToProvider = async (providerInfo, manifest, dseq: string, localCert: LocalCert) => {
   console.log("Sending manifest to " + providerInfo?.owner);
@@ -43,11 +44,3 @@ export const sendManifestToProvider = async (providerInfo, manifest, dseq: strin
 
   return response;
 };
-
-async function wait(time) {
-  return new Promise((res, rej) => {
-    setTimeout(() => {
-      res(true);
-    }, time);
-  });
-}
