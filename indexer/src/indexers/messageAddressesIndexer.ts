@@ -10,6 +10,7 @@ import { DecodedTxRaw, decodePubkey } from "@cosmjs/proto-signing";
 import { rawSecp256k1PubkeyToRawAddress } from "@src/shared/utils/addresses";
 import { getAmountFromCoin, getAmountFromCoinArray } from "@src/shared/utils/coin";
 import { activeChain } from "@shared/chainDefinitions";
+import { Transaction as DbTransaction } from "sequelize";
 
 export class MessageAddressesIndexer extends Indexer {
   constructor() {
@@ -36,7 +37,7 @@ export class MessageAddressesIndexer extends Indexer {
     await AddressReference.sync({ force: false });
   }
 
-  private async handleMsgSend(decodedMessage: MsgSend, height: number, dbTransaction, msg: Message) {
+  private async handleMsgSend(decodedMessage: MsgSend, height: number, dbTransaction: DbTransaction, msg: Message) {
     await AddressReference.bulkCreate(
       [
         {
@@ -58,7 +59,7 @@ export class MessageAddressesIndexer extends Indexer {
     msg.amount = getAmountFromCoinArray(decodedMessage.amount, "uakt");
   }
 
-  private async handleMsgMultiSend(decodedMessage: MsgMultiSend, height: number, dbTransaction, msg: Message) {
+  private async handleMsgMultiSend(decodedMessage: MsgMultiSend, height: number, dbTransaction: DbTransaction, msg: Message) {
     const senders = decodedMessage.inputs.map((input) => ({
       messageId: msg.id,
       transactionId: msg.txId,
@@ -75,27 +76,27 @@ export class MessageAddressesIndexer extends Indexer {
     await AddressReference.bulkCreate([...senders, ...receivers], { transaction: dbTransaction });
   }
 
-  private async handleMsgFundCommunityPool(decodedMessage: MsgFundCommunityPool, height: number, dbTransaction, msg: Message) {
+  private async handleMsgFundCommunityPool(decodedMessage: MsgFundCommunityPool, height: number, dbTransaction: DbTransaction, msg: Message) {
     msg.amount = getAmountFromCoinArray(decodedMessage.amount, "uakt");
   }
 
-  private async handleMsgDeposit(decodedMessage: MsgDeposit, height: number, dbTransaction, msg: Message) {
+  private async handleMsgDeposit(decodedMessage: MsgDeposit, height: number, dbTransaction: DbTransaction, msg: Message) {
     msg.amount = getAmountFromCoinArray(decodedMessage.amount, "uakt");
   }
 
-  private async handleMsgBeginRedelegate(decodedMessage: MsgBeginRedelegate, height: number, dbTransaction, msg: Message) {
+  private async handleMsgBeginRedelegate(decodedMessage: MsgBeginRedelegate, height: number, dbTransaction: DbTransaction, msg: Message) {
     msg.amount = getAmountFromCoin(decodedMessage.amount, "uakt");
   }
 
-  private async handleMsgDelegate(decodedMessage: MsgDelegate, height: number, dbTransaction, msg: Message) {
+  private async handleMsgDelegate(decodedMessage: MsgDelegate, height: number, dbTransaction: DbTransaction, msg: Message) {
     msg.amount = getAmountFromCoin(decodedMessage.amount, "uakt");
   }
 
-  private async handleMsgUndelegate(decodedMessage: MsgUndelegate, height: number, dbTransaction, msg: Message) {
+  private async handleMsgUndelegate(decodedMessage: MsgUndelegate, height: number, dbTransaction: DbTransaction, msg: Message) {
     msg.amount = getAmountFromCoin(decodedMessage.amount, "uakt");
   }
 
-  public async afterEveryTransaction(rawTx: DecodedTxRaw, currentTransaction: Transaction, dbTransaction): Promise<void> {
+  public async afterEveryTransaction(rawTx: DecodedTxRaw, currentTransaction: Transaction, dbTransaction: DbTransaction): Promise<void> {
     const { multisigThreshold, addresses } = this.getTransactionSignerAddresses(rawTx, currentTransaction.hash);
 
     currentTransaction.multisigThreshold = multisigThreshold;

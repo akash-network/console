@@ -2,10 +2,11 @@ import { DecodedTxRaw } from "@cosmjs/proto-signing";
 import { IGenesis } from "@src/chain/genesisTypes";
 import { Block, Message, Transaction } from "@shared/dbSchemas/base";
 import * as benchmark from "@src/shared/utils/benchmark";
+import { Transaction as DbTransaction } from "sequelize";
 
 export abstract class Indexer {
   name: string;
-  msgHandlers: { [key: string]: (msgSubmitProposal: any, height: number, blockGroupTransaction, msg: Message) => Promise<void> };
+  msgHandlers: { [key: string]: (decodedMessage: any, height: number, blockGroupTransaction: DbTransaction, msg: Message) => Promise<void> };
   runForEveryBlocks: boolean;
   processFailedTxs: boolean;
 
@@ -15,7 +16,7 @@ export abstract class Indexer {
   hasHandlerForType(type: string): boolean {
     return Object.keys(this.msgHandlers).includes(type);
   }
-  async processMessage(decodedMessage: any, height: number, blockGroupTransaction, msg: Message): Promise<void> {
+  async processMessage(decodedMessage: any, height: number, blockGroupTransaction: DbTransaction, msg: Message): Promise<void> {
     if (!(msg.type in this.msgHandlers)) {
       throw new Error(`No handler for message type ${msg.type} in ${this.name}`);
     }
@@ -36,10 +37,10 @@ export abstract class Indexer {
   seed(genesis: IGenesis): Promise<void> {
     return Promise.resolve();
   }
-  afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction): Promise<void> {
+  afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction: DbTransaction): Promise<void> {
     return Promise.resolve();
   }
-  afterEveryTransaction(rawTx: DecodedTxRaw, currentTransaction: Transaction, dbTransaction): Promise<void> {
+  afterEveryTransaction(rawTx: DecodedTxRaw, currentTransaction: Transaction, dbTransaction: DbTransaction): Promise<void> {
     return Promise.resolve();
   }
 }
