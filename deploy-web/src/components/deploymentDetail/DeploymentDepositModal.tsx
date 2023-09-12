@@ -97,7 +97,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
       let spendLimitUDenom = coinToUDenom(grant.authorization.spend_limit);
 
       if (depositAmount > spendLimitUDenom) {
-        setError(`Spend limit remaining: ${udenomToDenom(spendLimitUDenom)} ${depositData.label}`);
+        setError(`Spend limit remaining: ${udenomToDenom(spendLimitUDenom)} ${depositData?.label}`);
         return false;
       }
 
@@ -117,7 +117,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
 
   const onBalanceClick = () => {
     clearErrors();
-    setValue("amount", depositData.inputMax);
+    setValue("amount", depositData?.inputMax);
   };
 
   const onDepositClick = event => {

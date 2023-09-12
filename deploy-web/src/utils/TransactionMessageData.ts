@@ -1,6 +1,6 @@
 import { networkVersion } from "./constants";
 import { BidDto } from "@src/types/deployment";
-import { BasicAllowance, MsgGrantAllowance } from "./proto/grant";
+import { BasicAllowance, MsgGrantAllowance, MsgRevokeAllowance } from "./proto/grant";
 import { longify } from "@cosmjs/stargate/build/queryclient";
 
 export function setMessageTypes() {
@@ -211,8 +211,8 @@ export class TransactionMessageData {
         BasicAllowance.encode({
           spendLimit: [
             {
-              denom: "ucosm",
-              amount: "1234567"
+              denom: denom,
+              amount: spendLimit.toString()
             }
           ],
           expiration: expiration
@@ -267,10 +267,10 @@ export class TransactionMessageData {
   static getRevokeAllowanceMsg(granter: string, grantee: string) {
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_REVOKE_ALLOWANCE,
-      value: {
+      value: MsgRevokeAllowance.fromPartial({
         granter: granter,
         grantee: grantee
-      }
+      })
     };
 
     return message;

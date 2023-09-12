@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { FormControl, TextField, Typography, Box, Alert, Select, MenuItem, InputLabel } from "@mui/material";
+import { FormControl, TextField, Typography, Box, Alert, Select, MenuItem, InputLabel, InputAdornment } from "@mui/material";
 import { addYears, format } from "date-fns";
 import { makeStyles } from "tss-react/mui";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
@@ -9,7 +9,7 @@ import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { LinkTo } from "../shared/LinkTo";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { GrantType } from "@src/types/grant";
+import { AllowanceType, GrantType } from "@src/types/grant";
 import { Popup } from "../shared/Popup";
 import { getUsdcDenom, useUsdcDenom } from "@src/hooks/useDenom";
 import { denomToUdenom } from "@src/utils/mathHelpers";
@@ -25,16 +25,11 @@ const useStyles = makeStyles()(theme => ({
 
 type Props = {
   address: string;
-  editingGrant?: GrantType;
+  editingAllowance?: AllowanceType;
   onClose: () => void;
 };
 
-const supportedTokens = [
-  { id: "akt", label: "AKT" },
-  { id: "usdc", label: "USDC" }
-];
-
-export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, address, onClose }) => {
+export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowance, address, onClose }) => {
   const formRef = useRef(null);
   const [error, setError] = useState("");
   const { classes } = useStyles();
@@ -49,17 +44,16 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     setValue
   } = useForm({
     defaultValues: {
-      token: editingGrant ? (editingGrant.authorization.spend_limit.denom === usdcDenom ? "usdc" : "akt") : "akt",
-      amount: editingGrant ? coinToDenom(editingGrant.authorization.spend_limit) : 0,
+      amount: editingAllowance ? coinToDenom(editingAllowance.allowance.spend_limit[0]) : 0,
       expiration: format(addYears(new Date(), 1), "yyyy-MM-dd'T'HH:mm"),
       useDepositor: false,
-      granteeAddress: editingGrant?.grantee ?? ""
+      granteeAddress: editingAllowance?.grantee ?? ""
     }
   });
-  const { amount, granteeAddress, expiration, token } = watch();
-  const selectedToken = supportedTokens.find(x => x.id === token);
-  const denom = token === "akt" ? uAktDenom : usdcDenom;
-  const denomData = useDenomData(denom);
+  const { amount, granteeAddress, expiration } = watch();
+  const denomData = useDenomData(uAktDenom);
+
+  console.log(coinToDenom(editingAllowance.allowance.spend_limit[0]));
 
   const onDepositClick = event => {
     event.preventDefault();
@@ -69,13 +63,16 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
   const onSubmit = async ({ amount }) => {
     setError("");
     clearErrors();
-    const spendLimit = token === "akt" ? aktToUakt(amount) : denomToUdenom(amount);
-    const usdcDenom = getUsdcDenom();
-    const denom = token === "akt" ? uAktDenom : usdcDenom;
 
+    const messages = [];
+    const spendLimit = aktToUakt(amount);
     const expirationDate = new Date(expiration);
-    const message = TransactionMessageData.getGrantMsg(address, granteeAddress, spendLimit, expirationDate, denom);
-    const response = await signAndBroadcastTx([message]);
+
+    if (editingAllowance) {
+      messages.push(TransactionMessageData.getRevokeAllowanceMsg(address, granteeAddress));
+    }
+    messages.push(TransactionMessageData.getGrantBasicAllowanceMsg(address, granteeAddress, spendLimit, uAktDenom, expirationDate));
+    const response = await signAndBroadcastTx(messages);
 
     if (response) {
       event(AnalyticsEvents.AUTHORIZE_SPEND, {
@@ -123,23 +120,13 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
       onClose={onClose}
       maxWidth="sm"
       enableCloseOnBackdropClick
-      title="Authorize Spending"
+      title="Authorize Fee Spending"
     >
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
         <Alert severity="info" sx={{ marginBottom: "1rem" }}>
           <Typography variant="caption">
-            <LinkTo
-              onClick={ev =>
-                handleDocClick(
-                  ev,
-                  "https://docs.akash.network/features/authorized-spend/relevant-commands-and-example-use#authorize-another-wallet-to-deploy-using-your-tokens"
-                )
-              }
-            >
-              Authorized Spend
-            </LinkTo>{" "}
-            allows users to authorize spend of a set number of tokens from a source wallet to a destination, funded wallet. The authorized spend is restricted
-            to Akash deployment activities and the recipient of the tokens would not have access to those tokens for other operations.
+            <LinkTo onClick={ev => handleDocClick(ev, "https://docs.cosmos.network/v0.46/modules/feegrant/")}>Authorized Fee Spend</LinkTo> allows users to
+            authorize spend of a set number of tokens on fees from a source wallet to a destination, funded wallet.
           </Typography>
         </Alert>
 
@@ -149,28 +136,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
           </LinkTo>
         </Box>
 
-        <FormControl className={classes.formControl} fullWidth sx={{ display: "flex", alignItems: "center", flexDirection: "row" }}>
-          <InputLabel id="grant-token">Token</InputLabel>
-          <Controller
-            control={control}
-            name="token"
-            defaultValue=""
-            rules={{
-              required: true
-            }}
-            render={({ fieldState, field }) => {
-              return (
-                <Select {...field} labelId="grant-token" label="Token" size="medium" error={!!fieldState.error}>
-                  {supportedTokens.map(token => (
-                    <MenuItem key={token.id} value={token.id}>
-                      {token.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              );
-            }}
-          />
-
+        <FormControl className={classes.formControl} fullWidth>
           <Controller
             control={control}
             name="amount"
@@ -190,7 +156,9 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
                   error={!!fieldState.error}
                   helperText={fieldState.error && helperText}
                   inputProps={{ min: 0, step: 0.000001, max: denomData?.inputMax }}
-                  sx={{ flexGrow: 1, marginLeft: "1rem" }}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">AKT</InputAdornment>
+                  }}
                 />
               );
             }}
@@ -212,7 +180,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
                   type="text"
                   variant="outlined"
                   label="Grantee Address"
-                  disabled={!!editingGrant}
+                  disabled={!!editingAllowance}
                   error={!!fieldState.error}
                   helperText={fieldState.error && "Grantee address is required."}
                 />
@@ -246,7 +214,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
         {!!amount && granteeAddress && (
           <Alert severity="info" variant="outlined">
             <Typography variant="caption">
-              This address will be able to spend up to {amount} {selectedToken.label} on your behalf ending on{" "}
+              This address will be able to spend up to {amount} AKT on fees on your behalf ending on{" "}
               <FormattedDate value={expiration} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />.
             </Typography>
           </Alert>

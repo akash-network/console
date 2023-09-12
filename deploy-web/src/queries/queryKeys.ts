@@ -22,6 +22,8 @@ export class QueryKeys {
   static getUserFavoriteTemplatesKey = (userId: string) => ["USER_FAVORITES_TEMPLATES", userId];
   static getGranterGrants = (address: string) => ["GRANTER_GRANTS", address];
   static getGranteeGrants = (address: string) => ["GRANTEE_GRANTS", address];
+  static getAllowancesIssued = (address: string) => ["ALLOWANCES_ISSUED", address];
+  static getAllowancesGranted = (address: string) => ["ALLOWANCES_GRANTED", address];
 
   // Deploy
   static getDeploymentListKey = (address: string) => ["DEPLOYMENT_LIST", address];
