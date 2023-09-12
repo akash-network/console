@@ -1,6 +1,6 @@
 import base64js from "base64-js";
 import { sha256 } from "js-sha256";
-import { blocksDb, getCachedBlockByHeight } from "@src/chain/dataStore";
+import { getCachedBlockByHeight } from "@src/chain/dataStore";
 import { Transaction } from "@shared/dbSchemas/base";
 import { AuthInfo, TxBody, TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { lastBlockToSync } from "@src/shared/constants";

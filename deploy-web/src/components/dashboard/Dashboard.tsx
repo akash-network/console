@@ -128,30 +128,30 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
             number={
               <>
                 <span>
-                  <FormattedNumber value={uaktToAKT(dashboardData.now.dailyUAktSpent)} maximumFractionDigits={2} />
+                  <FormattedNumber value={udenomToDenom(dashboardData.now.dailyUUsdSpent)} maximumFractionDigits={2} />
                 </span>
-                <AKTLabel />
+                <USDLabel />
               </>
             }
-            text="AKT spent (24h)"
+            text="USD spent (24h)"
             tooltip="Last 24h"
-            graphPath={UrlService.graph(SnapshotsUrlParam.dailyAktSpent)}
-            diffNumber={uaktToAKT(dashboardData.now.dailyUAktSpent - dashboardData.compare.dailyUAktSpent)}
-            diffPercent={percIncrease(dashboardData.compare.dailyUAktSpent, dashboardData.now.dailyUAktSpent)}
+            graphPath={UrlService.graph(SnapshotsUrlParam.dailyUsdSpent)}
+            diffNumber={udenomToDenom(dashboardData.now.dailyUUsdSpent - dashboardData.compare.dailyUUsdSpent)}
+            diffPercent={percIncrease(dashboardData.compare.dailyUUsdSpent, dashboardData.now.dailyUUsdSpent)}
           />
         </Grid>
         <Grid item xs={12} lg={3}>
           <StatsCard
             number={
               <>
-                <FormattedNumber value={uaktToAKT(dashboardData.now.totalUAktSpent)} maximumFractionDigits={2} /> <AKTLabel />
+                <FormattedNumber value={udenomToDenom(dashboardData.now.totalUUsdSpent)} maximumFractionDigits={2} /> <USDLabel />
               </>
             }
-            text="Total spent AKT"
-            tooltip="This is the total amount akt spent to rent computing power on the akash network since the beginning of the network. (March 2021)"
-            graphPath={UrlService.graph(SnapshotsUrlParam.totalAKTSpent)}
-            diffNumber={uaktToAKT(dashboardData.now.totalUAktSpent - dashboardData.compare.totalUAktSpent)}
-            diffPercent={percIncrease(dashboardData.compare.totalUAktSpent, dashboardData.now.totalUAktSpent)}
+            text="Total spent USD"
+            tooltip="This is the total amount spent (in USD) to rent computing power on the akash network since the beginning of the network. (March 2021)"
+            graphPath={UrlService.graph(SnapshotsUrlParam.totalUSDSpent)}
+            diffNumber={udenomToDenom(dashboardData.now.totalUUsdSpent - dashboardData.compare.totalUUsdSpent)}
+            diffPercent={percIncrease(dashboardData.compare.totalUUsdSpent, dashboardData.now.totalUUsdSpent)}
           />
         </Grid>
         <Grid item xs={12} lg={3}>
@@ -219,7 +219,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
                 <span>
                   <FormattedNumber value={udenomToDenom(dashboardData.now.dailyUUsdcSpent)} maximumFractionDigits={2} />
                 </span>
-                USDC
+                <USDCLabel />
               </>
             }
             text="USDC spent (24h)"
@@ -233,7 +233,8 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
           <StatsCard
             number={
               <>
-                <FormattedNumber value={udenomToDenom(dashboardData.now.totalUUsdcSpent)} maximumFractionDigits={2} /> USDC
+                <FormattedNumber value={udenomToDenom(dashboardData.now.totalUUsdcSpent)} maximumFractionDigits={2} />
+                <USDCLabel />
               </>
             }
             text="Total spent USDC"
@@ -531,6 +532,22 @@ const AKTLabel = () => {
   return (
     <Box component="span" sx={{ marginLeft: ".5rem", fontSize: ".75rem", fontWeight: 300 }}>
       AKT
+    </Box>
+  );
+};
+
+const USDLabel = () => {
+  return (
+    <Box component="span" sx={{ marginLeft: ".5rem", fontSize: ".75rem", fontWeight: 300 }}>
+      $USD
+    </Box>
+  );
+};
+
+const USDCLabel = () => {
+  return (
+    <Box component="span" sx={{ marginLeft: ".5rem", fontSize: ".75rem", fontWeight: 300 }}>
+      USDC
     </Box>
   );
 };

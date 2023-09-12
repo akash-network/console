@@ -49,6 +49,8 @@ export const getDashboardData = async () => {
       dailyUAktSpent: latestBlockStats.totalUAktSpent - compareBlockStats.totalUAktSpent,
       totalUUsdcSpent: latestBlockStats.totalUUsdcSpent,
       dailyUUsdcSpent: latestBlockStats.totalUUsdcSpent - compareBlockStats.totalUUsdcSpent,
+      totalUUsdSpent: latestBlockStats.totalUUsdSpent,
+      dailyUUsdSpent: latestBlockStats.totalUUsdSpent - compareBlockStats.totalUUsdSpent,
       activeCPU: latestBlockStats.activeCPU,
       activeGPU: latestBlockStats.activeGPU,
       activeMemory: latestBlockStats.activeMemory,
@@ -64,6 +66,8 @@ export const getDashboardData = async () => {
       dailyUAktSpent: compareBlockStats.totalUAktSpent - secondCompareBlockStats.totalUAktSpent,
       totalUUsdcSpent: compareBlockStats.totalUUsdcSpent,
       dailyUUsdcSpent: compareBlockStats.totalUUsdcSpent - secondCompareBlockStats.totalUUsdcSpent,
+      totalUUsdSpent: compareBlockStats.totalUUsdSpent,
+      dailyUUsdSpent: compareBlockStats.totalUUsdSpent - secondCompareBlockStats.totalUUsdSpent,
       activeCPU: compareBlockStats.activeCPU,
       activeGPU: compareBlockStats.activeGPU,
       activeMemory: compareBlockStats.activeMemory,
@@ -140,28 +144,7 @@ function calculateUUsdSpending(dailyRevenue: { date: Date; totalUAkt: number; to
   ]);
 
   return totalAktSpentInUsd + totalUsdcSpent;
-
-  // const totalSpentStartOfToday = dailyRevenue
-  //   .filter((x) => x.date < startOfDay(blockStats.datetime))
-  //   .map((x) => ({ uakt: x.uakt, aktInUUsd: (x.uakt / 1_000_000) * x.aktPrice }))
-  //   .reduce((a, b) => ({ uakt: a.uakt + b.uakt, aktInUUsd: a.aktInUUsd + b.aktInUUsd }), { uakt: 0, aktInUUsd: 0 });
-  // const uaktSpentDuringTheDay = blockStats.totalUAktSpent - totalSpentStartOfToday.uakt;
-  // const aktSpentDuringTheDayInUUsd = uaktSpentDuringTheDay * (blockStats.day.aktPrice ?? 0);
-
-  // return blockStats.totalUUsdcSpent + totalSpentStartOfToday.aktInUUsd + aktSpentDuringTheDayInUUsd;
 }
-
-// async function getBlockByDate(date: Date) {
-//   const result = await Block.findOne({
-//     where: {
-//       datetime: { [Op.gte]: date }
-//     },
-//     include: [{ model: Day, required: true }],
-//     order: [["datetime", "ASC"]]
-//   });
-
-//   return result;
-// }
 
 export async function getGraphData(dataName: string): Promise<GraphData> {
   console.log("getGraphData: " + dataName);
@@ -179,6 +162,11 @@ export async function getGraphData(dataName: string): Promise<GraphData> {
     case "dailyUUsdcSpent":
       attributes = ["totalUUsdcSpent"];
       getter = (block: Block) => block.totalUUsdcSpent;
+      isRelative = true;
+      break;
+    case "dailyUUsdSpent":
+      attributes = ["totalUUsdSpent"];
+      getter = (block: Block) => block.totalUUsdSpent;
       isRelative = true;
       break;
     case "dailyLeaseCount":
