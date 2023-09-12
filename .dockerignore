@@ -3,5 +3,7 @@
 **/npm-debug.log
 **/.git
 **/.env
+**/.env.*
+**/.next
 *.md
 build.ps1
