@@ -12,7 +12,7 @@ const akashTypes: ReadonlyArray<[string, GeneratedType]> = [...Object.values(v1b
 ]);
 const missingTypes: ReadonlyArray<[string, GeneratedType]> = [["/cosmos.slashing.v1beta1.MsgUnjail", MsgUnjail]];
 
-export function decodeMsg(type: string, msg) {
+export function decodeMsg(type: string, msg: Uint8Array) {
   const myRegistry = new Registry([...defaultRegistryTypes, ...akashTypes, ...missingTypes]);
 
   const msgType = myRegistry.lookupType(type);

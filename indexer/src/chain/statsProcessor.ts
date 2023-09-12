@@ -8,7 +8,7 @@ import * as benchmark from "@src/shared/utils/benchmark";
 import { getGenesis } from "./genesisImporter";
 import { sequelize } from "@src/db/dbConnection";
 import { activeChain } from "@shared/chainDefinitions";
-import { Op } from "sequelize";
+import { Op, Transaction as DbTransaction } from "sequelize";
 import { Block, Message } from "@shared/dbSchemas";
 import { AkashMessage } from "@shared/dbSchemas/akash";
 import { setMissingBlock } from "./chainSync";
@@ -243,7 +243,7 @@ class StatsProcessor {
     }
   }
 
-  private async processMessage(msg, encodedMessage, height: number, blockGroupTransaction, hasProcessingError: boolean) {
+  private async processMessage(msg, encodedMessage: Uint8Array, height: number, blockGroupTransaction: DbTransaction, hasProcessingError: boolean) {
     for (const indexer of activeIndexers) {
       if (indexer.hasHandlerForType(msg.type) && (!hasProcessingError || indexer.processFailedTxs)) {
         const decodedMessage = decodeMsg(msg.type, encodedMessage);

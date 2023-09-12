@@ -3,8 +3,7 @@ import { ProviderSnapshot } from "@shared/dbSchemas/akash/providerSnapshot";
 import { toUTC } from "@src/shared/utils/date";
 import { add } from "date-fns";
 import { Op } from "sequelize";
-
-const semver = require("semver");
+import semver from "semver";
 
 export async function getNetworkCapacity() {
   const providers = await Provider.findAll({
