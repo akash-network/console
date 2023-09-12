@@ -29,7 +29,9 @@ async function getGranteeGrants(apiEndpoint: string, address: string) {
   const response = await axios.get(ApiUrlService.granteeGrants(apiEndpoint, address));
   const filteredGrants = response.data.grants.filter(
     x =>
-      x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization" ||
+      // TODO: this is not working
+      // Only the v1beta3 authorization are working
+      // x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization" ||
       x.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
   );
 

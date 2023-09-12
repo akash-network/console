@@ -1,7 +1,8 @@
 import { networkVersion } from "./constants";
 import { BidDto } from "@src/types/deployment";
-import { BasicAllowance, MsgGrantAllowance, MsgRevokeAllowance } from "./proto/grant";
+import { BasicAllowance, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "./proto/grant";
 import { longify } from "@cosmjs/stargate/build/queryclient";
+import { protoTypes } from "./proto";
 
 export function setMessageTypes() {
   TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT = `/akash.deployment.${networkVersion}.MsgCloseDeployment`;
@@ -162,20 +163,22 @@ export class TransactionMessageData {
   }
 
   static getGrantMsg(granter: string, grantee: string, spendLimit: number, expiration: Date, denom: string) {
-    const message = {
+    const grantMsg = {
       typeUrl: TransactionMessageData.Types.MSG_GRANT,
       value: {
         granter: granter,
         grantee: grantee,
         grant: {
           authorization: {
-            type_url: TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT_AUTHZ,
-            value: {
-              spend_limit: {
-                denom: denom,
-                amount: spendLimit.toString()
-              }
-            }
+            typeUrl: TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT_AUTHZ,
+            value: protoTypes.DepositDeploymentAuthorization.encode(
+              protoTypes.DepositDeploymentAuthorization.fromPartial({
+                spendLimit: {
+                  denom: denom,
+                  amount: spendLimit.toString()
+                }
+              })
+            ).finish()
           },
           expiration: {
             seconds: Math.floor(expiration.getTime() / 1_000), // Convert milliseconds to seconds
@@ -185,7 +188,7 @@ export class TransactionMessageData {
       }
     };
 
-    return message;
+    return grantMsg;
   }
 
   static getRevokeMsg(granter: string, grantee: string, grantType: string) {
@@ -194,11 +197,11 @@ export class TransactionMessageData {
 
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_REVOKE,
-      value: {
+      value: MsgRevoke.fromPartial({
         granter: granter,
         grantee: grantee,
         msgTypeUrl: msgTypeUrl
-      }
+      })
     };
 
     return message;
