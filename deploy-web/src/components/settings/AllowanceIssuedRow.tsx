@@ -8,6 +8,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { AllowanceType } from "@src/types/grant";
 import { AKTAmount } from "../shared/AKTAmount";
 import { coinToUDenom } from "@src/utils/priceUtils";
+import { getAllowanceTitleByType } from "@src/utils/grants";
 
 type Props = {
   allowance: AllowanceType;
@@ -21,7 +22,7 @@ export const AllowanceIssuedRow: React.FunctionComponent<Props> = ({ allowance, 
 
   return (
     <CustomTableRow>
-      <TableCell>{allowance.allowance["@type"]}</TableCell>
+      <TableCell>{getAllowanceTitleByType(allowance)}</TableCell>
       <TableCell>
         <Address address={allowance.grantee} isCopyable />
       </TableCell>
