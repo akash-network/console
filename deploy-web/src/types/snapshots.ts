@@ -2,7 +2,7 @@ export enum Snapshots {
   activeLeaseCount = "activeLeaseCount",
   totalUAktSpent = "totalUAktSpent",
   totalUUsdcSpent = "totalUUsdcSpent",
-  totalUsdSpent = "totalUUsdSpent",
+  totalUUsdSpent = "totalUUsdSpent",
   totalLeaseCount = "totalLeaseCount",
   activeCPU = "activeCPU",
   activeGPU = "activeGPU",

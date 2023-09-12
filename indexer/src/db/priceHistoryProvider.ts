@@ -28,14 +28,9 @@ export const syncPriceHistory = async () => {
 
   console.log(`There are ${apiPrices.length} prices to update.`);
 
-  const days = await Day.findAll({
-    where: {
-      aktPrice: null
-    }
-  });
+  const days = await Day.findAll();
 
   for (const day of days) {
-    console.log("Checking day " + day.date);
     const priceData = apiPrices.find((x) => isSameDay(new Date(x.date), day.date));
 
     if (priceData && priceData.price != day.aktPrice) {

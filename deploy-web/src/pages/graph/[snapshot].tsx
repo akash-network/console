@@ -185,6 +185,8 @@ const getSnapshotMetadata = (snapshot: Snapshots): { unitFn: (number) => ISnapsh
     case Snapshots.totalUAktSpent:
     case Snapshots.dailyUUsdcSpent:
     case Snapshots.totalUUsdcSpent:
+    case Snapshots.dailyUUsdSpent:
+    case Snapshots.totalUUsdSpent:
       return { unitFn: x => ({ value: udenomToDenom(x) }) };
     case Snapshots.activeCPU:
       return {
@@ -223,6 +225,8 @@ const getTitle = (snapshot: Snapshots): string => {
       return "Total AKT spent";
     case Snapshots.totalUUsdcSpent:
       return "Total USDC spent";
+    case Snapshots.totalUUsdSpent:
+      return "Total USD spent";
     case Snapshots.totalLeaseCount:
       return "All-time lease count";
     case Snapshots.activeCPU:
@@ -237,6 +241,8 @@ const getTitle = (snapshot: Snapshots): string => {
       return "Daily AKT spent";
     case Snapshots.dailyUUsdcSpent:
       return "Daily USDC spent";
+    case Snapshots.dailyUUsdSpent:
+      return "Daily USD spent";
     case Snapshots.dailyLeaseCount:
       return "Daily new leases";
 

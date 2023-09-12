@@ -72,7 +72,7 @@ app.get("/status", async (req, res) => {
 
 app.get("/nodes", async (req, res) => {
   try {
-    const nodeStatus = await nodeAccessor.getNodeStatus();
+    const nodeStatus = nodeAccessor.getNodeStatus();
     res.send(nodeStatus);
   } catch (err) {
     Sentry.captureException(err);
@@ -112,7 +112,7 @@ function startScheduler() {
 }
 
 /**
- * Intizialize database schema
+ * Initialize database schema
  * Populate db
  * Create backups per version
  * Load from backup if exists for current version

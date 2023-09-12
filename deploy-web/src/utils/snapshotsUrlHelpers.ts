@@ -12,8 +12,10 @@ export const urlParamToSnapshot = (snapshotsUrlParam: SnapshotsUrlParam) => {
     [SnapshotsUrlParam.storage]: Snapshots.activeStorage,
     [SnapshotsUrlParam.totalAKTSpent]: Snapshots.totalUAktSpent,
     [SnapshotsUrlParam.totalUSDCSpent]: Snapshots.totalUUsdcSpent,
+    [SnapshotsUrlParam.totalUSDSpent]: Snapshots.totalUUsdSpent,
     [SnapshotsUrlParam.dailyAktSpent]: Snapshots.dailyUAktSpent,
     [SnapshotsUrlParam.dailyUsdcSpent]: Snapshots.dailyUUsdcSpent,
+    [SnapshotsUrlParam.dailyUsdSpent]: Snapshots.dailyUUsdSpent,
     [SnapshotsUrlParam.dailyDeploymentCount]: Snapshots.dailyLeaseCount
   };
 
