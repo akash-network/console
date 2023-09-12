@@ -134,7 +134,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
               </>
             }
             text="USD spent (24h)"
-            tooltip="Last 24h"
+            tooltip="Amount spent in the last 24h (USDC + AKT converted to USD)."
             graphPath={UrlService.graph(SnapshotsUrlParam.dailyUsdSpent)}
             diffNumber={udenomToDenom(dashboardData.now.dailyUUsdSpent - dashboardData.compare.dailyUUsdSpent)}
             diffPercent={percIncrease(dashboardData.compare.dailyUUsdSpent, dashboardData.now.dailyUUsdSpent)}
@@ -148,7 +148,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
               </>
             }
             text="Total spent USD"
-            tooltip="This is the total amount spent (in USD) to rent computing power on the akash network since the beginning of the network. (March 2021)"
+            tooltip="This is the total amount spent (USDC + AKT converted to USD) to rent computing power on the akash network since the beginning of the network. (March 2021)"
             graphPath={UrlService.graph(SnapshotsUrlParam.totalUSDSpent)}
             diffNumber={udenomToDenom(dashboardData.now.totalUUsdSpent - dashboardData.compare.totalUUsdSpent)}
             diffPercent={percIncrease(dashboardData.compare.totalUUsdSpent, dashboardData.now.totalUUsdSpent)}
@@ -238,7 +238,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
               </>
             }
             text="Total spent USDC"
-            tooltip="This is the total amount of usdc spent to rent computing power on the akash network since the beginning of the network. (March 2021)"
+            tooltip="This is the total amount of usdc spent to rent computing power on the akash network since the Mainnet 6 upgrade that added usdc support. (August 2023)"
             graphPath={UrlService.graph(SnapshotsUrlParam.totalUSDCSpent)}
             diffNumber={udenomToDenom(dashboardData.now.totalUUsdcSpent - dashboardData.compare.totalUUsdcSpent)}
             diffPercent={percIncrease(dashboardData.compare.totalUUsdcSpent, dashboardData.now.totalUUsdcSpent)}

@@ -180,7 +180,7 @@ export async function getDailyRevenue() {
     akt: uaktToAKT(x.uakt, 6),
     uusdc: x.uusdc,
     usdc: udenomToDenom(x.uusdc, 6),
-    usd: uaktToAKT(x.uakt, 6) * x.aktPrice + udenomToDenom(x.uusdc),
+    usd: uaktToAKT(x.uakt, 6) * x.aktPrice + udenomToDenom(x.uusdc, 6),
     aktPrice: x.aktPrice
   }));
 }

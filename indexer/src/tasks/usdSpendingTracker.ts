@@ -3,7 +3,7 @@ import { Day } from "@shared/dbSchemas/base";
 import { sequelize } from "@src/db/dbConnection";
 import { Op } from "sequelize";
 
-export async function updateUsdcSpending() {
+export async function updateUsdSpending() {
   // Check if there is a day flagged for update (akt price changed)
   let firstDayToRefresh = await Day.findOne({
     where: {
