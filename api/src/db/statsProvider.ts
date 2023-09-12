@@ -5,8 +5,6 @@ import { Op, QueryTypes } from "sequelize";
 import { chainDb } from "./dbConnection";
 import { ProviderActiveLeasesStats, ProviderStats, ProviderStatsKey } from "@src/types/graph";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
-import { getDailyRevenue, getWeb3IndexRevenue } from "./networkRevenueProvider";
-import { startOfDay } from "@src/shared/utils/date";
 
 type GraphData = {
   currentValue: number;
@@ -17,7 +15,8 @@ type GraphData = {
 export const getDashboardData = async () => {
   const latestBlockStats = await Block.findOne({
     where: {
-      isProcessed: true
+      isProcessed: true,
+      totalUUsdSpent: { [Op.not]: null }
     },
     order: [["height", "DESC"]]
   });
