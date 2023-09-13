@@ -416,8 +416,19 @@ const BalancePie: React.FunctionComponent<BalancePieProps> = ({ label, data, get
           return `${udenomToDenom(value, 2)} ${label}`;
         }}
         tooltip={value => (
-          <Box sx={{ backgroundColor: theme.palette.grey[900], padding: ".5rem 1rem", borderRadius: ".5rem" }}>
-            {value.datum.label}: {value.datum.formattedValue}
+          <Box
+            sx={{
+              backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300],
+              padding: ".25rem .5rem",
+              borderRadius: ".25rem",
+              display: "flex",
+              alignItems: "center"
+            }}
+          >
+            <Box sx={{ width: ".5rem", height: ".5rem", backgroundColor: value.datum.color }} />
+            <Box sx={{ marginLeft: ".5rem" }}>
+              {value.datum.label}: {value.datum.formattedValue}
+            </Box>
           </Box>
         )}
         enableArcLinkLabels={false}
