@@ -23,6 +23,10 @@ export interface DashboardBlockStats {
   dailyLeaseCount: number;
   totalUAktSpent: number;
   dailyUAktSpent: number;
+  totalUUsdcSpent: number;
+  dailyUUsdcSpent: number;
+  totalUUsdSpent: number;
+  dailyUUsdSpent: number;
   activeCPU: number;
   activeGPU: number;
   activeMemory: number;

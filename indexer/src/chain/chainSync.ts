@@ -12,7 +12,6 @@ import { nodeAccessor } from "./nodeAccessor";
 import { sha256 } from "js-sha256";
 import { executionMode, ExecutionMode, isProd, lastBlockToSync } from "@src/shared/constants";
 import { isEqual, differenceInSeconds } from "date-fns";
-import { decodeTxRaw, fromBase64 } from "@src/shared/utils/types";
 import * as benchmark from "../shared/utils/benchmark";
 import * as uuid from "uuid";
 import { eachLimit, asyncify } from "async";
@@ -22,6 +21,8 @@ import { Day, Transaction } from "@shared/dbSchemas/base";
 import { Block, Message } from "@shared/dbSchemas";
 import { env } from "@src/shared/utils/env";
 import { Op } from "sequelize";
+import { decodeTxRaw } from "@cosmjs/proto-signing";
+import { fromBase64 } from "@cosmjs/encoding";
 
 export const setMissingBlock = (height: number) => (missingBlock = height);
 let missingBlock: number;

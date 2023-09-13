@@ -6,10 +6,17 @@ import { chainDb } from "./dbConnection";
 import { ProviderActiveLeasesStats, ProviderStats, ProviderStatsKey } from "@src/types/graph";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 
+type GraphData = {
+  currentValue: number;
+  compareValue: number;
+  snapshots: { date: Date; value: number }[];
+};
+
 export const getDashboardData = async () => {
   const latestBlockStats = await Block.findOne({
     where: {
-      isProcessed: true
+      isProcessed: true,
+      totalUUsdSpent: { [Op.not]: null }
     },
     order: [["height", "DESC"]]
   });
@@ -41,6 +48,8 @@ export const getDashboardData = async () => {
       dailyUAktSpent: latestBlockStats.totalUAktSpent - compareBlockStats.totalUAktSpent,
       totalUUsdcSpent: latestBlockStats.totalUUsdcSpent,
       dailyUUsdcSpent: latestBlockStats.totalUUsdcSpent - compareBlockStats.totalUUsdcSpent,
+      totalUUsdSpent: latestBlockStats.totalUUsdSpent,
+      dailyUUsdSpent: latestBlockStats.totalUUsdSpent - compareBlockStats.totalUUsdSpent,
       activeCPU: latestBlockStats.activeCPU,
       activeGPU: latestBlockStats.activeGPU,
       activeMemory: latestBlockStats.activeMemory,
@@ -56,6 +65,8 @@ export const getDashboardData = async () => {
       dailyUAktSpent: compareBlockStats.totalUAktSpent - secondCompareBlockStats.totalUAktSpent,
       totalUUsdcSpent: compareBlockStats.totalUUsdcSpent,
       dailyUUsdcSpent: compareBlockStats.totalUUsdcSpent - secondCompareBlockStats.totalUUsdcSpent,
+      totalUUsdSpent: compareBlockStats.totalUUsdSpent,
+      dailyUUsdSpent: compareBlockStats.totalUUsdSpent - secondCompareBlockStats.totalUUsdSpent,
       activeCPU: compareBlockStats.activeCPU,
       activeGPU: compareBlockStats.activeGPU,
       activeMemory: compareBlockStats.activeMemory,
@@ -64,27 +75,37 @@ export const getDashboardData = async () => {
   };
 };
 
-export const getGraphData = async (dataName: string) => {
+export async function getGraphData(dataName: string): Promise<GraphData> {
   console.log("getGraphData: " + dataName);
 
   let attributes = [dataName];
   let isRelative = false;
-  let getter = (block: Block) => block[dataName];
+  let getter = (block: Block) => block[dataName] as number;
 
   switch (dataName) {
     case "dailyUAktSpent":
       attributes = ["totalUAktSpent"];
-      getter = (block: Block) => block["totalUAktSpent"];
+      getter = (block: Block) => block.totalUAktSpent;
+      isRelative = true;
+      break;
+    case "dailyUUsdcSpent":
+      attributes = ["totalUUsdcSpent"];
+      getter = (block: Block) => block.totalUUsdcSpent;
+      isRelative = true;
+      break;
+    case "dailyUUsdSpent":
+      attributes = ["totalUUsdSpent"];
+      getter = (block: Block) => block.totalUUsdSpent;
       isRelative = true;
       break;
     case "dailyLeaseCount":
       attributes = ["totalLeaseCount"];
-      getter = (block: Block) => block["totalLeaseCount"];
+      getter = (block: Block) => block.totalLeaseCount;
       isRelative = true;
       break;
     case "activeStorage":
       attributes = ["activeEphemeralStorage", "activePersistentStorage"];
-      getter = (block: Block) => block["activeEphemeralStorage"] + block["activePersistentStorage"];
+      getter = (block: Block) => block.activeEphemeralStorage + block.activePersistentStorage;
       break;
   }
 
@@ -126,7 +147,7 @@ export const getGraphData = async (dataName: string) => {
     compareValue: dashboardData.compare[dataName],
     snapshots: stats
   };
-};
+}
 
 export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
   console.log("getProviderGraphData: " + dataName);

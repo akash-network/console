@@ -4,7 +4,7 @@ import { SelectedRange } from "@src/utils/constants";
 import { urlParamToSnapshot } from "@src/utils/snapshotsUrlHelpers";
 import { ISnapshotMetadata, Snapshots, SnapshotsUrlParam } from "@src/types";
 import { useGraphSnapshot } from "@src/queries/useGraphQuery";
-import { percIncrease } from "@src/utils/mathHelpers";
+import { percIncrease, udenomToDenom } from "@src/utils/mathHelpers";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
@@ -183,7 +183,11 @@ const getSnapshotMetadata = (snapshot: Snapshots): { unitFn: (number) => ISnapsh
   switch (snapshot) {
     case Snapshots.dailyUAktSpent:
     case Snapshots.totalUAktSpent:
-      return { unitFn: x => ({ value: uaktToAKT(x) }) };
+    case Snapshots.dailyUUsdcSpent:
+    case Snapshots.totalUUsdcSpent:
+    case Snapshots.dailyUUsdSpent:
+    case Snapshots.totalUUsdSpent:
+      return { unitFn: x => ({ value: udenomToDenom(x) }) };
     case Snapshots.activeCPU:
       return {
         unitFn: x => ({ value: x / 1000 })
@@ -219,6 +223,10 @@ const getTitle = (snapshot: Snapshots): string => {
       return "Active leases";
     case Snapshots.totalUAktSpent:
       return "Total AKT spent";
+    case Snapshots.totalUUsdcSpent:
+      return "Total USDC spent";
+    case Snapshots.totalUUsdSpent:
+      return "Total USD spent";
     case Snapshots.totalLeaseCount:
       return "All-time lease count";
     case Snapshots.activeCPU:
@@ -231,6 +239,10 @@ const getTitle = (snapshot: Snapshots): string => {
       return "Disk storage leased";
     case Snapshots.dailyUAktSpent:
       return "Daily AKT spent";
+    case Snapshots.dailyUUsdcSpent:
+      return "Daily USDC spent";
+    case Snapshots.dailyUUsdSpent:
+      return "Daily USD spent";
     case Snapshots.dailyLeaseCount:
       return "Daily new leases";
 

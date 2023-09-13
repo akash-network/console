@@ -1,39 +1,19 @@
-import base64js from "base64-js";
 import { sha256 } from "js-sha256";
-import { blocksDb, getCachedBlockByHeight } from "@src/chain/dataStore";
+import { getCachedBlockByHeight } from "@src/chain/dataStore";
 import { Transaction } from "@shared/dbSchemas/base";
-import { AuthInfo, TxBody, TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { lastBlockToSync } from "@src/shared/constants";
 import { decodeMsg } from "@src/shared/utils/protobuf";
 import { activeIndexers, indexersMsgTypes } from "@src/indexers";
 import * as benchmark from "@src/shared/utils/benchmark";
 import { getGenesis } from "./genesisImporter";
-import { DecodedTxRaw } from "@cosmjs/proto-signing";
 import { sequelize } from "@src/db/dbConnection";
 import { activeChain } from "@shared/chainDefinitions";
-import { Op } from "sequelize";
+import { Op, Transaction as DbTransaction } from "sequelize";
 import { Block, Message } from "@shared/dbSchemas";
 import { AkashMessage } from "@shared/dbSchemas/akash";
 import { setMissingBlock } from "./chainSync";
-
-function fromBase64(base64String) {
-  if (!base64String.match(/^[a-zA-Z0-9+/]*={0,2}$/)) {
-    throw new Error("Invalid base64 string format");
-  }
-  return base64js.toByteArray(base64String);
-}
-
-/**
- * Takes a serialized TxRaw (the bytes stored in Tendermint) and decodes it into something usable.
- */
-function decodeTxRaw(tx): DecodedTxRaw {
-  const txRaw = TxRaw.decode(tx);
-  return {
-    authInfo: AuthInfo.decode(txRaw.authInfoBytes),
-    body: TxBody.decode(txRaw.bodyBytes),
-    signatures: txRaw.signatures
-  } as DecodedTxRaw;
-}
+import { decodeTxRaw } from "@cosmjs/proto-signing";
+import { fromBase64 } from "@cosmjs/encoding";
 
 class StatsProcessor {
   private cacheInitialized: boolean = false;
@@ -263,7 +243,7 @@ class StatsProcessor {
     }
   }
 
-  private async processMessage(msg, encodedMessage, height: number, blockGroupTransaction, hasProcessingError: boolean) {
+  private async processMessage(msg, encodedMessage: Uint8Array, height: number, blockGroupTransaction: DbTransaction, hasProcessingError: boolean) {
     for (const indexer of activeIndexers) {
       if (indexer.hasHandlerForType(msg.type) && (!hasProcessingError || indexer.processFailedTxs)) {
         const decodedMessage = decodeMsg(msg.type, encodedMessage);
