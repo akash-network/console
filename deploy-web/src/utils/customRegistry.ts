@@ -1,9 +1,8 @@
 import { Registry } from "@cosmjs/proto-signing";
 import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
-import { MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 import { protoTypes } from "./proto";
 import { TransactionMessageData } from "./TransactionMessageData";
-import { MsgGrant } from "./proto/grant";
+import { MsgGrant, MsgRevoke, MsgGrantAllowance, MsgRevokeAllowance } from "./proto/grant";
 
 export let customRegistry: Registry;
 
@@ -21,6 +20,8 @@ export function registerTypes() {
   registry.register(TransactionMessageData.Types.MSG_GRANT, MsgGrant);
   registry.register(TransactionMessageData.Types.MSG_REVOKE, MsgRevoke);
   registry.register(TransactionMessageData.Types.MSG_SEND_TOKENS, MsgSend);
+  registry.register(TransactionMessageData.Types.MSG_GRANT_ALLOWANCE, MsgGrantAllowance);
+  registry.register(TransactionMessageData.Types.MSG_REVOKE_ALLOWANCE, MsgRevokeAllowance);
 
   customRegistry = registry;
 }

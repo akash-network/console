@@ -22,3 +22,11 @@ export const Timer = (ms: number) => {
     abort
   };
 };
+
+export async function wait(time: number) {
+  return new Promise((res, rej) => {
+    setTimeout(() => {
+      res(true);
+    }, time);
+  });
+}

@@ -20,7 +20,7 @@ const useStyles = makeStyles()(theme => ({
       fontWeight: "bold",
       letterSpacing: "1px",
       fontSize: "1rem",
-      color: "rgba(255,255,255,.2)"
+      color: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[400]
     }
   },
   graphTooltip: {
