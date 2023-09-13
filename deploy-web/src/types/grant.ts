@@ -10,3 +10,16 @@ export type GrantType = {
     };
   };
 };
+
+export type AllowanceType = {
+  granter: string;
+  grantee: string;
+  allowance: {
+    "@type": string;
+    expiration: string;
+    spend_limit: {
+      denom: string;
+      amount: string;
+    }[];
+  };
+};

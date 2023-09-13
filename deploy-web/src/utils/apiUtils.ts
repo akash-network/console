@@ -45,6 +45,12 @@ export class ApiUrlService {
   static granterGrants(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/cosmos/authz/v1beta1/grants/granter/${address}`;
   }
+  static allowancesIssued(apiEndpoint: string, address: string) {
+    return `${apiEndpoint}/cosmos/feegrant/v1beta1/issued/${address}`;
+  }
+  static allowancesGranted(apiEndpoint: string, address: string) {
+    return `${apiEndpoint}/cosmos/feegrant/v1beta1/allowances/${address}`;
+  }
   static dashboardData() {
     return `${BASE_API_URL}/dashboardData`;
   }

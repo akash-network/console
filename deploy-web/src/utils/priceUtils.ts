@@ -38,7 +38,7 @@ export function coinToDenom(coin: Coin) {
   if (coin.denom === "akt") {
     value = parseFloat(coin.amount);
   } else if (coin.denom === uAktDenom || coin.denom === usdcDenom) {
-    value = uaktToAKT(parseFloat(coin.amount));
+    value = uaktToAKT(parseFloat(coin.amount), 6);
   } else {
     throw Error("Unrecognized denom: " + coin.denom);
   }
