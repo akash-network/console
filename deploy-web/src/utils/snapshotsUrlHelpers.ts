@@ -3,45 +3,33 @@ import { ProviderSnapshots, ProviderSnapshotsUrlParam, Snapshots, SnapshotsUrlPa
 export const NOT_FOUND = "NOT_FOUND";
 
 export const urlParamToSnapshot = (snapshotsUrlParam: SnapshotsUrlParam) => {
-  switch (snapshotsUrlParam) {
-    case SnapshotsUrlParam.activeDeployment:
-      return Snapshots.activeLeaseCount;
-    case SnapshotsUrlParam.allTimeDeploymentCount:
-      return Snapshots.totalLeaseCount;
-    case SnapshotsUrlParam.compute:
-      return Snapshots.activeCPU;
-    case SnapshotsUrlParam.graphics:
-      return Snapshots.activeGPU;
-    case SnapshotsUrlParam.memory:
-      return Snapshots.activeMemory;
-    case SnapshotsUrlParam.storage:
-      return Snapshots.activeStorage;
-    case SnapshotsUrlParam.totalAKTSpent:
-      return Snapshots.totalUAktSpent;
-    case SnapshotsUrlParam.dailyAktSpent:
-      return Snapshots.dailyUAktSpent;
-    case SnapshotsUrlParam.dailyDeploymentCount:
-      return Snapshots.dailyLeaseCount;
+  const snapshotUrlMapping = {
+    [SnapshotsUrlParam.activeDeployment]: Snapshots.activeLeaseCount,
+    [SnapshotsUrlParam.allTimeDeploymentCount]: Snapshots.totalLeaseCount,
+    [SnapshotsUrlParam.compute]: Snapshots.activeCPU,
+    [SnapshotsUrlParam.graphics]: Snapshots.activeGPU,
+    [SnapshotsUrlParam.memory]: Snapshots.activeMemory,
+    [SnapshotsUrlParam.storage]: Snapshots.activeStorage,
+    [SnapshotsUrlParam.totalAKTSpent]: Snapshots.totalUAktSpent,
+    [SnapshotsUrlParam.totalUSDCSpent]: Snapshots.totalUUsdcSpent,
+    [SnapshotsUrlParam.totalUSDSpent]: Snapshots.totalUUsdSpent,
+    [SnapshotsUrlParam.dailyAktSpent]: Snapshots.dailyUAktSpent,
+    [SnapshotsUrlParam.dailyUsdcSpent]: Snapshots.dailyUUsdcSpent,
+    [SnapshotsUrlParam.dailyUsdSpent]: Snapshots.dailyUUsdSpent,
+    [SnapshotsUrlParam.dailyDeploymentCount]: Snapshots.dailyLeaseCount
+  };
 
-    default:
-      return NOT_FOUND;
-  }
+  return snapshotUrlMapping[snapshotsUrlParam] ?? NOT_FOUND;
 };
 
 export const urlParamToProviderSnapshot = (snapshotsUrlParam: ProviderSnapshotsUrlParam) => {
-  switch (snapshotsUrlParam) {
-    case ProviderSnapshotsUrlParam.count:
-      return ProviderSnapshots.count;
-    case ProviderSnapshotsUrlParam.cpu:
-      return ProviderSnapshots.cpu;
-    case ProviderSnapshotsUrlParam.gpu:
-      return ProviderSnapshots.gpu;
-    case ProviderSnapshotsUrlParam.memory:
-      return ProviderSnapshots.memory;
-    case ProviderSnapshotsUrlParam.storage:
-      return ProviderSnapshots.storage;
+  const snapshotUrlMapping = {
+    [ProviderSnapshotsUrlParam.count]: ProviderSnapshots.count,
+    [ProviderSnapshotsUrlParam.cpu]: ProviderSnapshots.cpu,
+    [ProviderSnapshotsUrlParam.gpu]: ProviderSnapshots.gpu,
+    [ProviderSnapshotsUrlParam.memory]: ProviderSnapshots.memory,
+    [ProviderSnapshotsUrlParam.storage]: ProviderSnapshots.storage
+  };
 
-    default:
-      return NOT_FOUND;
-  }
+  return snapshotUrlMapping[snapshotsUrlParam] ?? NOT_FOUND;
 };

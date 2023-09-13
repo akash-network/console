@@ -7,9 +7,10 @@ import { IGenesis, IGenesisValidator, IGentxCreateValidator } from "@src/chain/g
 import { pubkeyToRawAddress } from "@src/shared/utils/addresses";
 import { sequelize } from "@src/db/dbConnection";
 import { activeChain } from "@shared/chainDefinitions";
+import { Transaction as DbTransaction } from "sequelize";
 
 export class ValidatorIndexer extends Indexer {
-  msgHandlers: { [key: string]: (msgSubmitProposal: any, height: number, blockGroupTransaction, msg: Message) => Promise<void> };
+  msgHandlers: { [key: string]: (msgSubmitProposal: any, height: number, blockGroupTransaction: DbTransaction, msg: Message) => Promise<void> };
 
   constructor() {
     super();
@@ -52,7 +53,7 @@ export class ValidatorIndexer extends Indexer {
       }
     });
   }
-  private async createValidatorFromGentx(validator: IGentxCreateValidator, dbTransaction) {
+  private async createValidatorFromGentx(validator: IGentxCreateValidator, dbTransaction: DbTransaction) {
     await Validator.create(
       {
         operatorAddress: validator.validator_address,
@@ -72,7 +73,7 @@ export class ValidatorIndexer extends Indexer {
     );
   }
 
-  private async createValidatorFromGenesis(validator: IGenesisValidator, dbTransaction) {
+  private async createValidatorFromGenesis(validator: IGenesisValidator, dbTransaction: DbTransaction) {
     await Validator.create(
       {
         operatorAddress: validator.operator_address,
@@ -92,7 +93,7 @@ export class ValidatorIndexer extends Indexer {
     );
   }
 
-  private async handleCreateValidator(decodedMessage: MsgCreateValidator, height: number, dbTransaction, msg: Message) {
+  private async handleCreateValidator(decodedMessage: MsgCreateValidator, height: number, dbTransaction: DbTransaction, msg: Message) {
     const validatorInfo = {
       operatorAddress: decodedMessage.validatorAddress,
       accountAddress: decodedMessage.delegatorAddress,
@@ -120,7 +121,7 @@ export class ValidatorIndexer extends Indexer {
     }
   }
 
-  private async handleEditValidator(decodedMessage: MsgEditValidator, height: number, dbTransaction, msg: Message) {
+  private async handleEditValidator(decodedMessage: MsgEditValidator, height: number, dbTransaction: DbTransaction, msg: Message) {
     const validator = await Validator.findOne({
       where: {
         operatorAddress: decodedMessage.validatorAddress

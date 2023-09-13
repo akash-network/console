@@ -6,14 +6,16 @@ import { Transaction } from "./transaction";
 import { Message } from "./message";
 import { Required } from "../decorators/requiredDecorator";
 
-@Table({
+export const tableConfig = {
   modelName: "block",
   indexes: [
     { unique: false, fields: ["datetime"] },
     { unique: false, fields: ["dayId"] },
     { unique: false, fields: ["height", "isProcessed"] }
   ]
-})
+};
+
+@Table(tableConfig)
 export class Block extends Model {
   @PrimaryKey @Column height: number;
   @Required @Column datetime: Date;

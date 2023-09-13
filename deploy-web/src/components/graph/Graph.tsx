@@ -1,5 +1,5 @@
 import { Box, Theme, Typography, useMediaQuery, useTheme } from "@mui/material";
-import { LineCanvasProps, ResponsiveLineCanvas } from "@nivo/line";
+import { ResponsiveLineCanvas } from "@nivo/line";
 import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@src/types";
 import { SelectedRange } from "@src/utils/constants";
 import { nFormatter, roundDecimal } from "@src/utils/mathHelpers";

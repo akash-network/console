@@ -1,4 +1,4 @@
-export function pickRandomElement(arr: any[]) {
+export function pickRandomElement<T>(arr: T[]) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 

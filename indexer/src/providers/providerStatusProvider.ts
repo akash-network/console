@@ -121,6 +121,7 @@ export async function syncProvidersInfo() {
         await ProviderSnapshot.create({
           owner: provider.owner,
           isOnline: false,
+          error: err?.message || err,
           checkDate: checkDate
         });
       } finally {

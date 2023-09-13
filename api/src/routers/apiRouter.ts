@@ -271,8 +271,12 @@ apiRouter.get(
     const dataName = req.params.dataName;
     const authorizedDataNames = [
       "dailyUAktSpent",
+      "dailyUUsdcSpent",
+      "dailyUUsdSpent",
       "dailyLeaseCount",
       "totalUAktSpent",
+      "totalUUsdcSpent",
+      "totalUUsdSpent",
       "activeLeaseCount",
       "totalLeaseCount",
       "activeCPU",

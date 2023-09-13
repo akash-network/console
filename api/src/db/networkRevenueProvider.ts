@@ -61,34 +61,41 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
     if (date <= sixtyDaysAgo) {
       sixtyDaysAgoRevenue += b.revenue;
       sixtyDaysAgoRevenueUAkt += b.revenueUAkt;
+      sixtyDaysAgoRevenueUUsdc += b.revenueUUsdc;
     }
     if (date <= thirtyDaysAgo) {
       thirtyDaysAgoRevenue += b.revenue;
       thirtyDaysAgoRevenueUAkt += b.revenueUAkt;
+      thirtyDaysAgoRevenueUUsdc += b.revenueUUsdc;
     }
     if (date <= twoWeeksAgo) {
       twoWeeksAgoRevenue += b.revenue;
       twoWeeksAgoRevenueUAkt += b.revenueUAkt;
+      twoWeeksAgoRevenueUUsdc += b.revenueUUsdc;
     }
     if (date <= oneWeekAgo) {
       oneWeekAgoRevenue += b.revenue;
       oneWeekAgoRevenueUAkt += b.revenueUAkt;
+      oneWeekAgoRevenueUUsdc += b.revenueUUsdc;
     }
     if (date <= twoDaysAgo) {
       twoDaysAgoRevenue += b.revenue;
       twoDaysAgoRevenueUAkt += b.revenueUAkt;
+      twoDaysAgoRevenueUUsdc += b.revenueUUsdc;
     }
     if (date <= oneDayAgo) {
       oneDayAgoRevenue += b.revenue;
       oneDayAgoRevenueUAkt += b.revenueUAkt;
+      oneDayAgoRevenueUUsdc += b.revenueUUsdc;
     }
 
     totalRevenue += b.revenue;
     totalRevenueUAkt += b.revenueUAkt;
+    totalRevenueUUsdc += b.revenueUUsdc;
   }, 0);
 
   if (!debug) {
-    days = days.map(({ dateStr, revenueUAkt, aktPrice, ...others }) => others) as any;
+    days = days.map(({ dateStr, revenueUAkt, revenueUUsdc, aktPrice, ...others }) => others) as any;
   }
 
   let revenueStats = {
@@ -112,7 +119,15 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
       twoWeeksAgAkt: uaktToAKT(twoWeeksAgoRevenueUAkt, 6),
       thirtyDaysAgoAkt: uaktToAKT(thirtyDaysAgoRevenueUAkt, 6),
       sixtyDaysAgoAkt: uaktToAKT(sixtyDaysAgoRevenueUAkt, 6),
-      ninetyDaysAgoAkt: uaktToAKT(ninetyDaysAgoRevenueUAkt, 6)
+      ninetyDaysAgoAkt: uaktToAKT(ninetyDaysAgoRevenueUAkt, 6),
+      nowUsdc: udenomToDenom(totalRevenueUUsdc, 6),
+      oneDayAgoUsdc: udenomToDenom(oneDayAgoRevenueUUsdc, 6),
+      twoDaysAgoUsdc: udenomToDenom(twoDaysAgoRevenueUUsdc, 6),
+      oneWeekAgoUsdc: udenomToDenom(oneWeekAgoRevenueUUsdc, 6),
+      twoWeeksAgUsdc: udenomToDenom(twoWeeksAgoRevenueUUsdc, 6),
+      thirtyDaysAgoUsdc: udenomToDenom(thirtyDaysAgoRevenueUUsdc, 6),
+      sixtyDaysAgoUsdc: udenomToDenom(sixtyDaysAgoRevenueUUsdc, 6),
+      ninetyDaysAgoUsdc: udenomToDenom(ninetyDaysAgoRevenueUUsdc, 6)
     } as any;
   }
 
@@ -124,7 +139,7 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
   return responseObj;
 };
 
-async function getDailyRevenue() {
+export async function getDailyRevenue() {
   const result = await Day.findAll({
     attributes: ["date", "aktPrice"],
     include: [
@@ -164,8 +179,8 @@ async function getDailyRevenue() {
     uakt: x.uakt,
     akt: uaktToAKT(x.uakt, 6),
     uusdc: x.uusdc,
-    usdc: udenomToDenom(x.uusdc),
-    usd: uaktToAKT(x.uakt, 6) * x.aktPrice + udenomToDenom(x.uusdc),
+    usdc: udenomToDenom(x.uusdc, 6),
+    usd: uaktToAKT(x.uakt, 6) * x.aktPrice + udenomToDenom(x.uusdc, 6),
     aktPrice: x.aktPrice
   }));
 }
