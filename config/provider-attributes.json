@@ -471,6 +471,41 @@
         "value": true
       },
       {
+        "key": "capabilities/gpu/vendor/nvidia/model/quadro4000",
+        "description": "Nvidia Quadro 4000",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/quadro5000",
+        "description": "Nvidia Quadro 5000",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/quadro6000",
+        "description": "Nvidia Quadro 6000",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/a2000",
+        "description": "Nvidia Quadro A2000",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/a4000",
+        "description": "Nvidia Quadro A4000",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/a5000",
+        "description": "Nvidia Quadro A5000",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/a6000",
+        "description": "Nvidia Quadro A6000",
+        "value": true
+      },
+      {
         "key": "capabilities/gpu/vendor/nvidia/model/3050",
         "description": "Nvidia rtx-3050",
         "value": true
