@@ -14,21 +14,22 @@ export async function getNetworkCapacity() {
       deletedHeight: null
     }
   });
+  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).indexOf(value.hostUri) === index);
 
   const stats = {
-    activeProviderCount: providers.length,
-    activeCPU: providers.map((x) => x.activeCPU).reduce((a, b) => a + b, 0),
-    activeGPU: providers.map((x) => x.activeGPU).reduce((a, b) => a + b, 0),
-    activeMemory: providers.map((x) => x.activeMemory).reduce((a, b) => a + b, 0),
-    activeStorage: providers.map((x) => x.activeStorage).reduce((a, b) => a + b, 0),
-    pendingCPU: providers.map((x) => x.pendingCPU).reduce((a, b) => a + b, 0),
-    pendingGPU: providers.map((x) => x.pendingGPU).reduce((a, b) => a + b, 0),
-    pendingMemory: providers.map((x) => x.pendingMemory).reduce((a, b) => a + b, 0),
-    pendingStorage: providers.map((x) => x.pendingStorage).reduce((a, b) => a + b, 0),
-    availableCPU: providers.map((x) => x.availableCPU).reduce((a, b) => a + b, 0),
-    availableGPU: providers.map((x) => x.availableGPU).reduce((a, b) => a + b, 0),
-    availableMemory: providers.map((x) => x.availableMemory).reduce((a, b) => a + b, 0),
-    availableStorage: providers.map((x) => x.availableStorage).reduce((a, b) => a + b, 0)
+    activeProviderCount: filteredProviders.length,
+    activeCPU: filteredProviders.map((x) => x.activeCPU).reduce((a, b) => a + b, 0),
+    activeGPU: filteredProviders.map((x) => x.activeGPU).reduce((a, b) => a + b, 0),
+    activeMemory: filteredProviders.map((x) => x.activeMemory).reduce((a, b) => a + b, 0),
+    activeStorage: filteredProviders.map((x) => x.activeStorage).reduce((a, b) => a + b, 0),
+    pendingCPU: filteredProviders.map((x) => x.pendingCPU).reduce((a, b) => a + b, 0),
+    pendingGPU: filteredProviders.map((x) => x.pendingGPU).reduce((a, b) => a + b, 0),
+    pendingMemory: filteredProviders.map((x) => x.pendingMemory).reduce((a, b) => a + b, 0),
+    pendingStorage: filteredProviders.map((x) => x.pendingStorage).reduce((a, b) => a + b, 0),
+    availableCPU: filteredProviders.map((x) => x.availableCPU).reduce((a, b) => a + b, 0),
+    availableGPU: filteredProviders.map((x) => x.availableGPU).reduce((a, b) => a + b, 0),
+    availableMemory: filteredProviders.map((x) => x.availableMemory).reduce((a, b) => a + b, 0),
+    availableStorage: filteredProviders.map((x) => x.availableStorage).reduce((a, b) => a + b, 0)
   };
 
   return {
