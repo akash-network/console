@@ -22,6 +22,13 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { useAkashProviders } from "@src/context/AkashProvider";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import yaml from "js-yaml";
+import { DeploymentDto, LeaseDto } from "@src/types/deployment";
+
+type Props = {
+  deployment: DeploymentDto;
+  leases: LeaseDto[];
+  closeManifestEditor: () => void;
+};
 
 export const useStyles = makeStyles()(theme => ({
   title: {
@@ -29,7 +36,7 @@ export const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export function ManifestUpdate({ deployment, leases, closeManifestEditor }) {
+export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, leases, closeManifestEditor }) => {
   const [parsingError, setParsingError] = useState(null);
   const [deploymentVersion, setDeploymentVersion] = useState(null);
   const [editedManifest, setEditedManifest] = useState("");
@@ -128,10 +135,10 @@ export function ManifestUpdate({ deployment, leases, closeManifestEditor }) {
 
       const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, doc, parseInt(deployment.dseq), address); // TODO Flags
       const mani = deploymentData.getManifest(doc, true);
-      
+
       // const sdl = getSdl(doc as any, "beta3");
       // console.log("Sorted Manifest", sdl.manifestSortedJSON());
-      
+
       // If it's actual update, send a transaction, else just send the manifest
       if (Buffer.from(dd.version).toString("base64") !== deployment.version) {
         const message = TransactionMessageData.getUpdateDeploymentMsg(dd);
@@ -273,4 +280,4 @@ export function ManifestUpdate({ deployment, leases, closeManifestEditor }) {
       )}
     </>
   );
-}
+};

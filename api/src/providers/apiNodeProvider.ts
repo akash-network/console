@@ -1,15 +1,14 @@
 import fetch from "node-fetch";
 import { getDeploymentRelatedMessages } from "../db/deploymentProvider";
-import { averageBlockCountInAMonth } from "@src/shared/constants";
-import { getMarketData } from "./marketDataProvider";
-import { coinToAsset } from "@src/shared/utils/coin";
+import { averageBlockCountInAMonth } from "@src/utils/constants";
+import { coinToAsset } from "@src/utils/coin";
 import { getTransactionByAddress } from "@src/db/transactionsProvider";
 import axios from "axios";
 import { Validator } from "@shared/dbSchemas/base";
 import { Op } from "sequelize";
 import { Provider, ProviderAttribute } from "@shared/dbSchemas/akash";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
-import { env } from "@src/shared/utils/env";
+import { env } from "@src/utils/env";
 import { RestDeploymentInfoResponse, RestLeaseListResponse } from "@src/types/rest";
 
 const defaultNodeUrlMapping = {
@@ -349,8 +348,6 @@ export async function getDeployment(owner: string, dseq: string) {
     },
     include: [{ model: ProviderAttribute }]
   });
-
-  const marketData = await cacheResponse(60 * 5, cacheKeys.getMarketData, getMarketData);
   const deploymentDenom = deploymentData.escrow_account.balance.denom;
 
   const leases = leasesData.leases.map((x) => {

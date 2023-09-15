@@ -1,9 +1,11 @@
 import { Provider, ProviderAttribute, ProviderAttributeSignature } from "@shared/dbSchemas/akash";
 import { ProviderSnapshot } from "@shared/dbSchemas/akash/providerSnapshot";
-import { toUTC } from "@src/shared/utils/date";
+import { toUTC } from "@src/utils/date";
 import { add } from "date-fns";
 import { Op } from "sequelize";
 import semver from "semver";
+import { getProviderAttributesSchema } from "./providerAttributesProvider";
+import { mapProviderToList } from "@src/utils/map/provider";
 
 export async function getNetworkCapacity() {
   const providers = await Provider.findAll({
@@ -43,7 +45,6 @@ export async function getProviders() {
 
   const providers = await Provider.findAll({
     where: {
-      isOnline: true,
       deletedHeight: null
     },
     include: [
@@ -69,8 +70,7 @@ export async function getProviders() {
 
   return providers.map((x) => {
     const isValidVersion = x.cosmosSdkVersion ? semver.gte(x.cosmosSdkVersion, "v0.45.9") : false;
-    const name = new URL(x.hostUri).hostname;
-    const uptime7d = x.providerSnapshots.some((ps) => ps.isOnline) ? x.providerSnapshots.filter((ps) => ps.isOnline).length / x.providerSnapshots.length : 0;
+    const name = x.isOnline ? new URL(x.hostUri).hostname : null;
 
     return {
       owner: x.owner,
@@ -113,7 +113,7 @@ export async function getProviders() {
         memory: isValidVersion ? x.availableMemory : 0,
         storage: isValidVersion ? x.availableStorage : 0
       },
-      uptime7d: uptime7d,
+      uptime7d: x.uptime7d,
       uptime: x.providerSnapshots
         .filter((ps) => ps.checkDate > add(nowUtc, { days: -1 }))
         .map((ps) => ({
@@ -121,7 +121,27 @@ export async function getProviders() {
           isOnline: ps.isOnline,
           checkDate: ps.checkDate
         })),
-      isValidVersion
+      isValidVersion,
+      isOnline: x.isOnline
     };
   });
 }
+
+export const getProviderList = async () => {
+  const providers = await Provider.findAll({
+    where: {
+      deletedHeight: null
+    },
+    include: [
+      {
+        model: ProviderAttribute
+      },
+      {
+        model: ProviderAttributeSignature
+      }
+    ]
+  });
+  const providerAttributeSchema = await getProviderAttributesSchema();
+
+  return providers.map((x) => mapProviderToList(x, providerAttributeSchema));
+};

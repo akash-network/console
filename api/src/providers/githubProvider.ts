@@ -1,5 +1,5 @@
 import { Octokit } from "@octokit/rest";
-import { env } from "@src/shared/utils/env";
+import { env } from "@src/utils/env";
 
 export function getOctokit() {
   const githubPAT = env.AkashlyticsGithubPAT;

@@ -2,9 +2,9 @@ import { Registry, isTsProtoGeneratedType, GeneratedType } from "@cosmjs/proto-s
 import { defaultRegistryTypes } from "@cosmjs/stargate";
 import { MsgUnjail } from "cosmjs-types/cosmos/slashing/v1beta1/tx";
 
-import * as v1beta1 from "../../proto/akash/v1beta1";
-import * as v1beta2 from "../../proto/akash/v1beta2";
-import * as v1beta3 from "../../proto/akash/v1beta3";
+import * as v1beta1 from "../proto/akash/v1beta1";
+import * as v1beta2 from "../proto/akash/v1beta2";
+import * as v1beta3 from "../proto/akash/v1beta3";
 
 const akashTypes: ReadonlyArray<[string, GeneratedType]> = [...Object.values(v1beta1), ...Object.values(v1beta2), ...Object.values(v1beta3)].map((x) => [
   "/" + x.$type,
