@@ -471,18 +471,18 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/quadro4000",
-        "description": "Nvidia Quadro 4000",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx4000",
+        "description": "Nvidia Quadro RTX 4000",
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/quadro5000",
-        "description": "Nvidia Quadro 5000",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx5000",
+        "description": "Nvidia Quadro RTX 5000",
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/quadro6000",
-        "description": "Nvidia Quadro 6000",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx6000",
+        "description": "Nvidia Quadro RTX 6000",
         "value": true
       },
       {
