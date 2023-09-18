@@ -1,5 +1,8 @@
 import { Octokit } from "@octokit/rest";
+import { cacheKeys, cacheResponse } from "@src/caching/helpers";
+import { ProviderAttributesSchema } from "@src/types/provider";
 import { env } from "@src/utils/env";
+import axios from "axios";
 
 export function getOctokit() {
   const githubPAT = env.AkashlyticsGithubPAT;
@@ -13,4 +16,24 @@ export function getOctokit() {
     userAgent: "Cloudmos API",
     baseUrl: "https://api.github.com"
   });
+}
+
+export const getProviderAttributesSchema = async (): Promise<ProviderAttributesSchema> => {
+  // Fetching provider attributes schema
+  const response = await cacheResponse(
+    30,
+    cacheKeys.getProviderAttributesSchema,
+    async () => await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/provider-attributes.json")
+  );
+
+  return response.data;
+};
+
+export async function getAuditors() {
+  const response = await cacheResponse(60 * 5, cacheKeys.getAuditors, async () => {
+    const res = await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/auditors.json");
+    return res.data;
+  });
+
+  return response;
 }

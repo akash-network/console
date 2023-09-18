@@ -4,8 +4,8 @@ import { toUTC } from "@src/utils/date";
 import { add } from "date-fns";
 import { Op } from "sequelize";
 import semver from "semver";
-import { getProviderAttributesSchema } from "./providerAttributesProvider";
 import { mapProviderToList } from "@src/utils/map/provider";
+import { getAuditors, getProviderAttributesSchema } from "./githubProvider";
 
 export async function getNetworkCapacity() {
   const providers = await Provider.findAll({
@@ -69,8 +69,9 @@ export async function getProviders() {
       }
     ]
   });
+  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).indexOf(value.hostUri) === index);
 
-  return providers.map((x) => {
+  return filteredProviders.map((x) => {
     const isValidVersion = x.cosmosSdkVersion ? semver.gte(x.cosmosSdkVersion, "v0.45.9") : false;
     const name = x.isOnline ? new URL(x.hostUri).hostname : null;
 
@@ -143,7 +144,11 @@ export const getProviderList = async () => {
       }
     ]
   });
-  const providerAttributeSchema = await getProviderAttributesSchema();
+  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).indexOf(value.hostUri) === index);
+  const providerAttributeSchemaQuery = getProviderAttributesSchema();
+  const auditorsQuery = getAuditors();
 
-  return providers.map((x) => mapProviderToList(x, providerAttributeSchema));
+  const [auditors, providerAttributeSchema] = await Promise.all([auditorsQuery, providerAttributeSchemaQuery]);
+
+  return filteredProviders.map((x) => mapProviderToList(x, providerAttributeSchema, auditors));
 };

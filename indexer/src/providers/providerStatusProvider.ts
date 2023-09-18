@@ -1,6 +1,6 @@
 import https from "https";
 import axios from "axios";
-import { Provider, ProviderAttribute, ProviderAttributeSignature } from "@shared/dbSchemas/akash";
+import { Provider } from "@shared/dbSchemas/akash";
 import { asyncify, eachLimit } from "async";
 import { ProviderSnapshot } from "@src/../../shared/dbSchemas/akash/providerSnapshot";
 import { toUTC } from "@src/shared/utils/date";
@@ -170,88 +170,4 @@ function sumResources(resources) {
         storage: 0
       }
     );
-}
-
-export async function getNetworkCapacity() {
-  const providers = await Provider.findAll({
-    where: {
-      isOnline: true,
-      deletedHeight: null
-    }
-  });
-
-  const stats = {
-    activeProviderCount: providers.length,
-    activeCPU: providers.map((x) => x.activeCPU).reduce((a, b) => a + b, 0),
-    activeGPU: providers.map((x) => x.activeGPU).reduce((a, b) => a + b, 0),
-    activeMemory: providers.map((x) => x.activeMemory).reduce((a, b) => a + b, 0),
-    activeStorage: providers.map((x) => x.activeStorage).reduce((a, b) => a + b, 0),
-    pendingCPU: providers.map((x) => x.pendingCPU).reduce((a, b) => a + b, 0),
-    pendingGPU: providers.map((x) => x.pendingGPU).reduce((a, b) => a + b, 0),
-    pendingMemory: providers.map((x) => x.pendingMemory).reduce((a, b) => a + b, 0),
-    pendingStorage: providers.map((x) => x.pendingStorage).reduce((a, b) => a + b, 0),
-    availableCPU: providers.map((x) => x.availableCPU).reduce((a, b) => a + b, 0),
-    availableGPU: providers.map((x) => x.availableGPU).reduce((a, b) => a + b, 0),
-    availableMemory: providers.map((x) => x.availableMemory).reduce((a, b) => a + b, 0),
-    availableStorage: providers.map((x) => x.availableStorage).reduce((a, b) => a + b, 0)
-  };
-
-  return {
-    ...stats,
-    totalCPU: stats.activeCPU + stats.pendingCPU + stats.availableCPU,
-    totalGPU: stats.activeGPU + stats.pendingGPU + stats.availableGPU,
-    totalMemory: stats.activeMemory + stats.pendingMemory + stats.availableMemory,
-    totalStorage: stats.activeStorage + stats.pendingStorage + stats.availableStorage
-  };
-}
-
-export async function getProviders() {
-  const providers = await Provider.findAll({
-    where: {
-      isOnline: true,
-      deletedHeight: null
-    },
-    include: [
-      {
-        model: ProviderAttribute
-      },
-      {
-        model: ProviderAttributeSignature
-      }
-    ]
-  });
-
-  return providers.map((x) => ({
-    owner: x.owner,
-    hostUri: x.hostUri,
-    createdHeight: x.createdHeight,
-    email: x.email,
-    website: x.website,
-    lastCheckDate: x.lastCheckDate,
-    deploymentCount: x.deploymentCount,
-    leaseCount: x.leaseCount,
-    attributes: x.providerAttributes.map((attr) => ({
-      key: attr.key,
-      value: attr.value,
-      auditedBy: x.providerAttributeSignatures.filter((pas) => pas.key === attr.key && pas.value === attr.value).map((pas) => pas.auditor)
-    })),
-    activeStats: {
-      cpu: x.activeCPU,
-      gpu: x.activeGPU,
-      memory: x.activeMemory,
-      storage: x.activeStorage
-    },
-    pendingStats: {
-      cpu: x.pendingCPU,
-      gpu: x.pendingGPU,
-      memory: x.pendingMemory,
-      storage: x.pendingStorage
-    },
-    availableStats: {
-      cpu: x.availableCPU,
-      gpu: x.availableGPU,
-      memory: x.availableMemory,
-      storage: x.availableStorage
-    }
-  }));
 }

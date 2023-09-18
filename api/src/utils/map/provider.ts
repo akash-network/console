@@ -1,8 +1,8 @@
 import { Provider } from "@shared/dbSchemas/akash";
-import { ProviderAttributesSchema, ProviderList } from "@src/types/provider";
+import { Auditor, ProviderAttributesSchema, ProviderList } from "@src/types/provider";
 import semver from "semver";
 
-export const mapProviderToList = (provider: Provider, providerAttributeSchema: ProviderAttributesSchema): ProviderList => {
+export const mapProviderToList = (provider: Provider, providerAttributeSchema: ProviderAttributesSchema, auditors: Array<Auditor>): ProviderList => {
   const isValidVersion = provider.cosmosSdkVersion ? semver.gte(provider.cosmosSdkVersion, "v0.45.9") : false;
   const name = provider.isOnline ? new URL(provider.hostUri).hostname : null;
 
@@ -47,6 +47,12 @@ export const mapProviderToList = (provider: Provider, providerAttributeSchema: P
     uptime30d: provider.uptime30d,
     isValidVersion,
     isOnline: provider.isOnline,
+    isAudited: provider.providerAttributeSignatures.some((a) => auditors.some((y) => y.address === a.auditor)),
+    attributes: provider.providerAttributes.map((attr) => ({
+      key: attr.key,
+      value: attr.value,
+      auditedBy: provider.providerAttributeSignatures.filter((pas) => pas.key === attr.key && pas.value === attr.value).map((pas) => pas.auditor)
+    })),
 
     // Attributes schema
     host: getProviderAttributeValue("host", provider, providerAttributeSchema),

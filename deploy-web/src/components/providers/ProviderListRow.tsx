@@ -1,6 +1,6 @@
 import { makeStyles } from "tss-react/mui";
 import { Box, TableCell, Typography, useTheme } from "@mui/material";
-import { MergedProvider } from "@src/types/provider";
+import { ClientProviderList } from "@src/types/provider";
 import { CustomTableRow } from "../shared/CustomTable";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { FavoriteButton } from "../shared/FavoriteButton";
@@ -14,6 +14,11 @@ import { useRouter } from "next/router";
 import { UrlService } from "@src/utils/urlUtils";
 import { FormattedNumber } from "react-intl";
 import { Uptime } from "./Uptime";
+import React from "react";
+import { hasSomeParentTheClass } from "@src/utils/domUtils";
+import { cx } from "@emotion/css";
+import CheckIcon from "@mui/icons-material/Check";
+import NotInterestedIcon from "@mui/icons-material/NotInterested";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -29,7 +34,7 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 type Props = {
-  provider: MergedProvider;
+  provider: ClientProviderList;
 };
 
 export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) => {
@@ -38,18 +43,19 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
   const router = useRouter();
   const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
   const isFavorite = favoriteProviders.some(x => provider.owner === x);
-  const activeCPU = provider.isActive ? provider.activeStats.cpu / 1000 : 0;
-  const pendingCPU = provider.isActive ? provider.pendingStats.cpu / 1000 : 0;
-  const totalCPU = provider.isActive ? (provider.availableStats.cpu + provider.pendingStats.cpu + provider.activeStats.cpu) / 1000 : 0;
-  const activeGPU = provider.isActive && provider.activeStats.gpu;
-  const pendingGPU = provider.isActive && provider.pendingStats.gpu;
-  const totalGPU = provider.isActive && provider.availableStats.gpu + provider.pendingStats.gpu + provider.activeStats.gpu;
-  const _activeMemory = provider.isActive ? bytesToShrink(provider.activeStats.memory + provider.pendingStats.memory) : null;
-  const _totalMemory = provider.isActive ? bytesToShrink(provider.availableStats.memory + provider.pendingStats.memory + provider.activeStats.memory) : null;
-  const _activeStorage = provider.isActive ? bytesToShrink(provider.activeStats.storage + provider.pendingStats.storage) : null;
-  const _totalStorage = provider.isActive
+  const activeCPU = provider.isOnline ? provider.activeStats.cpu / 1000 : 0;
+  const pendingCPU = provider.isOnline ? provider.pendingStats.cpu / 1000 : 0;
+  const totalCPU = provider.isOnline ? (provider.availableStats.cpu + provider.pendingStats.cpu + provider.activeStats.cpu) / 1000 : 0;
+  const activeGPU = provider.isOnline && provider.activeStats.gpu;
+  const pendingGPU = provider.isOnline && provider.pendingStats.gpu;
+  const totalGPU = provider.isOnline && provider.availableStats.gpu + provider.pendingStats.gpu + provider.activeStats.gpu;
+  const _activeMemory = provider.isOnline ? bytesToShrink(provider.activeStats.memory + provider.pendingStats.memory) : null;
+  const _totalMemory = provider.isOnline ? bytesToShrink(provider.availableStats.memory + provider.pendingStats.memory + provider.activeStats.memory) : null;
+  const _activeStorage = provider.isOnline ? bytesToShrink(provider.activeStats.storage + provider.pendingStats.storage) : null;
+  const _totalStorage = provider.isOnline
     ? bytesToShrink(provider.availableStats.storage + provider.pendingStats.storage + provider.activeStats.storage)
     : null;
+  const gpuModels = provider.hardwareGpuModels.map(gpu => gpu.substring(gpu.lastIndexOf(" ") + 1, gpu.length)).join(",");
 
   const onStarClick = event => {
     event.preventDefault();
@@ -60,17 +66,19 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
     updateFavoriteProviders(newFavorites);
   };
 
-  const onRowClick = () => {
-    router.push(UrlService.providerDetail(provider.owner));
+  const onRowClick = (event: React.MouseEvent) => {
+    if (hasSomeParentTheClass(event.target as HTMLElement, "provider-list-row")) {
+      router.push(UrlService.providerDetail(provider.owner));
+    }
   };
 
   return (
-    <CustomTableRow className={classes.root} onClick={onRowClick}>
-      {provider.isActive ? (
+    <CustomTableRow className={cx(classes.root, "provider-list-row")} onClick={onRowClick}>
+      {provider.isOnline ? (
         <TableCell>
-          {provider.name?.length > 25 ? (
+          {provider.name?.length > 20 ? (
             <CustomTooltip title={provider.name}>
-              <div>{getSplitText(provider.name, 10, 10)}</div>
+              <div>{getSplitText(provider.name, 4, 13)}</div>
             </CustomTooltip>
           ) : (
             provider.name
@@ -78,12 +86,12 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
         </TableCell>
       ) : (
         <TableCell>
-          {provider.host_uri?.length > 25 ? (
-            <CustomTooltip title={provider.host_uri}>
-              <div>{getSplitText(provider.host_uri, 10, 10)}</div>
+          {provider.hostUri?.length > 20 ? (
+            <CustomTooltip title={provider.hostUri}>
+              <div>{getSplitText(provider.hostUri, 4, 13)}</div>
             </CustomTooltip>
           ) : (
-            provider.host_uri
+            provider.hostUri
           )}
         </TableCell>
       )}
@@ -102,133 +110,123 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
           </CustomTooltip>
         )}
       </TableCell>
-      <TableCell align="center">{provider.isActive && <Uptime value={provider.uptime7d} />}</TableCell>
-      <TableCell align="center">{provider.leaseCount}</TableCell>
-      <TableCell
-        align="center"
-        sx={{ color: provider.userActiveLeases > 0 ? theme.palette.secondary.main : "", fontWeight: provider.userActiveLeases > 0 ? "bold" : "" }}
-      >
-        {provider.userActiveLeases}
-      </TableCell>
-      <TableCell align="center">
-        {provider.isActive && (
-          <CustomTooltip
-            title={
-              <Typography fontSize=".7rem" variant="caption">
-                {Math.round(activeCPU + pendingCPU)}&nbsp;/&nbsp;{Math.round(totalCPU)}&nbsp;CPU
-              </Typography>
-            }
-          >
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <CapacityIcon value={(activeCPU + pendingCPU) / totalCPU} />
-              <Typography variant="caption" color="textSecondary">
-                <FormattedNumber style="percent" maximumFractionDigits={2} value={roundDecimal((activeCPU + pendingCPU) / totalCPU, 2) || 0} />
-              </Typography>
-            </Box>
-          </CustomTooltip>
-        )}
-      </TableCell>
-
-      <TableCell align="center">
-        {provider.isActive && (
-          <CustomTooltip
-            title={
-              <Typography fontSize=".7rem" variant="caption">
-                {Math.round(activeGPU + pendingGPU)}&nbsp;/&nbsp;{Math.round(totalGPU)}&nbsp;GPU
-              </Typography>
-            }
-          >
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <CapacityIcon value={(activeGPU + pendingGPU) / totalGPU} />
-              <Typography variant="caption" color="textSecondary">
-                <FormattedNumber style="percent" maximumFractionDigits={2} value={roundDecimal((activeGPU + pendingGPU) / totalGPU, 2) || 0} />
-              </Typography>
-            </Box>
-          </CustomTooltip>
-        )}
-      </TableCell>
-
-      <TableCell align="center">
-        {provider.isActive && (
-          <CustomTooltip
-            title={
-              <Typography fontSize=".7rem" variant="caption">
-                {`${roundDecimal(_activeMemory.value, 2)} ${_activeMemory.unit}`}&nbsp;/&nbsp;{`${roundDecimal(_totalMemory.value, 2)} ${_totalMemory.unit}`}
-              </Typography>
-            }
-          >
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <CapacityIcon
-                value={
-                  (provider.activeStats.memory + provider.pendingStats.memory) /
-                  (provider.availableStats.memory + provider.pendingStats.memory + provider.activeStats.memory)
-                }
-              />
-              <Typography variant="caption" color="textSecondary">
-                <FormattedNumber
-                  style="percent"
-                  maximumFractionDigits={2}
-                  value={
-                    roundDecimal(
-                      (provider.activeStats.memory + provider.pendingStats.memory) /
-                        (provider.availableStats.memory + provider.pendingStats.memory + provider.activeStats.memory),
-                      2
-                    ) || 0
-                  }
-                />
-              </Typography>
-            </Box>
-          </CustomTooltip>
-        )}
-      </TableCell>
-      <TableCell align="center">
-        {provider.isActive && (
-          <CustomTooltip
-            title={
-              <Typography fontSize=".7rem" variant="caption">
-                {`${roundDecimal(_activeStorage.value, 2)} ${_activeStorage.unit}`}&nbsp;/&nbsp;
-                {`${roundDecimal(_totalStorage.value, 2)} ${_activeStorage.unit}`}
-              </Typography>
-            }
-          >
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <CapacityIcon
-                value={
-                  (provider.activeStats.storage + provider.pendingStats.storage) /
-                  (provider.availableStats.storage + provider.pendingStats.storage + provider.activeStats.storage)
-                }
-              />
-              <Typography variant="caption" color="textSecondary">
-                <FormattedNumber
-                  style="percent"
-                  maximumFractionDigits={2}
-                  value={
-                    roundDecimal(
-                      (provider.activeStats.storage + provider.pendingStats.storage) /
-                        (provider.availableStats.storage + provider.pendingStats.storage + provider.activeStats.storage),
-                      2
-                    ) || 0
-                  }
-                />
-              </Typography>
-            </Box>
-          </CustomTooltip>
-        )}
-      </TableCell>
-      <TableCell align="center">
-        {provider.isAudited ? (
+      <TableCell align="center">{provider.isOnline && <Uptime value={provider.uptime7d} />}</TableCell>
+      <TableCell align="left">
+        <CustomTooltip title={`You have ${provider.userActiveLeases} active lease${provider.userActiveLeases > 1 ? "s" : ""} with this provider.`}>
           <Box>
-            <Typography variant="caption">Yes</Typography>
-            <AuditorButton provider={provider} />
+            {provider.leaseCount}
+            {provider.userActiveLeases > 0 && (
+              <Typography
+                variant="caption"
+                sx={{ color: provider.userActiveLeases > 0 ? theme.palette.secondary.main : "", fontWeight: provider.userActiveLeases > 0 ? "bold" : "" }}
+              >
+                &nbsp;({provider.userActiveLeases})
+              </Typography>
+            )}
           </Box>
-        ) : (
-          <Typography variant="caption">No</Typography>
+        </CustomTooltip>
+      </TableCell>
+      <TableCell align="center">
+        {provider.isOnline && (
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <CapacityIcon value={(activeCPU + pendingCPU) / totalCPU} fontSize="small" />
+            <Typography fontSize=".7rem" variant="caption" color="textSecondary">
+              {Math.round(activeCPU + pendingCPU)}/{Math.round(totalCPU)}
+            </Typography>
+          </Box>
         )}
+      </TableCell>
+
+      <TableCell align="center">
+        {provider.isOnline && (
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <CapacityIcon value={(activeGPU + pendingGPU) / totalGPU} fontSize="small" />
+            <Typography variant="caption" color="textSecondary">
+              {Math.round(activeGPU + pendingGPU)}/{Math.round(totalGPU)}
+            </Typography>
+
+            {gpuModels && (
+              <Typography sx={{ maxWidth: "80px", textAlign: "left", whiteSpace: "break-spaces", marginLeft: ".5rem", fontSize: ".65rem" }} variant="caption">
+                {gpuModels.length > 12 ? (
+                  <CustomTooltip title={gpuModels}>
+                    <span>{getSplitText(gpuModels, 5, 5)}</span>
+                  </CustomTooltip>
+                ) : (
+                  gpuModels
+                )}
+              </Typography>
+            )}
+          </Box>
+        )}
+      </TableCell>
+
+      <TableCell align="center">
+        {provider.isOnline && (
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <CapacityIcon
+              value={
+                (provider.activeStats.memory + provider.pendingStats.memory) /
+                (provider.availableStats.memory + provider.pendingStats.memory + provider.activeStats.memory)
+              }
+              fontSize="small"
+            />
+            <Typography variant="caption" color="textSecondary">
+              <Unit value={roundDecimal(_activeMemory.value, 0)} unit={_activeMemory.unit} />
+              &nbsp;/&nbsp;
+              <Unit value={roundDecimal(_totalMemory.value, 0)} unit={_totalMemory.unit} />
+            </Typography>
+          </Box>
+        )}
+      </TableCell>
+      <TableCell align="center">
+        {provider.isOnline && (
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <CapacityIcon
+              value={
+                (provider.activeStats.storage + provider.pendingStats.storage) /
+                (provider.availableStats.storage + provider.pendingStats.storage + provider.activeStats.storage)
+              }
+            />
+            <Typography variant="caption" color="textSecondary">
+              <Unit value={roundDecimal(_activeStorage.value, 0)} unit={_activeStorage.unit} />
+              &nbsp;/&nbsp;
+              <Unit value={roundDecimal(_totalStorage.value, 0)} unit={_totalStorage.unit} />
+            </Typography>
+          </Box>
+        )}
+      </TableCell>
+      <TableCell align="center">
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          {provider.isAudited ? (
+            <>
+              <CheckIcon color="success" fontSize="small" />
+              <AuditorButton provider={provider} />
+            </>
+          ) : (
+            <>
+              <NotInterestedIcon color="warning" fontSize="small" />
+              <Typography variant="caption" color="textSecondary" sx={{ marginLeft: ".5rem" }}>
+                No
+              </Typography>
+            </>
+          )}
+        </Box>
       </TableCell>
       <TableCell align="center">
         <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
         <Box display="flex" alignItems="center"></Box>
       </TableCell>
     </CustomTableRow>
+  );
+};
+
+const Unit: React.FunctionComponent<{ value: number; unit: string }> = ({ value, unit }) => {
+  return (
+    <Typography variant="caption" color="textSecondary">
+      {value}
+      <Box component="small" sx={{ fontSize: ".6rem" }}>
+        {unit}
+      </Box>
+    </Typography>
   );
 };

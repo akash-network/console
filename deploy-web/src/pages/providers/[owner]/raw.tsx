@@ -21,8 +21,6 @@ const useStyles = makeStyles()(theme => ({}));
 const ProviderRawPage: React.FunctionComponent<Props> = ({ owner }) => {
   const { classes } = useStyles();
   const [provider, setProvider] = useState<Partial<ProviderDetail>>(null);
-  const [filteredLeases, setFilteredLeases] = useState(null);
-  const router = useRouter();
   const { providers, getProviders, isLoadingProviders } = useAkashProviders();
   const { address } = useKeplr();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });

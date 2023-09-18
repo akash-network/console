@@ -20,11 +20,10 @@ import CloseIcon from "@mui/icons-material/Close";
 import { makeStyles } from "tss-react/mui";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { useAkashProviders } from "@src/context/AkashProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import Layout from "@src/components/layout/Layout";
-import { useNetworkCapacity } from "@src/queries/useProvidersQuery";
+import { useNetworkCapacity, useProviderList } from "@src/queries/useProvidersQuery";
 import PageContainer from "@src/components/shared/PageContainer";
 import { ProviderMap } from "@src/components/providers/ProviderMap";
 import { ProviderList } from "@src/components/providers/ProviderList";
@@ -33,6 +32,7 @@ import LaunchIcon from "@mui/icons-material/Launch";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { UrlService } from "@src/utils/urlUtils";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { ClientProviderList } from "@src/types/provider";
 
 const NetworkCapacity = dynamic(() => import("../../components/providers/NetworkCapacity"), {
   ssr: false
@@ -73,14 +73,14 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
   const [isFilteringActive, setIsFilteringActive] = useState(true);
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
   const [isFilteringAudited, setIsFilteringAudited] = useState(false);
-  const [filteredProviders, setFilteredProviders] = useState([]);
+  const [filteredProviders, setFilteredProviders] = useState<Array<ClientProviderList>>([]);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sort, setSort] = useState(1);
   const [search, setSearch] = useState("");
   const { settings } = useSettings();
   const { favoriteProviders } = useLocalNotes();
   const { apiEndpoint } = settings;
-  const { providers, isLoadingProviders, getProviders } = useAkashProviders();
+  const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
   const { data: networkCapacity, isFetching: isLoadingNetworkCapacity } = useNetworkCapacity();
   const start = (page - 1) * rowsPerPage;
@@ -114,7 +114,7 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
       }
 
       if (isFilteringActive) {
-        filteredProviders = filteredProviders.filter(x => x.isActive);
+        filteredProviders = filteredProviders.filter(x => x.isOnline);
       }
 
       if (isFilteringFavorites) {
@@ -198,17 +198,17 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
 
         {providers && providers.length > 0 && (
           <Typography variant="h3" sx={{ fontSize: "1rem", marginBottom: "2rem" }} color="textSecondary">
-            {providers.filter(x => x.isActive).length} active providers on {selectedNetwork.title}
+            {providers.filter(x => x.isOnline).length} active providers on {selectedNetwork.title}
           </Typography>
         )}
 
-        {isLoadingProviders && (
+        {!providers && isLoadingProviders && (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "4rem 0" }}>
             <CircularProgress size="4rem" color="secondary" />
           </Box>
         )}
 
-        {providers && !isLoadingProviders && (
+        {providers && (
           <Box sx={{ maxWidth: "800px", margin: "0 auto" }}>
             <ProviderMap providers={providers} />
           </Box>
@@ -348,8 +348,8 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
                       <MenuItem value={10}>
                         <Typography variant="caption">10</Typography>
                       </MenuItem>
-                      <MenuItem value={25}>
-                        <Typography variant="caption">25</Typography>
+                      <MenuItem value={20}>
+                        <Typography variant="caption">20</Typography>
                       </MenuItem>
                       <MenuItem value={50}>
                         <Typography variant="caption">50</Typography>

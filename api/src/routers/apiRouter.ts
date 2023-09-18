@@ -19,10 +19,10 @@ import { isValidBech32Address } from "@src/utils/addresses";
 import { getAkashPricing, getAWSPricing, getAzurePricing, getGCPPricing } from "@src/utils/pricing";
 import asyncHandler from "express-async-handler";
 import { ProviderStatsKey } from "@src/types/graph";
-import { getProviderAttributesSchema } from "@src/providers/providerAttributesProvider";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import axios from "axios";
 import { getMarketData } from "@src/providers/marketDataProvider";
+import { getAuditors, getProviderAttributesSchema } from "@src/providers/githubProvider";
 
 export const apiRouter = express.Router();
 
@@ -379,10 +379,7 @@ apiRouter.get(
 apiRouter.get(
   "/getAuditors",
   asyncHandler(async (req, res) => {
-    const response = await cacheResponse(60 * 5, cacheKeys.getAuditors, async () => {
-      const res = await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/auditors.json");
-      return res.data;
-    });
+    const response = await getAuditors();
     res.send(response);
   })
 );

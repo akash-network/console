@@ -18,6 +18,7 @@ import { useProviderStatus } from "@src/queries/useProvidersQuery";
 import { cx } from "@emotion/css";
 import { Uptime } from "../providers/Uptime";
 import { udenomToDenom } from "@src/utils/mathHelpers";
+import { hasSomeParentTheClass } from "@src/utils/domUtils";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -106,14 +107,18 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
     updateFavoriteProviders(newFavorites);
   };
 
-  const onRowClick = () => {
-    if (bid.state === "open" && !disabled && !isSendingManifest) {
+  const onRowClick = (event: React.MouseEvent) => {
+    if (bid.state === "open" && !disabled && !isSendingManifest && hasSomeParentTheClass(event.target as HTMLElement, "bid-list-row")) {
       handleBidSelected(bid);
     }
   };
 
   return (
-    <CustomTableRow key={bid.id} className={cx({ [classes.root]: bid.state === "open", [classes.selectedRow]: isCurrentBid })} onClick={onRowClick}>
+    <CustomTableRow
+      key={bid.id}
+      className={cx({ [classes.root]: bid.state === "open", [classes.selectedRow]: isCurrentBid }, "bid-list-row")}
+      onClick={onRowClick}
+    >
       <TableCell align="center">
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
           <PricePerMonth denom={bid.price.denom} perBlockValue={udenomToDenom(bid.price.amount, 6)} className={classes.pricePerMonth} />

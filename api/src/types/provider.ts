@@ -21,6 +21,7 @@ export interface ProviderList {
   uptime30d: number;
   isValidVersion: boolean;
   isOnline: boolean;
+  isAudited: boolean;
   activeStats: {
     cpu: number;
     gpu: number;
@@ -39,6 +40,11 @@ export interface ProviderList {
     memory: number;
     storage: number;
   };
+  attributes: Array<{
+    key: string;
+    value: string;
+    auditedBy: string[];
+  }>;
 
   // Attributes schema
   host: string;
@@ -69,11 +75,6 @@ export interface ProviderList {
 }
 
 export interface ProviderDetail extends ProviderList {
-  attributes: Array<{
-    key: string;
-    value: string;
-    auditedBy: string[];
-  }>;
   uptime: Array<{
     id: string;
     isOnline: boolean;
@@ -120,3 +121,10 @@ export type ProviderAttributeSchemaDetail = {
 };
 
 export type ProviderAttributeSchemaDetailValue = { key: "string"; description: string; value?: any };
+
+export type Auditor = {
+  id: string;
+  name: string;
+  address: string;
+  website: string;
+};

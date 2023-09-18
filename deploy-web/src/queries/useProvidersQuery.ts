@@ -5,21 +5,21 @@ import { useSettings } from "../context/SettingsProvider";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { getNetworkCapacityDto, providerStatusToDto } from "@src/utils/providerUtils";
 import { PROVIDER_PROXY_URL } from "@src/utils/constants";
-import { RpcProvider } from "@src/types/provider";
+import { ApiProviderList, Auditor, RpcProvider } from "@src/types/provider";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 
-async function getProviderDetail(apiEndpoint: string, owner: string): Promise<RpcProvider> {
-  if (!owner) return {} as RpcProvider;
+// async function getProviderDetail(apiEndpoint: string, owner: string): Promise<RpcProvider> {
+//   if (!owner) return {} as RpcProvider;
 
-  const response = await axios.get(ApiUrlService.providerDetail(apiEndpoint, owner));
+//   const response = await axios.get(ApiUrlService.providerDetail(apiEndpoint, owner));
 
-  return response.data;
-}
+//   return response.data;
+// }
 
-export function useProviderDetail(owner: string, options) {
-  const { settings } = useSettings();
-  return useQuery(QueryKeys.getProviderDetailKey(owner), () => getProviderDetail(settings.apiEndpoint, owner), options);
-}
+// export function useProviderDetail(owner: string, options) {
+//   const { settings } = useSettings();
+//   return useQuery(QueryKeys.getProviderDetailKey(owner), () => getProviderDetail(settings.apiEndpoint, owner), options);
+// }
 
 async function getProviders(apiEndpoint: string): Promise<Array<RpcProvider>> {
   if (apiEndpoint) {
@@ -93,7 +93,7 @@ async function getAuditors() {
 }
 
 export function useAuditors(options = {}) {
-  return useQuery(QueryKeys.getAuditorsKey(), () => getAuditors(), {
+  return useQuery<Array<Auditor>>(QueryKeys.getAuditorsKey(), () => getAuditors(), {
     ...options,
     refetchInterval: false,
     refetchIntervalInBackground: false,
@@ -126,4 +126,14 @@ export function useProviderAttributesSchema(options = {}) {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false
   });
+}
+
+async function getProviderList(): Promise<Array<ApiProviderList>> {
+  const response = await axios.get(ApiUrlService.providerList());
+
+  return response.data;
+}
+
+export function useProviderList(options = {}) {
+  return useQuery(QueryKeys.getProviderListKey(), () => getProviderList(), options);
 }
