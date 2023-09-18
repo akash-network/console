@@ -46,6 +46,7 @@ export async function getProviders() {
 
   const providers = await Provider.findAll({
     where: {
+      isOnline: true,
       deletedHeight: null
     },
     include: [

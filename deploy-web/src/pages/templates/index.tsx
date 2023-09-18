@@ -184,34 +184,36 @@ const TemplateGalleryPage: React.FunctionComponent<Props> = ({}) => {
         </Box>
 
         <Box sx={{ display: "flex" }}>
-          <Box sx={{ width: "222px", marginRight: "3rem", display: { xs: "none", sm: "none", md: "block" } }}>
-            <Typography variant="body1" sx={{ marginBottom: "1rem", fontWeight: "bold" }}>
-              Filter Templates
-            </Typography>
-            {searchBar}
+          {!isLoadingTemplates && templates.length > 0 && (
+            <Box sx={{ width: "222px", marginRight: "3rem", display: { xs: "none", sm: "none", md: "block" } }}>
+              <Typography variant="body1" sx={{ marginBottom: "1rem", fontWeight: "bold" }}>
+                Filter Templates
+              </Typography>
+              {searchBar}
 
-            <List>
-              {templates && (
-                <ListItemButton onClick={() => onCategoryClick(null)} selected={!selectedCategoryTitle} sx={{ padding: "0 1rem" }} dense>
-                  <ListItemText primary={`All (${templates.length - 1})`} />
-                </ListItemButton>
-              )}
-
-              {categories
-                .sort((a, b) => (a.title < b.title ? -1 : 1))
-                .map(category => (
-                  <ListItemButton
-                    key={category.title}
-                    onClick={() => onCategoryClick(category.title)}
-                    selected={category.title === selectedCategoryTitle}
-                    sx={{ padding: "0 1rem" }}
-                    dense
-                  >
-                    <ListItemText primary={`${category.title} (${category.templates.length})`} />
+              <List>
+                {templates && (
+                  <ListItemButton onClick={() => onCategoryClick(null)} selected={!selectedCategoryTitle} sx={{ padding: "0 1rem" }} dense>
+                    <ListItemText primary={`All (${templates.length - 1})`} />
                   </ListItemButton>
-                ))}
-            </List>
-          </Box>
+                )}
+
+                {categories
+                  .sort((a, b) => (a.title < b.title ? -1 : 1))
+                  .map(category => (
+                    <ListItemButton
+                      key={category.title}
+                      onClick={() => onCategoryClick(category.title)}
+                      selected={category.title === selectedCategoryTitle}
+                      sx={{ padding: "0 1rem" }}
+                      dense
+                    >
+                      <ListItemText primary={`${category.title} (${category.templates.length})`} />
+                    </ListItemButton>
+                  ))}
+              </List>
+            </Box>
+          )}
 
           <Box sx={{ flex: "1 1" }}>
             {searchTerms && (
