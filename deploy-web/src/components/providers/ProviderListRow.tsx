@@ -1,5 +1,5 @@
 import { makeStyles } from "tss-react/mui";
-import { Box, TableCell, Typography, useTheme } from "@mui/material";
+import { Box, Chip, TableCell, Typography, useTheme } from "@mui/material";
 import { ClientProviderList } from "@src/types/provider";
 import { CustomTableRow } from "../shared/CustomTable";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
@@ -12,7 +12,6 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import { getSplitText } from "@src/hooks/useShortText";
 import { useRouter } from "next/router";
 import { UrlService } from "@src/utils/urlUtils";
-import { FormattedNumber } from "react-intl";
 import { Uptime } from "./Uptime";
 import React from "react";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
@@ -55,7 +54,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
   const _totalStorage = provider.isOnline
     ? bytesToShrink(provider.availableStats.storage + provider.pendingStats.storage + provider.activeStats.storage)
     : null;
-  const gpuModels = provider.hardwareGpuModels.map(gpu => gpu.substring(gpu.lastIndexOf(" ") + 1, gpu.length)).join(",");
+  const gpuModels = provider.hardwareGpuModels.map(gpu => gpu.substring(gpu.lastIndexOf(" ") + 1, gpu.length));
 
   const onStarClick = event => {
     event.preventDefault();
@@ -126,7 +125,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
           </Box>
         </CustomTooltip>
       </TableCell>
-      <TableCell align="center">
+      <TableCell align="left">
         {provider.isOnline && (
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <CapacityIcon value={(activeCPU + pendingCPU) / totalCPU} fontSize="small" />
@@ -137,30 +136,31 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
         )}
       </TableCell>
 
-      <TableCell align="center">
+      <TableCell align="left">
         {provider.isOnline && (
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <CapacityIcon value={(activeGPU + pendingGPU) / totalGPU} fontSize="small" />
-            <Typography variant="caption" color="textSecondary">
-              {Math.round(activeGPU + pendingGPU)}/{Math.round(totalGPU)}
-            </Typography>
-
-            {gpuModels && (
-              <Typography sx={{ maxWidth: "80px", textAlign: "left", whiteSpace: "break-spaces", marginLeft: ".5rem", fontSize: ".65rem" }} variant="caption">
-                {gpuModels.length > 12 ? (
-                  <CustomTooltip title={gpuModels}>
-                    <span>{getSplitText(gpuModels, 5, 5)}</span>
-                  </CustomTooltip>
-                ) : (
-                  gpuModels
-                )}
+          <>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <CapacityIcon value={(activeGPU + pendingGPU) / totalGPU} fontSize="small" />
+              <Typography variant="caption" color="textSecondary">
+                {Math.round(activeGPU + pendingGPU)}/{Math.round(totalGPU)}
               </Typography>
-            )}
-          </Box>
+            </Box>
+            <Box sx={{ textAlign: "center", marginTop: ".2rem" }}>
+              {gpuModels.map((gpu, i) => (
+                <Chip
+                  key={gpu}
+                  label={gpu}
+                  sx={{ marginRight: i < gpuModels.length ? ".2rem" : 0, height: "16px", fontSize: ".7rem", fontWeight: "bold" }}
+                  color="secondary"
+                  size="small"
+                />
+              ))}
+            </Box>
+          </>
         )}
       </TableCell>
 
-      <TableCell align="center">
+      <TableCell align="left">
         {provider.isOnline && (
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <CapacityIcon
@@ -178,7 +178,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
           </Box>
         )}
       </TableCell>
-      <TableCell align="center">
+      <TableCell align="left">
         {provider.isOnline && (
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <CapacityIcon

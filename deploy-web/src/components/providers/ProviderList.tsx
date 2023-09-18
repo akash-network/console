@@ -14,7 +14,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({ providers }) => {
         <CustomTableHeader>
           <TableRow>
             <TableCell width="10%">Name</TableCell>
-            <TableCell width="5%">Location</TableCell>
+            <TableCell width="10%">Location</TableCell>
             <TableCell width="5%" align="center">
               Uptime (7d)
             </TableCell>
@@ -24,7 +24,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({ providers }) => {
             <TableCell align="center" width="15%">
               CPU
             </TableCell>
-            <TableCell align="center" width="20%">
+            <TableCell align="center" width="15%">
               GPU
             </TableCell>
             <TableCell align="center" width="15%">
