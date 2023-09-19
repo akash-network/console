@@ -258,7 +258,7 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
           <>
             <Box sx={{ margin: "1rem 0" }}>
               <Button
-                onClick={() => window.open("https://akash.praetorapp.com/", "_blank")}
+                onClick={() => window.open("https://docs.akash.network/providers", "_blank")}
                 size="large"
                 color="secondary"
                 variant="contained"
