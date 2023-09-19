@@ -12,17 +12,17 @@ import {
   getValidator,
   getValidators
 } from "@src/providers/apiNodeProvider";
-import { getNetworkCapacity, getProviders } from "@src/providers/providerStatusProvider";
+import { getNetworkCapacity, getProviderList, getProviders } from "@src/providers/providerStatusProvider";
 import { getDashboardData, getGraphData, getProviderActiveLeasesGraphData, getProviderGraphData } from "@src/db/statsProvider";
-import { round } from "@src/shared/utils/math";
-import { isValidBech32Address } from "@src/shared/utils/addresses";
-import { getAkashPricing, getAWSPricing, getAzurePricing, getGCPPricing } from "@src/shared/utils/pricing";
+import { round } from "@src/utils/math";
+import { isValidBech32Address } from "@src/utils/addresses";
+import { getAkashPricing, getAWSPricing, getAzurePricing, getGCPPricing } from "@src/utils/pricing";
 import asyncHandler from "express-async-handler";
 import { ProviderStatsKey } from "@src/types/graph";
-import { getProviderAttributesSchema } from "@src/providers/providerAttributesProvider";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import axios from "axios";
 import { getMarketData } from "@src/providers/marketDataProvider";
+import { getAuditors, getProviderAttributesSchema } from "@src/providers/githubProvider";
 
 export const apiRouter = express.Router();
 
@@ -233,6 +233,14 @@ apiRouter.get(
   })
 );
 
+apiRouter.get(
+  "/providerList",
+  asyncHandler(async (req, res) => {
+    const providers = await getProviderList();
+    res.send(providers);
+  })
+);
+
 apiRouter.get("/marketData", async (req, res) => {
   const response = await cacheResponse(60 * 5, cacheKeys.getMarketData, getMarketData);
   res.send(response);
@@ -371,10 +379,7 @@ apiRouter.get(
 apiRouter.get(
   "/getAuditors",
   asyncHandler(async (req, res) => {
-    const response = await cacheResponse(60 * 5, cacheKeys.getAuditors, async () => {
-      const res = await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/auditors.json");
-      return res.data;
-    });
+    const response = await getAuditors();
     res.send(response);
   })
 );

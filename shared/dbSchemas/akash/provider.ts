@@ -45,6 +45,10 @@ export class Provider extends Model {
   @Column(DataTypes.BIGINT) availableMemory?: number;
   @Column(DataTypes.BIGINT) availableStorage?: number;
 
+  @Column(DataTypes.DOUBLE) uptime1d?: number;
+  @Column(DataTypes.DOUBLE) uptime7d?: number;
+  @Column(DataTypes.DOUBLE) uptime30d?: number;
+
   @HasMany(() => ProviderAttribute, "provider") providerAttributes: ProviderAttribute[];
   @HasMany(() => ProviderAttributeSignature, "provider") providerAttributeSignatures: ProviderAttributeSignature[];
   @HasMany(() => ProviderSnapshot, "owner") providerSnapshots: ProviderSnapshot[];

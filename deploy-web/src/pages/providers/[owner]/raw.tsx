@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { useAkashProviders } from "../../../context/AkashProvider";
-import { makeStyles } from "tss-react/mui";
-import { useRouter } from "next/router";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import Layout from "@src/components/layout/Layout";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
@@ -16,21 +14,15 @@ type Props = {
   owner: string;
 };
 
-const useStyles = makeStyles()(theme => ({}));
-
 const ProviderRawPage: React.FunctionComponent<Props> = ({ owner }) => {
-  const { classes } = useStyles();
   const [provider, setProvider] = useState<Partial<ProviderDetail>>(null);
-  const [filteredLeases, setFilteredLeases] = useState(null);
-  const router = useRouter();
   const { providers, getProviders, isLoadingProviders } = useAkashProviders();
   const { address } = useKeplr();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
   const {
     data: providerStatus,
     isLoading: isLoadingStatus,
-    refetch: getProviderStatus,
-    isError
+    refetch: getProviderStatus
   } = useProviderStatus(provider?.host_uri, {
     enabled: false,
     retry: false,

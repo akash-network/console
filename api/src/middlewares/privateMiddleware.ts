@@ -1,4 +1,4 @@
-import { env } from "@src/shared/utils/env";
+import { env } from "@src/utils/env";
 
 export function privateMiddleware(req, res, next) {
   if (!env.SecretToken) {

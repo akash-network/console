@@ -2,11 +2,11 @@ import fetch from "node-fetch";
 import { markdownToTxt } from "markdown-to-txt";
 import path from "path";
 import { getOctokit } from "./githubProvider";
-import { isUrlAbsolute } from "@src/shared/utils/urls";
+import { isUrlAbsolute } from "@src/utils/urls";
 import * as fs from "fs";
 import { Octokit } from "@octokit/rest";
 import { getLogoFromPath } from "./templateReposLogos";
-import { dataFolderPath } from "@src/shared/constants";
+import { dataFolderPath } from "@src/utils/constants";
 import { GithubChainRegistryAssetListResponse } from "@src/types";
 import { GithubDirectoryItem } from "@src/types/github";
 

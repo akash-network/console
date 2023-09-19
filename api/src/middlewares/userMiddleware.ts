@@ -1,4 +1,4 @@
-import { env } from "@src/shared/utils/env";
+import { env } from "@src/utils/env";
 import { expressjwt as jwt, GetVerificationKey, Request as JWTRequest } from "express-jwt";
 import { expressJwtSecret } from "jwks-rsa";
 

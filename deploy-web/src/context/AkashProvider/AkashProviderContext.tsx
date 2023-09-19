@@ -4,12 +4,12 @@ import {
   useDataNodeProviders as useDataNodeProvidersQuery,
   useProviders as useProvidersQuery
 } from "@src/queries/useProvidersQuery";
-import { MergedProvider } from "@src/types/provider";
+import { Auditor, MergedProvider } from "@src/types/provider";
 import { useSettings } from "../SettingsProvider";
 
 type ContextType = {
   isLoadingAuditors: boolean;
-  auditors: Array<{ id: string; name: string; address: string; website: string }>;
+  auditors: Array<Auditor>;
   providers: Array<MergedProvider>;
   isLoadingProviders: boolean;
   getProviders: () => void;

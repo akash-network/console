@@ -1,6 +1,6 @@
 import { AkashBlock as Block, AkashMessage as Message } from "@shared/dbSchemas/akash";
 import { Transaction, Validator } from "@shared/dbSchemas/base";
-import { averageBlockTime } from "@src/shared/constants";
+import { averageBlockTime } from "@src/utils/constants";
 import { add } from "date-fns";
 
 export async function getBlocks(limit: number) {

@@ -1,5 +1,5 @@
 import humanInterval from "human-interval";
-import { getPrettyTime } from "./shared/utils/date";
+import { getPrettyTime } from "./utils/date";
 import fetch from "node-fetch";
 
 class TaskDef {

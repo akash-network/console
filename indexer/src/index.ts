@@ -18,6 +18,7 @@ import { addressBalanceMonitor, deploymentBalanceMonitor } from "./monitors";
 import { updateProvidersLocation } from "./providers/ipLocationProvider";
 import { sleep } from "./shared/utils/delay";
 import { updateUsdSpending } from "./tasks/usdSpendingTracker";
+import { updateProviderUptime } from "./tasks/providerUptimeTracker";
 
 const app = express();
 
@@ -99,6 +100,7 @@ function startScheduler() {
     scheduler.registerTask("Deployment Balance Monitor", () => deploymentBalanceMonitor.run(), "10 minutes");
     scheduler.registerTask("Provider IP Lookup", () => updateProvidersLocation(), "30 minutes", true);
     scheduler.registerTask("USD Spending Tracker", () => updateUsdSpending(), "1 minute", true);
+    scheduler.registerTask("Update provider uptime", () => updateProviderUptime(), "10 minutes", true);
   }
 
   if (!activeChain.startHeight) {

@@ -2,8 +2,8 @@ import { Op } from "sequelize";
 import { Day } from "@shared/dbSchemas/base";
 import { AkashBlock as Block } from "@shared/dbSchemas/akash";
 import { add } from "date-fns";
-import { getTodayUTC } from "@src/shared/utils/date";
-import { round, uaktToAKT, udenomToDenom } from "@src/shared/utils/math";
+import { getTodayUTC } from "@src/utils/date";
+import { round, uaktToAKT, udenomToDenom } from "@src/utils/math";
 
 export const getWeb3IndexRevenue = async (debug?: boolean) => {
   const dailyNetworkRevenues = await getDailyRevenue();

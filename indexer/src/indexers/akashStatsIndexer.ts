@@ -540,7 +540,12 @@ export class AkashStatsIndexer extends Indexer {
     this.totalLeaseCount++;
   }
 
-  private async handleCloseLease(decodedMessage: v1beta1.MsgCloseLease | v1beta1.MsgCloseLease, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+  private async handleCloseLease(
+    decodedMessage: v1beta1.MsgCloseLease | v1beta1.MsgCloseLease,
+    height: number,
+    blockGroupTransaction: DbTransaction,
+    msg: Message
+  ) {
     const deploymentId = this.getDeploymentIdFromCache(decodedMessage.leaseId.owner, decodedMessage.leaseId.dseq.toString());
 
     if (!deploymentId) {

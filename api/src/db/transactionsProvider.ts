@@ -1,6 +1,6 @@
 import { Transaction, AddressReference } from "@shared/dbSchemas/base";
 import { AkashBlock as Block, AkashMessage as Message } from "@shared/dbSchemas/akash";
-import { msgToJSON } from "@src/shared/utils/protobuf";
+import { msgToJSON } from "@src/utils/protobuf";
 import { QueryTypes } from "sequelize";
 import { chainDb } from "./dbConnection";
 

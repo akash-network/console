@@ -1,4 +1,4 @@
-import { env } from "./utils/env";
+import { env } from "./env";
 
 export const averageBlockTime = 6.174;
 export const averageDaysInMonth = 30.437;

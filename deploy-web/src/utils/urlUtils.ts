@@ -67,7 +67,7 @@ export class UrlService {
     `/deployment/${owner}/${dseq}${appendSearchParams({ network: getSelectedNetworkQueryParam() })}`;
   static templates = (category?: string, search?: string) => `/templates${appendSearchParams({ category, search })}`;
   static templateDetails = (templateId: string) => `/templates/${templateId}`;
-  static providers = () => "/providers";
+  static providers = (sort?: string) => `/providers${appendSearchParams({ sort })}`;
   static providerDetail = (owner: string) => `/providers/${owner}`;
   static providerDetailLeases = (owner: string) => `/providers/${owner}/leases`;
   static providerDetailRaw = (owner: string) => `/providers/${owner}/raw`;

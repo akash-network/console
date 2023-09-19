@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, MouseEvent } from "react";
 import SecurityIcon from "@mui/icons-material/Security";
 import { IconButton } from "@mui/material";
 import { AuditorsModal } from "./AuditorsModal";
-import { MergedProvider, ProviderDetail } from "@src/types/provider";
+import { ClientProviderList, MergedProvider, ProviderDetail } from "@src/types/provider";
 
 type Props = {
-  provider: MergedProvider | Partial<ProviderDetail>;
+  provider: MergedProvider | Partial<ProviderDetail> | ClientProviderList;
 };
 
 export const AuditorButton: React.FunctionComponent<Props> = ({ provider }) => {
@@ -18,9 +18,9 @@ export const AuditorButton: React.FunctionComponent<Props> = ({ provider }) => {
     setIsViewingAuditors(true);
   };
 
-  const onClose = event => {
-    event.preventDefault();
-    event.stopPropagation();
+  const onClose = (event?: MouseEvent) => {
+    event?.preventDefault();
+    event?.stopPropagation();
 
     setIsViewingAuditors(false);
   };
@@ -31,7 +31,7 @@ export const AuditorButton: React.FunctionComponent<Props> = ({ provider }) => {
         <SecurityIcon fontSize="small" color="secondary" />
       </IconButton>
 
-      {isViewingAuditors && <AuditorsModal provider={provider} onClose={onClose} />}
+      {isViewingAuditors && <AuditorsModal attributes={provider.attributes} onClose={onClose} />}
     </>
   );
 };

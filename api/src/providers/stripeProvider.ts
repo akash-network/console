@@ -1,6 +1,6 @@
 import { UserSetting } from "@shared/dbSchemas/user";
 import { PlanCode } from "@shared/plans";
-import { env } from "@src/shared/utils/env";
+import { env } from "@src/utils/env";
 
 import Stripe from "stripe";
 

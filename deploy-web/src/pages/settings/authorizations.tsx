@@ -65,7 +65,7 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
     if (isRefreshing) {
       timeout = setTimeout(() => {
         setIsRefreshing(null);
-      }, averageBlockTime + 1000);
+      }, averageBlockTime * 1000);
     }
 
     return () => {

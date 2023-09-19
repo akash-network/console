@@ -24,7 +24,6 @@ const useStyles = makeStyles()(theme => ({
     pre: {
       // Your code-block styles here
       overflow: "auto",
-      backgroundColor: theme.palette.mode === "dark" ? lighten(theme.palette.primary.main, 0.1) : lighten(theme.palette.primary.main, 0.8),
       borderRadius: ".2rem",
       padding: ".5rem"
     },
@@ -53,7 +52,7 @@ const Markdown: React.FunctionComponent<MarkdownProps> = ({ children }) => {
       className={cx(classes.root, theme.palette.mode === "dark" ? "markdownContainer-dark" : "markdownContainer")}
       linkTarget="_blank"
       remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeHighlight]}
+      rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
     >
       {children as string}
     </ReactMarkdown>
