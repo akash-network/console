@@ -63,7 +63,8 @@ const sortOptions = [
   { id: 1, title: "Active Leases (desc)" },
   { id: 2, title: "Active Leases (asc)" },
   { id: 3, title: "Your Leases (desc)" },
-  { id: 4, title: "Your Active Leases (desc)" }
+  { id: 4, title: "Your Active Leases (desc)" },
+  { id: 5, title: "GPUs Available (desc)" }
 ];
 
 const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
@@ -134,6 +135,10 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
           return b.userLeases - a.userLeases;
         } else if (sort === 4) {
           return b.userActiveLeases - a.userActiveLeases;
+        } else if (sort === 5) {
+          const totalGpuB = b.availableStats.gpu + b.pendingStats.gpu + b.activeStats.gpu;
+          const totalGpuA = a.availableStats.gpu + a.pendingStats.gpu + a.activeStats.gpu;
+          return totalGpuB - totalGpuA;
         } else {
           return 1;
         }
@@ -370,7 +375,7 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
                 </Box>
               </Box>
 
-              <ProviderList providers={currentPageProviders} />
+              <ProviderList providers={currentPageProviders} sortOption={sort} />
 
               {search && currentPageProviders.length === 0 && (
                 <Box padding="1rem">

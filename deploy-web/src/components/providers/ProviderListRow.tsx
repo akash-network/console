@@ -224,6 +224,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
                 (provider.activeStats.storage + provider.pendingStats.storage) /
                 (provider.availableStats.storage + provider.pendingStats.storage + provider.activeStats.storage)
               }
+              fontSize="small"
             />
             <Typography variant="caption" color="textSecondary">
               <Unit value={roundDecimal(_activeStorage.value, 0)} unit={_activeStorage.unit} />

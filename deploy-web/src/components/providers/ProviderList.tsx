@@ -5,9 +5,12 @@ import { ProviderListRow } from "./ProviderListRow";
 
 type Props = {
   providers: Array<ClientProviderList>;
+  sortOption: number;
 };
 
-export const ProviderList: React.FunctionComponent<Props> = ({ providers }) => {
+export const ProviderList: React.FunctionComponent<Props> = ({ providers, sortOption }) => {
+  const isSortingLeases = sortOption === 1 || sortOption === 2 || sortOption === 3 || sortOption === 4;
+
   return (
     <TableContainer>
       <Table size="small">
@@ -18,13 +21,13 @@ export const ProviderList: React.FunctionComponent<Props> = ({ providers }) => {
             <TableCell width="5%" align="center">
               Uptime (7d)
             </TableCell>
-            <TableCell align="left" width="5%">
+            <TableCell align="left" width="5%" sx={{ fontWeight: isSortingLeases ? "bold" : "normal" }}>
               Active Leases
             </TableCell>
             <TableCell align="center" width="15%">
               CPU
             </TableCell>
-            <TableCell align="center" width="15%">
+            <TableCell align="center" width="15%" sx={{ fontWeight: sortOption === 5 ? "bold" : "normal" }}>
               GPU
             </TableCell>
             <TableCell align="center" width="15%">
