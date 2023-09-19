@@ -160,15 +160,16 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
     async () => {
       return (await chainDb.query(
         `SELECT d."date", (SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU")) AS "cpu", (SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU")) AS "gpu", (SUM("activeMemory") + SUM("pendingMemory") + SUM("availableMemory")) AS memory, (SUM("activeStorage") + SUM("pendingStorage") + SUM("availableStorage")) as storage, COUNT(*) as count
-      FROM "day" d
-      INNER JOIN (
-          SELECT DISTINCT ON("owner",DATE("checkDate")) DATE("checkDate") AS date, "activeCPU", "pendingCPU", "availableCPU", "activeGPU", "pendingGPU", "availableGPU", "activeMemory", "pendingMemory", "availableMemory", "activeStorage", "pendingStorage", "availableStorage", "isOnline"
-                      FROM "providerSnapshot"
-                      ORDER BY "owner",DATE("checkDate"),"checkDate" DESC
-          ) "dailyProviderStats"
-      ON d."date"="dailyProviderStats"."date" AND "isOnline" IS TRUE
-      GROUP BY d."date"
-      ORDER BY d."date" ASC`,
+        FROM "day" d
+        INNER JOIN (
+            SELECT DISTINCT ON("hostUri",DATE("checkDate")) DATE("checkDate") AS date, ps."activeCPU", ps."pendingCPU", ps."availableCPU", ps."activeGPU", ps."pendingGPU", ps."availableGPU", ps."activeMemory", ps."pendingMemory", ps."availableMemory", ps."activeStorage", ps."pendingStorage", ps."availableStorage", ps."isOnline"
+                        FROM "providerSnapshot" ps
+                        INNER JOIN "provider" ON "provider"."owner"=ps."owner"
+                        ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
+            ) "dailyProviderStats"
+        ON d."date"="dailyProviderStats"."date" AND "isOnline" IS TRUE
+        GROUP BY d."date"
+        ORDER BY d."date" ASC`,
         {
           type: QueryTypes.SELECT
         }

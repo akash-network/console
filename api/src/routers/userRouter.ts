@@ -10,7 +10,7 @@ import {
   checkUsernameAvailable,
   subscribeToNewsletter
 } from "@src/providers/userDataProvider";
-import { isValidBech32Address } from "@src/shared/utils/addresses";
+import { isValidBech32Address } from "@src/utils/addresses";
 import * as uuid from "uuid";
 import {
   deleteTemplate,

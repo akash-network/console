@@ -120,7 +120,7 @@ export type PopupProps = (MessageProps | ConfirmProps | PromptProps | CustomProm
 
 export interface DialogTitleProps {
   children: React.ReactNode;
-  onClose?: () => void;
+  onClose?: (event: React.MouseEvent | React.TouchEvent) => void;
 }
 
 export const DialogTitle = (props: DialogTitleProps) => {
@@ -167,7 +167,7 @@ export const Popup: React.FC<PopupProps> = props => {
 
   if (props.title) {
     component.push(
-      <DialogTitle key="dialog-title" onClose={() => onClose(null, "action")}>
+      <DialogTitle key="dialog-title" onClose={event => onClose(event, "action")}>
         {props.title}
       </DialogTitle>
     );

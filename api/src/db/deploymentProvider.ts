@@ -1,6 +1,6 @@
 import * as v1 from "@src/proto/akash/v1beta1";
 import * as v2 from "@src/proto/akash/v1beta2";
-import { decodeMsg } from "@src/shared/utils/protobuf";
+import { decodeMsg } from "@src/utils/protobuf";
 import { Transaction } from "@shared/dbSchemas/base";
 import { Deployment } from "@shared/dbSchemas/akash";
 import { Op } from "sequelize";

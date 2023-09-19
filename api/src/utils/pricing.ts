@@ -1,4 +1,4 @@
-import { averageHoursInAMonth } from "../constants";
+import { averageHoursInAMonth } from "./constants";
 
 
 export function getAkashPricing(cpu: number, memory: number, storage: number) {

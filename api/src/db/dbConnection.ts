@@ -1,5 +1,5 @@
 import { defaults as pgDefaults } from "pg";
-import { env } from "@src/shared/utils/env";
+import { env } from "@src/utils/env";
 import { Transaction as DbTransaction } from "sequelize";
 import { Sequelize } from "sequelize-typescript";
 import { chainModels, getChainModels, userModels } from "@shared/dbSchemas";

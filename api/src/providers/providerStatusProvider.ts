@@ -1,9 +1,11 @@
 import { Provider, ProviderAttribute, ProviderAttributeSignature } from "@shared/dbSchemas/akash";
 import { ProviderSnapshot } from "@shared/dbSchemas/akash/providerSnapshot";
-import { toUTC } from "@src/shared/utils/date";
+import { toUTC } from "@src/utils/date";
 import { add } from "date-fns";
 import { Op } from "sequelize";
 import semver from "semver";
+import { mapProviderToList } from "@src/utils/map/provider";
+import { getAuditors, getProviderAttributesSchema } from "./githubProvider";
 
 export async function getNetworkCapacity() {
   const providers = await Provider.findAll({
@@ -12,21 +14,22 @@ export async function getNetworkCapacity() {
       deletedHeight: null
     }
   });
+  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).indexOf(value.hostUri) === index);
 
   const stats = {
-    activeProviderCount: providers.length,
-    activeCPU: providers.map((x) => x.activeCPU).reduce((a, b) => a + b, 0),
-    activeGPU: providers.map((x) => x.activeGPU).reduce((a, b) => a + b, 0),
-    activeMemory: providers.map((x) => x.activeMemory).reduce((a, b) => a + b, 0),
-    activeStorage: providers.map((x) => x.activeStorage).reduce((a, b) => a + b, 0),
-    pendingCPU: providers.map((x) => x.pendingCPU).reduce((a, b) => a + b, 0),
-    pendingGPU: providers.map((x) => x.pendingGPU).reduce((a, b) => a + b, 0),
-    pendingMemory: providers.map((x) => x.pendingMemory).reduce((a, b) => a + b, 0),
-    pendingStorage: providers.map((x) => x.pendingStorage).reduce((a, b) => a + b, 0),
-    availableCPU: providers.map((x) => x.availableCPU).reduce((a, b) => a + b, 0),
-    availableGPU: providers.map((x) => x.availableGPU).reduce((a, b) => a + b, 0),
-    availableMemory: providers.map((x) => x.availableMemory).reduce((a, b) => a + b, 0),
-    availableStorage: providers.map((x) => x.availableStorage).reduce((a, b) => a + b, 0)
+    activeProviderCount: filteredProviders.length,
+    activeCPU: filteredProviders.map((x) => x.activeCPU).reduce((a, b) => a + b, 0),
+    activeGPU: filteredProviders.map((x) => x.activeGPU).reduce((a, b) => a + b, 0),
+    activeMemory: filteredProviders.map((x) => x.activeMemory).reduce((a, b) => a + b, 0),
+    activeStorage: filteredProviders.map((x) => x.activeStorage).reduce((a, b) => a + b, 0),
+    pendingCPU: filteredProviders.map((x) => x.pendingCPU).reduce((a, b) => a + b, 0),
+    pendingGPU: filteredProviders.map((x) => x.pendingGPU).reduce((a, b) => a + b, 0),
+    pendingMemory: filteredProviders.map((x) => x.pendingMemory).reduce((a, b) => a + b, 0),
+    pendingStorage: filteredProviders.map((x) => x.pendingStorage).reduce((a, b) => a + b, 0),
+    availableCPU: filteredProviders.map((x) => x.availableCPU).reduce((a, b) => a + b, 0),
+    availableGPU: filteredProviders.map((x) => x.availableGPU).reduce((a, b) => a + b, 0),
+    availableMemory: filteredProviders.map((x) => x.availableMemory).reduce((a, b) => a + b, 0),
+    availableStorage: filteredProviders.map((x) => x.availableStorage).reduce((a, b) => a + b, 0)
   };
 
   return {
@@ -60,17 +63,17 @@ export async function getProviders() {
         separate: true,
         where: {
           checkDate: {
-            [Op.gte]: add(nowUtc, { days: -7 })
+            [Op.gte]: add(nowUtc, { days: -1 })
           }
         }
       }
     ]
   });
+  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).indexOf(value.hostUri) === index);
 
-  return providers.map((x) => {
+  return filteredProviders.map((x) => {
     const isValidVersion = x.cosmosSdkVersion ? semver.gte(x.cosmosSdkVersion, "v0.45.9") : false;
-    const name = new URL(x.hostUri).hostname;
-    const uptime7d = x.providerSnapshots.some((ps) => ps.isOnline) ? x.providerSnapshots.filter((ps) => ps.isOnline).length / x.providerSnapshots.length : 0;
+    const name = x.isOnline ? new URL(x.hostUri).hostname : null;
 
     return {
       owner: x.owner,
@@ -113,15 +116,37 @@ export async function getProviders() {
         memory: isValidVersion ? x.availableMemory : 0,
         storage: isValidVersion ? x.availableStorage : 0
       },
-      uptime7d: uptime7d,
-      uptime: x.providerSnapshots
-        .filter((ps) => ps.checkDate > add(nowUtc, { days: -1 }))
-        .map((ps) => ({
-          id: ps.id,
-          isOnline: ps.isOnline,
-          checkDate: ps.checkDate
-        })),
-      isValidVersion
+      uptime7d: x.uptime7d,
+      uptime: x.providerSnapshots.map((ps) => ({
+        id: ps.id,
+        isOnline: ps.isOnline,
+        checkDate: ps.checkDate
+      })),
+      isValidVersion,
+      isOnline: x.isOnline
     };
   });
 }
+
+export const getProviderList = async () => {
+  const providers = await Provider.findAll({
+    where: {
+      deletedHeight: null
+    },
+    include: [
+      {
+        model: ProviderAttribute
+      },
+      {
+        model: ProviderAttributeSignature
+      }
+    ]
+  });
+  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).indexOf(value.hostUri) === index);
+  const providerAttributeSchemaQuery = getProviderAttributesSchema();
+  const auditorsQuery = getAuditors();
+
+  const [auditors, providerAttributeSchema] = await Promise.all([auditorsQuery, providerAttributeSchemaQuery]);
+
+  return filteredProviders.map((x) => mapProviderToList(x, providerAttributeSchema, auditors));
+};

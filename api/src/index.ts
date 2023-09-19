@@ -1,15 +1,14 @@
 import express from "express";
 import cors from "cors";
 import packageJson from "../package.json";
-import { isProd } from "./shared/constants";
+import { isProd } from "./utils/constants";
 import * as Sentry from "@sentry/node";
-import * as marketDataProvider from "./providers/marketDataProvider";
 import { Scheduler } from "./scheduler";
 import { apiRouter } from "./routers/apiRouter";
 import { userRouter } from "./routers/userRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
-import { bytesToHumanReadableSize } from "./shared/utils/files";
-import { env } from "./shared/utils/env";
+import { bytesToHumanReadableSize } from "./utils/files";
+import { env } from "./utils/env";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { dashboardRouter } from "./routers/dashboardRouter";
 
