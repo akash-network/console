@@ -1,6 +1,5 @@
 import { Table, TableContainer, TableBody, TableCell, TableRow, TableHead, Chip } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
-import { useAkashProviders } from "../../context/AkashProvider";
 import { Address } from "../shared/Address";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { LinkTo } from "../shared/LinkTo";
