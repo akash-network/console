@@ -6,6 +6,7 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import { LinkTo } from "../shared/LinkTo";
 import { Popup } from "../shared/Popup";
 import { MouseEventHandler } from "react";
+import { useAuditors } from "@src/queries/useProvidersQuery";
 
 const useStyles = makeStyles()(theme => ({
   content: {
@@ -30,7 +31,7 @@ type Props = {
 
 export const AuditorsModal: React.FunctionComponent<Props> = ({ attributes, onClose }) => {
   const { classes } = useStyles();
-  const { auditors } = useAkashProviders();
+  const { data: auditors } = useAuditors();
 
   const onWebsiteClick = (event, website) => {
     event.preventDefault();
