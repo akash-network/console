@@ -5,11 +5,12 @@ import { ProviderListRow } from "./ProviderListRow";
 
 type Props = {
   providers: Array<ClientProviderList>;
-  sortOption: number;
+  sortOption: string;
 };
 
 export const ProviderList: React.FunctionComponent<Props> = ({ providers, sortOption }) => {
-  const isSortingLeases = sortOption === 1 || sortOption === 2 || sortOption === 3 || sortOption === 4;
+  const isSortingLeases =
+    sortOption === "active-leases-desc" || sortOption === "active-leases-asc" || sortOption === "my-leases-desc" || sortOption === "my-active-leases-desc";
 
   return (
     <TableContainer>
@@ -27,7 +28,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({ providers, sortOp
             <TableCell align="center" width="15%">
               CPU
             </TableCell>
-            <TableCell align="center" width="15%" sx={{ fontWeight: sortOption === 5 ? "bold" : "normal" }}>
+            <TableCell align="center" width="15%" sx={{ fontWeight: sortOption === "gpu-available-desc" ? "bold" : "normal" }}>
               GPU
             </TableCell>
             <TableCell align="center" width="15%">

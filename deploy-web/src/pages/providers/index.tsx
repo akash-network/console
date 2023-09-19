@@ -33,6 +33,7 @@ import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { UrlService } from "@src/utils/urlUtils";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { ClientProviderList } from "@src/types/provider";
+import { useRouter } from "next/router";
 
 const NetworkCapacity = dynamic(() => import("../../components/providers/NetworkCapacity"), {
   ssr: false
@@ -60,11 +61,11 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 const sortOptions = [
-  { id: 1, title: "Active Leases (desc)" },
-  { id: 2, title: "Active Leases (asc)" },
-  { id: 3, title: "Your Leases (desc)" },
-  { id: 4, title: "Your Active Leases (desc)" },
-  { id: 5, title: "GPUs Available (desc)" }
+  { id: "active-leases-desc", title: "Active Leases (desc)" },
+  { id: "active-leases-asc", title: "Active Leases (asc)" },
+  { id: "my-leases-desc", title: "Your Leases (desc)" },
+  { id: "my-active-leases-desc", title: "Your Active Leases (desc)" },
+  { id: "gpu-available-desc", title: "GPUs Available (desc)" }
 ];
 
 const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
@@ -76,7 +77,7 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
   const [isFilteringAudited, setIsFilteringAudited] = useState(false);
   const [filteredProviders, setFilteredProviders] = useState<Array<ClientProviderList>>([]);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [sort, setSort] = useState(1);
+  const [sort, setSort] = useState<string>("active-leases-desc");
   const [search, setSearch] = useState("");
   const { settings } = useSettings();
   const { favoriteProviders } = useLocalNotes();
@@ -89,12 +90,22 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
   const currentPageProviders = filteredProviders.slice(start, end);
   const pageCount = Math.ceil(filteredProviders.length / rowsPerPage);
   const selectedNetwork = useSelectedNetwork();
+  const router = useRouter();
 
   useEffect(() => {
     getLeases();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiEndpoint]);
+
+  useEffect(() => {
+    const querySort = router.query.sort as string;
+
+    if (querySort && sortOptions.some(x => x.id === querySort)) {
+      setSort(querySort);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.query]);
 
   useEffect(() => {
     if (providers) {
@@ -127,15 +138,15 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
       }
 
       filteredProviders = filteredProviders.sort((a, b) => {
-        if (sort === 1) {
+        if (sort === "active-leases-desc") {
           return b.leaseCount - a.leaseCount;
-        } else if (sort === 2) {
+        } else if (sort === "active-leases-asc") {
           return a.leaseCount - b.leaseCount;
-        } else if (sort === 3) {
+        } else if (sort === "my-leases-desc") {
           return b.userLeases - a.userLeases;
-        } else if (sort === 4) {
+        } else if (sort === "my-active-leases-desc") {
           return b.userActiveLeases - a.userActiveLeases;
-        } else if (sort === 5) {
+        } else if (sort === "gpu-available-desc") {
           const totalGpuB = b.availableStats.gpu + b.pendingStats.gpu + b.activeStats.gpu;
           const totalGpuA = a.availableStats.gpu + a.pendingStats.gpu + a.activeStats.gpu;
           return totalGpuB - totalGpuA;
@@ -179,7 +190,7 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
   const handleSortChange = event => {
     const value = event.target.value;
 
-    setSort(value);
+    router.replace(UrlService.providers(value));
   };
 
   const handleRowsPerPageChange = event => {
