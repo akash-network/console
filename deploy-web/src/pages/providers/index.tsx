@@ -13,7 +13,8 @@ import {
   InputLabel,
   Pagination,
   CircularProgress,
-  Button
+  Button,
+  useTheme
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import CloseIcon from "@mui/icons-material/Close";
@@ -91,6 +92,7 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
   const pageCount = Math.ceil(filteredProviders.length / rowsPerPage);
   const selectedNetwork = useSelectedNetwork();
   const router = useRouter();
+  const theme = useTheme();
 
   useEffect(() => {
     getLeases();
@@ -214,7 +216,10 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
 
         {providers && providers.length > 0 && (
           <Typography variant="h3" sx={{ fontSize: "1rem", marginBottom: "2rem" }} color="textSecondary">
-            {providers.filter(x => x.isOnline).length} active providers on {selectedNetwork.title}
+            <Box component="span" sx={{ color: theme.palette.secondary.main, fontWeight: "bold", fontSize: "1.25rem" }}>
+              {providers.filter(x => x.isOnline).length}
+            </Box>{" "}
+            active providers on {selectedNetwork.title}
           </Typography>
         )}
 
