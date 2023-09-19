@@ -29,6 +29,14 @@ const useStyles = makeStyles()(theme => ({
     "&:hover": {
       backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[300]
     }
+  },
+  gpuChip: {
+    height: "16px",
+    fontSize: ".6rem",
+    fontWeight: "bold"
+  },
+  gpuChipLabel: {
+    padding: "0 4px"
   }
 }));
 
@@ -138,25 +146,55 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
 
       <TableCell align="left">
         {provider.isOnline && (
-          <>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", width: "65px" }}>
               <CapacityIcon value={(activeGPU + pendingGPU) / totalGPU} fontSize="small" />
               <Typography variant="caption" color="textSecondary">
                 {Math.round(activeGPU + pendingGPU)}/{Math.round(totalGPU)}
               </Typography>
             </Box>
             <Box sx={{ textAlign: "center", marginTop: ".2rem" }}>
-              {gpuModels.map((gpu, i) => (
+              {gpuModels.slice(0, 2).map((gpu, i) => (
                 <Chip
                   key={gpu}
                   label={gpu}
-                  sx={{ marginRight: i < gpuModels.length ? ".2rem" : 0, height: "16px", fontSize: ".7rem", fontWeight: "bold" }}
+                  className={classes.gpuChip}
+                  classes={{ label: classes.gpuChipLabel }}
+                  sx={{ marginRight: i < gpuModels.length ? ".2rem" : 0 }}
                   color="secondary"
                   size="small"
                 />
               ))}
+
+              {gpuModels.length > 2 && (
+                <CustomTooltip
+                  title={
+                    <Box>
+                      {gpuModels.map((gpu, i) => (
+                        <Chip
+                          key={gpu}
+                          label={gpu}
+                          className={classes.gpuChip}
+                          classes={{ label: classes.gpuChipLabel }}
+                          sx={{ marginRight: i < gpuModels.length ? ".2rem" : 0 }}
+                          color="secondary"
+                          size="small"
+                        />
+                      ))}
+                    </Box>
+                  }
+                >
+                  <Chip
+                    label={`+${gpuModels.length - 2}`}
+                    classes={{ label: classes.gpuChipLabel }}
+                    className={classes.gpuChip}
+                    color="secondary"
+                    size="small"
+                  />
+                </CustomTooltip>
+              )}
             </Box>
-          </>
+          </Box>
         )}
       </TableCell>
 
@@ -172,7 +210,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
             />
             <Typography variant="caption" color="textSecondary">
               <Unit value={roundDecimal(_activeMemory.value, 0)} unit={_activeMemory.unit} />
-              &nbsp;/&nbsp;
+              /
               <Unit value={roundDecimal(_totalMemory.value, 0)} unit={_totalMemory.unit} />
             </Typography>
           </Box>
@@ -189,7 +227,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
             />
             <Typography variant="caption" color="textSecondary">
               <Unit value={roundDecimal(_activeStorage.value, 0)} unit={_activeStorage.unit} />
-              &nbsp;/&nbsp;
+              /
               <Unit value={roundDecimal(_totalStorage.value, 0)} unit={_totalStorage.unit} />
             </Typography>
           </Box>
@@ -224,9 +262,11 @@ const Unit: React.FunctionComponent<{ value: number; unit: string }> = ({ value,
   return (
     <Typography variant="caption" color="textSecondary">
       {value}
-      <Box component="small" sx={{ fontSize: ".6rem" }}>
-        {unit}
-      </Box>
+      {value > 0 && (
+        <Box component="small" sx={{ fontSize: ".5rem" }}>
+          {unit}
+        </Box>
+      )}
     </Typography>
   );
 };
