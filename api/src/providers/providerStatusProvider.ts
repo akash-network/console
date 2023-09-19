@@ -63,7 +63,7 @@ export async function getProviders() {
         separate: true,
         where: {
           checkDate: {
-            [Op.gte]: add(nowUtc, { days: -7 })
+            [Op.gte]: add(nowUtc, { days: -1 })
           }
         }
       }
@@ -117,13 +117,11 @@ export async function getProviders() {
         storage: isValidVersion ? x.availableStorage : 0
       },
       uptime7d: x.uptime7d,
-      uptime: x.providerSnapshots
-        .filter((ps) => ps.checkDate > add(nowUtc, { days: -1 }))
-        .map((ps) => ({
-          id: ps.id,
-          isOnline: ps.isOnline,
-          checkDate: ps.checkDate
-        })),
+      uptime: x.providerSnapshots.map((ps) => ({
+        id: ps.id,
+        isOnline: ps.isOnline,
+        checkDate: ps.checkDate
+      })),
       isValidVersion,
       isOnline: x.isOnline
     };

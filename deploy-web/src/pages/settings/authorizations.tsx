@@ -63,10 +63,6 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   useEffect(() => {
     let timeout: NodeJS.Timeout;
     if (isRefreshing) {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-
       timeout = setTimeout(() => {
         setIsRefreshing(null);
       }, averageBlockTime * 1000);

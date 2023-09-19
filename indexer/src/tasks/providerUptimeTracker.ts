@@ -34,12 +34,11 @@ export async function updateProviderUptime() {
   for (const provider of providers) {
     const snapshots1d = provider.providerSnapshots.filter((ps) => ps.checkDate >= add(nowUtc, { days: -1 }));
     const snapshots7d = provider.providerSnapshots.filter((ps) => ps.checkDate >= add(nowUtc, { days: -7 }));
+    const snapshots30d = provider.providerSnapshots;
 
     const uptime1d = snapshots1d.some((ps) => ps.isOnline) ? snapshots1d.filter((ps) => ps.isOnline).length / snapshots1d.length : 0;
     const uptime7d = snapshots7d.some((ps) => ps.isOnline) ? snapshots7d.filter((ps) => ps.isOnline).length / snapshots7d.length : 0;
-    const uptime30d = provider.providerSnapshots.some((ps) => ps.isOnline)
-      ? provider.providerSnapshots.filter((ps) => ps.isOnline).length / provider.providerSnapshots.length
-      : 0;
+    const uptime30d = snapshots30d.some((ps) => ps.isOnline) ? snapshots30d.filter((ps) => ps.isOnline).length / provider.providerSnapshots.length : 0;
 
     provider.uptime1d = uptime1d;
     provider.uptime7d = uptime7d;
