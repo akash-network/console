@@ -2,13 +2,19 @@ import { Chip } from "@mui/material";
 import { useEffect, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { StatusPill } from "../shared/StatusPill";
+import Link from "next/link";
+import { UrlService } from "@src/utils/urlUtils";
+import { LeaseDto } from "@src/types/deployment";
+import { MergedProvider } from "@src/types/provider";
 
 const useStyles = makeStyles()(theme => ({
   leaseChip: {
     height: "auto",
     marginLeft: ".5rem",
     fontSize: ".7rem",
-    padding: "1px"
+    padding: "1px",
+    cursor: "inherit",
+    textDecoration: "inherit"
   },
   chipLabel: {
     dispaly: "flex",
@@ -17,7 +23,12 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const LeaseChip = ({ lease, providers }) => {
+type Props = {
+  lease: LeaseDto;
+  providers: MergedProvider[];
+};
+
+export const LeaseChip: React.FunctionComponent<Props> = ({ lease, providers }) => {
   const { classes } = useStyles();
   const [providerName, setProviderName] = useState(null);
 
@@ -32,13 +43,20 @@ export const LeaseChip = ({ lease, providers }) => {
   }, [providers]);
 
   return (
-    <Chip
-      key={lease.id}
-      size="small"
-      className={classes.leaseChip}
-      classes={{ label: classes.chipLabel }}
-      label={<>{providerName && <strong>{providerName}</strong>}</>}
-      icon={<StatusPill state={lease.state} size="small" />}
-    />
+    <Link
+      href={UrlService.providerDetail(lease.provider)}
+      onClick={event => {
+        event.stopPropagation();
+      }}
+    >
+      <Chip
+        key={lease.id}
+        size="small"
+        className={classes.leaseChip}
+        classes={{ label: classes.chipLabel }}
+        label={<>{providerName && <strong>{providerName}</strong>}</>}
+        icon={<StatusPill state={lease.state} size="small" />}
+      />
+    </Link>
   );
 };

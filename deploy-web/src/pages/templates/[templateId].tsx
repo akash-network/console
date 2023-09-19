@@ -143,12 +143,16 @@ const TemplateDetailPage: React.FunctionComponent<Props> = ({ templateId, templa
         )}
         {activeTab === "SDL" && (
           <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
-            <DynamicMonacoEditor height="100%" language="yaml" value={_template?.deploy} options={{ readOnly: true }} />
+            <PageContainer sx={{ height: "100%" }}>
+              <DynamicMonacoEditor height="100%" language="yaml" value={_template?.deploy} options={{ readOnly: true }} />
+            </PageContainer>
           </ViewPanel>
         )}
         {activeTab === "GUIDE" && (
           <ViewPanel stickToBottom style={{ overflow: "auto", padding: "1rem" }}>
-            <Markdown>{_template?.guide}</Markdown>
+            <PageContainer>
+              <Markdown>{_template?.guide}</Markdown>
+            </PageContainer>
           </ViewPanel>
         )}
       </div>
