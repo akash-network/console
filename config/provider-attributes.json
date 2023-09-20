@@ -723,15 +723,18 @@
     "values": [
       {
         "key": "bladebit",
-        "description": "bladebit"
+        "description": "bladebit",
+        "value": true
       },
       {
         "key": "madmax",
-        "description": "madmax"
+        "description": "madmax",
+        "value": true
       },
       {
         "key": "bladebit-disk",
-        "description": "bladebit-disk"
+        "description": "bladebit-disk",
+        "value": true
       }
     ]
   },
