@@ -1,12 +1,12 @@
 {
   "name": "cloudmos-indexer",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Indexer for any Cosmos based blockchain",
   "author": "Cloudmos",
   "license": "Apache-2.0",
   "main": "server.js",
   "scripts": {
-    "start": "webpack --config webpack.dev.js --watch",
+    "start": "webpack --mode development --config webpack.dev.js --watch",
     "build": "webpack --config webpack.prod.js",
     "test": "jest"
   },
