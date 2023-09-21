@@ -1,10 +1,7 @@
-import { useState, useEffect } from "react";
-import { useAkashProviders } from "../../../context/AkashProvider";
-import { makeStyles } from "tss-react/mui";
+import { useEffect } from "react";
 import Layout from "@src/components/layout/Layout";
 import { NextSeo } from "next-seo";
-import { ProviderDetail } from "@src/types/provider";
-import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
+import { useProviderAttributesSchema, useProviderDetail } from "@src/queries/useProvidersQuery";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import PageContainer from "@src/components/shared/PageContainer";
 import { EditProviderForm } from "@src/components/providers/EditProviderForm";
@@ -17,12 +14,8 @@ type Props = {
   owner: string;
 };
 
-const useStyles = makeStyles()(theme => ({}));
-
 const ProviderEditPage: React.FunctionComponent<Props> = ({ owner }) => {
-  const { classes } = useStyles();
-  const [provider, setProvider] = useState<Partial<ProviderDetail>>(null);
-  const { providers, getProviders, isLoadingProviders } = useAkashProviders();
+  const { data: provider, isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner, { enabled: false });
   const { data: providerAttributesSchema, isFetching: isLoadingSchema } = useProviderAttributesSchema();
 
   useEffect(() => {
@@ -30,22 +23,12 @@ const ProviderEditPage: React.FunctionComponent<Props> = ({ owner }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const providerFromList = providers?.find(d => d.owner === owner);
-
-    if (providerFromList && providerAttributesSchema) {
-      setProvider(providerFromList);
-    } else {
-      // TODO Provider not found handle display
-    }
-  }, [providers, providerAttributesSchema]);
-
   const refresh = () => {
-    getProviders();
+    getProviderDetail();
   };
 
   return (
-    <Layout isLoading={isLoadingSchema || isLoadingProviders}>
+    <Layout isLoading={isLoadingSchema || isLoadingProvider}>
       <NextSeo title={`Edit Provider ${owner}`} />
 
       <PageContainer>
@@ -57,7 +40,7 @@ const ProviderEditPage: React.FunctionComponent<Props> = ({ owner }) => {
               </Button>
 
               <Typography variant="h1" sx={{ fontSize: "1.5rem", marginLeft: "1.5rem" }}>
-                Edit Provider <strong>{getProviderNameFromUri(provider.host_uri)}</strong>
+                Edit Provider <strong>{getProviderNameFromUri(provider.hostUri)}</strong>
               </Typography>
             </Box>
 
@@ -76,7 +59,7 @@ const ProviderEditPage: React.FunctionComponent<Props> = ({ owner }) => {
           </>
         )}
 
-        {(isLoadingSchema || isLoadingProviders) && (
+        {(isLoadingSchema || isLoadingProvider) && (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem" }}>
             <CircularProgress size="4rem" color="secondary" />
           </Box>
