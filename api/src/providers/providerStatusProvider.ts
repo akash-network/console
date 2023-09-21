@@ -6,6 +6,7 @@ import { Op } from "sequelize";
 import semver from "semver";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { getAuditors, getProviderAttributesSchema } from "./githubProvider";
+import { ProviderDetail } from "@src/types/provider";
 
 export async function getNetworkCapacity() {
   const providers = await Provider.findAll({
@@ -149,4 +150,46 @@ export const getProviderList = async () => {
   const [auditors, providerAttributeSchema] = await Promise.all([auditorsQuery, providerAttributeSchemaQuery]);
 
   return filteredProviders.map((x) => mapProviderToList(x, providerAttributeSchema, auditors));
+};
+
+export const getProviderDetail = async (address: string): Promise<ProviderDetail> => {
+  const nowUtc = toUTC(new Date());
+  const provider = await Provider.findOne({
+    where: {
+      deletedHeight: null,
+      owner: address
+    },
+    include: [
+      {
+        model: ProviderAttribute
+      },
+      {
+        model: ProviderAttributeSignature
+      },
+      {
+        model: ProviderSnapshot,
+        attributes: ["isOnline", "id", "checkDate"],
+        required: false,
+        separate: true,
+        where: {
+          checkDate: {
+            [Op.gte]: add(nowUtc, { days: -1 })
+          }
+        }
+      }
+    ]
+  });
+  const providerAttributeSchemaQuery = getProviderAttributesSchema();
+  const auditorsQuery = getAuditors();
+
+  const [auditors, providerAttributeSchema] = await Promise.all([auditorsQuery, providerAttributeSchemaQuery]);
+
+  return {
+    ...mapProviderToList(provider, providerAttributeSchema, auditors),
+    uptime: provider.providerSnapshots.map((ps) => ({
+      id: ps.id,
+      isOnline: ps.isOnline,
+      checkDate: ps.checkDate
+    }))
+  };
 };

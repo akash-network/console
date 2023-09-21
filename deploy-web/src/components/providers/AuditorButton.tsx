@@ -2,10 +2,10 @@ import { useState, MouseEvent } from "react";
 import SecurityIcon from "@mui/icons-material/Security";
 import { IconButton } from "@mui/material";
 import { AuditorsModal } from "./AuditorsModal";
-import { ClientProviderList, MergedProvider, ProviderDetail } from "@src/types/provider";
+import { ClientProviderDetailWithStatus, ClientProviderList, MergedProvider, ProviderDetail } from "@src/types/provider";
 
 type Props = {
-  provider: MergedProvider | Partial<ProviderDetail> | ClientProviderList;
+  provider: MergedProvider | Partial<ProviderDetail> | ClientProviderList | Partial<ClientProviderDetailWithStatus>;
 };
 
 export const AuditorButton: React.FunctionComponent<Props> = ({ provider }) => {

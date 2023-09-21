@@ -280,6 +280,13 @@ export interface ApiProviderDetail extends ApiProviderList {
   }>;
 }
 
+export interface ClientProviderDetail extends ApiProviderDetail {
+  userLeases?: number;
+  userActiveLeases?: number;
+}
+
+export type ClientProviderDetailWithStatus = ClientProviderDetail & ProviderStatusDto;
+
 export type Auditor = {
   id: string;
   name: string;

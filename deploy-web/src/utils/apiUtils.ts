@@ -21,8 +21,8 @@ export class ApiUrlService {
   static providerList() {
     return `${BASE_API_URL}/providerList`;
   }
-  static providerDetail(apiEndpoint: string, owner: string) {
-    return `${apiEndpoint}/akash/provider/${networkVersion}/providers/${owner}`;
+  static providerDetail(owner: string) {
+    return `${BASE_API_URL}/providerDetail/${owner}`;
   }
   static block(apiEndpoint: string, id: string) {
     return `${apiEndpoint}/blocks/${id}`;

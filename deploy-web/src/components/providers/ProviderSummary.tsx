@@ -6,7 +6,7 @@ import { cx } from "@emotion/css";
 import { Address } from "../shared/Address";
 import { StatusPill } from "../shared/StatusPill";
 import { FavoriteButton } from "../shared/FavoriteButton";
-import { MergedProvider, ProviderDetail } from "@src/types/provider";
+import { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
 import { ProviderMap } from "./ProviderMap";
 import { LabelValue } from "../shared/LabelValue";
 import { Uptime } from "./Uptime";
@@ -18,7 +18,7 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 type Props = {
-  provider: Partial<ProviderDetail>;
+  provider: Partial<ClientProviderDetailWithStatus>;
 };
 
 export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) => {
@@ -45,7 +45,7 @@ export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) =>
           }}
         >
           <LabelValue label="Name" value={provider.name} />
-          <LabelValue label="Uri" value={provider.host_uri} />
+          <LabelValue label="Uri" value={provider.hostUri} />
           <LabelValue label="Address" value={<Address address={provider.owner} isCopyable />} />
           <LabelValue label="Region" value={provider.ipRegion && provider.ipCountry && `${provider.ipRegion}, ${provider.ipCountry}`} />
           <LabelValue label="Active leases" value={provider.leaseCount} />
@@ -57,7 +57,7 @@ export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) =>
               </Box>
             }
           />
-          <LabelValue label="Up time (7d)" value={provider.isActive && <Uptime value={provider.uptime7d} />} />
+          <LabelValue label="Up time (7d)" value={provider.isOnline && <Uptime value={provider.uptime7d} />} />
 
           <LabelValue label="Favorite" value={<FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />} />
           <LabelValue
@@ -69,15 +69,15 @@ export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) =>
                   <AuditorButton provider={provider} />
                 </div>
               ) : (
-                "No"
+                <Typography variant="caption">No</Typography>
               )
             }
           />
         </Box>
-        {provider.isActive && (
+        {provider.isOnline && (
           <Box sx={{ flexShrink: 0, flexBasis: { xs: "100%", lg: "45%" }, height: "100%" }}>
             <ProviderMap
-              providers={[provider as MergedProvider]}
+              providers={[provider as ApiProviderList]}
               initialZoom={5}
               initialCoordinates={[parseFloat(provider.ipLon), parseFloat(provider.ipLat)]}
             />

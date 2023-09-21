@@ -1,17 +1,16 @@
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "../shared/ErrorFallback";
-import { Button, Container, IconButton, Tab, Tabs, Typography, useTheme } from "@mui/material";
+import { Button, IconButton, Tab, Tabs, Typography, useTheme } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
-import ViewPanel from "../shared/ViewPanel";
 import { UrlService } from "@src/utils/urlUtils";
 import { useRouter } from "next/router";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import PageContainer from "../shared/PageContainer";
 import { ProviderSummary } from "./ProviderSummary";
-import { ProviderDetail } from "@src/types/provider";
+import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import Link from "next/link";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
@@ -24,7 +23,7 @@ export enum ProviderDetailTabs {
 
 type Props = {
   page: ProviderDetailTabs;
-  provider: Partial<ProviderDetail>;
+  provider: Partial<ClientProviderDetailWithStatus>;
   address: string;
   refresh: () => void;
   children?: ReactNode;

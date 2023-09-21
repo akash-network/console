@@ -10,7 +10,7 @@ import dynamic from "next/dynamic";
 import { makeStyles } from "tss-react/mui";
 import { getSnapshotMetadata } from "@src/utils/providerUtils";
 import { useProviderActiveLeasesGraph } from "@src/queries/useProvidersQuery";
-import { ProviderDetail } from "@src/types/provider";
+import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { TimeRange } from "../shared/TimeRange";
 
 const Graph = dynamic(() => import("../../components/graph/Graph"), {
@@ -63,7 +63,7 @@ export const useStyles = makeStyles()(theme => ({
 }));
 
 interface IProps {
-  provider: Partial<ProviderDetail>;
+  provider: Partial<ClientProviderDetailWithStatus>;
 }
 
 export const ActiveLeasesGraph: React.FunctionComponent<IProps> = ({ provider }) => {
