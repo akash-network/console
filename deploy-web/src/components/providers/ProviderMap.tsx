@@ -1,5 +1,5 @@
 import { makeStyles } from "tss-react/mui";
-import { ApiProviderList, MergedProvider } from "@src/types/provider";
+import { ApiProviderList } from "@src/types/provider";
 import { ComposableMap, Geographies, Geography, Marker, Point, Sphere, ZoomableGroup } from "react-simple-maps";
 import { useMemo, useState } from "react";
 import { Box, Button, IconButton, useTheme } from "@mui/material";

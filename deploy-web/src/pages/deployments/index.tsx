@@ -31,12 +31,11 @@ import { UrlService } from "@src/utils/urlUtils";
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { LinkTo } from "@src/components/shared/LinkTo";
-import LaunchIcon from "@mui/icons-material/Launch";
 import PageContainer from "@src/components/shared/PageContainer";
-import { useAkashProviders } from "@src/context/AkashProvider";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
 import { CustomTableHeader } from "@src/components/shared/CustomTable";
+import { useProviderList } from "@src/queries/useProvidersQuery";
 
 type Props = {};
 
@@ -63,7 +62,7 @@ const useStyles = makeStyles()(theme => ({
 
 const DeploymentsPage: React.FunctionComponent<Props> = ({}) => {
   const { address, signAndBroadcastTx, isWalletLoaded } = useKeplr();
-  const { providers } = useAkashProviders();
+  const { data: providers, isFetching: isLoadingProviders } = useProviderList();
   const { data: deployments, isFetching: isLoadingDeployments, refetch: getDeployments } = useDeploymentList(address, { enabled: false });
   const [page, setPage] = useState(1);
   const { classes } = useStyles();
@@ -154,7 +153,7 @@ const DeploymentsPage: React.FunctionComponent<Props> = ({}) => {
   };
 
   return (
-    <Layout isLoading={isLoadingDeployments} isUsingSettings isUsingWallet>
+    <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings isUsingWallet>
       <NextSeo title="Deployments" />
 
       <PageContainer>

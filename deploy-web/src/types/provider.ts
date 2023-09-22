@@ -78,15 +78,6 @@ export interface ApiProvider {
   isValidVersion: boolean;
 }
 
-export interface MergedProvider extends RpcProvider, ApiProvider {
-  isActive: boolean;
-  isAudited: boolean;
-  userLeases?: number;
-  userActiveLeases?: number;
-}
-
-export interface ProviderDetail extends MergedProvider, ProviderStatusDto {}
-
 export interface ProviderStatus {
   cluster: {
     leases: number;

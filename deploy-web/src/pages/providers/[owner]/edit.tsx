@@ -35,7 +35,7 @@ const ProviderEditPage: React.FunctionComponent<Props> = ({ owner }) => {
         {provider && providerAttributesSchema && (
           <>
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Button component={Link} href={UrlService.providerDetail(provider.owner)} startIcon={<ChevronLeftIcon />}>
+              <Button component={Link} href={UrlService.providerDetail(provider.owner)} replace startIcon={<ChevronLeftIcon />}>
                 Back
               </Button>
 

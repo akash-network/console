@@ -16,7 +16,6 @@ import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { CertificateProvider } from "@src/context/CertificateProvider";
-import { AkashProvider } from "@src/context/AkashProvider";
 import { TemplatesProvider } from "@src/context/TemplatesProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { isProd } from "@src/utils/constants";
@@ -75,16 +74,14 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
                       <SettingsProvider>
                         <KeplrWalletProvider>
                           <CertificateProvider>
-                            <AkashProvider>
-                              <TemplatesProvider>
-                                <LocalNoteProvider>
-                                  <BackgroundTaskProvider>
-                                    {isProd && <GoogleAnalytics />}
-                                    <Component {...pageProps} />
-                                  </BackgroundTaskProvider>
-                                </LocalNoteProvider>
-                              </TemplatesProvider>
-                            </AkashProvider>
+                            <TemplatesProvider>
+                              <LocalNoteProvider>
+                                <BackgroundTaskProvider>
+                                  {isProd && <GoogleAnalytics />}
+                                  <Component {...pageProps} />
+                                </BackgroundTaskProvider>
+                              </LocalNoteProvider>
+                            </TemplatesProvider>
                           </CertificateProvider>
                         </KeplrWalletProvider>
                       </SettingsProvider>

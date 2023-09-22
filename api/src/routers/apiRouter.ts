@@ -236,7 +236,7 @@ apiRouter.get(
 apiRouter.get(
   "/providerList",
   asyncHandler(async (req, res) => {
-    const providers = await getProviderList();
+    const providers = await cacheResponse(60, cacheKeys.getProviderList, getProviderList);
     res.send(providers);
   })
 );

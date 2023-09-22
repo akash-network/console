@@ -20,41 +20,41 @@ export function useProviderDetail(owner: string, options) {
   return useQuery(QueryKeys.getProviderDetailKey(owner), () => getProviderDetail(owner), options);
 }
 
-async function getProviders(apiEndpoint: string): Promise<Array<RpcProvider>> {
-  if (apiEndpoint) {
-    const providers = await loadWithPagination(ApiUrlService.providers(apiEndpoint), "providers", 1000);
+// async function getProviders(apiEndpoint: string): Promise<Array<RpcProvider>> {
+//   if (apiEndpoint) {
+//     const providers = await loadWithPagination(ApiUrlService.providers(apiEndpoint), "providers", 1000);
 
-    return providers;
-  } else {
-    return null;
-  }
-}
+//     return providers;
+//   } else {
+//     return null;
+//   }
+// }
 
-export function useProviders(options = {}) {
-  const { settings } = useSettings();
-  return useQuery(QueryKeys.getProvidersKey(), () => getProviders(settings.apiEndpoint), {
-    ...options,
-    refetchInterval: false,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false
-  });
-}
+// export function useProviders(options = {}) {
+//   const { settings } = useSettings();
+//   return useQuery(QueryKeys.getProvidersKey(), () => getProviders(settings.apiEndpoint), {
+//     ...options,
+//     refetchInterval: false,
+//     refetchIntervalInBackground: false,
+//     refetchOnWindowFocus: false,
+//     refetchOnReconnect: false
+//   });
+// }
 
-async function getDataNodeProviders() {
-  const response = await axios.get(ApiUrlService.apiProviders());
-  return response.data;
-}
+// async function getDataNodeProviders() {
+//   const response = await axios.get(ApiUrlService.apiProviders());
+//   return response.data;
+// }
 
-export function useDataNodeProviders(options) {
-  return useQuery(QueryKeys.getDataNodeProvidersKey(), () => getDataNodeProviders(), {
-    ...options,
-    refetchInterval: 15000,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: false
-  });
-}
+// export function useDataNodeProviders(options) {
+//   return useQuery(QueryKeys.getDataNodeProvidersKey(), () => getDataNodeProviders(), {
+//     ...options,
+//     refetchInterval: 15000,
+//     refetchIntervalInBackground: false,
+//     refetchOnWindowFocus: true,
+//     refetchOnReconnect: false
+//   });
+// }
 
 async function getProviderStatus(providerUri: string) {
   if (!providerUri) return null;
