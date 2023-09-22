@@ -340,6 +340,10 @@
         "description": "Office"
       },
       {
+        "key": "server room",
+        "description": "Server Room"
+      },
+      {
         "key": "mix",
         "description": "Mix of the above"
       }
@@ -503,6 +507,36 @@
       {
         "key": "capabilities/gpu/vendor/nvidia/model/a6000",
         "description": "Nvidia Quadro A6000",
+        "value": true
+      },
+        {
+        "key": "capabilities/gpu/vendor/nvidia/model/4060",
+        "description": "Nvidia rtx-4060",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/4060ti",
+        "description": "Nvidia rtx-4060-ti",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/4070",
+        "description": "Nvidia rtx-4070",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/4070ti",
+        "description": "Nvidia rtx-4070-ti",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/4080",
+        "description": "Nvidia rtx-4080",
+        "value": true
+      },
+      {
+        "key": "capabilities/gpu/vendor/nvidia/model/4090",
+        "description": "Nvidia rtx-4090",
         "value": true
       },
       {
