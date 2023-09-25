@@ -4,7 +4,7 @@ import { capitalizeFirstLetter } from "../stringUtils";
 import yaml from "js-yaml";
 import { CustomValidationError } from "../deploymentData";
 
-export const importSimpleSdl = yamlStr => {
+export const importSimpleSdl = (yamlStr: string) => {
   try {
     const yamlJson = yaml.load(yamlStr) as any;
     const services: ImportService[] = [];
@@ -25,10 +25,15 @@ export const importSimpleSdl = yamlStr => {
       const persistentStorage = storages.find(s => s.attributes?.persistent === true);
       const ephStorage = storages.find(s => !s.attributes);
 
+      debugger;
+
       // TODO validation
       // Service compute profile
       service.profile = {
         cpu: compute.resources.cpu.units,
+        gpu: compute.resources.gpu.units,
+        gpuVendor: getGpuVendor(compute.resources.gpu.attributes.vendor),
+        gpuModels: getGpuModels(compute.resources.gpu.attributes.vendor),
         ram: getResourceDigit(compute.resources.memory.size),
         ramUnit: getResourceUnit(compute.resources.memory.size),
         storage: getResourceDigit(ephStorage.size),
@@ -127,4 +132,17 @@ const getResourceDigit = (size: string): number => {
 
 const getResourceUnit = (size: string): string => {
   return capitalizeFirstLetter(size.match(/[a-zA-Z]+/g)[0]);
+};
+
+const getGpuVendor = (vendorKey: { [key: string]: any }): string => {
+  const vendor = Object.keys(vendorKey)[0];
+
+  // For now only nvidia is supported
+  return vendor || "nvidia";
+};
+
+const getGpuModels = (vendor: { [key: string]: { model: string }[] }): string[] => {
+  const models = vendor.nvidia.map(m => m.model);
+
+  return models;
 };

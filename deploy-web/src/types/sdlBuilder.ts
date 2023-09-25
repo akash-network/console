@@ -24,6 +24,9 @@ export type ImportService = {
 
 export type Profile = {
   cpu: number;
+  gpu: number;
+  gpuVendor: string;
+  gpuModels: string[];
   ram: number;
   ramUnit: string;
   storage: number;
