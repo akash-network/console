@@ -25,7 +25,7 @@ import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { NamedDeploymentDto } from "@src/types/deployment";
-import { MergedProvider } from "@src/types/provider";
+import { ApiProviderList } from "@src/types/provider";
 import { CustomTableRow } from "../shared/CustomTable";
 import { PriceValue } from "../shared/PriceValue";
 import { CustomTooltip } from "../shared/CustomTooltip";
@@ -93,7 +93,7 @@ type Props = {
   isSelectable?: boolean;
   onSelectDeployment?: (isChecked: boolean, dseq: string) => void;
   checked?: boolean;
-  providers: Array<MergedProvider>;
+  providers: Array<ApiProviderList>;
   refreshDeployments: any;
   children?: ReactNode;
 };

@@ -1,6 +1,6 @@
 import { Radio, Box, Chip, TableCell, CircularProgress, Typography } from "@mui/material";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
@@ -13,7 +13,7 @@ import { CustomTableRow } from "../shared/CustomTable";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { getSplitText } from "@src/hooks/useShortText";
 import { BidDto } from "@src/types/deployment";
-import { MergedProvider } from "@src/types/provider";
+import { ApiProviderList } from "@src/types/provider";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
 import { cx } from "@emotion/css";
 import { Uptime } from "../providers/Uptime";
@@ -73,7 +73,7 @@ type Props = {
   selectedBid: BidDto;
   handleBidSelected: (bid: BidDto) => void;
   disabled: boolean;
-  provider: MergedProvider;
+  provider: ApiProviderList;
   isSendingManifest: boolean;
 };
 
@@ -87,7 +87,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
     isLoading: isLoadingStatus,
     refetch: fetchProviderStatus,
     error
-  } = useProviderStatus(provider?.host_uri, {
+  } = useProviderStatus(provider?.hostUri, {
     enabled: false,
     retry: false
   });
@@ -159,8 +159,8 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
           </Link>
         ) : (
           <div>
-            <CustomTooltip title={provider.host_uri}>
-              <div>{getSplitText(provider.host_uri, 15, 15)}</div>
+            <CustomTooltip title={provider.hostUri}>
+              <div>{getSplitText(provider.hostUri, 15, 15)}</div>
             </CustomTooltip>
           </div>
         )}

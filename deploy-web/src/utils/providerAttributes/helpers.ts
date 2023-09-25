@@ -1,4 +1,3 @@
-import { ProviderDetail } from "@src/types/provider";
 import {
   ProviderAttributeSchemaDetail,
   ProviderAttributeSchemaDetailValue,
@@ -79,38 +78,4 @@ export const getUnknownAttributes = (attributes: { key: string; value: string }[
   const res = attributes.filter(x => !possibleAttributes.includes(x.key)).map(x => ({ id: nanoid(), key: x.key, value: x.value }));
 
   return res;
-};
-
-export const getProviderAttributeValue = (
-  key: keyof ProviderAttributesSchema,
-  provider: Partial<ProviderDetail>,
-  providerAttributeSchema: ProviderAttributesSchema
-): string => {
-  const _key = providerAttributeSchema[key].key;
-  const possibleValues = providerAttributeSchema[key].values;
-  let values = null;
-
-  switch (providerAttributeSchema[key].type) {
-    case "string":
-    case "number":
-    case "boolean":
-      values = provider.attributes.filter(x => x.key === _key).map(x => x.value);
-      break;
-    case "option":
-      values = provider.attributes
-        .filter(x => x.key === _key)
-        .map(x => possibleValues?.find(v => v.key === x.value)?.description)
-        .filter(x => x);
-      break;
-    case "multiple-option":
-      values = possibleValues
-        .filter(x => provider.attributes.some(at => at.key === x.key))
-        .map(x => x.description)
-        .filter(x => x);
-      break;
-    default:
-      break;
-  }
-
-  return values?.join(",") || null;
 };

@@ -1,7 +1,7 @@
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useThrottledCallback } from "@src/hooks/useThrottle";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
-import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { MemoMonaco } from "../shared/MemoMonaco";
 import { Alert, Box, Button, Checkbox, CircularProgress, FormControlLabel, IconButton, Menu, MenuItem, useMediaQuery, useTheme } from "@mui/material";
@@ -15,10 +15,10 @@ import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { LeaseDto } from "@src/types/deployment";
-import { useAkashProviders } from "@src/context/AkashProvider";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { CustomMenuItem } from "../shared/CustomMenuItem";
 import DownloadIcon from "@mui/icons-material/Download";
+import { useProviderList } from "@src/queries/useProvidersQuery";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -52,7 +52,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   const [stickToBottom, setStickToBottom] = useState(true);
   const [selectedLease, setSelectedLease] = useState(null);
   const { classes } = useStyles();
-  const { providers } = useAkashProviders();
+  const { data: providers } = useProviderList();
   const { localCert, isLocalCertMatching, isCreatingCert, createCertificate } = useCertificate();
   const { downloadLogs } = useBackgroundTask();
   const monacoEditorRef = useRef(null);
@@ -62,7 +62,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     data: leaseStatus,
     refetch: getLeaseStatus,
     isFetching: isLoadingStatus
-  } = useLeaseStatus(providerInfo?.host_uri, selectedLease || {}, {
+  } = useLeaseStatus(providerInfo?.hostUri, selectedLease || {}, {
     enabled: false
   });
   const { sendJsonMessage } = useWebSocket(PROVIDER_PROXY_URL_WS, {
@@ -140,13 +140,13 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
 
     let url = null;
     if (selectedLogsMode === "logs") {
-      url = `${providerInfo.host_uri}/lease/${selectedLease.dseq}/${selectedLease.gseq}/${selectedLease.oseq}/logs?follow=true&tail=100`;
+      url = `${providerInfo.hostUri}/lease/${selectedLease.dseq}/${selectedLease.gseq}/${selectedLease.oseq}/logs?follow=true&tail=100`;
 
       if (selectedServices.length < services.length) {
         url += "&service=" + selectedServices.join(",");
       }
     } else {
-      url = `${providerInfo.host_uri}/lease/${selectedLease.dseq}/${selectedLease.gseq}/${selectedLease.oseq}/kubeevents?follow=true`;
+      url = `${providerInfo.hostUri}/lease/${selectedLease.dseq}/${selectedLease.gseq}/${selectedLease.oseq}/kubeevents?follow=true`;
     }
 
     setIsLoadingLogs(true);
@@ -238,7 +238,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     if (!isDownloadingLogs) {
       setIsDownloadingLogs(true);
       const isLogs = selectedLogsMode === "logs";
-      await downloadLogs(providerInfo.host_uri, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, isLogs);
+      await downloadLogs(providerInfo.hostUri, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, isLogs);
 
       event(AnalyticsEvents.DOWNLOADED_LOGS, {
         category: "deployments",

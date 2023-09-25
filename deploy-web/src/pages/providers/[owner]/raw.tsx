@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { useAkashProviders } from "../../../context/AkashProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import Layout from "@src/components/layout/Layout";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
-import { ProviderDetail } from "@src/types/provider";
-import { useProviderStatus } from "@src/queries/useProvidersQuery";
+import { ClientProviderDetailWithStatus } from "@src/types/provider";
+import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
 import ProviderDetailLayout, { ProviderDetailTabs } from "@src/components/providers/ProviderDetailLayout";
 import { DynamicReactJson } from "@src/components/shared/DynamicJsonView";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
@@ -15,15 +14,21 @@ type Props = {
 };
 
 const ProviderRawPage: React.FunctionComponent<Props> = ({ owner }) => {
-  const [provider, setProvider] = useState<Partial<ProviderDetail>>(null);
-  const { providers, getProviders, isLoadingProviders } = useAkashProviders();
+  const [provider, setProvider] = useState<Partial<ClientProviderDetailWithStatus>>(null);
+  const { isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner, {
+    enabled: false,
+    retry: false,
+    onSuccess: _providerDetail => {
+      setProvider(provider => (provider ? { ...provider, ..._providerDetail } : _providerDetail));
+    }
+  });
   const { address } = useKeplr();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
   const {
     data: providerStatus,
     isLoading: isLoadingStatus,
     refetch: getProviderStatus
-  } = useProviderStatus(provider?.host_uri, {
+  } = useProviderStatus(provider?.hostUri, {
     enabled: false,
     retry: false,
     onSuccess: _providerStatus => {
@@ -37,26 +42,22 @@ const ProviderRawPage: React.FunctionComponent<Props> = ({ owner }) => {
   }, []);
 
   useEffect(() => {
-    const providerFromList = providers?.find(d => d.owner === owner);
+    if (leases) {
+      const numberOfDeployments = leases?.filter(d => d.provider === owner).length || 0;
+      const numberOfActiveLeases = leases?.filter(d => d.provider === owner && d.state === "active").length || 0;
 
-    if (providerFromList) {
-      const numberOfDeployments = leases?.filter(d => d.provider === providerFromList.owner).length || 0;
-      const numberOfActiveLeases = leases?.filter(d => d.provider === providerFromList.owner && d.state === "active").length || 0;
-
-      setProvider({ ...providerFromList, userLeases: numberOfDeployments, userActiveLeases: numberOfActiveLeases });
-    } else {
-      // TODO Provider not found handle display
+      setProvider(provider => ({ ...provider, userLeases: numberOfDeployments, userActiveLeases: numberOfActiveLeases }));
     }
-  }, [leases, providers]);
+  }, [leases]);
 
   const refresh = () => {
-    getProviders();
+    getProviderDetail();
     getLeases();
     getProviderStatus();
   };
 
   return (
-    <Layout isLoading={isLoadingLeases || isLoadingProviders || isLoadingStatus}>
+    <Layout isLoading={isLoadingLeases || isLoadingProvider || isLoadingStatus}>
       <CustomNextSeo title={`Provider raw data for ${owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetailRaw(owner)}`} />
 
       <ProviderDetailLayout address={owner} page={ProviderDetailTabs.RAW} refresh={refresh} provider={provider}>

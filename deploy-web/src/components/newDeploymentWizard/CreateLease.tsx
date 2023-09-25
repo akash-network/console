@@ -15,7 +15,6 @@ import {
 } from "@mui/material";
 import { BidGroup } from "./BidGroup";
 import { useCertificate } from "../../context/CertificateProvider";
-import { useAkashProviders } from "../../context/AkashProvider";
 import { useSnackbar } from "notistack";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import CloseIcon from "@mui/icons-material/Close";
@@ -43,6 +42,7 @@ import { BidDto } from "@src/types/deployment";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { RouteStepKeys } from "@src/utils/constants";
+import { useProviderList } from "@src/queries/useProvidersQuery";
 
 const yaml = require("js-yaml");
 
@@ -89,7 +89,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const { classes } = useStyles();
   const [numberOfRequests, setNumberOfRequests] = useState(0);
-  const { providers } = useAkashProviders();
+  const { data: providers } = useProviderList();
   const warningRequestsReached = numberOfRequests > WARNING_NUM_OF_BID_REQUESTS;
   const maxRequestsReached = numberOfRequests > MAX_NUM_OF_BID_REQUESTS;
   const { favoriteProviders } = useLocalNotes();
@@ -134,7 +134,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
             }
           });
 
-          if (!isAdded && provider.host_uri.includes(search)) {
+          if (!isAdded && provider.hostUri.includes(search)) {
             fBids.push(bid.id);
           }
         }

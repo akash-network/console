@@ -7,8 +7,8 @@ import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploym
 import { LabelValueOld } from "../shared/LabelValueOld";
 import { SpecDetail } from "../shared/SpecDetail";
 import { CustomTableHeader } from "../shared/CustomTable";
-import { BidDto, DeploymentDto, RpcBid } from "@src/types/deployment";
-import { MergedProvider } from "@src/types/provider";
+import { BidDto, DeploymentDto } from "@src/types/deployment";
+import { ApiProviderList } from "@src/types/provider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { mainnetId } from "@src/utils/constants";
 
@@ -64,7 +64,7 @@ type Props = {
   selectedBid: BidDto;
   handleBidSelected: (bid: BidDto) => void;
   disabled: boolean;
-  providers: MergedProvider[];
+  providers: ApiProviderList[];
   filteredBids: string[];
   deploymentDetail: DeploymentDto;
   isFilteringFavorites: boolean;

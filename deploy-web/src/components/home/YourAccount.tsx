@@ -17,7 +17,7 @@ import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { ConnectWallet } from "../shared/ConnectWallet";
 import { Balances } from "@src/types";
-import { RpcProvider } from "@src/types/provider";
+import { ApiProviderList } from "@src/types/provider";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
 import { usePricing } from "@src/context/PricingProvider";
@@ -59,7 +59,7 @@ type Props = {
   isLoadingBalances: boolean;
   activeDeployments: Array<DeploymentDto>;
   leases: Array<LeaseDto>;
-  providers: Array<RpcProvider>;
+  providers: Array<ApiProviderList>;
 };
 
 export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadingBalances, activeDeployments, leases, providers }) => {
@@ -166,8 +166,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
         .filter((value, index, array) => array.indexOf(value) === index)
         .map(x => {
           const provider = providers.find(p => p.owner === x);
-          const providerUri = new URL(provider?.host_uri);
-          return { owner: provider.owner, name: providerUri?.hostname };
+          return { owner: provider.owner, name: provider.name };
         });
 
       setCostPerMonth(totalCost);

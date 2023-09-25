@@ -21,6 +21,11 @@ import { CustomTableHeader } from "../shared/CustomTable";
 import { LeaseDto } from "@src/types/deployment";
 
 const useStyles = makeStyles()(theme => ({
+  pagination: {
+    "& .MuiPagination-ul": {
+      justifyContent: "center"
+    }
+  },
   title: {
     fontSize: "1.5rem"
   },
@@ -112,7 +117,7 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
             </Table>
           </TableContainer>
 
-          <Box padding="1rem 1rem 2rem">
+          <Box padding="1rem 1rem 2rem" className={classes.pagination}>
             <Pagination count={pageCount} onChange={handleChangePage} page={page} size="medium" />
           </Box>
         </>

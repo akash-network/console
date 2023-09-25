@@ -44,7 +44,7 @@ import { AuditorButton } from "../providers/AuditorButton";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { cx } from "@emotion/css";
 import { getSplitText } from "@src/hooks/useShortText";
-import { MergedProvider } from "@src/types/provider";
+import { ApiProviderList } from "@src/types/provider";
 import { LeaseDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 
@@ -101,7 +101,7 @@ type Props = {
   setActiveTab: (value: SetStateAction<string>) => void;
   deploymentManifest: string;
   dseq: string;
-  providers: MergedProvider[];
+  providers: ApiProviderList[];
   loadDeploymentDetail: () => void;
 };
 
@@ -111,7 +111,7 @@ export type AcceptRefType = {
 
 export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActiveTab, deploymentManifest, dseq, providers, loadDeploymentDetail }, ref) => {
   const { enqueueSnackbar } = useSnackbar();
-  const providerInfo = providers?.find(p => p.owner === lease?.provider);
+  const provider = providers?.find(p => p.owner === lease?.provider);
   const { localCert } = useCertificate();
   const isLeaseActive = lease.state === "active";
   const [isServicesAvailable, setIsServicesAvailable] = useState(false);
@@ -122,8 +122,8 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
     error,
     refetch: getLeaseStatus,
     isLoading: isLoadingLeaseStatus
-  } = useLeaseStatus(providerInfo?.host_uri, lease, {
-    enabled: isLeaseActive && !isServicesAvailable && !!providerInfo?.host_uri && !!localCert,
+  } = useLeaseStatus(provider?.hostUri, lease, {
+    enabled: isLeaseActive && !isServicesAvailable && !!provider?.hostUri && !!localCert,
     refetchInterval: 10_000,
     onSuccess: leaseStatus => {
       if (leaseStatus) {
@@ -135,7 +135,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
     data: providerStatus,
     isLoading: isLoadingProviderStatus,
     refetch: getProviderStatus
-  } = useProviderStatus(providerInfo?.host_uri, {
+  } = useProviderStatus(provider?.hostUri, {
     enabled: false,
     retry: false
   });
@@ -150,11 +150,11 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
   }));
 
   const loadLeaseStatus = useCallback(() => {
-    if (isLeaseActive && providerInfo && localCert) {
+    if (isLeaseActive && provider && localCert) {
       getLeaseStatus();
       getProviderStatus();
     }
-  }, [isLeaseActive, providerInfo, localCert, getLeaseStatus, getProviderStatus]);
+  }, [isLeaseActive, provider, localCert, getLeaseStatus, getProviderStatus]);
 
   const checkIfServicesAreAvailable = leaseStatus => {
     const servicesNames = leaseStatus ? Object.keys(leaseStatus.services) : [];
@@ -171,7 +171,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
 
   useEffect(() => {
     loadLeaseStatus();
-  }, [lease, providerInfo, localCert, loadLeaseStatus]);
+  }, [lease, provider, localCert, loadLeaseStatus]);
 
   function handleExternalUrlClick(ev, externalUrl) {
     ev.preventDefault();
@@ -190,7 +190,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
       const doc = yaml.load(deploymentManifest);
       const manifest = deploymentData.getManifest(doc, true);
 
-      await sendManifestToProvider(providerInfo, manifest, dseq, localCert);
+      await sendManifestToProvider(provider, manifest, dseq, localCert);
 
       enqueueSnackbar(<Snackbar title="Manifest sent!" iconVariant="success" />, { variant: "success", autoHideDuration: 10_000 });
 
@@ -287,9 +287,9 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                         <Box display="flex" alignItems="center" marginLeft={1}>
                           <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
 
-                          {providerInfo.isAudited && (
+                          {provider.isAudited && (
                             <Box marginLeft=".5rem">
-                              <AuditorButton provider={providerInfo} />
+                              <AuditorButton provider={provider} />
                             </Box>
                           )}
                         </Box>

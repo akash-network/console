@@ -221,8 +221,6 @@ export async function getManifestVersion(yamlJson, asString = false) {
 }
 
 const getDenomFromSdl = (groups: any[]): string => {
-  console.log(groups);
-
   const denoms = groups.flatMap(g => g.resources).map(resource => resource.price.denom);
 
   // TODO handle multiple denoms in an sdl? (different denom for each service?)
