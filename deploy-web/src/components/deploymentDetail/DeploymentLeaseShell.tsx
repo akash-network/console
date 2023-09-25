@@ -10,9 +10,9 @@ import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
 import { XTermRefType } from "@src/lib/XTerm/XTerm";
 import { XTerm } from "@src/lib/XTerm";
 import { LeaseShellCode } from "@src/types/shell";
-import { useAkashProviders } from "@src/context/AkashProvider";
 import { useCustomWebSocket } from "@src/hooks/useCustomWebSocket";
 import { LeaseDto } from "@src/types/deployment";
+import { useProviderList } from "@src/queries/useProvidersQuery";
 
 type Props = {
   leases: LeaseDto[];
@@ -28,14 +28,14 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const [selectedLease, setSelectedLease] = useState<LeaseDto>(null);
   const [isShowingDownloadModal, setIsShowingDownloadModal] = useState(false);
   const [isChangingSocket, setIsChangingSocket] = useState(false);
-  const { providers } = useAkashProviders();
+  const { data: providers } = useProviderList();
   const { localCert, isLocalCertMatching, createCertificate, isCreatingCert } = useCertificate();
   const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
   const {
     data: leaseStatus,
     refetch: getLeaseStatus,
     isFetching: isLoadingStatus
-  } = useLeaseStatus(providerInfo?.host_uri, selectedLease, {
+  } = useLeaseStatus(providerInfo?.hostUri, selectedLease, {
     enabled: false
   });
   const currentUrl = useRef(null);
@@ -78,7 +78,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   useEffect(() => {
     if (!canSetConnection || !providerInfo || !isLocalCertMatching || !selectedLease || !selectedService || isConnectionEstablished) return;
 
-    const url = `${providerInfo.host_uri}/lease/${selectedLease.dseq}/${selectedLease.gseq}/${
+    const url = `${providerInfo.hostUri}/lease/${selectedLease.dseq}/${selectedLease.gseq}/${
       selectedLease.oseq
     }/shell?stdin=1&tty=1&podIndex=0&cmd0=${encodeURIComponent("/bin/sh")}&service=${selectedService}`;
     setIsLoadingData(true);

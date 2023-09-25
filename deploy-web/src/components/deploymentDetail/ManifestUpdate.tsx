@@ -19,10 +19,11 @@ import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { useAkashProviders } from "@src/context/AkashProvider";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import yaml from "js-yaml";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import { useProviderList } from "@src/queries/useProvidersQuery";
+import { ApiProviderList } from "@src/types/provider";
 
 type Props = {
   deployment: DeploymentDto;
@@ -46,7 +47,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
   const { classes } = useStyles();
   const { address, signAndBroadcastTx } = useKeplr();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const { providers } = useAkashProviders();
+  const { data: providers } = useProviderList();
   const { localCert, isLocalCertMatching, createCertificate, isCreatingCert } = useCertificate();
 
   useEffect(() => {
@@ -116,7 +117,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
     window.open("https://docs.akash.network/guides/cli/detailed-steps/part-11.-update-the-deployment", "_blank");
   }
 
-  async function sendManifest(providerInfo, manifest) {
+  async function sendManifest(providerInfo: ApiProviderList, manifest: any) {
     try {
       const response = await sendManifestToProvider(providerInfo, manifest, deployment.dseq, localCert);
 
@@ -159,8 +160,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
         const leaseProviders = leases.map(lease => lease.provider).filter((v, i, s) => s.indexOf(v) === i);
 
         for (const provider of leaseProviders) {
-          const providerInfo = providers.find(x => x.owner === provider);
-          await sendManifest(providerInfo, mani);
+          const provider = providers.find(x => x.owner === provider);
+          await sendManifest(provider, mani);
         }
 
         event(AnalyticsEvents.UPDATE_DEPLOYMENT, {

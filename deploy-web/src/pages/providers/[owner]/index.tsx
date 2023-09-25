@@ -1,17 +1,14 @@
 import { useState, useEffect } from "react";
 import { Typography, Box, Paper, useTheme, CircularProgress, Alert } from "@mui/material";
-import { useAkashProviders } from "../../../context/AkashProvider";
 import { useRouter } from "next/router";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import Layout from "@src/components/layout/Layout";
-import { NextSeo } from "next-seo";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
-import { ProviderDetail } from "@src/types/provider";
-import { useProviderAttributesSchema, useProviderStatus } from "@src/queries/useProvidersQuery";
+import { ApiProviderDetail, ClientProviderDetailWithStatus } from "@src/types/provider";
+import { useProviderAttributesSchema, useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
 import ProviderDetailLayout, { ProviderDetailTabs } from "@src/components/providers/ProviderDetailLayout";
 import { ProviderSpecs } from "@src/components/providers/ProviderSpecs";
 import { LabelValue } from "@src/components/shared/LabelValue";
-import { getProviderAttributeValue } from "@src/utils/providerAttributes/helpers";
 import { CustomTooltip } from "@src/components/shared/CustomTooltip";
 import { FormattedDate } from "react-intl";
 import dynamic from "next/dynamic";
@@ -20,6 +17,8 @@ import { makeStyles } from "tss-react/mui";
 import CheckIcon from "@mui/icons-material/Check";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { UrlService } from "@src/utils/urlUtils";
+import { getNetworkBaseApiUrl } from "@src/utils/constants";
+import axios from "axios";
 
 const NetworkCapacity = dynamic(() => import("../../../components/providers/NetworkCapacity"), {
   ssr: false
@@ -27,6 +26,7 @@ const NetworkCapacity = dynamic(() => import("../../../components/providers/Netw
 
 type Props = {
   owner: string;
+  _provider: ApiProviderDetail;
 };
 
 const useStyles = makeStyles()(theme => ({
@@ -40,31 +40,36 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner }) => {
-  const [provider, setProvider] = useState<Partial<ProviderDetail>>(null);
+const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }) => {
+  const [provider, setProvider] = useState<Partial<ClientProviderDetailWithStatus>>(_provider);
   const { classes } = useStyles();
   const router = useRouter();
   const theme = useTheme();
-  const { providers, getProviders, isLoadingProviders } = useAkashProviders();
   const { address } = useKeplr();
+  const { isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner, {
+    enabled: false,
+    retry: false,
+    onSuccess: _providerDetail => {
+      setProvider(provider => (provider ? { ...provider, ..._providerDetail } : _providerDetail));
+    }
+  });
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
   const { data: providerAttributesSchema, isFetching: isLoadingSchema } = useProviderAttributesSchema();
   const {
     data: providerStatus,
     isLoading: isLoadingStatus,
-    refetch: getProviderStatus,
-    isError
-  } = useProviderStatus(provider?.host_uri, {
+    refetch: getProviderStatus
+  } = useProviderStatus(provider?.hostUri, {
     enabled: false,
     retry: false,
     onSuccess: _providerStatus => {
       setProvider(provider => (provider ? { ...provider, ..._providerStatus } : _providerStatus));
     }
   });
-  const isLoading = isLoadingProviders || isLoadingStatus || isLoadingLeases || isLoadingSchema;
+  const isLoading = isLoadingProvider || isLoadingStatus || isLoadingLeases || isLoadingSchema;
 
   useEffect(() => {
-    getProviders();
+    getProviderDetail();
     getLeases();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -76,28 +81,23 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner }) => {
   }, [provider, providerStatus]);
 
   useEffect(() => {
-    const providerFromList = providers?.find(d => d.owner === owner);
+    if (leases) {
+      const numberOfDeployments = leases?.filter(d => d.provider === owner).length || 0;
+      const numberOfActiveLeases = leases?.filter(d => d.provider === owner && d.state === "active").length || 0;
 
-    if (providerFromList) {
-      const numberOfDeployments = leases?.filter(d => d.provider === providerFromList.owner).length || 0;
-      const numberOfActiveLeases = leases?.filter(d => d.provider === providerFromList.owner && d.state === "active").length || 0;
-
-      setProvider({ ...providerFromList, userLeases: numberOfDeployments, userActiveLeases: numberOfActiveLeases });
-    } else {
-      // TODO Provider not found handle display
+      setProvider(provider => ({ ...provider, userLeases: numberOfDeployments, userActiveLeases: numberOfActiveLeases }));
     }
-  }, [leases, providers]);
+  }, [leases]);
 
   const refresh = () => {
-    getProviders();
+    getProviderDetail();
     getLeases();
     getProviderStatus();
   };
 
   return (
     <Layout isLoading={isLoading}>
-      {/** TODO Add endpoint to retrieve and render server side with provider info + add description */}
-      <CustomNextSeo title={`Provider detail ${owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetail(owner)}`} />
+      <CustomNextSeo title={`Provider detail ${provider?.name || provider?.owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetail(owner)}`} />
 
       <ProviderDetailLayout address={owner} page={ProviderDetailTabs.DETAIL} refresh={refresh} provider={provider}>
         {!provider && isLoading && (
@@ -106,7 +106,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner }) => {
           </Box>
         )}
 
-        {provider && !provider.isActive && !isLoading && (
+        {provider && !provider.isOnline && !isLoading && (
           <Alert
             variant="outlined"
             severity="warning"
@@ -116,7 +116,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner }) => {
           </Alert>
         )}
 
-        {provider && provider.isActive && (
+        {provider && provider.isOnline && (
           <>
             <Box sx={{ marginBottom: "1rem" }}>
               <NetworkCapacity
@@ -174,20 +174,20 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner }) => {
 
               <Paper sx={{ padding: "1rem", marginBottom: "1rem" }} className={classes.grid}>
                 <Box>
-                  <LabelValue label="Host" value={getProviderAttributeValue("host", provider, providerAttributesSchema)} />
-                  <LabelValue label="Website" value={getProviderAttributeValue("website", provider, providerAttributesSchema)} />
-                  <LabelValue label="Status page" value={getProviderAttributeValue("status-page", provider, providerAttributesSchema)} />
-                  <LabelValue label="Country" value={getProviderAttributeValue("country", provider, providerAttributesSchema)} />
-                  <LabelValue label="Timezone" value={getProviderAttributeValue("timezone", provider, providerAttributesSchema)} />
-                  <LabelValue label="Hosting Provider" value={getProviderAttributeValue("hosting-provider", provider, providerAttributesSchema)} />
+                  <LabelValue label="Host" value={provider.host} />
+                  <LabelValue label="Website" value={provider.website} />
+                  <LabelValue label="Status page" value={provider.statusPage} />
+                  <LabelValue label="Country" value={provider.country} />
+                  <LabelValue label="Timezone" value={provider.timezone} />
+                  <LabelValue label="Hosting Provider" value={provider.hostingProvider} />
                 </Box>
                 <Box>
-                  <LabelValue label="Email" value={provider.info.email} />
-                  <LabelValue label="Organization" value={getProviderAttributeValue("organization", provider, providerAttributesSchema)} />
-                  <LabelValue label="Region" value={getProviderAttributeValue("location-region", provider, providerAttributesSchema)} />
-                  <LabelValue label="City" value={getProviderAttributeValue("city", provider, providerAttributesSchema)} />
-                  <LabelValue label="Location Type" value={getProviderAttributeValue("location-type", provider, providerAttributesSchema)} />
-                  <LabelValue label="Tier" value={getProviderAttributeValue("tier", provider, providerAttributesSchema)} />
+                  <LabelValue label="Email" value={provider.email} />
+                  <LabelValue label="Organization" value={provider.organization} />
+                  <LabelValue label="Region" value={provider.locationRegion} />
+                  <LabelValue label="City" value={provider.city} />
+                  <LabelValue label="Location Type" value={provider.locationType} />
+                  <LabelValue label="Tier" value={provider.tier} />
                 </Box>
               </Paper>
 
@@ -202,37 +202,13 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner }) => {
               <Paper sx={{ padding: "1rem", marginBottom: "1rem" }} className={classes.grid}>
                 <Box>
                   <LabelValue label="Akash version" value={provider.akashVersion || "Unknown"} />
-                  <LabelValue
-                    label="IP Leases"
-                    value={
-                      getProviderAttributeValue("feat-endpoint-ip", provider, providerAttributesSchema) === "true" && (
-                        <CheckIcon sx={{ marginLeft: ".5rem" }} color="secondary" />
-                      )
-                    }
-                  />
-                  <LabelValue
-                    label="Chia"
-                    value={
-                      getProviderAttributeValue("workload-support-chia", provider, providerAttributesSchema) === "true" && (
-                        <CheckIcon sx={{ marginLeft: ".5rem" }} color="secondary" />
-                      )
-                    }
-                  />
+                  <LabelValue label="IP Leases" value={provider.featEndpointIp && <CheckIcon sx={{ marginLeft: ".5rem" }} color="secondary" />} />
+                  <LabelValue label="Chia" value={provider.workloadSupportChia && <CheckIcon sx={{ marginLeft: ".5rem" }} color="secondary" />} />
                 </Box>
                 <Box>
                   <LabelValue label="Kube version" value={provider.kube ? `${provider.kube?.major}.${provider.kube?.minor}` : "Unkown"} />
-                  <LabelValue
-                    label="Custom domain"
-                    value={
-                      getProviderAttributeValue("feat-endpoint-custom-domain", provider, providerAttributesSchema) === "true" && (
-                        <CheckIcon sx={{ marginLeft: ".5rem" }} color="secondary" />
-                      )
-                    }
-                  />
-                  <LabelValue
-                    label="Chia capabilities"
-                    value={getProviderAttributeValue("workload-support-chia-capabilities", provider, providerAttributesSchema)}
-                  />
+                  <LabelValue label="Custom domain" value={provider.featEndpointCustomDomain && <CheckIcon sx={{ marginLeft: ".5rem" }} color="secondary" />} />
+                  <LabelValue label="Chia capabilities" value={provider.workloadSupportChiaCapabilities} />
                 </Box>
               </Paper>
 
@@ -264,10 +240,14 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner }) => {
 
 export default ProviderDetailPage;
 
-export async function getServerSideProps({ params }) {
+export async function getServerSideProps({ params, query }) {
+  const apiUrl = getNetworkBaseApiUrl(query.network as string);
+  const response = await axios.get(`${apiUrl}/providers/${params?.owner}`);
+
   return {
     props: {
-      owner: params?.owner
+      owner: params?.owner,
+      _provider: response.data
     }
   };
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, HTMLInputTypeAttribute } from "react";
 import { makeStyles } from "tss-react/mui";
 import { useRouter } from "next/router";
 import { useKeplr } from "@src/context/KeplrWalletProvider";
-import { ProviderDetail } from "@src/types/provider";
+import { ApiProviderDetail } from "@src/types/provider";
 import {
   Alert,
   Autocomplete,
@@ -28,7 +28,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { nanoid } from "nanoid";
 
 type Props = {
-  provider: Partial<ProviderDetail>;
+  provider: Partial<ApiProviderDetail>;
   providerAttributesSchema: ProviderAttributesSchema;
 };
 
@@ -123,7 +123,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
 
     const unknownAttributes = getUnknownAttributes(provider.attributes, providerAttributesSchema);
 
-    setValue("host-uri", provider.host_uri);
+    setValue("host-uri", provider.hostUri);
     setValue("host", getProviderAttributeValue("host") as string);
     setValue("website", getProviderAttributeValue("website") as string);
     setValue("email", getProviderAttributeValue("email") as string);

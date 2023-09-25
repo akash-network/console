@@ -2,8 +2,9 @@ import axios from "axios";
 import { PROVIDER_PROXY_URL } from "./constants";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { wait } from "./timer";
+import { ApiProviderList } from "@src/types/provider";
 
-export const sendManifestToProvider = async (providerInfo, manifest, dseq: string, localCert: LocalCert) => {
+export const sendManifestToProvider = async (providerInfo: ApiProviderList, manifest: any, dseq: string, localCert: LocalCert) => {
   console.log("Sending manifest to " + providerInfo?.owner);
 
   let jsonStr = JSON.stringify(manifest);
@@ -20,7 +21,7 @@ export const sendManifestToProvider = async (providerInfo, manifest, dseq: strin
       if (!response) {
         response = await axios.post(PROVIDER_PROXY_URL, {
           method: "PUT",
-          url: providerInfo.host_uri + "/deployment/" + dseq + "/manifest",
+          url: providerInfo.hostUri + "/deployment/" + dseq + "/manifest",
           certPem: localCert?.certPem,
           keyPem: localCert?.keyPem,
           body: jsonStr,

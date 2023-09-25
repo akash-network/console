@@ -5,7 +5,7 @@ import { StatusPill } from "../shared/StatusPill";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { LeaseDto } from "@src/types/deployment";
-import { MergedProvider } from "@src/types/provider";
+import { ApiProviderList } from "@src/types/provider";
 
 const useStyles = makeStyles()(theme => ({
   leaseChip: {
@@ -25,7 +25,7 @@ const useStyles = makeStyles()(theme => ({
 
 type Props = {
   lease: LeaseDto;
-  providers: MergedProvider[];
+  providers: ApiProviderList[];
 };
 
 export const LeaseChip: React.FunctionComponent<Props> = ({ lease, providers }) => {
@@ -33,11 +33,10 @@ export const LeaseChip: React.FunctionComponent<Props> = ({ lease, providers }) 
   const [providerName, setProviderName] = useState(null);
 
   useEffect(() => {
-    const providerInfo = providers?.find(p => p.owner === lease?.provider);
+    const provider = providers?.find(p => p.owner === lease?.provider);
 
-    if (providerInfo) {
-      const providerUri = new URL(providerInfo.host_uri);
-      setProviderName(providerUri.hostname);
+    if (provider) {
+      setProviderName(provider.name);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providers]);

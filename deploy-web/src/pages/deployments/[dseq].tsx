@@ -11,7 +11,6 @@ import { useKeplr } from "@src/context/KeplrWalletProvider";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useCertificate } from "@src/context/CertificateProvider";
-import { useAkashProviders } from "@src/context/AkashProvider";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { ManifestUpdate } from "@src/components/deploymentDetail/ManifestUpdate";
 import { DeploymentLogs, LOGS_MODE } from "@src/components/deploymentDetail/DeploymentLogs";
@@ -24,6 +23,7 @@ import { useSettings } from "@src/context/SettingsProvider";
 import PageContainer from "@src/components/shared/PageContainer";
 import Link from "next/link";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { useProviderList } from "@src/queries/useProvidersQuery";
 
 type Props = {
   dseq: string;
@@ -99,7 +99,7 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ dseq }) => {
   const hasLeases = leases && leases.length > 0;
   const { isLocalCertMatching, localCert, isCreatingCert, createCertificate } = useCertificate();
   const [deploymentManifest, setDeploymentManifest] = useState(null);
-  const { providers, getProviders, isLoadingProviders } = useAkashProviders();
+  const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
   const isActive = deployment?.state === "active" && leases?.some(x => x.state === "active");
 
   useEffect(() => {

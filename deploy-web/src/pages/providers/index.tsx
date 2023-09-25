@@ -192,7 +192,7 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
   const handleSortChange = event => {
     const value = event.target.value;
 
-    router.replace(UrlService.providers(value));
+    router.replace(UrlService.providers(value), null, { scroll: false });
   };
 
   const handleRowsPerPageChange = event => {

@@ -6,6 +6,7 @@ import { Op } from "sequelize";
 import semver from "semver";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { getAuditors, getProviderAttributesSchema } from "./githubProvider";
+import { ProviderDetail } from "@src/types/provider";
 
 export async function getNetworkCapacity() {
   const providers = await Provider.findAll({
@@ -41,93 +42,6 @@ export async function getNetworkCapacity() {
   };
 }
 
-export async function getProviders() {
-  const nowUtc = toUTC(new Date());
-
-  const providers = await Provider.findAll({
-    where: {
-      isOnline: true,
-      deletedHeight: null
-    },
-    include: [
-      {
-        model: ProviderAttribute
-      },
-      {
-        model: ProviderAttributeSignature
-      },
-      {
-        model: ProviderSnapshot,
-        attributes: ["isOnline", "id", "checkDate"],
-        required: false,
-        separate: true,
-        where: {
-          checkDate: {
-            [Op.gte]: add(nowUtc, { days: -1 })
-          }
-        }
-      }
-    ]
-  });
-  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).indexOf(value.hostUri) === index);
-
-  return filteredProviders.map((x) => {
-    const isValidVersion = x.cosmosSdkVersion ? semver.gte(x.cosmosSdkVersion, "v0.45.9") : false;
-    const name = x.isOnline ? new URL(x.hostUri).hostname : null;
-
-    return {
-      owner: x.owner,
-      name: name,
-      hostUri: x.hostUri,
-      createdHeight: x.createdHeight,
-      email: x.email,
-      website: x.website,
-      lastCheckDate: x.lastCheckDate,
-      deploymentCount: x.deploymentCount,
-      leaseCount: x.leaseCount,
-      cosmosSdkVersion: x.cosmosSdkVersion,
-      akashVersion: x.akashVersion,
-      ipRegion: x.ipRegion,
-      ipRegionCode: x.ipRegionCode,
-      ipCountry: x.ipCountry,
-      ipCountryCode: x.ipCountryCode,
-      ipLat: x.ipLat,
-      ipLon: x.ipLon,
-      attributes: x.providerAttributes.map((attr) => ({
-        key: attr.key,
-        value: attr.value,
-        auditedBy: x.providerAttributeSignatures.filter((pas) => pas.key === attr.key && pas.value === attr.value).map((pas) => pas.auditor)
-      })),
-      activeStats: {
-        cpu: x.activeCPU,
-        gpu: x.activeGPU,
-        memory: x.activeMemory,
-        storage: x.activeStorage
-      },
-      pendingStats: {
-        cpu: isValidVersion ? x.pendingCPU : 0,
-        gpu: isValidVersion ? x.pendingGPU : 0,
-        memory: isValidVersion ? x.pendingMemory : 0,
-        storage: isValidVersion ? x.pendingStorage : 0
-      },
-      availableStats: {
-        cpu: isValidVersion ? x.availableCPU : 0,
-        gpu: isValidVersion ? x.availableGPU : 0,
-        memory: isValidVersion ? x.availableMemory : 0,
-        storage: isValidVersion ? x.availableStorage : 0
-      },
-      uptime7d: x.uptime7d,
-      uptime: x.providerSnapshots.map((ps) => ({
-        id: ps.id,
-        isOnline: ps.isOnline,
-        checkDate: ps.checkDate
-      })),
-      isValidVersion,
-      isOnline: x.isOnline
-    };
-  });
-}
-
 export const getProviderList = async () => {
   const providers = await Provider.findAll({
     where: {
@@ -149,4 +63,46 @@ export const getProviderList = async () => {
   const [auditors, providerAttributeSchema] = await Promise.all([auditorsQuery, providerAttributeSchemaQuery]);
 
   return filteredProviders.map((x) => mapProviderToList(x, providerAttributeSchema, auditors));
+};
+
+export const getProviderDetail = async (address: string): Promise<ProviderDetail> => {
+  const nowUtc = toUTC(new Date());
+  const provider = await Provider.findOne({
+    where: {
+      deletedHeight: null,
+      owner: address
+    },
+    include: [
+      {
+        model: ProviderAttribute
+      },
+      {
+        model: ProviderAttributeSignature
+      },
+      {
+        model: ProviderSnapshot,
+        attributes: ["isOnline", "id", "checkDate"],
+        required: false,
+        separate: true,
+        where: {
+          checkDate: {
+            [Op.gte]: add(nowUtc, { days: -1 })
+          }
+        }
+      }
+    ]
+  });
+  const providerAttributeSchemaQuery = getProviderAttributesSchema();
+  const auditorsQuery = getAuditors();
+
+  const [auditors, providerAttributeSchema] = await Promise.all([auditorsQuery, providerAttributeSchemaQuery]);
+
+  return {
+    ...mapProviderToList(provider, providerAttributeSchema, auditors),
+    uptime: provider.providerSnapshots.map((ps) => ({
+      id: ps.id,
+      isOnline: ps.isOnline,
+      checkDate: ps.checkDate
+    }))
+  };
 };

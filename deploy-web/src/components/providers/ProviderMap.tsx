@@ -1,5 +1,5 @@
 import { makeStyles } from "tss-react/mui";
-import { ApiProviderList, MergedProvider } from "@src/types/provider";
+import { ApiProviderList } from "@src/types/provider";
 import { ComposableMap, Geographies, Geography, Marker, Point, Sphere, ZoomableGroup } from "react-simple-maps";
 import { useMemo, useState } from "react";
 import { Box, Button, IconButton, useTheme } from "@mui/material";
@@ -19,7 +19,7 @@ const useStyles = makeStyles()(theme => ({
 type Props = {
   initialZoom?: number;
   initialCoordinates?: Point;
-  providers: any; // TODO: Change when refactoring providers
+  providers: ApiProviderList[];
 };
 
 const minZoom = 1;
@@ -29,7 +29,7 @@ export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initial
   const { classes } = useStyles();
   const [dotSize, setDotSize] = useState({ r: 5, w: 1 });
   const theme = useTheme();
-  const activeProviders = providers.filter(x => x.isActive || x.isOnline);
+  const activeProviders = providers.filter(x => x.isOnline || x.isOnline);
   const bgColor = theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[400];
   const [position, setPosition] = useState({ coordinates: initialCoordinates, zoom: initialZoom });
   const isInitialPosition =
