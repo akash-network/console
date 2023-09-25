@@ -12,7 +12,7 @@ import {
   getValidator,
   getValidators
 } from "@src/providers/apiNodeProvider";
-import { getNetworkCapacity, getProviderDetail, getProviderList, getProviders } from "@src/providers/providerStatusProvider";
+import { getNetworkCapacity, getProviderDetail, getProviderList } from "@src/providers/providerStatusProvider";
 import { getDashboardData, getGraphData, getProviderActiveLeasesGraphData, getProviderGraphData } from "@src/db/statsProvider";
 import { round } from "@src/utils/math";
 import { isValidBech32Address } from "@src/utils/addresses";
@@ -228,21 +228,13 @@ apiRouter.get(
 apiRouter.get(
   "/providers",
   asyncHandler(async (req, res) => {
-    const providers = await getProviders();
-    res.send(providers);
-  })
-);
-
-apiRouter.get(
-  "/providerList",
-  asyncHandler(async (req, res) => {
     const providers = await cacheResponse(60, cacheKeys.getProviderList, getProviderList);
     res.send(providers);
   })
 );
 
 apiRouter.get(
-  "/providerDetail/:address",
+  "/providers/:address",
   asyncHandler(async (req, res) => {
     if (!req.params.address) {
       res.status(400).send("Address is undefined.");

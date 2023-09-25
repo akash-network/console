@@ -99,7 +99,6 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ dseq }) => {
   const hasLeases = leases && leases.length > 0;
   const { isLocalCertMatching, localCert, isCreatingCert, createCertificate } = useCertificate();
   const [deploymentManifest, setDeploymentManifest] = useState(null);
-  // const { providers, getProviders, isLoadingProviders } = useAkashProviders();
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
   const isActive = deployment?.state === "active" && leases?.some(x => x.state === "active");
 
