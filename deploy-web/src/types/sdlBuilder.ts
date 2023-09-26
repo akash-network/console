@@ -1,3 +1,5 @@
+import { ProviderAttributeSchemaDetailValue } from "./providerAttributes";
+
 export type Service = {
   id: string;
   title: string;
@@ -24,9 +26,10 @@ export type ImportService = {
 
 export type Profile = {
   cpu: number;
-  gpu: number;
-  gpuVendor: string;
-  gpuModels: string[];
+  hasGpu?: boolean;
+  gpu?: number;
+  gpuVendor?: string;
+  gpuModels?: ProviderAttributeSchemaDetailValue[];
   ram: number;
   ramUnit: string;
   storage: number;

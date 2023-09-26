@@ -24,6 +24,7 @@ import { memoryUnits, storageUnits } from "../shared/akash/units";
 import sdlStore from "@src/store/sdlStore";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useAtom } from "jotai";
+import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
 
 const useStyles = makeStyles()(theme => ({
   formControl: {
@@ -63,6 +64,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
   const [, setSdlResult] = useState<string>(null);
   const formRef = useRef<HTMLFormElement>();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
+  const { data: providerAttributesSchema } = useProviderAttributesSchema();
   const { enqueueSnackbar } = useSnackbar();
   const {
     handleSubmit,
@@ -105,7 +107,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
       const response = await axios.get(`/api/proxy/user/template/${id}`);
       const template: ITemplate = response.data;
 
-      const services = importSimpleSdl(template.sdl);
+      const services = importSimpleSdl(template.sdl, providerAttributesSchema);
 
       setIsLoadingTemplate(false);
 
@@ -287,6 +289,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
             service={service}
             serviceIndex={serviceIndex}
             _services={_services}
+            providerAttributesSchema={providerAttributesSchema}
             control={control}
             trigger={trigger}
             onRemoveService={onRemoveService}

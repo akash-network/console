@@ -3,8 +3,9 @@ import { nanoid } from "nanoid";
 import { capitalizeFirstLetter } from "../stringUtils";
 import yaml from "js-yaml";
 import { CustomValidationError } from "../deploymentData";
+import { ProviderAttributeSchemaDetailValue, ProviderAttributesSchema } from "@src/types/providerAttributes";
 
-export const importSimpleSdl = (yamlStr: string) => {
+export const importSimpleSdl = (yamlStr: string, providerAttributesSchema: ProviderAttributesSchema) => {
   try {
     const yamlJson = yaml.load(yamlStr) as any;
     const services: ImportService[] = [];
@@ -33,7 +34,7 @@ export const importSimpleSdl = (yamlStr: string) => {
         cpu: compute.resources.cpu.units,
         gpu: compute.resources.gpu.units,
         gpuVendor: getGpuVendor(compute.resources.gpu.attributes.vendor),
-        gpuModels: getGpuModels(compute.resources.gpu.attributes.vendor),
+        gpuModels: getGpuModels(compute.resources.gpu.attributes.vendor, providerAttributesSchema),
         ram: getResourceDigit(compute.resources.memory.size),
         ramUnit: getResourceUnit(compute.resources.memory.size),
         storage: getResourceDigit(ephStorage.size),
@@ -141,8 +142,16 @@ const getGpuVendor = (vendorKey: { [key: string]: any }): string => {
   return vendor || "nvidia";
 };
 
-const getGpuModels = (vendor: { [key: string]: { model: string }[] }): string[] => {
-  const models = vendor.nvidia.map(m => m.model);
+const getGpuModels = (
+  vendor: { [key: string]: { model: string }[] },
+  providerAttributesSchema: ProviderAttributesSchema
+): ProviderAttributeSchemaDetailValue[] => {
+  const models = vendor.nvidia
+    .map(m => {
+      const model = providerAttributesSchema["hardware-gpu-model"].values.find(v => v.value === m.model) as ProviderAttributeSchemaDetailValue;
+      return model;
+    })
+    .filter(m => m);
 
   return models;
 };

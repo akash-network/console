@@ -1,9 +1,12 @@
 import { useTheme } from "@mui/material/styles";
 import {
+  Autocomplete,
   Box,
   Checkbox,
+  ClickAwayListener,
   Collapse,
   FormControl,
+  FormControlLabel,
   FormHelperText,
   Grid,
   IconButton,
@@ -17,7 +20,7 @@ import {
   Typography,
   useMediaQuery
 } from "@mui/material";
-import { Controller, Control, UseFormTrigger } from "react-hook-form";
+import { Controller, Control, UseFormTrigger, FieldPath } from "react-hook-form";
 import { cx } from "@emotion/css";
 import { makeStyles } from "tss-react/mui";
 import { Dispatch, SetStateAction, useState } from "react";
@@ -45,12 +48,16 @@ import { averageBlockTime } from "@src/utils/priceUtils";
 import { averageDaysInMonth } from "@src/utils/dateUtils";
 import Image from "next/legacy/image";
 import { uAktDenom } from "@src/utils/constants";
+import { gpuVendors } from "../shared/akash/gpu";
+import { ProviderAttributeSchemaDetailValue, ProviderAttributesSchema } from "@src/types/providerAttributes";
+import { Provider } from "@akashnetwork/akashjs/build/protobuf/akash/provider/v1beta3/provider";
 
 type Props = {
   service: Service;
   _services: Service[];
   serviceIndex: number;
   control: Control<SdlBuilderFormValues, any>;
+  providerAttributesSchema: ProviderAttributesSchema;
   trigger: UseFormTrigger<SdlBuilderFormValues>;
   onRemoveService: (index: number) => void;
   serviceCollapsed: number[];
@@ -86,6 +93,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   serviceIndex,
   control,
   _services,
+  providerAttributesSchema,
   onRemoveService,
   trigger,
   serviceCollapsed,
@@ -388,6 +396,146 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                       </FormPaper>
                     )}
                   />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <FormPaper elevation={1} sx={{ padding: currentService.profile.hasGpu ? ".5rem 1rem 1rem" : ".5rem 1rem" }}>
+                    <Controller
+                      control={control}
+                      name={`services.${serviceIndex}.profile.gpu`}
+                      rules={{
+                        validate: v => {
+                          if (!v) return "GPU amount is required.";
+                          else if (v < 1) return "GPU amount must be greater than 0.";
+                          return true;
+                        }
+                      }}
+                      render={({ field, fieldState }) => (
+                        <FormControl
+                          className={cx(classes.formControl, classes.textField)}
+                          variant="standard"
+                          sx={{ marginBottom: "0 !important" }}
+                          error={!!fieldState.error}
+                        >
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: { xs: "flex-start", sm: "center" },
+                              justifyContent: "space-between",
+                              flexDirection: { xs: "column", sm: "row" }
+                            }}
+                          >
+                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                              <Typography variant="body2" sx={{ display: "flex", alignItems: "center" }}>
+                                <SpeedIcon sx={{ color: theme.palette.grey[600], marginRight: ".5rem" }} fontSize="medium" />
+                                <strong>GPU</strong>
+
+                                <CustomTooltip
+                                  arrow
+                                  title={
+                                    <>
+                                      The amount of GPUs required for this workload.
+                                      <br />
+                                      <br />
+                                      This storage is mounted on a persistent volume and persistent through the lifetime of the deployment
+                                      <br />
+                                      <br />
+                                      <a href="https://docs.akash.network/features/persistent-storage" target="_blank" rel="noopener">
+                                        View official documentation.
+                                      </a>
+                                    </>
+                                  }
+                                >
+                                  <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+                                </CustomTooltip>
+                              </Typography>
+
+                              <Controller
+                                control={control}
+                                name={`services.${serviceIndex}.profile.hasGpu`}
+                                render={({ field }) => (
+                                  <Checkbox checked={field.value} onChange={field.onChange} color="secondary" size="small" sx={{ marginLeft: ".5rem" }} />
+                                )}
+                              />
+                            </Box>
+
+                            {currentService.profile.hasGpu && (
+                              <Box sx={{ marginTop: { xs: ".5rem", sm: 0 } }}>
+                                <TextField
+                                  type="number"
+                                  variant="outlined"
+                                  color="secondary"
+                                  value={field.value || ""}
+                                  error={!!fieldState.error}
+                                  onChange={event => field.onChange(parseFloat(event.target.value))}
+                                  inputProps={{ min: 1, step: 1 }}
+                                  size="small"
+                                  sx={{ width: "100px" }}
+                                />
+                              </Box>
+                            )}
+                          </Box>
+
+                          {currentService.profile.hasGpu && (
+                            <Slider
+                              value={field.value || 0}
+                              min={1}
+                              max={100}
+                              step={1}
+                              color="secondary"
+                              aria-label="GPUs"
+                              valueLabelDisplay="auto"
+                              onChange={(event, newValue) => field.onChange(newValue)}
+                            />
+                          )}
+
+                          {!!fieldState.error && <FormHelperText>{fieldState.error.message}</FormHelperText>}
+                        </FormControl>
+                      )}
+                    />
+
+                    {currentService.profile.hasGpu && (
+                      <div>
+                        <Box sx={{ marginTop: "1rem" }}>
+                          <Controller
+                            control={control}
+                            name={`services.${serviceIndex}.profile.gpuVendor`}
+                            rules={{ required: "GPU vendor is required." }}
+                            defaultValue=""
+                            render={({ field }) => (
+                              <Select
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                variant="outlined"
+                                fullWidth
+                                size="small"
+                                MenuProps={{ disableScrollLock: true }}
+                              >
+                                {gpuVendors.map(u => (
+                                  <MenuItem key={u.id} value={u.value}>
+                                    {u.value}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            )}
+                          />
+                        </Box>
+
+                        <Box sx={{ marginTop: "1rem" }}>
+                          <FormSelect
+                            control={control}
+                            // className={classes.textfieldSpacing}
+                            label="GPU models"
+                            optionName="hardware-gpu-model"
+                            name={`services.${serviceIndex}.profile.gpuModels`}
+                            providerAttributesSchema={providerAttributesSchema}
+                            required={false}
+                            multiple
+                          />
+                        </Box>
+                      </div>
+                    )}
+                  </FormPaper>
                 </Grid>
 
                 <Grid item xs={12}>
@@ -1210,5 +1358,91 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
         </Box>
       </Collapse>
     </Paper>
+  );
+};
+
+type ProviderSelectProps = {
+  control: Control<SdlBuilderFormValues, any>;
+  providerAttributesSchema: ProviderAttributesSchema;
+  optionName: keyof ProviderAttributesSchema;
+  name: FieldPath<SdlBuilderFormValues>;
+  className?: string;
+  requiredMessage?: string;
+  label: string;
+  multiple?: boolean;
+  required?: boolean;
+  disabled?: boolean;
+};
+const FormSelect: React.FunctionComponent<ProviderSelectProps> = ({
+  control,
+  providerAttributesSchema,
+  optionName,
+  name,
+  className,
+  requiredMessage,
+  label,
+  required = providerAttributesSchema[optionName].required,
+  multiple,
+  disabled
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const options = providerAttributesSchema[optionName].values || [];
+
+  return (
+    <Controller
+      control={control}
+      name={name}
+      rules={{
+        required: required ? requiredMessage : null
+      }}
+      render={({ field, fieldState }) => (
+        <Box sx={{ display: "flex", alignItems: "center" }} className={className}>
+          <Autocomplete
+            disableClearable
+            open={isOpen}
+            disabled={disabled}
+            options={options}
+            value={field.value || (multiple ? ([] as any) : null)}
+            getOptionLabel={option => option.description}
+            defaultValue={multiple ? [] : null}
+            isOptionEqualToValue={(option, value) => option.key === value.key}
+            filterSelectedOptions
+            fullWidth
+            multiple={multiple}
+            ChipProps={{ size: "small" }}
+            onChange={(event, newValue: string[] | null | ProviderAttributeSchemaDetailValue[]) => {
+              field.onChange(newValue);
+            }}
+            renderInput={params => (
+              <ClickAwayListener onClickAway={() => setIsOpen(false)}>
+                <TextField
+                  {...params}
+                  label={label}
+                  variant="outlined"
+                  color="secondary"
+                  size="small"
+                  error={!!fieldState.error}
+                  helperText={fieldState.error?.message}
+                  onClick={() => setIsOpen(prev => !prev)}
+                  sx={{ minHeight: "42px" }}
+                />
+              </ClickAwayListener>
+            )}
+            renderOption={(props, option) => {
+              return (
+                <Box
+                  component="li"
+                  sx={{ display: "flex", alignItems: "center", justifyContent: "space-between !important", width: "100%", padding: ".2rem .5rem" }}
+                  {...props}
+                  key={option.key}
+                >
+                  <div>{option.description}</div>
+                </Box>
+              );
+            }}
+          />
+        </Box>
+      )}
+    />
   );
 };

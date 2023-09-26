@@ -13,6 +13,10 @@ export const defaultService: Service = {
   image: "",
   profile: {
     cpu: 0.1,
+    gpu: 1,
+    gpuVendor: "nvidia",
+    gpuModels: [],
+    hasGpu: false,
     ram: 512,
     ramUnit: "Mi",
     storage: 1,
