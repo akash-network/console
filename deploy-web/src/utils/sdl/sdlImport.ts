@@ -26,8 +26,6 @@ export const importSimpleSdl = (yamlStr: string, providerAttributesSchema: Provi
       const persistentStorage = storages.find(s => s.attributes?.persistent === true);
       const ephStorage = storages.find(s => !s.attributes);
 
-      debugger;
-
       // TODO validation
       // Service compute profile
       service.profile = {
@@ -35,6 +33,7 @@ export const importSimpleSdl = (yamlStr: string, providerAttributesSchema: Provi
         gpu: compute.resources.gpu.units,
         gpuVendor: getGpuVendor(compute.resources.gpu.attributes.vendor),
         gpuModels: getGpuModels(compute.resources.gpu.attributes.vendor, providerAttributesSchema),
+        hasGpu: !!compute.resources.gpu,
         ram: getResourceDigit(compute.resources.memory.size),
         ramUnit: getResourceUnit(compute.resources.memory.size),
         storage: getResourceDigit(ephStorage.size),
@@ -148,7 +147,11 @@ const getGpuModels = (
 ): ProviderAttributeSchemaDetailValue[] => {
   const models = vendor.nvidia
     .map(m => {
-      const model = providerAttributesSchema["hardware-gpu-model"].values.find(v => v.value === m.model) as ProviderAttributeSchemaDetailValue;
+      const model = providerAttributesSchema["hardware-gpu-model"].values.find(v => {
+        const modelKey = v.key.split("/");
+        // capabilities/gpu/vendor/nvidia/model/h100 -> h100
+        return m.model === modelKey[modelKey.length - 1];
+      }) as ProviderAttributeSchemaDetailValue;
       return model;
     })
     .filter(m => m);

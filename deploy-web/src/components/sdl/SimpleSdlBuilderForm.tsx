@@ -1,7 +1,5 @@
-import { useTheme } from "@mui/material/styles";
 import { Alert, Box, Button, CircularProgress, Typography } from "@mui/material";
 import { useForm, useFieldArray } from "react-hook-form";
-import { makeStyles } from "tss-react/mui";
 import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { ITemplate, SdlBuilderFormValues, Service } from "@src/types";
@@ -26,35 +24,9 @@ import { RouteStepKeys } from "@src/utils/constants";
 import { useAtom } from "jotai";
 import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  },
-  serviceBox: {
-    marginTop: "1rem",
-    border: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100]}`,
-    borderRadius: ".5rem"
-  },
-  editLink: {
-    color: theme.palette.secondary.light,
-    textDecoration: "underline",
-    cursor: "pointer",
-    fontWeight: "normal",
-    fontSize: ".8rem"
-  },
-  formValue: {
-    color: theme.palette.grey[500]
-  }
-}));
-
 type Props = {};
 
 export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
   const [error, setError] = useState(null);
   const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
   const [serviceCollapsed, setServiceCollapsed] = useState([]);

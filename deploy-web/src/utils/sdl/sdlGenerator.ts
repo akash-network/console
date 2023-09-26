@@ -69,6 +69,25 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
       }
     };
 
+    // GPU
+    if (service.profile.hasGpu) {
+      sdl.profiles.compute[service.title].resources.gpu = {
+        units: service.profile.gpu,
+        attributes: {
+          vendor: {
+            [service.profile.gpuVendor]:
+              service.profile.gpuModels.length > 0
+                ? service.profile.gpuModels.map(x => {
+                    const modelKey = x.key.split("/");
+                    // capabilities/gpu/vendor/nvidia/model/h100 -> h100
+                    return { model: modelKey[modelKey.length - 1] };
+                  })
+                : null
+          }
+        }
+      };
+    }
+
     // Persistent Storage
     if (service.profile.hasPersistentStorage) {
       sdl.services[service.title].params = {
@@ -124,7 +143,10 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
   });
 
   const result = yaml.dump(sdl, {
-    indent: 2
+    indent: 2,
+    styles: {
+      "!!null": "empty" // dump null as emtpy value
+    }
   });
 
   return `---
