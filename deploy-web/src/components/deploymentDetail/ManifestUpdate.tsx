@@ -160,8 +160,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
         const leaseProviders = leases.map(lease => lease.provider).filter((v, i, s) => s.indexOf(v) === i);
 
         for (const provider of leaseProviders) {
-          const provider = providers.find(x => x.owner === provider);
-          await sendManifest(provider, mani);
+          const providerInfo = providers.find(x => x.owner === provider);
+          await sendManifest(providerInfo, mani);
         }
 
         event(AnalyticsEvents.UPDATE_DEPLOYMENT, {
