@@ -4,8 +4,8 @@ import { stringToBoolean } from "../stringUtils";
 import path from "path";
 import { getUsdcDenom } from "@src/hooks/useDenom";
 
-const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
-const endpointKindIP = "ip";
+export const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
+export const endpointKindIP = "ip";
 
 function validate(yamlJson) {
   const sdl = getSdl(yamlJson, "beta3");

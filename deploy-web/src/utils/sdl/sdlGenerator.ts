@@ -32,7 +32,8 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
         const to = e.to.map(to => ({ ["service"]: to.value }));
         _expose["to"] = [
           {
-            global: !!e.global
+            global: !!e.global,
+            ...(e.ipName && { ip: e.ipName })
           }
         ].concat(to as any);
 
@@ -134,6 +135,20 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
       sdl.profiles.placement[service.placement.name].attributes = service.placement.attributes.reduce((acc, curr) => ((acc[curr.key] = curr.value), acc), {});
     }
 
+    // IP Lease
+    if (service.expose.some(exp => exp.ipName)) {
+      sdl["endpoints"] = {};
+
+      service.expose
+        .filter(exp => exp.ipName)
+        .forEach(exp => {
+          sdl["endpoints"][exp.ipName] = {
+            kind: "ip"
+          };
+        });
+    }
+
+    // Count
     sdl.deployment[service.title] = {
       [service.placement.name]: {
         profile: service.title,

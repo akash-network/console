@@ -437,10 +437,11 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                       The amount of GPUs required for this workload.
                                       <br />
                                       <br />
-                                      This storage is mounted on a persistent volume and persistent through the lifetime of the deployment
+                                      You can also specify the GPU vendor and model you want specifically. If you don't specify any model, providers with any
+                                      GPU model will bid on your workload.
                                       <br />
                                       <br />
-                                      <a href="https://docs.akash.network/features/persistent-storage" target="_blank" rel="noopener">
+                                      <a href="https://docs.akash.network/testnet/example-gpu-sdls/specific-gpu-vendor" target="_blank" rel="noopener">
                                         View official documentation.
                                       </a>
                                     </>
@@ -1165,6 +1166,12 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         <strong>Global</strong>&nbsp;&nbsp;
                         <span className={classes.formValue}>{exp.global ? "True" : "False"}</span>
                       </div>
+                      {exp.ipName && (
+                        <div>
+                          <strong>IP Name</strong>&nbsp;&nbsp;
+                          <span className={classes.formValue}>{exp.ipName}</span>
+                        </div>
+                      )}
                       <div>
                         <strong>Accept</strong>&nbsp;&nbsp;
                         <span className={classes.formValue}>

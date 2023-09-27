@@ -38,7 +38,6 @@ export type Profile = {
   persistentStorage?: number;
   persistentStorageUnit?: string;
   persistentStorageParam?: ServicePersistentStorage;
-  ipName?: string;
 };
 
 export type ServicePersistentStorage = {
@@ -69,6 +68,7 @@ export type Expose = {
   global?: boolean;
   accept?: Accept[];
   httpOptions?: ServiceExposeHTTPOptions;
+  ipName?: string;
 };
 
 export type To = {

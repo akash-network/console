@@ -30,9 +30,9 @@ export const importSimpleSdl = (yamlStr: string, providerAttributesSchema: Provi
       // Service compute profile
       service.profile = {
         cpu: compute.resources.cpu.units,
-        gpu: compute.resources.gpu.units,
-        gpuVendor: getGpuVendor(compute.resources.gpu.attributes.vendor),
-        gpuModels: getGpuModels(compute.resources.gpu.attributes.vendor, providerAttributesSchema),
+        gpu: compute.resources.gpu ? compute.resources.gpu.units : 1,
+        gpuVendor: compute.resources.gpu ? getGpuVendor(compute.resources.gpu.attributes.vendor) : "nvidia",
+        gpuModels: compute.resources.gpu ? getGpuModels(compute.resources.gpu.attributes.vendor, providerAttributesSchema) : [],
         hasGpu: !!compute.resources.gpu,
         ram: getResourceDigit(compute.resources.memory.size),
         ramUnit: getResourceUnit(compute.resources.memory.size),
@@ -70,9 +70,9 @@ export const importSimpleSdl = (yamlStr: string, providerAttributesSchema: Provi
           proto: expose.proto === "tcp" ? expose.proto : "http",
           global: !!isGlobal,
           to: expose.to.filter(t => t.global === undefined).map(t => ({ id: nanoid(), value: t.service })),
-          accept: expose.accept?.map(a => ({ id: nanoid(), value: a })) || []
+          accept: expose.accept?.map(a => ({ id: nanoid(), value: a })) || [],
+          ipName: isGlobal?.ip ? isGlobal.ip : ""
           // httpOptions: "TODO"
-          // ip: "TODO"
         };
 
         service.expose.push(_expose);
