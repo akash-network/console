@@ -1410,7 +1410,7 @@ const FormSelect: React.FunctionComponent<ProviderSelectProps> = ({
             disabled={disabled}
             options={options}
             value={field.value || (multiple ? ([] as any) : null)}
-            getOptionLabel={option => option.description}
+            getOptionLabel={option => option?.description}
             defaultValue={multiple ? [] : null}
             isOptionEqualToValue={(option, value) => option.key === value.key}
             filterSelectedOptions
