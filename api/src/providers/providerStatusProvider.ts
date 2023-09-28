@@ -14,7 +14,7 @@ export async function getNetworkCapacity() {
       deletedHeight: null
     }
   });
-  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).lastIndexOf(value.hostUri) === index);
+  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).indexOf(value.hostUri) === index);
 
   const stats = {
     activeProviderCount: filteredProviders.length,
