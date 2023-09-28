@@ -15,7 +15,7 @@ export async function getNetworkCapacity() {
       deletedHeight: null
     }
   });
-  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).indexOf(value.hostUri) === index);
+  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).lastIndexOf(value.hostUri) === index);
 
   const stats = {
     activeProviderCount: filteredProviders.length,
@@ -47,6 +47,7 @@ export const getProviderList = async () => {
     where: {
       deletedHeight: null
     },
+    order: [["createdHeight", "ASC"]],
     include: [
       {
         model: ProviderAttribute
@@ -56,7 +57,7 @@ export const getProviderList = async () => {
       }
     ]
   });
-  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).indexOf(value.hostUri) === index);
+  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).lastIndexOf(value.hostUri) === index);
   const providerAttributeSchemaQuery = getProviderAttributesSchema();
   const auditorsQuery = getAuditors();
 
