@@ -15,22 +15,22 @@ export default function FaqPage() {
 
         <ul>
           <li>
-            <Link href="#lease-closed">Lease is closed, but deployment isn't.</Link>
+            <Link href="#lease-closed">My lease is closed, but the deployment isn't.</Link>
           </li>
           <li>
             <Link href="#shell-lost">Can't access shell: "The connection to your Cloudmos Shell was lost."</Link>
           </li>
           <li>
-            <Link href="#resources-mismatch">
+            <Link href="#send-manifest-resources-mismatch">
               Error while sending manifest to provider. Error: manifest cross-validation error: group "X": service "X": CPU/Memory resources mismatch for ID 1
             </Link>
           </li>
           <li>
-            <Link href="#other-error">My error is not listed</Link>
+            <Link href="#other-issues">My issue is not listed</Link>
           </li>
         </ul>
 
-        <h2 id="lease-closed">Lease is closed</h2>
+        <h2 id="lease-closed">My lease is closed, but the deployment isn't.</h2>
         <p>
           If your lease is closed, but your deployment isn't, that means your provider closed it. You will need to close your deployment and create a new one.
           You can try deploying on a different provider to see if that helps.
@@ -76,7 +76,7 @@ export default function FaqPage() {
           </li>
         </ul>
 
-        <h2 id="resources-mismatch">
+        <h2 id="send-manifest-resources-mismatch">
           Error while sending manifest to provider. Error: manifest cross-validation error: group "X": service "X": CPU/Memory resources mismatch for ID 1
         </h2>
         <p>
@@ -88,7 +88,7 @@ export default function FaqPage() {
           will also need to close your deployment and create a new one.
         </p>
 
-        <h2 id="other-error">My error is not listed</h2>
+        <h2 id="other-issues">My issue is not listed</h2>
         <p>Here are some actions you can take to fix most of the errors you may encounter:</p>
         <ul>
           <li>
