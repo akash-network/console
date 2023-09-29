@@ -89,7 +89,7 @@ export const useStyles = makeStyles()(theme => ({
       marginBottom: "1rem"
     }
   },
-  privacyLink: {
+  footerLink: {
     color: "inherit"
   }
 }));
@@ -176,18 +176,24 @@ export const Footer: React.FunctionComponent<IFooterProps> = ({}) => {
           </ul>
 
           <Box sx={{ margin: { xs: ".5rem 0 1rem", sm: 0 }, display: "flex", alignItems: "center" }}>
-            <Link href={UrlService.termsOfService()} className={classes.privacyLink}>
+            <Link href={UrlService.termsOfService()} className={classes.footerLink}>
               <Typography variant="caption">Terms of Service</Typography>
             </Link>
 
             <Box sx={{ marginLeft: "1rem" }}>
-              <Link href={UrlService.privacyPolicy()} className={classes.privacyLink}>
+              <Link href={UrlService.privacyPolicy()} className={classes.footerLink}>
                 <Typography variant="caption">Privacy Policy</Typography>
               </Link>
             </Box>
 
             <Box sx={{ marginLeft: "1rem" }}>
-              <Link href={UrlService.contact()} className={classes.privacyLink}>
+              <Link href={UrlService.faq()} className={classes.footerLink}>
+                <Typography variant="caption">FAQ</Typography>
+              </Link>
+            </Box>
+
+            <Box sx={{ marginLeft: "1rem" }}>
+              <Link href={UrlService.contact()} className={classes.footerLink}>
                 <Typography variant="caption">Contact</Typography>
               </Link>
             </Box>
