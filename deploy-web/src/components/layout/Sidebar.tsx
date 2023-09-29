@@ -27,6 +27,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import SavingsIcon from "@mui/icons-material/Savings";
 import ConstructionIcon from "@mui/icons-material/Construction";
 import InsightsIcon from "@mui/icons-material/Insights";
+import HelpIcon from "@mui/icons-material/Help";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
 import { MobileSidebarUser } from "./MobileSidebarUser";
@@ -132,6 +133,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           url: UrlService.priceCompare(),
           activeRoutes: [UrlService.priceCompare()]
         },
+        { title: "FAQ", icon: props => <HelpIcon {...props} />, url: UrlService.faq(), activeRoutes: [UrlService.faq()] },
         { title: "Settings", icon: props => <SettingsIcon {...props} />, url: UrlService.settings(), activeRoutes: [UrlService.settings()] }
       ]
     }

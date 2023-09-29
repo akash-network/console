@@ -3,7 +3,6 @@ import { ProviderSnapshot } from "@shared/dbSchemas/akash/providerSnapshot";
 import { toUTC } from "@src/utils/date";
 import { add } from "date-fns";
 import { Op } from "sequelize";
-import semver from "semver";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { getAuditors, getProviderAttributesSchema } from "./githubProvider";
 import { ProviderDetail } from "@src/types/provider";
@@ -47,6 +46,7 @@ export const getProviderList = async () => {
     where: {
       deletedHeight: null
     },
+    order: [["createdHeight", "ASC"]],
     include: [
       {
         model: ProviderAttribute
@@ -56,7 +56,7 @@ export const getProviderList = async () => {
       }
     ]
   });
-  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).indexOf(value.hostUri) === index);
+  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).lastIndexOf(value.hostUri) === index);
   const providerAttributeSchemaQuery = getProviderAttributesSchema();
   const auditorsQuery = getAuditors();
 

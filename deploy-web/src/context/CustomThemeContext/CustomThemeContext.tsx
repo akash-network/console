@@ -72,6 +72,7 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
     MuiCssBaseline: {
       styleOverrides: {
         html: {
+          scrollPaddingTop: `${accountBarHeight}px`,
           WebkitFontSmoothing: "auto",
           height: "100%",
           width: "100%"
