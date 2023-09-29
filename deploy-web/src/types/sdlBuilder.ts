@@ -67,6 +67,7 @@ export type Expose = {
   to?: To[];
   global?: boolean;
   accept?: Accept[];
+  hasCustomHttpOptions?: boolean;
   httpOptions?: ServiceExposeHTTPOptions;
   ipName?: string;
 };

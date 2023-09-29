@@ -38,7 +38,16 @@ export const defaultService: Service = {
       proto: "http",
       global: true,
       to: [],
-      accept: []
+      accept: [],
+      ipName: "",
+      httpOptions: {
+        maxBodySize: 3145728,
+        readTimeout: 50000,
+        sendTimeout: 51000,
+        nextCases: ["error", "500"],
+        nextTries: 2,
+        nextTimeout: 50000
+      }
     }
   ],
   command: { command: "", arg: "" },
@@ -56,3 +65,16 @@ export const defaultService: Service = {
   },
   count: 1
 };
+
+export const nextCases = [
+  { id: 1, value: "error" },
+  { id: 2, value: "timeout" },
+  { id: 3, value: "403" },
+  { id: 4, value: "404" },
+  { id: 5, value: "429" },
+  { id: 6, value: "500" },
+  { id: 7, value: "502" },
+  { id: 8, value: "503" },
+  { id: 9, value: "504" },
+  { id: 10, value: "off" }
+];

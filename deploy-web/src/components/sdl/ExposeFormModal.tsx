@@ -1,8 +1,7 @@
 import { ReactNode, useRef } from "react";
-import { makeStyles } from "tss-react/mui";
 import { Popup } from "../shared/Popup";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Box, Grid, IconButton, InputAdornment, MenuItem, Select, TextField, useTheme } from "@mui/material";
+import { Box, Grid, IconButton, InputAdornment, MenuItem, Select, TextField } from "@mui/material";
 import { Expose, SdlBuilderFormValues, Service } from "@src/types";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { AcceptFormControl, AcceptRefType } from "./AcceptFormControl";
@@ -13,6 +12,8 @@ import { FormPaper } from "./FormPaper";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
+import { HttpOptionsFormControl } from "./HttpOptionsFormControl";
+import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 
 type Props = {
   open: boolean;
@@ -22,20 +23,18 @@ type Props = {
   children?: ReactNode;
   services: Service[];
   expose: Expose[];
+  providerAttributesSchema: ProviderAttributesSchema;
 };
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  }
-}));
-
-export const ExposeFormModal: React.FunctionComponent<Props> = ({ open, control, serviceIndex, onClose, expose: _expose, services }) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
+export const ExposeFormModal: React.FunctionComponent<Props> = ({
+  open,
+  control,
+  serviceIndex,
+  onClose,
+  expose: _expose,
+  services,
+  providerAttributesSchema
+}) => {
   const acceptRef = useRef<AcceptRefType>();
   const toRef = useRef<ToRefType>();
   const {
@@ -290,6 +289,16 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ open, control,
                       }}
                     />
                   )}
+                />
+              </Box>
+
+              <Box sx={{ marginTop: "1rem" }}>
+                <HttpOptionsFormControl
+                  control={control}
+                  serviceIndex={serviceIndex}
+                  exposeIndex={expIndex}
+                  services={services}
+                  providerAttributesSchema={providerAttributesSchema}
                 />
               </Box>
             </Box>
