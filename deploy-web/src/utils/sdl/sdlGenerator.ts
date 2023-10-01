@@ -1,5 +1,6 @@
 import { Expose, SdlBuilderFormValues } from "@src/types";
 import yaml from "js-yaml";
+import { defaultHttpOptions } from "./data";
 
 export const generateSdl = (formData: SdlBuilderFormValues) => {
   const sdl = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
@@ -7,6 +8,8 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
   formData.services.forEach(service => {
     sdl.services[service.title] = {
       image: service.image,
+
+      // Expose
       expose: service.expose.map(e => {
         // Port
         const _expose = { port: e.port };
@@ -36,6 +39,18 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
             ...(e.ipName && { ip: e.ipName })
           }
         ].concat(to as any);
+
+        // HTTP Options
+        if (e.hasCustomHttpOptions) {
+          _expose["http_options"] = {
+            max_body_size: e.httpOptions?.maxBodySize || defaultHttpOptions.maxBodySize,
+            read_timeout: e.httpOptions?.readTimeout || defaultHttpOptions.readTimeout,
+            send_timeout: e.httpOptions?.sendTimeout || defaultHttpOptions.sendTimeout,
+            next_cases: e.httpOptions?.nextCases || defaultHttpOptions.nextCases,
+            next_tries: e.httpOptions?.nextTries || defaultHttpOptions.nextTries,
+            next_timeout: e.httpOptions?.nextTimeout || defaultHttpOptions.nextTimeout
+          };
+        }
 
         return _expose;
       })
@@ -159,6 +174,7 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
 
   const result = yaml.dump(sdl, {
     indent: 2,
+    quotingType: '"',
     styles: {
       "!!null": "empty" // dump null as emtpy value
     }

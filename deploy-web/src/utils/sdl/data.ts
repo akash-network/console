@@ -7,6 +7,15 @@ export const protoTypes = [
   { id: 3, name: "tcp" }
 ];
 
+export const defaultHttpOptions = {
+  maxBodySize: 1048576,
+  readTimeout: 60000,
+  sendTimeout: 60000,
+  nextCases: ["error", "timeout"],
+  nextTries: 3,
+  nextTimeout: 60000
+};
+
 export const defaultService: Service = {
   id: nanoid(),
   title: "service-1",
@@ -41,12 +50,12 @@ export const defaultService: Service = {
       accept: [],
       ipName: "",
       httpOptions: {
-        maxBodySize: 3145728,
-        readTimeout: 50000,
-        sendTimeout: 51000,
-        nextCases: ["error", "500"],
-        nextTries: 2,
-        nextTimeout: 50000
+        maxBodySize: defaultHttpOptions.maxBodySize,
+        readTimeout: defaultHttpOptions.readTimeout,
+        sendTimeout: defaultHttpOptions.sendTimeout,
+        nextCases: defaultHttpOptions.nextCases,
+        nextTries: defaultHttpOptions.nextTries,
+        nextTimeout: defaultHttpOptions.nextTimeout
       }
     }
   ],

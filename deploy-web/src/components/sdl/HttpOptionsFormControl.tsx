@@ -86,13 +86,6 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
           </Box>
         </Box>
 
-        {/* maxBodySize: number;
-  readTimeout: number;
-  sendTimeout: number;
-  nextTries: number;
-  nextTimeout: number;
-  nextCases: string[]; */}
-
         {currentService.expose[exposeIndex].hasCustomHttpOptions && (
           <>
             <Controller
@@ -109,7 +102,8 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                   error={!!fieldState.error}
                   className={classes.formControl}
                   size="small"
-                  onChange={event => field.onChange(event.target.value)}
+                  onChange={event => field.onChange(parseInt(event.target.value))}
+                  inputProps={{ min: 0 }}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
@@ -137,7 +131,8 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                   error={!!fieldState.error}
                   className={classes.formControl}
                   size="small"
-                  onChange={event => field.onChange(event.target.value)}
+                  onChange={event => field.onChange(parseInt(event.target.value))}
+                  inputProps={{ min: 0 }}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
@@ -165,7 +160,8 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                   error={!!fieldState.error}
                   className={classes.formControl}
                   size="small"
-                  onChange={event => field.onChange(event.target.value)}
+                  onChange={event => field.onChange(parseInt(event.target.value))}
+                  inputProps={{ min: 0 }}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
@@ -193,7 +189,8 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                   error={!!fieldState.error}
                   className={classes.formControl}
                   size="small"
-                  onChange={event => field.onChange(event.target.value)}
+                  onChange={event => field.onChange(parseInt(event.target.value))}
+                  inputProps={{ min: 0 }}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
@@ -221,7 +218,8 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                   error={!!fieldState.error}
                   className={classes.formControl}
                   size="small"
-                  onChange={event => field.onChange(event.target.value)}
+                  onChange={event => field.onChange(parseInt(event.target.value))}
+                  inputProps={{ min: 0 }}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">

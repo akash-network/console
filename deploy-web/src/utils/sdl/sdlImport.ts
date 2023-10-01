@@ -4,6 +4,7 @@ import { capitalizeFirstLetter } from "../stringUtils";
 import yaml from "js-yaml";
 import { CustomValidationError } from "../deploymentData";
 import { ProviderAttributeSchemaDetailValue, ProviderAttributesSchema } from "@src/types/providerAttributes";
+import { defaultHttpOptions } from "./data";
 
 export const importSimpleSdl = (yamlStr: string, providerAttributesSchema: ProviderAttributesSchema) => {
   try {
@@ -71,8 +72,16 @@ export const importSimpleSdl = (yamlStr: string, providerAttributesSchema: Provi
           global: !!isGlobal,
           to: expose.to.filter(t => t.global === undefined).map(t => ({ id: nanoid(), value: t.service })),
           accept: expose.accept?.map(a => ({ id: nanoid(), value: a })) || [],
-          ipName: isGlobal?.ip ? isGlobal.ip : ""
-          // httpOptions: "TODO"
+          ipName: isGlobal?.ip ? isGlobal.ip : "",
+          hasCustomHttpOptions: !!expose.http_options,
+          httpOptions: {
+            maxBodySize: expose.http_options?.max_body_size || defaultHttpOptions.maxBodySize,
+            readTimeout: expose.http_options?.read_timeout || defaultHttpOptions.readTimeout,
+            sendTimeout: expose.http_options?.send_timeout || defaultHttpOptions.sendTimeout,
+            nextCases: expose.http_options?.next_cases || defaultHttpOptions.nextCases,
+            nextTries: expose.http_options?.next_tries || defaultHttpOptions.nextTries,
+            nextTimeout: expose.http_options?.next_timeout || defaultHttpOptions.nextTimeout
+          }
         };
 
         service.expose.push(_expose);
