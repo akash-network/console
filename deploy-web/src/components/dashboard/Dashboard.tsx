@@ -23,10 +23,10 @@ import { StatsCard } from "./StatsCard";
 import { FormattedDecimalCurrency } from "../shared/FormattedDecimalCurrency";
 import { DiffPercentageChip } from "../shared/DiffPercentageChip";
 import { useTheme } from "@mui/material";
-import { uaktToAKT } from "@src/utils/priceUtils";
 import { BlockRow } from "../blockchain/BlockRow";
 import { TransactionRow } from "../blockchain/TransactionRow";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { USDCLabel, USDLabel } from "../shared/UsdLabel";
 
 interface IDashboardProps {
   dashboardData: DashboardData;
@@ -532,22 +532,6 @@ const AKTLabel = () => {
   return (
     <Box component="span" sx={{ marginLeft: ".5rem", fontSize: ".75rem", fontWeight: 300 }}>
       AKT
-    </Box>
-  );
-};
-
-const USDLabel = () => {
-  return (
-    <Box component="span" sx={{ marginLeft: ".5rem", fontSize: ".75rem", fontWeight: 300 }}>
-      $USD
-    </Box>
-  );
-};
-
-const USDCLabel = () => {
-  return (
-    <Box component="span" sx={{ marginLeft: ".5rem", fontSize: ".75rem", fontWeight: 300 }}>
-      USDC
     </Box>
   );
 };

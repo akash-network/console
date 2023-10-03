@@ -142,6 +142,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
         onClose={() => setIsEditingPlacement(null)}
         open={_isEditingPlacement}
         serviceIndex={serviceIndex}
+        services={_services}
         placement={currentService.placement}
       />
 

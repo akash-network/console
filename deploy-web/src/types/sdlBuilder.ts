@@ -109,6 +109,7 @@ export type Placement = {
   pricing: {
     // profile: string;
     amount: number;
+    denom: string;
   };
 };
 

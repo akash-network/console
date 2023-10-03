@@ -64,7 +64,8 @@ export const defaultService: Service = {
   placement: {
     name: "dcloud",
     pricing: {
-      amount: 1000
+      amount: 1000,
+      denom: "uakt"
     },
     signedBy: {
       anyOf: [],

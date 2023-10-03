@@ -104,7 +104,8 @@ export const importSimpleSdl = (yamlStr: string, providerAttributesSchema: Provi
       service.placement = {
         name: placementName,
         pricing: {
-          amount: placementPricing.amount
+          amount: placementPricing.amount,
+          denom: placementPricing.denom
         },
         signedBy: {
           anyOf: placement.signedBy && placement.signedBy?.anyOf ? placement.signedBy.anyOf.map(x => ({ id: nanoid(), value: x })) : [],
