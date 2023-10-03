@@ -1,8 +1,8 @@
 import { makeStyles } from "tss-react/mui";
 import { ApiProviderList } from "@src/types/provider";
-import { ComposableMap, Geographies, Geography, Marker, Point, Sphere, ZoomableGroup } from "react-simple-maps";
-import { useMemo, useState } from "react";
-import { Box, Button, IconButton, useTheme } from "@mui/material";
+import { ComposableMap, Geographies, Geography, Marker, Point, ZoomableGroup } from "react-simple-maps";
+import { useState } from "react";
+import { Box, IconButton, useTheme } from "@mui/material";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
@@ -103,7 +103,7 @@ export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initial
             return true;
           }}
         >
-          <Geographies geography="https://raw.githubusercontent.com/deldersveld/topojson/master/world-countries.json">
+          <Geographies geography="https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json">
             {({ geographies }) =>
               geographies.map(geo => (
                 <Geography
