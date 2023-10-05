@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ResponsivePie } from "@nivo/pie";
 import { makeStyles } from "tss-react/mui";
 import { Box, Button, Card, CardContent, CardHeader, Chip, CircularProgress, lighten, Typography, useTheme } from "@mui/material";
-import { uaktToAKT } from "@src/utils/priceUtils";
+import { getAvgCostPerMonth, uaktToAKT } from "@src/utils/priceUtils";
 import { PriceValue } from "../shared/PriceValue";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { StatusPill } from "../shared/StatusPill";
@@ -147,13 +147,13 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   useEffect(() => {
     if (leases && providers && price && isLoaded) {
       const activeLeases = leases.filter(x => x.state === "active");
-      const totalCost = activeLeases
+      const totalCostPerBlock = activeLeases
         .map(x => {
           switch (x.price.denom) {
             case uAktDenom:
-              return parseFloat(x.price.amount) * price;
+              return udenomToDenom(x.price.amount) * price;
             case usdcIbcDenom:
-              return parseFloat(x.price.amount);
+              return udenomToDenom(x.price.amount);
 
             default:
               return 0;
@@ -169,7 +169,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
           return { owner: provider.owner, name: provider.name };
         });
 
-      setCostPerMonth(totalCost);
+      setCostPerMonth(getAvgCostPerMonth(totalCostPerBlock));
       setUserProviders(_userProviders);
     }
   }, [leases, providers, price, isLoaded]);
