@@ -41,7 +41,7 @@ import { PlacementFormModal } from "./PlacementFormModal";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import Link from "next/link";
 import { PriceValue } from "../shared/PriceValue";
-import { averageBlockTime } from "@src/utils/priceUtils";
+import { averageBlockTime, getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { averageDaysInMonth } from "@src/utils/dateUtils";
 import Image from "next/legacy/image";
 import { uAktDenom } from "@src/utils/constants";
@@ -1149,10 +1149,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                               <div>
                                 <strong>
                                   ~
-                                  <PriceValue
-                                    denom={uAktDenom}
-                                    value={udenomToDenom(currentService.placement.pricing.amount) * (60 / averageBlockTime) * 60 * 24 * averageDaysInMonth}
-                                  />
+                                  <PriceValue denom={uAktDenom} value={udenomToDenom(getAvgCostPerMonth(currentService.placement.pricing.amount))} />
                                 </strong>
                                 &nbsp; per month
                               </div>

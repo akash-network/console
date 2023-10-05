@@ -260,7 +260,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
           {isActive && !!deploymentCost && (
             <Box marginLeft="1rem" display="flex">
               <Box sx={{ display: "flex", alignItems: "center" }}>
-                <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={udenomToDenom(deploymentCost, 6)} typoVariant="body1" />
+                <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={udenomToDenom(deploymentCost, 10)} typoVariant="body1" />
 
                 <CustomTooltip
                   arrow

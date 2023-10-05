@@ -121,7 +121,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
     >
       <TableCell align="center">
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <PricePerMonth denom={bid.price.denom} perBlockValue={udenomToDenom(bid.price.amount, 6)} className={classes.pricePerMonth} />
+          <PricePerMonth denom={bid.price.denom} perBlockValue={udenomToDenom(bid.price.amount, 10)} className={classes.pricePerMonth} />
           <PriceEstimateTooltip denom={bid.price.denom} value={bid.price.amount} />
         </Box>
       </TableCell>

@@ -266,7 +266,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
               label="Price:"
               value={
                 <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <PricePerMonth denom={lease.price.denom} perBlockValue={udenomToDenom(lease.price.amount, 6)} sx={{ fontSize: "1.25rem" }} />
+                  <PricePerMonth denom={lease.price.denom} perBlockValue={udenomToDenom(lease.price.amount, 10)} sx={{ fontSize: "1.25rem" }} />
                   <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} />
                 </Box>
               }
