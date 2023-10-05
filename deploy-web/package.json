@@ -1,6 +1,6 @@
 {
   "name": "cloudmos-app",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "description": "Web UI to deploy on the Akash Network and view statistic about network usage.",
   "author": "Cloudmos",
   "private": true,
@@ -76,7 +76,7 @@
     "tss-react": "^4.8.5",
     "use-state-with-callback": "^3.0.2",
     "usehooks-ts": "^2.9.1",
-    "xterm": "^5.1.0",
+    "xterm": "^5.3.0",
     "xterm-addon-fit": "^0.7.0"
   },
   "devDependencies": {
