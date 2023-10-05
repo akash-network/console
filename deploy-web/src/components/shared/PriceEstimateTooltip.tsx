@@ -25,7 +25,7 @@ const useStyles = makeStyles()(theme => ({
 
 export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, denom }) => {
   const { classes } = useStyles();
-  const _value = udenomToDenom(typeof value === "string" ? parseFloat(value) : value, 6);
+  const _value = udenomToDenom(typeof value === "string" ? parseFloat(value) : value, 10);
   const perDayValue = _value * (60 / averageBlockTime) * 60 * 24;
   const perMonthValue = _value * (60 / averageBlockTime) * 60 * 24 * averageDaysInMonth;
   const denomData = useDenomData(denom);
