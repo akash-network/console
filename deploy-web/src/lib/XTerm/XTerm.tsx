@@ -147,7 +147,10 @@ const XTerm: React.FunctionComponent<IProps> = props => {
         background: theme.palette.mode === "dark" ? "#1e1e1e" : "white",
         foreground: theme.palette.mode === "dark" ? "white" : "black",
         cursor: theme.palette.mode === "dark" ? "white" : "black",
-        cursorAccent: theme.palette.mode === "dark" ? "#1e1e1e" : "white"
+        cursorAccent: theme.palette.mode === "dark" ? "#1e1e1e" : "white",
+        selectionBackground: theme.palette.mode === "dark" ? "white" : "black",
+        selectionForeground: theme.palette.mode === "dark" ? "black" : "white",
+        selectionInactiveBackground: theme.palette.mode === "dark" ? "white" : "black"
       },
       cursorBlink: true
     });
