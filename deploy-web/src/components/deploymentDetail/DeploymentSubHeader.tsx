@@ -88,7 +88,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           value={
             !!deploymentCost && (
               <Box sx={{ display: "flex", alignItems: "center" }}>
-                <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={udenomToDenom(deploymentCost, 6)} typoVariant="body1" />
+                <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={udenomToDenom(deploymentCost, 10)} typoVariant="body1" />
 
                 <CustomTooltip
                   arrow

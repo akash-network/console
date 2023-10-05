@@ -151,9 +151,9 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
         .map(x => {
           switch (x.price.denom) {
             case uAktDenom:
-              return udenomToDenom(x.price.amount) * price;
+              return udenomToDenom(x.price.amount, 10) * price;
             case usdcIbcDenom:
-              return udenomToDenom(x.price.amount);
+              return udenomToDenom(x.price.amount, 10);
 
             default:
               return 0;
