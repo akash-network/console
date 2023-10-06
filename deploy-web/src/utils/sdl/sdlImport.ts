@@ -75,12 +75,12 @@ export const importSimpleSdl = (yamlStr: string, providerAttributesSchema: Provi
           ipName: isGlobal?.ip ? isGlobal.ip : "",
           hasCustomHttpOptions: !!expose.http_options,
           httpOptions: {
-            maxBodySize: expose.http_options?.max_body_size || defaultHttpOptions.maxBodySize,
-            readTimeout: expose.http_options?.read_timeout || defaultHttpOptions.readTimeout,
-            sendTimeout: expose.http_options?.send_timeout || defaultHttpOptions.sendTimeout,
-            nextCases: expose.http_options?.next_cases || defaultHttpOptions.nextCases,
-            nextTries: expose.http_options?.next_tries || defaultHttpOptions.nextTries,
-            nextTimeout: expose.http_options?.next_timeout || defaultHttpOptions.nextTimeout
+            maxBodySize: expose.http_options?.max_body_size ?? defaultHttpOptions.maxBodySize,
+            readTimeout: expose.http_options?.read_timeout ?? defaultHttpOptions.readTimeout,
+            sendTimeout: expose.http_options?.send_timeout ?? defaultHttpOptions.sendTimeout,
+            nextCases: expose.http_options?.next_cases ?? defaultHttpOptions.nextCases,
+            nextTries: expose.http_options?.next_tries ?? defaultHttpOptions.nextTries,
+            nextTimeout: expose.http_options?.next_timeout ?? defaultHttpOptions.nextTimeout
           }
         };
 

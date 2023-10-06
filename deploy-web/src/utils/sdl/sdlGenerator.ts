@@ -36,19 +36,19 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
         _expose["to"] = [
           {
             global: !!e.global,
-            ...(e.ipName && { ip: e.ipName })
+            ...(e.ipName ? { ip: e.ipName } : {})
           }
         ].concat(to as any);
 
         // HTTP Options
         if (e.hasCustomHttpOptions) {
           _expose["http_options"] = {
-            max_body_size: e.httpOptions?.maxBodySize || defaultHttpOptions.maxBodySize,
-            read_timeout: e.httpOptions?.readTimeout || defaultHttpOptions.readTimeout,
-            send_timeout: e.httpOptions?.sendTimeout || defaultHttpOptions.sendTimeout,
-            next_cases: e.httpOptions?.nextCases || defaultHttpOptions.nextCases,
-            next_tries: e.httpOptions?.nextTries || defaultHttpOptions.nextTries,
-            next_timeout: e.httpOptions?.nextTimeout || defaultHttpOptions.nextTimeout
+            max_body_size: e.httpOptions?.maxBodySize ?? defaultHttpOptions.maxBodySize,
+            read_timeout: e.httpOptions?.readTimeout ?? defaultHttpOptions.readTimeout,
+            send_timeout: e.httpOptions?.sendTimeout ?? defaultHttpOptions.sendTimeout,
+            next_cases: e.httpOptions?.nextCases ?? defaultHttpOptions.nextCases,
+            next_tries: e.httpOptions?.nextTries ?? defaultHttpOptions.nextTries,
+            next_timeout: e.httpOptions?.nextTimeout ?? defaultHttpOptions.nextTimeout
           };
         }
 
