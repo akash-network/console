@@ -2,6 +2,7 @@ import { useTheme } from "@mui/material/styles";
 import {
   Box,
   Checkbox,
+  CircularProgress,
   Collapse,
   FormControl,
   FormHelperText,
@@ -522,15 +523,24 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         </Box>
 
                         <Box sx={{ marginTop: "1rem" }}>
-                          <FormSelect
-                            control={control}
-                            label="GPU models"
-                            optionName="hardware-gpu-model"
-                            name={`services.${serviceIndex}.profile.gpuModels`}
-                            providerAttributesSchema={providerAttributesSchema}
-                            required={false}
-                            multiple
-                          />
+                          {providerAttributesSchema ? (
+                            <FormSelect
+                              control={control}
+                              label="GPU models"
+                              optionName="hardware-gpu-model"
+                              name={`services.${serviceIndex}.profile.gpuModels`}
+                              providerAttributesSchema={providerAttributesSchema}
+                              required={false}
+                              multiple
+                            />
+                          ) : (
+                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                              <CircularProgress size="1rem" color="secondary" />
+                              <Typography color="textSecondary" variant="caption" sx={{ marginLeft: ".5rem" }}>
+                                Loading GPU models...
+                              </Typography>
+                            </Box>
+                          )}
                         </Box>
                       </div>
                     )}

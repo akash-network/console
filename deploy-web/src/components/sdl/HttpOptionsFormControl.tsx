@@ -86,7 +86,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
           </Box>
         </Box>
 
-        {currentService.expose[exposeIndex].hasCustomHttpOptions && (
+        {currentService.expose[exposeIndex]?.hasCustomHttpOptions && (
           <>
             <Controller
               control={control}
