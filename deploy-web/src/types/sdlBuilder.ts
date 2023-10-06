@@ -1,3 +1,5 @@
+import { ProviderAttributeSchemaDetailValue } from "./providerAttributes";
+
 export type Service = {
   id: string;
   title: string;
@@ -24,6 +26,10 @@ export type ImportService = {
 
 export type Profile = {
   cpu: number;
+  hasGpu?: boolean;
+  gpu?: number;
+  gpuVendor?: string;
+  gpuModels?: ProviderAttributeSchemaDetailValue[];
   ram: number;
   ramUnit: string;
   storage: number;
@@ -32,7 +38,6 @@ export type Profile = {
   persistentStorage?: number;
   persistentStorageUnit?: string;
   persistentStorageParam?: ServicePersistentStorage;
-  ipName?: string;
 };
 
 export type ServicePersistentStorage = {
@@ -62,7 +67,9 @@ export type Expose = {
   to?: To[];
   global?: boolean;
   accept?: Accept[];
+  hasCustomHttpOptions?: boolean;
   httpOptions?: ServiceExposeHTTPOptions;
+  ipName?: string;
 };
 
 export type To = {
@@ -102,6 +109,7 @@ export type Placement = {
   pricing: {
     // profile: string;
     amount: number;
+    denom: string;
   };
 };
 

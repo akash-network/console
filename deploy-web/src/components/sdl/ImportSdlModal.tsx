@@ -1,5 +1,4 @@
 import { ReactNode, useEffect, useState } from "react";
-import { makeStyles } from "tss-react/mui";
 import { Popup } from "../shared/Popup";
 import { Alert, Box, Typography, useTheme } from "@mui/material";
 import { useSnackbar } from "notistack";
@@ -12,6 +11,7 @@ import { Snackbar } from "../shared/Snackbar";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
 
 type Props = {
   setValue: UseFormSetValue<SdlBuilderFormValues>;
@@ -19,21 +19,12 @@ type Props = {
   children?: ReactNode;
 };
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  }
-}));
-
 export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setValue }) => {
-  const { classes } = useStyles();
   const theme = useTheme();
   const [sdl, setSdl] = useState("");
   const [parsingError, setParsingError] = useState(null);
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const { enqueueSnackbar } = useSnackbar();
+  const { data: providerAttributesSchema } = useProviderAttributesSchema();
 
   useEffect(() => {
     const timer = Timer(500);
@@ -54,7 +45,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
     try {
       if (!sdl) return null;
 
-      const services = importSimpleSdl(yamlStr);
+      const services = importSimpleSdl(yamlStr, providerAttributesSchema);
 
       setParsingError(null);
 

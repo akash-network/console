@@ -2,8 +2,8 @@ import { ReactNode, useRef } from "react";
 import { makeStyles } from "tss-react/mui";
 import { Popup } from "../shared/Popup";
 import { Control, Controller } from "react-hook-form";
-import { Box, Grid, InputAdornment, TextField, useTheme } from "@mui/material";
-import { Placement, SdlBuilderFormValues } from "@src/types";
+import { Box, FormControl, Grid, InputAdornment, InputLabel, MenuItem, Select, TextField, useTheme } from "@mui/material";
+import { Placement, SdlBuilderFormValues, Service } from "@src/types";
 import { FormPaper } from "./FormPaper";
 import { SignedByFormControl, SignedByRefType } from "./SignedByFormControl";
 import { AttributesFormControl, AttributesRefType } from "./AttributesFormControl";
@@ -12,10 +12,15 @@ import InfoIcon from "@mui/icons-material/Info";
 import { PriceValue } from "../shared/PriceValue";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { uAktDenom } from "@src/utils/constants";
+import { useSdlDenoms } from "@src/hooks/useDenom";
+import { FormattedNumber } from "react-intl";
+import { USDLabel } from "../shared/UsdLabel";
+import { udenomToDenom } from "@src/utils/mathHelpers";
 
 type Props = {
   open: boolean;
   serviceIndex: number;
+  services: Service[];
   onClose: () => void;
   control: Control<SdlBuilderFormValues, any>;
   children?: ReactNode;
@@ -31,11 +36,14 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const PlacementFormModal: React.FunctionComponent<Props> = ({ open, control, serviceIndex, onClose, placement: _placement }) => {
+export const PlacementFormModal: React.FunctionComponent<Props> = ({ open, control, services, serviceIndex, onClose, placement: _placement }) => {
   const { classes } = useStyles();
   const theme = useTheme();
   const signedByRef = useRef<SignedByRefType>();
   const attritubesRef = useRef<AttributesRefType>();
+  const supportedSdlDenoms = useSdlDenoms();
+  const currentService = services[serviceIndex];
+  const selectedDenom = supportedSdlDenoms.find(x => x.value === currentService.placement.pricing.denom);
 
   const _onClose = () => {
     const attributesToRemove = [];
@@ -143,50 +151,77 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ open, contr
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
+              <FormControl className={classes.formControl} fullWidth sx={{ display: "flex", alignItems: "center", flexDirection: "row" }}>
+                <InputLabel id="grant-token">Token</InputLabel>
                 <Controller
                   control={control}
-                  name={`services.${serviceIndex}.placement.pricing.amount`}
-                  rules={{ required: "Pricing is required" }}
-                  render={({ field, fieldState }) => (
-                    <TextField
-                      type="number"
-                      variant="outlined"
-                      label="Pricing"
-                      fullWidth
-                      value={field.value}
-                      error={!!fieldState.error}
-                      size="small"
-                      inputProps={{ min: 1, step: 1, max: 10000000 }}
-                      onChange={event => field.onChange(parseFloat(event.target.value))}
-                      InputProps={{
-                        endAdornment: <InputAdornment position="end">uAKT</InputAdornment>
-                      }}
-                    />
-                  )}
+                  name={`services.${serviceIndex}.placement.pricing.denom`}
+                  defaultValue=""
+                  rules={{
+                    required: true
+                  }}
+                  render={({ fieldState, field }) => {
+                    return (
+                      <Select {...field} labelId="sdl-token" label="Token" size="small" error={!!fieldState.error}>
+                        {supportedSdlDenoms.map(token => (
+                          <MenuItem key={token.id} value={token.value}>
+                            {token.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    );
+                  }}
                 />
-                <CustomTooltip
-                  arrow
-                  title={
-                    <>
-                      The maximum amount of uAKT you're willing to pay per block (~6 seconds).
-                      <br />
-                      <br />
-                      Akash will only show providers costing <strong>less</strong> than this amount.
-                      <br />
-                      <br />
-                      <div>
+
+                <Box sx={{ display: "flex", alignItems: "center", flexGrow: 1, marginLeft: ".5rem" }}>
+                  <Controller
+                    control={control}
+                    name={`services.${serviceIndex}.placement.pricing.amount`}
+                    rules={{ required: "Pricing is required" }}
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        type="number"
+                        variant="outlined"
+                        label="Pricing"
+                        fullWidth
+                        value={field.value}
+                        error={!!fieldState.error}
+                        size="small"
+                        inputProps={{ min: 1, step: 1, max: 10000000 }}
+                        onChange={event => field.onChange(parseFloat(event.target.value))}
+                      />
+                    )}
+                  />
+                  <CustomTooltip
+                    arrow
+                    title={
+                      <>
+                        The maximum amount of {selectedDenom?.label} you're willing to pay per block (~6 seconds).
+                        <br />
+                        <br />
+                        Akash will only show providers costing <strong>less</strong> than{" "}
                         <strong>
-                          ~<PriceValue denom={uAktDenom} value={getAvgCostPerMonth(_placement.pricing.amount)} />
+                          {selectedDenom?.value === uAktDenom ? (
+                            <>
+                              ~<PriceValue denom={uAktDenom} value={getAvgCostPerMonth(_placement.pricing.amount)} />
+                            </>
+                          ) : (
+                            <>
+                              <span>
+                                <FormattedNumber value={udenomToDenom(getAvgCostPerMonth(_placement.pricing.amount))} maximumFractionDigits={2} />
+                              </span>
+                              <USDLabel />
+                            </>
+                          )}
                         </strong>
-                        &nbsp; per month
-                      </div>
-                    </>
-                  }
-                >
-                  <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
-                </CustomTooltip>
-              </Box>
+                        &nbsp;per month
+                      </>
+                    }
+                  >
+                    <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+                  </CustomTooltip>
+                </Box>
+              </FormControl>
             </Grid>
           </Grid>
 

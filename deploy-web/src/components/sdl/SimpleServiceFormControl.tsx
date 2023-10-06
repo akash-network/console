@@ -2,6 +2,7 @@ import { useTheme } from "@mui/material/styles";
 import {
   Box,
   Checkbox,
+  CircularProgress,
   Collapse,
   FormControl,
   FormHelperText,
@@ -45,12 +46,16 @@ import { averageBlockTime, getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { averageDaysInMonth } from "@src/utils/dateUtils";
 import Image from "next/legacy/image";
 import { uAktDenom } from "@src/utils/constants";
+import { gpuVendors } from "../shared/akash/gpu";
+import { ProviderAttributesSchema } from "@src/types/providerAttributes";
+import { FormSelect } from "./FormSelect";
 
 type Props = {
   service: Service;
   _services: Service[];
   serviceIndex: number;
   control: Control<SdlBuilderFormValues, any>;
+  providerAttributesSchema: ProviderAttributesSchema;
   trigger: UseFormTrigger<SdlBuilderFormValues>;
   onRemoveService: (index: number) => void;
   serviceCollapsed: number[];
@@ -86,6 +91,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   serviceIndex,
   control,
   _services,
+  providerAttributesSchema,
   onRemoveService,
   trigger,
   serviceCollapsed,
@@ -129,6 +135,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
         serviceIndex={serviceIndex}
         expose={currentService.expose}
         services={_services}
+        providerAttributesSchema={providerAttributesSchema}
       />
       {/** Edit Placement */}
       <PlacementFormModal
@@ -136,6 +143,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
         onClose={() => setIsEditingPlacement(null)}
         open={_isEditingPlacement}
         serviceIndex={serviceIndex}
+        services={_services}
         placement={currentService.placement}
       />
 
@@ -388,6 +396,155 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                       </FormPaper>
                     )}
                   />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <FormPaper elevation={1} sx={{ padding: currentService.profile.hasGpu ? ".5rem 1rem 1rem" : ".5rem 1rem" }}>
+                    <Controller
+                      control={control}
+                      name={`services.${serviceIndex}.profile.gpu`}
+                      rules={{
+                        validate: v => {
+                          if (!v) return "GPU amount is required.";
+                          else if (v < 1) return "GPU amount must be greater than 0.";
+                          return true;
+                        }
+                      }}
+                      render={({ field, fieldState }) => (
+                        <FormControl
+                          className={cx(classes.formControl, classes.textField)}
+                          variant="standard"
+                          sx={{ marginBottom: "0 !important" }}
+                          error={!!fieldState.error}
+                        >
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: { xs: "flex-start", sm: "center" },
+                              justifyContent: "space-between",
+                              flexDirection: { xs: "column", sm: "row" }
+                            }}
+                          >
+                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                              <Typography variant="body2" sx={{ display: "flex", alignItems: "center" }}>
+                                <SpeedIcon sx={{ color: theme.palette.grey[600], marginRight: ".5rem" }} fontSize="medium" />
+                                <strong>GPU</strong>
+
+                                <CustomTooltip
+                                  arrow
+                                  title={
+                                    <>
+                                      The amount of GPUs required for this workload.
+                                      <br />
+                                      <br />
+                                      You can also specify the GPU vendor and model you want specifically. If you don't specify any model, providers with any
+                                      GPU model will bid on your workload.
+                                      <br />
+                                      <br />
+                                      <a href="https://docs.akash.network/testnet/example-gpu-sdls/specific-gpu-vendor" target="_blank" rel="noopener">
+                                        View official documentation.
+                                      </a>
+                                    </>
+                                  }
+                                >
+                                  <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+                                </CustomTooltip>
+                              </Typography>
+
+                              <Controller
+                                control={control}
+                                name={`services.${serviceIndex}.profile.hasGpu`}
+                                render={({ field }) => (
+                                  <Checkbox checked={field.value} onChange={field.onChange} color="secondary" size="small" sx={{ marginLeft: ".5rem" }} />
+                                )}
+                              />
+                            </Box>
+
+                            {currentService.profile.hasGpu && (
+                              <Box sx={{ marginTop: { xs: ".5rem", sm: 0 } }}>
+                                <TextField
+                                  type="number"
+                                  variant="outlined"
+                                  color="secondary"
+                                  value={field.value || ""}
+                                  error={!!fieldState.error}
+                                  onChange={event => field.onChange(parseFloat(event.target.value))}
+                                  inputProps={{ min: 1, step: 1 }}
+                                  size="small"
+                                  sx={{ width: "100px" }}
+                                />
+                              </Box>
+                            )}
+                          </Box>
+
+                          {currentService.profile.hasGpu && (
+                            <Slider
+                              value={field.value || 0}
+                              min={1}
+                              max={100}
+                              step={1}
+                              color="secondary"
+                              aria-label="GPUs"
+                              valueLabelDisplay="auto"
+                              onChange={(event, newValue) => field.onChange(newValue)}
+                            />
+                          )}
+
+                          {!!fieldState.error && <FormHelperText>{fieldState.error.message}</FormHelperText>}
+                        </FormControl>
+                      )}
+                    />
+
+                    {currentService.profile.hasGpu && (
+                      <div>
+                        <Box sx={{ marginTop: "1rem" }}>
+                          <Controller
+                            control={control}
+                            name={`services.${serviceIndex}.profile.gpuVendor`}
+                            rules={{ required: "GPU vendor is required." }}
+                            defaultValue=""
+                            render={({ field }) => (
+                              <Select
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                variant="outlined"
+                                fullWidth
+                                size="small"
+                                MenuProps={{ disableScrollLock: true }}
+                              >
+                                {gpuVendors.map(u => (
+                                  <MenuItem key={u.id} value={u.value}>
+                                    {u.value}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            )}
+                          />
+                        </Box>
+
+                        <Box sx={{ marginTop: "1rem" }}>
+                          {providerAttributesSchema ? (
+                            <FormSelect
+                              control={control}
+                              label="GPU models"
+                              optionName="hardware-gpu-model"
+                              name={`services.${serviceIndex}.profile.gpuModels`}
+                              providerAttributesSchema={providerAttributesSchema}
+                              required={false}
+                              multiple
+                            />
+                          ) : (
+                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                              <CircularProgress size="1rem" color="secondary" />
+                              <Typography color="textSecondary" variant="caption" sx={{ marginLeft: ".5rem" }}>
+                                Loading GPU models...
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      </div>
+                    )}
+                  </FormPaper>
                 </Grid>
 
                 <Grid item xs={12}>
@@ -1017,6 +1174,12 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         <strong>Global</strong>&nbsp;&nbsp;
                         <span className={classes.formValue}>{exp.global ? "True" : "False"}</span>
                       </div>
+                      {exp.ipName && (
+                        <div>
+                          <strong>IP Name</strong>&nbsp;&nbsp;
+                          <span className={classes.formValue}>{exp.ipName}</span>
+                        </div>
+                      )}
                       <div>
                         <strong>Accept</strong>&nbsp;&nbsp;
                         <span className={classes.formValue}>

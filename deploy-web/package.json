@@ -42,7 +42,7 @@
     "file-saver": "^2.0.5",
     "http-proxy": "^1.18.1",
     "jotai": "^2.0.4",
-    "js-yaml": "^3.14.1",
+    "js-yaml": "^4.1.0",
     "json-stable-stringify": "^1.0.2",
     "json2csv": "^5.0.7",
     "jsrsasign": "^10.6.1",
