@@ -1,5 +1,6 @@
 import { Expose, SdlBuilderFormValues } from "@src/types";
 import yaml from "js-yaml";
+import { defaultHttpOptions } from "./data";
 
 export const generateSdl = (formData: SdlBuilderFormValues) => {
   const sdl = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
@@ -7,6 +8,8 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
   formData.services.forEach(service => {
     sdl.services[service.title] = {
       image: service.image,
+
+      // Expose
       expose: service.expose.map(e => {
         // Port
         const _expose = { port: e.port };
@@ -32,9 +35,22 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
         const to = e.to.map(to => ({ ["service"]: to.value }));
         _expose["to"] = [
           {
-            global: !!e.global
+            global: !!e.global,
+            ...(e.ipName ? { ip: e.ipName } : {})
           }
         ].concat(to as any);
+
+        // HTTP Options
+        if (e.hasCustomHttpOptions) {
+          _expose["http_options"] = {
+            max_body_size: e.httpOptions?.maxBodySize ?? defaultHttpOptions.maxBodySize,
+            read_timeout: e.httpOptions?.readTimeout ?? defaultHttpOptions.readTimeout,
+            send_timeout: e.httpOptions?.sendTimeout ?? defaultHttpOptions.sendTimeout,
+            next_cases: e.httpOptions?.nextCases ?? defaultHttpOptions.nextCases,
+            next_tries: e.httpOptions?.nextTries ?? defaultHttpOptions.nextTries,
+            next_timeout: e.httpOptions?.nextTimeout ?? defaultHttpOptions.nextTimeout
+          };
+        }
 
         return _expose;
       })
@@ -68,6 +84,25 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
         ]
       }
     };
+
+    // GPU
+    if (service.profile.hasGpu) {
+      sdl.profiles.compute[service.title].resources.gpu = {
+        units: service.profile.gpu,
+        attributes: {
+          vendor: {
+            [service.profile.gpuVendor]:
+              service.profile.gpuModels.length > 0
+                ? service.profile.gpuModels.map(x => {
+                    const modelKey = x.key.split("/");
+                    // capabilities/gpu/vendor/nvidia/model/h100 -> h100
+                    return { model: modelKey[modelKey.length - 1] };
+                  })
+                : null
+          }
+        }
+      };
+    }
 
     // Persistent Storage
     if (service.profile.hasPersistentStorage) {
@@ -115,6 +150,20 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
       sdl.profiles.placement[service.placement.name].attributes = service.placement.attributes.reduce((acc, curr) => ((acc[curr.key] = curr.value), acc), {});
     }
 
+    // IP Lease
+    if (service.expose.some(exp => exp.ipName)) {
+      sdl["endpoints"] = {};
+
+      service.expose
+        .filter(exp => exp.ipName)
+        .forEach(exp => {
+          sdl["endpoints"][exp.ipName] = {
+            kind: "ip"
+          };
+        });
+    }
+
+    // Count
     sdl.deployment[service.title] = {
       [service.placement.name]: {
         profile: service.title,
@@ -124,7 +173,11 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
   });
 
   const result = yaml.dump(sdl, {
-    indent: 2
+    indent: 2,
+    quotingType: '"',
+    styles: {
+      "!!null": "empty" // dump null as emtpy value
+    }
   });
 
   return `---

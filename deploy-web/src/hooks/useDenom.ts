@@ -10,3 +10,12 @@ export const getUsdcDenom = () => {
   const selectedNetwork = getSelectedNetwork();
   return usdcIbcDenoms[selectedNetwork.id];
 };
+
+export const useSdlDenoms = () => {
+  const usdcDenom = useUsdcDenom();
+
+  return [
+    { id: "uakt", label: "uAKT", value: "uakt" },
+    { id: "uusdc", label: "uUSDC", value: usdcDenom }
+  ];
+};

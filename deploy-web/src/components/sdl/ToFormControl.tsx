@@ -1,7 +1,7 @@
 import { ReactNode, useImperativeHandle, forwardRef } from "react";
 import { makeStyles } from "tss-react/mui";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Box, Button, Checkbox, FormControlLabel, IconButton, MenuItem, Paper, Select, TextField, Typography, useTheme } from "@mui/material";
+import { Box, Button, Checkbox, FormControlLabel, IconButton, MenuItem, Paper, Select, Typography, useTheme } from "@mui/material";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { nanoid } from "nanoid";
@@ -29,12 +29,6 @@ const useStyles = makeStyles()(theme => ({
     flexDirection: "column",
     justifyContent: "space-between",
     backgroundColor: theme.palette.mode === "dark" ? theme.palette.primary.dark : theme.palette.grey[300]
-  },
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
   }
 }));
 

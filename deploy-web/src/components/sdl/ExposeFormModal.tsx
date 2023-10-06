@@ -1,8 +1,7 @@
 import { ReactNode, useRef } from "react";
-import { makeStyles } from "tss-react/mui";
 import { Popup } from "../shared/Popup";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Box, Grid, IconButton, InputAdornment, MenuItem, Select, TextField, useTheme } from "@mui/material";
+import { Box, Grid, IconButton, InputAdornment, MenuItem, Select, TextField } from "@mui/material";
 import { Expose, SdlBuilderFormValues, Service } from "@src/types";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { AcceptFormControl, AcceptRefType } from "./AcceptFormControl";
@@ -12,6 +11,9 @@ import { protoTypes } from "@src/utils/sdl/data";
 import { FormPaper } from "./FormPaper";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
+import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
+import { HttpOptionsFormControl } from "./HttpOptionsFormControl";
+import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 
 type Props = {
   open: boolean;
@@ -21,20 +23,18 @@ type Props = {
   children?: ReactNode;
   services: Service[];
   expose: Expose[];
+  providerAttributesSchema: ProviderAttributesSchema;
 };
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  }
-}));
-
-export const ExposeFormModal: React.FunctionComponent<Props> = ({ open, control, serviceIndex, onClose, expose: _expose, services }) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
+export const ExposeFormModal: React.FunctionComponent<Props> = ({
+  open,
+  control,
+  serviceIndex,
+  onClose,
+  expose: _expose,
+  services,
+  providerAttributesSchema
+}) => {
   const acceptRef = useRef<AcceptRefType>();
   const toRef = useRef<ToRefType>();
   const {
@@ -82,7 +82,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ open, control,
       variant="custom"
       title={
         <Box component="span" sx={{ display: "flex", alignItems: "center" }}>
-          Edit Expose
+          Edit Port Expose
           <CustomTooltip
             arrow
             title={
@@ -221,7 +221,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ open, control,
                 </Grid>
               </Grid>
 
-              <Grid container spacing={2}>
+              <Grid container spacing={2} sx={{ paddingBottom: "1rem" }}>
                 <Grid item xs={12} sm={6}>
                   <AcceptFormControl control={control} serviceIndex={serviceIndex} exposeIndex={expIndex} ref={acceptRef} accept={currentExpose?.accept} />
                 </Grid>
@@ -230,6 +230,77 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ open, control,
                   <ToFormControl control={control} serviceIndex={serviceIndex} exposeIndex={expIndex} ref={toRef} services={services} />
                 </Grid>
               </Grid>
+
+              <Box sx={{ marginTop: "1rem" }}>
+                <Controller
+                  control={control}
+                  name={`services.${serviceIndex}.expose.${expIndex}.ipName`}
+                  rules={{
+                    validate: value => {
+                      const hasValidChars = endpointNameValidationRegex.test(value);
+                      const hasValidStartingChar = /^[a-z]/.test(value);
+                      const hasValidEndingChar = !value.endsWith("-");
+
+                      if (!hasValidChars) {
+                        return "Invalid ip name. It must only be lower case letters, numbers and dashes.";
+                      } else if (!hasValidStartingChar) {
+                        return "Invalid starting character. It can only start with a lowercase letter.";
+                      } else if (!hasValidEndingChar) {
+                        return "Invalid ending character. It can only end with a lowercase letter or number";
+                      }
+
+                      return true;
+                    }
+                  }}
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      type="text"
+                      variant="outlined"
+                      label="IP Name"
+                      color="secondary"
+                      fullWidth
+                      value={field.value}
+                      error={!!fieldState.error}
+                      size="small"
+                      onChange={event => field.onChange(event.target.value)}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <CustomTooltip
+                              arrow
+                              title={
+                                <>
+                                  Optional.
+                                  <br />
+                                  <br />
+                                  Option for Tenants to request publicly routable IP addresses for the services they deploy
+                                  <br />
+                                  <br />
+                                  <a href="https://docs.akash.network/features/ip-leases/ip-leases-features-and-limitations" target="_blank" rel="noopener">
+                                    View official documentation.
+                                  </a>
+                                </>
+                              }
+                            >
+                              <InfoIcon color="disabled" fontSize="small" />
+                            </CustomTooltip>
+                          </InputAdornment>
+                        )
+                      }}
+                    />
+                  )}
+                />
+              </Box>
+
+              <Box sx={{ marginTop: "1rem" }}>
+                <HttpOptionsFormControl
+                  control={control}
+                  serviceIndex={serviceIndex}
+                  exposeIndex={expIndex}
+                  services={services}
+                  providerAttributesSchema={providerAttributesSchema}
+                />
+              </Box>
             </Box>
 
             {expIndex !== 0 && (
