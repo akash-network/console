@@ -68,9 +68,9 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const router = useRouter();
   const { address } = useKeplr();
   const usdcIbcDenom = useUsdcDenom();
-  const [selectedDataId, setSelectedDataId] = useState(null);
-  const [costPerMonth, setCostPerMonth] = useState(null);
-  const [userProviders, setUserProviders] = useState(null);
+  const [selectedDataId, setSelectedDataId] = useState<string>(null);
+  const [costPerMonth, setCostPerMonth] = useState<number>(null);
+  const [userProviders, setUserProviders] = useState<{ owner: string; name: string }[]>(null);
   const escrowUAktSum = activeDeployments
     .filter(x => x.escrowAccount.balance.denom === uAktDenom)
     .map(x => x.escrowBalance)
@@ -256,8 +256,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                       Providers
                     </Typography>
 
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                      {userProviders?.map((p, i) => (
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: ".5rem", alignItems: "center" }}>
+                      {userProviders?.map(p => (
                         <Chip
                           key={p.owner}
                           label={p.name}
@@ -266,7 +266,6 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                           color="secondary"
                           variant="outlined"
                           onClick={() => router.push(UrlService.providerDetail(p.owner))}
-                          sx={{ marginLeft: i > 0 ? ".5rem" : 0 }}
                         />
                       ))}
                     </Box>
