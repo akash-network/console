@@ -241,7 +241,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         </TableCell>
         <TableCell align="center">
           {isActive && !!escrowBalance && (
-            <Box marginLeft={isValidTimeLeft ? "1rem" : 0} display="flex">
+            <Box display="flex">
               <PriceValue
                 denom={deployment.escrowAccount.balance.denom}
                 value={udenomToDenom(isActive && hasActiveLeases ? realTimeLeft?.escrow : escrowBalance, 6)}
