@@ -265,7 +265,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                           clickable
                           color="secondary"
                           variant="outlined"
-                          onClick={() => router.push(UrlService.providerDetail(p.owner))}
+                          component={Link}
+                          href={UrlService.providerDetailLeases(p.owner)}
                         />
                       ))}
                     </Box>
