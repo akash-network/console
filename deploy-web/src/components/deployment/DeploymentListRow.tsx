@@ -123,7 +123,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   ) : (
     <span className={classes.dseq}>{deployment.dseq}</span>
   );
-  const showWarning = differenceInCalendarDays(timeLeft, new Date()) < 7;
+  const showTimeLeftWarning = differenceInCalendarDays(timeLeft, new Date()) < 7;
   const escrowBalance = isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance;
   const amountSpent = isActive && hasActiveLeases ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount);
   const isValidTimeLeft = isActive && hasActiveLeases && isValid(realTimeLeft?.timeLeft);
@@ -196,6 +196,12 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     router.push(url);
   };
 
+  function onDepositClicked(e?: React.MouseEvent<HTMLAnchorElement, MouseEvent>) {
+    e?.preventDefault();
+    e?.stopPropagation();
+    setIsDepositingDeployment(true);
+  }
+
   return (
     <>
       <CustomTableRow className={classes.root} onClick={() => viewDeployment()}>
@@ -215,13 +221,27 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
           {isActive && isValidTimeLeft && (
             <Box component="span" display="flex" alignItems="center">
               ~{formatDistanceToNow(realTimeLeft?.timeLeft)}
-              {showWarning && <WarningIcon fontSize="small" color="error" className={classes.warningIcon} />}
+              {showTimeLeftWarning && (
+                <Tooltip
+                  title={
+                    <>
+                      Your deployment will close soon,{" "}
+                      <a href="#" onClick={onDepositClicked}>
+                        Add Funds
+                      </a>{" "}
+                      to keep it running.
+                    </>
+                  }
+                >
+                  <WarningIcon fontSize="small" color="error" className={classes.warningIcon} />
+                </Tooltip>
+              )}
             </Box>
           )}
         </TableCell>
         <TableCell align="center">
           {isActive && !!escrowBalance && (
-            <Box marginLeft={isValidTimeLeft ? "1rem" : 0} display="flex">
+            <Box display="flex">
               <PriceValue
                 denom={deployment.escrowAccount.balance.denom}
                 value={udenomToDenom(isActive && hasActiveLeases ? realTimeLeft?.escrow : escrowBalance, 6)}
@@ -331,7 +351,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         }}
         onClick={handleMenuClose}
       >
-        {isActive && <CustomMenuItem onClick={() => setIsDepositingDeployment(true)} icon={<AddIcon fontSize="small" />} text="Add funds" />}
+        {isActive && <CustomMenuItem onClick={onDepositClicked} icon={<AddIcon fontSize="small" />} text="Add funds" />}
         <CustomMenuItem onClick={() => changeDeploymentName(deployment.dseq)} icon={<EditIcon fontSize="small" />} text="Edit name" />
         {storageDeploymentData?.manifest && <CustomMenuItem onClick={() => redeploy()} icon={<PublishIcon fontSize="small" />} text="Redeploy" />}
         {isActive && <CustomMenuItem onClick={() => onCloseDeployment()} icon={<CancelPresentationIcon fontSize="small" />} text="Close" />}

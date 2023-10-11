@@ -156,15 +156,17 @@ const getGpuModels = (
   providerAttributesSchema: ProviderAttributesSchema
 ): ProviderAttributeSchemaDetailValue[] => {
   const models = vendor.nvidia
-    .map(m => {
-      const model = providerAttributesSchema["hardware-gpu-model"].values.find(v => {
-        const modelKey = v.key.split("/");
-        // capabilities/gpu/vendor/nvidia/model/h100 -> h100
-        return m.model === modelKey[modelKey.length - 1];
-      }) as ProviderAttributeSchemaDetailValue;
-      return model;
-    })
-    .filter(m => m);
+    ? vendor.nvidia
+        .map(m => {
+          const model = providerAttributesSchema["hardware-gpu-model"].values.find(v => {
+            const modelKey = v.key.split("/");
+            // capabilities/gpu/vendor/nvidia/model/h100 -> h100
+            return m.model === modelKey[modelKey.length - 1];
+          }) as ProviderAttributeSchemaDetailValue;
+          return model;
+        })
+        .filter(m => m)
+    : [];
 
   return models;
 };
