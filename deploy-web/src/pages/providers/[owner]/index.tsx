@@ -3,7 +3,7 @@ import { Typography, Box, Paper, useTheme, CircularProgress, Alert } from "@mui/
 import { useRouter } from "next/router";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import Layout from "@src/components/layout/Layout";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { ApiProviderDetail, ClientProviderDetailWithStatus } from "@src/types/provider";
 import { useProviderAttributesSchema, useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
 import ProviderDetailLayout, { ProviderDetailTabs } from "@src/components/providers/ProviderDetailLayout";
@@ -45,7 +45,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
   const { classes } = useStyles();
   const router = useRouter();
   const theme = useTheme();
-  const { address } = useKeplr();
+  const { address } = useWallet();
   const { isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner, {
     enabled: false,
     retry: false,
@@ -251,3 +251,4 @@ export async function getServerSideProps({ params, query }) {
     }
   };
 }
+

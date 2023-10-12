@@ -8,7 +8,7 @@ import { useSnackbar } from "notistack";
 import { Snackbar } from "@src/components/shared/Snackbar";
 import { customRegistry } from "@src/utils/customRegistry";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
-import { OpenInNew } from "@mui/icons-material";
+import { OpenInNew, WindowSharp } from "@mui/icons-material";
 import { useTheme } from "@mui/material";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
@@ -29,22 +29,29 @@ type ContextType = {
   address: string;
   walletName: string;
   walletBalances: Balances;
+  isLeapInstalled: boolean;
   isKeplrInstalled: boolean;
-  isKeplrConnected: boolean;
+  isWalletConnected: boolean;
   isWalletLoaded: boolean;
-  connectWallet: () => Promise<void>;
+  connectWallet: (walletSource: Wallets) => Promise<void>;
   logout: () => void;
   setIsWalletLoaded: React.Dispatch<React.SetStateAction<boolean>>;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<any>;
   refreshBalances: (address?: string) => Promise<Balances>;
 };
 
-const KeplrWalletProviderContext = React.createContext<ContextType>({
+export enum Wallets {
+  KEPLR = "keplr",
+  LEAP = "leap"
+}
+
+const WalletProviderContext = React.createContext<ContextType>({
   address: null,
   walletName: null,
   walletBalances: null,
+  isLeapInstalled: false,
   isKeplrInstalled: false,
-  isKeplrConnected: false,
+  isWalletConnected: false,
   isWalletLoaded: false,
   connectWallet: null,
   logout: null,
@@ -53,11 +60,12 @@ const KeplrWalletProviderContext = React.createContext<ContextType>({
   refreshBalances: null
 });
 
-export const KeplrWalletProvider = ({ children }) => {
+export const WalletProvider = ({ children }) => {
   const [walletAddress, setWalletAddress] = useState<string>(null);
   const [walletName, setWalletName] = useState<string>(null);
   const [walletBalances, setWalletBalances] = useState<Balances>(null);
   const [isKeplrInstalled, setIsKeplrInstalled] = useState<boolean>(false);
+  const [isLeapInstalled, setIsLeapInstalled] = useState<boolean>(false);
   const [isWindowLoaded, setIsWindowLoaded] = useState<boolean>(false);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(false);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
@@ -69,7 +77,7 @@ export const KeplrWalletProvider = ({ children }) => {
   const usdcIbcDenom = useUsdcDenom();
 
   useEffect(() => {
-    console.log("useKeplr on mount");
+    console.log("useWallet on mount");
 
     if (document.readyState === "complete") {
       setIsWindowLoaded(true);
@@ -84,30 +92,44 @@ export const KeplrWalletProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    if (isWindowLoaded && isSettingsInit) {
-      if (!!window.keplr) {
-        setIsKeplrInstalled(true);
+    if (isWindowLoaded) {
+      if (!!window.keplr || !!window.leap) {
+        if (!!window.keplr) {
+          setIsKeplrInstalled(true);
+        }
 
-        window.keplr.defaultOptions = {
-          sign: {
-            preferNoSetMemo: true
+        if (!!window.leap) {
+          setIsLeapInstalled(true);
+        }
+
+        if (localStorage.getItem("wallet_autoconnect")) {
+          const storedWallet = localStorage.getItem("wallet_autoconnect");
+
+          if (storedWallet === Wallets.KEPLR) {
+            window.wallet = window.keplr;
+          } else if (storedWallet === Wallets.LEAP) {
+            window.wallet = window.leap;
           }
-        };
 
-        if (localStorage.getItem("keplr_autoconnect")) {
+          window.wallet.defaultOptions = {
+            sign: {
+              preferNoSetMemo: true
+            }
+          };
+
           loadWallet();
         } else {
           setIsWalletLoaded(true);
         }
 
-        window.addEventListener("keplr_keystorechange", onKeystoreChange);
+        window.addEventListener("keplr_keystorechange", () => onKeystoreChange(Wallets.KEPLR));
+        window.addEventListener("leap_keystorechange", () => onKeystoreChange(Wallets.LEAP));
 
         return () => {
           isMounted.current = false;
 
-          console.log("useKeplr on unmount");
-
-          window.removeEventListener("keplr_keystorechange", onKeystoreChange);
+          window.removeEventListener("keplr_keystorechange", () => onKeystoreChange(Wallets.KEPLR));
+          window.removeEventListener("leap_keystorechange", () => onKeystoreChange(Wallets.LEAP));
         };
       } else {
         setIsWalletLoaded(true);
@@ -121,8 +143,8 @@ export const KeplrWalletProvider = ({ children }) => {
     }
   }, [settings?.rpcEndpoint]);
 
-  const onKeystoreChange = () => {
-    console.log("Key store in Keplr is changed.");
+  const onKeystoreChange = (wallet: Wallets) => {
+    console.log(`Key store in ${wallet} is changed.`);
 
     loadWallet();
 
@@ -132,7 +154,7 @@ export const KeplrWalletProvider = ({ children }) => {
   async function createStargateClient() {
     const selectedNetwork = getSelectedNetwork();
 
-    const offlineSigner = window.keplr.getOfflineSigner(selectedNetwork.chainId);
+    const offlineSigner = window.wallet.getOfflineSigner(selectedNetwork.chainId);
     let rpc = settings?.rpcEndpoint ? settings?.rpcEndpoint : selectedNetwork.rpcEndpoint;
 
     try {
@@ -165,7 +187,7 @@ export const KeplrWalletProvider = ({ children }) => {
     setWalletName(null);
     setWalletBalances(null);
 
-    localStorage.removeItem("keplr_autoconnect");
+    localStorage.removeItem("wallet_autoconnect");
 
     event(AnalyticsEvents.DISCONNECT_WALLET, {
       category: "wallet",
@@ -175,15 +197,17 @@ export const KeplrWalletProvider = ({ children }) => {
     router.push(UrlService.home());
   }
 
-  async function connectWallet(): Promise<void> {
-    console.log("connecting to keplr");
+  async function connectWallet(walletSource: Wallets): Promise<void> {
+    console.log(`connecting to ${walletSource}`);
+
+    window.wallet = window[walletSource];
     const selectedNetwork = getSelectedNetwork();
 
-    if (selectedNetwork.suggestKeplrChain) {
-      await selectedNetwork.suggestKeplrChain();
+    if (selectedNetwork.suggestWalletChain) {
+      await selectedNetwork.suggestWalletChain();
     }
 
-    await window.keplr.enable(selectedNetwork.chainId);
+    await window.wallet.enable(selectedNetwork.chainId);
 
     await loadWallet();
 
@@ -192,7 +216,7 @@ export const KeplrWalletProvider = ({ children }) => {
       label: "Connect wallet"
     });
 
-    localStorage.setItem("keplr_autoconnect", "true");
+    localStorage.setItem("wallet_autoconnect", walletSource);
   }
 
   async function loadWallet(): Promise<void> {
@@ -200,13 +224,13 @@ export const KeplrWalletProvider = ({ children }) => {
     let selectedNetwork = null;
     try {
       selectedNetwork = getSelectedNetwork();
-      wallet = await window.keplr.getKey(selectedNetwork.chainId);
+      wallet = await window.wallet.getKey(selectedNetwork.chainId);
     } catch (err) {
       console.error(err);
 
       if (err.message.includes("There is no chain info for")) {
-        await selectedNetwork?.suggestKeplrChain();
-        wallet = await window.keplr.getKey(selectedNetwork.chainId);
+        await selectedNetwork?.suggestWalletChain();
+        wallet = await window.wallet.getKey(selectedNetwork.chainId);
       } else {
         setIsWalletLoaded(true);
         return;
@@ -382,13 +406,14 @@ export const KeplrWalletProvider = ({ children }) => {
   }
 
   return (
-    <KeplrWalletProviderContext.Provider
+    <WalletProviderContext.Provider
       value={{
         address: walletAddress,
         walletName,
         walletBalances,
         isKeplrInstalled,
-        isKeplrConnected: !!walletName,
+        isLeapInstalled,
+        isWalletConnected: !!walletName,
         isWalletLoaded,
         connectWallet,
         logout,
@@ -400,13 +425,13 @@ export const KeplrWalletProvider = ({ children }) => {
       {children}
 
       <TransactionModal open={isBroadcastingTx} onClose={() => setIsBroadcastingTx(false)} />
-    </KeplrWalletProviderContext.Provider>
+    </WalletProviderContext.Provider>
   );
 };
 
 // Hook
-export function useKeplr() {
-  return { ...React.useContext(KeplrWalletProviderContext) };
+export function useWallet() {
+  return { ...React.useContext(WalletProviderContext) };
 }
 
 const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
@@ -428,3 +453,4 @@ const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
     </>
   );
 };
+

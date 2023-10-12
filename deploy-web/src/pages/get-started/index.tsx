@@ -40,3 +40,4 @@ const GetStarted: React.FunctionComponent<Props> = ({}) => {
 };
 
 export default GetStarted;
+

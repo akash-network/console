@@ -4,14 +4,14 @@ import { FormattedDate } from "react-intl";
 import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
 import { CertificateDisplay } from "./CertificateDisplay";
 import { CustomTableHeader, CustomTableRow } from "../shared/CustomTable";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { ConnectWallet } from "../shared/ConnectWallet";
 
 type Props = {};
 
 export const CertificateList: React.FunctionComponent<Props> = ({}) => {
   const { validCertificates, localCert, selectedCertificate, revokeCertificate, revokeAllCertificates, isLoadingCertificates } = useCertificate();
-  const { address } = useKeplr();
+  const { address } = useWallet();
 
   return (
     <Box>
@@ -82,3 +82,4 @@ export const CertificateList: React.FunctionComponent<Props> = ({}) => {
     </Box>
   );
 };
+

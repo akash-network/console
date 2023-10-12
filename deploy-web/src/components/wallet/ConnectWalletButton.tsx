@@ -4,7 +4,7 @@ import Box from "@mui/material/Box";
 import Button, { ButtonProps } from "@mui/material/Button";
 import { ConnectWalletModal } from "./ConnectWalletModal";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 
 interface Props extends ButtonProps {
   children?: ReactNode;
@@ -13,7 +13,7 @@ interface Props extends ButtonProps {
 const useStyles = makeStyles()(theme => ({}));
 
 export const ConnectWalletButton: React.FunctionComponent<Props> = ({ ...rest }) => {
-  const { isKeplrConnected } = useKeplr();
+  const { isWalletConnected } = useWallet();
   const [isConnectingWallet, setIsConnectingWallet] = useState(false);
   const { classes } = useStyles();
 
@@ -22,7 +22,7 @@ export const ConnectWalletButton: React.FunctionComponent<Props> = ({ ...rest })
   };
 
   const onClose = () => {
-    if (!isKeplrConnected) {
+    if (!isWalletConnected) {
       setIsConnectingWallet(false);
     }
   };
@@ -40,3 +40,4 @@ export const ConnectWalletButton: React.FunctionComponent<Props> = ({ ...rest })
     </>
   );
 };
+

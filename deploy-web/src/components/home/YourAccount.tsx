@@ -14,7 +14,7 @@ import Link from "next/link";
 import { FormattedNumber, FormattedPlural } from "react-intl";
 import { useRouter } from "next/router";
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { ConnectWallet } from "../shared/ConnectWallet";
 import { Balances } from "@src/types";
 import { ApiProviderList } from "@src/types/provider";
@@ -66,7 +66,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const { classes } = useStyles();
   const theme = useTheme();
   const router = useRouter();
-  const { address } = useKeplr();
+  const { address } = useWallet();
   const usdcIbcDenom = useUsdcDenom();
   const [selectedDataId, setSelectedDataId] = useState<string>(null);
   const [costPerMonth, setCostPerMonth] = useState<number>(null);
@@ -449,3 +449,4 @@ const BalancePie: React.FunctionComponent<BalancePieProps> = ({ label, data, get
     </Box>
   );
 };
+

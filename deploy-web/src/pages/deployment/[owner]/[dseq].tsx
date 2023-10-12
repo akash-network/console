@@ -22,7 +22,7 @@ import { Title } from "@src/components/shared/Title";
 import { NextSeo } from "next-seo";
 import { CustomTableHeader, CustomTableRow } from "@src/components/shared/CustomTable";
 import AddIcon from "@mui/icons-material/Add";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useState } from "react";
 import { DeploymentDepositModal } from "@src/components/deploymentDetail/DeploymentDepositModal";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -42,7 +42,7 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ owner, dseq, dep
   const [showDepositModal, setShowDepositModal] = useState(false);
   const { classes } = useStyles();
   const theme = useTheme();
-  const { address, signAndBroadcastTx } = useKeplr();
+  const { address, signAndBroadcastTx } = useWallet();
 
   const canDeposit = address && address === owner && deployment?.status === "active";
 
@@ -276,3 +276,4 @@ async function fetchDeploymentData(owner: string, dseq: string, network: string)
   const response = await axios.get(`${apiUrl}/deployment/${owner}/${dseq}`);
   return response.data;
 }
+

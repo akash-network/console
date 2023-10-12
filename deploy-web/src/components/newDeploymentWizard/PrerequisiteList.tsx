@@ -4,7 +4,7 @@ import { green } from "@mui/material/colors";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { makeStyles } from "tss-react/mui";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { ConnectWallet } from "../shared/ConnectWallet";
 import { Popup } from "../shared/Popup";
 
@@ -25,7 +25,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
   const theme = useTheme();
   const [isLoadingPrerequisites, setIsLoadingPrerequisites] = useState(false);
   const [isBalanceValidated, setIsBalanceValidated] = useState(null);
-  const { address, walletBalances, refreshBalances } = useKeplr();
+  const { address, walletBalances, refreshBalances } = useWallet();
 
   useEffect(() => {
     async function loadPrerequisites() {
@@ -99,3 +99,4 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
     </Popup>
   );
 };
+

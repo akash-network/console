@@ -7,7 +7,7 @@ import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { Snackbar } from "../shared/Snackbar";
 import { uAktDenom } from "@src/utils/constants";
 import { Alert, Box, Checkbox, FormControl, FormControlLabel, InputAdornment, InputLabel, MenuItem, Select, TextField } from "@mui/material";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { LinkTo } from "../shared/LinkTo";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
@@ -36,7 +36,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   const { enqueueSnackbar } = useSnackbar();
   const [error, setError] = useState("");
   const [isCheckingDepositor, setIsCheckingDepositor] = useState(false);
-  const { walletBalances, address } = useKeplr();
+  const { walletBalances, address } = useWallet();
   const { data: granteeGrants } = useGranteeGrants(address);
   const {
     handleSubmit,
@@ -268,3 +268,4 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
     </Popup>
   );
 };
+

@@ -21,3 +21,4 @@ export const useSelectedNetwork = () => {
 
   return selectedNetwork ?? networks[0];
 };
+

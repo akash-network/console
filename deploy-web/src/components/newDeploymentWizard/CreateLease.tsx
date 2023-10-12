@@ -23,7 +23,7 @@ import InfoIcon from "@mui/icons-material/Info";
 import { useLocalNotes } from "../../context/LocalNoteProvider";
 import { makeStyles } from "tss-react/mui";
 import { useRouter } from "next/router";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useBidList } from "@src/queries/useBidQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
@@ -82,7 +82,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const [selectedBids, setSelectedBids] = useState<{ [gseq: string]: BidDto }>({});
   const [filteredBids, setFilteredBids] = useState<Array<string>>([]);
   const [search, setSearch] = useState("");
-  const { address, signAndBroadcastTx } = useKeplr();
+  const { address, signAndBroadcastTx } = useWallet();
   const { localCert } = useCertificate();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const router = useRouter();
@@ -476,3 +476,4 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     </>
   );
 };
+

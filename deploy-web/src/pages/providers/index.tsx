@@ -22,7 +22,7 @@ import { makeStyles } from "tss-react/mui";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import Layout from "@src/components/layout/Layout";
 import { useNetworkCapacity, useProviderList } from "@src/queries/useProvidersQuery";
 import PageContainer from "@src/components/shared/PageContainer";
@@ -71,7 +71,7 @@ const sortOptions = [
 
 const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
   const { classes } = useStyles();
-  const { address } = useKeplr();
+  const { address } = useWallet();
   const [page, setPage] = useState(1);
   const [isFilteringActive, setIsFilteringActive] = useState(true);
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
@@ -419,3 +419,4 @@ export async function getServerSideProps({ params }) {
 }
 
 export default ProvidersPage;
+

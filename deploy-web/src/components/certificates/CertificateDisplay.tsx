@@ -11,7 +11,7 @@ import { ExportCertificate } from "./ExportCertificate";
 import { makeStyles } from "tss-react/mui";
 import { Box, Button, CircularProgress, IconButton, Menu, Paper, Tooltip, Typography, useTheme } from "@mui/material";
 import { CustomMenuItem } from "../shared/CustomMenuItem";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import CheckIcon from "@mui/icons-material/Check";
 
 const useStyles = makeStyles()({
@@ -37,7 +37,7 @@ export function CertificateDisplay() {
     revokeCertificate
   } = useCertificate();
   const { classes } = useStyles();
-  const { address } = useKeplr();
+  const { address } = useWallet();
   const [anchorEl, setAnchorEl] = useState(null);
   const theme = useTheme();
 
@@ -159,3 +159,4 @@ export function CertificateDisplay() {
     </>
   );
 }
+

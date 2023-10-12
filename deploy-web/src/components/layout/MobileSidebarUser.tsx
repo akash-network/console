@@ -11,7 +11,7 @@ import Logout from "@mui/icons-material/Logout";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { SidebarRouteButton } from "./SidebarRouteButton";
-import { KeplrWalletStatus } from "./KeplrWalletStatus";
+import { WalletStatus } from "./WalletStatus";
 import Settings from "@mui/icons-material/Settings";
 
 const useStyles = makeStyles()(theme => ({
@@ -41,7 +41,7 @@ export const MobileSidebarUser: React.FunctionComponent<Props> = ({}) => {
       <Divider />
 
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", padding: ".5rem" }}>
-        <KeplrWalletStatus />
+        <WalletStatus />
       </Box>
 
       <Divider />
@@ -114,3 +114,4 @@ export const MobileSidebarUser: React.FunctionComponent<Props> = ({}) => {
     </List>
   );
 };
+

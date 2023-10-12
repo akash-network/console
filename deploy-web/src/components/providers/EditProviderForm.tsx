@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, HTMLInputTypeAttribute } from "react";
 import { makeStyles } from "tss-react/mui";
 import { useRouter } from "next/router";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { ApiProviderDetail } from "@src/types/provider";
 import {
   Alert,
@@ -59,7 +59,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
   const router = useRouter();
   const [error, setError] = useState(null);
   const formRef = useRef<HTMLFormElement>();
-  const { address, signAndBroadcastTx } = useKeplr();
+  const { address, signAndBroadcastTx } = useWallet();
   const {
     handleSubmit,
     reset,
@@ -805,3 +805,4 @@ const ProviderSelect: React.FunctionComponent<ProviderSelectProps> = ({
     />
   );
 };
+
