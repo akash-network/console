@@ -92,7 +92,7 @@ export const WalletProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    if (isWindowLoaded) {
+    if (isWindowLoaded && isSettingsInit) {
       if (!!window.keplr || !!window.leap) {
         if (!!window.keplr) {
           setIsKeplrInstalled(true);
