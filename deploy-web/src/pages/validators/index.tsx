@@ -16,7 +16,7 @@ import { Title } from "@src/components/shared/Title";
 import { BASE_API_URL, validatorAddress } from "@src/utils/constants";
 import { CustomTableHeader } from "@src/components/shared/CustomTable";
 import { useEffect, useState } from "react";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import axios from "axios";
 import { AddressDetail } from "@src/types";
 import { AKTAmount } from "@src/components/shared/AKTAmount";
@@ -39,7 +39,7 @@ const ValidatorsPage: React.FunctionComponent<Props> = ({}) => {
   const { classes } = useStyles();
   const theme = useTheme();
   const { data: validators, isLoading } = useValidators();
-  const { address, signAndBroadcastTx } = useKeplr();
+  const { address, signAndBroadcastTx } = useWallet();
 
   useEffect(() => {
     setWalletAddressData(null);
@@ -224,3 +224,4 @@ export async function getServerSideProps({ params }) {
     props: {}
   };
 }
+

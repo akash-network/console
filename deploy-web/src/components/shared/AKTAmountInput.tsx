@@ -1,5 +1,5 @@
 import { Box, FormControl, InputAdornment, InputLabel, OutlinedInput } from "@mui/material";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { AKTLabel } from "../shared/AKTLabel";
 import { FormattedNumber } from "react-intl";
@@ -12,7 +12,7 @@ type Props = {
 };
 
 export const AKTAmountInput: React.FunctionComponent<Props> = ({ disabled, amount, onAmountChange }) => {
-  const { walletBalances } = useKeplr();
+  const { walletBalances } = useWallet();
   const { isLoaded: isPricingLoaded, aktToUSD } = usePricing();
 
   const isValidAmount = !!amount;
@@ -51,3 +51,4 @@ export const AKTAmountInput: React.FunctionComponent<Props> = ({ disabled, amoun
     </>
   );
 };
+

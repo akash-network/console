@@ -10,7 +10,7 @@ import { makeStyles } from "tss-react/mui";
 import { getShortText } from "@src/hooks/useShortText";
 import { CustomTableRow } from "../shared/CustomTable";
 import { AKTAmount } from "../shared/AKTAmount";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useState } from "react";
 import { usePopupState, bindTrigger, bindPopper } from "material-ui-popup-state/hooks";
@@ -35,7 +35,7 @@ export const ValidatorRow: React.FunctionComponent<Props> = ({ validator, reward
   const popupState = usePopupState({ variant: "popper", popupId: "delegationActionMenu" });
   const theme = useTheme();
   const { classes } = useStyles();
-  const { address, signAndBroadcastTx } = useKeplr();
+  const { address, signAndBroadcastTx } = useWallet();
   const isTop10 = validator.rank <= 10;
 
   async function claimClick() {
@@ -168,3 +168,4 @@ export const ValidatorRow: React.FunctionComponent<Props> = ({ validator, reward
     </CustomTableRow>
   );
 };
+

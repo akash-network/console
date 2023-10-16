@@ -12,7 +12,7 @@ import PageContainer from "../shared/PageContainer";
 import { ProviderSummary } from "./ProviderSummary";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import Link from "next/link";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 
 export enum ProviderDetailTabs {
@@ -49,7 +49,7 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
   const theme = useTheme();
   const { classes } = useStyles();
   const router = useRouter();
-  const { address: walletAddress } = useKeplr();
+  const { address: walletAddress } = useWallet();
   const previousRoute = usePreviousRoute();
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: ProviderDetailTabs) => {
@@ -135,3 +135,4 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
 };
 
 export default ProviderDetailLayout;
+

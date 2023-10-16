@@ -8,7 +8,7 @@ import { accountBarHeight } from "@src/utils/constants";
 import { Badge, Button, IconButton, styled, useMediaQuery, useTheme } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
 import Image from "next/legacy/image";
-import { KeplrWalletStatus } from "./KeplrWalletStatus";
+import { WalletStatus } from "./WalletStatus";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { useRouter } from "next/router";
@@ -137,7 +137,7 @@ export const Header: React.FunctionComponent<Props> = ({ children, isMobileOpen,
 
             <Box sx={{ display: "flex", alignItems: "center" }}>
               <Box sx={{ marginLeft: "1rem" }}>
-                <KeplrWalletStatus />
+                <WalletStatus />
               </Box>
 
               <AccountMenu />
@@ -148,3 +148,4 @@ export const Header: React.FunctionComponent<Props> = ({ children, isMobileOpen,
     </AppBar>
   );
 };
+

@@ -1,7 +1,7 @@
 import { ReactNode, useState } from "react";
 import { Popup } from "../shared/Popup";
 import { Box, FormControl, InputLabel, MenuItem, Paper, Select, SelectChangeEvent } from "@mui/material";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import SendIcon from "@mui/icons-material/Send";
 import { AKTAmountInput } from "../shared/AKTAmountInput";
 import { useValidators } from "@src/queries/useValidatorsQuery";
@@ -24,7 +24,7 @@ export const RedelegateModal: React.FunctionComponent<Props> = ({ open, validato
   const [selectedValidator, setSelectedValidator] = useState<string>("");
   const [isKeplrOpened, setIsKeplrOpened] = useState(false);
   const { data: validators, isLoading } = useValidators();
-  const { signAndBroadcastTx, address } = useKeplr();
+  const { signAndBroadcastTx, address } = useWallet();
 
   async function onRedelegateClick() {
     setIsKeplrOpened(true);
@@ -122,3 +122,4 @@ export const RedelegateModal: React.FunctionComponent<Props> = ({ open, validato
     </Popup>
   );
 };
+

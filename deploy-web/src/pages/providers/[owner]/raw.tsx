@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import Layout from "@src/components/layout/Layout";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
 import ProviderDetailLayout, { ProviderDetailTabs } from "@src/components/providers/ProviderDetailLayout";
@@ -22,7 +22,7 @@ const ProviderRawPage: React.FunctionComponent<Props> = ({ owner }) => {
       setProvider(provider => (provider ? { ...provider, ..._providerDetail } : _providerDetail));
     }
   });
-  const { address } = useKeplr();
+  const { address } = useWallet();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
   const {
     data: providerStatus,
@@ -76,3 +76,4 @@ export async function getServerSideProps({ params }) {
     }
   };
 }
+

@@ -25,8 +25,8 @@ export let networks: Network[] = [
     versionUrl: ApiUrlService.testnetVersion(),
     enabled: false,
     version: null, // Set asynchronously
-    suggestKeplrChain: async () => {
-      await window.keplr.experimentalSuggestChain({
+    suggestWalletChain: async () => {
+      await window.wallet.experimentalSuggestChain({
         // Chain-id of the Craft chain.
         chainId: "testnet-02",
         // The name of the chain to be displayed to the user.
@@ -109,8 +109,8 @@ export let networks: Network[] = [
     versionUrl: ApiUrlService.sandboxVersion(),
     version: null, // Set asynchronously
     enabled: true,
-    suggestKeplrChain: async () => {
-      await window.keplr.experimentalSuggestChain({
+    suggestWalletChain: async () => {
+      await window.wallet.experimentalSuggestChain({
         // Chain-id of the Craft chain.
         chainId: "sandbox-01",
         // The name of the chain to be displayed to the user.
@@ -213,3 +213,4 @@ const selectedNetwork = atom<Network>(networks[0]);
 export default {
   selectedNetwork
 };
+

@@ -13,7 +13,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { Box, Button, IconButton, Menu, Typography } from "@mui/material";
 import { cx } from "@emotion/css";
 import { CustomMenuItem } from "../shared/CustomMenuItem";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
@@ -54,7 +54,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   const [anchorEl, setAnchorEl] = useState(null);
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
   const router = useRouter();
-  const { signAndBroadcastTx } = useKeplr();
+  const { signAndBroadcastTx } = useWallet();
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const deploymentName = getDeploymentName(deployment?.dseq);
@@ -213,3 +213,4 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
     </>
   );
 };
+

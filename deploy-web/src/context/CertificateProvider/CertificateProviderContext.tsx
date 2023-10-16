@@ -6,7 +6,7 @@ import { networkVersion } from "@src/utils/constants";
 import { generateCertificate, getCertPem, openCert } from "@src/utils/certificateUtils";
 import { Snackbar } from "@src/components/shared/Snackbar";
 import { getSelectedStorageWallet, getStorageWallets, updateWallet } from "@src/utils/walletUtils";
-import { useKeplr } from "../KeplrWalletProvider";
+import { useWallet } from "../WalletProvider";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
@@ -69,7 +69,7 @@ export const CertificateProvider = ({ children }) => {
   const [isLocalCertMatching, setIsLocalCertMatching] = useState(false);
   const { settings } = useSettings();
   const { enqueueSnackbar } = useSnackbar();
-  const { address, signAndBroadcastTx } = useKeplr();
+  const { address, signAndBroadcastTx } = useWallet();
   const { apiEndpoint } = settings;
 
   const loadValidCertificates = useCallback(
@@ -335,3 +335,4 @@ export const CertificateProvider = ({ children }) => {
 export const useCertificate = () => {
   return { ...React.useContext(CertificateProviderContext) };
 };
+
