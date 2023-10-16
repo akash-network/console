@@ -122,14 +122,16 @@ export const WalletProvider = ({ children }) => {
           setIsWalletLoaded(true);
         }
 
-        window.addEventListener("keplr_keystorechange", () => onKeystoreChange(Wallets.KEPLR));
-        window.addEventListener("leap_keystorechange", () => onKeystoreChange(Wallets.LEAP));
+        const keplrOnKeystoreChange = () => onKeystoreChange(Wallets.KEPLR);
+        const leapOnKeystoreChange = () => onKeystoreChange(Wallets.LEAP);
+        window.addEventListener("keplr_keystorechange", keplrOnKeystoreChange);
+        window.addEventListener("leap_keystorechange", leapOnKeystoreChange);
 
         return () => {
           isMounted.current = false;
 
-          window.removeEventListener("keplr_keystorechange", () => onKeystoreChange(Wallets.KEPLR));
-          window.removeEventListener("leap_keystorechange", () => onKeystoreChange(Wallets.LEAP));
+          window.removeEventListener("keplr_keystorechange", keplrOnKeystoreChange);
+          window.removeEventListener("leap_keystorechange", leapOnKeystoreChange);
         };
       } else {
         setIsWalletLoaded(true);
