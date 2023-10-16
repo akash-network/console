@@ -1,7 +1,7 @@
 import { makeStyles } from "tss-react/mui";
 import Layout from "@src/components/layout/Layout";
 import { NextSeo } from "next-seo";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useEffect, useState } from "react";
 import { useSettings } from "@src/context/SettingsProvider";
@@ -61,7 +61,7 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 const DeploymentsPage: React.FunctionComponent<Props> = ({}) => {
-  const { address, signAndBroadcastTx, isWalletLoaded } = useKeplr();
+  const { address, signAndBroadcastTx, isWalletLoaded } = useWallet();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
   const { data: deployments, isFetching: isLoadingDeployments, refetch: getDeployments } = useDeploymentList(address, { enabled: false });
   const [page, setPage] = useState(1);
@@ -340,3 +340,4 @@ export async function getServerSideProps({ params }) {
     props: {}
   };
 }
+

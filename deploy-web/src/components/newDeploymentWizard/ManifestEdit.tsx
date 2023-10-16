@@ -4,7 +4,7 @@ import InfoIcon from "@mui/icons-material/Info";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForward";
 import { useSettings } from "../../context/SettingsProvider";
 import { makeStyles } from "tss-react/mui";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useRouter } from "next/router";
 import { Timer } from "@src/utils/timer";
 import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
@@ -57,7 +57,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const { settings } = useSettings();
-  const { address, signAndBroadcastTx } = useKeplr();
+  const { address, signAndBroadcastTx } = useWallet();
   const router = useRouter();
   const { classes } = useStyles();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
@@ -314,3 +314,4 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     </>
   );
 };
+

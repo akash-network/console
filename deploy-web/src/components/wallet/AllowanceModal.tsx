@@ -3,7 +3,7 @@ import { useForm, Controller } from "react-hook-form";
 import { FormControl, TextField, Typography, Box, Alert, InputAdornment } from "@mui/material";
 import { addYears, format } from "date-fns";
 import { makeStyles } from "tss-react/mui";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { LinkTo } from "../shared/LinkTo";
@@ -31,7 +31,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
   const formRef = useRef(null);
   const [error, setError] = useState("");
   const { classes } = useStyles();
-  const { signAndBroadcastTx } = useKeplr();
+  const { signAndBroadcastTx } = useWallet();
   const {
     handleSubmit,
     control,
@@ -220,3 +220,4 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
     </Popup>
   );
 };
+

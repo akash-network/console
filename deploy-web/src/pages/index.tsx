@@ -5,7 +5,7 @@ import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useBalances } from "@src/queries/useBalancesQuery";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { YourAccount } from "@src/components/home/YourAccount";
 import PageContainer from "@src/components/shared/PageContainer";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
@@ -19,7 +19,7 @@ type Props = {
 };
 
 const IndexPage: React.FunctionComponent<Props> = ({}) => {
-  const { address, isWalletLoaded } = useKeplr();
+  const { address, isWalletLoaded } = useWallet();
   const [activeDeployments, setActiveDeployments] = useState([]);
   const { isFetching: isLoadingDeployments, refetch: getDeployments } = useDeploymentList(address, {
     enabled: false,
@@ -99,3 +99,4 @@ export async function getServerSideProps() {
 }
 
 export default IndexPage;
+

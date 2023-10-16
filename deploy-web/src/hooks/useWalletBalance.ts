@@ -1,4 +1,4 @@
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { usePricing } from "@src/context/PricingProvider";
 import { txFeeBuffer, uAktDenom } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -8,7 +8,7 @@ import { useUsdcDenom } from "./useDenom";
 
 export const useTotalWalletBalance = () => {
   const { isLoaded, price } = usePricing();
-  const { walletBalances } = useKeplr();
+  const { walletBalances } = useWallet();
   const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
@@ -31,7 +31,7 @@ type DenomData = {
 
 export const useDenomData = (denom: string) => {
   const { isLoaded, price } = usePricing();
-  const { walletBalances } = useKeplr();
+  const { walletBalances } = useWallet();
   const [depositData, setDepositData] = useState<DenomData>(null);
   const usdcIbcDenom = useUsdcDenom();
 
@@ -63,3 +63,4 @@ export const useDenomData = (denom: string) => {
 
   return depositData;
 };
+

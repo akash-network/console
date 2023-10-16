@@ -1,5 +1,4 @@
 import { Button, Dialog, DialogContent, DialogActions, Typography, Box, Paper, useTheme } from "@mui/material";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
 // import { feePercent, maxFee } from "@src/utils/constants";
 import { FormattedNumber } from "react-intl";
 import { makeStyles } from "tss-react/mui";
@@ -56,3 +55,4 @@ export const WelcomeModal = ({ open, onClose }) => {
     </Dialog>
   );
 };
+

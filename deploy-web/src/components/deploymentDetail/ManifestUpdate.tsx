@@ -4,7 +4,7 @@ import { useSnackbar } from "notistack";
 import InfoIcon from "@mui/icons-material/Info";
 import WarningIcon from "@mui/icons-material/Warning";
 import { makeStyles } from "tss-react/mui";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { getDeploymentLocalData, saveDeploymentManifest } from "@src/utils/deploymentLocalDataUtils";
 import { deploymentData } from "@src/utils/deploymentData";
@@ -45,7 +45,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
   const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
   const { settings } = useSettings();
   const { classes } = useStyles();
-  const { address, signAndBroadcastTx } = useKeplr();
+  const { address, signAndBroadcastTx } = useWallet();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { data: providers } = useProviderList();
   const { localCert, isLocalCertMatching, createCertificate, isCreatingCert } = useCertificate();
@@ -282,3 +282,4 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
     </>
   );
 };
+

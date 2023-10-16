@@ -11,7 +11,7 @@ import withDarkMode from "next-dark-mode";
 import "../styles/index.css";
 import { QueryClientProvider } from "react-query";
 import { queryClient } from "@src/queries";
-import { KeplrWalletProvider } from "@src/context/KeplrWalletProvider";
+import { WalletProvider } from "@src/context/WalletProvider";
 import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
@@ -72,7 +72,7 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
                   <UserProvider>
                     <AddressBookProvider>
                       <SettingsProvider>
-                        <KeplrWalletProvider>
+                        <WalletProvider>
                           <CertificateProvider>
                             <TemplatesProvider>
                               <LocalNoteProvider>
@@ -83,7 +83,7 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
                               </LocalNoteProvider>
                             </TemplatesProvider>
                           </CertificateProvider>
-                        </KeplrWalletProvider>
+                        </WalletProvider>
                       </SettingsProvider>
                     </AddressBookProvider>
                   </UserProvider>
@@ -98,3 +98,4 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
 };
 
 export default withDarkMode(App);
+

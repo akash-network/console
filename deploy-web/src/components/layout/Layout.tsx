@@ -12,7 +12,7 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Header } from "./Header";
 import { NewsletterModal } from "../shared/NewsletterModal";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 
 type Props = {
   isLoading?: boolean;
@@ -64,7 +64,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
-  const { isWalletLoaded } = useKeplr();
+  const { isWalletLoaded } = useWallet();
   const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
 
   useEffect(() => {
@@ -173,3 +173,4 @@ const Loading: React.FunctionComponent<{ text: string }> = ({ text }) => {
 };
 
 export default Layout;
+

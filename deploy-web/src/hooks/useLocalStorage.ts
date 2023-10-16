@@ -1,9 +1,9 @@
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useEffect, useState } from "react";
 import { useEventListener } from "usehooks-ts";
 
 export const useLocalStorage = () => {
-  const { address } = useKeplr();
+  const { address } = useWallet();
 
   const getLocalStorageItem = (key: string) => {
     const selectedNetworkId = localStorage.getItem("selectedNetworkId");
@@ -103,3 +103,4 @@ function parseJSON(value: string) {
     return value === "undefined" ? undefined : value;
   }
 }
+

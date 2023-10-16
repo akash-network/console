@@ -7,7 +7,7 @@ import { Alert, Box, Button, CircularProgress, Tab, Tabs, Typography } from "@mu
 import { LeaseRow } from "@src/components/deploymentDetail/LeaseRow";
 import { useRouter } from "next/router";
 import { createRef, useEffect, useState } from "react";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useCertificate } from "@src/context/CertificateProvider";
@@ -48,7 +48,7 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ dseq }) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
   const [selectedLogsMode, setSelectedLogsMode] = useState<LOGS_MODE>("logs");
-  const { address, isWalletLoaded } = useKeplr();
+  const { address, isWalletLoaded } = useWallet();
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
   const {
@@ -271,3 +271,4 @@ export async function getServerSideProps({ params }) {
     }
   };
 }
+

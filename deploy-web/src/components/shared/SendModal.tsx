@@ -3,7 +3,7 @@ import { Controller, useForm } from "react-hook-form";
 import { makeStyles } from "tss-react/mui";
 import { txFeeBuffer } from "@src/utils/constants";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputAdornment, TextField } from "@mui/material";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { aktToUakt, uaktToAKT } from "@src/utils/priceUtils";
 
 const useStyles = makeStyles()(theme => ({
@@ -25,7 +25,7 @@ export const SendModal = ({ onClose, onSendTransaction }) => {
   const formRef = useRef(null);
   const [isBalanceClicked, setIsBalanceClicked] = useState(false);
   const [error, setError] = useState("");
-  const { walletBalances } = useKeplr();
+  const { walletBalances } = useWallet();
   const {
     handleSubmit,
     control,
@@ -154,3 +154,4 @@ export const SendModal = ({ onClose, onSendTransaction }) => {
     </Dialog>
   );
 };
+

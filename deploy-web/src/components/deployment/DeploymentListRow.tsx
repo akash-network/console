@@ -20,7 +20,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { cx } from "@emotion/css";
 import { CustomMenuItem } from "../shared/CustomMenuItem";
 import { DeploymentDepositModal } from "../deploymentDetail/DeploymentDepositModal";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
@@ -104,7 +104,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const { changeDeploymentName, getDeploymentData } = useLocalNotes();
-  const { address, signAndBroadcastTx } = useKeplr();
+  const { address, signAndBroadcastTx } = useWallet();
   const isActive = deployment.state === "active";
   const { data: leases, isLoading: isLoadingLeases } = useAllLeases(address, { enabled: !!deployment && isActive });
   const filteredLeases = leases?.filter(l => l.dseq === deployment.dseq);
@@ -367,3 +367,4 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     </>
   );
 };
+

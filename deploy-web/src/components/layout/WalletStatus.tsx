@@ -1,6 +1,6 @@
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import Box from "@mui/material/Box";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import React, { ReactNode, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -35,10 +35,10 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const KeplrWalletStatus: React.FunctionComponent<Props> = ({}) => {
-  const popupState = usePopupState({ variant: "popover", popupId: "keplrMenu" });
+export const WalletStatus: React.FunctionComponent<Props> = ({}) => {
+  const popupState = usePopupState({ variant: "popover", popupId: "walletMenu" });
   const { classes } = useStyles();
-  const { isKeplrConnected, walletName, address, walletBalances, logout, isWalletLoaded } = useKeplr();
+  const { isWalletConnected, walletName, address, walletBalances, logout, isWalletLoaded } = useWallet();
   const [isShowingGrantModal, setIsShowingGrantModal] = useState(false);
   const walletBalance = useTotalWalletBalance();
 
@@ -57,7 +57,7 @@ export const KeplrWalletStatus: React.FunctionComponent<Props> = ({}) => {
   return (
     <>
       {isWalletLoaded ? (
-        isKeplrConnected ? (
+        isWalletConnected ? (
           <>
             <Box sx={{ display: "flex", alignItems: "center", paddingRight: ".5rem" }}>
               <Box sx={{ padding: "0 .5rem" }}>
@@ -132,3 +132,4 @@ export const KeplrWalletStatus: React.FunctionComponent<Props> = ({}) => {
     </>
   );
 };
+

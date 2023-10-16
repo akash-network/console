@@ -5,7 +5,7 @@ import SettingsLayout, { SettingsTabs } from "@src/components/settings/SettingsL
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { Box, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableRow, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { CustomTableHeader } from "@src/components/shared/CustomTable";
 import { Address } from "@src/components/shared/Address";
 import { GrantModal } from "@src/components/wallet/GrantModal";
@@ -38,7 +38,7 @@ const refreshingInterval = 1000;
 
 const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   const { classes } = useStyles();
-  const { address } = useKeplr();
+  const { address, signAndBroadcastTx } = useWallet();
   const [editingGrant, setEditingGrant] = useState(null);
   const [editingAllowance, setEditingAllowance] = useState(null);
   const [showGrantModal, setShowGrantModal] = useState(false);
@@ -58,7 +58,6 @@ const SettingsSecurityPage: React.FunctionComponent<Props> = ({}) => {
   const { data: allowancesGranted, isLoading: isLoadingAllowancesGranted } = useAllowancesGranted(address, {
     refetchInterval: isRefreshing === "allowancesGranted" ? refreshingInterval : defaultRefetchInterval
   });
-  const { signAndBroadcastTx } = useKeplr();
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
@@ -357,3 +356,4 @@ export async function getServerSideProps({ params }) {
     props: {}
   };
 }
+

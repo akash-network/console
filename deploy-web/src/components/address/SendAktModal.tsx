@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Popup } from "../shared/Popup";
 import { Box, Paper } from "@mui/material";
-import { useKeplr } from "@src/context/KeplrWalletProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import SendIcon from "@mui/icons-material/Send";
 import { Address } from "../shared/Address";
 import { AKTAmountInput } from "../shared/AKTAmountInput";
@@ -20,7 +20,7 @@ type Props = {
 export const SendAktModal: React.FunctionComponent<Props> = ({ open, toAddress, onClose }) => {
   const [amount, setAmount] = useState<number>(1);
   const [isKeplrOpened, setIsKeplrOpened] = useState(false);
-  const { signAndBroadcastTx, address } = useKeplr();
+  const { signAndBroadcastTx, address } = useWallet();
 
   useEffect(() => {
     setAmount(1);
@@ -102,3 +102,4 @@ export const SendAktModal: React.FunctionComponent<Props> = ({ open, toAddress, 
     </Popup>
   );
 };
+
