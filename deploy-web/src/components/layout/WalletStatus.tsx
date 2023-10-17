@@ -14,11 +14,11 @@ import { Address } from "../shared/Address";
 import { CustomMenuItem } from "../shared/CustomMenuItem";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import { GrantModal } from "../wallet/GrantModal";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { FormattedNumber } from "react-intl";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
+import { useRouter } from "next/router";
 
 type Props = {
   children?: ReactNode;
@@ -39,8 +39,8 @@ export const WalletStatus: React.FunctionComponent<Props> = ({}) => {
   const popupState = usePopupState({ variant: "popover", popupId: "walletMenu" });
   const { classes } = useStyles();
   const { isWalletConnected, walletName, address, walletBalances, logout, isWalletLoaded } = useWallet();
-  const [isShowingGrantModal, setIsShowingGrantModal] = useState(false);
   const walletBalance = useTotalWalletBalance();
+  const router = useRouter();
 
   function onDisconnectClick() {
     popupState.close();
@@ -51,7 +51,7 @@ export const WalletStatus: React.FunctionComponent<Props> = ({}) => {
   const onAuthorizeSpendingClick = () => {
     popupState.close();
 
-    setIsShowingGrantModal(true);
+    router.push(UrlService.settingsAuthorizations());
   };
 
   return (
@@ -127,9 +127,6 @@ export const WalletStatus: React.FunctionComponent<Props> = ({}) => {
           <CircularProgress size={20} color="secondary" />
         </Box>
       )}
-
-      {isShowingGrantModal && <GrantModal address={address} onClose={() => setIsShowingGrantModal(false)} />}
     </>
   );
 };
-
