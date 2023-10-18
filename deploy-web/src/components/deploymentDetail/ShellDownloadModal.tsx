@@ -69,7 +69,7 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
       <DialogTitle className={classes.dialogTitle}>Download file</DialogTitle>
       <DialogContent>
         <Alert severity="info" className={classes.alert}>
-          <Typography variant="caption">Enter the path of a file on the server to be downloaded. Example: public/index.html</Typography>
+          <Typography variant="caption">Enter the path of a file on the server to be downloaded to your computer. Example: ~/app/logs.txt</Typography>
         </Alert>
 
         <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
