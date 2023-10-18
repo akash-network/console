@@ -167,7 +167,7 @@ export const Popup: React.FC<PopupProps> = props => {
 
   if (props.title) {
     component.push(
-      <DialogTitle key="dialog-title" onClose={event => onClose(event, "action")}>
+      <DialogTitle key="dialog-title" onClose={props.onClose ? event => onClose(event, "action") : undefined}>
         {props.title}
       </DialogTitle>
     );
