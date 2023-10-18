@@ -13,7 +13,11 @@ interface Props {
   sdlString: string;
 }
 
-export const SdlBuilder: React.FC<Props> = ({ sdlString }) => {
+export type SdlBuilderRefType = {
+  getSdl: () => string;
+};
+
+export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlString }, ref) => {
   const [error, setError] = useState(null);
   const formRef = useRef<HTMLFormElement>();
   const {
@@ -41,6 +45,14 @@ export const SdlBuilder: React.FC<Props> = ({ sdlString }) => {
   const { services: _services } = watch();
   const { data: providerAttributesSchema } = useProviderAttributesSchema();
   const [serviceCollapsed, setServiceCollapsed] = useState([]);
+
+  React.useImperativeHandle(ref, () => ({
+    getSdl: getSdl
+  }));
+
+  const getSdl = () => {
+    return generateSdl({ services: _services });
+  };
 
   useEffect(() => {
     if (sdlString) {
@@ -140,4 +152,4 @@ export const SdlBuilder: React.FC<Props> = ({ sdlString }) => {
       </Box>
     </form>
   );
-};
+});

@@ -1,4 +1,4 @@
-import { useState, useEffect, Dispatch } from "react";
+import { useState, useEffect, Dispatch, useRef } from "react";
 import { Box, Typography, Button, TextField, CircularProgress, Tooltip, Alert, useMediaQuery, useTheme, ButtonGroup } from "@mui/material";
 import InfoIcon from "@mui/icons-material/Info";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForward";
@@ -26,7 +26,7 @@ import { generateCertificate } from "@src/utils/certificateUtils";
 import { updateWallet } from "@src/utils/walletUtils";
 import sdlStore from "@src/store/sdlStore";
 import { useAtom } from "jotai";
-import { SdlBuilder } from "./SdlBuilder";
+import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
 
 const yaml = require("js-yaml");
 
@@ -66,6 +66,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const theme = useTheme();
   const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
 
   useEffect(() => {
     if (selectedTemplate?.name) {
@@ -221,6 +222,17 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     }
   }
 
+  const onModeChange = (mode: "yaml" | "builder") => {
+    if (mode === selectedMode) return;
+
+    if (mode === "yaml") {
+      const sdl = sdlBuilderRef.current?.getSdl();
+      setEditedManifest(sdl);
+    }
+
+    setSelectedMode(mode);
+  };
+
   return (
     <>
       <CustomNextSeo
@@ -291,18 +303,18 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
         <ButtonGroup>
           <Button
-            variant={selectedMode === "yaml" ? "contained" : "outlined"}
-            color={selectedMode === "yaml" ? "secondary" : "primary"}
-            onClick={() => setSelectedMode("yaml")}
-          >
-            YAML
-          </Button>
-          <Button
             variant={selectedMode === "builder" ? "contained" : "outlined"}
             color={selectedMode === "builder" ? "secondary" : "primary"}
-            onClick={() => setSelectedMode("builder")}
+            onClick={() => onModeChange("builder")}
           >
             Builder
+          </Button>
+          <Button
+            variant={selectedMode === "yaml" ? "contained" : "outlined"}
+            color={selectedMode === "yaml" ? "secondary" : "primary"}
+            onClick={() => onModeChange("yaml")}
+          >
+            YAML
           </Button>
         </ButtonGroup>
       </Box>
@@ -311,7 +323,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
       <ViewPanel stickToBottom style={{ overflow: "hidden", margin: smallScreen ? "0 -1rem" : 0 }}>
         {selectedMode === "yaml" && <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />}
-        {selectedMode === "builder" && <SdlBuilder sdlString={editedManifest} />}
+        {selectedMode === "builder" && <SdlBuilder sdlString={editedManifest} ref={sdlBuilderRef} />}
       </ViewPanel>
 
       {isDepositingDeployment && (
