@@ -4,7 +4,7 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { nanoid } from "nanoid";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
-import { Alert, Box, Button } from "@mui/material";
+import { Alert, Box, Button, CircularProgress } from "@mui/material";
 import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
 import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
@@ -21,6 +21,7 @@ export type SdlBuilderRefType = {
 export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlString, setEditedManifest }, ref) => {
   const [error, setError] = useState(null);
   const formRef = useRef<HTMLFormElement>();
+  const [isLoading, setIsLoading] = useState(true);
   const { control, trigger, watch, setValue } = useForm<SdlBuilderFormValues>({
     defaultValues: {
       services: [{ ...defaultService }]
@@ -48,6 +49,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
       try {
         const services = createAndValidateSdl(sdlString);
         setValue("services", services as Service[]);
+        setIsLoading(false);
       } catch (error) {
         setError("Error importing SDL");
       }
@@ -100,35 +102,43 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   };
 
   return (
-    <form ref={formRef} autoComplete="off">
-      {services.map((service, serviceIndex) => (
-        <SimpleServiceFormControl
-          key={service.id}
-          service={service}
-          serviceIndex={serviceIndex}
-          _services={_services}
-          providerAttributesSchema={providerAttributesSchema}
-          control={control}
-          trigger={trigger}
-          onRemoveService={onRemoveService}
-          serviceCollapsed={serviceCollapsed}
-          setServiceCollapsed={setServiceCollapsed}
-        />
-      ))}
+    <>
+      {isLoading ? (
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem" }}>
+          <CircularProgress size="3rem" color="secondary" />
+        </Box>
+      ) : (
+        <form ref={formRef} autoComplete="off">
+          {services.map((service, serviceIndex) => (
+            <SimpleServiceFormControl
+              key={service.id}
+              service={service}
+              serviceIndex={serviceIndex}
+              _services={_services}
+              providerAttributesSchema={providerAttributesSchema}
+              control={control}
+              trigger={trigger}
+              onRemoveService={onRemoveService}
+              serviceCollapsed={serviceCollapsed}
+              setServiceCollapsed={setServiceCollapsed}
+            />
+          ))}
 
-      {error && (
-        <Alert severity="error" variant="outlined" sx={{ marginTop: "1rem" }}>
-          {error}
-        </Alert>
+          {error && (
+            <Alert severity="error" variant="outlined" sx={{ marginTop: "1rem" }}>
+              {error}
+            </Alert>
+          )}
+
+          <Box sx={{ paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+            <div>
+              <Button color="secondary" variant="contained" size="small" onClick={onAddService}>
+                Add Service
+              </Button>
+            </div>
+          </Box>
+        </form>
       )}
-
-      <Box sx={{ paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-        <div>
-          <Button color="secondary" variant="contained" size="small" onClick={onAddService}>
-            Add Service
-          </Button>
-        </div>
-      </Box>
-    </form>
+    </>
   );
 });
