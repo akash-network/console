@@ -56,7 +56,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<"yaml" | "builder">("yaml");
+  const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const { settings } = useSettings();
   const { address, signAndBroadcastTx } = useWallet();
@@ -72,6 +72,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     if (selectedTemplate?.name) {
       setDeploymentName(selectedTemplate.name);
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -161,7 +162,9 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
   async function handleCreateClick(deposit: number, depositorAddress: string) {
     setIsCreatingDeployment(true);
-    const dd = await createAndValidateDeploymentData(editedManifest, null, deposit, depositorAddress);
+
+    const sdl = selectedSdlEditMode === "yaml" ? editedManifest : sdlBuilderRef.current?.getSdl();
+    const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
 
     const validCertificates = await loadValidCertificates();
     const currentCert = validCertificates.find(x => x.parsed === localCert?.certPem);
@@ -206,7 +209,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
         setDeploySdl(null);
 
         // Save the manifest
-        saveDeploymentManifestAndName(dd.deploymentId.dseq, editedManifest, dd.version, address, deploymentName);
+        saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.version, address, deploymentName);
         router.replace(UrlService.newDeployment({ step: RouteStepKeys.createLeases, dseq: dd.deploymentId.dseq }));
 
         event(AnalyticsEvents.CREATE_DEPLOYMENT, {
@@ -223,14 +226,14 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   }
 
   const onModeChange = (mode: "yaml" | "builder") => {
-    if (mode === selectedMode) return;
+    if (mode === selectedSdlEditMode) return;
 
     if (mode === "yaml") {
       const sdl = sdlBuilderRef.current?.getSdl();
       setEditedManifest(sdl);
     }
 
-    setSelectedMode(mode);
+    setSelectedSdlEditMode(mode);
   };
 
   return (
@@ -301,17 +304,17 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           </Box>
         </Box>
 
-        <ButtonGroup>
+        <ButtonGroup size="small">
           <Button
-            variant={selectedMode === "builder" ? "contained" : "outlined"}
-            color={selectedMode === "builder" ? "secondary" : "primary"}
+            variant={selectedSdlEditMode === "builder" ? "contained" : "outlined"}
+            color={selectedSdlEditMode === "builder" ? "secondary" : "primary"}
             onClick={() => onModeChange("builder")}
           >
             Builder
           </Button>
           <Button
-            variant={selectedMode === "yaml" ? "contained" : "outlined"}
-            color={selectedMode === "yaml" ? "secondary" : "primary"}
+            variant={selectedSdlEditMode === "yaml" ? "contained" : "outlined"}
+            color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
             onClick={() => onModeChange("yaml")}
           >
             YAML
@@ -322,8 +325,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       {parsingError && <Alert severity="warning">{parsingError}</Alert>}
 
       <ViewPanel stickToBottom style={{ overflow: "hidden", margin: smallScreen ? "0 -1rem" : 0 }}>
-        {selectedMode === "yaml" && <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />}
-        {selectedMode === "builder" && <SdlBuilder sdlString={editedManifest} ref={sdlBuilderRef} />}
+        {selectedSdlEditMode === "yaml" && <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />}
+        {selectedSdlEditMode === "builder" && <SdlBuilder sdlString={editedManifest} ref={sdlBuilderRef} setEditedManifest={setEditedManifest} />}
       </ViewPanel>
 
       {isDepositingDeployment && (

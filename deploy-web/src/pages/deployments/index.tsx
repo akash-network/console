@@ -79,7 +79,7 @@ const DeploymentsPage: React.FunctionComponent<Props> = ({}) => {
   const end = start + rowsPerPage;
   const currentPageDeployments = orderedDeployments.slice(start, end);
   const pageCount = Math.ceil(orderedDeployments.length / rowsPerPage);
-  const [deploySdl, setDeploySdl] = useAtom(sdlStore.deploySdl);
+  const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
 
   useEffect(() => {
     if (isWalletLoaded && isSettingsInit) {

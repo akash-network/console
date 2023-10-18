@@ -94,7 +94,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const theme = useTheme();
   const [isHovering, setIsHovering] = useState(false);
   const _isNavOpen = isNavOpen || isHovering;
-  const [deploySdl, setDeploySdl] = useAtom(sdlStore.deploySdl);
+  const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
 
   const routeGroups = [

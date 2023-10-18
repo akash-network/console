@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { Dispatch, useEffect, useRef, useState } from "react";
 import { defaultService } from "@src/utils/sdl/data";
 import { useFieldArray, useForm } from "react-hook-form";
 import { SdlBuilderFormValues, Service } from "@src/types";
@@ -11,24 +11,17 @@ import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 
 interface Props {
   sdlString: string;
+  setEditedManifest: Dispatch<string>;
 }
 
 export type SdlBuilderRefType = {
   getSdl: () => string;
 };
 
-export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlString }, ref) => {
+export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlString, setEditedManifest }, ref) => {
   const [error, setError] = useState(null);
   const formRef = useRef<HTMLFormElement>();
-  const {
-    handleSubmit,
-    reset,
-    control,
-    formState: { isValid },
-    trigger,
-    watch,
-    setValue
-  } = useForm<SdlBuilderFormValues>({
+  const { control, trigger, watch, setValue } = useForm<SdlBuilderFormValues>({
     defaultValues: {
       services: [{ ...defaultService }]
     }
@@ -50,10 +43,6 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
     getSdl: getSdl
   }));
 
-  const getSdl = () => {
-    return generateSdl({ services: _services });
-  };
-
   useEffect(() => {
     if (sdlString) {
       try {
@@ -64,6 +53,21 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
       }
     }
   }, []);
+
+  useEffect(() => {
+    const subscription = watch(data => {
+      const sdl = generateSdl({ services: data.services as Service[] });
+      setEditedManifest(sdl);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [watch]);
+
+  const getSdl = () => {
+    return generateSdl({ services: _services });
+  };
 
   const createAndValidateSdl = (yamlStr: string) => {
     try {
@@ -87,31 +91,6 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
     }
   };
 
-  const onSubmit = async (data: SdlBuilderFormValues) => {
-    setError(null);
-
-    try {
-      const sdl = generateSdl(data);
-
-      // setDeploySdl({
-      //   title: "",
-      //   category: "",
-      //   code: "",
-      //   description: "",
-      //   content: sdl
-      // });
-
-      // router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
-
-      // event(AnalyticsEvents.DEPLOY_SDL, {
-      //   category: "sdl_builder",
-      //   label: "Deploy SDL from create page"
-      // });
-    } catch (error) {
-      // setError(error.message);
-    }
-  };
-
   const onAddService = () => {
     appendService({ ...defaultService, id: nanoid(), title: `service-${services.length + 1}` });
   };
@@ -121,7 +100,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
+    <form ref={formRef} autoComplete="off">
       {services.map((service, serviceIndex) => (
         <SimpleServiceFormControl
           key={service.id}
@@ -145,7 +124,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
 
       <Box sx={{ paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
         <div>
-          <Button color="secondary" variant="contained" onClick={onAddService}>
+          <Button color="secondary" variant="contained" size="small" onClick={onAddService}>
             Add Service
           </Button>
         </div>

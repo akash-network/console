@@ -38,10 +38,10 @@ const NewDeploymentPage: React.FunctionComponent<Props> = ({}) => {
   const { isLoading: isLoadingTemplates, templates } = useTemplates();
   const [activeStep, setActiveStep] = useState(0);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation>(null);
+  const deploySdl = useAtomValue(sdlStore.deploySdl);
   const [editedManifest, setEditedManifest] = useState(null);
   const { getDeploymentData } = useLocalNotes();
   const { getTemplateById } = useTemplates();
-  const deploySdl = useAtomValue(sdlStore.deploySdl);
   const router = useRouter();
   const previousRoute = usePreviousRoute();
 
