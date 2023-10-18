@@ -30,6 +30,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const [selectedLease, setSelectedLease] = useState<LeaseDto>(null);
   const [isShowingDownloadModal, setIsShowingDownloadModal] = useState(false);
   const [isChangingSocket, setIsChangingSocket] = useState(false);
+  const [showArrowAndTabWarning, setShowArrowAndTabWarning] = useState(false);
   const { data: providers } = useProviderList();
   const { localCert, isLocalCertMatching, createCertificate, isCreatingCert } = useCertificate();
   const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
@@ -104,6 +105,12 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
 
     if (message?.data) {
       let parsedData = Buffer.from(message.data).toString("utf-8", 1);
+
+      // Check if parsedData is either ^[[A, ^[[B, ^[[C or ^[[D
+      const arrowKeyPattern = /\^\[\[[A-D]/;
+      if (arrowKeyPattern.test(parsedData)) {
+        setShowArrowAndTabWarning(true);
+      }
 
       let exitCode, errorMessage;
       try {
@@ -269,6 +276,15 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
                   </Box>
                 )}
               </Box>
+
+              {showArrowAndTabWarning && (
+                <Alert variant="standard" severity="warning" sx={{ borderRadius: 0, marginBottom: 1 }}>
+                  <Link href="/faq#shell-arrows-and-completion" target="_blank" style={{ display: "inline-flex", alignItems: "center" }}>
+                    Why is my UP arrow and TAB autocompletion not working?
+                    <LaunchIcon fontSize={"small"} alignmentBaseline="middle" />
+                  </Link>
+                </Alert>
+              )}
 
               <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
                 {isConnectionClosed && (
