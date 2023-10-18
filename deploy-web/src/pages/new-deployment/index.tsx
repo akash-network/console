@@ -69,7 +69,7 @@ const NewDeploymentPage: React.FunctionComponent<Props> = ({}) => {
   }, [router.query, templates]);
 
   useEffect(() => {
-    setEditedManifest(selectedTemplate?.content);
+    setEditedManifest(selectedTemplate?.content || "");
   }, [selectedTemplate]);
 
   const getRedeployTemplate = () => {

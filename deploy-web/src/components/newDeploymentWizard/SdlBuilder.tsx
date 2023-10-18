@@ -45,15 +45,14 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   }));
 
   useEffect(() => {
-    if (sdlString) {
-      try {
-        const services = createAndValidateSdl(sdlString);
-        setValue("services", services as Service[]);
-        setIsLoading(false);
-      } catch (error) {
-        setError("Error importing SDL");
-      }
+    try {
+      const services = createAndValidateSdl(sdlString);
+      setValue("services", services as Service[]);
+    } catch (error) {
+      setError("Error importing SDL");
     }
+
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -73,7 +72,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
 
   const createAndValidateSdl = (yamlStr: string) => {
     try {
-      if (!yamlStr) return null;
+      if (!yamlStr) return [];
 
       const services = importSimpleSdl(yamlStr, providerAttributesSchema);
 
