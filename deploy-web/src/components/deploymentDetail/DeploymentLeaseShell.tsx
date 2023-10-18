@@ -13,6 +13,8 @@ import { LeaseShellCode } from "@src/types/shell";
 import { useCustomWebSocket } from "@src/hooks/useCustomWebSocket";
 import { LeaseDto } from "@src/types/deployment";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import Link from "next/link";
+import LaunchIcon from "@mui/icons-material/Launch";
 
 type Props = {
   leases: LeaseDto[];
@@ -271,7 +273,12 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
               <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
                 {isConnectionClosed && (
                   <Alert variant="standard" severity="warning" sx={{ borderRadius: 0 }}>
-                    The connection to your Cloudmos Shell was lost.
+                    The connection to your Cloudmos Shell was lost. (
+                    <Link href="/faq#shell-lost" target="_blank" style={{ display: "inline-flex", alignItems: "center" }}>
+                      More Info
+                      <LaunchIcon fontSize={"small"} alignmentBaseline="middle" />
+                    </Link>
+                    )
                   </Alert>
                 )}
                 <XTerm ref={terminalRef} onKey={onTerminalKey} onTerminalPaste={onTerminalPaste} />

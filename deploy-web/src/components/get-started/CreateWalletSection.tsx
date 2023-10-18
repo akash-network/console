@@ -1,10 +1,7 @@
 import React from "react";
 import { makeStyles } from "tss-react/mui";
-import { Alert, Box, Button, useTheme } from "@mui/material";
+import { Alert, Box, useTheme } from "@mui/material";
 import { useRouter } from "next/router";
-import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import { ExternalLink } from "../shared/ExternalLink";
 
 const useStyles = makeStyles()(theme => ({
