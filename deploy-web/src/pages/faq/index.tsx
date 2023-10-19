@@ -21,6 +21,9 @@ export default function FaqPage() {
             <Link href="#shell-lost">Can't access shell: "The connection to your Cloudmos Shell was lost."</Link>
           </li>
           <li>
+            <Link href="#shell-arrows-and-completion">Shell: UP arrow and TAB autocompletion does not work</Link>
+          </li>
+          <li>
             <Link href="#send-manifest-resources-mismatch">
               Error while sending manifest to provider. Error: manifest cross-validation error: group "X": service "X": CPU/Memory resources mismatch for ID 1
             </Link>
@@ -75,6 +78,12 @@ export default function FaqPage() {
             with ssh.
           </li>
         </ul>
+
+        <h2 id="shell-arrows-and-completion">Shell: UP arrow and TAB autocompletion does not work</h2>
+        <p>
+          Some docker images use "sh" as the default shell. This shell does not support up arrow and TAB autocompletion. You may try sending the "bash" command
+          to switch to a bash shell which support those feature.
+        </p>
 
         <h2 id="send-manifest-resources-mismatch">
           Error while sending manifest to provider. Error: manifest cross-validation error: group "X": service "X": CPU/Memory resources mismatch for ID 1

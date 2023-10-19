@@ -30,7 +30,7 @@ export class UrlService {
   static priceCompareCustom = (cpu: number, memory: number, storage: number, memoryUnit: string, storageUnit: string) =>
     `/price-compare${appendSearchParams({ cpu, memory, storage, memoryUnit, storageUnit })}`;
   static contact = () => "/contact";
-  static faq = () => "/faq";
+  static faq = (q?: string) => `/faq${q ? "#" + q : ""}`;
   static privacyPolicy = () => "/privacy-policy";
   static termsOfService = () => "/terms-of-service";
   static blocks = () => `/blocks`;

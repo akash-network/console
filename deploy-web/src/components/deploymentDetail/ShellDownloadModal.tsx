@@ -45,7 +45,7 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
   });
 
   const onSubmit = async ({ filePath }) => {
-    downloadFileFromShell(providerInfo.host_uri, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, selectedService, filePath);
+    downloadFileFromShell(providerInfo.hostUri, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, selectedService, filePath);
 
     event(AnalyticsEvents.DOWNLOADED_SHELL_FILE, {
       category: "deployments",
@@ -68,8 +68,9 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
     <Dialog open={true} maxWidth="xs" fullWidth onClose={onCloseClick}>
       <DialogTitle className={classes.dialogTitle}>Download file</DialogTitle>
       <DialogContent>
-        <Alert severity="info" className={classes.alert}>
-          <Typography variant="caption">Enter the path of a file on the server to be downloaded. Example: public/index.html</Typography>
+        <Typography variant="caption">Enter the path of a file on the server to be downloaded to your computer. Example: /app/logs.txt</Typography>
+        <Alert severity="warning" className={classes.alert}>
+          <Typography variant="caption">This is an experimental feature and may not work reliably.</Typography>
         </Alert>
 
         <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
@@ -89,7 +90,11 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
               control={control}
               name="filePath"
               rules={{
-                required: true
+                required: "File path is required.",
+                pattern: {
+                  value: /^(?!https?:).*/i,
+                  message: "Should be a valid path on the server, not a URL."
+                }
               }}
               render={({ field, fieldState }) => {
                 return (
@@ -97,8 +102,8 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
                     {...field}
                     type="text"
                     label="File path"
-                    error={!!fieldState.invalid}
-                    helperText={fieldState.invalid && "File path is required."}
+                    error={!!fieldState.error}
+                    helperText={fieldState.error?.message}
                     variant="outlined"
                     autoFocus
                     placeholder="Type a valid file path"

@@ -13,6 +13,9 @@ import { LeaseShellCode } from "@src/types/shell";
 import { useCustomWebSocket } from "@src/hooks/useCustomWebSocket";
 import { LeaseDto } from "@src/types/deployment";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import Link from "next/link";
+import LaunchIcon from "@mui/icons-material/Launch";
+import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
   leases: LeaseDto[];
@@ -28,6 +31,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const [selectedLease, setSelectedLease] = useState<LeaseDto>(null);
   const [isShowingDownloadModal, setIsShowingDownloadModal] = useState(false);
   const [isChangingSocket, setIsChangingSocket] = useState(false);
+  const [showArrowAndTabWarning, setShowArrowAndTabWarning] = useState(false);
   const { data: providers } = useProviderList();
   const { localCert, isLocalCertMatching, createCertificate, isCreatingCert } = useCertificate();
   const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
@@ -102,6 +106,12 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
 
     if (message?.data) {
       let parsedData = Buffer.from(message.data).toString("utf-8", 1);
+
+      // Check if parsedData is either ^[[A, ^[[B, ^[[C or ^[[D
+      const arrowKeyPattern = /\^\[\[[A-D]/;
+      if (arrowKeyPattern.test(parsedData)) {
+        setShowArrowAndTabWarning(true);
+      }
 
       let exitCode, errorMessage;
       try {
@@ -268,10 +278,24 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
                 )}
               </Box>
 
+              {showArrowAndTabWarning && (
+                <Alert variant="standard" severity="warning" sx={{ borderRadius: 0, marginBottom: 1 }}>
+                  <Link href={UrlService.faq("shell-arrows-and-completion")} target="_blank" style={{ display: "inline-flex", alignItems: "center" }}>
+                    Why is my UP arrow and TAB autocompletion not working?
+                    <LaunchIcon fontSize={"small"} alignmentBaseline="middle" />
+                  </Link>
+                </Alert>
+              )}
+
               <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
                 {isConnectionClosed && (
                   <Alert variant="standard" severity="warning" sx={{ borderRadius: 0 }}>
-                    The connection to your Cloudmos Shell was lost.
+                    The connection to your Cloudmos Shell was lost. (
+                    <Link href={UrlService.faq("shell-lost")} target="_blank" style={{ display: "inline-flex", alignItems: "center" }}>
+                      More Info
+                      <LaunchIcon fontSize={"small"} alignmentBaseline="middle" />
+                    </Link>
+                    )
                   </Alert>
                 )}
                 <XTerm ref={terminalRef} onKey={onTerminalKey} onTerminalPaste={onTerminalPaste} />
