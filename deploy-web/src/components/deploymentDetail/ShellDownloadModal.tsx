@@ -45,7 +45,7 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
   });
 
   const onSubmit = async ({ filePath }) => {
-    downloadFileFromShell(providerInfo.host_uri, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, selectedService, filePath);
+    downloadFileFromShell(providerInfo.hostUri, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, selectedService, filePath);
 
     event(AnalyticsEvents.DOWNLOADED_SHELL_FILE, {
       category: "deployments",
