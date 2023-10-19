@@ -89,7 +89,11 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
               control={control}
               name="filePath"
               rules={{
-                required: true
+                required: "File path is required.",
+                pattern: {
+                  value: /^(?!https?:).*/i,
+                  message: "Should be a valid path on the server, not a URL."
+                }
               }}
               render={({ field, fieldState }) => {
                 return (
@@ -97,8 +101,8 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
                     {...field}
                     type="text"
                     label="File path"
-                    error={!!fieldState.invalid}
-                    helperText={fieldState.invalid && "File path is required."}
+                    error={!!fieldState.error}
+                    helperText={fieldState.error?.message}
                     variant="outlined"
                     autoFocus
                     placeholder="Type a valid file path"
