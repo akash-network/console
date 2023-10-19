@@ -34,9 +34,10 @@ const previewTemplateIds = [
 
 type Props = {
   setSelectedTemplate: Dispatch<TemplateCreation>;
+  setEditedManifest: Dispatch<string>;
 };
 
-export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTemplate }) => {
+export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTemplate, setEditedManifest }) => {
   const { templates } = useTemplates();
   const { classes } = useStyles();
   const router = useRouter();
@@ -52,6 +53,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
 
   function selectTemplate(template) {
     setSelectedTemplate(template);
+    setEditedManifest(template.content);
     router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
   }
 
@@ -71,6 +73,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
         description: "Custom uploaded file",
         content: event.target.result as string
       });
+      setEditedManifest(event.target.result as string);
       router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
     };
 

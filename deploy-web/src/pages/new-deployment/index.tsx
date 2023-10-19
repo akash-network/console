@@ -54,9 +54,11 @@ const NewDeploymentPage: React.FunctionComponent<Props> = ({}) => {
     if (redeployTemplate) {
       // If it's a redeploy, set the template from local storage
       setSelectedTemplate(redeployTemplate);
+      setEditedManifest(redeployTemplate.content);
     } else if (galleryTemplate) {
       // If it's a deploy from the template gallery, load from template data
       setSelectedTemplate(galleryTemplate as TemplateCreation);
+      setEditedManifest(galleryTemplate.content);
     }
 
     const _activeStep = getStepIndexByParam(router.query.step);
@@ -67,10 +69,6 @@ const NewDeploymentPage: React.FunctionComponent<Props> = ({}) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.query, templates]);
-
-  useEffect(() => {
-    setEditedManifest(selectedTemplate?.content || "");
-  }, [selectedTemplate]);
 
   const getRedeployTemplate = () => {
     let template = null;
@@ -148,7 +146,7 @@ const NewDeploymentPage: React.FunctionComponent<Props> = ({}) => {
           <CustomizedSteppers steps={steps} activeStep={activeStep} />
         </div>
 
-        {activeStep === 0 && <TemplateList setSelectedTemplate={c => setSelectedTemplate(c)} />}
+        {activeStep === 0 && <TemplateList setSelectedTemplate={setSelectedTemplate} setEditedManifest={setEditedManifest} />}
         {activeStep === 1 && <ManifestEdit selectedTemplate={selectedTemplate} editedManifest={editedManifest} setEditedManifest={setEditedManifest} />}
         {activeStep === 2 && <CreateLease dseq={router.query.dseq as string} />}
       </Container>

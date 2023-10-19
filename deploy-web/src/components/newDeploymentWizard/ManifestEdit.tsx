@@ -324,10 +324,12 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
       {parsingError && <Alert severity="warning">{parsingError}</Alert>}
 
-      <ViewPanel stickToBottom style={{ overflow: "hidden", margin: smallScreen ? "0 -1rem" : 0 }}>
-        {selectedSdlEditMode === "yaml" && <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />}
-        {selectedSdlEditMode === "builder" && <SdlBuilder sdlString={editedManifest} ref={sdlBuilderRef} setEditedManifest={setEditedManifest} />}
-      </ViewPanel>
+      {selectedSdlEditMode === "yaml" && (
+        <ViewPanel stickToBottom style={{ overflow: "hidden", margin: smallScreen ? "0 -1rem" : 0 }}>
+          <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
+        </ViewPanel>
+      )}
+      {selectedSdlEditMode === "builder" && <SdlBuilder sdlString={editedManifest} ref={sdlBuilderRef} setEditedManifest={setEditedManifest} />}
 
       {isDepositingDeployment && (
         <DeploymentDepositModal

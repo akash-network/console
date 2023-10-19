@@ -8,6 +8,7 @@ import { Alert, Box, Button, CircularProgress } from "@mui/material";
 import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
 import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
+import { Subscription } from "react-hook-form/dist/utils/createSubject";
 
 interface Props {
   sdlString: string;
@@ -21,7 +22,7 @@ export type SdlBuilderRefType = {
 export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlString, setEditedManifest }, ref) => {
   const [error, setError] = useState(null);
   const formRef = useRef<HTMLFormElement>();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInit, setIsInit] = useState(false);
   const { control, trigger, watch, setValue } = useForm<SdlBuilderFormValues>({
     defaultValues: {
       services: [{ ...defaultService }]
@@ -45,6 +46,11 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   }));
 
   useEffect(() => {
+    const { unsubscribe } = watch(data => {
+      const sdl = generateSdl({ services: data.services as Service[] });
+      setEditedManifest(sdl);
+    });
+
     try {
       const services = createAndValidateSdl(sdlString);
       setValue("services", services as Service[]);
@@ -52,17 +58,10 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
       setError("Error importing SDL");
     }
 
-    setIsLoading(false);
-  }, []);
-
-  useEffect(() => {
-    const subscription = watch(data => {
-      const sdl = generateSdl({ services: data.services as Service[] });
-      setEditedManifest(sdl);
-    });
+    setIsInit(true);
 
     return () => {
-      subscription.unsubscribe();
+      unsubscribe();
     };
   }, [watch]);
 
@@ -101,8 +100,8 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   };
 
   return (
-    <>
-      {isLoading ? (
+    <Box sx={{ paddingBottom: "2rem" }}>
+      {!isInit ? (
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem" }}>
           <CircularProgress size="3rem" color="secondary" />
         </Box>
@@ -138,6 +137,6 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
           </Box>
         </form>
       )}
-    </>
+    </Box>
   );
 });
