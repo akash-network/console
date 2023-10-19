@@ -88,7 +88,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const totalStorage = activeDeployments.map(d => d.storageAmount).reduce((a, b) => a + b, 0);
   const _ram = bytesToShrink(totalMemory);
   const _storage = bytesToShrink(totalStorage);
-  const [deploySdl, setDeploySdl] = useAtom(sdlStore.deploySdl);
+  const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const { price, isLoaded } = usePricing();
 
   const colors = {

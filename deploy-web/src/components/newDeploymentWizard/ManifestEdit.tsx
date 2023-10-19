@@ -1,5 +1,5 @@
-import { useState, useEffect, Dispatch } from "react";
-import { Box, Typography, Button, TextField, CircularProgress, Tooltip, Alert, useMediaQuery, useTheme } from "@mui/material";
+import { useState, useEffect, Dispatch, useRef } from "react";
+import { Box, Typography, Button, TextField, CircularProgress, Tooltip, Alert, useMediaQuery, useTheme, ButtonGroup } from "@mui/material";
 import InfoIcon from "@mui/icons-material/Info";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForward";
 import { useSettings } from "../../context/SettingsProvider";
@@ -26,6 +26,7 @@ import { generateCertificate } from "@src/utils/certificateUtils";
 import { updateWallet } from "@src/utils/walletUtils";
 import sdlStore from "@src/store/sdlStore";
 import { useAtom } from "jotai";
+import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
 
 const yaml = require("js-yaml");
 
@@ -55,20 +56,23 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
+  const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const { settings } = useSettings();
   const { address, signAndBroadcastTx } = useWallet();
   const router = useRouter();
   const { classes } = useStyles();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
-  const [deploySdl, setDeploySdl] = useAtom(sdlStore.deploySdl);
+  const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const theme = useTheme();
   const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
 
   useEffect(() => {
     if (selectedTemplate?.name) {
       setDeploymentName(selectedTemplate.name);
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -158,7 +162,9 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
   async function handleCreateClick(deposit: number, depositorAddress: string) {
     setIsCreatingDeployment(true);
-    const dd = await createAndValidateDeploymentData(editedManifest, null, deposit, depositorAddress);
+
+    const sdl = selectedSdlEditMode === "yaml" ? editedManifest : sdlBuilderRef.current?.getSdl();
+    const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
 
     const validCertificates = await loadValidCertificates();
     const currentCert = validCertificates.find(x => x.parsed === localCert?.certPem);
@@ -203,7 +209,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
         setDeploySdl(null);
 
         // Save the manifest
-        saveDeploymentManifestAndName(dd.deploymentId.dseq, editedManifest, dd.version, address, deploymentName);
+        saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.version, address, deploymentName);
         router.replace(UrlService.newDeployment({ step: RouteStepKeys.createLeases, dseq: dd.deploymentId.dseq }));
 
         event(AnalyticsEvents.CREATE_DEPLOYMENT, {
@@ -219,6 +225,17 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     }
   }
 
+  const onModeChange = (mode: "yaml" | "builder") => {
+    if (mode === selectedSdlEditMode) return;
+
+    if (mode === "yaml") {
+      const sdl = sdlBuilderRef.current?.getSdl();
+      setEditedManifest(sdl);
+    }
+
+    setSelectedSdlEditMode(mode);
+  };
+
   return (
     <>
       <CustomNextSeo
@@ -226,71 +243,93 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
         url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`}
       />
 
-      <Box
-        sx={{
-          marginBottom: ".5rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexDirection: { xs: "column", sm: "column", md: "row" }
-        }}
-      >
-        <Box sx={{ flexGrow: 1, paddingRight: { xs: 0, sm: 0, md: "1rem" }, width: "100%" }}>
-          <TextField
-            value={deploymentName}
-            onChange={ev => setDeploymentName(ev.target.value)}
-            fullWidth
-            label="Name your deployment (optional)"
-            variant="outlined"
-            size="small"
-          />
+      <Box sx={{ marginBottom: ".5rem" }}>
+        <Box
+          sx={{
+            marginBottom: ".5rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexDirection: { xs: "column", sm: "column", md: "row" }
+          }}
+        >
+          <Box sx={{ flexGrow: 1, paddingRight: { xs: 0, sm: 0, md: "1rem" }, width: "100%" }}>
+            <TextField
+              value={deploymentName}
+              onChange={ev => setDeploymentName(ev.target.value)}
+              fullWidth
+              label="Name your deployment (optional)"
+              variant="outlined"
+              size="small"
+            />
+          </Box>
+
+          <Box sx={{ display: "flex", alignItems: "center", width: { xs: "100%", sm: "100%", md: "auto" }, paddingTop: { xs: ".5rem", md: 0 } }}>
+            <Tooltip
+              classes={{ tooltip: classes.tooltip }}
+              arrow
+              title={
+                <>
+                  <Typography>
+                    You may use the sample deployment file as-is or modify it for your own needs as described in the{" "}
+                    <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/intro-to-akash/stack-definition-language")}>
+                      SDL (Stack Definition Language)
+                    </LinkTo>{" "}
+                    documentation. A typical modification would be to reference your own image instead of the demo app image.
+                  </Typography>
+                </>
+              }
+            >
+              <InfoIcon className={classes.tooltipIcon} />
+            </Tooltip>
+
+            <Button
+              variant="contained"
+              color="secondary"
+              disabled={isCreatingDeployment || !!parsingError || !editedManifest}
+              onClick={() => setIsCheckingPrerequisites(true)}
+              sx={{ whiteSpace: "nowrap", width: { xs: "100%", sm: "auto" } }}
+            >
+              {isCreatingDeployment ? (
+                <CircularProgress size="24px" color="secondary" />
+              ) : (
+                <>
+                  Create Deployment{" "}
+                  <Box component="span" marginLeft=".5rem" display="flex" alignItems="center">
+                    <ArrowForwardIosIcon fontSize="small" />
+                  </Box>
+                </>
+              )}
+            </Button>
+          </Box>
         </Box>
 
-        <Box sx={{ display: "flex", alignItems: "center", width: { xs: "100%", sm: "100%", md: "auto" }, paddingTop: { xs: ".5rem", md: 0 } }}>
-          <Tooltip
-            classes={{ tooltip: classes.tooltip }}
-            arrow
-            title={
-              <>
-                <Typography>
-                  You may use the sample deployment file as-is or modify it for your own needs as described in the{" "}
-                  <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/intro-to-akash/stack-definition-language")}>
-                    SDL (Stack Definition Language)
-                  </LinkTo>{" "}
-                  documentation. A typical modification would be to reference your own image instead of the demo app image.
-                </Typography>
-              </>
-            }
-          >
-            <InfoIcon className={classes.tooltipIcon} />
-          </Tooltip>
-
+        <ButtonGroup size="small">
           <Button
-            variant="contained"
-            color="secondary"
-            disabled={isCreatingDeployment || !!parsingError || !editedManifest}
-            onClick={() => setIsCheckingPrerequisites(true)}
-            sx={{ whiteSpace: "nowrap", width: { xs: "100%", sm: "auto" } }}
+            variant={selectedSdlEditMode === "builder" ? "contained" : "outlined"}
+            color={selectedSdlEditMode === "builder" ? "secondary" : "primary"}
+            onClick={() => onModeChange("builder")}
           >
-            {isCreatingDeployment ? (
-              <CircularProgress size="24px" color="secondary" />
-            ) : (
-              <>
-                Create Deployment{" "}
-                <Box component="span" marginLeft=".5rem" display="flex" alignItems="center">
-                  <ArrowForwardIosIcon fontSize="small" />
-                </Box>
-              </>
-            )}
+            Builder
           </Button>
-        </Box>
+          <Button
+            variant={selectedSdlEditMode === "yaml" ? "contained" : "outlined"}
+            color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
+            onClick={() => onModeChange("yaml")}
+          >
+            YAML
+          </Button>
+        </ButtonGroup>
       </Box>
 
       {parsingError && <Alert severity="warning">{parsingError}</Alert>}
 
-      <ViewPanel stickToBottom style={{ overflow: "hidden", margin: smallScreen ? "0 -1rem" : 0 }}>
-        <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
-      </ViewPanel>
+      {selectedSdlEditMode === "yaml" && (
+        <ViewPanel stickToBottom style={{ overflow: "hidden", margin: smallScreen ? "0 -1rem" : 0 }}>
+          <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
+        </ViewPanel>
+      )}
+      {selectedSdlEditMode === "builder" && <SdlBuilder sdlString={editedManifest} ref={sdlBuilderRef} setEditedManifest={setEditedManifest} />}
 
       {isDepositingDeployment && (
         <DeploymentDepositModal
@@ -314,4 +353,3 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     </>
   );
 };
-

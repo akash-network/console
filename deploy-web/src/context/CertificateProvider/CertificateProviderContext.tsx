@@ -103,7 +103,9 @@ export const CertificateProvider = ({ children }) => {
         console.log(error);
 
         setIsLoadingCertificates(false);
-        enqueueSnackbar(<Snackbar title="Error fetching certificate." iconVariant="error" />, { variant: "error" });
+        if (showSnackbar) {
+          enqueueSnackbar(<Snackbar title="Error fetching certificate." iconVariant="error" />, { variant: "error" });
+        }
 
         return [];
       }

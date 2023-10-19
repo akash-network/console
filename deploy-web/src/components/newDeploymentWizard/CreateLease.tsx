@@ -164,7 +164,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
     setFilteredBids(fBids);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, bids, providers, isFilteringFavorites, isFilteringAudited]);
+  }, [search, bids, providers, isFilteringFavorites, isFilteringAudited, favoriteProviders]);
 
   const handleBidSelected = bid => {
     setSelectedBids({ ...selectedBids, [bid.gseq]: bid });
@@ -476,4 +476,3 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     </>
   );
 };
-
