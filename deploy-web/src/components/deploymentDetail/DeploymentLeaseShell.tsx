@@ -15,6 +15,7 @@ import { LeaseDto } from "@src/types/deployment";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import Link from "next/link";
 import LaunchIcon from "@mui/icons-material/Launch";
+import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
   leases: LeaseDto[];
@@ -279,7 +280,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
 
               {showArrowAndTabWarning && (
                 <Alert variant="standard" severity="warning" sx={{ borderRadius: 0, marginBottom: 1 }}>
-                  <Link href="/faq#shell-arrows-and-completion" target="_blank" style={{ display: "inline-flex", alignItems: "center" }}>
+                  <Link href={UrlService.faq("shell-arrows-and-completion")} target="_blank" style={{ display: "inline-flex", alignItems: "center" }}>
                     Why is my UP arrow and TAB autocompletion not working?
                     <LaunchIcon fontSize={"small"} alignmentBaseline="middle" />
                   </Link>
@@ -290,7 +291,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
                 {isConnectionClosed && (
                   <Alert variant="standard" severity="warning" sx={{ borderRadius: 0 }}>
                     The connection to your Cloudmos Shell was lost. (
-                    <Link href="/faq#shell-lost" target="_blank" style={{ display: "inline-flex", alignItems: "center" }}>
+                    <Link href={UrlService.faq("shell-lost")} target="_blank" style={{ display: "inline-flex", alignItems: "center" }}>
                       More Info
                       <LaunchIcon fontSize={"small"} alignmentBaseline="middle" />
                     </Link>
