@@ -158,24 +158,29 @@ export const BackgroundTaskProvider = ({ children }) => {
     let fileContent: Buffer | null = null;
 
     ws.onmessage = event => {
-      let jsonData, exitCode, errorMessage;
+      let exitCode, errorMessage;
       try {
         const message = JSON.parse(event.data).message;
 
         const bufferData = Buffer.from(message.data.slice(1));
         const stringData = bufferData.toString("utf-8").replace(/^\n|\n$/g, "");
 
-        jsonData = JSON.parse(stringData);
-        exitCode = jsonData["exit_code"];
-        errorMessage = jsonData["message"];
+        try {
+          const jsonData = JSON.parse(stringData);
+          exitCode = jsonData["exit_code"];
+          errorMessage = jsonData["message"];
+        } catch (err) {}
 
         if (exitCode !== undefined) {
           if (errorMessage) {
             console.error(`An error has occured: ${errorMessage}`);
+          } else if (fileContent === null) {
+            console.log("File content null");
+          } else {
+            console.log("Download done: " + fileContent.length);
+            isFinished = true;
           }
-          console.log("Download done: " + fileContent.length);
 
-          isFinished = true;
           ws.close();
         } else {
           if (!fileContent) {
@@ -188,6 +193,7 @@ export const BackgroundTaskProvider = ({ children }) => {
         }
       } catch (error) {
         console.log(error);
+        ws.close();
       }
     };
 
@@ -202,7 +208,7 @@ export const BackgroundTaskProvider = ({ children }) => {
       } else {
         console.log("No file / Failed");
         closeSnackbar(snackbarKey);
-        enqueueSnackbar("Failed to download logs", { variant: "error" });
+        enqueueSnackbar("Failed to download file", { variant: "error" });
       }
     };
     ws.onopen = () => {

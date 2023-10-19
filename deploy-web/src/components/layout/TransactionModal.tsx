@@ -3,18 +3,19 @@ import { Popup } from "../shared/Popup";
 import { Box, CircularProgress, Typography } from "@mui/material";
 
 type Props = {
+  state: "waitingForApproval" | "broadcasting";
   open: boolean;
-  onClose: () => void;
+  onClose?: () => void;
   children?: ReactNode;
 };
 
-export const TransactionModal: React.FunctionComponent<Props> = ({ open, onClose }) => {
+export const TransactionModal: React.FunctionComponent<Props> = ({ state, open, onClose }) => {
   return (
     <Popup
       fullWidth
       open={open}
       variant="custom"
-      title={<>Transaction Pending</>}
+      title={state === "waitingForApproval" ? <>Waiting for tx approval</> : <>Transaction Pending</>}
       actions={[]}
       onClose={onClose}
       maxWidth="xs"
@@ -26,7 +27,7 @@ export const TransactionModal: React.FunctionComponent<Props> = ({ open, onClose
         </Box>
 
         <div>
-          <Typography variant="caption">BROADCASTING TRANSACTION...</Typography>
+          <Typography variant="caption">{state === "waitingForApproval" ? "APPROVE OR REJECT TX TO CONTINUE..." : "BROADCASTING TRANSACTION..."}</Typography>
         </div>
       </Box>
     </Popup>

@@ -8,7 +8,7 @@ import { useSnackbar } from "notistack";
 import { Snackbar } from "@src/components/shared/Snackbar";
 import { customRegistry } from "@src/utils/customRegistry";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
-import { OpenInNew, WindowSharp } from "@mui/icons-material";
+import { OpenInNew } from "@mui/icons-material";
 import { useTheme } from "@mui/material";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
@@ -69,6 +69,7 @@ export const WalletProvider = ({ children }) => {
   const [isWindowLoaded, setIsWindowLoaded] = useState<boolean>(false);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(false);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
+  const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const isMounted = useRef(true);
   const sigingClient = useRef<SigningStargateClient>(null);
@@ -264,7 +265,7 @@ export const WalletProvider = ({ children }) => {
   }
 
   async function signAndBroadcastTx(msgs: EncodeObject[]): Promise<boolean> {
-    setIsBroadcastingTx(true);
+    setIsWaitingForApproval(true);
     let pendingSnackbarKey = null;
     try {
       const client = await getStargateClient();
@@ -283,7 +284,8 @@ export const WalletProvider = ({ children }) => {
         },
         ""
       );
-
+      setIsWaitingForApproval(false);
+      setIsBroadcastingTx(true);
       pendingSnackbarKey = enqueueSnackbar(<Snackbar title="Broadcasting transaction..." subTitle="Please wait a few seconds" showLoading />, {
         variant: "info",
         autoHideDuration: null
@@ -291,6 +293,8 @@ export const WalletProvider = ({ children }) => {
 
       const txRawBytes = Uint8Array.from(TxRaw.encode(txRaw).finish());
       const txResult = await client.broadcastTx(txRawBytes);
+
+      setIsBroadcastingTx(false);
 
       if (txResult.code !== 0) {
         throw new Error(txResult.rawLog);
@@ -364,11 +368,17 @@ export const WalletProvider = ({ children }) => {
         closeSnackbar(pendingSnackbarKey);
       }
 
+      setIsWaitingForApproval(false);
       setIsBroadcastingTx(false);
     }
   }
 
-  const showTransactionSnackbar = (snackTitle, snackMessage, transactionHash, snackVariant) => {
+  const showTransactionSnackbar = (
+    snackTitle: string,
+    snackMessage: string,
+    transactionHash: string,
+    snackVariant: React.ComponentProps<typeof Snackbar>["iconVariant"]
+  ) => {
     enqueueSnackbar(
       <Snackbar
         title={snackTitle}
@@ -426,7 +436,7 @@ export const WalletProvider = ({ children }) => {
     >
       {children}
 
-      <TransactionModal open={isBroadcastingTx} onClose={() => setIsBroadcastingTx(false)} />
+      <TransactionModal open={isWaitingForApproval || isBroadcastingTx} state={isWaitingForApproval ? "waitingForApproval" : "broadcasting"} />
     </WalletProviderContext.Provider>
   );
 };
@@ -455,4 +465,3 @@ const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
     </>
   );
 };
-
