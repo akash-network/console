@@ -22,6 +22,7 @@ export enum AnalyticsEvents {
 
   // SDL Builder
   DEPLOY_SDL = "deploy_sdl",
+  PREVIEW_SDL = "preview_sdl",
   IMPORT_SDL = "import_sdl",
   RESET_SDL = "reset_sdl",
   CREATE_SDL_TEMPLATE = "create_sdl_template",

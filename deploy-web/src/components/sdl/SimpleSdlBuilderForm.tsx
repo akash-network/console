@@ -23,6 +23,7 @@ import sdlStore from "@src/store/sdlStore";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useAtom } from "jotai";
 import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
+import { PreviewSdl } from "./PreviewSdl";
 
 type Props = {};
 
@@ -33,9 +34,11 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [isImportingSdl, setIsImportingSdl] = useState(false);
-  const [, setSdlResult] = useState<string>(null);
+  const [isPreviewingSdl, setIsPreviewingSdl] = useState(false);
+  const [sdlResult, setSdlResult] = useState<string>(null);
   const formRef = useRef<HTMLFormElement>();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
+  const [sdlBuilderSdl, setSdlBuilderSdl] = useAtom(sdlStore.sdlBuilderSdl);
   const { data: providerAttributesSchema } = useProviderAttributesSchema();
   const { enqueueSnackbar } = useSnackbar();
   const {
@@ -63,15 +66,28 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
   const { services: _services } = watch();
   const router = useRouter();
 
+  useEffect(() => {
+    if (sdlBuilderSdl && sdlBuilderSdl.services) {
+      setValue("services", sdlBuilderSdl.services);
+    }
+  }, []);
+
   // Load the template from query string on mount
   useEffect(() => {
     if ((router.query.id && !templateMetadata) || (router.query.id && templateMetadata?.id !== router.query.id)) {
+      // Load user template
       loadTemplate(router.query.id as string);
     } else if (!router.query.id && templateMetadata) {
       setTemplateMetadata(null);
       reset();
     }
   }, [router.query.id, templateMetadata]);
+
+  useEffect(() => {
+    if (_services) {
+      setSdlBuilderSdl({ services: _services });
+    }
+  }, [_services]);
 
   const loadTemplate = async (id: string) => {
     try {
@@ -110,8 +126,6 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
     try {
       const sdl = generateSdl(data);
 
-      setSdlResult(sdl);
-
       setDeploySdl({
         title: "",
         category: "",
@@ -136,6 +150,23 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
 
     if (result) {
       setIsSavingTemplate(true);
+    }
+  };
+
+  const onPreviewSdlClick = () => {
+    setError(null);
+
+    try {
+      const sdl = generateSdl({ services: _services });
+      setSdlResult(sdl);
+      setIsPreviewingSdl(true);
+
+      event(AnalyticsEvents.PREVIEW_SDL, {
+        category: "sdl_builder",
+        label: "Preview SDL from create page"
+      });
+    } catch (error) {
+      setError(error.message);
     }
   };
 
@@ -169,6 +200,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
   return (
     <>
       {isImportingSdl && <ImportSdlModal onClose={() => setIsImportingSdl(false)} setValue={setValue} />}
+      {isPreviewingSdl && <PreviewSdl onClose={() => setIsPreviewingSdl(false)} sdl={sdlResult} />}
       {isSavingTemplate && (
         <SaveTemplateModal
           onClose={() => setIsSavingTemplate(false)}
@@ -220,6 +252,10 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <Button color="secondary" variant="contained" type="submit">
               Deploy
+            </Button>
+
+            <Button color="secondary" variant="text" onClick={onPreviewSdlClick} sx={{ marginLeft: "1rem" }}>
+              Preview
             </Button>
 
             <Button color="secondary" variant="text" onClick={() => setIsImportingSdl(true)} sx={{ marginLeft: "1rem" }}>
