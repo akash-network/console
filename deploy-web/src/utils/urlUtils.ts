@@ -1,3 +1,4 @@
+import { FaqAnchorType } from "@src/pages/faq";
 import { selectedNetworkId } from "./constants";
 
 type NewDeploymentParams = {
@@ -30,7 +31,7 @@ export class UrlService {
   static priceCompareCustom = (cpu: number, memory: number, storage: number, memoryUnit: string, storageUnit: string) =>
     `/price-compare${appendSearchParams({ cpu, memory, storage, memoryUnit, storageUnit })}`;
   static contact = () => "/contact";
-  static faq = (q?: string) => `/faq${q ? "#" + q : ""}`;
+  static faq = (q?: FaqAnchorType) => `/faq${q ? "#" + q : ""}`;
   static privacyPolicy = () => "/privacy-policy";
   static termsOfService = () => "/terms-of-service";
   static blocks = () => `/blocks`;
