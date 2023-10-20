@@ -19,6 +19,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { FormattedNumber } from "react-intl";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 import { useRouter } from "next/router";
+import { useChain } from "@cosmos-kit/react";
 
 type Props = {
   children?: ReactNode;
@@ -38,7 +39,10 @@ const useStyles = makeStyles()(theme => ({
 export const WalletStatus: React.FunctionComponent<Props> = ({}) => {
   const popupState = usePopupState({ variant: "popover", popupId: "walletMenu" });
   const { classes } = useStyles();
-  const { isWalletConnected, walletName, address, walletBalances, logout, isWalletLoaded } = useWallet();
+  const { walletName, address, walletBalances, logout, isWalletLoaded } = useWallet();
+  const { status, isWalletConnected, disconnect } = useChain("akash");
+  console.log("Wallet: ", status);
+  const [isShowingGrantModal, setIsShowingGrantModal] = useState(false);
   const walletBalance = useTotalWalletBalance();
   const router = useRouter();
 

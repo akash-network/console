@@ -25,6 +25,11 @@ import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { Provider } from "jotai";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { PageHead } from "@src/components/layout/PageHead";
+import { ChainProvider } from "@cosmos-kit/react";
+import { wallets } from "@cosmos-kit/keplr";
+import { chains, assets } from "chain-registry";
+
+import "@interchain-ui/react/styles";
 
 interface Props extends AppProps {
   emotionCache?: EmotionCache;
@@ -72,18 +77,24 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
                   <UserProvider>
                     <AddressBookProvider>
                       <SettingsProvider>
-                        <WalletProvider>
-                          <CertificateProvider>
-                            <TemplatesProvider>
-                              <LocalNoteProvider>
-                                <BackgroundTaskProvider>
-                                  {isProd && <GoogleAnalytics />}
-                                  <Component {...pageProps} />
-                                </BackgroundTaskProvider>
-                              </LocalNoteProvider>
-                            </TemplatesProvider>
-                          </CertificateProvider>
-                        </WalletProvider>
+                        <ChainProvider
+                          chains={chains.filter(x => x.chain_name === "akash")}
+                          assetLists={assets.filter(x => x.chain_name === "akash")}
+                          wallets={wallets}
+                        >
+                          <WalletProvider>
+                            <CertificateProvider>
+                              <TemplatesProvider>
+                                <LocalNoteProvider>
+                                  <BackgroundTaskProvider>
+                                    {isProd && <GoogleAnalytics />}
+                                    <Component {...pageProps} />
+                                  </BackgroundTaskProvider>
+                                </LocalNoteProvider>
+                              </TemplatesProvider>
+                            </CertificateProvider>
+                          </WalletProvider>
+                        </ChainProvider>
                       </SettingsProvider>
                     </AddressBookProvider>
                   </UserProvider>

@@ -5,6 +5,7 @@ import Button, { ButtonProps } from "@mui/material/Button";
 import { ConnectWalletModal } from "./ConnectWalletModal";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import { useWallet } from "@src/context/WalletProvider";
+import { useWallet as useCosmosKitWallet, useChain } from "@cosmos-kit/react";
 
 interface Props extends ButtonProps {
   children?: ReactNode;
@@ -16,9 +17,13 @@ export const ConnectWalletButton: React.FunctionComponent<Props> = ({ ...rest })
   const { isWalletConnected } = useWallet();
   const [isConnectingWallet, setIsConnectingWallet] = useState(false);
   const { classes } = useStyles();
-
+  const { wallet } = useCosmosKitWallet();
+  const { address, status, connect } = useChain("akash");
+  console.log("Wallet", wallet);
+  console.log("Address", address, status);
   const onConnectClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setIsConnectingWallet(true);
+    //setIsConnectingWallet(true);
+    connect();
   };
 
   const onClose = () => {
