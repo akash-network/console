@@ -5,35 +5,12 @@ import { NextSeo } from "next-seo";
 import Image from "next/image";
 import Link from "next/link";
 
-export default function FaqPage() {
-  return (
-    <Layout>
-      <NextSeo title={`Frequently Asked Questions`} />
-
-      <PageContainer>
-        <Title value="Frequently Asked Questions" />
-
-        <ul>
-          <li>
-            <Link href="#lease-closed">My lease is closed, but the deployment isn't.</Link>
-          </li>
-          <li>
-            <Link href="#shell-lost">Can't access shell: "The connection to your Cloudmos Shell was lost."</Link>
-          </li>
-          <li>
-            <Link href="#shell-arrows-and-completion">Shell: UP arrow and TAB autocompletion does not work</Link>
-          </li>
-          <li>
-            <Link href="#send-manifest-resources-mismatch">
-              Error while sending manifest to provider. Error: manifest cross-validation error: group "X": service "X": CPU/Memory resources mismatch for ID 1
-            </Link>
-          </li>
-          <li>
-            <Link href="#other-issues">My issue is not listed</Link>
-          </li>
-        </ul>
-
-        <h2 id="lease-closed">My lease is closed, but the deployment isn't.</h2>
+const FaqEntries = [
+  {
+    anchor: "lease-closed",
+    title: "My lease is closed, but the deployment isn't.",
+    content: (
+      <>
         <p>
           If your lease is closed, but your deployment isn't, that means your provider closed it. You will need to close your deployment and create a new one.
           You can try deploying on a different provider to see if that helps.
@@ -54,8 +31,14 @@ export default function FaqPage() {
           </Link>{" "}
           discord channel.
         </p>
-
-        <h2 id="shell-lost">Can't access shell: "The connection to your Cloudmos Shell was lost."</h2>
+      </>
+    )
+  },
+  {
+    anchor: "shell-lost",
+    title: "Can't access shell: 'The connection to your Cloudmos Shell was lost.'",
+    content: (
+      <>
         <p>
           There is a{" "}
           <a href="https://github.com/akash-network/support/issues/87" target="_blank">
@@ -78,16 +61,24 @@ export default function FaqPage() {
             with ssh.
           </li>
         </ul>
-
-        <h2 id="shell-arrows-and-completion">Shell: UP arrow and TAB autocompletion does not work</h2>
-        <p>
-          Some docker images use "sh" as the default shell. This shell does not support up arrow and TAB autocompletion. You may try sending the "bash" command
-          to switch to a bash shell which support those feature.
-        </p>
-
-        <h2 id="send-manifest-resources-mismatch">
-          Error while sending manifest to provider. Error: manifest cross-validation error: group "X": service "X": CPU/Memory resources mismatch for ID 1
-        </h2>
+      </>
+    )
+  },
+  {
+    anchor: "shell-arrows-and-completion",
+    title: "Shell: UP arrow and TAB autocompletion does not work",
+    content: (
+      <p>
+        Some docker images use "sh" as the default shell. This shell does not support up arrow and TAB autocompletion. You may try sending the "bash" command to
+        switch to a bash shell which support those feature.
+      </p>
+    )
+  },
+  {
+    anchor: "send-manifest-resources-mismatch",
+    title: `Error while sending manifest to provider. Error: manifest cross-validation error: group "X": service "X": CPU/Memory resources mismatch for ID 1`,
+    content: (
+      <>
         <p>
           This commonly happen if you try to change the hardware specs of your deployment. For example, if you try to increase the amount of memory or cpu. If
           you need to change the hardware spec you will need to close your deployment and create a new one.
@@ -96,8 +87,14 @@ export default function FaqPage() {
           This can also happen if your deployment has multiple services and was created before the Mainnet 6 upgrade on August 31st, 2023. In this case, you
           will also need to close your deployment and create a new one.
         </p>
-
-        <h2 id="other-issues">My issue is not listed</h2>
+      </>
+    )
+  },
+  {
+    anchor: "other-issues",
+    title: "My issue is not listed",
+    content: (
+      <>
         <p>Here are some actions you can take to fix most of the errors you may encounter:</p>
         <ul>
           <li>
@@ -120,6 +117,35 @@ export default function FaqPage() {
           channel. If you have issue creating or updating a deployment, it can help to include your SDL. Make sure to remove any sensitive information from it
           before sharing (ex: secrets in your env variables).
         </p>
+      </>
+    )
+  }
+] as const;
+
+export type FaqAnchorType = (typeof FaqEntries)[number]["anchor"];
+
+export default function FaqPage() {
+  return (
+    <Layout>
+      <NextSeo title={`Frequently Asked Questions`} />
+
+      <PageContainer>
+        <Title value="Frequently Asked Questions" />
+
+        <ul>
+          {FaqEntries.map(entry => (
+            <li key={entry.anchor}>
+              <Link href={"#" + entry.anchor}>{entry.title}</Link>
+            </li>
+          ))}
+        </ul>
+
+        {FaqEntries.map(entry => (
+          <div key={entry.anchor}>
+            <h2 id={entry.anchor}>{entry.title}</h2>
+            {entry.content}
+          </div>
+        ))}
       </PageContainer>
     </Layout>
   );
