@@ -796,8 +796,6 @@ export class AkashStatsIndexer extends Indexer {
     blockGroupTransaction: DbTransaction,
     msg: Message
   ) {
-    console.log(JSON.stringify(decodedMessage.$type, null, 2));
-    throw "STOP";
     await Provider.update(
       {
         hostUri: decodedMessage.hostUri,
