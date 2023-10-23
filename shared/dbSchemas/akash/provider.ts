@@ -13,6 +13,7 @@ export class Provider extends Model {
   @Required @PrimaryKey @Column owner: string;
   @Required @Column hostUri: string;
   @Required @Column createdHeight: number;
+  @Column updatedHeight?: number;
   @Column deletedHeight?: number;
   @Column email?: string;
   @Column website?: string;
