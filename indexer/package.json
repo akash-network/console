@@ -1,6 +1,6 @@
 {
   "name": "cloudmos-indexer",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Indexer for any Cosmos based blockchain",
   "author": "Cloudmos",
   "license": "Apache-2.0",
