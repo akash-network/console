@@ -142,3 +142,8 @@ export type SdlSaveTemplateFormValues = {
   title: string;
   visibility: string;
 };
+
+export type RentGpusFormValues = {
+  service: Service;
+  region: ProviderAttributeSchemaDetailValue;
+};

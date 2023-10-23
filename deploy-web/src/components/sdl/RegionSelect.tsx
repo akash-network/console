@@ -1,71 +1,48 @@
 import { Autocomplete, Box, ClickAwayListener, TextField } from "@mui/material";
-import { RentGpusFormValues, SdlBuilderFormValues } from "@src/types";
+import { RentGpusFormValues } from "@src/types";
 import { ProviderAttributeSchemaDetailValue, ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { useState } from "react";
 import { Control, Controller, FieldPath } from "react-hook-form";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import InfoIcon from "@mui/icons-material/Info";
 
-type FormSelectProps = {
-  control: Control<any, any>;
+type RegionSelectProps = {
+  control: Control<RentGpusFormValues, any>;
   providerAttributesSchema: ProviderAttributesSchema;
-  optionName?: keyof ProviderAttributesSchema;
-  name: FieldPath<SdlBuilderFormValues | RentGpusFormValues>;
   className?: string;
-  requiredMessage?: string;
-  label: string;
-  multiple?: boolean;
-  required?: boolean;
-  disabled?: boolean;
-  valueType?: "key" | "description ";
 };
 
-export const FormSelect: React.FunctionComponent<FormSelectProps> = ({
-  control,
-  providerAttributesSchema,
-  optionName,
-  name,
-  className,
-  requiredMessage,
-  label,
-  required = providerAttributesSchema[optionName]?.required || false,
-  multiple,
-  disabled,
-  valueType = "description"
-}) => {
+export const RegionSelect: React.FunctionComponent<RegionSelectProps> = ({ control, providerAttributesSchema, className }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const options = providerAttributesSchema[optionName]?.values || [];
+  const options = providerAttributesSchema?.["location-region"]?.values || [];
 
   console.log(options);
 
   return (
     <Controller
       control={control}
-      name={name}
-      rules={{
-        required: required ? requiredMessage : null
-      }}
+      name={`region`}
       render={({ field, fieldState }) => (
         <Box sx={{ display: "flex", alignItems: "center" }} className={className}>
           <Autocomplete
             disableClearable
             open={isOpen}
-            disabled={disabled}
             options={options}
-            value={field.value || (multiple ? ([] as any) : null)}
-            getOptionLabel={option => (valueType === "key" ? option?.key : option?.description) || ""}
-            defaultValue={multiple ? [] : null}
+            value={field.value}
+            getOptionLabel={option => option?.key}
+            defaultValue={null}
             isOptionEqualToValue={(option, value) => option.key === value.key}
             filterSelectedOptions
             fullWidth
-            multiple={multiple}
             ChipProps={{ size: "small" }}
-            onChange={(event, newValue: string[] | null | ProviderAttributeSchemaDetailValue[]) => {
+            onChange={(event, newValue: ProviderAttributeSchemaDetailValue) => {
               field.onChange(newValue);
             }}
             renderInput={params => (
               <ClickAwayListener onClickAway={() => setIsOpen(false)}>
                 <TextField
                   {...params}
-                  label={label}
+                  label="Region"
                   variant="outlined"
                   color="secondary"
                   size="small"
@@ -84,7 +61,13 @@ export const FormSelect: React.FunctionComponent<FormSelectProps> = ({
                   {...props}
                   key={option.key}
                 >
-                  <div>{valueType === "key" ? option.key : option.description}</div>
+                  <div>
+                    {option.key}
+
+                    <CustomTooltip arrow title={option.description}>
+                      <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: ".5rem" }} />
+                    </CustomTooltip>
+                  </div>
                 </Box>
               );
             }}
