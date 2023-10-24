@@ -799,7 +799,7 @@ export class AkashStatsIndexer extends Indexer {
     await Provider.update(
       {
         hostUri: decodedMessage.hostUri,
-        createdHeight: height,
+        updatedHeight: height,
         email: decodedMessage.info?.email,
         website: decodedMessage.info?.website
       },
