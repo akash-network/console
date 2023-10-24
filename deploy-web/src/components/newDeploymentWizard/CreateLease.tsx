@@ -134,7 +134,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
             }
           });
 
-          if (!isAdded && provider.hostUri.includes(search)) {
+          if (!isAdded && provider?.hostUri.includes(search)) {
             fBids.push(bid.id);
           }
         }

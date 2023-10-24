@@ -144,6 +144,6 @@ export type SdlSaveTemplateFormValues = {
 };
 
 export type RentGpusFormValues = {
-  service: Service;
+  services: Service[];
   region: ProviderAttributeSchemaDetailValue;
 };

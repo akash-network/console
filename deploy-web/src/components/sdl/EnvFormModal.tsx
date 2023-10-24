@@ -3,7 +3,7 @@ import { makeStyles } from "tss-react/mui";
 import { Popup } from "../shared/Popup";
 import { Control, Controller, useFieldArray } from "react-hook-form";
 import { Box, IconButton, Paper, Switch, TextField, useTheme } from "@mui/material";
-import { EnvironmentVariable, SdlBuilderFormValues } from "@src/types";
+import { EnvironmentVariable, RentGpusFormValues, SdlBuilderFormValues } from "@src/types";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { nanoid } from "nanoid";
 import { CustomTooltip } from "../shared/CustomTooltip";
@@ -13,7 +13,7 @@ type Props = {
   serviceIndex: number;
   onClose: () => void;
   envs: EnvironmentVariable[];
-  control: Control<SdlBuilderFormValues, any>;
+  control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
   children?: ReactNode;
 };
 

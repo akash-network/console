@@ -48,6 +48,7 @@ import { uAktDenom } from "@src/utils/constants";
 import { gpuVendors } from "../shared/akash/gpu";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { FormSelect } from "./FormSelect";
+import { EnvVarList } from "./EnvVarList";
 
 type Props = {
   service: Service;
@@ -1047,50 +1048,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
             <Grid item xs={12} sm={6}>
               <Grid container spacing={2}>
                 <Grid item xs={12}>
-                  <FormPaper elevation={1} sx={{ padding: ".5rem 1rem" }}>
-                    <Box sx={{ display: "flex", alignItems: "center", marginBottom: ".5rem" }}>
-                      <Typography variant="body1">
-                        <strong>Environment Variables</strong>
-                      </Typography>
-
-                      <CustomTooltip
-                        arrow
-                        title={
-                          <>
-                            A list of environment variables to expose to the running container.
-                            <br />
-                            <br />
-                            <a href="https://docs.akash.network/readme/stack-definition-language#services.env" target="_blank" rel="noopener">
-                              View official documentation.
-                            </a>
-                          </>
-                        }
-                      >
-                        <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
-                      </CustomTooltip>
-
-                      <Box component="span" sx={{ marginLeft: "1rem" }} className={classes.editLink} onClick={() => setIsEditingEnv(serviceIndex)}>
-                        Edit
-                      </Box>
-                    </Box>
-
-                    {currentService.env.length > 0 ? (
-                      currentService.env.map((e, i) => (
-                        <Box key={i} sx={{ fontSize: ".75rem" }}>
-                          <div>
-                            {e.key}=
-                            <Box component="span" className={classes.formValue}>
-                              {e.value}
-                            </Box>
-                          </div>
-                        </Box>
-                      ))
-                    ) : (
-                      <Typography variant="caption" color="darkgray">
-                        None
-                      </Typography>
-                    )}
-                  </FormPaper>
+                  <EnvVarList currentService={currentService} setIsEditingEnv={setIsEditingEnv} serviceIndex={serviceIndex} />
                 </Grid>
 
                 <Grid item xs={12}>

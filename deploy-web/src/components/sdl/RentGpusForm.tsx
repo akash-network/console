@@ -42,6 +42,7 @@ import { FormSelect } from "./FormSelect";
 import Image from "next/legacy/image";
 import { useSdlDenoms } from "@src/hooks/useDenom";
 import { RegionSelect } from "./RegionSelect";
+import { AdvancedConfig } from "./AdvancedConfig";
 
 type Props = {};
 
@@ -74,7 +75,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     setValue
   } = useForm<RentGpusFormValues>({
     defaultValues: {
-      service: { ...defaultService },
+      services: [{ ...defaultService }],
       region: {
         key: "any",
         value: "any",
@@ -82,9 +83,10 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
       }
     }
   });
-  const { service: _service } = watch();
+  const { services: _services } = watch();
   const router = useRouter();
   const supportedSdlDenoms = useSdlDenoms();
+  const currentService = _services[0] || ({} as any);
 
   // useEffect(() => {
   //   if (sdlBuilderSdl && sdlBuilderSdl.services) {
@@ -123,11 +125,11 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   return (
     <>
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
-        <Paper sx={{ marginTop: "1rem", padding: "1rem" }}>
+        <Paper sx={{ marginTop: "1rem", padding: "1rem" }} elevation={2}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <Controller
               control={control}
-              name={`service.image`}
+              name={`services.0.image`}
               rules={{
                 required: "Docker image name is required.",
                 validate: value => {
@@ -162,7 +164,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton
-                          href={`https://hub.docker.com/search?q=${_service.image?.split(":")[0]}&type=image`}
+                          href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`}
                           component={Link}
                           size="small"
                           target="_blank"
@@ -191,10 +193,10 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
             </CustomTooltip>
           </Box>
 
-          <FormPaper elevation={3} sx={{ padding: ".5rem 1rem 1rem", marginTop: "1rem" }}>
+          <FormPaper elevation={1} sx={{ padding: ".5rem 1rem 1rem", marginTop: "1rem" }}>
             <Controller
               control={control}
-              name={`service.profile.gpu`}
+              name={`services.0.profile.gpu`}
               rules={{
                 validate: v => {
                   if (!v) return "GPU amount is required.";
@@ -278,7 +280,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
               <Box sx={{ marginTop: "1rem" }}>
                 <Controller
                   control={control}
-                  name={`service.profile.gpuVendor`}
+                  name={`services.0.profile.gpuVendor`}
                   rules={{ required: "GPU vendor is required." }}
                   defaultValue=""
                   render={({ field }) => (
@@ -306,7 +308,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
                     control={control}
                     label="GPU models"
                     optionName="hardware-gpu-model"
-                    name={`service.profile.gpuModels`}
+                    name={`services.0.profile.gpuModels`}
                     providerAttributesSchema={providerAttributesSchema}
                     required={false}
                     multiple
@@ -325,18 +327,18 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
           <Controller
             control={control}
-            name={`service.profile.cpu`}
+            name={`services.0.profile.cpu`}
             rules={{
               validate: v => {
                 if (!v) return "CPU amount is required.";
 
                 const _value = v || 0;
 
-                if (_service.count === 1 && _value < 0.1) {
+                if (currentService.count === 1 && _value < 0.1) {
                   return "Minimum amount of CPU for a single service instance is 0.1.";
-                } else if (_service.count === 1 && _value > 256) {
+                } else if (currentService.count === 1 && _value > 256) {
                   return "Maximum amount of CPU for a single service instance is 256.";
-                } else if (_service.count > 1 && _service.count * _value > 512) {
+                } else if (currentService.count > 1 && currentService.count * _value > 512) {
                   return "Maximum total amount of CPU for a single service instance group is 512.";
                 }
 
@@ -345,7 +347,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
             }}
             render={({ field, fieldState }) => (
               <FormPaper
-                elevation={3}
+                elevation={1}
                 sx={{ padding: ".5rem 1rem", borderBottom: !!fieldState.error && `1px solid ${theme.palette.error.main}`, marginTop: "1rem" }}
               >
                 <FormControl
@@ -416,19 +418,19 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
           <Controller
             control={control}
-            name={`service.profile.ram`}
+            name={`services.0.profile.ram`}
             rules={{
               validate: v => {
                 if (!v) return "Memory amount is required.";
 
-                const currentUnit = memoryUnits.find(u => _service.profile.ramUnit === u.suffix);
+                const currentUnit = memoryUnits.find(u => currentService.profile.ramUnit === u.suffix);
                 const _value = (v || 0) * currentUnit.value;
 
-                if (_service.count === 1 && _value < minMemory) {
+                if (currentService.count === 1 && _value < minMemory) {
                   return "Minimum amount of memory for a single service instance is 1 Mi.";
-                } else if (_service.count === 1 && _service.count * _value > maxMemory) {
+                } else if (currentService.count === 1 && currentService.count * _value > maxMemory) {
                   return "Maximum amount of memory for a single service instance is 512 Gi.";
-                } else if (_service.count > 1 && _service.count * _value > maxGroupMemory) {
+                } else if (currentService.count > 1 && currentService.count * _value > maxGroupMemory) {
                   return "Maximum total amount of memory for a single service instance group is 1024 Gi.";
                 }
 
@@ -437,7 +439,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
             }}
             render={({ field, fieldState }) => (
               <FormPaper
-                elevation={3}
+                elevation={1}
                 sx={{ padding: ".5rem 1rem", borderBottom: !!fieldState.error && `1px solid ${theme.palette.error.main}`, marginTop: "1rem" }}
               >
                 <FormControl
@@ -491,7 +493,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
                       <Controller
                         control={control}
-                        name={`service.profile.ramUnit`}
+                        name={`services.0.profile.ramUnit`}
                         rules={{ required: "Ram unit is required." }}
                         defaultValue=""
                         render={({ field }) => (
@@ -537,22 +539,22 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
               validate: v => {
                 if (!v) return "Storage amount is required.";
 
-                const currentUnit = storageUnits.find(u => _service.profile.storageUnit === u.suffix);
+                const currentUnit = storageUnits.find(u => currentService.profile.storageUnit === u.suffix);
                 const _value = (v || 0) * currentUnit.value;
 
-                if (_service.count * _value < minStorage) {
+                if (currentService.count * _value < minStorage) {
                   return "Minimum amount of storage for a single service instance is 5 Mi.";
-                } else if (_service.count * _value > maxStorage) {
+                } else if (currentService.count * _value > maxStorage) {
                   return "Maximum amount of storage for a single service instance is 32 Ti.";
                 }
 
                 return true;
               }
             }}
-            name={`service.profile.storage`}
+            name={`services.0.profile.storage`}
             render={({ field, fieldState }) => (
               <FormPaper
-                elevation={3}
+                elevation={1}
                 sx={{ padding: ".5rem 1rem", borderBottom: !!fieldState.error && `1px solid ${theme.palette.error.main}`, marginTop: "1rem" }}
               >
                 <FormControl
@@ -609,7 +611,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
                       <Controller
                         control={control}
-                        name={`service.profile.storageUnit`}
+                        name={`services.0.profile.storageUnit`}
                         rules={{ required: "Storage unit is required." }}
                         defaultValue=""
                         render={({ field }) => (
@@ -658,7 +660,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
                 <InputLabel id="grant-token">Token</InputLabel>
                 <Controller
                   control={control}
-                  name={`service.placement.pricing.denom`}
+                  name={`services.0.placement.pricing.denom`}
                   defaultValue=""
                   rules={{
                     required: true
@@ -679,6 +681,8 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
             </Grid>
           </Grid>
         </Paper>
+
+        <AdvancedConfig control={control} currentService={currentService} />
 
         <Box sx={{ paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
