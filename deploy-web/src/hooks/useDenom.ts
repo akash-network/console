@@ -15,7 +15,7 @@ export const useSdlDenoms = () => {
   const usdcDenom = useUsdcDenom();
 
   return [
-    { id: "uakt", label: "uAKT", value: "uakt" },
-    { id: "uusdc", label: "uUSDC", value: usdcDenom }
+    { id: "uakt", label: "uAKT", tokenLabel: "AKT", value: "uakt" },
+    { id: "uusdc", label: "uUSDC", tokenLabel: "USDC", value: usdcDenom }
   ];
 };

@@ -14,9 +14,14 @@ type RegionSelectProps = {
 
 export const RegionSelect: React.FunctionComponent<RegionSelectProps> = ({ control, providerAttributesSchema, className }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const options = providerAttributesSchema?.["location-region"]?.values || [];
-
-  console.log(options);
+  const options = [
+    {
+      key: "any",
+      value: "any",
+      description: "Any region"
+    },
+    ...(providerAttributesSchema?.["location-region"]?.values || [])
+  ];
 
   return (
     <Controller
@@ -57,17 +62,15 @@ export const RegionSelect: React.FunctionComponent<RegionSelectProps> = ({ contr
               return (
                 <Box
                   component="li"
-                  sx={{ display: "flex", alignItems: "center", justifyContent: "space-between !important", width: "100%", padding: ".2rem .5rem" }}
+                  sx={{ display: "flex", alignItems: "center", width: "100%", padding: ".2rem .5rem" }}
                   {...props}
                   key={option.key}
                 >
-                  <div>
-                    {option.key}
+                  {option.key}
 
-                    <CustomTooltip arrow title={option.description}>
-                      <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: ".5rem" }} />
-                    </CustomTooltip>
-                  </div>
+                  <CustomTooltip arrow title={option.description}>
+                    <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: ".5rem" }} />
+                  </CustomTooltip>
                 </Box>
               );
             }}

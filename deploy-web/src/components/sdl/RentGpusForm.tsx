@@ -1,6 +1,5 @@
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   CircularProgress,
@@ -18,31 +17,17 @@ import {
   Typography,
   useTheme
 } from "@mui/material";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
-import { useEffect, useRef, useState } from "react";
-import { nanoid } from "nanoid";
-import { ITemplate, RentGpusFormValues, Service } from "@src/types";
-import { generateSdl } from "@src/utils/sdl/sdlGenerator";
+import { useForm, Controller } from "react-hook-form";
+import { useRef, useState } from "react";
+import { ITemplate, RentGpusFormValues } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
-import { SimpleServiceFormControl } from "./SimpleServiceFormControl";
-import { ImportSdlModal } from "./ImportSdlModal";
 import { useRouter } from "next/router";
-import axios from "axios";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
-import { SaveTemplateModal } from "./SaveTemplateModal";
 import { useSnackbar } from "notistack";
-import { Snackbar } from "../shared/Snackbar";
-import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { maxGroupMemory, maxMemory, maxStorage, memoryUnits, minMemory, minStorage, storageUnits } from "../shared/akash/units";
 import sdlStore from "@src/store/sdlStore";
-import { RouteStepKeys } from "@src/utils/constants";
 import { useAtom } from "jotai";
 import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
-import { PreviewSdl } from "./PreviewSdl";
 import { FormPaper } from "./FormPaper";
 import { cx } from "@emotion/css";
 import { makeStyles } from "tss-react/mui";
@@ -89,7 +74,12 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     setValue
   } = useForm<RentGpusFormValues>({
     defaultValues: {
-      service: { ...defaultService }
+      service: { ...defaultService },
+      region: {
+        key: "any",
+        value: "any",
+        description: "Any region"
+      }
     }
   });
   const { service: _service } = watch();
@@ -661,21 +651,6 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
           <Grid container spacing={2} sx={{ marginTop: "1rem" }}>
             <Grid item xs={6}>
-              {/* <Controller
-                control={control}
-                name={`services.0.profile.gpuVendor`}
-                defaultValue=""
-                render={({ field }) => (
-                  <Select value={field.value || ""} onChange={field.onChange} variant="outlined" fullWidth size="small" MenuProps={{ disableScrollLock: true }}>
-                    {regions.map(r => (
-                      <MenuItem key={r.key} value={r.key}>
-                        {r.key}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                )}
-              /> */}
-
               <RegionSelect control={control} providerAttributesSchema={providerAttributesSchema} />
             </Grid>
             <Grid item xs={6}>
@@ -693,7 +668,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
                       <Select {...field} labelId="sdl-token" label="Token" size="small" error={!!fieldState.error} fullWidth>
                         {supportedSdlDenoms.map(token => (
                           <MenuItem key={token.id} value={token.value}>
-                            {token.label}
+                            {token.tokenLabel}
                           </MenuItem>
                         ))}
                       </Select>
