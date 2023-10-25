@@ -43,6 +43,7 @@ import Image from "next/legacy/image";
 import { useSdlDenoms } from "@src/hooks/useDenom";
 import { RegionSelect } from "./RegionSelect";
 import { AdvancedConfig } from "./AdvancedConfig";
+import { GpuFormControl } from "./GpuFormControl";
 
 type Props = {};
 
@@ -193,137 +194,9 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
             </CustomTooltip>
           </Box>
 
-          <FormPaper elevation={1} sx={{ padding: ".5rem 1rem 1rem", marginTop: "1rem" }}>
-            <Controller
-              control={control}
-              name={`services.0.profile.gpu`}
-              rules={{
-                validate: v => {
-                  if (!v) return "GPU amount is required.";
-                  else if (v < 1) return "GPU amount must be greater than 0.";
-                  return true;
-                }
-              }}
-              render={({ field, fieldState }) => (
-                <FormControl
-                  className={cx(classes.formControl, classes.textField)}
-                  variant="standard"
-                  sx={{ marginBottom: "0 !important" }}
-                  error={!!fieldState.error}
-                >
-                  <Box
-                    sx={{
-                      display: "flex"
-                      // alignItems: { xs: "flex-start", sm: "center" },
-                      // flexDirection: { xs: "column", sm: "row" }
-                    }}
-                  >
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <Typography variant="body2" sx={{ display: "flex", alignItems: "center" }}>
-                        <SpeedIcon sx={{ color: theme.palette.grey[600], marginRight: ".5rem" }} fontSize="medium" />
-                        <strong>GPU</strong>
-
-                        <CustomTooltip
-                          arrow
-                          title={
-                            <>
-                              The amount of GPUs required for this workload.
-                              <br />
-                              <br />
-                              You can also specify the GPU vendor and model you want specifically. If you don't specify any model, providers with any GPU model
-                              will bid on your workload.
-                            </>
-                          }
-                        >
-                          <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
-                        </CustomTooltip>
-                      </Typography>
-                    </Box>
-
-                    <Box
-                      sx={{
-                        // marginTop: { xs: ".5rem", sm: 0 }
-                        marginLeft: "1rem"
-                      }}
-                    >
-                      <TextField
-                        type="number"
-                        variant="outlined"
-                        color="secondary"
-                        value={field.value || ""}
-                        error={!!fieldState.error}
-                        onChange={event => field.onChange(parseFloat(event.target.value))}
-                        inputProps={{ min: 1, step: 1 }}
-                        size="small"
-                        sx={{ width: "100px" }}
-                      />
-                    </Box>
-                  </Box>
-
-                  <Slider
-                    value={field.value || 0}
-                    min={1}
-                    max={100}
-                    step={1}
-                    color="secondary"
-                    aria-label="GPUs"
-                    valueLabelDisplay="auto"
-                    onChange={(event, newValue) => field.onChange(newValue)}
-                  />
-
-                  {!!fieldState.error && <FormHelperText>{fieldState.error.message}</FormHelperText>}
-                </FormControl>
-              )}
-            />
-
-            <div>
-              <Box sx={{ marginTop: "1rem" }}>
-                <Controller
-                  control={control}
-                  name={`services.0.profile.gpuVendor`}
-                  rules={{ required: "GPU vendor is required." }}
-                  defaultValue=""
-                  render={({ field }) => (
-                    <Select
-                      value={field.value || ""}
-                      onChange={field.onChange}
-                      variant="outlined"
-                      fullWidth
-                      size="small"
-                      MenuProps={{ disableScrollLock: true }}
-                    >
-                      {gpuVendors.map(u => (
-                        <MenuItem key={u.id} value={u.value}>
-                          {u.value}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  )}
-                />
-              </Box>
-
-              <Box sx={{ marginTop: "1rem" }}>
-                {providerAttributesSchema ? (
-                  <FormSelect
-                    control={control}
-                    label="GPU models"
-                    optionName="hardware-gpu-model"
-                    name={`services.0.profile.gpuModels`}
-                    providerAttributesSchema={providerAttributesSchema}
-                    required={false}
-                    multiple
-                  />
-                ) : (
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <CircularProgress size="1rem" color="secondary" />
-                    <Typography color="textSecondary" variant="caption" sx={{ marginLeft: ".5rem" }}>
-                      Loading GPU models...
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </div>
-          </FormPaper>
+          <Box sx={{ marginTop: "1rem" }}>
+            <GpuFormControl control={control as any} providerAttributesSchema={providerAttributesSchema} serviceIndex={0} hasGpu />
+          </Box>
 
           <Controller
             control={control}
