@@ -294,7 +294,6 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
         {services.map((service, serviceIndex) => (
           <SimpleServiceFormControl
             key={service.id}
-            service={service}
             serviceIndex={serviceIndex}
             _services={_services}
             providerAttributesSchema={providerAttributesSchema}

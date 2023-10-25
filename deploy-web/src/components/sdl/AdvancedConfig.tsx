@@ -17,6 +17,7 @@ import { EnvVarList } from "./EnvVarList";
 import { CommandList } from "./CommandList";
 import { ExposeList } from "./ExposeList";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
+import { PersistentStorage } from "./PersistentStorage";
 
 type Props = {
   providerAttributesSchema: ProviderAttributesSchema;
@@ -111,6 +112,10 @@ export const AdvancedConfig = forwardRef<AdvancedConfigRefType, Props>(({ contro
       </Box>
       <Collapse in={expanded}>
         <Box sx={{ padding: "1rem" }}>
+          <Box sx={{ marginBottom: "1rem" }}>
+            <PersistentStorage control={control as any} currentService={currentService} serviceIndex={0} />
+          </Box>
+
           <Box sx={{ marginBottom: "1rem" }}>
             <ExposeList currentService={currentService} setIsEditingExpose={setIsEditingExpose} />
           </Box>
