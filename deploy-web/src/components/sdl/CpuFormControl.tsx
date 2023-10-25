@@ -1,6 +1,6 @@
-import { Dispatch, ReactNode, SetStateAction } from "react";
+import { ReactNode } from "react";
 import { makeStyles } from "tss-react/mui";
-import { Box, Checkbox, CircularProgress, FormControl, FormHelperText, MenuItem, Select, Slider, TextField, Typography, useTheme } from "@mui/material";
+import { Box, FormControl, FormHelperText, Slider, TextField, Typography, useTheme } from "@mui/material";
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
@@ -8,9 +8,6 @@ import { FormPaper } from "./FormPaper";
 import { Control, Controller } from "react-hook-form";
 import SpeedIcon from "@mui/icons-material/Speed";
 import { cx } from "@emotion/css";
-import { ProviderAttributesSchema } from "@src/types/providerAttributes";
-import { gpuVendors } from "../shared/akash/gpu";
-import { FormSelect } from "./FormSelect";
 
 type Props = {
   serviceIndex: number;
