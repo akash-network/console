@@ -13,8 +13,13 @@ import { EnvFormModal } from "./EnvFormModal";
 import { CommandFormModal } from "./CommandFormModal";
 import { ExposeFormModal } from "./ExposeFormModal";
 import { FormPaper } from "./FormPaper";
+import { EnvVarList } from "./EnvVarList";
+import { CommandList } from "./CommandList";
+import { ExposeList } from "./ExposeList";
+import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 
 type Props = {
+  providerAttributesSchema: ProviderAttributesSchema;
   currentService: Service;
   control: Control<RentGpusFormValues, any>;
   children?: ReactNode;
@@ -37,7 +42,7 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const AdvancedConfig = forwardRef<AdvancedConfigRefType, Props>(({ control, currentService }, ref) => {
+export const AdvancedConfig = forwardRef<AdvancedConfigRefType, Props>(({ control, currentService, providerAttributesSchema }, ref) => {
   const { classes } = useStyles();
   const theme = useTheme();
   const [expanded, setIsAdvancedOpen] = useState(false);
@@ -69,17 +74,17 @@ export const AdvancedConfig = forwardRef<AdvancedConfigRefType, Props>(({ contro
       {/** Edit Environment Variables */}
       <EnvFormModal control={control as any} onClose={() => setIsEditingEnv(null)} open={isEditingEnv} serviceIndex={0} envs={currentService.env} />
       {/** Edit Commands */}
-      {/* <CommandFormModal control={control} onClose={() => setIsEditingCommands(null)} open={isEditingCommands} serviceIndex={serviceIndex} /> */}
+      <CommandFormModal control={control as any} onClose={() => setIsEditingCommands(null)} open={isEditingCommands} serviceIndex={0} />
       {/** Edit Expose */}
-      {/* <ExposeFormModal
-        control={control}
+      <ExposeFormModal
+        control={control as any}
         onClose={() => setIsEditingExpose(null)}
         open={isEditingExpose}
-        serviceIndex={serviceIndex}
+        serviceIndex={0}
         expose={currentService.expose}
-        services={_services}
+        services={[currentService]}
         providerAttributesSchema={providerAttributesSchema}
-      /> */}
+      />
 
       <Box
         sx={{
@@ -106,50 +111,15 @@ export const AdvancedConfig = forwardRef<AdvancedConfigRefType, Props>(({ contro
       </Box>
       <Collapse in={expanded}>
         <Box sx={{ padding: "1rem" }}>
-          <FormPaper elevation={1} sx={{ padding: ".5rem 1rem" }}>
-            <Box sx={{ display: "flex", alignItems: "center", marginBottom: ".5rem" }}>
-              <Typography variant="body1">
-                <strong>Environment Variables</strong>
-              </Typography>
-
-              <CustomTooltip
-                arrow
-                title={
-                  <>
-                    A list of environment variables to expose to the running container.
-                    <br />
-                    <br />
-                    <a href="https://docs.akash.network/readme/stack-definition-language#services.env" target="_blank" rel="noopener">
-                      View official documentation.
-                    </a>
-                  </>
-                }
-              >
-                <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
-              </CustomTooltip>
-
-              <Box component="span" sx={{ marginLeft: "1rem" }} className={classes.editLink} onClick={() => setIsEditingEnv(true)}>
-                Edit
-              </Box>
-            </Box>
-
-            {currentService.env.length > 0 ? (
-              currentService.env.map((e, i) => (
-                <Box key={i} sx={{ fontSize: ".75rem" }}>
-                  <div>
-                    {e.key}=
-                    <Box component="span" className={classes.formValue}>
-                      {e.value}
-                    </Box>
-                  </div>
-                </Box>
-              ))
-            ) : (
-              <Typography variant="caption" color="darkgray">
-                None
-              </Typography>
-            )}
-          </FormPaper>
+          <Box sx={{ marginBottom: "1rem" }}>
+            <ExposeList currentService={currentService} setIsEditingExpose={setIsEditingExpose} />
+          </Box>
+          <Box sx={{ marginBottom: "1rem" }}>
+            <EnvVarList currentService={currentService} setIsEditingEnv={setIsEditingEnv} />
+          </Box>
+          <Box sx={{ marginBottom: "1rem" }}>
+            <CommandList currentService={currentService} setIsEditingCommands={setIsEditingCommands} />
+          </Box>
         </Box>
       </Collapse>
     </Paper>

@@ -10,7 +10,7 @@ type Props = {
   currentService: Service;
   serviceIndex?: number;
   children?: ReactNode;
-  setIsEditingEnv: Dispatch<SetStateAction<boolean | number>>;
+  setIsEditingCommands: Dispatch<SetStateAction<boolean | number>>;
 };
 
 const useStyles = makeStyles()(theme => ({
@@ -26,53 +26,40 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, setIsEditingEnv, serviceIndex }) => {
+export const CommandList: React.FunctionComponent<Props> = ({ currentService, setIsEditingCommands, serviceIndex }) => {
   const { classes } = useStyles();
 
   return (
     <FormPaper elevation={1} sx={{ padding: ".5rem 1rem" }}>
       <Box sx={{ display: "flex", alignItems: "center", marginBottom: ".5rem" }}>
         <Typography variant="body1">
-          <strong>Environment Variables</strong>
+          <strong>Commands</strong>
         </Typography>
 
         <CustomTooltip
           arrow
           title={
             <>
-              A list of environment variables to expose to the running container.
+              Custom command use when executing container.
               <br />
               <br />
-              <a href="https://docs.akash.network/readme/stack-definition-language#services.env" target="_blank" rel="noopener">
-                View official documentation.
-              </a>
+              An example and popular use case is to run a bash script to install packages or run specific commands.
             </>
           }
         >
           <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
         </CustomTooltip>
 
-        <Box
-          component="span"
-          sx={{ marginLeft: "1rem" }}
-          className={classes.editLink}
-          onClick={() => setIsEditingEnv(serviceIndex !== undefined ? serviceIndex : true)}
-        >
+        <Box component="span" sx={{ marginLeft: "1rem" }} className={classes.editLink} onClick={() => setIsEditingCommands(serviceIndex !== undefined ? serviceIndex : true)}>
           Edit
         </Box>
       </Box>
 
-      {currentService.env.length > 0 ? (
-        currentService.env.map((e, i) => (
-          <Box key={i} sx={{ fontSize: ".75rem" }}>
-            <div>
-              {e.key}=
-              <Box component="span" className={classes.formValue}>
-                {e.value}
-              </Box>
-            </div>
-          </Box>
-        ))
+      {currentService.command.command.length > 0 ? (
+        <Box sx={{ fontSize: ".75rem", whiteSpace: "pre-wrap" }}>
+          <div>{currentService.command.command}</div>
+          <Box className={classes.formValue}>{currentService.command.arg}</Box>
+        </Box>
       ) : (
         <Typography variant="caption" color="darkgray">
           None

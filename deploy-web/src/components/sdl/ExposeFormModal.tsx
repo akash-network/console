@@ -1,7 +1,7 @@
 import { ReactNode, useRef } from "react";
 import { Popup } from "../shared/Popup";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Box, Grid, IconButton, InputAdornment, MenuItem, Select, TextField } from "@mui/material";
+import { Box, Checkbox, FormControlLabel, Grid, IconButton, InputAdornment, MenuItem, Select, TextField } from "@mui/material";
 import { Expose, SdlBuilderFormValues, Service } from "@src/types";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { AcceptFormControl, AcceptRefType } from "./AcceptFormControl";
@@ -139,7 +139,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({
           >
             <Box sx={{ flexGrow: 1 }}>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={4}>
+                <Grid item xs={12} sm={3}>
                   <Controller
                     control={control}
                     name={`services.${serviceIndex}.expose.${expIndex}.port`}
@@ -168,7 +168,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({
                     )}
                   />
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid item xs={12} sm={3}>
                   <Controller
                     control={control}
                     name={`services.${serviceIndex}.expose.${expIndex}.as`}
@@ -197,7 +197,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({
                     )}
                   />
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid item xs={12} sm={3}>
                   <Controller
                     control={control}
                     name={`services.${serviceIndex}.expose.${expIndex}.proto`}
@@ -218,6 +218,30 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({
                       </Select>
                     )}
                   />
+                </Grid>
+
+                <Grid item xs={12} sm={3}>
+                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                    <Controller
+                      control={control}
+                      name={`services.${serviceIndex}.expose.${expIndex}.global`}
+                      render={({ field }) => (
+                        <FormControlLabel
+                          labelPlacement="start"
+                          sx={{ paddingRight: "1rem" }}
+                          componentsProps={{ typography: { variant: "body2" } }}
+                          control={
+                            <Checkbox checked={field.value} onChange={field.onChange} color="secondary" size="small" sx={{ marginLeft: ".5rem", padding: 0 }} />
+                          }
+                          label="Global"
+                        />
+                      )}
+                    />
+
+                    <CustomTooltip arrow title={<>Check if you want this service to be accessible from outside the datacenter.</>}>
+                      <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+                    </CustomTooltip>
+                  </Box>
                 </Grid>
               </Grid>
 

@@ -49,6 +49,8 @@ import { gpuVendors } from "../shared/akash/gpu";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { FormSelect } from "./FormSelect";
 import { EnvVarList } from "./EnvVarList";
+import { CommandList } from "./CommandList";
+import { ExposeList } from "./ExposeList";
 
 type Props = {
   service: Service;
@@ -1052,106 +1054,12 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                 </Grid>
 
                 <Grid item xs={12}>
-                  <FormPaper elevation={1} sx={{ padding: ".5rem 1rem" }}>
-                    <Box sx={{ display: "flex", alignItems: "center", marginBottom: ".5rem" }}>
-                      <Typography variant="body1">
-                        <strong>Commands</strong>
-                      </Typography>
-
-                      <CustomTooltip
-                        arrow
-                        title={
-                          <>
-                            Custom command use when executing container.
-                            <br />
-                            <br />
-                            An example and popular use case is to run a bash script to install packages or run specific commands.
-                          </>
-                        }
-                      >
-                        <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
-                      </CustomTooltip>
-
-                      <Box component="span" sx={{ marginLeft: "1rem" }} className={classes.editLink} onClick={() => setIsEditingCommands(serviceIndex)}>
-                        Edit
-                      </Box>
-                    </Box>
-
-                    {currentService.command.command.length > 0 ? (
-                      <Box sx={{ fontSize: ".75rem", whiteSpace: "pre-wrap" }}>
-                        <div>{currentService.command.command}</div>
-                        <Box className={classes.formValue}>{currentService.command.arg}</Box>
-                      </Box>
-                    ) : (
-                      <Typography variant="caption" color="darkgray">
-                        None
-                      </Typography>
-                    )}
-                  </FormPaper>
+                  <CommandList currentService={currentService} setIsEditingCommands={setIsEditingCommands} serviceIndex={serviceIndex} />
                 </Grid>
               </Grid>
 
               <Grid item xs={12} sx={{ marginTop: "1rem" }}>
-                <FormPaper elevation={1} sx={{ padding: ".5rem 1rem" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", marginBottom: ".5rem" }}>
-                    <Typography variant="body1">
-                      <strong>Expose</strong>
-                    </Typography>
-
-                    <CustomTooltip
-                      arrow
-                      title={
-                        <>
-                          Expose is a list of settings describing what can connect to the service.
-                          <br />
-                          <br />
-                          <a href="https://docs.akash.network/readme/stack-definition-language#services.expose" target="_blank" rel="noopener">
-                            View official documentation.
-                          </a>
-                        </>
-                      }
-                    >
-                      <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
-                    </CustomTooltip>
-
-                    <Box component="span" sx={{ marginLeft: "1rem" }} className={classes.editLink} onClick={() => setIsEditingExpose(serviceIndex)}>
-                      Edit
-                    </Box>
-                  </Box>
-
-                  {currentService.expose?.map((exp, i) => (
-                    <Box key={i} sx={{ fontSize: ".75rem", marginBottom: i + 1 === currentService.expose.length ? 0 : ".5rem" }}>
-                      <div>
-                        <strong>Port</strong>&nbsp;&nbsp;
-                        <span className={classes.formValue}>
-                          {exp.port} : {exp.as} ({exp.proto})
-                        </span>
-                      </div>
-                      <div>
-                        <strong>Global</strong>&nbsp;&nbsp;
-                        <span className={classes.formValue}>{exp.global ? "True" : "False"}</span>
-                      </div>
-                      {exp.ipName && (
-                        <div>
-                          <strong>IP Name</strong>&nbsp;&nbsp;
-                          <span className={classes.formValue}>{exp.ipName}</span>
-                        </div>
-                      )}
-                      <div>
-                        <strong>Accept</strong>&nbsp;&nbsp;
-                        <span className={classes.formValue}>
-                          {exp.accept?.length > 0
-                            ? exp.accept?.map((a, i) => (
-                                <Box key={i} component="span" sx={{ marginLeft: i === 0 ? 0 : ".5rem" }}>
-                                  {a.value}
-                                </Box>
-                              ))
-                            : "None"}
-                        </span>
-                      </div>
-                    </Box>
-                  ))}
-                </FormPaper>
+              <ExposeList currentService={currentService} setIsEditingExpose={setIsEditingExpose} serviceIndex={serviceIndex} />
               </Grid>
 
               <Grid item xs={12} sx={{ marginTop: "1rem" }}>

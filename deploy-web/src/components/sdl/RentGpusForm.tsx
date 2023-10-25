@@ -682,7 +682,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           </Grid>
         </Paper>
 
-        <AdvancedConfig control={control} currentService={currentService} />
+        <AdvancedConfig control={control} currentService={currentService} providerAttributesSchema={providerAttributesSchema} />
 
         <Box sx={{ paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
