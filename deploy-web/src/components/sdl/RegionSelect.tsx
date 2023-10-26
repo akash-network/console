@@ -2,7 +2,7 @@ import { Autocomplete, Box, ClickAwayListener, TextField } from "@mui/material";
 import { RentGpusFormValues } from "@src/types";
 import { ProviderAttributeSchemaDetailValue, ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { useState } from "react";
-import { Control, Controller, FieldPath } from "react-hook-form";
+import { Control, Controller } from "react-hook-form";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
 

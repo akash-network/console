@@ -1,22 +1,4 @@
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  FormControl,
-  FormHelperText,
-  Grid,
-  IconButton,
-  InputAdornment,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  Slider,
-  TextField,
-  Typography,
-  useTheme
-} from "@mui/material";
+import { Alert, Box, Button, FormControl, Grid, IconButton, InputAdornment, InputLabel, MenuItem, Paper, Select, TextField, useTheme } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import { useRef, useState } from "react";
 import { ITemplate, RentGpusFormValues } from "@src/types";
@@ -24,21 +6,13 @@ import { defaultService } from "@src/utils/sdl/data";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { useSnackbar } from "notistack";
-import { maxGroupMemory, maxMemory, maxStorage, memoryUnits, minMemory, minStorage, storageUnits } from "../shared/akash/units";
 import sdlStore from "@src/store/sdlStore";
 import { useAtom } from "jotai";
 import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
-import { FormPaper } from "./FormPaper";
-import { cx } from "@emotion/css";
 import { makeStyles } from "tss-react/mui";
-import MemoryIcon from "@mui/icons-material/Memory";
-import StorageIcon from "@mui/icons-material/Storage";
-import SpeedIcon from "@mui/icons-material/Speed";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import InfoIcon from "@mui/icons-material/Info";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { gpuVendors } from "../shared/akash/gpu";
-import { FormSelect } from "./FormSelect";
 import Image from "next/legacy/image";
 import { useSdlDenoms } from "@src/hooks/useDenom";
 import { RegionSelect } from "./RegionSelect";

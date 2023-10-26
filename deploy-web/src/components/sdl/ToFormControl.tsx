@@ -1,7 +1,7 @@
 import { ReactNode, useImperativeHandle, forwardRef } from "react";
 import { makeStyles } from "tss-react/mui";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Box, Button, Checkbox, FormControlLabel, IconButton, MenuItem, Paper, Select, Typography, useTheme } from "@mui/material";
+import { Box, Button, IconButton, MenuItem, Paper, Select, Typography, useTheme } from "@mui/material";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { nanoid } from "nanoid";

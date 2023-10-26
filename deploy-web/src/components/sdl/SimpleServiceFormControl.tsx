@@ -1,25 +1,16 @@
 import { useTheme } from "@mui/material/styles";
 import {
   Box,
-  Checkbox,
-  CircularProgress,
   Collapse,
-  FormControl,
-  FormHelperText,
   Grid,
   IconButton,
   InputAdornment,
-  InputLabel,
-  MenuItem,
   Paper,
-  Select,
-  Slider,
   TextField,
   Typography,
   useMediaQuery
 } from "@mui/material";
 import { Controller, Control, UseFormTrigger } from "react-hook-form";
-import { cx } from "@emotion/css";
 import { makeStyles } from "tss-react/mui";
 import { Dispatch, SetStateAction, useState } from "react";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -29,12 +20,8 @@ import { SdlBuilderFormValues, Service } from "@src/types";
 import { CommandFormModal } from "./CommandFormModal";
 import { EnvFormModal } from "./EnvFormModal";
 import { ExposeFormModal } from "./ExposeFormModal";
-import { maxGroupMemory, maxMemory, maxStorage, minMemory, minStorage, persistentStorageTypes, memoryUnits, storageUnits } from "../shared/akash/units";
 import { FormPaper } from "./FormPaper";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
-import MemoryIcon from "@mui/icons-material/Memory";
-import StorageIcon from "@mui/icons-material/Storage";
-import SpeedIcon from "@mui/icons-material/Speed";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import InfoIcon from "@mui/icons-material/Info";
 import { CustomTooltip } from "../shared/CustomTooltip";
@@ -45,9 +32,7 @@ import { PriceValue } from "../shared/PriceValue";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import Image from "next/legacy/image";
 import { uAktDenom } from "@src/utils/constants";
-import { gpuVendors } from "../shared/akash/gpu";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
-import { FormSelect } from "./FormSelect";
 import { EnvVarList } from "./EnvVarList";
 import { CommandList } from "./CommandList";
 import { ExposeList } from "./ExposeList";
