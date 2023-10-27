@@ -1,7 +1,22 @@
-import { Alert, Box, Button, FormControl, Grid, IconButton, InputAdornment, InputLabel, MenuItem, Paper, Select, TextField, useTheme } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  FormControl,
+  Grid,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  TextField,
+  Typography,
+  useTheme
+} from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import { useRef, useState } from "react";
-import { ITemplate, RentGpusFormValues } from "@src/types";
+import { ITemplate, RentGpusFormValues, Service } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -21,6 +36,23 @@ import { GpuFormControl } from "./GpuFormControl";
 import { CpuFormControl } from "./CpuFormControl";
 import { MemoryFormControl } from "./MemoryFormControl";
 import { StorageFormControl } from "./StorageFormControl";
+import { generateSdl } from "@src/utils/sdl/sdlGenerator";
+import { UrlService, handleDocClick } from "@src/utils/urlUtils";
+import { RouteStepKeys, defaultInitialDeposit } from "@src/utils/constants";
+import { deploymentData } from "@src/utils/deploymentData";
+import { useCertificate } from "@src/context/CertificateProvider";
+import { useSettings } from "@src/context/SettingsProvider";
+import { useWallet } from "@src/context/WalletProvider";
+import { validateDeploymentData } from "@src/utils/deploymentUtils";
+import { generateCertificate } from "@src/utils/certificateUtils";
+import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import { updateWallet } from "@src/utils/walletUtils";
+import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
+import { DeploymentDepositModal } from "../deploymentDetail/DeploymentDepositModal";
+import { LinkTo } from "../shared/LinkTo";
+import { PrerequisiteList } from "../newDeploymentWizard/PrerequisiteList";
+
+const yaml = require("js-yaml");
 
 type Props = {};
 
@@ -38,9 +70,12 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const { classes } = useStyles();
   const [error, setError] = useState(null);
   const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
+  const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
+  const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
+  const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
   const formRef = useRef<HTMLFormElement>();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
-  // const [sdlBuilderSdl, setSdlBuilderSdl] = useAtom(sdlStore.sdlBuilderSdl);
+  const [rentGpuSdl, setRentGpuSdl] = useAtom(sdlStore.rentGpuSdl);
   const { data: providerAttributesSchema } = useProviderAttributesSchema();
   const { enqueueSnackbar } = useSnackbar();
   const {
@@ -64,7 +99,11 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const { services: _services } = watch();
   const router = useRouter();
   const supportedSdlDenoms = useSdlDenoms();
-  const currentService = _services[0] || ({} as any);
+  const currentService: Service = _services[0] || ({} as any);
+  const { settings } = useSettings();
+  const { address, signAndBroadcastTx } = useWallet();
+  const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
+  const [sdlDenom, setSdlDenom] = useState("uakt");
 
   // useEffect(() => {
   //   if (sdlBuilderSdl && sdlBuilderSdl.services) {
@@ -78,11 +117,42 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   //   }
   // }, [_services]);
 
+  async function createAndValidateDeploymentData(yamlStr, dseq = null, deposit = defaultInitialDeposit, depositorAddress = null) {
+    try {
+      if (!yamlStr) return null;
+
+      const doc = yaml.load(yamlStr);
+      const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, doc, dseq, address, deposit, depositorAddress);
+      validateDeploymentData(dd);
+
+      setSdlDenom(dd.deposit.denom);
+
+      return dd;
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  const onPrerequisiteContinue = () => {
+    setIsCheckingPrerequisites(false);
+    setIsDepositingDeployment(true);
+  };
+
+  const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
+    setIsDepositingDeployment(false);
+    await handleCreateClick(deposit, depositorAddress);
+  };
+
   const onSubmit = async (data: RentGpusFormValues) => {
+    setRentGpuSdl(data);
+    setIsCheckingPrerequisites(true);
+  };
+
+  async function handleCreateClick(deposit: number, depositorAddress: string) {
     setError(null);
 
     try {
-      // const sdl = generateSdl(data);
+      const sdl = generateSdl(rentGpuSdl.services, rentGpuSdl.region.key);
       // setDeploySdl({
       //   title: "",
       //   category: "",
@@ -90,18 +160,90 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
       //   description: "",
       //   content: sdl
       // });
-      // router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
-      // event(AnalyticsEvents.DEPLOY_SDL, {
-      //   category: "sdl_builder",
-      //   label: "Deploy SDL from create page"
-      // });
+
+      setIsCreatingDeployment(true);
+
+      const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
+      const validCertificates = await loadValidCertificates();
+      const currentCert = validCertificates.find(x => x.parsed === localCert?.certPem);
+      const isCertificateValidated = currentCert?.certificate?.state === "valid";
+      const isLocalCertificateValidated = !!localCert && isLocalCertMatching;
+
+      if (!dd) return;
+
+      const messages = [];
+      const hasValidCert = isCertificateValidated && isLocalCertificateValidated;
+      let _crtpem: string;
+      let _encryptedKey: string;
+
+      // Create a cert if the user doesn't have one
+      if (!hasValidCert) {
+        const { crtpem, pubpem, encryptedKey } = generateCertificate(address);
+        _crtpem = crtpem;
+        _encryptedKey = encryptedKey;
+        messages.push(TransactionMessageData.getCreateCertificateMsg(address, crtpem, pubpem));
+      }
+
+      messages.push(TransactionMessageData.getCreateDeploymentMsg(dd));
+      const response = await signAndBroadcastTx(messages);
+
+      if (response) {
+        // Set the new cert in storage
+        if (!hasValidCert) {
+          updateWallet(address, wallet => {
+            return {
+              ...wallet,
+              cert: _crtpem,
+              certKey: _encryptedKey
+            };
+          });
+          const validCerts = await loadValidCertificates();
+          loadLocalCert();
+          const currentCert = validCerts.find(x => x.parsed === _crtpem);
+          setSelectedCertificate(currentCert);
+        }
+
+        setDeploySdl(null);
+
+        // Save the manifest
+        saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.version, address, currentService.image);
+        router.replace(UrlService.newDeployment({ step: RouteStepKeys.createLeases, dseq: dd.deploymentId.dseq }));
+
+        // event(AnalyticsEvents.CREATE_DEPLOYMENT, {
+        //   category: "deployments",
+        //   label: "Create deployment in wizard"
+        // });
+      } else {
+        setIsCreatingDeployment(false);
+      }
     } catch (error) {
+      setIsCreatingDeployment(false);
       setError(error.message);
     }
-  };
+  }
 
   return (
     <>
+      {isDepositingDeployment && (
+        <DeploymentDepositModal
+          handleCancel={() => setIsDepositingDeployment(false)}
+          onDeploymentDeposit={onDeploymentDeposit}
+          min={5} // TODO Query from chain params
+          denom={sdlDenom}
+          infoText={
+            <Alert severity="info" sx={{ marginBottom: "1rem" }} variant="outlined">
+              <Typography variant="caption">
+                To create a deployment, you need to have at least <b>5 AKT</b> or <b>5 USDC</b> in an escrow account.{" "}
+                <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/glossary/escrow#escrow-accounts")}>
+                  <strong>Learn more.</strong>
+                </LinkTo>
+              </Typography>
+            </Alert>
+          }
+        />
+      )}
+      {isCheckingPrerequisites && <PrerequisiteList onClose={() => setIsCheckingPrerequisites(false)} onContinue={onPrerequisiteContinue} />}
+
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
         <Paper sx={{ marginTop: "1rem", padding: "1rem" }} elevation={2}>
           <Box sx={{ display: "flex", alignItems: "center" }}>

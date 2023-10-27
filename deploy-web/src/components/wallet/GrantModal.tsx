@@ -16,6 +16,7 @@ import { denomToUdenom } from "@src/utils/mathHelpers";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { uAktDenom } from "@src/utils/constants";
 import { FormattedDate } from "react-intl";
+import { handleDocClick } from "@src/utils/urlUtils";
 
 const useStyles = makeStyles()(theme => ({
   formControl: {
@@ -86,12 +87,6 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
       onClose();
     }
   };
-
-  function handleDocClick(ev, url: string) {
-    ev.preventDefault();
-
-    window.open(url, "_blank");
-  }
 
   const onBalanceClick = () => {
     clearErrors();
@@ -257,4 +252,3 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     </Popup>
   );
 };
-

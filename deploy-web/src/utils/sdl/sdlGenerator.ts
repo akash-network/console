@@ -1,11 +1,11 @@
-import { Expose, SdlBuilderFormValues } from "@src/types";
+import { Expose, Service } from "@src/types";
 import yaml from "js-yaml";
 import { defaultHttpOptions } from "./data";
 
-export const generateSdl = (formData: SdlBuilderFormValues) => {
+export const generateSdl = (services: Service[], region?: string) => {
   const sdl = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
 
-  formData.services.forEach(service => {
+  services.forEach(service => {
     sdl.services[service.title] = {
       image: service.image,
 
@@ -148,6 +148,14 @@ export const generateSdl = (formData: SdlBuilderFormValues) => {
     // Attributes
     if (service.placement.attributes?.length > 0) {
       sdl.profiles.placement[service.placement.name].attributes = service.placement.attributes.reduce((acc, curr) => ((acc[curr.key] = curr.value), acc), {});
+    }
+
+    // Regions
+    if (!!region) {
+      sdl.profiles.placement[service.placement.name].attributes = {
+        ...(sdl.profiles.placement[service.placement.name].attributes || {}),
+        "location-region": region.toLowerCase()
+      };
     }
 
     // IP Lease

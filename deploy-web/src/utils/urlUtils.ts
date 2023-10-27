@@ -120,3 +120,9 @@ export function isValidHttpUrl(str: string): boolean {
 
   return url.protocol === "http:" || url.protocol === "https:";
 }
+
+export function handleDocClick(ev, url) {
+  ev.preventDefault();
+
+  window.open(url, "_blank");
+}

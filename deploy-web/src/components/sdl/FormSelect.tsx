@@ -34,8 +34,6 @@ export const FormSelect: React.FunctionComponent<FormSelectProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const options = providerAttributesSchema[optionName]?.values || [];
 
-  console.log(options);
-
   return (
     <Controller
       control={control}
