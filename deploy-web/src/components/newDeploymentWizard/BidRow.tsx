@@ -149,9 +149,9 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
       <TableCell align="center">
         {provider.name ? (
           <Link href={UrlService.providerDetail(provider.owner)} onClick={e => e.stopPropagation()}>
-            {provider.name?.length > 25 ? (
+            {provider.name?.length > 20 ? (
               <CustomTooltip title={provider.name}>
-                <span>{getSplitText(provider.name, 10, 10)}</span>
+                <span>{getSplitText(provider.name, 4, 13)}</span>
               </CustomTooltip>
             ) : (
               provider.name
@@ -160,7 +160,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
         ) : (
           <div>
             <CustomTooltip title={provider.hostUri}>
-              <div>{getSplitText(provider.hostUri, 15, 15)}</div>
+              <div>{getSplitText(provider.hostUri, 4, 13)}</div>
             </CustomTooltip>
           </div>
         )}
