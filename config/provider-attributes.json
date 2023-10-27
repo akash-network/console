@@ -490,6 +490,11 @@
         "value": true
       },
       {
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx8000",
+        "description": "Nvidia Quadro RTX 8000",
+        "value": true
+      },
+      {
         "key": "capabilities/gpu/vendor/nvidia/model/a2000",
         "description": "Nvidia Quadro A2000",
         "value": true
