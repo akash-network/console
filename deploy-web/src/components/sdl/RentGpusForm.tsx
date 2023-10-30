@@ -15,9 +15,9 @@ import {
   useTheme
 } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ITemplate, RentGpusFormValues, Service } from "@src/types";
-import { defaultRentGpuService } from "@src/utils/sdl/data";
+import { defaultAnyRegion, defaultRentGpuService } from "@src/utils/sdl/data";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { useSnackbar } from "notistack";
@@ -51,6 +51,8 @@ import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUti
 import { DeploymentDepositModal } from "../deploymentDetail/DeploymentDepositModal";
 import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../newDeploymentWizard/PrerequisiteList";
+import { useTemplates } from "@src/context/TemplatesProvider";
+import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
 
 const yaml = require("js-yaml");
 
@@ -69,7 +71,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const theme = useTheme();
   const { classes } = useStyles();
   const [error, setError] = useState(null);
-  const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
+  // const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
@@ -89,14 +91,10 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   } = useForm<RentGpusFormValues>({
     defaultValues: {
       services: [{ ...defaultRentGpuService }],
-      region: {
-        key: "any",
-        value: "any",
-        description: "Any region"
-      }
+      region: { ...defaultAnyRegion }
     }
   });
-  const { services: _services } = watch();
+  const { services: _services, region: _region } = watch();
   const router = useRouter();
   const supportedSdlDenoms = useSdlDenoms();
   const currentService: Service = _services[0] || ({} as any);
@@ -104,18 +102,22 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const { address, signAndBroadcastTx } = useWallet();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [sdlDenom, setSdlDenom] = useState("uakt");
+  const { isLoading: isLoadingTemplates, categories, templates } = useTemplates();
 
-  // useEffect(() => {
-  //   if (sdlBuilderSdl && sdlBuilderSdl.services) {
-  //     setValue("services", sdlBuilderSdl.services);
-  //   }
-  // }, []);
+  useEffect(() => {
+    if (rentGpuSdl && rentGpuSdl.services) {
+      debugger;
+      setValue("services", structuredClone(rentGpuSdl.services));
+      setValue("region", rentGpuSdl.region || { ...defaultAnyRegion });
+    }
 
-  // useEffect(() => {
-  //   if (_services) {
-  //     setSdlBuilderSdl({ services: _services });
-  //   }
-  // }, [_services]);
+    const subscription = watch(({ services, region }) => {
+      console.log("setting new value", services);
+      debugger;
+      setRentGpuSdl({ services: services as Service[], region: region as ProviderAttributeSchemaDetailValue });
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   async function createAndValidateDeploymentData(yamlStr, dseq = null, deposit = defaultInitialDeposit, depositorAddress = null) {
     try {

@@ -136,6 +136,12 @@ export const defaultRentGpuService: Service = {
   count: 1
 };
 
+export const defaultAnyRegion = {
+  key: "any",
+  value: "any",
+  description: "Any region"
+}
+
 export const nextCases = [
   { id: 1, value: "error" },
   { id: 2, value: "timeout" },

@@ -17,7 +17,7 @@ import React from "react";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
 import { cx } from "@emotion/css";
 import CheckIcon from "@mui/icons-material/Check";
-import NotInterestedIcon from "@mui/icons-material/NotInterested";
+import WarningIcon from "@mui/icons-material/Warning";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -238,15 +238,15 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
         <Box sx={{ display: "flex", alignItems: "center" }}>
           {provider.isAudited ? (
             <>
-              <CheckIcon color="success" fontSize="small" />
+              Yes
               <AuditorButton provider={provider} />
             </>
           ) : (
             <>
-              <NotInterestedIcon color="warning" fontSize="small" />
-              <Typography variant="caption" color="textSecondary" sx={{ marginLeft: ".5rem" }}>
+              <Typography variant="caption" color="textSecondary">
                 No
               </Typography>
+              <WarningIcon color="warning" fontSize="small" sx={{ marginLeft: ".5rem" }} />
             </>
           )}
         </Box>
