@@ -36,7 +36,7 @@ const useStyles = makeStyles()(theme => ({
 const NewDeploymentPage: React.FunctionComponent<Props> = ({}) => {
   const { classes } = useStyles();
   const { isLoading: isLoadingTemplates, templates } = useTemplates();
-  const [activeStep, setActiveStep] = useState(0);
+  const [activeStep, setActiveStep] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation>(null);
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const [editedManifest, setEditedManifest] = useState(null);
