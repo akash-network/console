@@ -19,6 +19,7 @@ import { cx } from "@emotion/css";
 import { Uptime } from "../providers/Uptime";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
+import WarningIcon from "@mui/icons-material/Warning";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -177,7 +178,13 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
             <AuditorButton provider={provider} />
           </Box>
         ) : (
-          <Typography variant="caption">No</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Typography variant="caption">No</Typography>
+
+            <CustomTooltip title={<>This provider is not audited, which may result in a lesser quality experience.</>}>
+              <WarningIcon color="warning" fontSize="small" sx={{ marginLeft: ".5rem" }} />
+            </CustomTooltip>
+          </Box>
         )}
       </TableCell>
 

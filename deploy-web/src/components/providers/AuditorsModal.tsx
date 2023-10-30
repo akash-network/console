@@ -78,9 +78,9 @@ export const AuditorsModal: React.FunctionComponent<Props> = ({ attributes, onCl
                   <TableCell>{a.value}</TableCell>
                   <TableCell>
                     {a.auditedBy
-                      .filter(x => auditors.some(y => y.address === x))
+                      .filter(x => auditors?.some(y => y.address === x))
                       .map(x => {
-                        const auditor = auditors.find(y => y.address === x);
+                        const auditor = auditors?.find(y => y.address === x);
                         return (
                           <div key={x}>
                             <CustomTooltip
