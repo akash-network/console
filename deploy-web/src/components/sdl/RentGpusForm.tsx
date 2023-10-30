@@ -106,14 +106,15 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
   useEffect(() => {
     if (rentGpuSdl && rentGpuSdl.services) {
-      debugger;
       setValue("services", structuredClone(rentGpuSdl.services));
       setValue("region", rentGpuSdl.region || { ...defaultAnyRegion });
+
+      // Set the value of gpu models specifically because nested value doesn't re-render correctly
+      // https://github.com/react-hook-form/react-hook-form/issues/7758
+      setValue("services.0.profile.gpuModels", rentGpuSdl.services[0].profile.gpuModels || []);
     }
 
     const subscription = watch(({ services, region }) => {
-      console.log("setting new value", services);
-      debugger;
       setRentGpuSdl({ services: services as Service[], region: region as ProviderAttributeSchemaDetailValue });
     });
     return () => subscription.unsubscribe();
