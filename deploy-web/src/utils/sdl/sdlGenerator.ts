@@ -151,7 +151,7 @@ export const generateSdl = (services: Service[], region?: string) => {
     }
 
     // Regions
-    if (!!region) {
+    if (!!region && region !== "any") {
       sdl.profiles.placement[service.placement.name].attributes = {
         ...(sdl.profiles.placement[service.placement.name].attributes || {}),
         "location-region": region.toLowerCase()

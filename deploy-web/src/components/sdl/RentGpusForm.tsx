@@ -17,7 +17,7 @@ import {
 import { useForm, Controller } from "react-hook-form";
 import { useRef, useState } from "react";
 import { ITemplate, RentGpusFormValues, Service } from "@src/types";
-import { defaultService } from "@src/utils/sdl/data";
+import { defaultRentGpuService } from "@src/utils/sdl/data";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { useSnackbar } from "notistack";
@@ -88,7 +88,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     setValue
   } = useForm<RentGpusFormValues>({
     defaultValues: {
-      services: [{ ...defaultService }],
+      services: [{ ...defaultRentGpuService }],
       region: {
         key: "any",
         value: "any",
@@ -161,6 +161,8 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
       //   content: sdl
       // });
 
+      // console.log(sdl);
+
       setIsCreatingDeployment(true);
 
       const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
@@ -207,7 +209,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
         // Save the manifest
         saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.version, address, currentService.image);
-        router.replace(UrlService.newDeployment({ step: RouteStepKeys.createLeases, dseq: dd.deploymentId.dseq }));
+        router.push(UrlService.newDeployment({ step: RouteStepKeys.createLeases, dseq: dd.deploymentId.dseq }));
 
         // event(AnalyticsEvents.CREATE_DEPLOYMENT, {
         //   category: "deployments",
@@ -345,7 +347,15 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
                   }}
                   render={({ fieldState, field }) => {
                     return (
-                      <Select {...field} labelId="sdl-token" label="Token" size="small" error={!!fieldState.error} fullWidth>
+                      <Select
+                        {...field}
+                        labelId="sdl-token"
+                        label="Token"
+                        size="small"
+                        error={!!fieldState.error}
+                        fullWidth
+                        MenuProps={{ disableScrollLock: true }}
+                      >
                         {supportedSdlDenoms.map(token => (
                           <MenuItem key={token.id} value={token.value}>
                             {token.tokenLabel}
