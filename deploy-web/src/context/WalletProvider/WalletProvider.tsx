@@ -19,6 +19,7 @@ import axios from "axios";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { useChain } from "@cosmos-kit/react";
 
 type Balances = {
   uakt: number;
@@ -61,8 +62,6 @@ const WalletProviderContext = React.createContext<ContextType>({
 });
 
 export const WalletProvider = ({ children }) => {
-  const [walletAddress, setWalletAddress] = useState<string>(null);
-  const [walletName, setWalletName] = useState<string>(null);
   const [walletBalances, setWalletBalances] = useState<Balances>(null);
   const [isKeplrInstalled, setIsKeplrInstalled] = useState<boolean>(false);
   const [isLeapInstalled, setIsLeapInstalled] = useState<boolean>(false);
@@ -76,6 +75,18 @@ export const WalletProvider = ({ children }) => {
   const router = useRouter();
   const { settings, isSettingsInit } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
+  const {
+    getAccount,
+    sign,
+    disconnect,
+    getOfflineSigner,
+    isWalletConnected,
+    address: walletAddress,
+    connect,
+    username,
+    estimateFee,
+    broadcast
+  } = useChain("akash");
 
   useEffect(() => {
     if (document.readyState === "complete") {
@@ -121,16 +132,16 @@ export const WalletProvider = ({ children }) => {
           setIsWalletLoaded(true);
         }
 
-        const keplrOnKeystoreChange = () => onKeystoreChange(Wallets.KEPLR);
-        const leapOnKeystoreChange = () => onKeystoreChange(Wallets.LEAP);
-        window.addEventListener("keplr_keystorechange", keplrOnKeystoreChange);
-        window.addEventListener("leap_keystorechange", leapOnKeystoreChange);
+        // const keplrOnKeystoreChange = () => onKeystoreChange(Wallets.KEPLR);
+        // const leapOnKeystoreChange = () => onKeystoreChange(Wallets.LEAP);
+        // window.addEventListener("keplr_keystorechange", keplrOnKeystoreChange);
+        // window.addEventListener("leap_keystorechange", leapOnKeystoreChange);
 
         return () => {
           isMounted.current = false;
 
-          window.removeEventListener("keplr_keystorechange", keplrOnKeystoreChange);
-          window.removeEventListener("leap_keystorechange", leapOnKeystoreChange);
+          // window.removeEventListener("keplr_keystorechange", keplrOnKeystoreChange);
+          // window.removeEventListener("leap_keystorechange", leapOnKeystoreChange);
         };
       } else {
         setIsWalletLoaded(true);
@@ -144,18 +155,18 @@ export const WalletProvider = ({ children }) => {
     }
   }, [settings?.rpcEndpoint]);
 
-  const onKeystoreChange = (wallet: Wallets) => {
-    console.log(`Key store in ${wallet} is changed.`);
+  // const onKeystoreChange = (wallet: Wallets) => {
+  //   console.log(`Key store in ${wallet} is changed.`);
 
-    loadWallet();
+  //   loadWallet();
 
-    router.push(UrlService.home());
-  };
+  //   router.push(UrlService.home());
+  // };
 
   async function createStargateClient() {
     const selectedNetwork = getSelectedNetwork();
 
-    const offlineSigner = window.wallet.getOfflineSigner(selectedNetwork.chainId);
+    const offlineSigner = getOfflineSigner(); //window.wallet.getOfflineSigner(selectedNetwork.chainId);
     let rpc = settings?.rpcEndpoint ? settings?.rpcEndpoint : selectedNetwork.rpcEndpoint;
 
     try {
@@ -184,9 +195,10 @@ export const WalletProvider = ({ children }) => {
   }
 
   function logout(): void {
-    setWalletAddress(null);
-    setWalletName(null);
+    //setWalletAddress(null);
+    //setWalletName(null);
     setWalletBalances(null);
+    disconnect();
 
     localStorage.removeItem("wallet_autoconnect");
 
@@ -201,14 +213,15 @@ export const WalletProvider = ({ children }) => {
   async function connectWallet(walletSource: Wallets): Promise<void> {
     console.log(`connecting to ${walletSource}`);
 
-    window.wallet = window[walletSource];
-    const selectedNetwork = getSelectedNetwork();
+    //window.wallet = window[walletSource];
+    // const selectedNetwork = getSelectedNetwork();
 
-    if (selectedNetwork.suggestWalletChain) {
-      await selectedNetwork.suggestWalletChain();
-    }
+    // if (selectedNetwork.suggestWalletChain) {
+    //   await selectedNetwork.suggestWalletChain();
+    // }
 
-    await window.wallet.enable(selectedNetwork.chainId);
+    //await window.wallet.enable(selectedNetwork.chainId);
+    connect();
 
     await loadWallet();
 
@@ -217,21 +230,29 @@ export const WalletProvider = ({ children }) => {
       label: "Connect wallet"
     });
 
-    localStorage.setItem("wallet_autoconnect", walletSource);
+    //localStorage.setItem("wallet_autoconnect", walletSource);
   }
 
+  useEffect(() => {
+    if (walletAddress) {
+      loadWallet();
+    }
+  }, [walletAddress]);
+
   async function loadWallet(): Promise<void> {
+    debugger;
     let wallet = null;
     let selectedNetwork = null;
     try {
       selectedNetwork = getSelectedNetwork();
-      wallet = await window.wallet.getKey(selectedNetwork.chainId);
+      //wallet = await window.wallet.getKey(selectedNetwork.chainId);
+      wallet = await getAccount();
     } catch (err) {
       console.error(err);
 
       if (err.message.includes("There is no chain info for")) {
-        await selectedNetwork?.suggestWalletChain();
-        wallet = await window.wallet.getKey(selectedNetwork.chainId);
+        //await selectedNetwork?.suggestWalletChain();
+        //wallet = await window.wallet.getKey(selectedNetwork.chainId);
       } else {
         setIsWalletLoaded(true);
         return;
@@ -240,24 +261,26 @@ export const WalletProvider = ({ children }) => {
 
     if (!isMounted.current) return;
 
-    const address = wallet?.bech32Address;
+    //const address = wallet?.bech32Address;
     const selectedNetworkId = localStorage.getItem("selectedNetworkId");
     const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`));
 
     const currentWallets = storageWallets ? [...storageWallets] : [];
     const newWallets =
-      currentWallets.findIndex(x => x.address === address) === -1 ? [...currentWallets].concat({ name: wallet?.name, address }) : [...currentWallets];
+      currentWallets.findIndex(x => x.address === walletAddress) === -1
+        ? [...currentWallets].concat({ name: username, address: walletAddress })
+        : [...currentWallets];
 
     for (let i = 0; i < newWallets.length; i++) {
-      newWallets[i].selected = newWallets[i].address === address;
+      newWallets[i].selected = newWallets[i].address === walletAddress;
     }
 
     localStorage.setItem(`${selectedNetworkId}/wallets`, JSON.stringify(newWallets));
 
-    setWalletAddress(address);
-    setWalletName(wallet.name);
+    //setWalletAddress(address);
+    //setWalletName(wallet.name);
 
-    await refreshBalances(address);
+    //await refreshBalances(address);
 
     setIsWalletLoaded(true);
   }
@@ -266,22 +289,39 @@ export const WalletProvider = ({ children }) => {
     setIsWaitingForApproval(true);
     let pendingSnackbarKey = null;
     try {
-      const client = await getStargateClient();
-      const simulation = await client.simulate(walletAddress, msgs, "");
-      const txRaw = await client.sign(
-        walletAddress,
+      debugger;
+      //const client = await getStargateClient();
+      //const simulation = await client.simulate(walletAddress, msgs, "");
+      const estimatedFees = await estimateFee(msgs, "stargate", "", 1.25);
+
+      const txRaw = await sign(
         msgs,
-        {
-          amount: [
-            {
-              amount: "0.025",
-              denom: uAktDenom
-            }
-          ],
-          gas: Math.ceil(simulation * 1.25).toString()
-        },
-        ""
+        estimatedFees
+        //   {
+        //   amount: [
+        //     {
+        //       amount: "0.025",
+        //       denom: uAktDenom
+        //     }
+        //   ],
+        //   gas: Math.ceil(simulation * 1.25).toString()
+        // }
       );
+
+      // const txRaw = await client.sign(
+      //   walletAddress,
+      //   msgs,
+      //   {
+      //     amount: [
+      //       {
+      //         amount: "0.025",
+      //         denom: uAktDenom
+      //       }
+      //     ],
+      //     gas: Math.ceil(simulation * 1.25).toString()
+      //   },
+      //   ""
+      // );
       setIsWaitingForApproval(false);
       setIsBroadcastingTx(true);
       pendingSnackbarKey = enqueueSnackbar(<Snackbar title="Broadcasting transaction..." subTitle="Please wait a few seconds" showLoading />, {
@@ -289,8 +329,9 @@ export const WalletProvider = ({ children }) => {
         autoHideDuration: null
       });
 
-      const txRawBytes = Uint8Array.from(TxRaw.encode(txRaw).finish());
-      const txResult = await client.broadcastTx(txRawBytes);
+      //const txRawBytes = Uint8Array.from(TxRaw.encode(txRaw).finish());
+      //const txResult = await client.broadcastTx(txRawBytes);
+      const txResult = await broadcast(txRaw);
 
       setIsBroadcastingTx(false);
 
@@ -419,11 +460,11 @@ export const WalletProvider = ({ children }) => {
     <WalletProviderContext.Provider
       value={{
         address: walletAddress,
-        walletName,
+        walletName: username,
         walletBalances,
         isKeplrInstalled,
         isLeapInstalled,
-        isWalletConnected: !!walletName,
+        isWalletConnected: isWalletConnected,
         isWalletLoaded,
         connectWallet,
         logout,

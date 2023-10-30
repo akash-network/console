@@ -30,6 +30,8 @@ import { wallets } from "@cosmos-kit/keplr";
 import { chains, assets } from "chain-registry";
 
 import "@interchain-ui/react/styles";
+import { customRegistry } from "@src/utils/customRegistry";
+import { GasPrice } from "@cosmjs/stargate";
 
 interface Props extends AppProps {
   emotionCache?: EmotionCache;
@@ -81,6 +83,13 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
                           chains={chains.filter(x => x.chain_name === "akash")}
                           assetLists={assets.filter(x => x.chain_name === "akash")}
                           wallets={wallets}
+                          signerOptions={{
+                            preferredSignType: chain => "direct",
+                            signingStargate: chain => ({
+                              registry: customRegistry,
+                              gasPrice: GasPrice.fromString("0.025uakt")
+                            })
+                          }}
                         >
                           <WalletProvider>
                             <CertificateProvider>
@@ -109,4 +118,3 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
 };
 
 export default withDarkMode(App);
-
