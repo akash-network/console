@@ -280,7 +280,7 @@ export const WalletProvider = ({ children }) => {
     //setWalletAddress(address);
     //setWalletName(wallet.name);
 
-    //await refreshBalances(address);
+    await refreshBalances();
 
     setIsWalletLoaded(true);
   }
