@@ -1,0 +1,348 @@
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { makeStyles } from "tss-react/mui";
+import {
+  Box,
+  ClickAwayListener,
+  FormControl,
+  FormHelperText,
+  IconButton,
+  InputAdornment,
+  Menu,
+  Paper,
+  Popper,
+  Slider,
+  TextField,
+  Typography,
+  useTheme
+} from "@mui/material";
+import { ApiTemplate, ITemplate, RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import InfoIcon from "@mui/icons-material/Info";
+import { FormPaper } from "./FormPaper";
+import { Control, Controller, UseFormSetValue } from "react-hook-form";
+import SpeedIcon from "@mui/icons-material/Speed";
+import { cx } from "@emotion/css";
+import { bindMenu, bindTrigger, usePopupState } from "material-ui-popup-state/hooks";
+import Image from "next/image";
+import Link from "next/link";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
+
+type Props = {
+  // serviceIndex: number;
+  children?: ReactNode;
+  control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
+  currentService: Service;
+  onSelectTemplate: (template: ApiTemplate) => void;
+};
+
+const useStyles = makeStyles()(theme => ({
+  formControl: {
+    marginBottom: theme.spacing(1.5)
+  },
+  textField: {
+    width: "100%"
+  }
+}));
+
+export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentService, onSelectTemplate }) => {
+  const { classes } = useStyles();
+  const theme = useTheme();
+  const { isLoadingTemplates, gpuTemplates } = useGpuTemplates();
+  const [hoveredTemplate, setHoveredTemplate] = useState<ApiTemplate | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<ApiTemplate | null>(null);
+  const eleRefs = useRef(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+  const filteredGpuTemplates = gpuTemplates.filter(x => x.name.includes(currentService.image));
+
+  // Instead we build a custom ref object in each key of the ref for each option
+  useEffect(() => {
+    gpuTemplates.forEach(template => (eleRefs[template.id] = { current: null }));
+  }, [gpuTemplates]);
+
+  // Effect that scrolls active element when it changes
+  useLayoutEffect(() => {
+    // This is what makes element visible
+    if (selectedTemplate) {
+      eleRefs[selectedTemplate.id].current.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+    }
+  }, [gpuTemplates, selectedTemplate]);
+
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    console.log(event.key);
+    setAnchorEl(event.currentTarget);
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (selectedTemplate) {
+        onSelectTemplate(selectedTemplate);
+      }
+
+      onClose();
+
+      // TODO Select current template
+    }
+
+    if (event.key === "ArrowUp") {
+      if (hoveredTemplate || selectedTemplate) {
+        const index = filteredGpuTemplates.findIndex(x => x.id === hoveredTemplate?.id || x.id === selectedTemplate?.id);
+        const newIndex = (index - 1 + filteredGpuTemplates.length) % filteredGpuTemplates.length;
+
+        console.log(newIndex);
+        setSelectedTemplate(filteredGpuTemplates[newIndex]);
+      } else {
+        setSelectedTemplate(filteredGpuTemplates[filteredGpuTemplates.length - 1]);
+      }
+
+      setHoveredTemplate(null);
+    }
+
+    if (event.key === "ArrowDown") {
+      if (hoveredTemplate || selectedTemplate) {
+        const index = filteredGpuTemplates.findIndex(x => x.id === hoveredTemplate?.id || x.id === selectedTemplate?.id);
+        const newIndex = (index + 1) % filteredGpuTemplates.length;
+
+        console.log(newIndex);
+        setSelectedTemplate(filteredGpuTemplates[newIndex]);
+      } else {
+        setSelectedTemplate(filteredGpuTemplates[0]);
+      }
+
+      setHoveredTemplate(null);
+    }
+  };
+
+  const _onSelectTemplate = (template: ApiTemplate) => {
+    setAnchorEl(null);
+
+    onSelectTemplate(template);
+  };
+
+  const onClose = () => {
+    setAnchorEl(null);
+    setSelectedTemplate(null);
+    setHoveredTemplate(null);
+  };
+
+  return (
+    <Box sx={{ display: "flex", alignItems: "center" }}>
+      <ClickAwayListener onClickAway={onClose}>
+        <div>
+          <Controller
+            control={control}
+            name={`services.0.image`}
+            rules={{
+              required: "Docker image name is required.",
+              validate: value => {
+                const hasValidChars = /^[a-z0-9\-_/:.]+$/.test(value);
+
+                if (!hasValidChars) {
+                  return "Invalid docker image name.";
+                }
+
+                return true;
+              }
+            }}
+            render={({ field, fieldState }) => (
+              <TextField
+                type="text"
+                variant="outlined"
+                label={`Docker Image / OS`}
+                placeholder="Example: mydockerimage:1.01"
+                color="secondary"
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+                onClick={handleClick}
+                onKeyDown={handleKeyDown}
+                fullWidth
+                size="small"
+                value={field.value}
+                onChange={event => field.onChange(event.target.value || "")}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Image alt="Docker Logo" src="/images/docker.png" layout="fixed" quality={100} width={24} height={18} priority />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`}
+                        component={Link}
+                        size="small"
+                        target="_blank"
+                      >
+                        <OpenInNewIcon fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            )}
+          />
+
+          <Popper
+            id="test"
+            open={open}
+            placement="bottom"
+            anchorEl={anchorEl}
+            disablePortal
+            sx={{ zIndex: 1000 }}
+            nonce={undefined}
+            onResize={undefined}
+            onResizeCapture={undefined}
+          >
+            <Paper>
+              <Box
+                component="ul"
+                sx={{
+                  listStyle: "none",
+                  margin: 0,
+                  padding: "8px 0",
+                  maxHeight: "40vh",
+                  overflow: "auto",
+                  position: "relative"
+                }}
+              >
+                {filteredGpuTemplates.map(template => (
+                  <Box
+                    component="li"
+                    className={"MuiAutocomplete-option"}
+                    ref={eleRefs[template.id]}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between !important",
+                      width: "100%",
+                      padding: ".2rem .5rem",
+                      minHeight: "auto",
+                      overflow: "hidden",
+                      backgroundColor:
+                        selectedTemplate?.id === template.id
+                          ? theme.palette.mode === "dark"
+                            ? theme.palette.grey[700]
+                            : theme.palette.grey[300]
+                          : hoveredTemplate?.id === template.id
+                          ? theme.palette.mode === "dark"
+                            ? theme.palette.grey[900]
+                            : theme.palette.grey[100]
+                          : "transparent",
+                      "&:hover": {
+                        backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100],
+                        cursor: "pointer"
+                      }
+                    }}
+                    key={template.id}
+                    onClick={() => _onSelectTemplate(template)}
+                    onMouseOver={() => {
+                      setHoveredTemplate(template);
+                      setSelectedTemplate(null);
+                    }}
+                  >
+                    <div>{template.name}</div>
+                  </Box>
+                ))}
+              </Box>
+            </Paper>
+          </Popper>
+        </div>
+      </ClickAwayListener>
+
+      {/* <Controller
+        control={control}
+        name={`services.0.image`}
+        rules={{
+          required: "Docker image name is required.",
+          validate: value => {
+            const hasValidChars = /^[a-z0-9\-_/:.]+$/.test(value);
+
+            if (!hasValidChars) {
+              return "Invalid docker image name.";
+            }
+
+            return true;
+          }
+        }}
+        render={({ field, fieldState }) => (
+          <Autocomplete
+            disableClearable
+            open={isImageOpen}
+            options={gpuTemplates}
+            value={selectedImage}
+            getOptionLabel={option => option?.image || ""}
+            defaultValue={null}
+            loading={isLoadingTemplates}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            fullWidth
+            freeSolo
+            ChipProps={{ size: "small" }}
+            onChange={(event, newValue: ApiTemplate) => {
+              setValue("services.0.image", (event.target as any)?.value || "");
+
+              const result = createAndValidateSdl(newValue?.deploy);
+
+              if (!result) return;
+
+              setSelectedImage(newValue);
+
+              setValue("services", result as Service[]);
+            }}
+            renderInput={params => (
+              <ClickAwayListener onClickAway={() => setIsImageOpen(false)}>
+                <TextField
+                  {...params}
+                  label={`Docker Image`}
+                  variant="outlined"
+                  color="secondary"
+                  size="small"
+                  value={field.value}
+                  onChange={event => {
+                    console.log(event.target.value);
+                    field.onChange((event.target.value || "").toLowerCase());
+                  }}
+                  error={!!fieldState.error}
+                  helperText={fieldState.error?.message}
+                  onClick={() => setIsImageOpen(prev => !prev)}
+                  sx={{ minHeight: "42px" }}
+                />
+              </ClickAwayListener>
+            )}
+            renderOption={(props, option) => {
+              return (
+                <Box
+                  component="li"
+                  sx={{ display: "flex", alignItems: "center", justifyContent: "space-between !important", width: "100%", padding: ".2rem .5rem" }}
+                  {...props}
+                  key={option.id}
+                >
+                  <div>{option.name}</div>
+                </Box>
+              );
+            }}
+          />
+        )}
+      /> */}
+
+      <CustomTooltip
+        arrow
+        title={
+          <>
+            Docker image of the container.
+            <br />
+            <br />
+            Best practices: avoid using :latest image tags as Akash Providers heavily cache images.
+          </>
+        }
+      >
+        <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: ".5rem" }} />
+      </CustomTooltip>
+    </Box>
+  );
+};

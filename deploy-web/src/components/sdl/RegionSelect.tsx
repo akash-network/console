@@ -60,12 +60,7 @@ export const RegionSelect: React.FunctionComponent<RegionSelectProps> = ({ contr
             )}
             renderOption={(props, option) => {
               return (
-                <Box
-                  component="li"
-                  sx={{ display: "flex", alignItems: "center", width: "100%", padding: ".2rem .5rem" }}
-                  {...props}
-                  key={option.key}
-                >
+                <Box {...props} component="li" sx={{ display: "flex", alignItems: "center", width: "100%", padding: ".2rem .5rem" }}>
                   {option.key}
 
                   <CustomTooltip arrow title={option.description}>

@@ -1,7 +1,9 @@
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
+  ClickAwayListener,
   FormControl,
   Grid,
   IconButton,
@@ -16,7 +18,7 @@ import {
 } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import { useEffect, useRef, useState } from "react";
-import { ITemplate, RentGpusFormValues, Service } from "@src/types";
+import { ApiTemplate, ITemplate, RentGpusFormValues, Service } from "@src/types";
 import { defaultAnyRegion, defaultRentGpuService } from "@src/utils/sdl/data";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -51,8 +53,10 @@ import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUti
 import { DeploymentDepositModal } from "../deploymentDetail/DeploymentDepositModal";
 import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../newDeploymentWizard/PrerequisiteList";
-import { useTemplates } from "@src/context/TemplatesProvider";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
+import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
+import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
+import { ImageSelect } from "./ImageSelect";
 
 const yaml = require("js-yaml");
 
@@ -75,6 +79,8 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
+  const [isImageOpen, setIsImageOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
   const formRef = useRef<HTMLFormElement>();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [rentGpuSdl, setRentGpuSdl] = useAtom(sdlStore.rentGpuSdl);
@@ -102,7 +108,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const { address, signAndBroadcastTx } = useWallet();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [sdlDenom, setSdlDenom] = useState("uakt");
-  const { isLoading: isLoadingTemplates, categories, templates } = useTemplates();
+  const { isLoadingTemplates, gpuTemplates } = useGpuTemplates();
 
   useEffect(() => {
     if (rentGpuSdl && rentGpuSdl.services) {
@@ -115,6 +121,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     }
 
     const subscription = watch(({ services, region }) => {
+      console.log("new value", services);
       setRentGpuSdl({ services: services as Service[], region: region as ProviderAttributeSchemaDetailValue });
     });
     return () => subscription.unsubscribe();
@@ -135,6 +142,36 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
       console.error(err);
     }
   }
+
+  const createAndValidateSdl = (yamlStr: string) => {
+    try {
+      if (!yamlStr) return null;
+
+      const services = importSimpleSdl(yamlStr, providerAttributesSchema);
+
+      setError(null);
+
+      return services;
+    } catch (err) {
+      if (err.name === "YAMLException" || err.name === "CustomValidationError") {
+        setError(err.message);
+      } else if (err.name === "TemplateValidation") {
+        setError(err.message);
+      } else {
+        setError("Error while parsing SDL file");
+        // setParsingError(err.message);
+        console.error(err);
+      }
+    }
+  };
+
+  const onSelectTemplate = (template: ApiTemplate) => {
+    const result = createAndValidateSdl(template?.deploy);
+
+    if (!result) return;
+
+    setValue("services", result as Service[]);
+  };
 
   const onPrerequisiteContinue = () => {
     setIsCheckingPrerequisites(false);
@@ -252,7 +289,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
         <Paper sx={{ marginTop: "1rem", padding: "1rem" }} elevation={2}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Controller
+            {/* <Controller
               control={control}
               name={`services.0.image`}
               rules={{
@@ -298,6 +335,94 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
                         </IconButton>
                       </InputAdornment>
                     )
+                  }}
+                />
+              )}
+            /> */}
+
+            <ImageSelect control={control as any} currentService={currentService} onSelectTemplate={onSelectTemplate} />
+
+            <Controller
+              control={control}
+              name={`services.0.image`}
+              rules={{
+                required: "Docker image name is required.",
+                validate: value => {
+                  const hasValidChars = /^[a-z0-9\-_/:.]+$/.test(value);
+
+                  if (!hasValidChars) {
+                    return "Invalid docker image name.";
+                  }
+
+                  return true;
+                }
+              }}
+              render={({ field, fieldState }) => (
+                <Autocomplete
+                  disableClearable
+                  open={isImageOpen}
+                  options={gpuTemplates}
+                  value={selectedImage}
+                  getOptionLabel={option => option?.image || ""}
+                  defaultValue={null}
+                  loading={isLoadingTemplates}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  fullWidth
+                  freeSolo
+                  ChipProps={{ size: "small" }}
+                  onChange={(event, newValue: ApiTemplate) => {
+                    setValue("services.0.image", (event.target as any)?.value || "");
+
+                    const result = createAndValidateSdl(newValue?.deploy);
+
+                    if (!result) return;
+
+                    setSelectedImage(newValue);
+
+                    setValue("services", result as Service[]);
+                  }}
+                  onInputChange={(event, newInputValue, reason) => {
+                    console.log(newInputValue, reason);
+                    if (reason === "reset") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      // setValue('')
+                      return;
+                    } else {
+                      // setValue(newInputValue)
+                    }
+                  }}
+                  renderInput={params => (
+                    <ClickAwayListener onClickAway={() => setIsImageOpen(false)}>
+                      <TextField
+                        {...params}
+                        label={`Docker Image`}
+                        variant="outlined"
+                        color="secondary"
+                        size="small"
+                        value={field.value}
+                        onChange={event => {
+                          console.log(event.target.value);
+                          field.onChange((event.target.value || "").toLowerCase());
+                        }}
+                        error={!!fieldState.error}
+                        helperText={fieldState.error?.message}
+                        onClick={() => setIsImageOpen(prev => !prev)}
+                        sx={{ minHeight: "42px" }}
+                      />
+                    </ClickAwayListener>
+                  )}
+                  renderOption={(props, option) => {
+                    return (
+                      <Box
+                        component="li"
+                        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between !important", width: "100%", padding: ".2rem .5rem" }}
+                        {...props}
+                        key={option.id}
+                      >
+                        <div>{option.name}</div>
+                      </Box>
+                    );
                   }}
                 />
               )}

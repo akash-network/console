@@ -26,3 +26,4 @@ export const TemplatesProvider = ({ children }) => {
 export const useTemplates = () => {
   return { ...React.useContext(TemplatesProviderContext) };
 };
+

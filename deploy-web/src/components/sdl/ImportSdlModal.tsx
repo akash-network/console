@@ -43,7 +43,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
 
   const createAndValidateSdl = (yamlStr: string) => {
     try {
-      if (!sdl) return null;
+      if (!yamlStr) return null;
 
       const services = importSimpleSdl(yamlStr, providerAttributesSchema);
 
