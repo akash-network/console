@@ -2,7 +2,6 @@ import React, { useRef } from "react";
 import { useState, useEffect } from "react";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { uAktDenom } from "@src/utils/constants";
-import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useSnackbar } from "notistack";
 import { Snackbar } from "@src/components/shared/Snackbar";
@@ -240,7 +239,6 @@ export const WalletProvider = ({ children }) => {
   }, [walletAddress]);
 
   async function loadWallet(): Promise<void> {
-    debugger;
     let wallet = null;
     let selectedNetwork = null;
     try {
@@ -289,39 +287,10 @@ export const WalletProvider = ({ children }) => {
     setIsWaitingForApproval(true);
     let pendingSnackbarKey = null;
     try {
-      debugger;
-      //const client = await getStargateClient();
-      //const simulation = await client.simulate(walletAddress, msgs, "");
       const estimatedFees = await estimateFee(msgs, "stargate", "", 1.25);
 
-      const txRaw = await sign(
-        msgs,
-        estimatedFees
-        //   {
-        //   amount: [
-        //     {
-        //       amount: "0.025",
-        //       denom: uAktDenom
-        //     }
-        //   ],
-        //   gas: Math.ceil(simulation * 1.25).toString()
-        // }
-      );
+      const txRaw = await sign(msgs, estimatedFees);
 
-      // const txRaw = await client.sign(
-      //   walletAddress,
-      //   msgs,
-      //   {
-      //     amount: [
-      //       {
-      //         amount: "0.025",
-      //         denom: uAktDenom
-      //       }
-      //     ],
-      //     gas: Math.ceil(simulation * 1.25).toString()
-      //   },
-      //   ""
-      // );
       setIsWaitingForApproval(false);
       setIsBroadcastingTx(true);
       pendingSnackbarKey = enqueueSnackbar(<Snackbar title="Broadcasting transaction..." subTitle="Please wait a few seconds" showLoading />, {
@@ -329,8 +298,6 @@ export const WalletProvider = ({ children }) => {
         autoHideDuration: null
       });
 
-      //const txRawBytes = Uint8Array.from(TxRaw.encode(txRaw).finish());
-      //const txResult = await client.broadcastTx(txRawBytes);
       const txResult = await broadcast(txRaw);
 
       setIsBroadcastingTx(false);

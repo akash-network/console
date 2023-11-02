@@ -85,6 +85,11 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
                           chains={chains.filter(x => x.chain_name === "akash")}
                           assetLists={assets.filter(x => x.chain_name === "akash")}
                           wallets={[...keplr, ...leap, ...cosmostation]}
+                          walletConnectOptions={{
+                            signClient: {
+                              projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID
+                            }
+                          }}
                           signerOptions={{
                             preferredSignType: chain => "direct",
                             signingStargate: chain => ({
