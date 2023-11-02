@@ -51,23 +51,31 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
   const { isLoadingTemplates, gpuTemplates } = useGpuTemplates();
   const [hoveredTemplate, setHoveredTemplate] = useState<ApiTemplate | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<ApiTemplate | null>(null);
+  const [popperWidth, setPopperWidth] = useState<number>(null);
   const eleRefs = useRef(null);
+  const textFieldRef = useRef<HTMLInputElement>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const open = Boolean(anchorEl);
   const filteredGpuTemplates = gpuTemplates.filter(x => x.name.includes(currentService.image));
+  const open = Boolean(anchorEl) && filteredGpuTemplates.length > 0;
+  // TODO Width of the popper based on the textfield
 
-  // Instead we build a custom ref object in each key of the ref for each option
   useEffect(() => {
+    // Populate ref list
     gpuTemplates.forEach(template => (eleRefs[template.id] = { current: null }));
   }, [gpuTemplates]);
 
   // Effect that scrolls active element when it changes
   useLayoutEffect(() => {
-    // This is what makes element visible
     if (selectedTemplate) {
       eleRefs[selectedTemplate.id].current.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
     }
   }, [gpuTemplates, selectedTemplate]);
+
+  useLayoutEffect(() => {
+    if (!popperWidth && textFieldRef.current) {
+      setPopperWidth(textFieldRef.current?.offsetWidth);
+    }
+  }, [textFieldRef.current, popperWidth]);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -132,9 +140,9 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
   };
 
   return (
-    <Box sx={{ display: "flex", alignItems: "center" }}>
+    <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
       <ClickAwayListener onClickAway={onClose}>
-        <div>
+        <Box sx={{ width: "100%" }}>
           <Controller
             control={control}
             name={`services.0.image`}
@@ -154,6 +162,7 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
               <TextField
                 type="text"
                 variant="outlined"
+                ref={textFieldRef}
                 label={`Docker Image / OS`}
                 placeholder="Example: mydockerimage:1.01"
                 color="secondary"
@@ -191,10 +200,10 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
           <Popper
             id="test"
             open={open}
-            placement="bottom"
+            placement="bottom-start"
             anchorEl={anchorEl}
             disablePortal
-            sx={{ zIndex: 1000 }}
+            sx={{ zIndex: 1000, width: `${popperWidth}px`, boxShadow: theme.shadows[2] }}
             nonce={undefined}
             onResize={undefined}
             onResizeCapture={undefined}
@@ -221,7 +230,7 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
                       alignItems: "center",
                       justifyContent: "space-between !important",
                       width: "100%",
-                      padding: ".2rem .5rem",
+                      padding: ".5rem 1rem",
                       minHeight: "auto",
                       overflow: "hidden",
                       backgroundColor:
@@ -252,83 +261,8 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
               </Box>
             </Paper>
           </Popper>
-        </div>
+        </Box>
       </ClickAwayListener>
-
-      {/* <Controller
-        control={control}
-        name={`services.0.image`}
-        rules={{
-          required: "Docker image name is required.",
-          validate: value => {
-            const hasValidChars = /^[a-z0-9\-_/:.]+$/.test(value);
-
-            if (!hasValidChars) {
-              return "Invalid docker image name.";
-            }
-
-            return true;
-          }
-        }}
-        render={({ field, fieldState }) => (
-          <Autocomplete
-            disableClearable
-            open={isImageOpen}
-            options={gpuTemplates}
-            value={selectedImage}
-            getOptionLabel={option => option?.image || ""}
-            defaultValue={null}
-            loading={isLoadingTemplates}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            fullWidth
-            freeSolo
-            ChipProps={{ size: "small" }}
-            onChange={(event, newValue: ApiTemplate) => {
-              setValue("services.0.image", (event.target as any)?.value || "");
-
-              const result = createAndValidateSdl(newValue?.deploy);
-
-              if (!result) return;
-
-              setSelectedImage(newValue);
-
-              setValue("services", result as Service[]);
-            }}
-            renderInput={params => (
-              <ClickAwayListener onClickAway={() => setIsImageOpen(false)}>
-                <TextField
-                  {...params}
-                  label={`Docker Image`}
-                  variant="outlined"
-                  color="secondary"
-                  size="small"
-                  value={field.value}
-                  onChange={event => {
-                    console.log(event.target.value);
-                    field.onChange((event.target.value || "").toLowerCase());
-                  }}
-                  error={!!fieldState.error}
-                  helperText={fieldState.error?.message}
-                  onClick={() => setIsImageOpen(prev => !prev)}
-                  sx={{ minHeight: "42px" }}
-                />
-              </ClickAwayListener>
-            )}
-            renderOption={(props, option) => {
-              return (
-                <Box
-                  component="li"
-                  sx={{ display: "flex", alignItems: "center", justifyContent: "space-between !important", width: "100%", padding: ".2rem .5rem" }}
-                  {...props}
-                  key={option.id}
-                >
-                  <div>{option.name}</div>
-                </Box>
-              );
-            }}
-          />
-        )}
-      /> */}
 
       <CustomTooltip
         arrow
