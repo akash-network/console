@@ -1,7 +1,7 @@
 import { ReactNode, useImperativeHandle, forwardRef, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { Control } from "react-hook-form";
-import { Box, Collapse, Paper, Typography, useTheme } from "@mui/material";
+import { Box, Button, Collapse, Paper, Typography, useTheme } from "@mui/material";
 import { RentGpusFormValues, Service } from "@src/types";
 import { ExpandMore } from "../shared/ExpandMore";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -68,7 +68,14 @@ export const AdvancedConfig = forwardRef<AdvancedConfigRefType, Props>(({ contro
   return (
     <Paper elevation={2} sx={{ marginTop: "1rem" }}>
       {/** Edit Environment Variables */}
-      <EnvFormModal control={control as any} onClose={() => setIsEditingEnv(null)} open={isEditingEnv} serviceIndex={0} envs={currentService.env} />
+      <EnvFormModal
+        control={control as any}
+        onClose={() => setIsEditingEnv(null)}
+        open={isEditingEnv}
+        serviceIndex={0}
+        envs={currentService.env}
+        hasSecretOption={false}
+      />
       {/** Edit Commands */}
       <CommandFormModal control={control as any} onClose={() => setIsEditingCommands(null)} open={isEditingCommands} serviceIndex={0} />
       {/** Edit Expose */}
@@ -82,29 +89,26 @@ export const AdvancedConfig = forwardRef<AdvancedConfigRefType, Props>(({ contro
         providerAttributesSchema={providerAttributesSchema}
       />
 
-      <Box
+      <Button
         sx={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           padding: ".5rem 1rem",
-          borderBottom: expanded ? `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200]}` : "none"
+          borderBottom: expanded ? `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200]}` : "none",
+          textTransform: "none"
         }}
+        fullWidth
+        onClick={() => setIsAdvancedOpen(prev => !prev)}
       >
         <Box>
           <Typography variant="body2">Advanced Configuration</Typography>
         </Box>
 
-        <ExpandMore
-          expand={expanded}
-          onClick={() => setIsAdvancedOpen(prev => !prev)}
-          aria-expanded={expanded}
-          aria-label="show more"
-          sx={{ marginLeft: ".5rem" }}
-        >
+        <ExpandMore expand={expanded} aria-expanded={expanded} aria-label="show more" sx={{ marginLeft: ".5rem" }}>
           <ExpandMoreIcon />
         </ExpandMore>
-      </Box>
+      </Button>
       <Collapse in={expanded}>
         <Box sx={{ padding: "1rem" }}>
           <Box sx={{ marginBottom: "1rem" }}>
