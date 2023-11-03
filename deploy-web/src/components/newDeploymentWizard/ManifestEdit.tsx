@@ -121,6 +121,15 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     }
   }
 
+  const handleCreateDeployment = async () => {
+    if (selectedSdlEditMode === "builder") {
+      const valid = await sdlBuilderRef.current.validate();
+      if (!valid) return;
+    }
+
+    setIsCheckingPrerequisites(true);
+  };
+
   const onPrerequisiteContinue = () => {
     setIsCheckingPrerequisites(false);
     setIsDepositingDeployment(true);
@@ -258,7 +267,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
               variant="contained"
               color="secondary"
               disabled={isCreatingDeployment || !!parsingError || !editedManifest}
-              onClick={() => setIsCheckingPrerequisites(true)}
+              onClick={() => handleCreateDeployment()}
               sx={{ whiteSpace: "nowrap", width: { xs: "100%", sm: "auto" } }}
             >
               {isCreatingDeployment ? (

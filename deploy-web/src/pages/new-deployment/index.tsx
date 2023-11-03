@@ -143,7 +143,7 @@ const NewDeploymentPage: React.FunctionComponent<Props> = ({}) => {
             </IconButton>
           </Box>
 
-          <CustomizedSteppers steps={steps} activeStep={activeStep} />
+          {activeStep !== null && <CustomizedSteppers steps={steps} activeStep={activeStep} />}
         </div>
 
         {activeStep === 0 && <TemplateList setSelectedTemplate={setSelectedTemplate} setEditedManifest={setEditedManifest} />}

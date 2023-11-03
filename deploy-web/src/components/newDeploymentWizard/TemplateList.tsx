@@ -16,6 +16,8 @@ import { BuildCircleTwoTone } from "@mui/icons-material";
 import { TemplateCreation } from "@src/types";
 import { emptyTemplate, helloWorldTemplate, ubuntuTemplate } from "@src/utils/templates";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
+import { useAtom } from "jotai";
+import sdlStore from "@src/store/sdlStore";
 
 const useStyles = makeStyles()(theme => ({}));
 
@@ -43,6 +45,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
   const router = useRouter();
   const fileUploadRef = useRef(null);
   const [previewTemplates, setPreviewTemplates] = useState([]);
+  const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
 
   useEffect(() => {
     if (templates) {
@@ -81,7 +84,8 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
   };
 
   function onSDLBuilderClick() {
-    router.push(UrlService.sdlBuilder());
+    setSdlEditMode("builder");
+    router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
   }
 
   return (
