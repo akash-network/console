@@ -1,36 +1,13 @@
-import {
-  Alert,
-  Autocomplete,
-  Box,
-  Button,
-  ClickAwayListener,
-  FormControl,
-  Grid,
-  IconButton,
-  InputAdornment,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  TextField,
-  Typography,
-  useTheme
-} from "@mui/material";
+import { Alert, Box, Button, CircularProgress, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Typography, useTheme } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import { useEffect, useRef, useState } from "react";
-import { ApiTemplate, ITemplate, RentGpusFormValues, Service } from "@src/types";
+import { ApiTemplate, RentGpusFormValues, Service } from "@src/types";
 import { defaultAnyRegion, defaultRentGpuService } from "@src/utils/sdl/data";
 import { useRouter } from "next/router";
-import Link from "next/link";
-import { useSnackbar } from "notistack";
 import sdlStore from "@src/store/sdlStore";
 import { useAtom } from "jotai";
 import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
 import { makeStyles } from "tss-react/mui";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import InfoIcon from "@mui/icons-material/Info";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import Image from "next/legacy/image";
 import { useSdlDenoms } from "@src/hooks/useDenom";
 import { RegionSelect } from "./RegionSelect";
 import { AdvancedConfig } from "./AdvancedConfig";
@@ -54,9 +31,9 @@ import { DeploymentDepositModal } from "../deploymentDetail/DeploymentDepositMod
 import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../newDeploymentWizard/PrerequisiteList";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
-import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { ImageSelect } from "./ImageSelect";
+import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 
 const yaml = require("js-yaml");
 
@@ -79,22 +56,11 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
-  const [isImageOpen, setIsImageOpen] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
   const formRef = useRef<HTMLFormElement>();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [rentGpuSdl, setRentGpuSdl] = useAtom(sdlStore.rentGpuSdl);
   const { data: providerAttributesSchema } = useProviderAttributesSchema();
-  const { enqueueSnackbar } = useSnackbar();
-  const {
-    handleSubmit,
-    reset,
-    control,
-    formState: { isValid },
-    trigger,
-    watch,
-    setValue
-  } = useForm<RentGpusFormValues>({
+  const { handleSubmit, control, watch, setValue } = useForm<RentGpusFormValues>({
     defaultValues: {
       services: [{ ...defaultRentGpuService }],
       region: { ...defaultAnyRegion }
@@ -108,7 +74,6 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const { address, signAndBroadcastTx } = useWallet();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [sdlDenom, setSdlDenom] = useState("uakt");
-  const { isLoadingTemplates, gpuTemplates } = useGpuTemplates();
 
   useEffect(() => {
     if (rentGpuSdl && rentGpuSdl.services) {
@@ -121,7 +86,6 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     }
 
     const subscription = watch(({ services, region }) => {
-      console.log("new value", services);
       setRentGpuSdl({ services: services as Service[], region: region as ProviderAttributeSchemaDetailValue });
     });
     return () => subscription.unsubscribe();
@@ -193,15 +157,6 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
     try {
       const sdl = generateSdl(rentGpuSdl.services, rentGpuSdl.region.key);
-      // setDeploySdl({
-      //   title: "",
-      //   category: "",
-      //   code: "",
-      //   description: "",
-      //   content: sdl
-      // });
-
-      // console.log(sdl);
 
       setIsCreatingDeployment(true);
 
@@ -349,8 +304,17 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
         <Box sx={{ paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Button color="secondary" variant="contained" type="submit">
-              Deploy
+            <Button size="large" color="secondary" variant="contained" type="submit" disabled={isCreatingDeployment || !!error}>
+              {isCreatingDeployment ? (
+                <CircularProgress size="24px" color="secondary" />
+              ) : (
+                <>
+                  Deploy{" "}
+                  <Box component="span" marginLeft=".5rem" display="flex" alignItems="center">
+                    <RocketLaunchIcon fontSize="small" />
+                  </Box>
+                </>
+              )}
             </Button>
           </Box>
         </Box>

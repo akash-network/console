@@ -82,7 +82,6 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    console.log(event.key);
     setAnchorEl(event.currentTarget);
 
     if (event.key === "Enter") {
@@ -103,7 +102,6 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
         const index = filteredGpuTemplates.findIndex(x => x.id === hoveredTemplate?.id || x.id === selectedTemplate?.id);
         const newIndex = (index - 1 + filteredGpuTemplates.length) % filteredGpuTemplates.length;
 
-        console.log(newIndex);
         setSelectedTemplate(filteredGpuTemplates[newIndex]);
       } else {
         setSelectedTemplate(filteredGpuTemplates[filteredGpuTemplates.length - 1]);
@@ -117,7 +115,6 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
         const index = filteredGpuTemplates.findIndex(x => x.id === hoveredTemplate?.id || x.id === selectedTemplate?.id);
         const newIndex = (index + 1) % filteredGpuTemplates.length;
 
-        console.log(newIndex);
         setSelectedTemplate(filteredGpuTemplates[newIndex]);
       } else {
         setSelectedTemplate(filteredGpuTemplates[0]);
