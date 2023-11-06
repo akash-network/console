@@ -3,7 +3,6 @@ import { Control } from "react-hook-form";
 import { Box, Button, Collapse, Paper, Typography, useTheme } from "@mui/material";
 import { RentGpusFormValues, Service } from "@src/types";
 import { ExpandMore } from "../shared/ExpandMore";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { EnvFormModal } from "./EnvFormModal";
 import { CommandFormModal } from "./CommandFormModal";
 import { ExposeFormModal } from "./ExposeFormModal";
@@ -56,7 +55,7 @@ export const AdvancedConfig: React.FunctionComponent<Props> = ({ control, curren
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: ".5rem 1rem",
+          padding: "1rem",
           borderBottom: expanded ? `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200]}` : "none",
           textTransform: "none"
         }}
@@ -67,9 +66,7 @@ export const AdvancedConfig: React.FunctionComponent<Props> = ({ control, curren
           <Typography variant="body2">Advanced Configuration</Typography>
         </Box>
 
-        <ExpandMore expand={expanded} aria-expanded={expanded} aria-label="show more" sx={{ marginLeft: ".5rem" }}>
-          <ExpandMoreIcon />
-        </ExpandMore>
+        <ExpandMore expand={expanded} aria-expanded={expanded} aria-label="show more" sx={{ marginLeft: ".5rem" }} />
       </Button>
       <Collapse in={expanded}>
         <Box sx={{ padding: "1rem" }}>

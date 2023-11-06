@@ -162,7 +162,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ providerAttribu
             {providerAttributesSchema ? (
               <FormSelect
                 control={control}
-                label="GPU models"
+                label="GPU models (any if empty)"
                 optionName="hardware-gpu-model"
                 name={`services.${serviceIndex}.profile.gpuModels`}
                 providerAttributesSchema={providerAttributesSchema}

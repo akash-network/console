@@ -15,7 +15,7 @@ import { makeStyles } from "tss-react/mui";
 import { Dispatch, SetStateAction, useState } from "react";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { ExpandMore } from "../shared/ExpandMore";
+import { ExpandMoreButton } from "../shared/ExpandMore";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { CommandFormModal } from "./CommandFormModal";
 import { EnvFormModal } from "./EnvFormModal";
@@ -218,9 +218,9 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
             </IconButton>
           )}
 
-          <ExpandMore expand={expanded} onClick={onExpandClick} aria-expanded={expanded} aria-label="show more" sx={{ marginLeft: ".5rem" }}>
+          <ExpandMoreButton expand={expanded} onClick={onExpandClick} aria-expanded={expanded} aria-label="show more" sx={{ marginLeft: ".5rem" }}>
             <ExpandMoreIcon />
-          </ExpandMore>
+          </ExpandMoreButton>
         </Box>
       </Box>
 
