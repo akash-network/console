@@ -308,6 +308,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                     providerAttributesSchema={providerAttributesSchema}
                     serviceIndex={serviceIndex}
                     hasGpu={currentService.profile.hasGpu}
+                    currentService={currentService}
                   />
                 </Grid>
 

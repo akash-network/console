@@ -8,7 +8,7 @@ import { FormPaper } from "./FormPaper";
 import { Control, Controller } from "react-hook-form";
 import { cx } from "@emotion/css";
 import MemoryIcon from "@mui/icons-material/Memory";
-import { maxGroupMemory, maxMemory, memoryUnits, minMemory } from "../shared/akash/units";
+import { validationConfig, memoryUnits } from "../shared/akash/units";
 
 type Props = {
   serviceIndex: number;
@@ -41,11 +41,11 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
           const currentUnit = memoryUnits.find(u => currentService.profile.ramUnit === u.suffix);
           const _value = (v || 0) * currentUnit.value;
 
-          if (currentService.count === 1 && _value < minMemory) {
+          if (currentService.count === 1 && _value < validationConfig.minMemory) {
             return "Minimum amount of memory for a single service instance is 1 Mi.";
-          } else if (currentService.count === 1 && currentService.count * _value > maxMemory) {
+          } else if (currentService.count === 1 && currentService.count * _value > validationConfig.maxMemory) {
             return "Maximum amount of memory for a single service instance is 512 Gi.";
-          } else if (currentService.count > 1 && currentService.count * _value > maxGroupMemory) {
+          } else if (currentService.count > 1 && currentService.count * _value > validationConfig.maxGroupMemory) {
             return "Maximum total amount of memory for a single service instance group is 1024 Gi.";
           }
 

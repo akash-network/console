@@ -1,4 +1,3 @@
-import { useTheme } from "@mui/material/styles";
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import PageContainer from "@src/components/shared/PageContainer";
@@ -11,8 +10,6 @@ import { RentGpusForm } from "@src/components/sdl/RentGpusForm";
 type Props = {};
 
 const RentGpuPage: React.FunctionComponent<Props> = ({}) => {
-  const theme = useTheme();
-
   return (
     <Layout>
       <CustomNextSeo
@@ -30,7 +27,6 @@ const RentGpuPage: React.FunctionComponent<Props> = ({}) => {
         </Typography>
 
         <RentGpusForm />
-        {/* <SimpleSDLBuilderForm /> */}
       </PageContainer>
     </Layout>
   );

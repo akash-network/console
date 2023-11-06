@@ -8,6 +8,7 @@ import { FormPaper } from "./FormPaper";
 import { Control, Controller } from "react-hook-form";
 import SpeedIcon from "@mui/icons-material/Speed";
 import { cx } from "@emotion/css";
+import { validationConfig } from "../shared/akash/units";
 
 type Props = {
   serviceIndex: number;
@@ -41,10 +42,10 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
 
           if (currentService.count === 1 && _value < 0.1) {
             return "Minimum amount of CPU for a single service instance is 0.1.";
-          } else if (currentService.count === 1 && _value > 256) {
-            return "Maximum amount of CPU for a single service instance is 256.";
-          } else if (currentService.count > 1 && currentService.count * _value > 512) {
-            return "Maximum total amount of CPU for a single service instance group is 512.";
+          } else if (currentService.count === 1 && _value > validationConfig.maxCpuAmount) {
+            return `Maximum amount of CPU for a single service instance is ${validationConfig.maxCpuAmount}.`;
+          } else if (currentService.count > 1 && currentService.count * _value > validationConfig.maxGroupCpuCount) {
+            return `Maximum total amount of CPU for a single service instance group is ${validationConfig.maxGroupCpuCount}.`;
           }
 
           return true;
@@ -75,7 +76,7 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
                       The amount of vCPU's required for this workload.
                       <br />
                       <br />
-                      The maximum for a single instance is 256 vCPU's.
+                      The maximum for a single instance is {validationConfig.maxCpuAmount} vCPU's.
                       <br />
                       <br />
                       The maximum total multiplied by the count of instances is 512 vCPU's.
@@ -93,7 +94,7 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
                 error={!!fieldState.error}
                 value={field.value || ""}
                 onChange={event => field.onChange(parseFloat(event.target.value))}
-                inputProps={{ min: 0.1, max: 256, step: 0.1 }}
+                inputProps={{ min: 0.1, max: validationConfig.maxCpuAmount, step: 0.1 }}
                 size="small"
                 sx={{ width: "100px", marginLeft: "1rem" }}
               />
@@ -102,7 +103,7 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
             <Slider
               value={field.value || 0}
               min={0.1}
-              max={256}
+              max={validationConfig.maxCpuAmount}
               step={1}
               color="secondary"
               aria-label="CPU"

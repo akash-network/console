@@ -1,5 +1,4 @@
-import { ReactNode, useImperativeHandle, forwardRef, useState } from "react";
-import { makeStyles } from "tss-react/mui";
+import { ReactNode, useState } from "react";
 import { Control } from "react-hook-form";
 import { Box, Button, Collapse, Paper, Typography, useTheme } from "@mui/material";
 import { RentGpusFormValues, Service } from "@src/types";
@@ -21,49 +20,12 @@ type Props = {
   children?: ReactNode;
 };
 
-export type AdvancedConfigRefType = {
-  // _removeAttribute: (index: number | number[]) => void;
-};
-
-const useStyles = makeStyles()(theme => ({
-  editLink: {
-    color: theme.palette.secondary.light,
-    textDecoration: "underline",
-    cursor: "pointer",
-    fontWeight: "normal",
-    fontSize: ".8rem"
-  },
-  formValue: {
-    color: theme.palette.grey[500]
-  }
-}));
-
-export const AdvancedConfig = forwardRef<AdvancedConfigRefType, Props>(({ control, currentService, providerAttributesSchema }, ref) => {
-  const { classes } = useStyles();
+export const AdvancedConfig: React.FunctionComponent<Props> = ({ control, currentService, providerAttributesSchema }) => {
   const theme = useTheme();
   const [expanded, setIsAdvancedOpen] = useState(false);
   const [isEditingCommands, setIsEditingCommands] = useState(false);
   const [isEditingEnv, setIsEditingEnv] = useState(false);
   const [isEditingExpose, setIsEditingExpose] = useState(false);
-  // const {
-  //   fields: attributes,
-  //   remove: removeAttribute,
-  //   append: appendAttribute
-  // } = useFieldArray({
-  //   control,
-  //   name: `services.${serviceIndex}.placement.attributes`,
-  //   keyName: "id"
-  // });
-
-  // const onAddAttribute = () => {
-  //   appendAttribute({ id: nanoid(), key: "", value: "" });
-  // };
-
-  useImperativeHandle(ref, () => ({
-    // _removeAttribute(index: number | number[]) {
-    //   removeAttribute(index);
-    // }
-  }));
 
   return (
     <Paper elevation={2} sx={{ marginTop: "1rem" }}>
@@ -128,4 +90,4 @@ export const AdvancedConfig = forwardRef<AdvancedConfigRefType, Props>(({ contro
       </Collapse>
     </Paper>
   );
-});
+};

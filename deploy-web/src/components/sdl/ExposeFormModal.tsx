@@ -221,7 +221,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({
                 </Grid>
 
                 <Grid item xs={12} sm={3}>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", height: "100%" }}>
                     <Controller
                       control={control}
                       name={`services.${serviceIndex}.expose.${expIndex}.global`}

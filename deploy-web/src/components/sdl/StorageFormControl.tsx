@@ -7,7 +7,7 @@ import InfoIcon from "@mui/icons-material/Info";
 import { FormPaper } from "./FormPaper";
 import { Control, Controller } from "react-hook-form";
 import { cx } from "@emotion/css";
-import { maxStorage, minStorage, storageUnits } from "../shared/akash/units";
+import { validationConfig, storageUnits } from "../shared/akash/units";
 import StorageIcon from "@mui/icons-material/Storage";
 
 type Props = {
@@ -40,9 +40,9 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
           const currentUnit = storageUnits.find(u => currentService.profile.storageUnit === u.suffix);
           const _value = (v || 0) * currentUnit.value;
 
-          if (currentService.count * _value < minStorage) {
+          if (currentService.count * _value < validationConfig.minStorage) {
             return "Minimum amount of storage for a single service instance is 5 Mi.";
-          } else if (currentService.count * _value > maxStorage) {
+          } else if (currentService.count * _value > validationConfig.maxStorage) {
             return "Maximum amount of storage for a single service instance is 32 Ti.";
           }
 

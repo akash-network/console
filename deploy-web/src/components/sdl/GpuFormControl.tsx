@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { makeStyles } from "tss-react/mui";
 import { Box, Checkbox, CircularProgress, FormControl, FormHelperText, MenuItem, Select, Slider, TextField, Typography, useTheme } from "@mui/material";
-import { RentGpusFormValues, SdlBuilderFormValues } from "@src/types";
+import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import { FormPaper } from "./FormPaper";
@@ -11,6 +11,7 @@ import { cx } from "@emotion/css";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { gpuVendors } from "../shared/akash/gpu";
 import { FormSelect } from "./FormSelect";
+import { validationConfig } from "../shared/akash/units";
 
 type Props = {
   serviceIndex: number;
@@ -18,6 +19,7 @@ type Props = {
   children?: ReactNode;
   control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
   providerAttributesSchema: ProviderAttributesSchema;
+  currentService: Service;
 };
 
 const useStyles = makeStyles()(theme => ({
@@ -29,7 +31,7 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const GpuFormControl: React.FunctionComponent<Props> = ({ providerAttributesSchema, control, serviceIndex, hasGpu }) => {
+export const GpuFormControl: React.FunctionComponent<Props> = ({ providerAttributesSchema, control, serviceIndex, hasGpu, currentService }) => {
   const { classes } = useStyles();
   const theme = useTheme();
 
@@ -41,7 +43,15 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ providerAttribu
         rules={{
           validate: v => {
             if (!v) return "GPU amount is required.";
-            else if (v < 1) return "GPU amount must be greater than 0.";
+
+            const _value = v || 0;
+
+            if (_value < 1) return "GPU amount must be greater than 0.";
+            else if (currentService.count === 1 && _value > validationConfig.maxGpuAmount) {
+              return `Maximum amount of GPU for a single service instance is ${validationConfig.maxGpuAmount}.`;
+            } else if (currentService.count > 1 && currentService.count * _value > validationConfig.maxGroupGpuCount) {
+              return `Maximum total amount of GPU for a single service instance group is ${validationConfig.maxGroupGpuCount}.`;
+            }
             return true;
           }
         }}
@@ -102,7 +112,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ providerAttribu
                     value={field.value || ""}
                     error={!!fieldState.error}
                     onChange={event => field.onChange(parseFloat(event.target.value))}
-                    inputProps={{ min: 1, step: 1 }}
+                    inputProps={{ min: 1, step: 1, max: validationConfig.maxGpuAmount }}
                     size="small"
                     sx={{ width: "100px" }}
                   />
@@ -114,7 +124,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ providerAttribu
               <Slider
                 value={field.value || 0}
                 min={1}
-                max={100}
+                max={validationConfig.maxGpuAmount}
                 step={1}
                 color="secondary"
                 aria-label="GPUs"

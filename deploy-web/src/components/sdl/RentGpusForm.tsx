@@ -34,6 +34,8 @@ import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttribute
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { ImageSelect } from "./ImageSelect";
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
+import { event } from "nextjs-google-analytics";
+import { AnalyticsEvents } from "@src/utils/analytics";
 
 const yaml = require("js-yaml");
 
@@ -206,10 +208,10 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
         saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.version, address, currentService.image);
         router.push(UrlService.newDeployment({ step: RouteStepKeys.createLeases, dseq: dd.deploymentId.dseq }));
 
-        // event(AnalyticsEvents.CREATE_DEPLOYMENT, {
-        //   category: "deployments",
-        //   label: "Create deployment in wizard"
-        // });
+        event(AnalyticsEvents.CREATE_GPU_DEPLOYMENT, {
+          category: "deployments",
+          label: "Create deployment rent gpu form"
+        });
       } else {
         setIsCreatingDeployment(false);
       }
@@ -246,7 +248,13 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           <ImageSelect control={control as any} currentService={currentService} onSelectTemplate={onSelectTemplate} />
 
           <Box sx={{ marginTop: "1rem" }}>
-            <GpuFormControl control={control as any} providerAttributesSchema={providerAttributesSchema} serviceIndex={0} hasGpu />
+            <GpuFormControl
+              control={control as any}
+              providerAttributesSchema={providerAttributesSchema}
+              serviceIndex={0}
+              hasGpu
+              currentService={currentService}
+            />
           </Box>
 
           <Box sx={{ marginTop: "1rem" }}>

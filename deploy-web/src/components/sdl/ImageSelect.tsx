@@ -1,35 +1,16 @@
 import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { makeStyles } from "tss-react/mui";
-import {
-  Box,
-  ClickAwayListener,
-  FormControl,
-  FormHelperText,
-  IconButton,
-  InputAdornment,
-  Menu,
-  Paper,
-  Popper,
-  Slider,
-  TextField,
-  Typography,
-  useTheme
-} from "@mui/material";
-import { ApiTemplate, ITemplate, RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
+import { Box, ClickAwayListener, IconButton, InputAdornment, Paper, Popper, TextField, useTheme } from "@mui/material";
+import { ApiTemplate, RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
-import { FormPaper } from "./FormPaper";
-import { Control, Controller, UseFormSetValue } from "react-hook-form";
-import SpeedIcon from "@mui/icons-material/Speed";
-import { cx } from "@emotion/css";
-import { bindMenu, bindTrigger, usePopupState } from "material-ui-popup-state/hooks";
+import { Control, Controller } from "react-hook-form";
 import Image from "next/image";
 import Link from "next/link";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
 
 type Props = {
-  // serviceIndex: number;
   children?: ReactNode;
   control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
   currentService: Service;
@@ -46,9 +27,8 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentService, onSelectTemplate }) => {
-  const { classes } = useStyles();
   const theme = useTheme();
-  const { isLoadingTemplates, gpuTemplates } = useGpuTemplates();
+  const { gpuTemplates } = useGpuTemplates();
   const [hoveredTemplate, setHoveredTemplate] = useState<ApiTemplate | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<ApiTemplate | null>(null);
   const [popperWidth, setPopperWidth] = useState<number>(null);
@@ -57,7 +37,6 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const filteredGpuTemplates = gpuTemplates.filter(x => x.name.includes(currentService.image));
   const open = Boolean(anchorEl) && filteredGpuTemplates.length > 0;
-  // TODO Width of the popper based on the textfield
 
   useEffect(() => {
     // Populate ref list
@@ -93,8 +72,6 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
       }
 
       onClose();
-
-      // TODO Select current template
     }
 
     if (event.key === "ArrowUp") {
