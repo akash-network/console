@@ -29,26 +29,22 @@ export const AdvancedConfig: React.FunctionComponent<Props> = ({ control, curren
   return (
     <Paper elevation={2} sx={{ marginTop: "1rem" }}>
       {/** Edit Environment Variables */}
-      <EnvFormModal
-        control={control as any}
-        onClose={() => setIsEditingEnv(null)}
-        open={isEditingEnv}
-        serviceIndex={0}
-        envs={currentService.env}
-        hasSecretOption={false}
-      />
+      {isEditingEnv && (
+        <EnvFormModal control={control as any} onClose={() => setIsEditingEnv(null)} serviceIndex={0} envs={currentService.env} hasSecretOption={false} />
+      )}
       {/** Edit Commands */}
-      <CommandFormModal control={control as any} onClose={() => setIsEditingCommands(null)} open={isEditingCommands} serviceIndex={0} />
+      {isEditingCommands && <CommandFormModal control={control as any} onClose={() => setIsEditingCommands(null)} serviceIndex={0} />}
       {/** Edit Expose */}
-      <ExposeFormModal
-        control={control as any}
-        onClose={() => setIsEditingExpose(null)}
-        open={isEditingExpose}
-        serviceIndex={0}
-        expose={currentService.expose}
-        services={[currentService]}
-        providerAttributesSchema={providerAttributesSchema}
-      />
+      {isEditingExpose && (
+        <ExposeFormModal
+          control={control as any}
+          onClose={() => setIsEditingExpose(null)}
+          serviceIndex={0}
+          expose={currentService.expose}
+          services={[currentService]}
+          providerAttributesSchema={providerAttributesSchema}
+        />
+      )}
 
       <Button
         sx={{

@@ -1,15 +1,5 @@
 import { useTheme } from "@mui/material/styles";
-import {
-  Box,
-  Collapse,
-  Grid,
-  IconButton,
-  InputAdornment,
-  Paper,
-  TextField,
-  Typography,
-  useMediaQuery
-} from "@mui/material";
+import { Box, Collapse, Grid, IconButton, InputAdornment, Paper, TextField, Typography, useMediaQuery } from "@mui/material";
 import { Controller, Control, UseFormTrigger } from "react-hook-form";
 import { makeStyles } from "tss-react/mui";
 import { Dispatch, SetStateAction, useState } from "react";
@@ -114,28 +104,30 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   return (
     <Paper className={classes.serviceBox} elevation={2}>
       {/** Edit Environment Variables */}
-      <EnvFormModal control={control} onClose={() => setIsEditingEnv(null)} open={_isEditingEnv} serviceIndex={serviceIndex} envs={currentService.env} />
+      {_isEditingEnv && <EnvFormModal control={control} onClose={() => setIsEditingEnv(null)} serviceIndex={serviceIndex} envs={currentService.env} />}
       {/** Edit Commands */}
-      <CommandFormModal control={control} onClose={() => setIsEditingCommands(null)} open={_isEditingCommands} serviceIndex={serviceIndex} />
+      {_isEditingCommands && <CommandFormModal control={control} onClose={() => setIsEditingCommands(null)} serviceIndex={serviceIndex} />}
       {/** Edit Expose */}
-      <ExposeFormModal
-        control={control}
-        onClose={() => setIsEditingExpose(null)}
-        open={_isEditingExpose}
-        serviceIndex={serviceIndex}
-        expose={currentService.expose}
-        services={_services}
-        providerAttributesSchema={providerAttributesSchema}
-      />
+      {_isEditingExpose && (
+        <ExposeFormModal
+          control={control}
+          onClose={() => setIsEditingExpose(null)}
+          serviceIndex={serviceIndex}
+          expose={currentService.expose}
+          services={_services}
+          providerAttributesSchema={providerAttributesSchema}
+        />
+      )}
       {/** Edit Placement */}
-      <PlacementFormModal
-        control={control}
-        onClose={() => setIsEditingPlacement(null)}
-        open={_isEditingPlacement}
-        serviceIndex={serviceIndex}
-        services={_services}
-        placement={currentService.placement}
-      />
+      {_isEditingPlacement && (
+        <PlacementFormModal
+          control={control}
+          onClose={() => setIsEditingPlacement(null)}
+          serviceIndex={serviceIndex}
+          services={_services}
+          placement={currentService.placement}
+        />
+      )}
 
       <Box
         sx={{

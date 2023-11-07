@@ -9,7 +9,6 @@ import { nanoid } from "nanoid";
 import { CustomTooltip } from "../shared/CustomTooltip";
 
 type Props = {
-  open: boolean;
   serviceIndex: number;
   onClose: () => void;
   envs: EnvironmentVariable[];
@@ -27,7 +26,7 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const EnvFormModal: React.FunctionComponent<Props> = ({ open, control, serviceIndex, envs: _envs, onClose, hasSecretOption = true }) => {
+export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, envs: _envs, onClose, hasSecretOption = true }) => {
   const { classes } = useStyles();
   const theme = useTheme();
   const {
@@ -64,10 +63,12 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ open, control, se
     onClose();
   };
 
+  console.log(envs);
+
   return (
     <Popup
       fullWidth
-      open={open}
+      open
       variant="custom"
       title="Edit Environment Variables"
       actions={[

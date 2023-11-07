@@ -6,7 +6,6 @@ import { Box, InputLabel, Paper, TextareaAutosize, TextField, useTheme } from "@
 import { SdlBuilderFormValues } from "@src/types";
 
 type Props = {
-  open: boolean;
   serviceIndex: number;
   onClose: () => void;
   control: Control<SdlBuilderFormValues, any>;
@@ -22,14 +21,14 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const CommandFormModal: React.FunctionComponent<Props> = ({ open, control, serviceIndex, onClose }) => {
+export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, onClose }) => {
   const { classes } = useStyles();
   const theme = useTheme();
 
   return (
     <Popup
       fullWidth
-      open={open}
+      open
       variant="custom"
       title="Edit Commands"
       actions={[

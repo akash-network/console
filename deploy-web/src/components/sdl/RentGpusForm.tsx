@@ -59,7 +59,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [rentGpuSdl, setRentGpuSdl] = useAtom(sdlStore.rentGpuSdl);
   const { data: providerAttributesSchema } = useProviderAttributesSchema();
-  const { handleSubmit, control, watch, setValue } = useForm<RentGpusFormValues>({
+  const { handleSubmit, control, watch, setValue, trigger } = useForm<RentGpusFormValues>({
     defaultValues: {
       services: [{ ...defaultRentGpuService }],
       region: { ...defaultAnyRegion }
@@ -307,6 +307,18 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
         <AdvancedConfig control={control} currentService={currentService} providerAttributesSchema={providerAttributesSchema} />
 
+        {error && (
+          <Alert severity="error" variant="outlined" sx={{ marginTop: "1rem" }}>
+            {error}
+          </Alert>
+        )}
+
+        {currentService?.env?.some(x => !!x.key && !x.value) && (
+          <Alert severity="warning" variant="outlined" sx={{ marginTop: "1rem" }}>
+            Some of the environment variables are empty. Please fill them in the advanced configuration before deploying.
+          </Alert>
+        )}
+
         <Box sx={{ paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <Button size="large" color="secondary" variant="contained" type="submit" disabled={isCreatingDeployment || !!error}>
@@ -323,12 +335,6 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
             </Button>
           </Box>
         </Box>
-
-        {error && (
-          <Alert severity="error" variant="outlined" sx={{ marginTop: "1rem" }}>
-            {error}
-          </Alert>
-        )}
       </form>
     </>
   );

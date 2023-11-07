@@ -16,7 +16,6 @@ import { HttpOptionsFormControl } from "./HttpOptionsFormControl";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 
 type Props = {
-  open: boolean;
   serviceIndex: number;
   onClose: () => void;
   control: Control<SdlBuilderFormValues, any>;
@@ -26,15 +25,7 @@ type Props = {
   providerAttributesSchema: ProviderAttributesSchema;
 };
 
-export const ExposeFormModal: React.FunctionComponent<Props> = ({
-  open,
-  control,
-  serviceIndex,
-  onClose,
-  expose: _expose,
-  services,
-  providerAttributesSchema
-}) => {
+export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, onClose, expose: _expose, services, providerAttributesSchema }) => {
   const acceptRef = useRef<AcceptRefType>();
   const toRef = useRef<ToRefType>();
   const {
@@ -78,7 +69,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({
   return (
     <Popup
       fullWidth
-      open={open}
+      open
       variant="custom"
       title={
         <Box component="span" sx={{ display: "flex", alignItems: "center" }}>
