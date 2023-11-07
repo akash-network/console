@@ -63,8 +63,6 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
     onClose();
   };
 
-  console.log(envs);
-
   return (
     <Popup
       fullWidth
