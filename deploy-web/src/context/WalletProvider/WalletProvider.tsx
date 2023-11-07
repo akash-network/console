@@ -19,6 +19,7 @@ import { LinkTo } from "@src/components/shared/LinkTo";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { useChain } from "@cosmos-kit/react";
+import { LocalWalletDataType } from "@src/utils/walletUtils";
 
 type Balances = {
   uakt: number;
@@ -261,19 +262,17 @@ export const WalletProvider = ({ children }) => {
 
     //const address = wallet?.bech32Address;
     const selectedNetworkId = localStorage.getItem("selectedNetworkId");
-    const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`));
+    const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`)) as LocalWalletDataType[];
 
-    const currentWallets = storageWallets ? [...storageWallets] : [];
-    const newWallets =
-      currentWallets.findIndex(x => x.address === walletAddress) === -1
-        ? [...currentWallets].concat({ name: username, address: walletAddress })
-        : [...currentWallets];
+    let currentWallets = storageWallets ?? [];
 
-    for (let i = 0; i < newWallets.length; i++) {
-      newWallets[i].selected = newWallets[i].address === walletAddress;
+    if (!currentWallets.some(x => x.address === wallet.address)) {
+      currentWallets.push({ name: username, address: walletAddress, selected: true });
     }
 
-    localStorage.setItem(`${selectedNetworkId}/wallets`, JSON.stringify(newWallets));
+    currentWallets = currentWallets.map(x => ({ ...x, selected: x.address === walletAddress }));
+
+    localStorage.setItem(`${selectedNetworkId}/wallets`, JSON.stringify(currentWallets));
 
     //setWalletAddress(address);
     //setWalletName(wallet.name);
