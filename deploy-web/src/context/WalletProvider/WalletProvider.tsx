@@ -32,18 +32,12 @@ type ContextType = {
   walletBalances: Balances;
   isWalletConnected: boolean;
   isWalletLoaded: boolean;
-  connectWallet: (walletSource: Wallets) => Promise<void>;
+  connectWallet: () => Promise<void>;
   logout: () => void;
   setIsWalletLoaded: React.Dispatch<React.SetStateAction<boolean>>;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<any>;
   refreshBalances: (address?: string) => Promise<Balances>;
 };
-
-// TODO REMOVE?
-export enum Wallets {
-  KEPLR = "keplr",
-  LEAP = "leap"
-}
 
 const WalletProviderContext = React.createContext<ContextType>({
   address: null,
@@ -60,7 +54,7 @@ const WalletProviderContext = React.createContext<ContextType>({
 
 export const WalletProvider = ({ children }) => {
   const [walletBalances, setWalletBalances] = useState<Balances>(null);
-  const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(false);
+  const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
@@ -128,12 +122,8 @@ export const WalletProvider = ({ children }) => {
   }
 
   function logout(): void {
-    //setWalletAddress(null);
-    //setWalletName(null);
     setWalletBalances(null);
     disconnect();
-
-    localStorage.removeItem("wallet_autoconnect");
 
     event(AnalyticsEvents.DISCONNECT_WALLET, {
       category: "wallet",
@@ -143,10 +133,7 @@ export const WalletProvider = ({ children }) => {
     router.push(UrlService.home());
   }
 
-  async function connectWallet(walletSource: Wallets): Promise<void> {
-    console.log(`connecting to ${walletSource}`);
-
-    //window.wallet = window[walletSource];
+  async function connectWallet(): Promise<void> {
     // const selectedNetwork = getSelectedNetwork();
 
     // if (selectedNetwork.suggestWalletChain) {
@@ -154,6 +141,8 @@ export const WalletProvider = ({ children }) => {
     // }
 
     //await window.wallet.enable(selectedNetwork.chainId);
+
+    console.log("Connecting wallet with CosmosKit...");
     connect();
 
     await loadWallet();
@@ -162,8 +151,6 @@ export const WalletProvider = ({ children }) => {
       category: "wallet",
       label: "Connect wallet"
     });
-
-    //localStorage.setItem("wallet_autoconnect", walletSource);
   }
 
   useEffect(() => {
@@ -193,7 +180,6 @@ export const WalletProvider = ({ children }) => {
 
     if (!isMounted.current) return;
 
-    //const address = wallet?.bech32Address;
     const selectedNetworkId = localStorage.getItem("selectedNetworkId");
     const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`)) as LocalWalletDataType[];
 
@@ -206,9 +192,6 @@ export const WalletProvider = ({ children }) => {
     currentWallets = currentWallets.map(x => ({ ...x, selected: x.address === walletAddress }));
 
     localStorage.setItem(`${selectedNetworkId}/wallets`, JSON.stringify(currentWallets));
-
-    //setWalletAddress(address);
-    //setWalletName(wallet.name);
 
     await refreshBalances();
 

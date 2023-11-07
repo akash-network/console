@@ -1,2 +1,1 @@
-export { useWallet, WalletProvider, Wallets } from "./WalletProvider";
-
+export { useWallet, WalletProvider } from "./WalletProvider";
