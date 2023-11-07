@@ -82,14 +82,6 @@ export const WalletProvider = ({ children }) => {
     }
   }, [settings?.rpcEndpoint]);
 
-  // const onKeystoreChange = (wallet: Wallets) => {
-  //   console.log(`Key store in ${wallet} is changed.`);
-
-  //   loadWallet();
-
-  //   router.push(UrlService.home());
-  // };
-
   async function createStargateClient() {
     const selectedNetwork = getSelectedNetwork();
 
@@ -155,6 +147,8 @@ export const WalletProvider = ({ children }) => {
 
   useEffect(() => {
     if (walletAddress) {
+      router.push(UrlService.home());
+
       loadWallet();
     }
   }, [walletAddress]);
