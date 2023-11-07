@@ -35,7 +35,7 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
   const eleRefs = useRef(null);
   const textFieldRef = useRef<HTMLInputElement>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const filteredGpuTemplates = gpuTemplates.filter(x => x.name.includes(currentService.image));
+  const filteredGpuTemplates = gpuTemplates.filter(x => x.name.toLowerCase().includes(currentService.image));
   const open = Boolean(anchorEl) && filteredGpuTemplates.length > 0;
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
   // Effect that scrolls active element when it changes
   useLayoutEffect(() => {
     if (selectedTemplate) {
-      eleRefs[selectedTemplate.id].current.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+      eleRefs[selectedTemplate.id].current?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
     }
   }, [gpuTemplates, selectedTemplate]);
 

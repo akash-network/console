@@ -54,6 +54,7 @@ export const cacheKeys = {
   getAuditors: "getAuditors",
   getProviderList: "getProviderList",
   getChainStats: "getChainStats",
+  getProviderRegions: "getProviderRegions",
   getMainnetNodes: "getMainnetNodes",
   getTestnetNodes: "getTestnetNodes",
   getSandboxNodes: "getSandboxNodes",

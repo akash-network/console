@@ -22,7 +22,7 @@ import { ProviderStatsKey } from "@src/types/graph";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import axios from "axios";
 import { getMarketData } from "@src/providers/marketDataProvider";
-import { getAuditors, getProviderAttributesSchema } from "@src/providers/githubProvider";
+import { getAuditors, getProviderAttributesSchema, getProviderRegions } from "@src/providers/githubProvider";
 
 export const apiRouter = express.Router();
 
@@ -336,6 +336,14 @@ apiRouter.get(
   })
 );
 
+apiRouter.get(
+  "/provider-regions",
+  asyncHandler(async (req, res) => {
+    const response = await cacheResponse(60 * 5, cacheKeys.getProviderRegions, getProviderRegions);
+    res.send(response);
+  })
+);
+
 apiRouter.post(
   "/pricing",
   express.json(),
@@ -378,6 +386,14 @@ apiRouter.get(
   asyncHandler(async (req, res) => {
     const providerAttributesSchema = await getProviderAttributesSchema();
     res.send(providerAttributesSchema);
+  })
+);
+
+apiRouter.get(
+  "/regions",
+  asyncHandler(async (req, res) => {
+    const regions = await getProviderRegions();
+    res.send(regions);
   })
 );
 
