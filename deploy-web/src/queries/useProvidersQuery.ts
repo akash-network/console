@@ -4,7 +4,7 @@ import axios, { AxiosResponse } from "axios";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { getNetworkCapacityDto, providerStatusToDto } from "@src/utils/providerUtils";
 import { PROVIDER_PROXY_URL } from "@src/utils/constants";
-import { ApiProviderDetail, ApiProviderList, Auditor } from "@src/types/provider";
+import { ApiProviderDetail, ApiProviderList, ApiProviderRegion, Auditor } from "@src/types/provider";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 
 async function getProviderDetail(owner: string): Promise<ApiProviderDetail> {
@@ -100,4 +100,14 @@ async function getProviderList(): Promise<Array<ApiProviderList>> {
 
 export function useProviderList(options = {}) {
   return useQuery(QueryKeys.getProviderListKey(), () => getProviderList(), options);
+}
+
+async function getProviderRegions(): Promise<Array<ApiProviderRegion>> {
+  const response = await axios.get(ApiUrlService.providerRegions());
+
+  return response.data;
+}
+
+export function useProviderRegions(options = {}) {
+  return useQuery(QueryKeys.getProviderRegionsKey(), () => getProviderRegions(), options);
 }

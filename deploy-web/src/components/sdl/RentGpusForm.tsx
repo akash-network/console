@@ -44,9 +44,6 @@ type Props = {};
 const useStyles = makeStyles()(theme => ({
   formControl: {
     marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
   }
 }));
 
@@ -271,7 +268,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
           <Grid container spacing={2} sx={{ marginTop: "1rem" }}>
             <Grid item xs={6}>
-              <RegionSelect control={control} providerAttributesSchema={providerAttributesSchema} />
+              <RegionSelect control={control} />
             </Grid>
             <Grid item xs={6}>
               <FormControl className={classes.formControl} fullWidth sx={{ display: "flex", alignItems: "center", flexDirection: "row" }}>
