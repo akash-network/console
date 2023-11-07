@@ -1,11 +1,10 @@
 import { cx } from "@emotion/css";
-import { Box, Button, Paper, Step, StepContent, StepLabel, Stepper, Typography } from "@mui/material";
+import { Box, Button, Step, StepContent, StepLabel, Stepper, Typography } from "@mui/material";
 import { useWallet } from "@src/context/WalletProvider";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { makeStyles } from "tss-react/mui";
-import { LinkTo } from "../shared/LinkTo";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
 import CancelIcon from "@mui/icons-material/Cancel";
 import CheckIcon from "@mui/icons-material/Check";
@@ -37,7 +36,7 @@ type Props = {};
 export const GetStartedStepper: React.FunctionComponent<Props> = () => {
   const { classes } = useStyles();
   const [activeStep, setActiveStep] = useState(0);
-  const { isKeplrInstalled, isLeapInstalled, isWalletConnected, walletBalances } = useWallet();
+  const { isWalletConnected, walletBalances } = useWallet();
   const aktBalance = walletBalances ? uaktToAKT(walletBalances.uakt) : null;
   const usdcBalance = walletBalances ? udenomToDenom(walletBalances.usdc) : null;
 
@@ -97,56 +96,45 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
             </Box>
           </Box>
 
-          {!isKeplrInstalled && !isLeapInstalled && (
+          <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
+            <CheckIcon color="success" sx={{ marginRight: ".5rem" }} />
+            Wallet is installed
+          </Box>
+
+          {isWalletConnected ? (
             <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
-              <CancelIcon color="error" sx={{ marginRight: ".5rem" }} />
-              Wallet is not installed
+              <CheckIcon color="success" sx={{ marginRight: ".5rem" }} />
+              Wallet is connected
+            </Box>
+          ) : (
+            <Box>
+              <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
+                <CancelIcon color="error" sx={{ marginRight: ".5rem" }} />
+                Wallet is not connected
+              </Box>
+
+              <ConnectWalletButton />
             </Box>
           )}
 
-          {(isKeplrInstalled || isLeapInstalled) && (
-            <>
-              <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
+          {walletBalances && (
+            <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
+              {aktBalance >= 5 || usdcBalance >= 5 ? (
                 <CheckIcon color="success" sx={{ marginRight: ".5rem" }} />
-                Wallet is installed
-              </Box>
-
-              {isWalletConnected ? (
-                <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
-                  <CheckIcon color="success" sx={{ marginRight: ".5rem" }} />
-                  Wallet is connected
-                </Box>
               ) : (
-                <Box>
-                  <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
-                    <CancelIcon color="error" sx={{ marginRight: ".5rem" }} />
-                    Wallet is not connected
-                  </Box>
-
-                  <ConnectWalletButton />
-                </Box>
+                <CustomTooltip
+                  title={
+                    <>
+                      If you don't have 5 AKT or USDC, you can request authorization for some tokens to get started on our{" "}
+                      <ExternalLink href="https://discord.gg/akash" text="Discord" />.
+                    </>
+                  }
+                >
+                  <WarningIcon color="warning" sx={{ marginRight: ".5rem" }} />
+                </CustomTooltip>
               )}
-
-              {walletBalances && (
-                <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
-                  {aktBalance >= 5 || usdcBalance >= 5 ? (
-                    <CheckIcon color="success" sx={{ marginRight: ".5rem" }} />
-                  ) : (
-                    <CustomTooltip
-                      title={
-                        <>
-                          If you don't have 5 AKT or USDC, you can request authorization for some tokens to get started on our{" "}
-                          <ExternalLink href="https://discord.gg/akash" text="Discord" />.
-                        </>
-                      }
-                    >
-                      <WarningIcon color="warning" sx={{ marginRight: ".5rem" }} />
-                    </CustomTooltip>
-                  )}
-                  You have {aktBalance} AKT and {usdcBalance} USDC
-                </Box>
-              )}
-            </>
+              You have {aktBalance} AKT and {usdcBalance} USDC
+            </Box>
           )}
         </StepContent>
       </Step>
@@ -213,4 +201,3 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
     </Stepper>
   );
 };
-

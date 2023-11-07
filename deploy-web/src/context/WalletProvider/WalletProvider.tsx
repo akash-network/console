@@ -30,8 +30,6 @@ type ContextType = {
   address: string;
   walletName: string;
   walletBalances: Balances;
-  isLeapInstalled: boolean;
-  isKeplrInstalled: boolean;
   isWalletConnected: boolean;
   isWalletLoaded: boolean;
   connectWallet: (walletSource: Wallets) => Promise<void>;
@@ -41,6 +39,7 @@ type ContextType = {
   refreshBalances: (address?: string) => Promise<Balances>;
 };
 
+// TODO REMOVE?
 export enum Wallets {
   KEPLR = "keplr",
   LEAP = "leap"
@@ -50,8 +49,6 @@ const WalletProviderContext = React.createContext<ContextType>({
   address: null,
   walletName: null,
   walletBalances: null,
-  isLeapInstalled: false,
-  isKeplrInstalled: false,
   isWalletConnected: false,
   isWalletLoaded: false,
   connectWallet: null,
@@ -63,9 +60,6 @@ const WalletProviderContext = React.createContext<ContextType>({
 
 export const WalletProvider = ({ children }) => {
   const [walletBalances, setWalletBalances] = useState<Balances>(null);
-  const [isKeplrInstalled, setIsKeplrInstalled] = useState<boolean>(false);
-  const [isLeapInstalled, setIsLeapInstalled] = useState<boolean>(false);
-  const [isWindowLoaded, setIsWindowLoaded] = useState<boolean>(false);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(false);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
@@ -87,67 +81,6 @@ export const WalletProvider = ({ children }) => {
     estimateFee,
     broadcast
   } = useChain("akash");
-
-  useEffect(() => {
-    if (document.readyState === "complete") {
-      setIsWindowLoaded(true);
-    } else {
-      const onLoad = () => {
-        setIsWindowLoaded(true);
-      };
-      window.addEventListener("load", onLoad);
-      // Remove the event listener when component unmounts
-      return () => window.removeEventListener("load", onLoad);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isWindowLoaded && isSettingsInit) {
-      if (!!window.keplr || !!window.leap) {
-        if (!!window.keplr) {
-          setIsKeplrInstalled(true);
-        }
-
-        if (!!window.leap) {
-          setIsLeapInstalled(true);
-        }
-
-        if (localStorage.getItem("wallet_autoconnect")) {
-          const storedWallet = localStorage.getItem("wallet_autoconnect");
-
-          if (storedWallet === Wallets.KEPLR) {
-            window.wallet = window.keplr;
-          } else if (storedWallet === Wallets.LEAP) {
-            window.wallet = window.leap;
-          }
-
-          window.wallet.defaultOptions = {
-            sign: {
-              preferNoSetMemo: true
-            }
-          };
-
-          loadWallet();
-        } else {
-          setIsWalletLoaded(true);
-        }
-
-        // const keplrOnKeystoreChange = () => onKeystoreChange(Wallets.KEPLR);
-        // const leapOnKeystoreChange = () => onKeystoreChange(Wallets.LEAP);
-        // window.addEventListener("keplr_keystorechange", keplrOnKeystoreChange);
-        // window.addEventListener("leap_keystorechange", leapOnKeystoreChange);
-
-        return () => {
-          isMounted.current = false;
-
-          // window.removeEventListener("keplr_keystorechange", keplrOnKeystoreChange);
-          // window.removeEventListener("leap_keystorechange", leapOnKeystoreChange);
-        };
-      } else {
-        setIsWalletLoaded(true);
-      }
-    }
-  }, [isWindowLoaded, isSettingsInit]);
 
   useEffect(() => {
     if (settings?.rpcEndpoint && sigingClient.current) {
@@ -428,8 +361,6 @@ export const WalletProvider = ({ children }) => {
         address: walletAddress,
         walletName: username,
         walletBalances,
-        isKeplrInstalled,
-        isLeapInstalled,
         isWalletConnected: isWalletConnected,
         isWalletLoaded,
         connectWallet,

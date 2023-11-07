@@ -25,7 +25,7 @@ import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { Provider } from "jotai";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { PageHead } from "@src/components/layout/PageHead";
-import { ChainProvider } from "@cosmos-kit/react";
+import { ChainProvider, WalletModal } from "@cosmos-kit/react";
 import { wallets as keplr } from "@cosmos-kit/keplr";
 import { wallets as leap } from "@cosmos-kit/leap-extension";
 import { wallets as cosmostation } from "@cosmos-kit/cosmostation";
