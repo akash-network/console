@@ -9,6 +9,7 @@ import { CustomSnackbarProvider } from "@src/context/CustomSnackbarProvider";
 import { AppProps } from "next/app";
 import withDarkMode from "next-dark-mode";
 import "../styles/index.css";
+import "../styles/global.css";
 import { QueryClientProvider } from "react-query";
 import { queryClient } from "@src/queries";
 import { WalletProvider } from "@src/context/WalletProvider";
