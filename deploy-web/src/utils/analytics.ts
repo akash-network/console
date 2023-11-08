@@ -17,6 +17,7 @@ export enum AnalyticsEvents {
   CREATE_LEASE = "create_lease",
   SEND_MANIFEST = "send_manifest",
   CREATE_DEPLOYMENT = "create_deployment",
+  CREATE_GPU_DEPLOYMENT = "create_gpu_deployment",
   AUTHORIZE_SPEND = "authorize_spend",
   NAVIGATE_TAB = "navigate_tab_", // Append tab
 

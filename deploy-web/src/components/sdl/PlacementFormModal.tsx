@@ -2,7 +2,7 @@ import { ReactNode, useRef } from "react";
 import { makeStyles } from "tss-react/mui";
 import { Popup } from "../shared/Popup";
 import { Control, Controller } from "react-hook-form";
-import { Box, FormControl, Grid, InputAdornment, InputLabel, MenuItem, Select, TextField, useTheme } from "@mui/material";
+import { Box, FormControl, Grid, InputAdornment, InputLabel, MenuItem, Select, TextField } from "@mui/material";
 import { Placement, SdlBuilderFormValues, Service } from "@src/types";
 import { FormPaper } from "./FormPaper";
 import { SignedByFormControl, SignedByRefType } from "./SignedByFormControl";
@@ -18,7 +18,6 @@ import { USDLabel } from "../shared/UsdLabel";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 
 type Props = {
-  open: boolean;
   serviceIndex: number;
   services: Service[];
   onClose: () => void;
@@ -36,9 +35,8 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const PlacementFormModal: React.FunctionComponent<Props> = ({ open, control, services, serviceIndex, onClose, placement: _placement }) => {
+export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, services, serviceIndex, onClose, placement: _placement }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
   const signedByRef = useRef<SignedByRefType>();
   const attritubesRef = useRef<AttributesRefType>();
   const supportedSdlDenoms = useSdlDenoms();
@@ -78,7 +76,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ open, contr
   return (
     <Popup
       fullWidth
-      open={open}
+      open
       variant="custom"
       title="Edit placement"
       actions={[

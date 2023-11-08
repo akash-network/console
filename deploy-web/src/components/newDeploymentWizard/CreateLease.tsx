@@ -42,6 +42,7 @@ import { BidDto } from "@src/types/deployment";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { RouteStepKeys } from "@src/utils/constants";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 
 const yaml = require("js-yaml");
@@ -134,7 +135,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
             }
           });
 
-          if (!isAdded && provider.hostUri.includes(search)) {
+          if (!isAdded && provider?.hostUri.includes(search)) {
             fBids.push(bid.id);
           }
         }
@@ -401,7 +402,12 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
               <FormControlLabel
                 control={<Checkbox checked={isFilteringAudited} onChange={(ev, value) => setIsFilteringAudited(value)} color="secondary" size="small" />}
-                label="Audited"
+                label={
+                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                    Audited
+                    <VerifiedUserIcon fontSize="small" color="success" sx={{ marginLeft: ".5rem" }} />
+                  </Box>
+                }
               />
 
               {!isLoadingBids && allClosed && (

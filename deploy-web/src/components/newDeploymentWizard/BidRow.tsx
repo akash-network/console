@@ -19,6 +19,7 @@ import { cx } from "@emotion/css";
 import { Uptime } from "../providers/Uptime";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
+import WarningIcon from "@mui/icons-material/Warning";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -149,9 +150,9 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
       <TableCell align="center">
         {provider.name ? (
           <Link href={UrlService.providerDetail(provider.owner)} onClick={e => e.stopPropagation()}>
-            {provider.name?.length > 25 ? (
+            {provider.name?.length > 20 ? (
               <CustomTooltip title={provider.name}>
-                <span>{getSplitText(provider.name, 10, 10)}</span>
+                <span>{getSplitText(provider.name, 4, 13)}</span>
               </CustomTooltip>
             ) : (
               provider.name
@@ -160,7 +161,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
         ) : (
           <div>
             <CustomTooltip title={provider.hostUri}>
-              <div>{getSplitText(provider.hostUri, 15, 15)}</div>
+              <div>{getSplitText(provider.hostUri, 4, 13)}</div>
             </CustomTooltip>
           </div>
         )}
@@ -177,7 +178,13 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
             <AuditorButton provider={provider} />
           </Box>
         ) : (
-          <Typography variant="caption">No</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Typography variant="caption">No</Typography>
+
+            <CustomTooltip title={<>This provider is not audited, which may result in a lesser quality experience.</>}>
+              <WarningIcon color="warning" fontSize="small" sx={{ marginLeft: ".5rem" }} />
+            </CustomTooltip>
+          </Box>
         )}
       </TableCell>
 

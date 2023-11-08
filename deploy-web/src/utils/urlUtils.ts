@@ -24,6 +24,7 @@ export class UrlService {
   static getStartedWallet = (section?: string) => `/get-started/wallet${appendSearchParams({ section })}`;
 
   static sdlBuilder = (id?: string) => `/sdl-builder${appendSearchParams({ id })}`;
+  static rentGpus = () => `/rent-gpu`;
   static priceCompare = () => "/price-compare";
   static analytics = () => "/analytics";
   static graph = (snapshot: string) => `/graph/${snapshot}`;
@@ -118,4 +119,10 @@ export function isValidHttpUrl(str: string): boolean {
   }
 
   return url.protocol === "http:" || url.protocol === "https:";
+}
+
+export function handleDocClick(ev, url) {
+  ev.preventDefault();
+
+  window.open(url, "_blank");
 }

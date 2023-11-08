@@ -1,8 +1,15 @@
-export const minMemory = 1024; // 1 Mi
-export const minStorage = 5 * 1024; // 5 Mi
-export const maxMemory = 512 * 1024 ** 3; // 512 Gi
-export const maxGroupMemory = 1024 * 1024 ** 3; // 1024 Gi
-export const maxStorage = 32 * 1024 ** 4; // 32 Ti
+// https://github.com/akash-network/akash-api/blob/ea71fbd0bee740198034bf1b0261c90baea88be0/go/node/deployment/v1beta3/validation_config.go
+export const validationConfig = {
+  maxCpuAmount: 256,
+  maxGroupCpuCount: 512,
+  maxGpuAmount: 100,
+  maxGroupGpuCount: 512,
+  minMemory: 1024, // 1 Mi
+  minStorage: 5 * 1024, // 5 Mi
+  maxMemory: 512 * 1024 ** 3, // 512 Gi
+  maxGroupMemory: 1024 * 1024 ** 3, // 1024 Gi
+  maxStorage: 32 * 1024 ** 4 // 32 Ti
+};
 
 export const memoryUnits = [
   { id: 3, suffix: "Mb", value: 1000 ** 2 },

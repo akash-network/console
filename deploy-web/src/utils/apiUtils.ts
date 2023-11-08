@@ -24,6 +24,9 @@ export class ApiUrlService {
   static providerDetail(owner: string) {
     return `${BASE_API_URL}/providers/${owner}`;
   }
+  static providerRegions() {
+    return `${BASE_API_URL}/provider-regions`;
+  }
   static block(apiEndpoint: string, id: string) {
     return `${apiEndpoint}/blocks/${id}`;
   }

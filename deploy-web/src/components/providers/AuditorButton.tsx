@@ -1,5 +1,5 @@
 import { useState, MouseEvent } from "react";
-import SecurityIcon from "@mui/icons-material/Security";
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import { IconButton } from "@mui/material";
 import { AuditorsModal } from "./AuditorsModal";
 import { ClientProviderDetailWithStatus, ClientProviderList } from "@src/types/provider";
@@ -28,7 +28,7 @@ export const AuditorButton: React.FunctionComponent<Props> = ({ provider }) => {
   return (
     <>
       <IconButton onClick={onAuditorClick} size="small">
-        <SecurityIcon fontSize="small" color="secondary" />
+        <VerifiedUserIcon fontSize="small" color="success" />
       </IconButton>
 
       {isViewingAuditors && <AuditorsModal attributes={provider.attributes} onClose={onClose} />}

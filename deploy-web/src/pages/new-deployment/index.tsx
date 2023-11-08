@@ -36,7 +36,7 @@ const useStyles = makeStyles()(theme => ({
 const NewDeploymentPage: React.FunctionComponent<Props> = ({}) => {
   const { classes } = useStyles();
   const { isLoading: isLoadingTemplates, templates } = useTemplates();
-  const [activeStep, setActiveStep] = useState(0);
+  const [activeStep, setActiveStep] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation>(null);
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const [editedManifest, setEditedManifest] = useState(null);
@@ -143,7 +143,7 @@ const NewDeploymentPage: React.FunctionComponent<Props> = ({}) => {
             </IconButton>
           </Box>
 
-          <CustomizedSteppers steps={steps} activeStep={activeStep} />
+          {activeStep !== null && <CustomizedSteppers steps={steps} activeStep={activeStep} />}
         </div>
 
         {activeStep === 0 && <TemplateList setSelectedTemplate={setSelectedTemplate} setEditedManifest={setEditedManifest} />}

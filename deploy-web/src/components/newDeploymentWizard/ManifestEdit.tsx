@@ -16,7 +16,7 @@ import ViewPanel from "../shared/ViewPanel";
 import { DeploymentDepositModal } from "../deploymentDetail/DeploymentDepositModal";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, handleDocClick } from "@src/utils/urlUtils";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { PrerequisiteList } from "./PrerequisiteList";
@@ -27,6 +27,7 @@ import { updateWallet } from "@src/utils/walletUtils";
 import sdlStore from "@src/store/sdlStore";
 import { useAtom } from "jotai";
 import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
+import { validateDeploymentData } from "@src/utils/deploymentUtils";
 
 const yaml = require("js-yaml");
 
@@ -101,7 +102,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
       const doc = yaml.load(yamlStr);
       const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, doc, dseq, address, deposit, depositorAddress);
-      validateDeploymentData(dd);
+      validateDeploymentData(dd, selectedTemplate);
 
       setSdlDenom(dd.deposit.denom);
 
@@ -120,35 +121,14 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     }
   }
 
-  function handleDocClick(ev, url) {
-    ev.preventDefault();
-
-    window.open(url, "_blank");
-  }
-
-  /**
-   * Validate values to change in the template
-   */
-  function validateDeploymentData(deploymentData) {
-    if (selectedTemplate?.valuesToChange) {
-      for (const valueToChange of selectedTemplate.valuesToChange) {
-        if (valueToChange.field === "accept" || valueToChange.field === "env") {
-          const serviceNames = Object.keys(deploymentData.sdl.services);
-          for (const serviceName of serviceNames) {
-            if (
-              deploymentData.sdl.services[serviceName].expose?.some(e => e.accept?.includes(valueToChange.initialValue)) ||
-              deploymentData.sdl.services[serviceName].env?.some(e => e?.includes(valueToChange.initialValue))
-            ) {
-              let error = new Error(`Template value of "${valueToChange.initialValue}" needs to be changed`);
-              error.name = "TemplateValidation";
-
-              throw error;
-            }
-          }
-        }
-      }
+  const handleCreateDeployment = async () => {
+    if (selectedSdlEditMode === "builder") {
+      const valid = await sdlBuilderRef.current.validate();
+      if (!valid) return;
     }
-  }
+
+    setIsCheckingPrerequisites(true);
+  };
 
   const onPrerequisiteContinue = () => {
     setIsCheckingPrerequisites(false);
@@ -287,7 +267,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
               variant="contained"
               color="secondary"
               disabled={isCreatingDeployment || !!parsingError || !editedManifest}
-              onClick={() => setIsCheckingPrerequisites(true)}
+              onClick={() => handleCreateDeployment()}
               sx={{ whiteSpace: "nowrap", width: { xs: "100%", sm: "auto" } }}
             >
               {isCreatingDeployment ? (
