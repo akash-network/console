@@ -69,7 +69,7 @@ export const AcceptFormControl = forwardRef<AcceptRefType, Props>(({ control, se
             <strong>Accept</strong>
           </Typography>
 
-          <CustomTooltip arrow title={<>List of hosts to accept connections for.</>}>
+          <CustomTooltip arrow title={<>List of hosts/domains to accept connections for.</>}>
             <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
           </CustomTooltip>
         </Box>

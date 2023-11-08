@@ -1,7 +1,7 @@
 import { ReactNode, useImperativeHandle, forwardRef } from "react";
 import { makeStyles } from "tss-react/mui";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Box, Button, Checkbox, FormControlLabel, IconButton, MenuItem, Paper, Select, Typography, useTheme } from "@mui/material";
+import { Box, Button, IconButton, MenuItem, Paper, Select, Typography, useTheme } from "@mui/material";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { nanoid } from "nanoid";
@@ -86,21 +86,7 @@ export const ToFormControl = forwardRef<ToRefType, Props>(({ control, serviceInd
             </CustomTooltip>
           </Box>
 
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Controller
-              control={control}
-              name={`services.${serviceIndex}.expose.${exposeIndex}.global`}
-              render={({ field }) => (
-                <FormControlLabel
-                  labelPlacement="start"
-                  sx={{ paddingRight: "1rem" }}
-                  componentsProps={{ typography: { variant: "body2" } }}
-                  control={<Checkbox checked={field.value} onChange={field.onChange} color="secondary" size="small" sx={{ marginLeft: ".5rem", padding: 0 }} />}
-                  label="Global"
-                />
-              )}
-            />
-          </Box>
+          
         </Box>
 
         {accept.map((acc, accIndex) => {

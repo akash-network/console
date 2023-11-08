@@ -124,7 +124,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
     setError(null);
 
     try {
-      const sdl = generateSdl(data);
+      const sdl = generateSdl(data.services);
 
       setDeploySdl({
         title: "",
@@ -157,7 +157,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
     setError(null);
 
     try {
-      const sdl = generateSdl({ services: _services });
+      const sdl = generateSdl(_services);
       setSdlResult(sdl);
       setIsPreviewingSdl(true);
 
@@ -171,7 +171,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
   };
 
   const getTemplateData = () => {
-    const sdl = generateSdl({ services: _services });
+    const sdl = generateSdl(_services);
     const template: Partial<ITemplate> = {
       id: templateMetadata?.id || null,
       sdl,
@@ -294,7 +294,6 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
         {services.map((service, serviceIndex) => (
           <SimpleServiceFormControl
             key={service.id}
-            service={service}
             serviceIndex={serviceIndex}
             _services={_services}
             providerAttributesSchema={providerAttributesSchema}

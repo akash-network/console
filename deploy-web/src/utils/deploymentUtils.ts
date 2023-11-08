@@ -45,3 +45,27 @@ export const sendManifestToProvider = async (providerInfo: ApiProviderList, mani
 
   return response;
 };
+
+/**
+ * Validate values to change in the template
+ */
+export function validateDeploymentData(deploymentData, selectedTemplate?) {
+  if (selectedTemplate?.valuesToChange) {
+    for (const valueToChange of selectedTemplate.valuesToChange) {
+      if (valueToChange.field === "accept" || valueToChange.field === "env") {
+        const serviceNames = Object.keys(deploymentData.sdl.services);
+        for (const serviceName of serviceNames) {
+          if (
+            deploymentData.sdl.services[serviceName].expose?.some(e => e.accept?.includes(valueToChange.initialValue)) ||
+            deploymentData.sdl.services[serviceName].env?.some(e => e?.includes(valueToChange.initialValue))
+          ) {
+            let error = new Error(`Template value of "${valueToChange.initialValue}" needs to be changed`);
+            error.name = "TemplateValidation";
+
+            throw error;
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,23 +1,24 @@
 import { Autocomplete, Box, ClickAwayListener, TextField } from "@mui/material";
-import { SdlBuilderFormValues } from "@src/types";
+import { RentGpusFormValues, SdlBuilderFormValues } from "@src/types";
 import { ProviderAttributeSchemaDetailValue, ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { useState } from "react";
 import { Control, Controller, FieldPath } from "react-hook-form";
 
-type ProviderSelectProps = {
-  control: Control<SdlBuilderFormValues, any>;
+type FormSelectProps = {
+  control: Control<any, any>;
   providerAttributesSchema: ProviderAttributesSchema;
   optionName?: keyof ProviderAttributesSchema;
-  name: FieldPath<SdlBuilderFormValues>;
+  name: FieldPath<SdlBuilderFormValues | RentGpusFormValues>;
   className?: string;
   requiredMessage?: string;
   label: string;
   multiple?: boolean;
   required?: boolean;
   disabled?: boolean;
+  valueType?: "key" | "description ";
 };
 
-export const FormSelect: React.FunctionComponent<ProviderSelectProps> = ({
+export const FormSelect: React.FunctionComponent<FormSelectProps> = ({
   control,
   providerAttributesSchema,
   optionName,
@@ -27,7 +28,8 @@ export const FormSelect: React.FunctionComponent<ProviderSelectProps> = ({
   label,
   required = providerAttributesSchema[optionName]?.required || false,
   multiple,
-  disabled
+  disabled,
+  valueType = "description"
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const options = providerAttributesSchema[optionName]?.values || [];
@@ -47,7 +49,7 @@ export const FormSelect: React.FunctionComponent<ProviderSelectProps> = ({
             disabled={disabled}
             options={options}
             value={field.value || (multiple ? ([] as any) : null)}
-            getOptionLabel={option => option?.description}
+            getOptionLabel={option => (valueType === "key" ? option?.key : option?.description) || ""}
             defaultValue={multiple ? [] : null}
             isOptionEqualToValue={(option, value) => option.key === value.key}
             filterSelectedOptions
@@ -80,7 +82,7 @@ export const FormSelect: React.FunctionComponent<ProviderSelectProps> = ({
                   {...props}
                   key={option.key}
                 >
-                  <div>{option.description}</div>
+                  <div>{valueType === "key" ? option.key : option.description}</div>
                 </Box>
               );
             }}

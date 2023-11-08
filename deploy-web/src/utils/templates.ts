@@ -5,13 +5,6 @@ export const sdlBuilderTemplate = {
   description: "An empty template with some basic config to get started.",
   content: "# Paste your SDL here!"
 };
-export const emptyTemplate = {
-  title: "Empty",
-  code: "empty",
-  category: "General",
-  description: "An empty template with some basic config to get started.",
-  content: ""
-};
 export const helloWorldTemplate = {
   title: "Hello World",
   name: "Hello World",
@@ -140,4 +133,4 @@ deployment:
 `
 };
 
-export const hardcodedTemplates = [sdlBuilderTemplate, emptyTemplate, helloWorldTemplate, ubuntuTemplate];
+export const hardcodedTemplates = [sdlBuilderTemplate, helloWorldTemplate, ubuntuTemplate];

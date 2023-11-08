@@ -184,11 +184,12 @@ const TemplateGalleryPage: React.FunctionComponent<Props> = ({}) => {
         </Box>
 
         <Box sx={{ display: "flex" }}>
-          {!isLoadingTemplates && templates.length > 0 && (
+          {templates.length > 0 && (
             <Box sx={{ width: "222px", marginRight: "3rem", display: { xs: "none", sm: "none", md: "block" } }}>
               <Typography variant="body1" sx={{ marginBottom: "1rem", fontWeight: "bold" }}>
                 Filter Templates
               </Typography>
+
               {searchBar}
 
               <List>

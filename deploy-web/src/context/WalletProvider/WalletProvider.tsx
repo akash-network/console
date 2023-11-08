@@ -78,8 +78,6 @@ export const WalletProvider = ({ children }) => {
   const usdcIbcDenom = useUsdcDenom();
 
   useEffect(() => {
-    console.log("useWallet on mount");
-
     if (document.readyState === "complete") {
       setIsWindowLoaded(true);
     } else {

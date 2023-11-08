@@ -34,6 +34,7 @@ export class QueryKeys {
   static getBidListKey = (address: string, dseq: string) => ["BID_LIST", address, dseq];
   static getProvidersKey = () => ["PROVIDERS"];
   static getProviderListKey = () => ["PROVIDER_LIST"];
+  static getProviderRegionsKey = () => ["PROVIDER_REGIONS"];
   static getProviderDetailKey = (owner: string) => ["PROVIDERS", owner];
   static getDataNodeProvidersKey = () => ["DATA_NODE_PROVIDERS"];
   static getProviderStatusKey = (providerUri: string) => ["PROVIDER_STATUS", providerUri];

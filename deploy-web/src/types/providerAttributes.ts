@@ -70,4 +70,11 @@ export type ProviderAttributeSchemaDetail = {
   values?: Array<ProviderAttributeSchemaDetailValue>;
 };
 
-export type ProviderAttributeSchemaDetailValue = { key: string; description: string; value?: any };
+export interface ProviderAttributeSchemaDetailValue {
+  key: string;
+  description: string;
+  value?: any;
+}
+export interface ProviderRegionValue extends ProviderAttributeSchemaDetailValue {
+  providers: string[];
+}

@@ -1,4 +1,4 @@
-import { ProviderAttributeSchemaDetailValue } from "./providerAttributes";
+import { ProviderAttributeSchemaDetailValue, ProviderRegionValue } from "./providerAttributes";
 
 export type Service = {
   id: string;
@@ -141,4 +141,9 @@ export type ITemplate = {
 export type SdlSaveTemplateFormValues = {
   title: string;
   visibility: string;
+};
+
+export type RentGpusFormValues = {
+  services: Service[];
+  region: Partial<ProviderRegionValue>;
 };

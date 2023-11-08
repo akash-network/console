@@ -14,8 +14,11 @@ import { DeployOptionBox } from "./DeployOptionBox";
 import Link from "next/link";
 import { BuildCircleTwoTone } from "@mui/icons-material";
 import { TemplateCreation } from "@src/types";
-import { emptyTemplate, helloWorldTemplate, ubuntuTemplate } from "@src/utils/templates";
+import { helloWorldTemplate, ubuntuTemplate } from "@src/utils/templates";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
+import { useAtom } from "jotai";
+import sdlStore from "@src/store/sdlStore";
+import ShutterSpeedIcon from "@mui/icons-material/ShutterSpeed";
 
 const useStyles = makeStyles()(theme => ({}));
 
@@ -43,6 +46,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
   const router = useRouter();
   const fileUploadRef = useRef(null);
   const [previewTemplates, setPreviewTemplates] = useState([]);
+  const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
 
   useEffect(() => {
     if (templates) {
@@ -81,7 +85,8 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
   };
 
   function onSDLBuilderClick() {
-    router.push(UrlService.sdlBuilder());
+    setSdlEditMode("builder");
+    router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
   }
 
   return (
@@ -111,6 +116,13 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
           />
 
           <DeployOptionBox
+            title="Rent GPUs"
+            description="Rent GPUs from the Akash Network providers to run your AI workloads."
+            icon={<ShutterSpeedIcon />}
+            onClick={() => router.push(UrlService.rentGpus())}
+          />
+
+          <DeployOptionBox
             title={"Build your template"}
             description={"With our new SDL Builder, you can create your own SDL from scratch in a few clicks!"}
             icon={<BuildCircleTwoTone />}
@@ -123,13 +135,6 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
             description={"Upload a deploy.yml file from the computer."}
             icon={<DescriptionIcon />}
             onClick={() => fromFile()}
-          />
-
-          <DeployOptionBox
-            title={emptyTemplate.title}
-            description={emptyTemplate.description}
-            icon={<InsertDriveFileIcon />}
-            onClick={() => selectTemplate(emptyTemplate)}
           />
         </Box>
       </Box>

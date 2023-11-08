@@ -17,6 +17,7 @@ interface Props {
 
 export type SdlBuilderRefType = {
   getSdl: () => string;
+  validate: () => Promise<boolean>;
 };
 
 export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlString, setEditedManifest }, ref) => {
@@ -42,18 +43,23 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   const [serviceCollapsed, setServiceCollapsed] = useState([]);
 
   React.useImperativeHandle(ref, () => ({
-    getSdl: getSdl
+    getSdl: getSdl,
+    validate: async () => {
+      return await trigger();
+    }
   }));
 
   useEffect(() => {
     const { unsubscribe } = watch(data => {
-      const sdl = generateSdl({ services: data.services as Service[] });
+      const sdl = generateSdl(data.services as Service[]);
       setEditedManifest(sdl);
     });
 
     try {
-      const services = createAndValidateSdl(sdlString);
-      setValue("services", services as Service[]);
+      if (!!sdlString) {
+        const services = createAndValidateSdl(sdlString);
+        setValue("services", services as Service[]);
+      }
     } catch (error) {
       setError("Error importing SDL");
     }
@@ -66,7 +72,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   }, [watch]);
 
   const getSdl = () => {
-    return generateSdl({ services: _services });
+    return generateSdl(_services);
   };
 
   const createAndValidateSdl = (yamlStr: string) => {
@@ -110,7 +116,6 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
           {services.map((service, serviceIndex) => (
             <SimpleServiceFormControl
               key={service.id}
-              service={service}
               serviceIndex={serviceIndex}
               _services={_services}
               providerAttributesSchema={providerAttributesSchema}
