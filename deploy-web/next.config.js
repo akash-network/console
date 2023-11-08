@@ -1,3 +1,6 @@
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+  enabled: process.env.ANALYZE === "true"
+});
 const { version } = require("./package.json");
 const isDev = process.env.NODE_ENV === "development";
 const withPWA = require("next-pwa")({
@@ -65,5 +68,5 @@ const sentryWebpackPluginOptions = {
 
 // Make sure adding Sentry options is the last code to run before exporting, to
 // ensure that your source maps include changes from all other Webpack plugins
-module.exports = withPWA(withSentryConfig(moduleExports, sentryWebpackPluginOptions));
+module.exports = withBundleAnalyzer(withPWA(withSentryConfig(moduleExports, sentryWebpackPluginOptions)));
 // module.exports = moduleExports
