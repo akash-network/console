@@ -1,9 +1,6 @@
-import { Avatar, Card, CardContent, CardHeader, Collapse, IconButton, List, ListItem, ListItemAvatar, ListItemText, useTheme } from "@mui/material";
+import { Card, CardContent, CardHeader, Collapse, IconButton, List, ListItem, ListItemAvatar, ListItemText, useTheme } from "@mui/material";
 import { ReactNode, useState } from "react";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ImageIcon from "@mui/icons-material/Image";
-import WorkIcon from "@mui/icons-material/Work";
-import BeachAccessIcon from "@mui/icons-material/BeachAccess";
 import { makeStyles } from "tss-react/mui";
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import CategoryIcon from "@mui/icons-material/Category";
