@@ -95,7 +95,7 @@ apiRouter.get(
   "/predicted-date-height/:timestamp/:blockWindow?",
   asyncHandler(async (req, res) => {
     const timestamp = parseInt(req.params.timestamp);
-    const blockWindow = req.params.height ? parseInt(req.params.blockWindow) : 10_000;
+    const blockWindow = req.params.blockWindow ? parseInt(req.params.blockWindow) : 10_000;
 
     if (isNaN(timestamp)) {
       res.status(400).send("Invalid timestamp.");
