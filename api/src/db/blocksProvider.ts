@@ -1,7 +1,6 @@
 import { AkashBlock as Block, AkashMessage as Message } from "@shared/dbSchemas/akash";
 import { Transaction, Validator } from "@shared/dbSchemas/base";
-import { averageBlockTime } from "@src/utils/constants";
-import { add } from "date-fns";
+import { addSeconds, differenceInSeconds } from "date-fns";
 
 export async function getBlocks(limit: number) {
   const _limit = Math.min(limit, 100);
@@ -32,14 +31,6 @@ export async function getBlocks(limit: number) {
 }
 
 export async function getBlock(height: number) {
-  // const latestBlock = await Block.findOne({
-  //   order: [["height", "DESC"]]
-  // });
-
-  // if (height > latestBlock.height) {
-  //   return getFutureBlockEstimate(height, latestBlock);
-  // }
-
   const block = await Block.findOne({
     where: {
       height: height
@@ -87,9 +78,57 @@ export async function getBlock(height: number) {
   };
 }
 
-async function getFutureBlockEstimate(height: number, latestBlock: Block) {
-  return {
-    height: height,
-    expectedDate: add(latestBlock.datetime, { seconds: (height - latestBlock.height) * averageBlockTime })
-  };
+/**
+ * Calculate the estimated block time
+ * @param latestBlock Block to calculate the average from
+ * @param blockCount Block interval for calculating the average
+ * @returns Average block time in seconds
+ */
+async function calculateAverageBlockTime(latestBlock: Block, blockCount: number) {
+  if (blockCount <= 1) throw new Error("blockCount must be greater than 1");
+
+  const earlierBlock = await Block.findOne({
+    where: {
+      height: Math.max(latestBlock.height - blockCount, 1)
+    }
+  });
+
+  const realBlockCount = latestBlock.height - earlierBlock.height;
+
+  return differenceInSeconds(latestBlock.datetime, earlierBlock.datetime) / realBlockCount;
+}
+
+/**
+ * Get the predicted height at a given date
+ * @param date Date to predict the height of
+ * @param blockWindow Block interval for calculating the average
+ * @returns Predicted height at the given date
+ */
+export async function getPredictedDateHeight(date: Date, blockWindow: number) {
+  const latestBlock = await Block.findOne({ order: [["height", "DESC"]] });
+
+  if (date <= latestBlock.datetime) throw new Error("Date must be in the future");
+
+  const averageBlockTime = await calculateAverageBlockTime(latestBlock, blockWindow);
+
+  const dateDiff = differenceInSeconds(date, latestBlock.datetime);
+
+  return Math.floor(latestBlock.height + dateDiff / averageBlockTime);
+}
+
+/**
+ * Get the predicted date at a given height
+ * @param height Height to predict the date of
+ * @param blockWindow Block window for calculating the average
+ * @returns Predicted date at the given height
+ */
+export async function getPredictedBlockDate(height: number, blockWindow: number) {
+  const latestBlock = await Block.findOne({ order: [["height", "DESC"]] });
+
+  if (height <= latestBlock.height) throw new Error("Height must be in the future");
+
+  const averageBlockTime = await calculateAverageBlockTime(latestBlock, blockWindow);
+
+  const heightDiff = height - latestBlock.height;
+  return addSeconds(latestBlock.datetime, heightDiff * averageBlockTime);
 }
