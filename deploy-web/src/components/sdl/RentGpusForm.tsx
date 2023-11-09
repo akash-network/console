@@ -225,7 +225,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           handleCancel={() => setIsDepositingDeployment(false)}
           onDeploymentDeposit={onDeploymentDeposit}
           min={5} // TODO Query from chain params
-          denom={sdlDenom}
+          denom={currentService?.placement?.pricing?.denom || sdlDenom}
           infoText={
             <Alert severity="info" sx={{ marginBottom: "1rem" }} variant="outlined">
               <Typography variant="caption">
