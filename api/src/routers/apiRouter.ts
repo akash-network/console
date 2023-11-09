@@ -83,8 +83,8 @@ apiRouter.get(
     const date = await getPredictedBlockDate(height, blockWindow);
 
     res.send({
+      predictedDate: date,
       height: height,
-      date: date,
       blockWindow: blockWindow
     });
   })
@@ -110,7 +110,7 @@ apiRouter.get(
     const height = await getPredictedDateHeight(date, blockWindow);
 
     res.send({
-      height: height,
+      predictedHeight: height,
       date: date,
       blockWindow: blockWindow
     });
