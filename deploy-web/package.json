@@ -1,6 +1,6 @@
 {
   "name": "cloudmos-app",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "Web UI to deploy on the Akash Network and view statistic about network usage.",
   "author": "Cloudmos",
   "private": true,
@@ -30,7 +30,7 @@
     "@nivo/line": "^0.80.0",
     "@nivo/pie": "^0.80.0",
     "@react-spring/web": "^9.3.1",
-    "@sentry/nextjs": "^7.64.0",
+    "@sentry/nextjs": "^7.80.0",
     "@stripe/react-stripe-js": "^1.12.0",
     "@stripe/stripe-js": "^1.41.0",
     "@textea/json-viewer": "^3.0.0",
