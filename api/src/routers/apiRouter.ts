@@ -1,5 +1,5 @@
 import express from "express";
-import { getBlock, getBlocks } from "@src/db/blocksProvider";
+import { getBlock, getBlocks, getPredictedBlockDate, getPredictedDateHeight } from "@src/db/blocksProvider";
 import { getTemplateGallery } from "@src/providers/templateReposProvider";
 import { getTransaction, getTransactionByAddress, getTransactions } from "@src/db/transactionsProvider";
 import {
@@ -62,6 +62,59 @@ apiRouter.get(
     } else {
       res.status(404).send("Block not found");
     }
+  })
+);
+
+apiRouter.get(
+  "/predicted-block-date/:height/:blockWindow?",
+  asyncHandler(async (req, res) => {
+    const height = parseInt(req.params.height);
+    const blockWindow = req.params.blockWindow ? parseInt(req.params.blockWindow) : 10_000;
+
+    if (isNaN(height)) {
+      res.status(400).send("Invalid height.");
+      return;
+    }
+
+    if (isNaN(blockWindow)) {
+      res.status(400).send("Invalid block window.");
+      return;
+    }
+
+    const date = await getPredictedBlockDate(height, blockWindow);
+
+    res.send({
+      predictedDate: date,
+      height: height,
+      blockWindow: blockWindow
+    });
+  })
+);
+
+apiRouter.get(
+  "/predicted-date-height/:timestamp/:blockWindow?",
+  asyncHandler(async (req, res) => {
+    const timestamp = parseInt(req.params.timestamp);
+    const blockWindow = req.params.height ? parseInt(req.params.blockWindow) : 10_000;
+
+    if (isNaN(timestamp)) {
+      res.status(400).send("Invalid timestamp.");
+      return;
+    }
+
+    if (isNaN(blockWindow)) {
+      res.status(400).send("Invalid block window.");
+      return;
+    }
+
+    const date = new Date(timestamp * 1000);
+    const height = await getPredictedDateHeight(date, blockWindow);
+
+    res.send({
+      predictedHeight: height,
+      date: date,
+      blockWindow: blockWindow
+    });
   })
 );
 
@@ -265,7 +318,7 @@ apiRouter.get(
     const chainStats = {
       height: latestBlocks[0].height,
       transactionCount: latestBlocks[0].totalTransactionCount,
-      ...(await chainStatsQuery)
+      ...chainStatsQuery
     };
 
     res.send({
