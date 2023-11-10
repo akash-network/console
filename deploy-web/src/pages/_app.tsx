@@ -9,6 +9,7 @@ import { CustomSnackbarProvider } from "@src/context/CustomSnackbarProvider";
 import { AppProps } from "next/app";
 import withDarkMode from "next-dark-mode";
 import "../styles/index.css";
+import "../styles/globals.css";
 import { QueryClientProvider } from "react-query";
 import { queryClient } from "@src/queries";
 import { WalletProvider } from "@src/context/WalletProvider";
@@ -26,9 +27,15 @@ import { Provider } from "jotai";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { PageHead } from "@src/components/layout/PageHead";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
-
 import "@interchain-ui/react/styles";
 import { ChainParamProvider } from "@src/context/ChainParamProvider";
+import { Inter as FontSans } from "next/font/google";
+import { cn } from "@src/@/lib/utils";
+
+export const fontSans = FontSans({
+  subsets: ["latin"],
+  variable: "--font-sans"
+});
 
 interface Props extends AppProps {
   emotionCache?: EmotionCache;
@@ -64,7 +71,7 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
   }, []);
 
   return (
-    <>
+    <main className={cn("min-h-screen font-sans antialiased", fontSans.variable)}>
       <PageHead />
 
       <CacheProvider value={emotionCache}>
@@ -101,7 +108,7 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
           </Provider>
         </QueryClientProvider>
       </CacheProvider>
-    </>
+    </main>
   );
 };
 
