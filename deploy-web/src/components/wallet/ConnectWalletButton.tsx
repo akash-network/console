@@ -2,14 +2,14 @@ import React, { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import Button, { ButtonProps } from "@mui/material/Button";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
-import { useChain } from "@cosmos-kit/react";
+import { useSelectedChain } from "@src/context/CustomChainProvider";
 
 interface Props extends ButtonProps {
   children?: ReactNode;
 }
 
 export const ConnectWalletButton: React.FunctionComponent<Props> = ({ ...rest }) => {
-  const { connect } = useChain("akash");
+  const { connect } = useSelectedChain();
 
   return (
     <Button variant="outlined" color="secondary" onClick={() => connect()} {...rest}>

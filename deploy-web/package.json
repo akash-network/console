@@ -22,7 +22,7 @@
     "@cosmos-kit/cosmostation": "^2.4.6",
     "@cosmos-kit/keplr": "^2.4.0",
     "@cosmos-kit/leap-extension": "^2.5.3",
-    "@cosmos-kit/react": "^2.9.0",
+    "@cosmos-kit/react": "^2.9.9",
     "@emotion/cache": "^11.7.1",
     "@emotion/css": "^11.7.1",
     "@emotion/react": "^11.11.0",

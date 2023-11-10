@@ -18,8 +18,8 @@ import axios from "axios";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
-import { useChain } from "@cosmos-kit/react";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
+import { useSelectedChain } from "../CustomChainProvider";
 
 type Balances = {
   uakt: number;
@@ -61,7 +61,7 @@ export const WalletProvider = ({ children }) => {
   const isMounted = useRef(true);
   const sigingClient = useRef<SigningStargateClient>(null);
   const router = useRouter();
-  const { settings, isSettingsInit } = useSettings();
+  const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
   const {
     getAccount,
@@ -74,8 +74,7 @@ export const WalletProvider = ({ children }) => {
     username,
     estimateFee,
     broadcast
-  } = useChain("akash");
-
+  } = useSelectedChain();
   useEffect(() => {
     if (settings?.rpcEndpoint && sigingClient.current) {
       sigingClient.current = null;

@@ -11,6 +11,7 @@ export let networks: Network[] = [
     description: "Akash Network mainnet network.",
     nodesUrl: mainnetNodes,
     chainId: "akashnet-2",
+    chainRegistryName: "akash",
     versionUrl: ApiUrlService.mainnetVersion(),
     rpcEndpoint: "https://rpc.cosmos.directory/akash",
     enabled: true,
@@ -22,7 +23,9 @@ export let networks: Network[] = [
     description: "Testnet of the new GPU features.",
     nodesUrl: testnetNodes,
     chainId: "testnet-02",
+    chainRegistryName: "akash-testnet",
     versionUrl: ApiUrlService.testnetVersion(),
+    rpcEndpoint: "https://rpc.testnet-02.aksh.pw:443",
     enabled: false,
     version: null, // Set asynchronously
     suggestWalletChain: async () => {
@@ -106,7 +109,9 @@ export let networks: Network[] = [
     description: "Sandbox of the mainnet version.",
     nodesUrl: sandboxNodes,
     chainId: "sandbox-01",
+    chainRegistryName: "akash-sandbox",
     versionUrl: ApiUrlService.sandboxVersion(),
+    rpcEndpoint: "https://rpc.sandbox-01.aksh.pw:443",
     version: null, // Set asynchronously
     enabled: true,
     suggestWalletChain: async () => {
@@ -213,4 +218,3 @@ const selectedNetwork = atom<Network>(networks[0]);
 export default {
   selectedNetwork
 };
-

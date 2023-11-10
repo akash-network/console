@@ -25,15 +25,9 @@ import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { Provider } from "jotai";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { PageHead } from "@src/components/layout/PageHead";
-import { ChainProvider } from "@cosmos-kit/react";
-import { wallets as keplr } from "@cosmos-kit/keplr";
-import { wallets as leap } from "@cosmos-kit/leap-extension";
-import { wallets as cosmostation } from "@cosmos-kit/cosmostation";
-import { chains, assets } from "chain-registry";
+import { CustomChainProvider } from "@src/context/CustomChainProvider";
 
 import "@interchain-ui/react/styles";
-import { customRegistry } from "@src/utils/customRegistry";
-import { GasPrice } from "@cosmjs/stargate";
 
 interface Props extends AppProps {
   emotionCache?: EmotionCache;
@@ -81,23 +75,7 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
                   <UserProvider>
                     <AddressBookProvider>
                       <SettingsProvider>
-                        <ChainProvider
-                          chains={chains.filter(x => x.chain_name === "akash")}
-                          assetLists={assets.filter(x => x.chain_name === "akash")}
-                          wallets={[...keplr, ...leap, ...cosmostation]}
-                          walletConnectOptions={{
-                            signClient: {
-                              projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID
-                            }
-                          }}
-                          signerOptions={{
-                            preferredSignType: chain => "direct",
-                            signingStargate: chain => ({
-                              registry: customRegistry,
-                              gasPrice: GasPrice.fromString("0.025uakt")
-                            })
-                          }}
-                        >
+                        <CustomChainProvider>
                           <WalletProvider>
                             <CertificateProvider>
                               <TemplatesProvider>
@@ -110,7 +88,7 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
                               </TemplatesProvider>
                             </CertificateProvider>
                           </WalletProvider>
-                        </ChainProvider>
+                        </CustomChainProvider>
                       </SettingsProvider>
                     </AddressBookProvider>
                   </UserProvider>
