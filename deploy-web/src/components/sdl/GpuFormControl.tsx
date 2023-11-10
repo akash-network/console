@@ -16,6 +16,7 @@ import { validationConfig } from "../shared/akash/units";
 type Props = {
   serviceIndex: number;
   hasGpu: boolean;
+  hideHasGpu?: boolean;
   children?: ReactNode;
   control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
   providerAttributesSchema: ProviderAttributesSchema;
@@ -31,7 +32,7 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const GpuFormControl: React.FunctionComponent<Props> = ({ providerAttributesSchema, control, serviceIndex, hasGpu, currentService }) => {
+export const GpuFormControl: React.FunctionComponent<Props> = ({ providerAttributesSchema, control, serviceIndex, hasGpu, currentService, hideHasGpu }) => {
   const { classes } = useStyles();
   const theme = useTheme();
 
@@ -94,13 +95,15 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ providerAttribu
                   </CustomTooltip>
                 </Typography>
 
-                <Controller
-                  control={control}
-                  name={`services.${serviceIndex}.profile.hasGpu`}
-                  render={({ field }) => (
-                    <Checkbox checked={field.value} onChange={field.onChange} color="secondary" size="small" sx={{ marginLeft: ".5rem" }} />
-                  )}
-                />
+                {!hideHasGpu && (
+                  <Controller
+                    control={control}
+                    name={`services.${serviceIndex}.profile.hasGpu`}
+                    render={({ field }) => (
+                      <Checkbox checked={field.value} onChange={field.onChange} color="secondary" size="small" sx={{ marginLeft: ".5rem" }} />
+                    )}
+                  />
+                )}
               </Box>
 
               {hasGpu && (
