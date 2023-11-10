@@ -134,6 +134,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     if (!result) return;
 
     setValue("services", result as Service[]);
+    trigger();
   };
 
   const onPrerequisiteContinue = () => {
@@ -251,6 +252,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
               serviceIndex={0}
               hasGpu
               currentService={currentService}
+              hideHasGpu
             />
           </Box>
 
