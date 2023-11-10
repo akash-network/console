@@ -12,5 +12,6 @@
   "singleQuote": false,
   "arrowParens": "avoid",
   "endOfLine": "crlf",
-  "htmlWhitespaceSensitivity": "strict"
+  "htmlWhitespaceSensitivity": "strict",
+  "plugins": ["prettier-plugin-tailwindcss"]
 }
