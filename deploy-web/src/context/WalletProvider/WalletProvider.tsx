@@ -5,7 +5,6 @@ import { uAktDenom } from "@src/utils/constants";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useSnackbar } from "notistack";
 import { Snackbar } from "@src/components/shared/Snackbar";
-import { customRegistry } from "@src/utils/customRegistry";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { OpenInNew } from "@mui/icons-material";
 import { useTheme } from "@mui/material";
@@ -20,6 +19,7 @@ import { useUsdcDenom } from "@src/hooks/useDenom";
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
+import { customRegistry } from "@src/utils/customRegistry";
 
 type Balances = {
   uakt: number;
@@ -101,7 +101,7 @@ export const WalletProvider = ({ children }) => {
     return sigingClient.current;
   }
 
-  function logout(): void {
+  function logout() {
     setWalletBalances(null);
     disconnect();
 
@@ -113,7 +113,7 @@ export const WalletProvider = ({ children }) => {
     router.push(UrlService.home());
   }
 
-  async function connectWallet(): Promise<void> {
+  async function connectWallet() {
     console.log("Connecting wallet with CosmosKit...");
     connect();
 
@@ -125,6 +125,7 @@ export const WalletProvider = ({ children }) => {
     });
   }
 
+  // Redirect to homepage when changing wallet
   useEffect(() => {
     if (walletAddress) {
       router.push(UrlService.home());
