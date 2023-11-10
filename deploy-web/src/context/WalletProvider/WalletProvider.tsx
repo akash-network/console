@@ -58,23 +58,12 @@ export const WalletProvider = ({ children }) => {
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const isMounted = useRef(true);
   const sigingClient = useRef<SigningStargateClient>(null);
   const router = useRouter();
   const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
-  const {
-    getAccount,
-    sign,
-    disconnect,
-    getOfflineSigner,
-    isWalletConnected,
-    address: walletAddress,
-    connect,
-    username,
-    estimateFee,
-    broadcast
-  } = useSelectedChain();
+  const { sign, disconnect, getOfflineSigner, isWalletConnected, address: walletAddress, connect, username, estimateFee, broadcast } = useSelectedChain();
+
   useEffect(() => {
     if (settings?.rpcEndpoint && sigingClient.current) {
       sigingClient.current = null;
@@ -84,7 +73,7 @@ export const WalletProvider = ({ children }) => {
   async function createStargateClient() {
     const selectedNetwork = getSelectedNetwork();
 
-    const offlineSigner = getOfflineSigner(); //window.wallet.getOfflineSigner(selectedNetwork.chainId);
+    const offlineSigner = getOfflineSigner();
     let rpc = settings?.rpcEndpoint ? settings?.rpcEndpoint : selectedNetwork.rpcEndpoint;
 
     try {
@@ -125,14 +114,6 @@ export const WalletProvider = ({ children }) => {
   }
 
   async function connectWallet(): Promise<void> {
-    // const selectedNetwork = getSelectedNetwork();
-
-    // if (selectedNetwork.suggestWalletChain) {
-    //   await selectedNetwork.suggestWalletChain();
-    // }
-
-    //await window.wallet.enable(selectedNetwork.chainId);
-
     console.log("Connecting wallet with CosmosKit...");
     connect();
 
@@ -153,38 +134,18 @@ export const WalletProvider = ({ children }) => {
   }, [walletAddress]);
 
   async function loadWallet(): Promise<void> {
-    let wallet = null;
-    let selectedNetwork = null;
-    try {
-      selectedNetwork = getSelectedNetwork();
-      //wallet = await window.wallet.getKey(selectedNetwork.chainId);
-      wallet = await getAccount();
-    } catch (err) {
-      console.error(err);
-
-      if (err.message.includes("There is no chain info for")) {
-        //await selectedNetwork?.suggestWalletChain();
-        //wallet = await window.wallet.getKey(selectedNetwork.chainId);
-      } else {
-        setIsWalletLoaded(true);
-        return;
-      }
-    }
-
-    if (!isMounted.current) return;
-
-    const selectedNetworkId = localStorage.getItem("selectedNetworkId");
-    const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`)) as LocalWalletDataType[];
+    const selectedNetwork = getSelectedNetwork();
+    const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetwork.id}/wallets`)) as LocalWalletDataType[];
 
     let currentWallets = storageWallets ?? [];
 
-    if (!currentWallets.some(x => x.address === wallet.address)) {
+    if (!currentWallets.some(x => x.address === walletAddress)) {
       currentWallets.push({ name: username, address: walletAddress, selected: true });
     }
 
     currentWallets = currentWallets.map(x => ({ ...x, selected: x.address === walletAddress }));
 
-    localStorage.setItem(`${selectedNetworkId}/wallets`, JSON.stringify(currentWallets));
+    localStorage.setItem(`${selectedNetwork.id}/wallets`, JSON.stringify(currentWallets));
 
     await refreshBalances();
 

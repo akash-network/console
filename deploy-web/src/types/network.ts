@@ -9,5 +9,4 @@ export type Network = {
   rpcEndpoint?: string;
   version: string;
   enabled: boolean;
-  suggestWalletChain?: () => Promise<void>;
 };
