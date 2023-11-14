@@ -20,6 +20,7 @@ import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { customRegistry } from "@src/utils/customRegistry";
+import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 
 type Balances = {
   uakt: number;
@@ -62,12 +63,14 @@ export const WalletProvider = ({ children }) => {
   const router = useRouter();
   const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
-  const { sign, disconnect, getOfflineSigner, isWalletConnected, address: walletAddress, connect, username, estimateFee, broadcast } = useSelectedChain();
+  const { disconnect, getOfflineSigner, isWalletConnected, address: walletAddress, connect, username } = useSelectedChain();
 
   useEffect(() => {
-    if (settings?.rpcEndpoint && sigingClient.current) {
-      sigingClient.current = null;
-    }
+    (async () => {
+      if (settings?.rpcEndpoint) {
+        sigingClient.current = await createStargateClient();
+      }
+    })();
   }, [settings?.rpcEndpoint]);
 
   async function createStargateClient() {
@@ -157,9 +160,19 @@ export const WalletProvider = ({ children }) => {
     setIsWaitingForApproval(true);
     let pendingSnackbarKey = null;
     try {
-      const estimatedFees = await estimateFee(msgs, "stargate", "", 1.25);
+      const client = await getStargateClient();
+      const simulation = await client.simulate(walletAddress, msgs, "");
+      const estimatedFees = {
+        amount: [
+          {
+            amount: "0.025",
+            denom: uAktDenom
+          }
+        ],
+        gas: Math.ceil(simulation * 1.25).toString()
+      };
 
-      const txRaw = await sign(msgs, estimatedFees);
+      const txRaw = await client.sign(walletAddress, msgs, estimatedFees, "");
 
       setIsWaitingForApproval(false);
       setIsBroadcastingTx(true);
@@ -168,7 +181,8 @@ export const WalletProvider = ({ children }) => {
         autoHideDuration: null
       });
 
-      const txResult = await broadcast(txRaw);
+      const txRawBytes = Uint8Array.from(TxRaw.encode(txRaw).finish());
+      const txResult = await client.broadcastTx(txRawBytes);
 
       setIsBroadcastingTx(false);
 
@@ -192,9 +206,9 @@ export const WalletProvider = ({ children }) => {
       const transactionHash = err.txHash;
       let errorMsg = "An error has occured";
 
-      if (err.message.includes("was submitted but was not yet found on the chain")) {
+      if (err.message?.includes("was submitted but was not yet found on the chain")) {
         errorMsg = "Transaction timeout";
-      } else {
+      } else if (err.message) {
         try {
           const reg = /Broadcasting transaction failed with code (.+?) \(codespace: (.+?)\)/i;
           const match = err.message.match(reg);
