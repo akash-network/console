@@ -67,11 +67,11 @@ export const WalletProvider = ({ children }) => {
 
   useEffect(() => {
     (async () => {
-      if (settings?.rpcEndpoint) {
-        sigingClient.current = await createStargateClient();
+      if (settings?.rpcEndpoint && isWalletConnected) {
+        sigingClient.current = await createStargateClient();console.log("Setup client for " + settings?.rpcEndpoint);
       }
     })();
-  }, [settings?.rpcEndpoint]);
+  }, [settings?.rpcEndpoint, isWalletConnected]);
 
   async function createStargateClient() {
     const selectedNetwork = getSelectedNetwork();
