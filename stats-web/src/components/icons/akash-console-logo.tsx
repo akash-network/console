@@ -54,25 +54,25 @@ export const AkashConsoleLogo = () => {
         d="M183.155 11.8464H185.572C186.78 11.8464 187.516 11.2295 187.516 10.2153C187.516 9.48849 187.169 8.9983 186.493 8.77857C187.102 8.52502 187.406 8.05174 187.406 7.35028C187.406 6.34455 186.679 5.73605 185.487 5.73605H183.155V11.8464ZM185.437 6.47133C186.155 6.47133 186.561 6.81783 186.561 7.42634C186.561 8.0602 186.172 8.43206 185.487 8.43206H183.983V6.47133H185.437ZM185.555 9.15043C186.256 9.15043 186.662 9.50539 186.662 10.1139C186.662 10.7477 186.265 11.1112 185.555 11.1112H183.983V9.15043H185.555ZM192.956 11.8464V11.0774H190.057V9.14198H192.668V8.4067H190.057V6.49668H192.956V5.73605H189.229V11.8464H192.956ZM194.24 6.49668H196.083V11.8464H196.911V6.49668H198.745V5.73605H194.24V6.49668ZM199.954 11.8464L200.495 10.3252H203.064L203.614 11.8464H204.484L202.245 5.73605H201.323L199.092 11.8464H199.954ZM201.678 7.05447C201.721 6.9277 201.763 6.78403 201.78 6.69951C201.797 6.79248 201.839 6.93615 201.881 7.05447L202.819 9.60681H200.749L201.678 7.05447Z"
         fill="#111827"
       ></path>
-      <rect x="179.155" y="2.53609" width="29.58" height="11.6207" rx="5.81036" stroke="white" stroke-width="1.05643"></rect>
+      <rect x="179.155" y="2.53609" width="29.58" height="11.6207" rx="5.81036" stroke="white" strokeWidth="1.05643"></rect>
       <defs>
         <linearGradient id="paint0_linear_2324_89781" x1="11.3606" y1="15.6224" x2="18.1028" y2="20.0182" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#FA5757"></stop>
-          <stop offset="0.0240912" stop-color="#FA5757" stop-opacity="0.99831"></stop>
-          <stop offset="0.045037" stop-color="#FA5757" stop-opacity="0.992615"></stop>
-          <stop offset="0.064967" stop-color="#FA5757" stop-opacity="0.981977"></stop>
-          <stop offset="0.0860106" stop-color="#FA5757" stop-opacity="0.96546"></stop>
-          <stop offset="0.110297" stop-color="#FA5757" stop-opacity="0.942125"></stop>
-          <stop offset="0.139956" stop-color="#FA5757" stop-opacity="0.911036"></stop>
-          <stop offset="0.177117" stop-color="#FA5757" stop-opacity="0.871255"></stop>
-          <stop offset="0.223909" stop-color="#FA5757" stop-opacity="0.821844"></stop>
-          <stop offset="0.282462" stop-color="#FA5757" stop-opacity="0.761867"></stop>
-          <stop offset="0.354904" stop-color="#FA5757" stop-opacity="0.690386"></stop>
-          <stop offset="0.443367" stop-color="#FA5757" stop-opacity="0.606463"></stop>
-          <stop offset="0.549978" stop-color="#FA5757" stop-opacity="0.509162"></stop>
-          <stop offset="0.676868" stop-color="#FA5757" stop-opacity="0.397545"></stop>
-          <stop offset="0.826165" stop-color="#FA5757" stop-opacity="0.270674"></stop>
-          <stop offset="1" stop-color="#FA5757" stop-opacity="0.127613"></stop>
+          <stop stopColor="#FA5757"></stop>
+          <stop offset="0.0240912" stopColor="#FA5757" stopOpacity="0.99831"></stop>
+          <stop offset="0.045037" stopColor="#FA5757" stopOpacity="0.992615"></stop>
+          <stop offset="0.064967" stopColor="#FA5757" stopOpacity="0.981977"></stop>
+          <stop offset="0.0860106" stopColor="#FA5757" stopOpacity="0.96546"></stop>
+          <stop offset="0.110297" stopColor="#FA5757" stopOpacity="0.942125"></stop>
+          <stop offset="0.139956" stopColor="#FA5757" stopOpacity="0.911036"></stop>
+          <stop offset="0.177117" stopColor="#FA5757" stopOpacity="0.871255"></stop>
+          <stop offset="0.223909" stopColor="#FA5757" stopOpacity="0.821844"></stop>
+          <stop offset="0.282462" stopColor="#FA5757" stopOpacity="0.761867"></stop>
+          <stop offset="0.354904" stopColor="#FA5757" stopOpacity="0.690386"></stop>
+          <stop offset="0.443367" stopColor="#FA5757" stopOpacity="0.606463"></stop>
+          <stop offset="0.549978" stopColor="#FA5757" stopOpacity="0.509162"></stop>
+          <stop offset="0.676868" stopColor="#FA5757" stopOpacity="0.397545"></stop>
+          <stop offset="0.826165" stopColor="#FA5757" stopOpacity="0.270674"></stop>
+          <stop offset="1" stopColor="#FA5757" stopOpacity="0.127613"></stop>
         </linearGradient>
       </defs>
     </svg>
