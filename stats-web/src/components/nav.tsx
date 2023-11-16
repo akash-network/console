@@ -1,13 +1,13 @@
-import { ModeToggle } from "./mode-toggle";
+import { ModeToggle } from "./ModeToggle";
 import { FaGithub, FaBars, FaXTwitter } from "react-icons/fa6";
-import { Button } from "./ui/button";
-import { AkashConsoleLogo } from "./icons/akash-console-logo";
+import { Button } from "./ui/Button";
+import { AkashConsoleLogo } from "./icons/AkashConsoleLogo";
 
 export const Nav = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
-        <div className="mr-4 hidden md:flex">
+        <div className="mr-4 flex">
           <a className="mr-6 flex items-center space-x-2" href="/">
             <AkashConsoleLogo />
           </a>
@@ -30,10 +30,6 @@ export const Nav = () => {
           </nav> */}
         </div>
 
-        <Button className="md:hidden">
-          <FaBars />
-          <span className="sr-only">Toggle Menu</span>
-        </Button>
         {/* <button
           className="mr-2 inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md px-0 py-2 text-base font-medium transition-colors hover:bg-transparent hover:text-accent-foreground focus-visible:bg-transparent focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:pointer-events-none disabled:opacity-50 md:hidden"
           type="button"
@@ -44,8 +40,13 @@ export const Nav = () => {
         >
           
         </button> */}
-        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-          <nav className="flex items-center">
+        <div className="flex flex-1 items-center justify-end">
+          <Button className="md:hidden">
+            <FaBars />
+            <span className="sr-only">Toggle Menu</span>
+          </Button>
+
+          <nav className="hidden items-center md:flex">
             <a target="_blank" rel="noreferrer" href="https://github.com/akash-network/cloudmos">
               <Button variant="ghost" size="icon">
                 <FaGithub />

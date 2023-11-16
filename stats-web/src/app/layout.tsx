@@ -2,8 +2,15 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { ThemeProvider } from "@/components/theme-provider";
-import { Nav } from "@/components/nav";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { Nav } from "@/components/Nav";
+import { useEffect } from "react";
+import { QueryClientProvider } from "react-query";
+import { queryClient } from "@/queries";
+import { Provider } from "jotai";
+import { CustomIntlProvider } from "@/components/layout/CustomIntlProvider";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
+import Providers from "@/components/layout/CustomProviders";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -19,10 +26,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.variable)}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <Providers>
           <Nav />
           {children}
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );

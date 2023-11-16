@@ -39,6 +39,26 @@ export class ApiUrlService {
   static networkCapacity() {
     return `${BASE_API_URL}/getNetworkCapacity`;
   }
+
+  // Github files
+  static mainnetNodes() {
+    return `${BASE_API_URL}/getMainnetNodes`;
+  }
+  static testnetNodes() {
+    return `${BASE_API_URL}/getTestnetNodes`;
+  }
+  static sandboxNodes() {
+    return `${BASE_API_URL}/getSandboxNodes`;
+  }
+  static mainnetVersion() {
+    return `${BASE_API_URL}/getMainnetVersion`;
+  }
+  static testnetVersion() {
+    return `${BASE_API_URL}/getTestnetVersion`;
+  }
+  static sandboxVersion() {
+    return `${BASE_API_URL}/getSandboxVersion`;
+  }
 }
 
 export async function loadWithPagination(baseUrl: string, dataKey: string, limit: number) {
