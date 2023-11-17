@@ -5,6 +5,7 @@ import { coinsToAmount } from "@src/utils/mathHelpers";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
 import { LabelValue } from "../../../LabelValue";
+import { DynamicReactJson } from "@src/components/shared/DynamicJsonView";
 
 type TxMessageProps = {
   message: TransactionMessage;
@@ -25,6 +26,7 @@ export const MsgCreateBid: React.FunctionComponent<TxMessageProps> = ({ message 
       <LabelValue label="oseq" value={message?.data?.order?.oseq} />
       <LabelValue label="Price" value={<AKTAmount uakt={coinsToAmount(message?.data?.price, "uakt")} showAKTLabel showUSD />} />
       <LabelValue label="Deposit" value={<AKTAmount uakt={coinsToAmount(message?.data?.deposit, "uakt")} showAKTLabel showUSD />} />
+      <LabelValue label="Resources Offer" value={<DynamicReactJson src={JSON.parse(JSON.stringify(message?.data?.resourcesOffer))} />} />
     </>
   );
 };
