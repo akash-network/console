@@ -5,11 +5,14 @@ import { MsgUnjail } from "cosmjs-types/cosmos/slashing/v1beta1/tx";
 import * as v1beta1 from "../../proto/akash/v1beta1";
 import * as v1beta2 from "../../proto/akash/v1beta2";
 import * as v1beta3 from "../../proto/akash/v1beta3";
+import * as v1beta4 from "../../proto/akash/v1beta4";
 
-const akashTypes: ReadonlyArray<[string, GeneratedType]> = [...Object.values(v1beta1), ...Object.values(v1beta2), ...Object.values(v1beta3)].map((x) => [
-  "/" + x.$type,
-  x
-]);
+const akashTypes: ReadonlyArray<[string, GeneratedType]> = [
+  ...Object.values(v1beta1),
+  ...Object.values(v1beta2),
+  ...Object.values(v1beta3),
+  ...Object.values(v1beta4)
+].map((x) => ["/" + x.$type, x]);
 const missingTypes: ReadonlyArray<[string, GeneratedType]> = [["/cosmos.slashing.v1beta1.MsgUnjail", MsgUnjail]];
 
 export function decodeMsg(type: string, msg: Uint8Array) {

@@ -1,27 +1,28 @@
 import { Registry } from "@cosmjs/proto-signing";
 import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
-import { protoTypes } from "./proto";
-import { TransactionMessageData } from "./TransactionMessageData";
 import { MsgGrant, MsgRevoke, MsgGrantAllowance, MsgRevokeAllowance } from "./proto/grant";
+import * as v1beta3 from "./proto/v1beta3";
+import * as v1beta4 from "./proto/v1beta4";
 
-export let customRegistry: Registry;
+export const customRegistry = new Registry();
 
-export function registerTypes() {
-  const registry = new Registry();
-  registry.register(TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT, protoTypes.MsgCloseDeployment);
-  registry.register(TransactionMessageData.Types.MSG_CREATE_DEPLOYMENT, protoTypes.MsgCreateDeployment);
-  registry.register(TransactionMessageData.Types.MSG_UPDATE_DEPLOYMENT, protoTypes.MsgUpdateDeployment);
-  registry.register(TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT, protoTypes.MsgDepositDeployment);
-  registry.register(TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT_AUTHZ, protoTypes.DepositDeploymentAuthorization);
-  registry.register(TransactionMessageData.Types.MSG_CREATE_LEASE, protoTypes.MsgCreateLease);
-  registry.register(TransactionMessageData.Types.MSG_REVOKE_CERTIFICATE, protoTypes.MsgRevokeCertificate);
-  registry.register(TransactionMessageData.Types.MSG_CREATE_CERTIFICATE, protoTypes.MsgCreateCertificate);
-  registry.register(TransactionMessageData.Types.MSG_UPDATE_PROVIDER, protoTypes.MsgUpdateProvider);
-  registry.register(TransactionMessageData.Types.MSG_GRANT, MsgGrant);
-  registry.register(TransactionMessageData.Types.MSG_REVOKE, MsgRevoke);
-  registry.register(TransactionMessageData.Types.MSG_SEND_TOKENS, MsgSend);
-  registry.register(TransactionMessageData.Types.MSG_GRANT_ALLOWANCE, MsgGrantAllowance);
-  registry.register(TransactionMessageData.Types.MSG_REVOKE_ALLOWANCE, MsgRevokeAllowance);
+// Akash v1beta3
+customRegistry.register("/akash.deployment.v1beta3.MsgCloseDeployment", v1beta3.MsgCloseDeployment);
+customRegistry.register("/akash.deployment.v1beta3.MsgCreateDeployment", v1beta3.MsgCreateDeployment);
+customRegistry.register("/akash.deployment.v1beta3.MsgUpdateDeployment", v1beta3.MsgUpdateDeployment);
+customRegistry.register("/akash.deployment.v1beta3.MsgDepositDeployment", v1beta3.MsgDepositDeployment);
+customRegistry.register("/akash.deployment.v1beta3.DepositDeploymentAuthorization", v1beta3.DepositDeploymentAuthorization);
+customRegistry.register("/akash.market.v1beta3.MsgCreateLease", v1beta3.MsgCreateLease);
+customRegistry.register("/akash.cert.v1beta3.MsgRevokeCertificate", v1beta3.MsgRevokeCertificate);
+customRegistry.register("/akash.cert.v1beta3.MsgCreateCertificate", v1beta3.MsgCreateCertificate);
+customRegistry.register("/akash.provider.v1beta3.MsgUpdateProvider", v1beta3.MsgUpdateProvider);
 
-  customRegistry = registry;
-}
+// Akash v1beta4
+customRegistry.register("/akash.market.v1beta4.MsgCreateLease", v1beta4.MsgCreateLease);
+
+// Cosmos SDK
+customRegistry.register("/cosmos.authz.v1beta1.MsgGrant", MsgGrant);
+customRegistry.register("/cosmos.authz.v1beta1.MsgRevoke", MsgRevoke);
+customRegistry.register("/cosmos.bank.v1beta1.MsgSend", MsgSend);
+customRegistry.register("/cosmos.feegrant.v1beta1.MsgGrantAllowance", MsgGrantAllowance);
+customRegistry.register("/cosmos.feegrant.v1beta1.MsgRevokeAllowance", MsgRevokeAllowance);
