@@ -1,4 +1,4 @@
-import { networkVersion, BASE_API_URL } from "./constants";
+import { networkVersion, BASE_API_URL, networkVersionMarket } from "./constants";
 import axios from "axios";
 import { appendSearchParams } from "./urlUtils";
 
@@ -10,10 +10,10 @@ export class ApiUrlService {
     return `${apiEndpoint}/akash/deployment/${networkVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`;
   }
   static bidList(apiEndpoint: string, address: string, dseq: string) {
-    return `${apiEndpoint}/akash/market/${networkVersion}/bids/list?filters.owner=${address}&filters.dseq=${dseq}`;
+    return `${apiEndpoint}/akash/market/${networkVersionMarket}/bids/list?filters.owner=${address}&filters.dseq=${dseq}`;
   }
   static leaseList(apiEndpoint: string, address: string, dseq: string) {
-    return `${apiEndpoint}/akash/market/${networkVersion}/leases/list?filters.owner=${address}${dseq ? "&filters.dseq=" + dseq : ""}`;
+    return `${apiEndpoint}/akash/market/${networkVersionMarket}/leases/list?filters.owner=${address}${dseq ? "&filters.dseq=" + dseq : ""}`;
   }
   static providers(apiEndpoint: string) {
     return `${apiEndpoint}/akash/provider/${networkVersion}/providers`;

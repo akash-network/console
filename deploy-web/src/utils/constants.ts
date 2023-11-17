@@ -129,7 +129,8 @@ export let selectedNetworkId = "";
 // 5AKT aka 5000000uakt
 export const defaultInitialDeposit = 5000000;
 
-export let networkVersion: "v1beta2" | "v1beta3";
+export let networkVersion: "v1beta2" | "v1beta3" | "v1beta4";
+export let networkVersionMarket: "v1beta2" | "v1beta3" | "v1beta4";
 
 export function setNetworkVersion() {
   const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
@@ -137,19 +138,23 @@ export function setNetworkVersion() {
   switch (_selectedNetworkId) {
     case mainnetId:
       networkVersion = "v1beta3";
+      networkVersionMarket = "v1beta3";
       selectedNetworkId = mainnetId;
       break;
     case testnetId:
       networkVersion = "v1beta3";
+      networkVersionMarket = "v1beta3";
       selectedNetworkId = testnetId;
       break;
     case sandboxId:
       networkVersion = "v1beta3";
+      networkVersionMarket = "v1beta4";
       selectedNetworkId = sandboxId;
       break;
 
     default:
       networkVersion = "v1beta3";
+      networkVersionMarket = "v1beta3";
       selectedNetworkId = mainnetId;
       break;
   }

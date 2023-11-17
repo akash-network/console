@@ -114,6 +114,8 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
     }
   };
 
+  if (!provider) return null;
+
   return (
     <CustomTableRow
       key={bid.id}

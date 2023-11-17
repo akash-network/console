@@ -97,6 +97,12 @@ import { MsgStartGroup as MsgStartGroup_v3 } from "./akash/v1beta3/MsgStartGroup
 import { MsgUpdateDeployment as MsgUpdateDeployment_v3 } from "./akash/v1beta3/MsgUpdateDeployment";
 import { MsgWithdrawLease as MsgWithdrawLease_v3 } from "./akash/v1beta3/MsgWithdrawLease";
 import { MsgUpdateProvider as MsgUpdateProvider_v3 } from "./akash/v1beta3/MsgUpdateProvider";
+// v1beta4
+import { MsgCloseBid as MsgCloseBid_v4 } from "./akash/v1beta4/MsgCloseBid";
+import { MsgCloseLease as MsgCloseLease_v4 } from "./akash/v1beta4/MsgCloseLease";
+import { MsgCreateBid as MsgCreateBid_v4 } from "./akash/v1beta4/MsgCreateBid";
+import { MsgCreateLease as MsgCreateLease_v4 } from "./akash/v1beta4/MsgCreateLease";
+import { MsgWithdrawLease as MsgWithdrawLease_v4 } from "./akash/v1beta4/MsgWithdrawLease";
 
 type Props = {
   message: TransactionMessage;
@@ -328,6 +334,21 @@ const TxMessage: React.FunctionComponent<TxMessageProps> = ({ message }) => {
       return <MsgUpdateProvider_v3 message={message} />;
     case "/akash.market.v1beta3.MsgWithdrawLease": // F5DC09219E604843E55C49B8B66E1DAD9EF417EF8AD8207BB696CF3863985446
       return <MsgWithdrawLease_v3 message={message} />;
+
+    // *******************
+    // AKASH V4 TYPES
+    // *******************
+
+    case "/akash.market.v1beta4.MsgCloseBid":
+      return <MsgCloseBid_v4 message={message} />;
+    case "/akash.market.v1beta4.MsgCloseLease":
+      return <MsgCloseLease_v4 message={message} />;
+    case "/akash.market.v1beta4.MsgCreateBid":
+      return <MsgCreateBid_v4 message={message} />;
+    case "/akash.market.v1beta4.MsgCreateLease":
+      return <MsgCreateLease_v4 message={message} />;
+    case "/akash.market.v1beta4.MsgWithdrawLease":
+      return <MsgWithdrawLease_v4 message={message} />;
 
     default:
       return <DynamicReactJson src={JSON.parse(JSON.stringify(message?.data))} />;
