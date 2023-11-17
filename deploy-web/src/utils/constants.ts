@@ -138,7 +138,7 @@ export function setNetworkVersion() {
   switch (_selectedNetworkId) {
     case mainnetId:
       networkVersion = "v1beta3";
-      networkVersionMarket = "v1beta3";
+      networkVersionMarket = "v1beta3"; // TODO Change after v0.28.1 upgrade
       selectedNetworkId = mainnetId;
       break;
     case testnetId:
