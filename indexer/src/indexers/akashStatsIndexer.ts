@@ -2,6 +2,7 @@ import * as benchmark from "../shared/utils/benchmark";
 import * as v1beta1 from "../proto/akash/v1beta1";
 import * as v1beta2 from "../proto/akash/v1beta2";
 import * as v1beta3 from "../proto/akash/v1beta3";
+import * as v1beta4 from "../proto/akash/v1beta4";
 import * as uuid from "uuid";
 import { uint8arrayToString } from "@src/shared/utils/protobuf";
 import { accountSettle } from "@src/shared/utils/akashPaymentSettle";
@@ -106,7 +107,12 @@ export class AkashStatsIndexer extends Indexer {
       "/akash.provider.v1beta3.MsgUpdateProvider": this.handleUpdateProvider,
       "/akash.provider.v1beta3.MsgDeleteProvider": this.handleDeleteProvider,
       "/akash.audit.v1beta3.MsgSignProviderAttributes": this.handleSignProviderAttributes,
-      "/akash.audit.v1beta3.MsgDeleteProviderAttributes": this.handleDeleteSignProviderAttributes
+      "/akash.audit.v1beta3.MsgDeleteProviderAttributes": this.handleDeleteSignProviderAttributes,
+      // Akash v1beta4 types
+      "/akash.market.v1beta4.MsgCreateLease": this.handleCreateLease,
+      "/akash.market.v1beta4.MsgCloseLease": this.handleCloseLease,
+      "/akash.market.v1beta4.MsgCreateBid": this.handleCreateBidV4,
+      "/akash.market.v1beta4.MsgCloseBid": this.handleCloseBid
     };
   }
 
@@ -247,7 +253,12 @@ export class AkashStatsIndexer extends Indexer {
       "/akash.market.v1beta3.MsgCloseLease",
       "/akash.market.v1beta3.MsgCloseBid",
       "/akash.deployment.v1beta3.MsgDepositDeployment",
-      "/akash.market.v1beta3.MsgWithdrawLease"
+      "/akash.market.v1beta3.MsgWithdrawLease",
+      // v1beta4
+      "/akash.market.v1beta4.MsgCreateLease",
+      "/akash.market.v1beta4.MsgCloseLease",
+      "/akash.market.v1beta4.MsgCloseBid",
+      "/akash.market.v1beta4.MsgWithdrawLease"
     ].includes(msg.type);
   }
 
@@ -617,6 +628,23 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCreateBidV3(decodedMessage: v1beta3.MsgCreateBid, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    await Bid.create(
+      {
+        owner: decodedMessage.order.owner,
+        dseq: decodedMessage.order.dseq.toString(),
+        gseq: decodedMessage.order.gseq,
+        oseq: decodedMessage.order.oseq,
+        provider: decodedMessage.provider,
+        price: parseFloat(decodedMessage.price.amount),
+        createdHeight: height
+      },
+      { transaction: blockGroupTransaction }
+    );
+
+    msg.relatedDeploymentId = this.getDeploymentIdFromCache(decodedMessage.order.owner, decodedMessage.order.dseq.toString());
+  }
+
+  private async handleCreateBidV4(decodedMessage: v1beta4.MsgCreateBid, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
     await Bid.create(
       {
         owner: decodedMessage.order.owner,
