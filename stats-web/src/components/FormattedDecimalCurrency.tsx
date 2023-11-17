@@ -12,19 +12,12 @@ export const FormattedDecimalCurrency: React.FunctionComponent<Props> = ({ value
   return (
     <FormattedNumberParts value={value} maximumFractionDigits={precision} minimumFractionDigits={precision} style={style} currency={currency}>
       {parts => (
-        <div
-          className="inline-flex align-top"
-          // sx={{ display: "inline-flex", alignItems: "flex-start" }}
-        >
+        <div className="inline-flex items-start">
           {parts.map((part, i) => {
             switch (part.type) {
               case "currency":
                 return (
-                  <span
-                    key={i}
-                    className="self-middle mr-1 mt-2 text-lg"
-                    // sx={{ fontSize: "1rem", alignSelf: "center", marginRight: ".25rem", marginTop: "-.5rem" }}
-                  >
+                  <span key={i} className="mr-1 self-center text-lg">
                     {part.value}
                   </span>
                 );

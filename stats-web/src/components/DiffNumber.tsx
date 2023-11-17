@@ -15,7 +15,7 @@ export const DiffNumber: React.FunctionComponent<DiffNumberProps> = ({ value, cl
   return (
     <span className={className}>
       {isPositiveDiff ? "+" : null}
-      <FormattedNumber value={value} maximumFractionDigits={2} />
+      <FormattedNumber value={value} maximumFractionDigits={2} notation="compact"/>
       {unit && ` ${unit}`}
     </span>
   );

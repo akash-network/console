@@ -1,7 +1,7 @@
 // import { Network } from "@src/types/network";
 // import { ApiUrlService } from "@src/utils/apiUtils";
 import { ApiUrlService } from "@/lib/apiUtils";
-import { mainnetId, mainnetNodes, sandboxId, sandboxNodes, testnetId, testnetNodes } from "@/lib/constants";
+import { mainnetId, sandboxId, testnetId } from "@/lib/constants";
 import { Network } from "@/types/network";
 import axios from "axios";
 import { atom } from "jotai";
@@ -11,7 +11,6 @@ export let networks: Network[] = [
     id: mainnetId,
     title: "Mainnet",
     description: "Akash Network mainnet network.",
-    nodesUrl: mainnetNodes,
     chainId: "akashnet-2",
     versionUrl: ApiUrlService.mainnetVersion(),
     rpcEndpoint: "https://rpc.cosmos.directory/akash",
@@ -22,7 +21,6 @@ export let networks: Network[] = [
     id: testnetId,
     title: "GPU Testnet",
     description: "Testnet of the new GPU features.",
-    nodesUrl: testnetNodes,
     chainId: "testnet-02",
     versionUrl: ApiUrlService.testnetVersion(),
     enabled: false,
@@ -32,7 +30,6 @@ export let networks: Network[] = [
     id: sandboxId,
     title: "Sandbox",
     description: "Sandbox of the mainnet version.",
-    nodesUrl: sandboxNodes,
     chainId: "sandbox-01",
     versionUrl: ApiUrlService.sandboxVersion(),
     version: null, // Set asynchronously

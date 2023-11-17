@@ -2,7 +2,7 @@ export type Network = {
   id: string;
   title: string;
   description: string;
-  nodesUrl: string;
+  nodesUrl?: string;
   chainId: string;
   versionUrl: string;
   rpcEndpoint?: string;
@@ -10,4 +10,3 @@ export type Network = {
   enabled: boolean;
   suggestWalletChain?: () => Promise<void>;
 };
-

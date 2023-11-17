@@ -1,10 +1,11 @@
 "use client";
 import { GradientText } from "@/components/ui/GradientText";
-import Loading from "@/components/ui/Loading";
 import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
 import { useDashboardData } from "@/queries/useDashboardData";
 import { ReactNode } from "react";
 import { Dashboard } from "./Dashboard";
+import Spinner from "@/components/ui/Spinner";
+import { Title } from "@/components/ui/Title";
 
 type Props = {
   children?: ReactNode;
@@ -17,19 +18,14 @@ export const DashboardContainer: React.FunctionComponent<Props> = ({}) => {
   return (
     <div className="mt-8">
       {isLoading && !dashboardData && (
-        <div className="flex justify-center p-4 align-middle">
-          <Loading
-          //  size={60}
-          //  color="secondary"
-          />
+        <div className="flex items-center justify-center p-4">
+          <Spinner />
         </div>
       )}
 
       {dashboardData && (
         <>
-          <div className="text-center">
-            <GradientText className="mb-8 text-xl font-bold sm:text-2xl md:text-3xl">Akash Network {selectedNetwork.title} Dashboard</GradientText>
-          </div>
+          <Title className="mb-8 text-xl font-bold sm:text-2xl md:text-3xl">Akash Network {selectedNetwork.title} Dashboard</Title>
 
           <Dashboard dashboardData={dashboardData} />
 
