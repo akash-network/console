@@ -19,6 +19,7 @@ const defaultNodeUrlMapping = {
 
 const apiNodeUrl = env.RestApiNodeUrl ?? defaultNodeUrlMapping[env.Network] ?? defaultNodeUrlMapping.mainnet;
 const betaTypeVersion = "v1beta3";
+const betaTypeVersionMarket = env.Network === "sandbox" ? "v1beta4" : "v1beta3"; // TODO Change after v0.28.1 upgrade
 
 export async function getChainStats() {
   const result: { communityPool: number; inflation: number; communityTax: number; bondedTokens: number; totalSupply: number } = await cacheResponse(
@@ -318,7 +319,9 @@ export async function getProposal(id: number) {
 
 export async function getDeployment(owner: string, dseq: string) {
   const deploymentQuery = fetch(`${apiNodeUrl}/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${owner}&id.dseq=${dseq}`);
-  const leasesQuery = fetch(`${apiNodeUrl}/akash/market/${betaTypeVersion}/leases/list?filters.owner=${owner}&filters.dseq=${dseq}&pagination.limit=1000`);
+  const leasesQuery = fetch(
+    `${apiNodeUrl}/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${owner}&filters.dseq=${dseq}&pagination.limit=1000`
+  );
   const relatedMessagesQuery = getDeploymentRelatedMessages(owner, dseq);
 
   const [deploymentResponse, leasesResponse, relatedMessages] = await Promise.all([deploymentQuery, leasesQuery, relatedMessagesQuery]);
