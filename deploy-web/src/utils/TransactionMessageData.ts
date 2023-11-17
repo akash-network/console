@@ -1,4 +1,4 @@
-import { networkVersion } from "./constants";
+import { networkVersion, networkVersionMarket } from "./constants";
 import { BidDto } from "@src/types/deployment";
 import { BasicAllowance, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "./proto/grant";
 import { longify } from "@cosmjs/stargate/build/queryclient";
@@ -10,7 +10,7 @@ export function setMessageTypes() {
   TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT = `/akash.deployment.${networkVersion}.MsgDepositDeployment`;
   TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT_AUTHZ = `/akash.deployment.${networkVersion}.DepositDeploymentAuthorization`;
   TransactionMessageData.Types.MSG_UPDATE_DEPLOYMENT = `/akash.deployment.${networkVersion}.MsgUpdateDeployment`;
-  TransactionMessageData.Types.MSG_CREATE_LEASE = `/akash.market.${networkVersion}.MsgCreateLease`;
+  TransactionMessageData.Types.MSG_CREATE_LEASE = `/akash.market.${networkVersionMarket}.MsgCreateLease`;
   TransactionMessageData.Types.MSG_REVOKE_CERTIFICATE = `/akash.cert.${networkVersion}.MsgRevokeCertificate`;
   TransactionMessageData.Types.MSG_CREATE_CERTIFICATE = `/akash.cert.${networkVersion}.MsgCreateCertificate`;
 
@@ -68,6 +68,7 @@ export class TransactionMessageData {
   }
 
   static getCreateLeaseMsg(bid: BidDto) {
+    debugger;
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_CREATE_LEASE,
       value: {

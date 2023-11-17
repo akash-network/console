@@ -56,7 +56,6 @@ export interface RpcDeployment {
   escrow_account: EscrowAccount;
 }
 
-// TODO Change after mainnet6 upgrade
 type DeploymentGroup = DeploymentGroup_v2 | DeploymentGroup_v3;
 
 interface DeploymentGroup_v2 {
