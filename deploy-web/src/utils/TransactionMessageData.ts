@@ -68,7 +68,6 @@ export class TransactionMessageData {
   }
 
   static getCreateLeaseMsg(bid: BidDto) {
-    debugger;
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_CREATE_LEASE,
       value: {
