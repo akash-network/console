@@ -19,7 +19,7 @@ const defaultNodeUrlMapping = {
 
 const apiNodeUrl = env.RestApiNodeUrl ?? defaultNodeUrlMapping[env.Network] ?? defaultNodeUrlMapping.mainnet;
 const betaTypeVersion = "v1beta3";
-const betaTypeVersionMarket = env.Network === "sandbox" ? "v1beta4" : "v1beta3"; // TODO Change after v0.28.1 upgrade
+const betaTypeVersionMarket = "v1beta4";
 
 export async function getChainStats() {
   const result: { communityPool: number; inflation: number; communityTax: number; bondedTokens: number; totalSupply: number } = await cacheResponse(
