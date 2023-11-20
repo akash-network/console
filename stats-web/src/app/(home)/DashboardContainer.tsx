@@ -1,11 +1,12 @@
 "use client";
-import { GradientText } from "@/components/ui/GradientText";
+
 import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
 import { useDashboardData } from "@/queries/useDashboardData";
 import { ReactNode } from "react";
 import { Dashboard } from "./Dashboard";
-import Spinner from "@/components/ui/Spinner";
-import { Title } from "@/components/ui/Title";
+import Spinner from "@/components/Spinner";
+import { Title } from "@/components/Title";
+import { FormattedDate, FormattedTime } from "react-intl";
 
 type Props = {
   children?: ReactNode;
@@ -25,22 +26,15 @@ export const DashboardContainer: React.FunctionComponent<Props> = ({}) => {
 
       {dashboardData && (
         <>
-          <Title className="mb-8 text-xl font-bold sm:text-2xl md:text-3xl">Akash Network {selectedNetwork.title} Dashboard</Title>
+          <Title className="mb-4 text-xl font-bold sm:text-2xl md:text-3xl">Akash Network {selectedNetwork.title} Dashboard</Title>
+
+          <div className="mb-8">
+            <p className="text-sm text-italic italic text-muted-foreground">
+              Last updated: <FormattedDate value={dashboardData.now.date} /> <FormattedTime value={dashboardData.now.date} />
+            </p>
+          </div>
 
           <Dashboard dashboardData={dashboardData} />
-
-          {/* <div
-            sx={{
-              mt: 5,
-              [theme.breakpoints.down("md")]: {
-                textAlign: "center"
-              }
-            }}
-          >
-            <Typography variant="caption" sx={{ fontStyle: "italic", color: theme.palette.grey[500] }}>
-              Last updated: <FormattedDate value={dashboardData.now.date} /> <FormattedTime value={dashboardData.now.date} />
-            </Typography>
-          </div> */}
         </>
       )}
     </div>

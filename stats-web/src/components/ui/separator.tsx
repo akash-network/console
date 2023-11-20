@@ -19,4 +19,3 @@ const Separator = React.forwardRef<React.ElementRef<typeof SeparatorPrimitive.Ro
 Separator.displayName = SeparatorPrimitive.Root.displayName;
 
 export { Separator };
-

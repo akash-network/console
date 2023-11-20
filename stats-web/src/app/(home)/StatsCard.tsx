@@ -1,12 +1,12 @@
 import React from "react";
 import Link from "next/link";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { DiffNumber } from "@/components/DiffNumber";
 import { LineChart } from "lucide-react";
-import { Tooltip, TooltipContent } from "@/components/ui/Tooltip";
+import { Tooltip, TooltipContent } from "@/components/ui/tooltip";
 import { TooltipTrigger } from "@radix-ui/react-tooltip";
 
 interface IStatsCardProps {
@@ -49,11 +49,11 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({
 
           {(!!diffNumber || !!diffPercent) && (
             <div className="inline-flex items-center">
-              {!!diffNumber && (
+              {/* {!!diffNumber && (
                 <div className="ml-2 text-xs text-muted-foreground">
                   <DiffNumber className="flex items-center" value={diffNumber} unit={diffNumberUnit} />
                 </div>
-              )}
+              )} */}
 
               {!!diffPercent && <DiffPercentageChip value={diffPercent} className="pl-2" />}
             </div>

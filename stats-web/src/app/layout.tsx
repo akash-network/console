@@ -2,14 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { ThemeProvider } from "@/components/ThemeProvider";
 import { Nav } from "@/components/Nav";
-import { useEffect } from "react";
-import { QueryClientProvider } from "react-query";
-import { queryClient } from "@/queries";
-import { Provider } from "jotai";
-import { CustomIntlProvider } from "@/components/layout/CustomIntlProvider";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
 import Providers from "@/components/layout/CustomProviders";
 
 const inter = Inter({
@@ -34,4 +27,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
-

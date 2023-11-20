@@ -1,4 +1,4 @@
-import PageContainer from "@/components/ui/PageContainer";
+import PageContainer from "@/components/PageContainer";
 import { DashboardContainer } from "./DashboardContainer";
 
 export default function Home() {
