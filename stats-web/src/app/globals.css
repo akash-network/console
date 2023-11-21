@@ -69,9 +69,37 @@
 @layer base {
   * {
     @apply border-border;
+    transition: "background-color .2s ease";
   }
+
   body {
     overflow-y: scroll !important;
     @apply bg-background text-foreground;
+
+    &::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: hsl(var(--secondary));
+      border-radius: 5px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-color: hsl(var(--primary));
+      border-radius: 14px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background-color: hsl(var(--muted-foreground));
+    }
+  }
+  a {
+    text-decoration: none;
+    color: var(--secondary-foreground);
+  }
+
+  a:hover {
+    text-decoration: underline;
   }
 }

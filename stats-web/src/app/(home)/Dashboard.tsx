@@ -1,7 +1,7 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
 import { StatsCard } from "./StatsCard";
-import { DashboardData, ProviderSnapshotsUrlParam, SnapshotsUrlParam } from "@/types";
+import { DashboardData, MarketData, ProviderSnapshotsUrlParam, SnapshotsUrlParam } from "@/types";
 import { useMarketData } from "@/queries";
 import { bytesToShrink } from "@/lib/unitUtils";
 import { FormattedDecimalCurrency } from "@/components/FormattedDecimalCurrency";
@@ -11,58 +11,19 @@ import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
 import { USDCLabel } from "@/components/UsdLabel";
 import { UrlService } from "@/lib/urlUtils";
 import { HumanReadableBytes } from "@/components/HumanReadableBytes";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { BlockRow } from "./BlockRow";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { TransactionRow } from "./TransactionRow";
 
 interface IDashboardProps {
   dashboardData: DashboardData;
+  marketData: MarketData;
 }
 
-// const useStyles = makeStyles()(theme => ({
-//   link: {
-//     textDecoration: "underline"
-//   },
-//   liveChip: {
-//     "&&": {
-//       fontWeight: "normal",
-//       marginLeft: "1rem",
-//       fontSize: ".8rem",
-//       height: "20px"
-//     }
-//   },
-//   priceDataContainer: {
-//     padding: "1rem",
-//     marginBottom: "1.5rem",
-//     borderRadius: ".5rem",
-//     display: "flex",
-//     alignItems: "center",
-//     fontSize: "1rem",
-//     [theme.breakpoints.down("sm")]: {
-//       flexDirection: "column",
-//       alignItems: "baseline"
-//     }
-//   },
-//   priceData: {
-//     marginLeft: "1rem",
-//     flexGrow: 1,
-//     display: "flex",
-//     alignItems: "center",
-//     [theme.breakpoints.down("sm")]: {
-//       marginLeft: "0"
-//     }
-//   },
-//   priceDataValue: {
-//     fontWeight: "bold",
-//     display: "flex",
-//     alignItems: "center",
-//     marginLeft: ".5rem"
-//   },
-//   loadMoreButton: {
-//     borderColor: theme.palette.mode === "dark" ? theme.palette.grey[600] : theme.palette.grey[400],
-//     textTransform: "initial"
-//   }
-// }));
-
-export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardData }) => {
-  const { data: marketData } = useMarketData();
+export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardData, marketData }) => {
   const memoryDiff = bytesToShrink(dashboardData.now.activeMemory - dashboardData.compare.activeMemory);
   const storageDiff = bytesToShrink(dashboardData.now.activeStorage - dashboardData.compare.activeStorage);
   const capacityMemoryDiff = bytesToShrink(dashboardData.networkCapacityStats.now.memory - dashboardData.networkCapacityStats.compare.memory);
@@ -70,19 +31,17 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
 
   return (
     <>
-      {marketData && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatsCard
-            text="AKT Price"
-            number={<FormattedDecimalCurrency style="currency" currency="USD" value={marketData.price} precision={2} />}
-            diffPercent={marketData.priceChangePercentage24 / 100}
-          />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          text="AKT Price"
+          number={<FormattedDecimalCurrency style="currency" currency="USD" value={marketData.price} precision={2} />}
+          diffPercent={marketData.priceChangePercentage24 / 100}
+        />
 
-          <StatsCard text="Market Cap" number={<FormattedDecimalCurrency style="currency" currency="USD" value={marketData.marketCap} precision={0} />} />
-          <StatsCard text="Volume (24h)" number={<FormattedDecimalCurrency style="currency" currency="USD" value={marketData.volume} precision={0} />} />
-          <StatsCard text="Rank" number={marketData.marketCapRank} />
-        </div>
-      )}
+        <StatsCard text="Market Cap" number={<FormattedDecimalCurrency style="currency" currency="USD" value={marketData.marketCap} precision={0} />} />
+        <StatsCard text="Volume (24h)" number={<FormattedDecimalCurrency style="currency" currency="USD" value={marketData.volume} precision={0} />} />
+        <StatsCard text="Rank" number={marketData.marketCapRank} />
+      </div>
 
       <Separator className="mb-8 mt-8" />
       <Title subTitle className="mb-4">
@@ -347,141 +306,128 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
         />
       </div>
 
-      {/* <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12}>
-          <Title value="Blockchain" subTitle sx={{ textAlign: { sm: "center" } }} />
-        </Grid>
+      <Separator className="mb-8 mt-8" />
+      <Title subTitle className="mb-4">
+        Blockchain
+      </Title>
 
-        <Grid item xs={12} lg={4}>
-          <StatsCard number={<FormattedNumber value={dashboardData.chainStats.height} />} text="Height" />
-        </Grid>
+      <div className="grid grid-cols-3 gap-4">
+        <StatsCard number={<FormattedNumber value={dashboardData.chainStats.height} />} text="Height" />
 
-        <Grid item xs={12} lg={4}>
-          <StatsCard number={<FormattedNumber value={dashboardData.chainStats.transactionCount} />} text="Transactions" />
-        </Grid>
+        <StatsCard number={<FormattedNumber value={dashboardData.chainStats.transactionCount} />} text="Transactions" />
 
-        <Grid item xs={12} lg={4}>
-          <StatsCard
-            number={
-              <>
+        <StatsCard
+          number={
+            <>
+              <FormattedNumber
+                value={udenomToDenom(dashboardData.chainStats.communityPool, 6)}
+                notation="compact"
+                minimumFractionDigits={2}
+                maximumFractionDigits={2}
+              />
+              <AKTLabel />
+            </>
+          }
+          text="Community pool"
+        />
+
+        <StatsCard
+          number={
+            <>
+              <FormattedNumber value={udenomToDenom(dashboardData.chainStats.bondedTokens)} notation="compact" maximumFractionDigits={2} /> /{" "}
+              <FormattedNumber value={udenomToDenom(dashboardData.chainStats.totalSupply)} notation="compact" maximumFractionDigits={2} />
+              <span className="ml-4 text-sm text-muted-foreground">
                 <FormattedNumber
-                  value={udenomToDenom(dashboardData.chainStats.communityPool, 6)}
-                  notation="compact"
-                  minimumFractionDigits={2}
+                  value={udenomToDenom(dashboardData.chainStats.bondedTokens) / udenomToDenom(dashboardData.chainStats.totalSupply)}
+                  style="percent"
                   maximumFractionDigits={2}
                 />
-                <AKTLabel />
-              </>
-            }
-            text="Community pool"
-          />
-        </Grid>
+              </span>
+            </>
+          }
+          text="Bonded tokens"
+        />
 
-        <Grid item xs={12} lg={4}>
-          <StatsCard
-            number={
-              <>
-                <FormattedNumber value={udenomToDenom(dashboardData.chainStats.bondedTokens)} notation="compact" maximumFractionDigits={2} /> /{" "}
-                <FormattedNumber value={udenomToDenom(dashboardData.chainStats.totalSupply)} notation="compact" maximumFractionDigits={2} />
-                <Box component="span" sx={{ marginLeft: ".5rem", fontSize: ".85rem", color: theme.palette.grey[600] }}>
-                  <FormattedNumber
-                    value={udenomToDenom(dashboardData.chainStats.bondedTokens) / udenomToDenom(dashboardData.chainStats.totalSupply)}
-                    style="percent"
-                    maximumFractionDigits={2}
-                  />
-                </Box>
-              </>
-            }
-            text="Bonded tokens"
-          />
-        </Grid>
+        <StatsCard
+          number={<FormattedNumber value={dashboardData.chainStats.inflation} style="percent" minimumFractionDigits={2} maximumFractionDigits={2} />}
+          text="Inflation"
+        />
 
-        <Grid item xs={12} lg={4}>
-          <StatsCard
-            number={<FormattedNumber value={dashboardData.chainStats.inflation} style="percent" minimumFractionDigits={2} maximumFractionDigits={2} />}
-            text="Inflation"
-          />
-        </Grid>
+        <StatsCard
+          number={<FormattedNumber value={dashboardData.chainStats.stakingAPR} style="percent" minimumFractionDigits={2} maximumFractionDigits={2} />}
+          text="Staking APR"
+        />
+      </div>
 
-        <Grid item xs={12} lg={4}>
-          <StatsCard
-            number={<FormattedNumber value={dashboardData.chainStats.stakingAPR} style="percent" minimumFractionDigits={2} maximumFractionDigits={2} />}
-            text="Staking APR"
-          />
-        </Grid>
-      </Grid> */}
+      <div className="mt-4 grid grid-cols-2 gap-4">
+        <Card className="flex w-full flex-col justify-between">
+          <CardHeader className="flex flex-row items-center space-y-0 pb-2 pl-4 pr-4">
+            <CardTitle className="text-lg font-medium">Blocks</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Height</TableHead>
+                  <TableHead align="center">Proposer</TableHead>
+                  <TableHead align="center">Txs</TableHead>
+                  <TableHead align="center">Time</TableHead>
+                </TableRow>
+              </TableHeader>
 
-      {/* <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6}>
-          <Paper sx={{ padding: "1rem", borderRadius: ".5rem", height: "100%" }} elevation={2}>
-            <Title value="Blocks" subTitle sx={{ mb: "1rem", border: "0 !important" }} />
+              <TableBody>
+                {dashboardData.latestBlocks.map(block => (
+                  <BlockRow key={block.height} block={block} />
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+          <CardFooter>
+            <Link href={UrlService.blocks()} className="w-full">
+              <Button variant="outline" className="w-full">
+                Load More
+              </Button>
+            </Link>
+          </CardFooter>
+        </Card>
 
-            <TableContainer sx={{ mb: 3 }}>
-              <Table size="small">
-                <CustomTableHeader>
-                  <TableRow>
-                    <TableCell width="10%">Height</TableCell>
-                    <TableCell align="center" width="45%">
-                      Proposer
-                    </TableCell>
-                    <TableCell align="center" width="20%">
-                      Txs
-                    </TableCell>
-                    <TableCell align="center" width="25%">
-                      Time
-                    </TableCell>
-                  </TableRow>
-                </CustomTableHeader>
+        <Card className="flex flex-col justify-between">
+          <CardHeader className="flex flex-row items-center space-y-0 pb-2 pl-4 pr-4">
+            <CardTitle className="text-lg font-medium">Transactions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableCell width="35%">Tx Hash</TableCell>
+                  <TableCell align="center" width="35%">
+                    Type
+                  </TableCell>
+                  <TableCell align="center" width="15%">
+                    Height
+                  </TableCell>
+                  <TableCell align="center" width="15%">
+                    Time
+                  </TableCell>
+                </TableRow>
+              </TableHeader>
 
-                <TableBody>
-                  {dashboardData.latestBlocks.map(block => (
-                    <BlockRow key={block.height} block={block} />
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            <Button component={Link} href={UrlService.blocks()} variant="outlined" color="inherit" className={classes.loadMoreButton}>
-              Load More
-            </Button>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <Paper sx={{ padding: "1rem", borderRadius: ".5rem", height: "100%" }} elevation={2}>
-            <Title value="Transactions" subTitle sx={{ mb: "1rem", border: "0 !important" }} />
-
-            <TableContainer sx={{ mb: 3 }}>
-              <Table size="small">
-                <CustomTableHeader>
-                  <TableRow>
-                    <TableCell width="35%">Tx Hash</TableCell>
-                    <TableCell align="center" width="35%">
-                      Type
-                    </TableCell>
-                    <TableCell align="center" width="15%">
-                      Height
-                    </TableCell>
-                    <TableCell align="center" width="15%">
-                      Time
-                    </TableCell>
-                  </TableRow>
-                </CustomTableHeader>
-
-                <TableBody>
-                  {dashboardData.latestTransactions.map(tx => (
-                    <TransactionRow key={tx.hash} transaction={tx} isSimple blockHeight={tx.height} />
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            <Button component={Link} href={UrlService.transactions()} variant="outlined" color="inherit" className={classes.loadMoreButton}>
-              Load More
-            </Button>
-          </Paper>
-        </Grid>
-      </Grid> */}
+              <TableBody>
+                {dashboardData.latestTransactions.map(tx => (
+                  <TransactionRow key={tx.hash} transaction={tx} isSimple blockHeight={tx.height} />
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+          <CardFooter>
+            <Link href={UrlService.transactions()} className="w-full">
+              <Button variant="outline" className="w-full">
+                Load More
+              </Button>
+            </Link>
+          </CardFooter>
+        </Card>
+      </div>
     </>
   );
 };

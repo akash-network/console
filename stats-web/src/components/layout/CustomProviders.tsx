@@ -7,6 +7,7 @@ import { queryClient } from "@/queries";
 import { Provider } from "jotai";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { PricingProvider } from "@/context/PricingProvider";
 
 function Providers({ children }: React.PropsWithChildren) {
   return (
@@ -14,7 +15,9 @@ function Providers({ children }: React.PropsWithChildren) {
       <QueryClientProvider client={queryClient}>
         <Provider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            <TooltipProvider>{children}</TooltipProvider>
+            <PricingProvider>
+              <TooltipProvider>{children}</TooltipProvider>
+            </PricingProvider>
           </ThemeProvider>
         </Provider>
       </QueryClientProvider>
