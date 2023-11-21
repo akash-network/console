@@ -45,7 +45,7 @@ export const TransactionRow: React.FunctionComponent<Props> = ({ transaction, bl
         <Link href={UrlService.block(blockHeight)}>{blockHeight}</Link>
       </TableCell>
       <TableCell align="center">
-        <span className="text-sm">
+        <span className="text-sm whitespace-nowrap">
           <FormattedRelativeTime
             value={(new Date(transaction.datetime).getTime() - new Date().getTime()) / 1000}
             numeric="auto"

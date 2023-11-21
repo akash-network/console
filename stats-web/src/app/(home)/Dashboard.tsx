@@ -368,10 +368,10 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Height</TableHead>
-                  <TableHead align="center">Proposer</TableHead>
-                  <TableHead align="center">Txs</TableHead>
-                  <TableHead align="center">Time</TableHead>
+                  <TableHead className="text-center w-1/4">Height</TableHead>
+                  <TableHead className="text-center w-1/3">Proposer</TableHead>
+                  <TableHead className="text-center w-1/5">Txs</TableHead>
+                  <TableHead className="text-center w-1/5">Time</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -399,16 +399,10 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableCell width="35%">Tx Hash</TableCell>
-                  <TableCell align="center" width="35%">
-                    Type
-                  </TableCell>
-                  <TableCell align="center" width="15%">
-                    Height
-                  </TableCell>
-                  <TableCell align="center" width="15%">
-                    Time
-                  </TableCell>
+                  <TableHead>Tx Hash</TableHead>
+                  <TableHead className="text-center">Type</TableHead>
+                  <TableHead className="text-center">Height</TableHead>
+                  <TableHead className="text-center">Time</TableHead>
                 </TableRow>
               </TableHeader>
 
