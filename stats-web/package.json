@@ -9,14 +9,18 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@nivo/line": "^0.84.0",
     "@radix-ui/react-dropdown-menu": "^2.0.6",
     "@radix-ui/react-separator": "^1.0.3",
     "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-toggle": "^1.0.3",
+    "@radix-ui/react-toggle-group": "^1.0.4",
     "@radix-ui/react-tooltip": "^1.0.7",
     "axios": "^1.6.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "jotai": "^2.5.1",
+    "json2csv": "^6.0.0-alpha.2",
     "lucide-react": "^0.292.0",
     "next": "14.0.2",
     "next-themes": "^0.2.1",
@@ -30,6 +34,7 @@
     "usehooks-ts": "^2.9.1"
   },
   "devDependencies": {
+    "@types/json2csv": "^5.0.7",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

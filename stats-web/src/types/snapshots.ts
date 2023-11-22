@@ -48,7 +48,7 @@ export enum ProviderSnapshotsUrlParam {
 
 export interface SnapshotValue {
   date: string;
-  value?: number;
+  value: number;
 }
 
 export type GraphResponse = {
