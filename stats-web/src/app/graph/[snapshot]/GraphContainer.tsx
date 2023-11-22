@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { FormattedNumber } from "react-intl";
 import dynamic from "next/dynamic";

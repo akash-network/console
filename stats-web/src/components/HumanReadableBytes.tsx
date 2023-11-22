@@ -1,3 +1,4 @@
+"use client";
 import { bytesToShrink } from "@/lib/unitUtils";
 import React from "react";
 import { FormattedNumber } from "react-intl";

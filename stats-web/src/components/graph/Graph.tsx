@@ -1,5 +1,4 @@
 "use client";
-
 import { ResponsiveLineCanvas } from "@nivo/line";
 import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@/types";
 import { selectedRangeValues } from "@/lib/constants";
@@ -49,7 +48,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   return (
     <div className="relative h-[400px]">
       <div className="absolute left-1/2 top-1 -translate-x-1/2">
-        <span className="text-lg font-bold tracking-wide text-muted-foreground opacity-40">stats.akash.network</span>
+        <span className="text-md font-bold tracking-wide text-muted-foreground opacity-40">stats.akash.network</span>
       </div>
       <ResponsiveLineCanvas
         theme={graphTheme}
@@ -85,11 +84,11 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
         pointBorderWidth={graphMetadata.border}
         isInteractive={true}
         tooltip={props => (
-          <div className="rounded-sm bg-primary px-1 py-2 font-bold leading-4">
-            <span className="text-sm">
+          <div className="rounded-sm bg-primary px-3 py-2 leading-4 text-primary-foreground">
+            <div className="text-xs mb-1">
               <FormattedDate value={new Date(props.point.data.x)} day="numeric" month="long" timeZone="UTC" year="2-digit" />
-            </span>
-            <span>{nFormatter(props.point.data.y as number, 2)}</span>
+            </div>
+            <div className="font-bold">{nFormatter(props.point.data.y as number, 2)}</div>
           </div>
         )}
         enableGridX={false}

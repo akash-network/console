@@ -7,14 +7,7 @@ type Props = {
 };
 
 export const PageContainer: React.FunctionComponent<Props> = ({ children, className = "" }) => {
-  return (
-    <div
-      className={cn("pt-4 container pb-8 sm:pt-8", className)}
-      // sx={{ paddingTop: { xs: "1rem", sm: "2rem" }, paddingBottom: "2rem", ...sx }}
-    >
-      {children}
-    </div>
-  );
+  return <div className={cn("container pb-8 pt-4 sm:pt-8", className)}>{children}</div>;
 };
 
 export default PageContainer;

@@ -1,3 +1,4 @@
+"use client";
 import { ModeToggle } from "./ModeToggle";
 import { FaGithub, FaBars, FaXTwitter } from "react-icons/fa6";
 import { Button } from "./ui/button";

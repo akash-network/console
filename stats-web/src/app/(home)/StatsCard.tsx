@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,8 +7,7 @@ import { HelpCircle } from "lucide-react";
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { DiffNumber } from "@/components/DiffNumber";
 import { LineChart } from "lucide-react";
-import { Tooltip, TooltipContent } from "@/components/ui/tooltip";
-import { TooltipTrigger } from "@radix-ui/react-tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface IStatsCardProps {
   number: React.ReactNode;

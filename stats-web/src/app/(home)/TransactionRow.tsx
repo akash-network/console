@@ -1,3 +1,4 @@
+"use client";
 import { AKTAmount } from "@/components/AKTAmount";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";

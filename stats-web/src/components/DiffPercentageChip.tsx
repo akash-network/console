@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import { FormattedNumber } from "react-intl";
 import { ArrowUp, ArrowDown } from "lucide-react";

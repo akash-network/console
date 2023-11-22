@@ -1,8 +1,8 @@
+"use client";
 import React from "react";
 import { FormattedNumber } from "react-intl";
 import { StatsCard } from "./StatsCard";
 import { DashboardData, MarketData, ProviderSnapshotsUrlParam, SnapshotsUrlParam } from "@/types";
-import { useMarketData } from "@/queries";
 import { bytesToShrink } from "@/lib/unitUtils";
 import { FormattedDecimalCurrency } from "@/components/FormattedDecimalCurrency";
 import { Title } from "@/components/Title";

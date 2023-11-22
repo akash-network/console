@@ -1,5 +1,4 @@
 "use client";
-
 import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
 import { useDashboardData } from "@/queries/useDashboardData";
 import { ReactNode } from "react";
@@ -37,7 +36,7 @@ export const DashboardContainer: React.FunctionComponent<Props> = ({}) => {
 
       {isLoading && !dashboardData && (
         <div className="flex items-center justify-center p-4">
-          <Spinner />
+          <Spinner size="large" />
         </div>
       )}
     </div>

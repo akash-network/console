@@ -1,3 +1,4 @@
+"use client";
 import { FormattedNumber, FormattedNumberParts } from "react-intl";
 import React from "react";
 import { AKTLabel } from "./AKTLabel";
