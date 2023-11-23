@@ -7,6 +7,8 @@ import { Provider } from "jotai";
 import { ThemeProvider } from "next-themes";
 import { PricingProvider } from "@/context/PricingProvider";
 import { TooltipProvider } from "../ui/tooltip";
+import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
+import { customColors } from "@/lib/colors copy";
 
 function Providers({ children }: React.PropsWithChildren) {
   return (
@@ -15,7 +17,11 @@ function Providers({ children }: React.PropsWithChildren) {
         <Provider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
             <PricingProvider>
-              <TooltipProvider>{children}</TooltipProvider>
+              <TooltipProvider>
+                <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
+
+                {children}
+              </TooltipProvider>
             </PricingProvider>
           </ThemeProvider>
         </Provider>

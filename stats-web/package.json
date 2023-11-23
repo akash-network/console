@@ -23,6 +23,7 @@
     "json2csv": "^6.0.0-alpha.2",
     "lucide-react": "^0.292.0",
     "next": "14.0.2",
+    "next-nprogress-bar": "^2.1.2",
     "next-themes": "^0.2.1",
     "react": "^18",
     "react-dom": "^18",
