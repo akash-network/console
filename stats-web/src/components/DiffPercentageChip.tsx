@@ -17,9 +17,9 @@ export const DiffPercentageChip: React.FunctionComponent<DiffPercentageChipProps
 
   return (
     <span
-      className={cn(className, "flex items-center", {
+      className={cn(className, "flex items-center font-bold", {
         "text-red-400": !isPositiveDiff,
-        "text-green-800": isPositiveDiff,
+        "text-green-600": isPositiveDiff,
         "text-sm": size === "small",
         "text-base": size === "medium"
       })}

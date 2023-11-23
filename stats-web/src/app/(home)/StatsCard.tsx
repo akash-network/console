@@ -45,10 +45,10 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({
       </CardHeader>
       <CardContent className="pl-4 pr-4">
         <div className="flex items-end">
-          <div className="text-2xl font-bold">{number}</div>
+          <div className="leading-6 text-2xl font-bold">{number}</div>
 
           {(!!diffNumber || !!diffPercent) && (
-            <div className="inline-flex items-center">
+            <div className="inline-flex items-end">
               {/* {!!diffNumber && (
                 <div className="ml-2 text-xs text-muted-foreground">
                   <DiffNumber className="flex items-center" value={diffNumber} unit={diffNumberUnit} />
