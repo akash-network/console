@@ -1,4 +1,4 @@
-import { Provider, ProviderAttribute, ProviderAttributeSignature } from "@shared/dbSchemas/akash";
+import { Deployment, DeploymentGroup, DeploymentGroupResource, Lease, Provider, ProviderAttribute, ProviderAttributeSignature } from "@shared/dbSchemas/akash";
 import { ProviderSnapshot } from "@shared/dbSchemas/akash/providerSnapshot";
 import { toUTC } from "@src/utils/date";
 import { add } from "date-fns";
@@ -6,6 +6,7 @@ import { Op } from "sequelize";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { getAuditors, getProviderAttributesSchema } from "./githubProvider";
 import { ProviderDetail } from "@src/types/provider";
+import { RestDeploymentInfoResponse } from "@src/types/rest";
 
 export async function getNetworkCapacity() {
   const providers = await Provider.findAll({
@@ -105,4 +106,73 @@ export const getProviderDetail = async (address: string): Promise<ProviderDetail
       checkDate: ps.checkDate
     }))
   };
+};
+
+export const getProviderDeployments = async (address: string, skip: number, limit: number, state?: string): Promise<RestDeploymentInfoResponse[]> => {
+  const leases = await Lease.findAll({
+    where: {
+      // closedHeight: null, // TODO State
+      providerAddress: address
+    },
+    include: [
+      {
+        model: Deployment,
+        required: true,
+        include: [{ model: DeploymentGroup, required: true, include: [{ model: DeploymentGroupResource, required: true }] }]
+        // where: {
+        //   deletedHeight: null // TODO
+        // }
+      }
+    ],
+    order: [["createdHeight", "ASC"]],
+    offset: skip,
+    limit
+  });
+
+  return leases.map((lease) => ({
+    deployment: {
+      deployment_id: {
+        owner: lease.deployment.owner,
+        dseq: lease.deployment.dseq
+      },
+      state: lease.deployment.closedHeight ? "closed" : "active",
+      version: lease.deployment.version,
+      created_at: lease.deployment.createdHeight.toString()
+    },
+    groups: [],
+    escrow_account: {
+      balance: {
+        denom: lease.deployment.denom,
+        amount: lease.deployment.balance.toString()
+      },
+      transferred: {
+        denom: lease.deployment.denom,
+        amount: lease.deployment.withdrawnAmount.toString()
+      },
+      settled_at: lease.deployment.closedHeight ? lease.deployment.closedHeight.toString() : null,
+      depositor: lease.deployment.deposit
+    }
+    // escrow_account: {
+    //   id: {
+    //     scope: string;
+    //     xid: string;
+    //   };
+    //   owner: string;
+    //   state: string;
+    //   balance: {
+    //     denom: string;
+    //     amount: string;
+    //   };
+    //   transferred: {
+    //     denom: string;
+    //     amount: string;
+    //   };
+    //   settled_at: string;
+    //   depositor: string;
+    //   funds: {
+    //     denom: string;
+    //     amount: string;
+    //   };
+    // };
+  })) as any;
 };

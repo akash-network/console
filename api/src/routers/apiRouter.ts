@@ -12,7 +12,7 @@ import {
   getValidator,
   getValidators
 } from "@src/providers/apiNodeProvider";
-import { getNetworkCapacity, getProviderDetail, getProviderList } from "@src/providers/providerStatusProvider";
+import { getNetworkCapacity, getProviderDeployments, getProviderDetail, getProviderList } from "@src/providers/providerStatusProvider";
 import { getDashboardData, getGraphData, getProviderActiveLeasesGraphData, getProviderGraphData } from "@src/db/statsProvider";
 import { round } from "@src/utils/math";
 import { isValidBech32Address } from "@src/utils/addresses";
@@ -297,6 +297,22 @@ apiRouter.get(
 
     const provider = await getProviderDetail(req.params.address);
     res.send(provider);
+  })
+);
+
+apiRouter.get(
+  "/providers/:address/deployments/:skip/:limit",
+  asyncHandler(async (req, res) => {
+    if (!req.params.address) {
+      res.status(400).send("Address is undefined.");
+      return;
+    }
+
+    const skip = parseInt(req.params.skip);
+    const limit = Math.min(100, parseInt(req.params.limit));
+    const deployments = await getProviderDeployments(req.params.address, skip, limit, req.query?.status as string);
+
+    res.send(deployments);
   })
 );
 
