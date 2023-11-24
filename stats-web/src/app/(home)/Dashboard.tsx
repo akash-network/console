@@ -34,12 +34,24 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           text="AKT Price"
-          number={<FormattedDecimalCurrency style="currency" currency="USD" value={marketData.price} precision={2} />}
+          number={
+            <FormattedNumber style="currency" currency="USD" value={marketData.price} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
+          }
           diffPercent={marketData.priceChangePercentage24 / 100}
         />
 
-        <StatsCard text="Market Cap" number={<FormattedDecimalCurrency style="currency" currency="USD" value={marketData.marketCap} precision={0} />} />
-        <StatsCard text="Volume (24h)" number={<FormattedDecimalCurrency style="currency" currency="USD" value={marketData.volume} precision={0} />} />
+        <StatsCard
+          text="Market Cap"
+          number={
+            <FormattedNumber style="currency" currency="USD" value={marketData.marketCap} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
+          }
+        />
+        <StatsCard
+          text="Volume (24h)"
+          number={
+            <FormattedNumber style="currency" currency="USD" value={marketData.volume} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
+          }
+        />
         <StatsCard text="Rank" number={marketData.marketCapRank} />
       </div>
 
@@ -51,18 +63,14 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           number={
-            <>
-              <span>
-                <FormattedNumber
-                  value={udenomToDenom(dashboardData.now.dailyUUsdSpent)}
-                  maximumFractionDigits={2}
-                  style="currency"
-                  notation="compact"
-                  compactDisplay="short"
-                  currency="USD"
-                />
-              </span>
-            </>
+            <FormattedNumber
+              value={udenomToDenom(dashboardData.now.dailyUUsdSpent)}
+              maximumFractionDigits={2}
+              style="currency"
+              notation="compact"
+              compactDisplay="short"
+              currency="USD"
+            />
           }
           text="USD spent (24h)"
           tooltip="Amount spent in the last 24h (USDC + AKT converted to USD)."
@@ -73,16 +81,14 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
 
         <StatsCard
           number={
-            <>
-              <FormattedNumber
-                value={udenomToDenom(dashboardData.now.totalUUsdSpent)}
-                maximumFractionDigits={2}
-                style="currency"
-                notation="compact"
-                compactDisplay="short"
-                currency="USD"
-              />
-            </>
+            <FormattedNumber
+              value={udenomToDenom(dashboardData.now.totalUUsdSpent)}
+              maximumFractionDigits={2}
+              style="currency"
+              notation="compact"
+              compactDisplay="short"
+              currency="USD"
+            />
           }
           text="Total spent USD"
           tooltip="This is the total amount spent (USDC + AKT converted to USD) to rent computing power on the akash network since the beginning of the network. (March 2021)"
@@ -368,10 +374,10 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-center w-1/4">Height</TableHead>
-                  <TableHead className="text-center w-1/3">Proposer</TableHead>
-                  <TableHead className="text-center w-1/5">Txs</TableHead>
-                  <TableHead className="text-center w-1/5">Time</TableHead>
+                  <TableHead className="w-1/4 text-center">Height</TableHead>
+                  <TableHead className="w-1/3 text-center">Proposer</TableHead>
+                  <TableHead className="w-1/5 text-center">Txs</TableHead>
+                  <TableHead className="w-1/5 text-center">Time</TableHead>
                 </TableRow>
               </TableHeader>
 
