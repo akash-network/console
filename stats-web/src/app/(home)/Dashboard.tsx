@@ -13,10 +13,10 @@ import { UrlService } from "@/lib/urlUtils";
 import { HumanReadableBytes } from "@/components/HumanReadableBytes";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BlockRow } from "./BlockRow";
+import { BlockRow } from "../../components/blockchain/BlockRow";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { TransactionRow } from "./TransactionRow";
+import { TransactionRow } from "../../components/blockchain/TransactionRow";
 
 interface IDashboardProps {
   dashboardData: DashboardData;
