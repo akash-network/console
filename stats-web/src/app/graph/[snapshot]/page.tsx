@@ -7,10 +7,9 @@ import PageContainer from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { UrlService } from "@/lib/urlUtils";
 import { ArrowLeft } from "lucide-react";
-import { GradientText } from "@/components/GradientText";
 import GraphContainer from "./GraphContainer";
 
-export interface IGraphProps {
+interface IGraphProps {
   params: { snapshot: string };
   searchParams: { [key: string]: string | string[] | undefined };
 }
