@@ -4,3 +4,4 @@ export * from "./useMarketData";
 export * from "./useDashboardData";
 export * from "./useGraphQuery";
 export * from "./useBlocksQuery";
+export * from "./useTransactionsQuery";

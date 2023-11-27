@@ -11,7 +11,6 @@ interface IProps {
 }
 
 export function BlockInfo({ block }: IProps) {
-  console.log("block", block);
   return (
     <Card>
       <CardContent className="pt-6">

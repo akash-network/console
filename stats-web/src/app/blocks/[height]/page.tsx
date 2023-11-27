@@ -1,35 +1,10 @@
-// import Box from "@mui/material/Box";
-// import Paper from "@mui/material/Paper";
-// import { useTheme } from "@mui/material/styles";
-// import { makeStyles } from "tss-react/mui";
-// import Layout from "@src/components/layout/Layout";
-// import PageContainer from "@src/components/shared/PageContainer";
-// import { getNetworkBaseApiUrl } from "@src/utils/constants";
-// import axios, { AxiosError } from "axios";
-// import { BlockDetail } from "@src/types";
-import { FormattedDate, FormattedRelativeTime } from "react-intl";
-// import TableContainer from "@mui/material/TableContainer";
-// import TableBody from "@mui/material/TableBody";
-// import TableRow from "@mui/material/TableRow";
-// import TableCell from "@mui/material/TableCell";
-// import Table from "@mui/material/Table";
-import Link from "next/link";
 import { BlockDetail } from "@/types";
 import { getNetworkBaseApiUrl } from "@/lib/constants";
 import { Metadata, ResolvingMetadata } from "next";
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { LabelValue } from "@/components/LabelValue";
-import { UrlService } from "@/lib/urlUtils";
-// import { UrlService } from "@src/utils/urlUtils";
-// import SearchOffIcon from "@mui/icons-material/SearchOff";
-// import { LabelValue } from "@src/components/shared/LabelValue";
-// import { Title } from "@src/components/shared/Title";
-// import { NextSeo } from "next-seo";
-// import { CustomTableHeader } from "@src/components/shared/CustomTable";
-// import { TransactionRow } from "@src/components/blockchain/TransactionRow";
 import { SearchX } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TransactionRow } from "@/components/blockchain/TransactionRow";
 import { BlockInfo } from "./BlockInfo";
 import { Card, CardContent } from "@/components/ui/card";
@@ -105,24 +80,3 @@ export default async function BlockDetailPage({ params: { height }, searchParams
     </PageContainer>
   );
 }
-
-// export async function getServerSideProps({ params, query }) {
-//   try {
-//     const block = await fetchBlockData(params?.height, query.network as string);
-
-//     return {
-//       props: {
-//         height: params?.height,
-//         block
-//       }
-//     };
-//   } catch (error) {
-//     if (error.response?.status === 404 || error.response?.status === 400) {
-//       return {
-//         notFound: true
-//       };
-//     } else {
-//       throw error;
-//     }
-//   }
-// }

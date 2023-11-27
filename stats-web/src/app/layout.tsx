@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Nav } from "@/components/Nav";
 import Providers from "@/components/layout/CustomProviders";
+import { Toaster } from "@/components/ui/toaster";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <Nav />
           {children}
+          <Toaster />
         </Providers>
       </body>
     </html>

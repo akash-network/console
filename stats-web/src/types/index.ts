@@ -5,6 +5,7 @@ export * from "./transaction";
 export * from "./address";
 export * from "./validator";
 export * from "./proposal";
+export * from "./deployment";
 
 export type IGraphDataPoint = {
   date: string;

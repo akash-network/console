@@ -32,6 +32,8 @@ export class UrlService {
   static validator = (address: string) => `/validators/${address}${appendSearchParams({ network: getSelectedNetworkQueryParam() as string })}`;
   static proposals = () => "/proposals";
   static proposal = (id: number) => `/proposals/${id}`;
+  static publicDeploymentDetails = (owner: string, dseq: string) =>
+    `/deployment/${owner}/${dseq}${appendSearchParams({ network: getSelectedNetworkQueryParam() as string })}`;
   // static userSettings = () => "/user/settings";
   // static userAddressBook = () => `/user/settings/address-book`;
   // static userFavorites = () => `/user/settings/favorites`;
