@@ -5,7 +5,7 @@
 // import Layout from "@src/components/layout/Layout";
 // import PageContainer from "@src/components/shared/PageContainer";
 // import { getNetworkBaseApiUrl } from "@src/utils/constants";
-import axios, { AxiosError } from "axios";
+// import axios, { AxiosError } from "axios";
 // import { BlockDetail } from "@src/types";
 import { FormattedDate, FormattedRelativeTime } from "react-intl";
 // import TableContainer from "@mui/material/TableContainer";
@@ -29,8 +29,10 @@ import { UrlService } from "@/lib/urlUtils";
 // import { CustomTableHeader } from "@src/components/shared/CustomTable";
 // import { TransactionRow } from "@src/components/blockchain/TransactionRow";
 import { SearchX } from "lucide-react";
-import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TransactionRow } from "@/components/blockchain/TransactionRow";
+import { BlockInfo } from "./BlockInfo";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface IProps {
   params: { height: string };
@@ -60,65 +62,45 @@ export default async function BlockDetailPage({ params: { height }, searchParams
 
   return (
     <PageContainer>
-      <Title>Details for Block #{height}</Title>
-      {/* <Paper sx={{ padding: 2 }} elevation={2}> */}
-      <LabelValue label="Height" value={block.height} />
-      <LabelValue label="Poposer" value={<Link href={UrlService.validator(block.proposer.operatorAddress)}>{block.proposer.moniker}</Link>} />
-      <LabelValue
-        label="Block Time"
-        value={
-          <>
-            <FormattedRelativeTime
-              value={(new Date(block.datetime).getTime() - new Date().getTime()) / 1000}
-              numeric="auto"
-              unit="second"
-              updateIntervalInSeconds={7}
-            />
-            &nbsp;(
-            <FormattedDate value={block.datetime} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" second="2-digit" />)
-          </>
-        }
-      />
-      <LabelValue label="Block Hash" value={block.hash} />
-      <LabelValue label="# of Transactions" value={block.transactions.length} />
-      <LabelValue label="Gas wanted / used" value={block.gasUsed === 0 || block.gasWanted === 0 ? 0 : `${block.gasUsed} / ${block.gasWanted}`} />
-      {/* </Paper> */}
+      <Title className="mb-4">Details for Block #{height}</Title>
 
-      <div className="mt-4">
+      <BlockInfo block={block} />
+
+      <div className="mt-6">
         <Title subTitle className="mb-4">
           Transactions
         </Title>
 
-        {/* <Paper sx={{ padding: 2 }}> */}
-        {block.transactions.length === 0 ? (
-          <div className="flex items-center p-4">
-            <SearchX size="1rem" />
-            &nbsp; No transactions
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableCell width="5%">Tx Hash</TableCell>
-                <TableCell align="center" width="10%">
-                  Type
-                </TableCell>
-                <TableCell align="center">Result</TableCell>
-                <TableCell align="center">Amount</TableCell>
-                <TableCell align="center">Fee</TableCell>
-                <TableCell align="center">Height</TableCell>
-                <TableCell align="center">Time</TableCell>
-              </TableRow>
-            </TableHeader>
+        <Card>
+          <CardContent className="pt-6">
+            {block.transactions.length === 0 ? (
+              <div className="flex items-center p-4">
+                <SearchX size="1rem" />
+                &nbsp; No transactions
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tx Hash</TableHead>
+                    <TableHead className="text-center">Type</TableHead>
+                    <TableHead className="text-center">Result</TableHead>
+                    <TableHead className="text-center">Amount</TableHead>
+                    <TableHead className="text-center">Fee</TableHead>
+                    <TableHead className="text-center">Height</TableHead>
+                    <TableHead className="text-center">Time</TableHead>
+                  </TableRow>
+                </TableHeader>
 
-            <TableBody>
-              {block.transactions.map(transaction => (
-                <TransactionRow key={transaction.hash} transaction={transaction} blockHeight={block.height} />
-              ))}
-            </TableBody>
-          </Table>
-        )}
-        {/* </Paper> */}
+                <TableBody>
+                  {block.transactions.map(transaction => (
+                    <TransactionRow key={transaction.hash} transaction={transaction} blockHeight={block.height} />
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </PageContainer>
   );

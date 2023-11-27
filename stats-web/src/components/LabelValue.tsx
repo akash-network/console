@@ -1,3 +1,4 @@
+"use client";
 import { cn } from "@/lib/utils";
 
 type LabelValueProps = {
@@ -16,7 +17,7 @@ export const LabelValue: React.FunctionComponent<LabelValueProps> = ({ label, va
       <div className="flex shrink-0 items-center break-all pr-2 font-bold text-muted-foreground" style={{ width: labelWidth }}>
         {label}
       </div>
-      {!!value && <div className="w-full flex-grow break-all [overflow-wrap:anywhere] sm:w-auto">{value}</div>}
+      {value !== undefined && <div className="w-full flex-grow break-all [overflow-wrap:anywhere] sm:w-auto">{value}</div>}
     </div>
   );
 };
