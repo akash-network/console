@@ -38,21 +38,18 @@ export default async function TransactionDetailPage({ params: { hash }, searchPa
 
   return (
     <PageContainer>
-      <Title>Transaction Details</Title>
+      <Title className="mb-4">Transaction Details</Title>
 
       <TransactionInfo transaction={transaction} />
 
-      <div className="mt-4">
+      <div className="mt-6">
         <Title subTitle className="mb-4">
           Messages
         </Title>
 
         {transaction.messages.map(msg => (
-          <Card
-            key={msg.id}
-            // sx={{ padding: 0, mb: 2 }}
-          >
-            <CardContent>
+          <Card key={msg.id} className="mb-2 p-0">
+            <CardContent className="p-0">
               <TxMessageRow message={msg} />
             </CardContent>
           </Card>
