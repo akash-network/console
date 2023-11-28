@@ -218,7 +218,6 @@ const DeploymentsPage: React.FunctionComponent<Props> = ({}) => {
                 onChange={onSearchChange}
                 type="text"
                 variant="outlined"
-                autoFocus
                 fullWidth
                 size="small"
                 InputProps={{
@@ -340,4 +339,3 @@ export async function getServerSideProps({ params }) {
     props: {}
   };
 }
-
