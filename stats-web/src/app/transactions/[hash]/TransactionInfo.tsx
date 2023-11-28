@@ -1,7 +1,7 @@
 "use client";
 import { FormattedDate, FormattedRelativeTime } from "react-intl";
 import Link from "next/link";
-import { BlockDetail, TransactionDetail } from "@/types";
+import { TransactionDetail } from "@/types";
 import { LabelValue } from "@/components/LabelValue";
 import { UrlService } from "@/lib/urlUtils";
 import { Card, CardContent } from "@/components/ui/card";

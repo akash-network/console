@@ -12,7 +12,6 @@ type TxMessageProps = {
 };
 
 export const MsgCreateBid: React.FunctionComponent<TxMessageProps> = ({ message }) => {
-  console.log(message);
   return (
     <>
       <LabelValue label="Provider" value={<Link href={UrlService.address(message?.data?.provider)}>{message?.data?.provider}</Link>} />
