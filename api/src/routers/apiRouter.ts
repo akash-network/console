@@ -25,6 +25,7 @@ import { getMarketData } from "@src/providers/marketDataProvider";
 import { getAuditors, getProviderAttributesSchema } from "@src/providers/githubProvider";
 import { getProviderRegions } from "@src/db/providerDataProvider";
 import { getProviderDeployments } from "@src/db/deploymentProvider";
+import { Hono } from "hono";
 
 export const apiRouter = express.Router();
 
@@ -66,58 +67,50 @@ apiRouter.get(
   })
 );
 
-apiRouter.get(
-  "/predicted-block-date/:height/:blockWindow?",
-  asyncHandler(async (req, res) => {
-    const height = parseInt(req.params.height);
-    const blockWindow = req.params.blockWindow ? parseInt(req.params.blockWindow) : 10_000;
+export const apiRouterHono = new Hono();
 
-    if (isNaN(height)) {
-      res.status(400).send("Invalid height.");
-      return;
-    }
+apiRouterHono.get("/predicted-block-date/:height/:blockWindow?", async (c) => {
+  const height = parseInt(c.req.param("height"));
+  const blockWindow = c.req.param("blockWindow") ? parseInt(c.req.param("blockWindow")) : 10_000;
 
-    if (isNaN(blockWindow)) {
-      res.status(400).send("Invalid block window.");
-      return;
-    }
+  if (isNaN(height)) {
+    return c.text("Invalid height.", 400);
+  }
 
-    const date = await getPredictedBlockDate(height, blockWindow);
+  if (isNaN(blockWindow)) {
+    return c.text("Invalid block window.", 400);
+  }
 
-    res.send({
-      predictedDate: date,
-      height: height,
-      blockWindow: blockWindow
-    });
-  })
-);
+  const date = await getPredictedBlockDate(height, blockWindow);
 
-apiRouter.get(
-  "/predicted-date-height/:timestamp/:blockWindow?",
-  asyncHandler(async (req, res) => {
-    const timestamp = parseInt(req.params.timestamp);
-    const blockWindow = req.params.blockWindow ? parseInt(req.params.blockWindow) : 10_000;
+  return c.json({
+    predictedDate: date,
+    height: height,
+    blockWindow: blockWindow
+  });
+});
 
-    if (isNaN(timestamp)) {
-      res.status(400).send("Invalid timestamp.");
-      return;
-    }
+apiRouterHono.get("/predicted-date-height/:timestamp/:blockWindow?", async (c) => {
+  const timestamp = parseInt(c.req.param("timestamp"));
+  const blockWindow = c.req.param("blockWindow") ? parseInt(c.req.param("blockWindow")) : 10_000;
 
-    if (isNaN(blockWindow)) {
-      res.status(400).send("Invalid block window.");
-      return;
-    }
+  if (isNaN(timestamp)) {
+    return c.text("Invalid timestamp.", 400);
+  }
 
-    const date = new Date(timestamp * 1000);
-    const height = await getPredictedDateHeight(date, blockWindow);
+  if (isNaN(blockWindow)) {
+    return c.text("Invalid block window.", 400);
+  }
 
-    res.send({
-      predictedHeight: height,
-      date: date,
-      blockWindow: blockWindow
-    });
-  })
-);
+  const date = new Date(timestamp * 1000);
+  const height = await getPredictedDateHeight(date, blockWindow);
+
+  return c.json({
+    predictedHeight: height,
+    date: date,
+    blockWindow: blockWindow
+  });
+});
 
 apiRouter.get(
   "/transactions",

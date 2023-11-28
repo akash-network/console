@@ -4,13 +4,15 @@ import packageJson from "../package.json";
 import { isProd } from "./utils/constants";
 import * as Sentry from "@sentry/node";
 import { Scheduler } from "./scheduler";
-import { apiRouter } from "./routers/apiRouter";
+import { apiRouter, apiRouterHono } from "./routers/apiRouter";
 import { userRouter } from "./routers/userRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
 import { bytesToHumanReadableSize } from "./utils/files";
 import { env } from "./utils/env";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { dashboardRouter } from "./routers/dashboardRouter";
+import { Hono } from "hono";
+import { serve } from "@hono/node-server";
 
 const app = express();
 app.use(
@@ -19,6 +21,8 @@ app.use(
     optionsSuccessStatus: 200
   })
 );
+
+const appHono = new Hono();
 
 const { PORT = 3080 } = process.env;
 
@@ -65,7 +69,8 @@ app.use("/user", userRouter);
 app.use("/web3-index", web3IndexRouter);
 app.use("/dashboard", dashboardRouter);
 
-app.get("/status", (req, res) => {
+appHono.get("/", (c) => c.text("Hono!"));
+appHono.get("/status", (c) => {
   const version = packageJson.version;
   const tasksStatus = scheduler.getTasksStatus();
   const memoryInBytes = process.memoryUsage();
@@ -76,8 +81,10 @@ app.get("/status", (req, res) => {
     external: bytesToHumanReadableSize(memoryInBytes.external)
   };
 
-  res.send({ version, memory, tasks: tasksStatus });
+  return c.json({ version, memory, tasks: tasksStatus });
 });
+
+appHono.route("/api", apiRouterHono);
 
 // The error handler must be before any other error middleware and after all controllers
 app.use(Sentry.Handlers.errorHandler());
@@ -110,6 +117,11 @@ async function initApp() {
 
     app.listen(PORT, () => {
       console.log("server started at http://localhost:" + PORT);
+    });
+
+    serve({
+      fetch: appHono.fetch,
+      port: 8787
     });
   } catch (err) {
     console.error("Error while initializing app", err);
