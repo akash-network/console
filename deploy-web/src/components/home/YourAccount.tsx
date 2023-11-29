@@ -23,6 +23,7 @@ import sdlStore from "@src/store/sdlStore";
 import { usePricing } from "@src/context/PricingProvider";
 import { uAktDenom } from "@src/utils/constants";
 import { useUsdcDenom } from "@src/hooks/useDenom";
+import { customColors } from "@src/utils/colors";
 
 const useStyles = makeStyles()(theme => ({
   legendRow: {
@@ -92,8 +93,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const { price, isLoaded } = usePricing();
 
   const colors = {
-    balance_akt: "#dd4320",
-    balance_usdc: "#dd4320",
+    balance_akt: customColors.main,
+    balance_usdc: customColors.main,
     deployment_akt: theme.palette.success.dark,
     deployment_usdc: theme.palette.success.dark
   };

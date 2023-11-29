@@ -7,7 +7,6 @@ import { ErrorFallback } from "../shared/ErrorFallback";
 import { accountBarHeight } from "@src/utils/constants";
 import { Badge, Button, IconButton, styled, useMediaQuery, useTheme } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
-import Image from "next/legacy/image";
 import { WalletStatus } from "./WalletStatus";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
@@ -15,6 +14,7 @@ import { useRouter } from "next/router";
 import { AccountMenu } from "./AccountMenu";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
+import { AkashConsoleLogo } from "../icons/AkashConsoleLogo";
 
 type Props = {
   isMobileOpen: boolean;
@@ -75,17 +75,8 @@ export const Header: React.FunctionComponent<Props> = ({ children, isMobileOpen,
       <Toolbar variant="dense" className={classes.accountBar}>
         <ErrorBoundary FallbackComponent={ErrorFallback}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Box href={UrlService.home()} component={Link} sx={{ height: "35px", width: "140px" }}>
-              <Image
-                alt="Cloudmos Logo"
-                src={theme.palette.mode === "dark" ? "/images/cloudmos-logo.png" : "/images/cloudmos-logo-light.png"}
-                layout="responsive"
-                quality={100}
-                width={140}
-                height={35}
-                loading="eager"
-                priority
-              />
+            <Box href={UrlService.home()} component={Link}>
+              <AkashConsoleLogo />
             </Box>
           </Box>
 
