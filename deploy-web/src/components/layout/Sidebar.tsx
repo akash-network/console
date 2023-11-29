@@ -62,8 +62,8 @@ const useStyles = makeStyles()(theme => ({
     }
   },
   socialIcon: {
-    height: "1.5rem",
-    width: "1.5rem",
+    height: "1rem",
+    width: "1rem",
     display: "block",
     margin: "0 .2rem",
     "&:hover": {
@@ -181,17 +181,6 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       >
         <strong>v{publicRuntimeConfig?.version}</strong>
       </Typography>
-
-      <Chip
-        label="beta"
-        color="secondary"
-        size="small"
-        sx={{
-          height: "12px",
-          fontSize: "10px",
-          fontWeight: "bold"
-        }}
-      />
     </Box>
   );
 
@@ -260,23 +249,6 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           <Box sx={{ padding: "0 1rem 1rem" }}>
             <NodeStatusBar />
 
-            {!smallScreen && (
-              <Button
-                onClick={() =>
-                  window.open(
-                    "https://wallet.keplr.app/chains/akash?modal=validator&chain=akashnet-2&validator_address=akashvaloper14mt78hz73d9tdwpdvkd59ne9509kxw8yj7qy8f",
-                    "_blank"
-                  )
-                }
-                size="small"
-                fullWidth
-              >
-                <Typography variant="caption" className={classes.caption} sx={{ display: "flex", alignItems: "center", whiteSpace: "nowrap" }}>
-                  Support our Validator <LaunchIcon fontSize="small" sx={{ marginLeft: ".2rem" }} />
-                </Typography>
-              </Button>
-            )}
-
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-around", margin: "1rem 0 0" }}>
               <ul className={classes.socialLinks}>
                 <li>
@@ -285,15 +257,12 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
                   </LinkTo>
                 </li>
                 <li>
-                  <LinkTo
-                    onClick={() => window.open("https://www.youtube.com/channel/UC1rgl1y8mtcQoa9R_RWO0UA?sub_confirmation=1", "_blank")}
-                    className={classes.socialLinks}
-                  >
+                  <LinkTo onClick={() => window.open("https://www.youtube.com/@AkashNetwork", "_blank")} className={classes.socialLinks}>
                     <YouTubeIcon className={classes.socialIcon} />
                   </LinkTo>
                 </li>
                 <li>
-                  <LinkTo onClick={() => window.open("https://twitter.com/cloudmosio", "_blank")} className={classes.socialLinks}>
+                  <LinkTo onClick={() => window.open("https://twitter.com/akashnet_", "_blank")} className={classes.socialLinks}>
                     <TwitterIcon className={classes.socialIcon} />
                   </LinkTo>
                 </li>
