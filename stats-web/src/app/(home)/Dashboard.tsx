@@ -17,6 +17,7 @@ import { BlockRow } from "../../components/blockchain/BlockRow";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { TransactionRow } from "../../components/blockchain/TransactionRow";
+import SearchBar from "@/components/SearchBar";
 
 interface IDashboardProps {
   dashboardData: DashboardData;
@@ -363,6 +364,10 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
           number={<FormattedNumber value={dashboardData.chainStats.stakingAPR} style="percent" minimumFractionDigits={2} maximumFractionDigits={2} />}
           text="Staking APR"
         />
+      </div>
+
+      <div className="pt-12 pb-4">
+        <SearchBar />
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4">
