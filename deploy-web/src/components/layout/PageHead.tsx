@@ -27,7 +27,7 @@ export const PageHead: React.FunctionComponent<Props> = ({}) => {
           description: "Deploy docker containers on the decentralized supercloud Akash Network.",
           images: [
             {
-              url: "https://console.akash.network/cloudmos-cover.png",
+              url: "https://console.akash.network/akash-console.png",
               width: 1600,
               height: 529,
               alt: "Akash Console Cover Image"
