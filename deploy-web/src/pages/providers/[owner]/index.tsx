@@ -117,7 +117,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
 
   return (
     <Layout isLoading={isLoading}>
-      <CustomNextSeo title={`Provider detail ${provider?.name || provider?.owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetail(owner)}`} />
+      <CustomNextSeo title={`Provider detail ${provider?.name || provider?.owner}`} url={`https://console.akash.network${UrlService.providerDetail(owner)}`} />
 
       <ProviderDetailLayout address={owner} page={ProviderDetailTabs.DETAIL} refresh={refresh} provider={provider}>
         {!provider && isLoading && (

@@ -123,7 +123,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
         if (!isConnectionEstablished) {
           // Welcome message
           terminalRef.current.reset();
-          terminalRef.current.write("Welcome to Cloudmos Shell! ☁️");
+          terminalRef.current.write("Welcome to Akash Console Shell! ☁️");
           terminalRef.current.write("\n\r");
           terminalRef.current.write("You're now connected just as ssh to your docker instance.");
           terminalRef.current.write("\n\r");
@@ -290,7 +290,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
               <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
                 {isConnectionClosed && (
                   <Alert variant="standard" severity="warning" sx={{ borderRadius: 0 }}>
-                    The connection to your Cloudmos Shell was lost. (
+                    The connection to your Akash Console Shell was lost. (
                     <Link href={UrlService.faq("shell-lost")} target="_blank" style={{ display: "inline-flex", alignItems: "center" }}>
                       More Info
                       <LaunchIcon fontSize={"small"} alignmentBaseline="middle" />

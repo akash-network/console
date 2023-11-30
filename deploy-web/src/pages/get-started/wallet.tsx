@@ -67,7 +67,7 @@ const GetStartedWallet: React.FunctionComponent<Props> = ({}) => {
     <Layout>
       <CustomNextSeo
         title="Setup wallet"
-        url={`https://deploy.cloudmos.io${UrlService.getStartedWallet()}`}
+        url={`https://console.akash.network${UrlService.getStartedWallet()}`}
         description="Follow the steps to install Keplr and get tokens!"
       />
 

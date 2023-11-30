@@ -36,7 +36,7 @@ const FaqEntries = [
   },
   {
     anchor: "shell-lost",
-    title: "Can't access shell: 'The connection to your Cloudmos Shell was lost.'",
+    title: "Can't access shell: 'The connection to your Akash Console Shell was lost.'",
     content: (
       <>
         <p>

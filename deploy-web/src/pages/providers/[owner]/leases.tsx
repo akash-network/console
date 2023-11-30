@@ -68,7 +68,7 @@ const ProviderLeasesPage: React.FunctionComponent<Props> = ({ owner }) => {
 
   return (
     <Layout isLoading={isLoadingLeases || isLoadingProvider || isLoadingStatus}>
-      <CustomNextSeo title={`Provider leases for ${owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetailLeases(owner)}`} />
+      <CustomNextSeo title={`Provider leases for ${owner}`} url={`https://console.akash.network${UrlService.providerDetailLeases(owner)}`} />
 
       <ProviderDetailLayout address={owner} page={ProviderDetailTabs.LEASES} refresh={refresh} provider={provider}>
         <LeaseList isLoadingLeases={isLoadingLeases} leases={filteredLeases} />

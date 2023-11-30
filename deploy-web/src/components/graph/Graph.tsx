@@ -73,7 +73,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   return (
     <div className={classes.graphContainer}>
       <Box className={classes.watermark}>
-        <Typography variant="caption">cloudmos.io</Typography>
+        <Typography variant="caption">console.akash.network</Typography>
       </Box>
       <ResponsiveLineCanvas
         theme={theme}

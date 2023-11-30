@@ -58,7 +58,7 @@ const ProviderRawPage: React.FunctionComponent<Props> = ({ owner }) => {
 
   return (
     <Layout isLoading={isLoadingLeases || isLoadingProvider || isLoadingStatus}>
-      <CustomNextSeo title={`Provider raw data for ${owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetailRaw(owner)}`} />
+      <CustomNextSeo title={`Provider raw data for ${owner}`} url={`https://console.akash.network${UrlService.providerDetailRaw(owner)}`} />
 
       <ProviderDetailLayout address={owner} page={ProviderDetailTabs.RAW} refresh={refresh} provider={provider}>
         {provider && <DynamicReactJson src={JSON.parse(JSON.stringify(provider))} collapsed={1} />}

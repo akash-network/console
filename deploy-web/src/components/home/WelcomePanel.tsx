@@ -30,7 +30,7 @@ export const WelcomePanel: React.FC<Props> = () => {
   return (
     <Card elevation={1}>
       <CardHeader
-        title="Welcome to Cloudmos!"
+        title="Welcome to Akash Console!"
         titleTypographyProps={{ variant: "h3", sx: { fontSize: "1.25rem", fontWeight: "bold" } }}
         sx={{ borderBottom: expanded ? `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200]}` : "" }}
         action={
@@ -48,8 +48,8 @@ export const WelcomePanel: React.FC<Props> = () => {
                 <RocketLaunchIcon fontSize="large" />
               </ListItemAvatar>
               <ListItemText
-                primary={<Link href={UrlService.getStarted()}>Getting started with Cloudmos</Link>}
-                secondary="Learn how to deploy your first docker container on Akash in a few click using Cloudmos."
+                primary={<Link href={UrlService.getStarted()}>Getting started with Akash Console</Link>}
+                secondary="Learn how to deploy your first docker container on Akash in a few click using Akash Console."
               />
             </ListItem>
             <ListItem>

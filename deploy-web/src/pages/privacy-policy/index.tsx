@@ -10,25 +10,25 @@ export function PrivacyPolicy() {
     <Layout>
       <NextSeo
         title="Privacy Policy"
-        description="At Cloudmos, accessible from https://cloudmos.io, one of our main priorities is the privacy of our visitors. This Privacy Policy document contains
-          types of information that is collected and recorded by Cloudmos and how we use it."
+        description="At Overclock Labs, accessible from https://console.akash.network, one of our main priorities is the privacy of our visitors. This Privacy Policy document contains
+          types of information that is collected and recorded by Overclock Labs and how we use it."
       />
 
       <PageContainer>
         <Box sx={{ marginBottom: "2rem" }}>
-          <Title value="Privacy Policy for Cloudmos" />
+          <Title value="Privacy Policy for Akash Console" />
         </Box>
 
         <p>
-          At Cloudmos, accessible from https://cloudmos.io, one of our main priorities is the privacy of our visitors. This Privacy Policy document contains
-          types of information that is collected and recorded by Cloudmos and how we use it.
+          At Overclock Labs, accessible from https://console.akash.network, one of our main priorities is the privacy of our visitors. This Privacy Policy document contains
+          types of information that is collected and recorded by Overclock Labs and how we use it.
         </p>
 
         <p>If you have additional questions or require more information about our Privacy Policy, do not hesitate to contact us.</p>
 
         <p>
           This Privacy Policy applies only to our online activities and is valid for visitors to our website with regards to the information that they shared
-          and/or collect in Cloudmos. This policy is not applicable to any information collected offline or via channels other than this website. Our Privacy
+          and/or collect in Overclock Labs. This policy is not applicable to any information collected offline or via channels other than this website. Our Privacy
           Policy was created with the help of the{" "}
           <a target={"_blank"} href="https://www.privacypolicygenerator.info/" rel="noreferrer noopener">
             Free Privacy Policy Generator
@@ -75,7 +75,7 @@ export function PrivacyPolicy() {
         <h2>Log Files</h2>
 
         <p>
-          Cloudmos follows a standard procedure of using log files. These files log visitors when they visit websites. All hosting companies do this and a part
+        Overclock Labs follows a standard procedure of using log files. These files log visitors when they visit websites. All hosting companies do this and a part
           of hosting services' analytics. The information collected by log files include internet protocol (IP) addresses, browser type, Internet Service
           Provider (ISP), date and time stamp, referring/exit pages, and possibly the number of clicks. These are not linked to any information that is
           personally identifiable. The purpose of the information is for analyzing trends, administering the site, tracking users' movement on the website, and
@@ -85,28 +85,28 @@ export function PrivacyPolicy() {
         <h2>Cookies and Web Beacons</h2>
 
         <p>
-          Like any other website, Cloudmos uses 'cookies'. These cookies are used to store information including visitors' preferences, and the pages on the
+          Like any other website, Overclock Labs uses 'cookies'. These cookies are used to store information including visitors' preferences, and the pages on the
           website that the visitor accessed or visited. The information is used to optimize the users' experience by customizing our web page content based on
           visitors' browser type and/or other information.
         </p>
 
         <h2>Advertising Partners Privacy Policies</h2>
 
-        <p>You may consult this list to find the Privacy Policy for each of the advertising partners of Cloudmos.</p>
+        <p>You may consult this list to find the Privacy Policy for each of the advertising partners of Overclock Labs.</p>
 
         <p>
           Third-party ad servers or ad networks uses technologies like cookies, JavaScript, or Web Beacons that are used in their respective advertisements and
-          links that appear on Cloudmos, which are sent directly to users' browser. They automatically receive your IP address when this occurs. These
+          links that appear on Overclock Labs, which are sent directly to users' browser. They automatically receive your IP address when this occurs. These
           technologies are used to measure the effectiveness of their advertising campaigns and/or to personalize the advertising content that you see on
           websites that you visit.
         </p>
 
-        <p>Note that Cloudmos has no access to or control over these cookies that are used by third-party advertisers.</p>
+        <p>Note that Overclock Labs has no access to or control over these cookies that are used by third-party advertisers.</p>
 
         <h2>Third Party Privacy Policies</h2>
 
         <p>
-          Cloudmos's Privacy Policy does not apply to other advertisers or websites. Thus, we are advising you to consult the respective Privacy Policies of
+        Overclock Labs's Privacy Policy does not apply to other advertisers or websites. Thus, we are advising you to consult the respective Privacy Policies of
           these third-party ad servers for more detailed information. It may include their practices and instructions about how to opt-out of certain options.{" "}
         </p>
 
@@ -151,7 +151,7 @@ export function PrivacyPolicy() {
         </p>
 
         <p>
-          Cloudmos does not knowingly collect any Personal Identifiable Information from children under the age of 13. If you think that your child provided
+        Overclock Labs does not knowingly collect any Personal Identifiable Information from children under the age of 13. If you think that your child provided
           this kind of information on our website, we strongly encourage you to contact us immediately and we will do our best efforts to promptly remove such
           information from our records.
         </p>

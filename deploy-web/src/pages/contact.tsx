@@ -7,9 +7,9 @@ import Layout from "@src/components/layout/Layout";
 import { makeStyles } from "tss-react/mui";
 import { DiscordIcon } from "@src/components/shared/icons";
 import YouTubeIcon from "@mui/icons-material/YouTube";
-import TwitterIcon from "@mui/icons-material/Twitter";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import { UrlService } from "@src/utils/urlUtils";
+import { FaXTwitter } from "react-icons/fa6";
 
 type Props = {
   children?: ReactNode;
@@ -50,7 +50,7 @@ const ContactPage: React.FunctionComponent<Props> = ({}) => {
 
   return (
     <Layout>
-      <CustomNextSeo title="Contact" url={`https://deploy.cloudmos.io${UrlService.contact()}`} />
+      <CustomNextSeo title="Contact" url={`https://console.akash.network${UrlService.contact()}`} />
 
       <PageContainer>
         <Box sx={{ textAlign: "center", padding: "3rem 0" }}>
@@ -64,19 +64,19 @@ const ContactPage: React.FunctionComponent<Props> = ({}) => {
           </Box>
 
           <Grid container spacing={1} className={classes.socials}>
-            <Grid item xs={6} sm={4}>
+            <Grid item xs={6} sm={3}>
               <a href="https://discord.gg/akash" target="_blank" className={classes.socialLink}>
                 <DiscordIcon className={classes.socialIcon} />
               </a>
             </Grid>
-            <Grid item xs={6} sm={4}>
-              <a href="https://www.youtube.com/channel/UC1rgl1y8mtcQoa9R_RWO0UA?sub_confirmation=1" target="_blank" className={classes.socialLink}>
+            <Grid item xs={6} sm={3}>
+              <a href="https://www.youtube.com/@AkashNetwork" target="_blank" className={classes.socialLink}>
                 <YouTubeIcon className={classes.socialIcon} />
               </a>
             </Grid>
-            <Grid item xs={6} sm={4}>
-              <a href="https://twitter.com/cloudmosio" target="_blank" className={classes.socialLink}>
-                <TwitterIcon className={classes.socialIcon} />
+            <Grid item xs={6} sm={3}>
+              <a href="https://twitter.com/akashnet_" target="_blank" className={classes.socialLink}>
+                <FaXTwitter className={classes.socialIcon} />
               </a>
             </Grid>
             <Grid item xs={6} sm={3}>

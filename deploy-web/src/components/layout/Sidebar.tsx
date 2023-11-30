@@ -10,15 +10,12 @@ import { makeStyles } from "tss-react/mui";
 import { UrlService } from "@src/utils/urlUtils";
 import CloudIcon from "@mui/icons-material/Cloud";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
-import { Button, Chip, IconButton, Typography, useMediaQuery } from "@mui/material";
+import { Button, IconButton, Typography, useMediaQuery } from "@mui/material";
 import CollectionsIcon from "@mui/icons-material/Collections";
 import SettingsIcon from "@mui/icons-material/Settings";
 import Link from "next/link";
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
-import { LinkTo } from "../shared/LinkTo";
 import YouTubeIcon from "@mui/icons-material/YouTube";
-import TwitterIcon from "@mui/icons-material/Twitter";
-import LaunchIcon from "@mui/icons-material/Launch";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import { DiscordIcon } from "../shared/icons";
 import { NodeStatusBar } from "./NodeStatusBar";
@@ -26,10 +23,12 @@ import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import MenuIcon from "@mui/icons-material/Menu";
 import ConstructionIcon from "@mui/icons-material/Construction";
 import HelpIcon from "@mui/icons-material/Help";
+import LaunchIcon from "@mui/icons-material/Launch";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
 import { MobileSidebarUser } from "./MobileSidebarUser";
 import { ISidebarGroupMenu } from "@src/types";
+import { FaXTwitter } from "react-icons/fa6";
 
 const { publicRuntimeConfig } = getConfig();
 
@@ -47,31 +46,34 @@ const useStyles = makeStyles()(theme => ({
     height: "12px"
   },
   socialLinks: {
+    listStyle: "none",
     display: "flex",
-    transition: ".3s all ease",
-    margin: 0,
     padding: 0,
-    "& li": {
-      margin: "0 .5rem",
-      display: "flex",
-      alignItems: "center"
-    },
+    margin: 0,
+    [theme.breakpoints.down("sm")]: {
+      justifyContent: "center"
+    }
+  },
+  socialLink: {
+    display: "block",
+    padding: "0 .5rem",
+    transition: ".3s all ease",
     "& path": {
-      fill: theme.palette.mode === "dark" ? theme.palette.primary.contrastText : theme.palette.common.black,
+      fill: theme.palette.mode === "dark" ? theme.palette.primary.contrastText : theme.palette.primary.main,
       transition: ".3s all ease"
+    },
+    "&:hover": {
+      color: theme.palette.secondary.main,
+      "& path": {
+        fill: theme.palette.secondary.main
+      }
     }
   },
   socialIcon: {
     height: "1rem",
     width: "1rem",
     display: "block",
-    margin: "0 .2rem",
-    "&:hover": {
-      color: theme.palette.mode === "dark" ? theme.palette.grey[500] : theme.palette.primary.main,
-      "& path": {
-        fill: theme.palette.mode === "dark" ? theme.palette.grey[500] : theme.palette.primary.main
-      }
-    }
+    margin: "0 .2rem"
   },
   caption: {
     color: theme.palette.mode === "dark" ? theme.palette.grey["400"] : theme.palette.grey["600"],
@@ -252,24 +254,24 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-around", margin: "1rem 0 0" }}>
               <ul className={classes.socialLinks}>
                 <li>
-                  <LinkTo onClick={() => window.open("https://discord.gg/akash", "_blank")} className={classes.socialLinks}>
+                  <a href="https://discord.gg/akash" target="_blank" className={classes.socialLink}>
                     <DiscordIcon className={classes.socialIcon} />
-                  </LinkTo>
+                  </a>
                 </li>
                 <li>
-                  <LinkTo onClick={() => window.open("https://www.youtube.com/@AkashNetwork", "_blank")} className={classes.socialLinks}>
+                  <a href="https://www.youtube.com/@AkashNetwork" target="_blank" className={classes.socialLink}>
                     <YouTubeIcon className={classes.socialIcon} />
-                  </LinkTo>
+                  </a>
                 </li>
                 <li>
-                  <LinkTo onClick={() => window.open("https://twitter.com/akashnet_", "_blank")} className={classes.socialLinks}>
-                    <TwitterIcon className={classes.socialIcon} />
-                  </LinkTo>
+                  <a href="https://twitter.com/akashnet_" target="_blank" className={classes.socialLink}>
+                    <FaXTwitter className={classes.socialIcon} />
+                  </a>
                 </li>
                 <li>
-                  <LinkTo onClick={() => window.open("https://github.com/akash-network/cloudmos", "_blank")} className={classes.socialLinks}>
+                  <a href="https://github.com/akash-network/cloudmos" target="_blank" className={classes.socialLink}>
                     <GitHubIcon className={classes.socialIcon} />
-                  </LinkTo>
+                  </a>
                 </li>
               </ul>
 

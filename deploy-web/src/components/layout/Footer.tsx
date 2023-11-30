@@ -1,18 +1,14 @@
 import React from "react";
 import { useSnackbar } from "notistack";
 import { makeStyles } from "tss-react/mui";
-import { Box, Chip, Grid, Typography } from "@mui/material";
+import { Box, Grid, Typography } from "@mui/material";
 import { DiscordIcon } from "../shared/icons";
-import getConfig from "next/config";
-import FileCopyIcon from "@mui/icons-material/FileCopy";
 import CopyrightIcon from "@mui/icons-material/Copyright";
 import YouTubeIcon from "@mui/icons-material/YouTube";
-import TwitterIcon from "@mui/icons-material/Twitter";
+import { FaXTwitter } from "react-icons/fa6";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
-
-const { publicRuntimeConfig } = getConfig();
 
 export interface IFooterProps {}
 
@@ -101,11 +97,11 @@ export const Footer: React.FunctionComponent<IFooterProps> = ({}) => {
         <Grid container spacing={2}>
           <Grid item xs={12}>
             <Typography variant="body1" className={classes.title}>
-              Cloudmos
+              Akash Console
             </Typography>
             <Typography variant="body2" className={classes.subSitle}>
-              Cloudmos is the #1 platform to deploy docker containers on the Akash Network, a decentralized cloud compute marketplace. Explore, deploy and track
-              all in one place!
+              Akash Console is the #1 platform to deploy docker containers on the Akash Network, a decentralized cloud compute marketplace. Explore, deploy and
+              track all in one place!
             </Typography>
           </Grid>
         </Grid>
@@ -118,13 +114,13 @@ export const Footer: React.FunctionComponent<IFooterProps> = ({}) => {
               </a>
             </li>
             <li>
-              <a href="https://www.youtube.com/channel/UC1rgl1y8mtcQoa9R_RWO0UA?sub_confirmation=1" target="_blank" className={classes.socialLink}>
+              <a href="https://www.youtube.com/@AkashNetwork" target="_blank" className={classes.socialLink}>
                 <YouTubeIcon className={classes.socialIcon} />
               </a>
             </li>
             <li>
-              <a href="https://twitter.com/cloudmosio" target="_blank" className={classes.socialLink}>
-                <TwitterIcon className={classes.socialIcon} />
+              <a href="https://twitter.com/akashnet_" target="_blank" className={classes.socialLink}>
+                <FaXTwitter className={classes.socialIcon} />
               </a>
             </li>
             <li>
@@ -160,7 +156,7 @@ export const Footer: React.FunctionComponent<IFooterProps> = ({}) => {
 
           <Box sx={{ display: "flex", alignItems: "center", fontSize: ".75rem" }}>
             <CopyrightIcon fontSize="small" />
-            &nbsp;Cloudmos
+            &nbsp;Overclock Labs
           </Box>
         </Box>
       </footer>

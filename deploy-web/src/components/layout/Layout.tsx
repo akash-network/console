@@ -6,7 +6,6 @@ import { ErrorFallback } from "../shared/ErrorFallback";
 import { accountBarHeight, closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { CircularProgress, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
-import { WelcomeModal } from "./WelcomeModal";
 import { Sidebar } from "./Sidebar";
 import { useSettings } from "@src/context/SettingsProvider";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
@@ -60,7 +59,6 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
 const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet }) => {
   const theme = useTheme();
   const { classes } = useStyles();
-  const [isShowingWelcome, setIsShowingWelcome] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
@@ -83,21 +81,6 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
     };
   }, [refreshNodeStatuses]);
 
-  useEffect(() => {
-    const agreedToTerms = localStorage.getItem("agreedToTerms") === "true";
-
-    if (!agreedToTerms) {
-      setIsShowingWelcome(true);
-    }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const onWelcomeClose = () => {
-    localStorage.setItem("agreedToTerms", "true");
-    setIsShowingWelcome(false);
-  };
-
   const onOpenMenuClick = () => {
     setIsNavOpen(prev => {
       const newValue = !prev;
@@ -114,7 +97,6 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
 
   return (
     <>
-      <WelcomeModal open={isShowingWelcome} onClose={onWelcomeClose} />
       <NewsletterModal />
 
       <Box sx={{ height: "100%" }}>

@@ -64,11 +64,6 @@ export const readableDenoms = {
   [usdcIbcDenoms[sandboxId]]: readableUsdcDenom
 };
 
-// Cloudmos fee
-export const feePercent = 3;
-// Max .2$
-export const maxFee = 0.2;
-
 // Cloudmos validator
 export const treasuryAddress = "akash1dh33aa6wc8eh0kt3e43ydcpsv2n3gt7nn9epyn";
 export const validatorAddress = "akashvaloper14mt78hz73d9tdwpdvkd59ne9509kxw8yj7qy8f";

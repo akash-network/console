@@ -219,7 +219,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     <>
       <CustomNextSeo
         title="Create Deployment - Manifest Edit"
-        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`}
+        url={`https://console.akash.network${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`}
       />
 
       <Box sx={{ marginBottom: ".5rem" }}>

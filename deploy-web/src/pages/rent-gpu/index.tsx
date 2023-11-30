@@ -14,7 +14,7 @@ const RentGpuPage: React.FunctionComponent<Props> = ({}) => {
     <Layout>
       <CustomNextSeo
         title="Rent GPUs"
-        url={`https://deploy.cloudmos.io${UrlService.sdlBuilder()}`}
+        url={`https://console.akash.network${UrlService.sdlBuilder()}`}
         description="Experience Global GPU Rental Excellence: Seamlessly Deploy AI Workloads with Docker Containers on Kubernetes"
       />
 

@@ -273,7 +273,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     <>
       <CustomNextSeo
         title="Create Deployment - Create Lease"
-        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.createLeases })}`}
+        url={`https://console.akash.network${UrlService.newDeployment({ step: RouteStepKeys.createLeases })}`}
       />
 
       <Box>

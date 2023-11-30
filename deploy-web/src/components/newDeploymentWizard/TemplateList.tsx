@@ -93,7 +93,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
     <>
       <CustomNextSeo
         title="Create Deployment - Template List"
-        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.chooseTemplate })}`}
+        url={`https://console.akash.network${UrlService.newDeployment({ step: RouteStepKeys.chooseTemplate })}`}
       />
 
       <Typography variant="h1" sx={{ marginBottom: "2rem", fontSize: "2rem", marginTop: "2rem" }}>

@@ -11,8 +11,8 @@ export function TermsOfService() {
     <Layout>
       <CustomNextSeo
         title="Terms of service"
-        url={`https://deploy.cloudmos.io${UrlService.termsOfService()}`}
-        description="Cloudmos webiste terms of service."
+        url={`https://console.akash.network${UrlService.termsOfService()}`}
+        description="Akash Console webiste terms of service."
       />
 
       <PageContainer>
@@ -26,11 +26,12 @@ export function TermsOfService() {
 
         <p>
           These Terms of Use constitute a legally binding agreement made between you, whether personally or on behalf of an entity (&ldquo;you&rdquo;) and
-          MaxMax Labs Inc. (&quot;Company&quot;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;), concerning your access to and use of the
-          https://cloudmos.io/ website as well as any other media form, media channel, mobile website or mobile application related, linked, or otherwise
-          connected thereto (collectively, the &ldquo;Site&rdquo;). P.O. Box 144, 3119 9 Forum Lane, Camana Bay, George Town, Grand Cayman KY1-9006, Cayman
-          Islands. You agree that by accessing the Site, you have read, understood, and agree to be bound by all of these Terms of Use. IF YOU DO NOT AGREE WITH
-          ALL OF THESE TERMS OF USE, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SITE AND YOU MUST DISCONTINUE USE IMMEDIATELY.
+          Overclock Labs (&quot;Company&quot;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;), concerning your access to and use of the
+          https://console.akash.network/ website as well as any other media form, media channel, mobile website or mobile application related, linked, or
+          otherwise connected thereto (collectively, the &ldquo;Site&rdquo;). We are registered in Canada and have our registered office at P.O. Box 144, 3119 9
+          Forum Lane, Camana Bay, George Town, Grand Cayman KY1-9006, Cayman Islands. You agree that by accessing the Site, you have read, understood, and agree
+          to be bound by all of these Terms of Use. IF YOU DO NOT AGREE WITH ALL OF THESE TERMS OF USE, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SITE
+          AND YOU MUST DISCONTINUE USE IMMEDIATELY.
         </p>
 
         <p>
@@ -165,7 +166,7 @@ export function TermsOfService() {
           end of the current paid term.
         </p>
 
-        <p>If you are unsatisfied with our services, please email us at contact@cloudmos.io or call us at (888) 546-3184.</p>
+        <p>If you are unsatisfied with our services, please email us at support@akash.network or call us at (888) 546-3184.</p>
 
         <h2>9. SOFTWARE</h2>
 
@@ -266,8 +267,8 @@ export function TermsOfService() {
           <li>Sell or otherwise transfer your profile. Use the Site to advertise or offer to sell goods and services.</li>
 
           <li>
-            You are allowed to use Cloudmos data and contents solely for your own account and any resale of the Cloudmos contents, data, and analytics is
-            prohibited whether modified or not.
+            You are allowed to use Akash Console data and contents solely for your own account and any resale of the Akash Console contents, data, and analytics
+            is prohibited whether modified or not.
           </li>
         </ul>
 
@@ -420,7 +421,8 @@ export function TermsOfService() {
 
         <p>
           Your submission of personal information through the site is governed by our Privacy Policy. Please review our Privacy Policy:
-          https://cloudmos.io/privacy-policy. By using the Site, you agree to be bound by our Privacy Policy, which is incorporated into these Terms of Use.
+          https://console.akash.network/privacy-policy. By using the Site, you agree to be bound by our Privacy Policy, which is incorporated into these Terms
+          of Use.
         </p>
 
         <h2>17. COPYRIGHT INFRINGEMENTS</h2>

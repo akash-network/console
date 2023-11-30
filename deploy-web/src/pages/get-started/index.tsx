@@ -18,15 +18,15 @@ const GetStarted: React.FunctionComponent<Props> = ({}) => {
   return (
     <Layout>
       <CustomNextSeo
-        title="Get started with Cloudmos"
-        url={`https://deploy.cloudmos.io${UrlService.getStarted()}`}
-        description="Follow the steps to get started with Cloudmos!"
+        title="Get started with Akash Console"
+        url={`https://console.akash.network${UrlService.getStarted()}`}
+        description="Follow the steps to get started with Akash Console!"
       />
 
       <PageContainer>
         <Card elevation={1}>
           <CardHeader
-            title="Get started with Cloudmos!"
+            title="Get started with Akash Console!"
             titleTypographyProps={{ variant: "h3", sx: { fontSize: "1.25rem", fontWeight: "bold" } }}
             sx={{ borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200]}` }}
           />
@@ -40,4 +40,3 @@ const GetStarted: React.FunctionComponent<Props> = ({}) => {
 };
 
 export default GetStarted;
-

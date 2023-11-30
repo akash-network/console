@@ -16,7 +16,7 @@ const SDLBuilderPage: React.FunctionComponent<Props> = ({}) => {
     <Layout>
       <CustomNextSeo
         title="SDL Builder"
-        url={`https://deploy.cloudmos.io${UrlService.sdlBuilder()}`}
+        url={`https://console.akash.network${UrlService.sdlBuilder()}`}
         description="Build your own SDL configuration to deploy a docker container on the Akash Network, the #1 decentralized supercloud."
       />
 
