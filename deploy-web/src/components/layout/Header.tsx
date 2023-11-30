@@ -14,7 +14,7 @@ import { useRouter } from "next/router";
 import { AccountMenu } from "./AccountMenu";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
-import { AkashConsoleLogo } from "../icons/AkashConsoleLogo";
+import { AkashConsoleLogoDark, AkashConsoleLogoLight } from "../icons/AkashConsoleLogo";
 
 type Props = {
   isMobileOpen: boolean;
@@ -76,7 +76,7 @@ export const Header: React.FunctionComponent<Props> = ({ children, isMobileOpen,
         <ErrorBoundary FallbackComponent={ErrorFallback}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <Box href={UrlService.home()} component={Link}>
-              <AkashConsoleLogo />
+              {theme.palette.mode === "dark" ? <AkashConsoleLogoDark /> : <AkashConsoleLogoLight />}
             </Box>
           </Box>
 
