@@ -4,7 +4,7 @@ import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "../shared/ErrorFallback";
-import { accountBarHeight } from "@src/utils/constants";
+import { accountBarHeight, drawerWidth } from "@src/utils/constants";
 import { Badge, Button, IconButton, styled, useMediaQuery, useTheme } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
 import { WalletStatus } from "./WalletStatus";
@@ -74,8 +74,12 @@ export const Header: React.FunctionComponent<Props> = ({ children, isMobileOpen,
     <AppBar position="fixed" color="default" elevation={0} component="header">
       <Toolbar variant="dense" className={classes.accountBar}>
         <ErrorBoundary FallbackComponent={ErrorFallback}>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Box href={UrlService.home()} component={Link}>
+          <Box sx={{ display: "flex", alignItems: "center", flexGrow: 1 }}>
+            <Box
+              href={UrlService.home()}
+              component={Link}
+              sx={{ display: "inline-flex", alignItems: "center", minWidth: { xs: 0, sm: 0, md: `calc(${drawerWidth}px - 1rem)` } }}
+            >
               {theme.palette.mode === "dark" ? <AkashConsoleLogoDark /> : <AkashConsoleLogoLight />}
             </Box>
           </Box>

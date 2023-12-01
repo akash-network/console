@@ -51,8 +51,8 @@ export const AkashConsoleLogoDark = () => {
       />
       <defs>
         <linearGradient id="paint0_linear_868_9890" x1="12" y1="16.5" x2="16.0069" y2="12.0061" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#FF414C" />
-          <stop offset="1" stop-color="#FF414C" stop-opacity="0" />
+          <stop stopColor="#FF414C" />
+          <stop offset="1" stopColor="#FF414C" stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>
@@ -112,8 +112,8 @@ export const AkashConsoleLogoLight = () => {
       />
       <defs>
         <linearGradient id="paint0_linear_868_9889" x1="12" y1="16.5" x2="16.0069" y2="12.0061" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#FF414C" />
-          <stop offset="1" stop-color="#FF414C" stop-opacity="0" />
+          <stop stopColor="#FF414C" />
+          <stop offset="1" stopColor="#FF414C" stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>
