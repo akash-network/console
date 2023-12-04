@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isMaintenanceMode } from "./utils/constants";
 // import { isMaintenanceMode } from "@src/utils/constants";
+const [AUTH_USER, AUTH_PASS] = (process.env.HTTP_BASIC_AUTH || ":").split(":");
 
 // This function can be marked `async` if using `await` inside
 export function middleware(request: NextRequest) {
@@ -17,6 +18,13 @@ export function middleware(request: NextRequest) {
     console.log("Redirecting from maintenance page to " + returnPath);
 
     return NextResponse.redirect(new URL(returnPath, request.url), 307); // 307 - temporary redirect
+  }
+
+  if (!isAuthenticated(request)) {
+    return new NextResponse("Authentication required", {
+      status: 401,
+      headers: { "WWW-Authenticate": "Basic" }
+    });
   }
 
   return NextResponse.next();
@@ -34,7 +42,24 @@ function getReturnPath(request: NextRequest) {
   }
 }
 
-// See "Matching Paths" below to learn more
+function isAuthenticated(req: NextRequest) {
+  const authheader = req.headers.get("authorization") || req.headers.get("Authorization");
+
+  if (!authheader) {
+    return false;
+  }
+
+  const auth = Buffer.from(authheader.split(" ")[1], "base64").toString().split(":");
+  const user = auth[0];
+  const pass = auth[1];
+
+  if (user == AUTH_USER && pass == AUTH_PASS) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 export const config = {
-  matcher: ["/((?!_next|api/auth).*)(.+)"]
+  matcher: ["/((?!_next|api/auth).*)(.+)", "/"]
 };
