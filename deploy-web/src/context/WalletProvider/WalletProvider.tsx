@@ -91,7 +91,9 @@ export const WalletProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    if (isWindowLoaded && isSettingsInit) {
+    // removing isSettingsInit as the wallet status keeps loading
+    // if (isWindowLoaded && isSettingsInit) {
+    if (isWindowLoaded) {
       if (!!window.keplr || !!window.leap) {
         if (!!window.keplr) {
           setIsKeplrInstalled(true);
