@@ -26,6 +26,8 @@ import { getAuditors, getProviderAttributesSchema } from "@src/providers/githubP
 import { getProviderRegions } from "@src/db/providerDataProvider";
 import { getProviderDeployments } from "@src/db/deploymentProvider";
 import { Hono } from "hono";
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { swaggerUI } from "@hono/swagger-ui";
 
 export const apiRouter = express.Router();
 
@@ -67,11 +69,60 @@ apiRouter.get(
   })
 );
 
-export const apiRouterHono = new Hono();
+export const apiRouterHono = new OpenAPIHono();
 
-apiRouterHono.get("/predicted-block-date/:height/:blockWindow?", async (c) => {
-  const height = parseInt(c.req.param("height"));
-  const blockWindow = c.req.param("blockWindow") ? parseInt(c.req.param("blockWindow")) : 10_000;
+const ParamsSchema = z.object({
+  height: z
+    .string()
+    .transform((val, ctx) => {
+      const parsed = parseInt(val);
+      if (isNaN(parsed)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Not a number"
+        });
+        return z.NEVER;
+      }
+      return parsed;
+    })
+    //.min(1)
+    .openapi({ param: { name: "height", in: "path" }, type: "integer", description: "Block height", example: 10000000 }),
+  //.transform((v) => parseInt(v)),
+  blockWindow: z
+    .string()
+    //.number()
+    //.min(1)
+    //.max(100_000)
+    //.default(10_000)
+    .optional()
+    .openapi({ param: { name: "blockWindow", in: "path" }, description: "Block window", example: "10000" })
+});
+
+const route = createRoute({
+  method: "get",
+  path: "/predicted-block-date/:height/:blockWindow?",
+  request: { params: ParamsSchema },
+  responses: {
+    200: {
+      description: "Returns predicted block date",
+      content: {
+        "application/json": {
+          schema: z.object({
+            predictedDate: z.date(),
+            height: z.number().openapi({ example: 10_000_000 }),
+            blockWindow: z.number().openapi({ example: 10_000 })
+          })
+        }
+      }
+    }
+  }
+});
+
+apiRouterHono.openapi(route, async (c) => {
+  const { height, blockWindow } = c.req.valid("param");
+  console.log(height, blockWindow, typeof height, typeof blockWindow);
+  //const height = parseInt(c.req.valid("param").height);
+  //const blockWindow = c.req.valid("param").blockWindow ? parseInt(c.req.valid("param").blockWindow) : 10_000;
 
   if (isNaN(height)) {
     return c.text("Invalid height.", 400);
@@ -89,6 +140,16 @@ apiRouterHono.get("/predicted-block-date/:height/:blockWindow?", async (c) => {
     blockWindow: blockWindow
   });
 });
+
+apiRouterHono.doc("/doc", {
+  openapi: "3.0.0",
+  info: {
+    title: "Cloudmos API",
+    description: "Access Akash data from our indexer",
+    version: "1.0.0"
+  }
+});
+apiRouterHono.get("/ui", swaggerUI({ url: "/api/doc" }));
 
 apiRouterHono.get("/predicted-date-height/:timestamp/:blockWindow?", async (c) => {
   const timestamp = parseInt(c.req.param("timestamp"));
