@@ -220,7 +220,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
             variant="contained"
             color="secondary"
             fullWidth
-            sx={{ height: "45px", lineHeight: "1rem" }}
+            sx={{ height: "45px", lineHeight: "1rem", overflow: "hidden" }}
             onClick={onDeployClick}
           >
             Deploy <RocketLaunchIcon sx={{ marginLeft: "1rem" }} fontSize="small" />

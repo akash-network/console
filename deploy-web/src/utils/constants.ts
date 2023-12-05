@@ -26,6 +26,7 @@ export enum RouteStepKeys {
 const productionMainnetApiUrl = "https://api.cloudmos.io";
 const productionTestnetApiUrl = "https://api-testnet.cloudmos.io";
 const productionSandboxApiUrl = "https://api-sandbox.cloudmos.io";
+const productionHostnames = ["deploy.cloudmos.io", "console.akash.network", "staging-console.akash.network"];
 
 export const isProd = process.env.NODE_ENV === "production";
 export const isMaintenanceMode = process.env.MAINTENANCE_MODE === "true";
@@ -72,28 +73,28 @@ export const donationAddress = "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm";
 function getApiMainnetUrl() {
   if (process.env.API_MAINNET_BASE_URL) return process.env.API_MAINNET_BASE_URL;
   if (typeof window === "undefined") return "http://localhost:3080";
-  if (window.location?.hostname === "deploy.cloudmos.io") return productionMainnetApiUrl;
+  if (productionHostnames.includes(window.location?.hostname)) return productionMainnetApiUrl;
   return "http://localhost:3080";
 }
 
 function getApiTestnetUrl() {
   if (process.env.API_TESTNET_BASE_URL) return process.env.API_TESTNET_BASE_URL;
   if (typeof window === "undefined") return "http://localhost:3080";
-  if (window.location?.hostname === "deploy.cloudmos.io") return productionTestnetApiUrl;
+  if (productionHostnames.includes(window.location?.hostname)) return productionTestnetApiUrl;
   return "http://localhost:3080";
 }
 
 function getApiSandboxUrl() {
   if (process.env.API_SANDBOX_BASE_URL) return process.env.API_SANDBOX_BASE_URL;
   if (typeof window === "undefined") return "http://localhost:3080";
-  if (window.location?.hostname === "deploy.cloudmos.io") return productionSandboxApiUrl;
+  if (productionHostnames.includes(window.location?.hostname)) return productionSandboxApiUrl;
   return "http://localhost:3080";
 }
 
 function getApiUrl() {
   if (process.env.API_BASE_URL) return process.env.API_BASE_URL;
   if (typeof window === "undefined") return "http://localhost:3080";
-  if (window.location?.hostname === "deploy.cloudmos.io") {
+  if (productionHostnames.includes(window.location?.hostname)) {
     try {
       const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
       return getNetworkBaseApiUrl(_selectedNetworkId);
