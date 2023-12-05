@@ -12,6 +12,7 @@ import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Header } from "./Header";
 import { NewsletterModal } from "../shared/NewsletterModal";
 import { useWallet } from "@src/context/WalletProvider";
+import { WelcomeModal } from "./WelcomeModal";
 
 type Props = {
   isLoading?: boolean;
@@ -64,6 +65,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
   const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  const [isShowingWelcome, setIsShowingWelcome] = useState(false);
 
   useEffect(() => {
     const _isNavOpen = localStorage.getItem("isNavOpen");
@@ -80,6 +82,21 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
       clearInterval(refreshNodeIntervalId);
     };
   }, [refreshNodeStatuses]);
+
+  useEffect(() => {
+    const agreedToTerms = localStorage.getItem("agreedToTerms") === "true";
+
+    if (!agreedToTerms) {
+      setIsShowingWelcome(true);
+    }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onWelcomeClose = () => {
+    localStorage.setItem("agreedToTerms", "true");
+    setIsShowingWelcome(false);
+  };
 
   const onOpenMenuClick = () => {
     setIsNavOpen(prev => {
@@ -98,6 +115,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   return (
     <>
       <NewsletterModal />
+      <WelcomeModal open={isShowingWelcome} onClose={onWelcomeClose} />
 
       <Box sx={{ height: "100%" }}>
         <Box className={classes.root} sx={{ marginTop: `${accountBarHeight}px`, height: "100%" }}>
@@ -155,4 +173,3 @@ const Loading: React.FunctionComponent<{ text: string }> = ({ text }) => {
 };
 
 export default Layout;
-

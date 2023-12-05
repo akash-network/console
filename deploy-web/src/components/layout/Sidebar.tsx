@@ -10,7 +10,7 @@ import { makeStyles } from "tss-react/mui";
 import { UrlService } from "@src/utils/urlUtils";
 import CloudIcon from "@mui/icons-material/Cloud";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
-import { Button, IconButton, Typography, useMediaQuery } from "@mui/material";
+import { Button, Chip, IconButton, Typography, useMediaQuery } from "@mui/material";
 import CollectionsIcon from "@mui/icons-material/Collections";
 import SettingsIcon from "@mui/icons-material/Settings";
 import Link from "next/link";
@@ -183,6 +183,17 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       >
         <strong>v{publicRuntimeConfig?.version}</strong>
       </Typography>
+
+      <Chip
+        label="beta"
+        color="secondary"
+        size="small"
+        sx={{
+          height: "12px",
+          fontSize: "10px",
+          fontWeight: "bold"
+        }}
+      />
     </Box>
   );
 
