@@ -1,11 +1,11 @@
 import { cx } from "@emotion/css";
-import { Box, Button, Paper, Step, StepContent, StepLabel, Stepper, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Paper, Step, StepContent, StepLabel, Stepper, Typography } from "@mui/material";
 import { useWallet } from "@src/context/WalletProvider";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { makeStyles } from "tss-react/mui";
-import { LinkTo } from "../shared/LinkTo";
+import dynamic from "next/dynamic";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
 import CancelIcon from "@mui/icons-material/Cancel";
 import CheckIcon from "@mui/icons-material/Check";
@@ -18,6 +18,21 @@ import { uaktToAKT } from "@src/utils/priceUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { RouteStepKeys } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
+import "@leapwallet/elements/styles.css";
+
+const LiquidityModal = dynamic(() => import("../liquidity-modal").then(mod => mod.LiquidityModal), {
+  ssr: false,
+  loading: props => {
+    if (props.isLoading) {
+      return (
+        <Button variant="contained" color="secondary" disabled={true}>
+          <span>Get More</span>
+          <CircularProgress size="1rem" color="inherit" sx={{ ml: "0.5rem" }} />
+        </Button>
+      );
+    }
+  }
+});
 
 const useStyles = makeStyles()(theme => ({
   stepLabel: {
@@ -37,7 +52,7 @@ type Props = {};
 export const GetStartedStepper: React.FunctionComponent<Props> = () => {
   const { classes } = useStyles();
   const [activeStep, setActiveStep] = useState(0);
-  const { isKeplrInstalled, isLeapInstalled, isWalletConnected, walletBalances } = useWallet();
+  const { isKeplrInstalled, isLeapInstalled, isWalletConnected, walletBalances, address } = useWallet();
   const aktBalance = walletBalances ? uaktToAKT(walletBalances.uakt) : null;
   const usdcBalance = walletBalances ? udenomToDenom(walletBalances.usdc) : null;
 
@@ -143,7 +158,14 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
                       <WarningIcon color="warning" sx={{ marginRight: ".5rem" }} />
                     </CustomTooltip>
                   )}
-                  You have {aktBalance} AKT and {usdcBalance} USDC
+                  <span
+                    style={{
+                      marginRight: "0.5rem"
+                    }}
+                  >
+                    You have {aktBalance} AKT and {usdcBalance} USDC
+                  </span>
+                  {aktBalance < 5 || usdcBalance < 5 ? <LiquidityModal address={address} aktBalance={aktBalance} usdcBalance={usdcBalance} /> : null}
                 </Box>
               )}
             </>
