@@ -14,7 +14,7 @@ import { useRouter } from "next/router";
 import { AccountMenu } from "./AccountMenu";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
-import { AkashConsoleLogoDark, AkashConsoleLogoLight } from "../icons/AkashConsoleLogo";
+import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
 
 type Props = {
   isMobileOpen: boolean;
@@ -80,7 +80,7 @@ export const Header: React.FunctionComponent<Props> = ({ children, isMobileOpen,
               component={Link}
               sx={{ display: "inline-flex", alignItems: "center", minWidth: { xs: 0, sm: 0, md: `calc(${drawerWidth}px - 1rem)` } }}
             >
-              {theme.palette.mode === "dark" ? <AkashConsoleLogoDark /> : <AkashConsoleLogoLight />}
+              {theme.palette.mode === "dark" ? <AkashConsoleBetaLogoDark /> : <AkashConsoleBetaLogoLight />}
             </Box>
           </Box>
 
