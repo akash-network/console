@@ -52,7 +52,7 @@ type Props = {};
 export const GetStartedStepper: React.FunctionComponent<Props> = () => {
   const { classes } = useStyles();
   const [activeStep, setActiveStep] = useState(0);
-  const { isKeplrInstalled, isLeapInstalled, isWalletConnected, walletBalances, address } = useWallet();
+  const { isKeplrInstalled, isLeapInstalled, isWalletConnected, walletBalances, address, refreshBalances } = useWallet();
   const aktBalance = walletBalances ? uaktToAKT(walletBalances.uakt) : null;
   const usdcBalance = walletBalances ? udenomToDenom(walletBalances.usdc) : null;
 
@@ -165,7 +165,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
                   >
                     You have {aktBalance} AKT and {usdcBalance} USDC
                   </span>
-                  {aktBalance < 5 || usdcBalance < 5 ? <LiquidityModal address={address} aktBalance={aktBalance} /> : null}
+                  {aktBalance < 5 || usdcBalance < 5 ? <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} /> : null}
                 </Box>
               )}
             </>

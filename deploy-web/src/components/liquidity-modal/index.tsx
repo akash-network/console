@@ -71,20 +71,15 @@ const tabsConfig: TabsConfig = {
       destinationAssetSelector: aktSelector
     }
   },
-  [Tabs.TRANSFER]: {
-    allowedDestinationChains,
-    defaults: {
-      sourceChainId: osmosisChainId,
-      destinationChainId: akashnetChainId,
-      destinationAssetSelector: aktSelector
-    }
-  },
   [Tabs.CROSS_CHAIN_SWAPS]: {
     allowedDestinationChains,
     defaults: {
       destinationChainId: akashnetChainId,
       destinationAssetSelector: aktSelector
     }
+  },
+  [Tabs.TRANSFER]: {
+    enabled: false
   },
   [Tabs.FIAT_ON_RAMP]: {
     enabled: false
@@ -99,7 +94,7 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
   );
 };
 
-export const LiquidityModal = ({ address, aktBalance, refetchBalances }: { address: string; aktBalance: number; refetchBalances?: () => void }) => {
+export const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ address, aktBalance, refreshBalances }) => {
   const { isLeapInstalled, isKeplrInstalled, isWalletConnected } = useWallet();
 
   const handleConnectWallet = useCallback(
@@ -160,16 +155,10 @@ export const LiquidityModal = ({ address, aktBalance, refetchBalances }: { addre
 
   const handleTxnComplete = useCallback((summary: TxnSummary) => {
     if (summary.destinationChain.chainId === akashnetChainId) {
-      if (summary.summaryType === "transfer") {
-        const denom = summary.asset.originDenom;
-        if (denom === "uakt") {
-          refetchBalances?.();
-        }
-      }
       if (summary.summaryType === "skip" || summary.summaryType === "squid") {
         const denom = summary.destinationAsset.originDenom;
         if (denom === "uakt") {
-          refetchBalances?.();
+          refreshBalances();
         }
       }
     }
