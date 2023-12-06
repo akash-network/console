@@ -20,7 +20,8 @@ const whitelist = [
   "http://localhost:3000",
   "https://deploybeta.cloudmos.io",
   "https://deploy.cloudmos.io",
-  "https://cloudmos.grafana.net"
+  "https://cloudmos.grafana.net",
+  "https://console.akash.network"
 ];
 
 app.use(

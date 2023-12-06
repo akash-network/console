@@ -1,6 +1,6 @@
 {
   "name": "cloudmos-provider-proxy",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Proxy that allows communication between the Web UI and providers",
   "author": "Cloudmos",
   "license": "Apache-2.0",
