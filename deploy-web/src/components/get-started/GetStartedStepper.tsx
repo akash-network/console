@@ -165,7 +165,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
                   >
                     You have {aktBalance} AKT and {usdcBalance} USDC
                   </span>
-                  {aktBalance < 5 || usdcBalance < 5 ? <LiquidityModal address={address} aktBalance={aktBalance} usdcBalance={usdcBalance} /> : null}
+                  {aktBalance < 5 || usdcBalance < 5 ? <LiquidityModal address={address} aktBalance={aktBalance} /> : null}
                 </Box>
               )}
             </>

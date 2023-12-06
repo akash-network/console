@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from "react";
 import { LiquidityModal as LeapLiquidityModal, Tabs, TxnSummary, defaultZIndices, defaultBlurs } from "@leapwallet/elements";
-import type { ThemeDefinition, WalletClient, TabsConfig, AssetSelector } from "@leapwallet/elements";
+import type { ThemeDefinition, WalletClient, TabsConfig, AssetSelector, AllowedDestinationChainConfig } from "@leapwallet/elements";
 import type { StdSignDoc } from "@cosmjs/amino";
 import type { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { useWallet } from "@src/context/WalletProvider";
@@ -55,9 +55,16 @@ const formatAmount = (amount: number) => {
 const osmosisChainId = "osmosis-1";
 const akashnetChainId = "akashnet-2";
 const aktSelector: AssetSelector = ["denom", "uakt"];
+const allowedDestinationChains: AllowedDestinationChainConfig[] = [
+  {
+    chainId: akashnetChainId,
+    assetDenoms: ["uakt"]
+  }
+];
 
 const tabsConfig: TabsConfig = {
   [Tabs.SWAP]: {
+    allowedDestinationChains,
     defaults: {
       sourceChainId: osmosisChainId,
       destinationChainId: akashnetChainId,
@@ -65,20 +72,22 @@ const tabsConfig: TabsConfig = {
     }
   },
   [Tabs.TRANSFER]: {
+    allowedDestinationChains,
     defaults: {
       sourceChainId: osmosisChainId,
       destinationChainId: akashnetChainId,
       destinationAssetSelector: aktSelector
     }
   },
-  [Tabs.FIAT_ON_RAMP]: {
-    enabled: false
-  },
   [Tabs.CROSS_CHAIN_SWAPS]: {
+    allowedDestinationChains,
     defaults: {
       destinationChainId: akashnetChainId,
       destinationAssetSelector: aktSelector
     }
+  },
+  [Tabs.FIAT_ON_RAMP]: {
+    enabled: false
   }
 };
 
@@ -90,17 +99,7 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
   );
 };
 
-export const LiquidityModal = ({
-  address,
-  aktBalance,
-  usdcBalance,
-  refetchBalances
-}: {
-  address: string;
-  aktBalance: number;
-  usdcBalance: number;
-  refetchBalances?: () => void;
-}) => {
+export const LiquidityModal = ({ address, aktBalance, refetchBalances }: { address: string; aktBalance: number; refetchBalances?: () => void }) => {
   const { isLeapInstalled, isKeplrInstalled, isWalletConnected } = useWallet();
 
   const handleConnectWallet = useCallback(
@@ -160,10 +159,18 @@ export const LiquidityModal = ({
   };
 
   const handleTxnComplete = useCallback((summary: TxnSummary) => {
-    if (summary.summaryType === "skip" || summary.summaryType === "squid") {
-      const denom = summary.destinationAsset.originDenom;
-      if (denom === "uakt" || denom === "usdc" || denom === "axlUSDC") {
-        refetchBalances?.();
+    if (summary.destinationChain.chainId === akashnetChainId) {
+      if (summary.summaryType === "transfer") {
+        const denom = summary.asset.originDenom;
+        if (denom === "uakt") {
+          refetchBalances?.();
+        }
+      }
+      if (summary.summaryType === "skip" || summary.summaryType === "squid") {
+        const denom = summary.destinationAsset.originDenom;
+        if (denom === "uakt") {
+          refetchBalances?.();
+        }
       }
     }
   }, []);
@@ -179,11 +186,11 @@ export const LiquidityModal = ({
   const modalConfig = useMemo(() => {
     return {
       icon: "https://assets.leapwallet.io/akt.png",
-      subtitle: `You need ${formatAmount(5 - aktBalance)} more AKT or ${formatAmount(5 - usdcBalance)} more USDC to get started`,
-      title: "Get AKT or USDC",
+      subtitle: `You need only ${formatAmount(5 - aktBalance)} more AKT to get started!`,
+      title: "Get AKT",
       tabsConfig
     };
-  }, [aktBalance, usdcBalance]);
+  }, [aktBalance]);
 
   return (
     <>
