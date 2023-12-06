@@ -120,7 +120,7 @@ export const Header: React.FunctionComponent<Props> = ({ children, isMobileOpen,
                 <WalletStatus />
               </Box>
 
-              <AccountMenu />
+              {/* <AccountMenu /> */}
             </Box>
           </Box>
         </ErrorBoundary>

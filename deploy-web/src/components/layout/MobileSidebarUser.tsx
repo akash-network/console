@@ -44,9 +44,9 @@ export const MobileSidebarUser: React.FunctionComponent<Props> = ({}) => {
         <WalletStatus />
       </Box>
 
-      <Divider />
+      {/* <Divider /> */}
 
-      {isLoading ? (
+      {/* {isLoading ? (
         <Box textAlign={"center"}>
           <CircularProgress size="1.5rem" color="secondary" />
         </Box>
@@ -108,7 +108,7 @@ export const MobileSidebarUser: React.FunctionComponent<Props> = ({}) => {
             Sign in
           </ListItem>
         </Box>
-      )}
+      )} */}
 
       <Divider sx={{ marginBottom: "1rem" }} />
     </List>
