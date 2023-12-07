@@ -5,6 +5,8 @@ import type { StdSignDoc } from "@cosmjs/amino";
 import type { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { useWallet } from "@src/context/WalletProvider";
 import Button from "@mui/material/Button";
+import { event } from "nextjs-google-analytics";
+import { AnalyticsEvents } from "@src/utils/analytics";
 
 const theme: ThemeDefinition = {
   colors: {
@@ -87,8 +89,16 @@ const tabsConfig: TabsConfig = {
 };
 
 const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
+  const _onClick = () => {
+    event(AnalyticsEvents.LEAP_GET_MORE_TOKENS, {
+      category: "wallet",
+      label: "Open Leap liquidity modal"
+    });
+
+    onClick();
+  };
   return (
-    <Button variant="contained" color="secondary" onClick={onClick}>
+    <Button variant="contained" color="secondary" onClick={_onClick}>
       Get More
     </Button>
   );
@@ -160,6 +170,11 @@ export const LiquidityModal: React.FC<{ address: string; aktBalance: number; ref
         if (denom === "uakt") {
           refreshBalances();
         }
+
+        event(AnalyticsEvents.LEAP_TRANSACTION_COMPLETE, {
+          category: "wallet",
+          label: "Completed a transaction on Leap liquidity modal"
+        });
       }
     }
   }, []);
@@ -193,4 +208,3 @@ export const LiquidityModal: React.FC<{ address: string; aktBalance: number; ref
     </>
   );
 };
-
