@@ -108,6 +108,8 @@ export const BidGroup: React.FunctionComponent<Props> = ({
     }
   }, [deploymentDetail, gseq]);
 
+  console.log(bids);
+
   return (
     <Paper elevation={4} className={classes.root}>
       <List
