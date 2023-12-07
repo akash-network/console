@@ -1,4 +1,4 @@
-import { Radio, Box, Chip, TableCell, CircularProgress, Typography } from "@mui/material";
+import { Radio, Box, Chip, TableCell, CircularProgress, Typography, lighten, darken } from "@mui/material";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import { useEffect } from "react";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
@@ -30,15 +30,16 @@ const useStyles = makeStyles()(theme => ({
     }
   },
   selectedRow: {
-    backgroundColor: `${theme.palette.mode === "dark" ? theme.palette.grey[700] : theme.palette.grey[400]} !important`
+    backgroundColor: `${theme.palette.mode === "dark" ? darken(theme.palette.success.main, 0.8)  : lighten(theme.palette.success.main, 0.8)} !important`,
+    border: "1px solid"
   },
   secondaryText: {
     fontSize: ".8rem"
   },
   chip: {
-    height: ".9rem",
-    fontSize: ".7rem",
-    lineHeight: ".7rem"
+    height: "1rem",
+    fontSize: ".75rem",
+    lineHeight: ".75rem"
   },
   priceTooltip: {
     display: "flex",
@@ -52,7 +53,8 @@ const useStyles = makeStyles()(theme => ({
     marginBottom: "4px"
   },
   providerOffline: {
-    marginTop: "4px"
+    marginTop: "4px",
+    fontSize: "1rem"
   },
   stateIcon: {
     marginRight: ".5rem"
@@ -61,7 +63,7 @@ const useStyles = makeStyles()(theme => ({
     color: theme.palette.secondary.main
   },
   stateInactive: {
-    color: theme.palette.primary.main
+    color: theme.palette.primary.contrastText
   },
   flexCenter: {
     display: "flex",
@@ -191,39 +193,45 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
       </TableCell>
 
       <TableCell align="center">
-        {isLoadingStatus && (
-          <Box sx={{ height: "42px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <CircularProgress size="1.5rem" color="secondary" />
-          </Box>
-        )}
-        {!isLoadingStatus && error && !isSendingManifest && (
-          <div className={cx(classes.flexCenter, classes.providerOffline)}>
-            <CloudOffIcon className={cx(classes.stateIcon, classes.stateInactive)} fontSize="small" />
-            <strong>OFFLINE</strong>
-          </div>
-        )}
+        <Box sx={{ height: "38px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {isLoadingStatus && (
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <CircularProgress size="1rem" color="secondary" />
+            </Box>
+          )}
+          {!isLoadingStatus && error && !isSendingManifest && (
+            <div className={cx(classes.flexCenter, classes.providerOffline)}>
+              <CloudOffIcon className={cx(classes.stateIcon, classes.stateInactive)} fontSize="small" />
+              <strong>OFFLINE</strong>
+            </div>
+          )}
 
-        {!isLoadingStatus && !error && !isSendingManifest && (
-          <>
-            {bid.state !== "open" || disabled ? (
-              <Box>
-                <Chip label={bid.state} size="small" color={bid.state === "active" ? "success" : "error"} classes={{ root: classes.chip }} />
-              </Box>
-            ) : (
-              <Radio
-                checked={isCurrentBid}
-                onChange={() => handleBidSelected(bid)}
-                value={bid.id}
-                name="radio-button-demo"
-                disabled={bid.state !== "open" || disabled}
-                size="medium"
-                color="success"
-              />
-            )}
-          </>
-        )}
+          {!isLoadingStatus && !error && !isSendingManifest && (
+            <>
+              {bid.state !== "open" || disabled ? (
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Chip label={bid.state} size="medium" color={bid.state === "active" ? "success" : "error"} classes={{ root: classes.chip }} />
+                </Box>
+              ) : (
+                <Radio
+                  checked={isCurrentBid}
+                  onChange={() => handleBidSelected(bid)}
+                  value={bid.id}
+                  name="radio-button-demo"
+                  disabled={bid.state !== "open" || disabled}
+                  size="small"
+                  color="success"
+                />
+              )}
+            </>
+          )}
 
-        {isSendingManifest && isCurrentBid && <Chip label="Deploying! 🚀" size="small" color="success" />}
+          {isSendingManifest && isCurrentBid && (
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Chip label="Deploying! 🚀" size="small" color="success" />
+            </Box>
+          )}
+        </Box>
       </TableCell>
     </CustomTableRow>
   );
