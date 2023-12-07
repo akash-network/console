@@ -179,3 +179,4 @@ export const monacoOptions = {
 };
 
 export const txFeeBuffer = 10000; // 10000 uAKT
+

@@ -91,6 +91,8 @@ export const WalletProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
+    isMounted.current = true;
+
     if (isWindowLoaded && isSettingsInit) {
       if (!!window.keplr || !!window.leap) {
         if (!!window.keplr) {
