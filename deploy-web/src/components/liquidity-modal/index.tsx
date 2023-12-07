@@ -25,7 +25,9 @@ const theme: ThemeDefinition = {
     successBackground: "#0D3525",
     warning: "#ffa726"
   },
-  zIndices: defaultZIndices,
+  zIndices: {
+    modalOverlay: "1200"
+  },
   borderRadii: {
     actionButton: "0.5rem",
     connectWalletButton: "0.25rem",
