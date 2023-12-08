@@ -4,6 +4,7 @@ import { DeploymentGroup } from "./deploymentGroup";
 import { Deployment } from "./deployment";
 import { Provider } from "./provider";
 import { Required } from "../decorators/requiredDecorator";
+import { Block } from "../base";
 
 @Table({
   modelName: "lease",
@@ -37,6 +38,8 @@ export class Lease extends Model {
   @Required @Column(DataTypes.BIGINT) ephemeralStorageQuantity: number;
   @Required @Column(DataTypes.BIGINT) persistentStorageQuantity: number;
 
+  @BelongsTo(() => Block, "createdHeight") createdBlock: Block;
+  @BelongsTo(() => Block, "closedHeight") closedBlock: Block;
   @BelongsTo(() => DeploymentGroup, "deploymentGroupId") deploymentGroup: DeploymentGroup;
   @BelongsTo(() => Deployment, "deploymentId") deployment: Deployment;
   @BelongsTo(() => Provider, "providerAddress") provider: Provider;
