@@ -78,12 +78,11 @@ export async function getProviderDeployments(provider: string, skip: number, lim
   }
 
   const deploymentDseqs = await Deployment.findAll({
-    attributes: ["dseq"],
-    include: [{ model: Lease, required: true, where: leaseFilter }],
+    attributes: ["dseq", "createdHeight"],
+    include: [{ model: Lease, attributes: [], required: true, where: leaseFilter }],
     order: [["createdHeight", "DESC"]],
     offset: skip,
-    limit: limit,
-    subQuery: false
+    limit: limit
   });
 
   const deployments = await Deployment.findAll({
