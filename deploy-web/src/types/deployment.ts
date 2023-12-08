@@ -63,26 +63,26 @@ interface DeploymentResource_V2 {
     units: {
       val: string;
     };
-    attributes: any[];
+    attributes: {key: string, value: string}[];
   };
   gpu: {
     units: {
       val: string;
     };
-    attributes: any[];
+    attributes: {key: string, value: string}[];
   };
   memory: {
     quantity: {
       val: string;
     };
-    attributes: any[];
+    attributes: {key: string, value: string}[];
   };
   storage: Array<{
     name: string;
     quantity: {
       val: string;
     };
-    attributes: any[];
+    attributes: {key: string, value: string}[];
   }>;
   endpoints: Array<{
     kind: string;

@@ -30,7 +30,7 @@ const useStyles = makeStyles()(theme => ({
     }
   },
   selectedRow: {
-    backgroundColor: `${theme.palette.mode === "dark" ? darken(theme.palette.success.main, 0.8)  : lighten(theme.palette.success.main, 0.8)} !important`,
+    backgroundColor: `${theme.palette.mode === "dark" ? darken(theme.palette.success.main, 0.8) : lighten(theme.palette.success.main, 0.8)} !important`,
     border: "1px solid"
   },
   secondaryText: {
@@ -54,7 +54,7 @@ const useStyles = makeStyles()(theme => ({
   },
   providerOffline: {
     marginTop: "4px",
-    fontSize: "1rem"
+    fontSize: ".85rem"
   },
   stateIcon: {
     marginRight: ".5rem"
@@ -68,6 +68,14 @@ const useStyles = makeStyles()(theme => ({
   flexCenter: {
     display: "flex",
     alignItems: "center"
+  },
+  gpuChip: {
+    height: "16px",
+    fontSize: ".65rem",
+    fontWeight: "bold"
+  },
+  gpuChipLabel: {
+    padding: "0 4px"
   }
 }));
 
@@ -86,7 +94,6 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
   const isFavorite = favoriteProviders.some(x => provider.owner === x);
   const isCurrentBid = selectedBid?.id === bid.id;
   const {
-    data: providerStatus,
     isLoading: isLoadingStatus,
     refetch: fetchProviderStatus,
     error
@@ -94,6 +101,17 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
     enabled: false,
     retry: false
   });
+  const gpuModels = bid.resourcesOffer
+    .map(x =>
+      x.resources.gpu.attributes
+        .filter(y => y.key.startsWith("vendor/"))
+        .map(y => {
+          const modelKey = y.key.split("/");
+          // vendor/nvidia/model/h100 -> nvidia,h100
+          return { vendor: modelKey[1], model: modelKey[modelKey.length - 1] };
+        })
+    )
+    .flat();
 
   useEffect(() => {
     if (provider) {
@@ -151,29 +169,46 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
 
       <TableCell align="center">{provider.uptime7d ? <Uptime value={provider.uptime7d} /> : <div>-</div>}</TableCell>
 
-      <TableCell align="center">
-        {provider.name ? (
-          <Link href={UrlService.providerDetail(provider.owner)} onClick={e => e.stopPropagation()}>
-            {provider.name?.length > 20 ? (
-              <CustomTooltip title={provider.name}>
-                <span>{getSplitText(provider.name, 4, 13)}</span>
-              </CustomTooltip>
+      <TableCell align="left">
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
+          <Box sx={{ marginLeft: ".5rem" }}>
+            {provider.name ? (
+              <Link href={UrlService.providerDetail(provider.owner)} onClick={e => e.stopPropagation()}>
+                {provider.name?.length > 20 ? (
+                  <CustomTooltip title={provider.name}>
+                    <span>{getSplitText(provider.name, 4, 13)}</span>
+                  </CustomTooltip>
+                ) : (
+                  provider.name
+                )}
+              </Link>
             ) : (
-              provider.name
+              <div>
+                <CustomTooltip title={provider.hostUri}>
+                  <div>{getSplitText(provider.hostUri, 4, 13)}</div>
+                </CustomTooltip>
+              </div>
             )}
-          </Link>
-        ) : (
-          <div>
-            <CustomTooltip title={provider.hostUri}>
-              <div>{getSplitText(provider.hostUri, 4, 13)}</div>
-            </CustomTooltip>
-          </div>
-        )}
+          </Box>
+        </Box>
       </TableCell>
 
-      <TableCell align="center">
-        <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
-      </TableCell>
+      {gpuModels.length > 0 && (
+        <TableCell align="center">
+          {gpuModels.map((gpu, i) => (
+            <Chip
+              key={`${gpu.vendor}-${gpu.model}`}
+              label={`${gpu.vendor}-${gpu.model}`}
+              className={classes.gpuChip}
+              classes={{ label: classes.gpuChipLabel }}
+              sx={{ marginRight: i < gpuModels.length ? ".2rem" : 0 }}
+              color="secondary"
+              size="small"
+            />
+          ))}
+        </TableCell>
+      )}
 
       <TableCell align="center">
         {provider.isAudited ? (
@@ -201,8 +236,8 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
           )}
           {!isLoadingStatus && error && !isSendingManifest && (
             <div className={cx(classes.flexCenter, classes.providerOffline)}>
-              <CloudOffIcon className={cx(classes.stateIcon, classes.stateInactive)} fontSize="small" />
-              <strong>OFFLINE</strong>
+              <CloudOffIcon className={cx(classes.stateIcon, classes.stateInactive)} sx={{ fontSize: "1rem" }} />
+              <Typography variant="caption">OFFLINE</Typography>
             </div>
           )}
 
