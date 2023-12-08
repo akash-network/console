@@ -101,7 +101,8 @@ export async function getProviderDeployments(provider: string, skip: number, lim
       },
       { model: Block, required: true, as: "createdBlock" },
       { model: Block, required: false, as: "closedBlock" }
-    ]
+    ],
+    order: [["createdHeight", "DESC"]]
   });
 
   return deployments.map((d) => ({
