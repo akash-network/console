@@ -158,9 +158,11 @@ export const BidGroup: React.FunctionComponent<Props> = ({
                   <TableCell width="10%" align="center">
                     Provider
                   </TableCell>
-                  <TableCell width="10%" align="center">
-                    Favorite
-                  </TableCell>
+                  {deploymentDetail.gpuAmount > 0 && (
+                    <TableCell width="10%" align="center">
+                      GPU
+                    </TableCell>
+                  )}
                   <TableCell width="10%" align="center">
                     Audited
                   </TableCell>
