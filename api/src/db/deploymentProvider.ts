@@ -2,7 +2,7 @@ import * as v1 from "@src/proto/akash/v1beta1";
 import * as v2 from "@src/proto/akash/v1beta2";
 import { decodeMsg } from "@src/utils/protobuf";
 import { Transaction } from "@shared/dbSchemas/base";
-import { Deployment } from "@shared/dbSchemas/akash";
+import { Deployment, Lease } from "@shared/dbSchemas/akash";
 import { Op } from "sequelize";
 import { Block, Message } from "@shared/dbSchemas";
 
@@ -67,5 +67,79 @@ export async function getDeploymentRelatedMessages(owner: string, dseq: string) 
     txHash: msg.transaction.hash,
     date: msg.block.datetime,
     type: msg.type
+  }));
+}
+
+export async function getProviderDeployments(provider: string, skip: number, limit: number, status?: "active" | "closed") {
+  let leaseFilter = { providerAddress: provider };
+
+  if (status) {
+    leaseFilter["closedHeight"] = status === "active" ? null : { [Op.ne]: null };
+  }
+
+  const deploymentDseqs = await Deployment.findAll({
+    attributes: ["dseq", "createdHeight"],
+    include: [{ model: Lease, attributes: [], required: true, where: leaseFilter }],
+    order: [["createdHeight", "DESC"]],
+    offset: skip,
+    limit: limit
+  });
+
+  const deployments = await Deployment.findAll({
+    where: {
+      dseq: { [Op.in]: deploymentDseqs.map((d) => d.dseq) }
+    },
+    include: [
+      {
+        model: Lease,
+        required: true,
+        where: { providerAddress: provider },
+        include: [
+          { model: Block, required: true, as: "createdBlock" },
+          { model: Block, required: false, as: "closedBlock" }
+        ]
+      },
+      { model: Block, required: true, as: "createdBlock" },
+      { model: Block, required: false, as: "closedBlock" }
+    ]
+  });
+
+  return deployments.map((d) => ({
+    owner: d.owner,
+    dseq: d.dseq,
+    denom: d.denom,
+    createdHeight: d.createdHeight,
+    createdDate: d.createdBlock.datetime,
+    closedHeight: d.closedHeight,
+    closedDate: d.closedHeight ? d.closedBlock.datetime : null,
+    status: d.closedHeight ? "closed" : "active",
+    balance: d.balance,
+    transferred: d.withdrawnAmount,
+    settledAt: d.lastWithdrawHeight,
+    resources: {
+      cpu: d.leases.reduce((acc, l) => acc + l.cpuUnits, 0),
+      memory: d.leases.reduce((acc, l) => acc + l.memoryQuantity, 0),
+      gpu: d.leases.reduce((acc, l) => acc + l.gpuUnits, 0),
+      ephemeralStorage: d.leases.reduce((acc, l) => acc + l.ephemeralStorageQuantity, 0),
+      persistentStorage: d.leases.reduce((acc, l) => acc + l.persistentStorageQuantity, 0)
+    },
+    leases: d.leases.map((l) => ({
+      provider: l.providerAddress,
+      gseq: l.gseq,
+      oseq: l.oseq,
+      price: l.price,
+      createdHeight: l.createdHeight,
+      createdDate: l.createdBlock.datetime,
+      closedHeight: l.closedHeight,
+      closedDate: l.closedHeight ? l.closedBlock.datetime : null,
+      status: l.closedHeight ? "closed" : "active",
+      resources: {
+        cpu: l.cpuUnits,
+        memory: l.memoryQuantity,
+        gpu: l.gpuUnits,
+        ephemeralStorage: l.ephemeralStorageQuantity,
+        persistentStorage: l.persistentStorageQuantity
+      }
+    }))
   }));
 }

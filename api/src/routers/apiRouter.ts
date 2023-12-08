@@ -24,6 +24,7 @@ import axios from "axios";
 import { getMarketData } from "@src/providers/marketDataProvider";
 import { getAuditors, getProviderAttributesSchema } from "@src/providers/githubProvider";
 import { getProviderRegions } from "@src/db/providerDataProvider";
+import { getProviderDeployments } from "@src/db/deploymentProvider";
 
 export const apiRouter = express.Router();
 
@@ -188,6 +189,24 @@ apiRouter.get(
     const deployments = await getAddressDeployments(req.params.address, skip, limit, req.query?.reverseSorting === "true", {
       status: req.query?.status as string
     });
+    res.send(deployments);
+  })
+);
+
+apiRouter.get(
+  "/providers/:provider/deployments/:skip/:limit/:status?",
+  asyncHandler(async (req, res) => {
+    const skip = parseInt(req.params.skip);
+    const limit = Math.min(100, parseInt(req.params.limit));
+    const statusParam = req.params.status as "active" | "closed" | undefined;
+
+    if (statusParam && statusParam !== "active" && statusParam !== "closed") {
+      res.status(400).send(`Invalid status filter: "${statusParam}". Valid values are "active" and "closed".`);
+      return;
+    }
+
+    const deployments = await getProviderDeployments(req.params.provider, skip, limit, statusParam);
+
     res.send(deployments);
   })
 );
