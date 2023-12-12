@@ -24,7 +24,7 @@ import axios from "axios";
 import { getMarketData } from "@src/providers/marketDataProvider";
 import { getAuditors, getProviderAttributesSchema } from "@src/providers/githubProvider";
 import { getProviderRegions } from "@src/db/providerDataProvider";
-import { getProviderDeployments } from "@src/db/deploymentProvider";
+import { getProviderDeployments, getProviderDeploymentsCount } from "@src/db/deploymentProvider";
 
 export const apiRouter = express.Router();
 
@@ -205,9 +205,15 @@ apiRouter.get(
       return;
     }
 
-    const deployments = await getProviderDeployments(req.params.provider, skip, limit, statusParam);
+    const deploymentCountQuery = getProviderDeploymentsCount(req.params.provider, statusParam);
+    const deploymentsQuery = getProviderDeployments(req.params.provider, skip, limit, statusParam);
 
-    res.send(deployments);
+    const [deploymentCount, deployments] = await Promise.all([deploymentCountQuery, deploymentsQuery]);
+
+    res.send({
+      total: deploymentCount,
+      deployments: deployments
+    });
   })
 );
 
