@@ -8,14 +8,13 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   address: string;
-  addressBookMode?: "never" | "always" | "alongside";
   isCopyable?: boolean;
   disableTruncate?: boolean;
   showIcon?: boolean;
   children?: ReactNode;
 };
 
-export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, disableTruncate, showIcon, addressBookMode = "always", ...rest }) => {
+export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, disableTruncate, showIcon, ...rest }) => {
   const [isOver, setIsOver] = useState(false);
   const { toast } = useToast();
   let formattedAddress = disableTruncate ? address : [address?.slice(0, 8), "...", address?.slice(address?.length - 5)].join("");
@@ -35,7 +34,7 @@ export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, d
 
   const content = (
     <span
-      className={cn("inline-flex items-center transition-all hover:underline text-primary", { ["cursor-pointer"]: isCopyable })}
+      className={cn("inline-flex items-center text-primary transition-all hover:underline", { ["cursor-pointer"]: isCopyable })}
       onClick={onClick}
       onMouseOver={() => setIsOver(true)}
       onMouseOut={() => setIsOver(false)}
