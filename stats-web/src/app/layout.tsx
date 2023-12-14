@@ -13,7 +13,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Akash Network Stats",
-  description: "Akash Network Stats"
+  description: "Akash Network Stats",
+  metadataBase: new URL("https://stats.akash.network")
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

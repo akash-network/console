@@ -1,4 +1,3 @@
-
 // import HelpIcon from "@mui/icons-material/Help";
 // import QrCodeIcon from "@mui/icons-material/QrCode";
 // import MoneyOffIcon from "@mui/icons-material/MoneyOff";
@@ -17,11 +16,21 @@ import AddressLayout from "./AddressLayout";
 import { AddressInfo } from "./AddressInfo";
 import { Title } from "@/components/Title";
 import { UrlService } from "@/lib/urlUtils";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
+import { FormattedDecimal } from "@/components/FormattedDecimal";
+import { AssetList } from "./AssetList";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
+import { MdMoneyOff } from "react-icons/md";
+import { getSplitText } from "@/hooks/useShortText";
+import { AssetAllocation } from "./AssetAllocation";
 
-type Props = {
-  address: string;
-  addressDetail: AddressDetail;
-};
+// type Props = {
+//   address: string;
+//   addressDetail: AddressDetail;
+// };
 
 // const useStyles = makeStyles()(theme => ({
 //   tooltip: {
@@ -40,7 +49,7 @@ interface IProps {
 }
 
 export async function generateMetadata({ params: { address } }: IProps, parent: ResolvingMetadata): Promise<Metadata> {
-  const url = `https://deploy.cloudmos.io${UrlService.address(address)}`;
+  const url = `https://stats.akash.network${UrlService.address(address)}`;
 
   return {
     title: `Account ${address}`,
@@ -93,62 +102,15 @@ export default async function AddressDetailPage({ params: { address }, searchPar
         <Title subTitle className="mb-4">
           Assets
         </Title>
-
-        {/* <Grid container spacing={2}>
-          <Grid item xs={12} sm={4}>
-            <Paper sx={{ padding: 2, height: "100%" }} elevation={2}>
-              <TableContainer>
-                <Table size="small">
-                  <CustomTableHeader>
-                    <TableRow>
-                      <TableCell>Name</TableCell>
-                      <TableCell align="center">Amount</TableCell>
-                    </TableRow>
-                  </CustomTableHeader>
-
-                  <TableBody>
-                    {addressDetail.assets.map(asset => (
-                      <CustomTableRow key={asset.symbol || asset.ibcToken}>
-                        <TableCell>
-                          <Box style={{ display: "flex", alignItems: "center" }}>
-                            <Box mr={1}>
-                              <Avatar src={asset.logoUrl} sx={{ width: "26px", height: "26px" }}>
-                                {!asset.logoUrl && <MoneyOffIcon />}
-                              </Avatar>
-                            </Box>
-                            <div>
-                              <div style={{ display: "flex", alignItems: "center" }}>
-                                {asset.symbol || "Unknown"}
-                                {asset.description && (
-                                  <CustomTooltip arrow title={asset.description}>
-                                    <HelpIcon style={{ marginLeft: "4px", fontSize: "15px" }} />
-                                  </CustomTooltip>
-                                )}
-                              </div>
-                              {asset.ibcToken && (
-                                <div>
-                                  <CustomTooltip arrow title={asset.ibcToken}>
-                                    <small>{getSplitText(asset.ibcToken, 10, 10)}</small>
-                                  </CustomTooltip>
-                                </div>
-                              )}
-                            </div>
-                          </Box>
-                        </TableCell>
-                        <TableCell align="center">
-                          <FormattedDecimal value={asset.amount} />
-                        </TableCell>
-                      </CustomTableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={8}>
-            <AssetList />
-          </Grid>
-        </Grid> */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {/* <Paper sx={{ padding: 2, height: "100%" }} elevation={2}> */}
+          <AssetList addressDetail={addressDetail} />
+        </div>
+        <div
+        // item xs={12} sm={8}
+        >
+          <AssetAllocation address={address} addressDetail={addressDetail} />
+        </div>
       </div>
 
       <div className="mt-4">

@@ -10,6 +10,7 @@ import { QrCode } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Address } from "@/components/Address";
 import { GradientText } from "@/components/GradientText";
+import { Separator } from "@/components/ui/separator";
 
 interface IProps {
   address: string;
@@ -68,7 +69,7 @@ export function AddressInfo({ address, addressDetail }: IProps) {
             </div> */}
           </div>
           <div
-            className="hidden sm:block"
+            className="block sm:hidden"
             // sx={{ display: { xs: "block", sm: "none" } }}
           >
             <Tooltip>
@@ -96,7 +97,7 @@ export function AddressInfo({ address, addressDetail }: IProps) {
             />
 
             <div
-              className="mb-4 border-b border-muted-foreground pb-2 text-2xl"
+              className="text-2xl"
               // sx={{
               //   marginBottom: "1rem",
               //   paddingBottom: ".5rem",
@@ -114,6 +115,8 @@ export function AddressInfo({ address, addressDetail }: IProps) {
                 labelWidth="10rem"
               />
             </div>
+
+            <Separator className="mt-4 mb-4" />
 
             <LabelValue label="Available" value={<AKTAmount uakt={addressDetail.available} showUSD />} labelWidth="10rem" />
             <LabelValue label="Delegated" value={<AKTAmount uakt={addressDetail.delegated} showUSD />} labelWidth="10rem" />
