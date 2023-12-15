@@ -20,7 +20,7 @@ import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { customRegistry } from "@src/utils/customRegistry";
-import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
+import { useManager } from "@cosmos-kit/react";
 
 type Balances = {
   uakt: number;
@@ -63,12 +63,23 @@ export const WalletProvider = ({ children }) => {
   const router = useRouter();
   const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
-  const { disconnect, getOfflineSigner, isWalletConnected, address: walletAddress, connect, username } = useSelectedChain();
+  const { disconnect, getOfflineSigner, isWalletConnected, address: walletAddress, connect, username, estimateFee, sign, broadcast } = useSelectedChain();
+  const { addEndpoints } = useManager();
+
+  useEffect(() => {
+    if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
+
+    addEndpoints({
+      akash: { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] },
+      "akash-sandbox": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] },
+      "akash-testnet": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] }
+    });
+  }, [settings.apiEndpoint, settings.rpcEndpoint]);
 
   useEffect(() => {
     (async () => {
       if (settings?.rpcEndpoint && isWalletConnected) {
-        sigingClient.current = await createStargateClient();console.log("Setup client for " + settings?.rpcEndpoint);
+        sigingClient.current = await createStargateClient();
       }
     })();
   }, [settings?.rpcEndpoint, isWalletConnected]);
@@ -161,18 +172,20 @@ export const WalletProvider = ({ children }) => {
     let pendingSnackbarKey = null;
     try {
       const client = await getStargateClient();
-      const simulation = await client.simulate(walletAddress, msgs, "");
-      const estimatedFees = {
-        amount: [
-          {
-            amount: "0.025",
-            denom: uAktDenom
-          }
-        ],
-        gas: Math.ceil(simulation * 1.25).toString()
-      };
+      //const simulation = await client.simulate(walletAddress, msgs, "");
+      // const estimatedFees = {
+      //   amount: [
+      //     {
+      //       amount: "0.025",
+      //       denom: uAktDenom
+      //     }
+      //   ],
+      //   gas: Math.ceil(simulation * 1.25).toString()
+      // };
+      const estimatedFees = await estimateFee(msgs);
 
-      const txRaw = await client.sign(walletAddress, msgs, estimatedFees, "");
+      //const txRaw = await client.sign(walletAddress, msgs, estimatedFees, "");
+      const txRaw = await sign(msgs, estimatedFees);
 
       setIsWaitingForApproval(false);
       setIsBroadcastingTx(true);
@@ -181,8 +194,9 @@ export const WalletProvider = ({ children }) => {
         autoHideDuration: null
       });
 
-      const txRawBytes = Uint8Array.from(TxRaw.encode(txRaw).finish());
-      const txResult = await client.broadcastTx(txRawBytes);
+      //const txRawBytes = Uint8Array.from(TxRaw.encode(txRaw).finish());
+      //const txResult = await client.broadcastTx(txRawBytes);
+      const txResult = await broadcast(txRaw);
 
       setIsBroadcastingTx(false);
 

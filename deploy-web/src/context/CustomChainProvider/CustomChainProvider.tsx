@@ -1,4 +1,4 @@
-import { ChainProvider } from "@cosmos-kit/react";
+import { ChainProvider, useManager } from "@cosmos-kit/react";
 import { wallets as keplr } from "@cosmos-kit/keplr";
 import { wallets as leap } from "@cosmos-kit/leap-extension";
 import { wallets as cosmostation } from "@cosmos-kit/cosmostation";
@@ -7,15 +7,12 @@ import { GasPrice } from "@cosmjs/stargate";
 import { akash, akashAssetList, akashSandbox, akashSandboxAssetList, akashTestnet, akashTestnetAssetList } from "@src/chains";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { useChain } from "@cosmos-kit/react";
-import { useSettings } from "../SettingsProvider";
 
 type Props = {
   children: React.ReactNode;
 };
 
 export function CustomChainProvider({ children }: Props) {
-  const { settings } = useSettings();
-
   return (
     <ChainProvider
       chains={[akash, akashSandbox, akashTestnet]}
@@ -27,10 +24,11 @@ export function CustomChainProvider({ children }: Props) {
         }
       }}
       endpointOptions={{
+        isLazy: true,
         endpoints: {
-          akash: { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] },
-          "akash-sandbox": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] },
-          "akash-testnet": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] }
+          akash: { rest: [], rpc: [] },
+          "akash-sandbox": { rest: [], rpc: [] },
+          "akash-testnet": { rest: [], rpc: [] }
         }
       }}
       signerOptions={{
