@@ -26,6 +26,7 @@ import { HelpCircle } from "lucide-react";
 import { MdMoneyOff } from "react-icons/md";
 import { getSplitText } from "@/hooks/useShortText";
 import { AssetAllocation } from "./AssetAllocation";
+import { LatestTransactions } from "./LatestTransactions";
 
 // type Props = {
 //   address: string;
@@ -118,44 +119,7 @@ export default async function AddressDetailPage({ params: { address }, searchPar
           Latest Transactions
         </Title>
 
-        {/* <Paper sx={{ padding: 2, height: "100%" }} elevation={2}>
-          {addressDetail.latestTransactions?.length === 0 ? (
-            <Box sx={{ padding: "1rem", display: "flex", alignItems: "center" }}>
-              <SearchOffIcon />
-              &nbsp;This address has no transactions
-            </Box>
-          ) : (
-            <TableContainer>
-              <Table size="small">
-                <CustomTableHeader>
-                  <TableRow>
-                    <TableCell width="10%">Tx Hash</TableCell>
-                    <TableCell align="center" width="20%">
-                      Type
-                    </TableCell>
-                    <TableCell align="center" width="10%">
-                      Result
-                    </TableCell>
-                    <TableCell align="center" width="10%">
-                      Amount
-                    </TableCell>
-                    <TableCell align="center" width="10%">
-                      Fee
-                    </TableCell>
-                    <TableCell align="center" width="5%">
-                      Height
-                    </TableCell>
-                    <TableCell align="center" width="5%">
-                      Time
-                    </TableCell>
-                  </TableRow>
-                </CustomTableHeader>
-
-                <TableBody>{addressDetail.latestTransactions?.map(tx => <TransactionRow key={tx.hash} transaction={tx} blockHeight={tx.height} />)}</TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </Paper> */}
+        <LatestTransactions addressDetail={addressDetail} />
       </div>
     </AddressLayout>
   );
