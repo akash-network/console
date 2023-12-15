@@ -20,6 +20,8 @@ export enum AnalyticsEvents {
   CREATE_GPU_DEPLOYMENT = "create_gpu_deployment",
   AUTHORIZE_SPEND = "authorize_spend",
   NAVIGATE_TAB = "navigate_tab_", // Append tab
+  LEAP_GET_MORE_TOKENS = "leap_get_more_tokens",
+  LEAP_TRANSACTION_COMPLETE = "leap_transaction_complete",
 
   // SDL Builder
   DEPLOY_SDL = "deploy_sdl",

@@ -18,7 +18,8 @@ async function getBidList(apiEndpoint: string, address: string, dseq: string): P
     gseq: b.bid.bid_id.gseq,
     oseq: b.bid.bid_id.oseq,
     price: b.bid.price,
-    state: b.bid.state
+    state: b.bid.state,
+    resourcesOffer: b.bid.resources_offer
   }));
 }
 

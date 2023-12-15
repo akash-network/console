@@ -317,3 +317,4 @@ export const SettingsProvider = ({ children }) => {
 export const useSettings = () => {
   return { ...React.useContext(SettingsProviderContext) };
 };
+

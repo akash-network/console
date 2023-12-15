@@ -9,6 +9,9 @@ const withPWA = require("next-pwa")({
 });
 const { withSentryConfig } = require("@sentry/nextjs");
 
+/**
+ * @type {import('next').NextConfig}
+ */
 const moduleExports = {
   reactStrictMode: false,
   compiler: {
@@ -19,6 +22,9 @@ const moduleExports = {
     domains: ["raw.githubusercontent.com"]
   },
   output: "standalone",
+  typescript: {
+    tsconfigPath: "./tsconfig.json"
+  },
   // experimental: {
   //   // outputStandalone: true,
   //   externalDir: true // to make the import from shared parent folder work https://github.com/vercel/next.js/issues/9474#issuecomment-810212174
@@ -70,3 +76,4 @@ const sentryWebpackPluginOptions = {
 // ensure that your source maps include changes from all other Webpack plugins
 module.exports = withBundleAnalyzer(withPWA(withSentryConfig(moduleExports, sentryWebpackPluginOptions)));
 // module.exports = moduleExports
+
