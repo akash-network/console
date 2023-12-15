@@ -20,7 +20,7 @@ import { RouteStepKeys } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import "@leapwallet/elements/styles.css";
 
-const LiquidityModal = dynamic(() => import("../liquidity-modal").then(mod => mod.LiquidityModal), {
+const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
   ssr: false,
   loading: props => {
     if (props.isLoading) {

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from "react";
-import { LiquidityModal as LeapLiquidityModal, Tabs, TxnSummary, defaultZIndices, defaultBlurs } from "@leapwallet/elements";
+import { LiquidityModal as LeapLiquidityModal, Tabs, TxnSummary, defaultBlurs, useInitCachingLayer, AsyncIDBStorage } from "@leapwallet/elements";
 import type { ThemeDefinition, WalletClient, TabsConfig, AssetSelector, AllowedDestinationChainConfig } from "@leapwallet/elements";
 import type { StdSignDoc } from "@cosmjs/amino";
 import type { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
@@ -82,6 +82,9 @@ const tabsConfig: TabsConfig = {
       destinationAssetSelector: aktSelector
     }
   },
+  [Tabs.BRIDGE_USDC]: {
+    enabled: false
+  },
   [Tabs.TRANSFER]: {
     enabled: false
   },
@@ -106,7 +109,9 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
   );
 };
 
-export const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ address, aktBalance, refreshBalances }) => {
+const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ address, aktBalance, refreshBalances }) => {
+  useInitCachingLayer(AsyncIDBStorage);
+
   const { isLeapInstalled, isKeplrInstalled, isWalletConnected } = useWallet();
 
   const handleConnectWallet = useCallback(
@@ -199,14 +204,15 @@ export const LiquidityModal: React.FC<{ address: string; aktBalance: number; ref
   }, [aktBalance]);
 
   return (
-    <>
-      <LeapLiquidityModal
-        theme={theme}
-        walletClientConfig={walletClientConfig}
-        onTxnComplete={handleTxnComplete}
-        config={modalConfig}
-        renderLiquidityButton={ToggleLiquidityModalButton}
-      />
-    </>
+    <LeapLiquidityModal
+      theme={theme}
+      walletClientConfig={walletClientConfig}
+      onTxnComplete={handleTxnComplete}
+      config={modalConfig}
+      renderLiquidityButton={ToggleLiquidityModalButton}
+    />
   );
 };
+
+export default LiquidityModal;
+

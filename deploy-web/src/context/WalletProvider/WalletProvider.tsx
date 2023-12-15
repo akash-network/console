@@ -93,7 +93,8 @@ export const WalletProvider = ({ children }) => {
   useEffect(() => {
     isMounted.current = true;
 
-    if (isWindowLoaded && isSettingsInit) {
+    // TODO add isSettingsInit back
+    if (isWindowLoaded) {
       if (!!window.keplr || !!window.leap) {
         if (!!window.keplr) {
           setIsKeplrInstalled(true);
@@ -465,3 +466,4 @@ const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
     </>
   );
 };
+
