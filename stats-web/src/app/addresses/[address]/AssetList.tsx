@@ -5,25 +5,24 @@ import React, { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FormattedDecimal } from "@/components/FormattedDecimal";
 import { getSplitText } from "@/hooks/useShortText";
-import { Avatar, AvatarImage, AvatarFallback } from "@radix-ui/react-avatar";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@radix-ui/react-tooltip";
 import { HelpCircle } from "lucide-react";
 import { MdMoneyOff } from "react-icons/md";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface IProps {
   addressDetail: AddressDetail;
 }
 
 export function AssetList({ addressDetail }: IProps) {
-
   return (
-    <Card>
+    <Card className="h-full">
       <CardContent className="pt-6">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Amount</TableHead>
+              <TableHead className="text-center">Amount</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -33,9 +32,7 @@ export function AssetList({ addressDetail }: IProps) {
                 <TableCell>
                   <div className="flex items-center">
                     <div className="mr-2">
-                      <Avatar
-                      // sx={{ width: "26px", height: "26px" }}
-                      >
+                      <Avatar>
                         <AvatarImage src={asset.logoUrl} alt={asset.symbol} />
                         <AvatarFallback>
                           <MdMoneyOff />

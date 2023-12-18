@@ -77,23 +77,6 @@ async function fetchAddressData(address: string, network: string): Promise<Addre
 
 export default async function AddressDetailPage({ params: { address }, searchParams: { network } }: IProps) {
   const addressDetail = await fetchAddressData(address, network as string);
-  // const { addressNames, editAddressName } = useAddressBook();
-  // const [showMustConnectModal, setShowMustConnectModal] = useState<string>(null);
-  // const { user } = useCustomUser();
-  // const { classes } = useStyles();
-
-  // async function onSendClick() {
-  //   setIsShowingSendModal(true);
-
-  //   event(AnalyticsEvents.ADDRESSES_SEND_TOKENS_CLICK, {
-  //     category: "addresses",
-  //     label: "Click to send tokens"
-  //   });
-  // }
-
-  // <CustomNextSeo title={`Account ${address}`} url={`https://deploy.cloudmos.io${UrlService.address(address)}`} />
-  // <SendAktModal onClose={() => setIsShowingSendModal(false)} open={isShowingSendModal} toAddress={address} />
-  // {showMustConnectModal && <MustConnectModal message={showMustConnectModal} onClose={() => setShowMustConnectModal(null)} />}
 
   return (
     <AddressLayout page="address" address={address}>
@@ -103,15 +86,16 @@ export default async function AddressDetailPage({ params: { address }, searchPar
         <Title subTitle className="mb-4">
           Assets
         </Title>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid h-full gap-4 md:grid-cols-2 lg:grid-cols-4">
           {/* <Paper sx={{ padding: 2, height: "100%" }} elevation={2}> */}
           <AssetList addressDetail={addressDetail} />
+          <div className="col-span-3">
+            <AssetAllocation address={address} addressDetail={addressDetail} />
+          </div>
         </div>
         <div
         // item xs={12} sm={8}
-        >
-          <AssetAllocation address={address} addressDetail={addressDetail} />
-        </div>
+        ></div>
       </div>
 
       <div className="mt-4">

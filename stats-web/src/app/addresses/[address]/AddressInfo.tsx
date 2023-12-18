@@ -30,10 +30,8 @@ export function AddressInfo({ address, addressDetail }: IProps) {
         scale: 4,
         width: 175,
         color: {
-          // dark: theme.palette.secondary.main,
-          // light: theme.palette.primary.main
           dark: customColors.akashRed,
-          light: customColors.akashRed
+          light: customColors.black
         }
       }}
     />
@@ -42,36 +40,9 @@ export function AddressInfo({ address, addressDetail }: IProps) {
   return (
     <Card>
       <CardContent className="pt-6">
-        <div
-          className="flex flex-col items-start sm:flex-row"
-          // sx={{
-          //   display: "flex",
-          //   alignItems: "flex-start",
-          //   [theme.breakpoints.down("sm")]: {
-          //     flexDirection: "column",
-          //     alignItems: "flex-start"
-          //   }
-          // }}
-        >
-          <div
-            className="hidden sm:block"
-            // sx={{ display: { xs: "none", sm: "block" } }}
-          >
-            {QRcode}
-            {/* <div
-              className="pt-1 text-center"
-              // sx={{ textAlign: "center", paddingTop: 1 }}
-            >
-              <Button variant="outlined" color="secondary" onClick={onSendClick}>
-                <SendIcon />
-                &nbsp; Send AKT
-              </Button>
-            </div> */}
-          </div>
-          <div
-            className="block sm:hidden"
-            // sx={{ display: { xs: "block", sm: "none" } }}
-          >
+        <div className="flex flex-col items-start sm:flex-row">
+          <div className="hidden sm:block">{QRcode}</div>
+          <div className="block sm:hidden">
             <Tooltip>
               <TooltipTrigger asChild>
                 <QrCode />
@@ -80,31 +51,18 @@ export function AddressInfo({ address, addressDetail }: IProps) {
             </Tooltip>
           </div>
 
-          <div
-            className="flex-grow pt-2 sm:pl-4 sm:pt-0"
-            // Ssx={{ paddingLeft: { xs: 0, sm: "1rem" }, paddingTop: { xs: ".5rem" }, flexGrow: 1 }}
-          >
+          <div className="flex-grow pt-2 sm:pl-4 sm:pt-0">
             <LabelValue
               label="Address"
               value={
-                <div
-                // sx={{ color: theme.palette.secondary.main, display: "flex", alignItems: "center" }}
-                >
+                <div>
                   <Address address={address} isCopyable disableTruncate />
                 </div>
               }
               labelWidth="10rem"
             />
 
-            <div
-              className="text-2xl"
-              // sx={{
-              //   marginBottom: "1rem",
-              //   paddingBottom: ".5rem",
-              //   borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200]}`,
-              //   fontSize: "1.5rem"
-              // }}
-            >
+            <div className="text-2xl">
               <LabelValue
                 label={
                   <GradientText>
@@ -116,7 +74,7 @@ export function AddressInfo({ address, addressDetail }: IProps) {
               />
             </div>
 
-            <Separator className="mt-4 mb-4" />
+            <Separator className="mb-4 mt-4" />
 
             <LabelValue label="Available" value={<AKTAmount uakt={addressDetail.available} showUSD />} labelWidth="10rem" />
             <LabelValue label="Delegated" value={<AKTAmount uakt={addressDetail.delegated} showUSD />} labelWidth="10rem" />

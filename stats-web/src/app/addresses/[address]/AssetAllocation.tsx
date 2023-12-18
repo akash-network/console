@@ -19,23 +19,10 @@ export function AssetAllocation({ address, addressDetail }: IProps) {
   };
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        {/* <Paper sx={{ padding: 2, height: "100%" }} elevation={2}> */}
-        <div
-          className="mb-2 border-b border-muted-foreground"
-          // sx={{ borderBottom: 1, borderColor: "divider", marginBottom: 1 }}
-        >
-          <Tabs
-            value={assetTab}
-            onValueChange={handleTabChange}
-            // aria-label="address tabs"
-            // textColor="secondary"
-            // indicatorColor="secondary"
-            // variant="scrollable"
-            // scrollButtons="auto"
-          >
-            {/* <Box sx={{ borderBottom: 1, borderColor: "divider", marginBottom: "1rem" }}> */}
+    <Card className="h-full">
+      <CardContent className="p-0">
+        <div className="mb-2">
+          <Tabs value={assetTab} onValueChange={handleTabChange}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="delegations">Delegations</TabsTrigger>
               <TabsTrigger value="redelegations">Redelegations</TabsTrigger>

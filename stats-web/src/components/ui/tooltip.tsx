@@ -7,7 +7,25 @@ import { cn } from "@/lib/utils";
 
 const TooltipProvider = TooltipPrimitive.Provider;
 
-const Tooltip = TooltipPrimitive.Root;
+// const Tooltip = TooltipPrimitive.Root;
+interface TooltipProps extends TooltipPrimitive.TooltipProps {
+  alwaysOpen?: boolean;
+}
+const Tooltip = ({ alwaysOpen, children, ...rest }: TooltipProps): React.ReactElement => {
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <TooltipPrimitive.Root open={alwaysOpen || open} delayDuration={0} onOpenChange={setOpen} {...rest}>
+      <div
+        onClick={() => setOpen(prevOpen => !prevOpen)}
+        onFocus={() => setTimeout(() => setOpen(true), 0)} // timeout needed to run this after onOpenChange to prevent bug on mobile
+        onBlur={() => setOpen(false)}
+      >
+        {children}
+      </div>
+    </TooltipPrimitive.Root>
+  );
+};
 
 const TooltipTrigger = TooltipPrimitive.Trigger;
 
@@ -27,4 +45,3 @@ const TooltipContent = React.forwardRef<React.ElementRef<typeof TooltipPrimitive
 TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };
-

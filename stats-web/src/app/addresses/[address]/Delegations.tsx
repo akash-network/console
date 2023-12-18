@@ -12,39 +12,40 @@ type Props = {
 };
 
 export const Delegations: React.FunctionComponent<Props> = ({ delegations }) => {
-  return delegations.length === 0 ? (
-    <div
-      className="flex items-center p-4"
-      // sx={{ padding: "1rem", display: "flex", alignItems: "center" }}
-    >
-      <SearchX />
-      &nbsp; No delegations
-    </div>
-  ) : (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Validator</TableHead>
-          <TableHead align="right">Amount</TableHead>
-          <TableHead align="right">Reward</TableHead>
-        </TableRow>
-      </TableHeader>
+  return (
+    <div className="p-4">
+      {delegations.length === 0 ? (
+        <div className="flex items-center">
+          <SearchX />
+          &nbsp; No delegations
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Validator</TableHead>
+              <TableHead align="right">Amount</TableHead>
+              <TableHead align="right">Reward</TableHead>
+            </TableRow>
+          </TableHeader>
 
-      <TableBody>
-        {delegations.map(delegation => (
-          <TableRow key={delegation.validator.operatorAddress}>
-            <TableCell>
-              <Link href={UrlService.validator(delegation.validator.operatorAddress)}>{getShortText(delegation.validator.moniker, 20)}</Link>
-            </TableCell>
-            <TableCell align="right">
-              <AKTAmount uakt={delegation.amount} showAKTLabel />
-            </TableCell>
-            <TableCell align="right">
-              <AKTAmount uakt={delegation.reward} showAKTLabel />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+          <TableBody>
+            {delegations.map(delegation => (
+              <TableRow key={delegation.validator.operatorAddress}>
+                <TableCell>
+                  <Link href={UrlService.validator(delegation.validator.operatorAddress)}>{getShortText(delegation.validator.moniker, 20)}</Link>
+                </TableCell>
+                <TableCell align="right">
+                  <AKTAmount uakt={delegation.amount} showAKTLabel />
+                </TableCell>
+                <TableCell align="right">
+                  <AKTAmount uakt={delegation.reward} showAKTLabel />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
   );
 };
