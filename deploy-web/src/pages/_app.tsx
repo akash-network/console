@@ -25,6 +25,9 @@ import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { Provider } from "jotai";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { PageHead } from "@src/components/layout/PageHead";
+import { CustomChainProvider } from "@src/context/CustomChainProvider";
+
+import "@interchain-ui/react/styles";
 
 interface Props extends AppProps {
   emotionCache?: EmotionCache;
@@ -72,18 +75,20 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
                   <UserProvider>
                     <AddressBookProvider>
                       <SettingsProvider>
-                        <WalletProvider>
-                          <CertificateProvider>
-                            <TemplatesProvider>
-                              <LocalNoteProvider>
-                                <BackgroundTaskProvider>
-                                  {isProd && <GoogleAnalytics />}
-                                  <Component {...pageProps} />
-                                </BackgroundTaskProvider>
-                              </LocalNoteProvider>
-                            </TemplatesProvider>
-                          </CertificateProvider>
-                        </WalletProvider>
+                        <CustomChainProvider>
+                          <WalletProvider>
+                            <CertificateProvider>
+                              <TemplatesProvider>
+                                <LocalNoteProvider>
+                                  <BackgroundTaskProvider>
+                                    {isProd && <GoogleAnalytics />}
+                                    <Component {...pageProps} />
+                                  </BackgroundTaskProvider>
+                                </LocalNoteProvider>
+                              </TemplatesProvider>
+                            </CertificateProvider>
+                          </WalletProvider>
+                        </CustomChainProvider>
                       </SettingsProvider>
                     </AddressBookProvider>
                   </UserProvider>
@@ -98,4 +103,3 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
 };
 
 export default withDarkMode(App);
-
