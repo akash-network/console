@@ -67,7 +67,7 @@ export const CertificateProvider = ({ children }) => {
   const [localCerts, setLocalCerts] = useState<Array<LocalCert>>(null);
   const [localCert, setLocalCert] = useState<LocalCert>(null);
   const [isLocalCertMatching, setIsLocalCertMatching] = useState(false);
-  const { settings } = useSettings();
+  const { settings, isSettingsInit } = useSettings();
   const { enqueueSnackbar } = useSnackbar();
   const { address, signAndBroadcastTx } = useWallet();
   const { apiEndpoint } = settings;
@@ -118,6 +118,8 @@ export const CertificateProvider = ({ children }) => {
    * When changing wallet, reset certs and load for new wallet
    */
   useEffect(() => {
+    if (!isSettingsInit) return;
+
     // Clear certs when no selected wallet
     setValidCertificates([]);
     setSelectedCertificate(null);
@@ -128,7 +130,7 @@ export const CertificateProvider = ({ children }) => {
       loadLocalCert();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address]);
+  }, [address, isSettingsInit]);
 
   useEffect(() => {
     let isMatching = false;
@@ -337,4 +339,3 @@ export const CertificateProvider = ({ children }) => {
 export const useCertificate = () => {
   return { ...React.useContext(CertificateProviderContext) };
 };
-

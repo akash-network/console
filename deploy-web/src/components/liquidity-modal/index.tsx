@@ -7,6 +7,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import Button from "@mui/material/Button";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { useSelectedChain } from "@src/context/CustomChainProvider";
 
 const theme: ThemeDefinition = {
   colors: {
@@ -106,31 +107,41 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
   );
 };
 
+function getWindowWallet(extensionName: string) {
+  switch (extensionName) {
+    case "leap-extension":
+      return window.leap;
+    case "keplr-extension":
+      return window.keplr;
+  }
+
+  return null;
+}
+
 export const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ address, aktBalance, refreshBalances }) => {
-  const { isLeapInstalled, isKeplrInstalled, isWalletConnected } = useWallet();
+  const { isWalletConnected } = useWallet();
+  const { wallet } = useSelectedChain();
+  const walletExt = getWindowWallet(wallet?.name);
 
   const handleConnectWallet = useCallback(
     (chainId?: string) => {
-      if (!isWalletConnected) {
-        if (isLeapInstalled) {
-          return window.wallet.enable(chainId);
-        } else if (isKeplrInstalled) {
-          return window.keplr.enable(chainId);
-        } else {
-          throw new Error("No wallet installed");
-        }
+      if (!isWalletConnected && walletExt) {
+        return walletExt.enable(chainId);
       }
     },
-    [isWalletConnected, isLeapInstalled, isKeplrInstalled]
+    [isWalletConnected, walletExt]
   );
 
   const walletClient: WalletClient = {
     enable: (chainIds: string | string[]) => {
-      return window.wallet.enable(chainIds);
+      if (!walletExt) throw "Wallet extension not found";
+      return walletExt.enable(chainIds);
     },
     getAccount: async (chainId: string) => {
-      await window.wallet.enable(chainId);
-      const walletKey = await window.wallet.getKey?.(chainId);
+      if (!walletExt) throw "Wallet extension not found";
+
+      await walletExt.enable(chainId);
+      const walletKey = await walletExt.getKey?.(chainId);
       if (!walletKey) {
         throw new Error("Failed to get connected wallet information");
       }
@@ -142,7 +153,8 @@ export const LiquidityModal: React.FC<{ address: string; aktBalance: number; ref
     },
     // @ts-expect-error Due to some issue with the `Long` type for accountNumber in the signed object
     getSigner: async (chainId: string) => {
-      const offlineSigner = await window.wallet.getOfflineSigner(chainId);
+      if (!walletExt) throw "Wallet extension not found";
+      const offlineSigner = walletExt.getOfflineSigner(chainId);
       if (!offlineSigner) {
         throw new Error("Failed to get connected wallet signer");
       }
@@ -200,13 +212,15 @@ export const LiquidityModal: React.FC<{ address: string; aktBalance: number; ref
 
   return (
     <>
-      <LeapLiquidityModal
-        theme={theme}
-        walletClientConfig={walletClientConfig}
-        onTxnComplete={handleTxnComplete}
-        config={modalConfig}
-        renderLiquidityButton={ToggleLiquidityModalButton}
-      />
+      {walletExt && (
+        <LeapLiquidityModal
+          theme={theme}
+          walletClientConfig={walletClientConfig}
+          onTxnComplete={handleTxnComplete}
+          config={modalConfig}
+          renderLiquidityButton={ToggleLiquidityModalButton}
+        />
+      )}
     </>
   );
 };
