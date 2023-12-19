@@ -37,7 +37,7 @@ const AddressDetailPage: React.FunctionComponent<Props> = ({ address }) => {
 
   return (
     <Layout>
-      <NextSeo title={`Account ${address} transactions`} />
+      {/* <CustomNextSeo title={`Account ${address} deployments`} url={`https://deploy.cloudmos.io${UrlService.addressDeployments(address)}`} /> */}
 
       <AddressLayout page="transactions" address={address}>
       {/* <TabsContent value="account"> */}

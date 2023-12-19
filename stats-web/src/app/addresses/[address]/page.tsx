@@ -1,48 +1,13 @@
-// import HelpIcon from "@mui/icons-material/Help";
-// import QrCodeIcon from "@mui/icons-material/QrCode";
-// import MoneyOffIcon from "@mui/icons-material/MoneyOff";
-// import SendIcon from "@mui/icons-material/Send";
-// import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
-// import BookmarkIcon from "@mui/icons-material/Bookmark";
-// import SearchOffIcon from "@mui/icons-material/SearchOff";
-// import { SendAktModal } from "@src/components/address/SendAktModal";
-// import { MustConnectModal } from "@src/components/shared/MustConnectModal";
 import { AddressDetail } from "@/types";
-import { customColors } from "@/lib/colors copy";
 import { getNetworkBaseApiUrl } from "@/lib/constants";
 import { Metadata, ResolvingMetadata } from "next";
-import PageContainer from "@/components/PageContainer";
 import AddressLayout from "./AddressLayout";
 import { AddressInfo } from "./AddressInfo";
 import { Title } from "@/components/Title";
 import { UrlService } from "@/lib/urlUtils";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent } from "@/components/ui/card";
-import { FormattedDecimal } from "@/components/FormattedDecimal";
 import { AssetList } from "./AssetList";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { HelpCircle } from "lucide-react";
-import { MdMoneyOff } from "react-icons/md";
-import { getSplitText } from "@/hooks/useShortText";
 import { AssetAllocation } from "./AssetAllocation";
 import { LatestTransactions } from "./LatestTransactions";
-
-// type Props = {
-//   address: string;
-//   addressDetail: AddressDetail;
-// };
-
-// const useStyles = makeStyles()(theme => ({
-//   tooltip: {
-//     fontSize: ".8rem",
-//     whiteSpace: "nowrap",
-//     maxWidth: "none"
-//   },
-//   qrTooltip: {
-//     padding: ".25rem .35rem"
-//   }
-// }));
 
 interface IProps {
   params: { address: string };
@@ -87,15 +52,11 @@ export default async function AddressDetailPage({ params: { address }, searchPar
           Assets
         </Title>
         <div className="grid h-full gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {/* <Paper sx={{ padding: 2, height: "100%" }} elevation={2}> */}
           <AssetList addressDetail={addressDetail} />
           <div className="col-span-3">
             <AssetAllocation address={address} addressDetail={addressDetail} />
           </div>
         </div>
-        <div
-        // item xs={12} sm={8}
-        ></div>
       </div>
 
       <div className="mt-4">

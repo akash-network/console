@@ -51,7 +51,7 @@ export default async function BlockDetailPage({ params: { height }, searchParams
             {block.transactions.length === 0 ? (
               <div className="flex items-center p-4">
                 <SearchX size="1rem" />
-                &nbsp; No transactions
+                &nbsp;No transactions
               </div>
             ) : (
               <Table>
