@@ -212,13 +212,15 @@ export const LiquidityModal: React.FC<{ address: string; aktBalance: number; ref
 
   return (
     <>
-      <LeapLiquidityModal
-        theme={theme}
-        walletClientConfig={walletClientConfig}
-        onTxnComplete={handleTxnComplete}
-        config={modalConfig}
-        renderLiquidityButton={ToggleLiquidityModalButton}
-      />
+      {walletExt && (
+        <LeapLiquidityModal
+          theme={theme}
+          walletClientConfig={walletClientConfig}
+          onTxnComplete={handleTxnComplete}
+          config={modalConfig}
+          renderLiquidityButton={ToggleLiquidityModalButton}
+        />
+      )}
     </>
   );
 };
