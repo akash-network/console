@@ -149,33 +149,14 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
                   <WarningIcon color="warning" sx={{ marginRight: ".5rem" }} />
                 </CustomTooltip>
               )}
-
-              {walletBalances && (
-                <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
-                  {aktBalance >= 5 || usdcBalance >= 5 ? (
-                    <CheckIcon color="success" sx={{ marginRight: ".5rem" }} />
-                  ) : (
-                    <CustomTooltip
-                      title={
-                        <>
-                          If you don't have 5 AKT or USDC, you can request authorization for some tokens to get started on our{" "}
-                          <ExternalLink href="https://discord.gg/akash" text="Discord" />.
-                        </>
-                      }
-                    >
-                      <WarningIcon color="warning" sx={{ marginRight: ".5rem" }} />
-                    </CustomTooltip>
-                  )}
-                  <span
-                    style={{
-                      marginRight: "0.5rem"
-                    }}
-                  >
-                    You have {aktBalance} AKT and {usdcBalance} USDC
-                  </span>
-                  {aktBalance < 5 || usdcBalance < 5 ? <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} /> : null}
-                </Box>
-              )}
+              <span
+                style={{
+                  marginRight: "0.5rem"
+                }}
+              >
+                You have {aktBalance} AKT and {usdcBalance} USDC
+              </span>
+              <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} />
             </Box>
           )}
         </StepContent>

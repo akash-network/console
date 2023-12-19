@@ -171,20 +171,8 @@ export const WalletProvider = ({ children }) => {
     setIsWaitingForApproval(true);
     let pendingSnackbarKey = null;
     try {
-      const client = await getStargateClient();
-      //const simulation = await client.simulate(walletAddress, msgs, "");
-      // const estimatedFees = {
-      //   amount: [
-      //     {
-      //       amount: "0.025",
-      //       denom: uAktDenom
-      //     }
-      //   ],
-      //   gas: Math.ceil(simulation * 1.25).toString()
-      // };
       const estimatedFees = await estimateFee(msgs);
 
-      //const txRaw = await client.sign(walletAddress, msgs, estimatedFees, "");
       const txRaw = await sign(msgs, estimatedFees);
 
       setIsWaitingForApproval(false);
@@ -194,8 +182,6 @@ export const WalletProvider = ({ children }) => {
         autoHideDuration: null
       });
 
-      //const txRawBytes = Uint8Array.from(TxRaw.encode(txRaw).finish());
-      //const txResult = await client.broadcastTx(txRawBytes);
       const txResult = await broadcast(txRaw);
 
       setIsBroadcastingTx(false);

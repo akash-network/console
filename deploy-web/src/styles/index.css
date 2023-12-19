@@ -4,7 +4,7 @@
   white-space: nowrap;
 }
 
-zag-portal > div {
+[data-floating-ui-portal] > div {
   z-index: 1500 !important;
 }
 
