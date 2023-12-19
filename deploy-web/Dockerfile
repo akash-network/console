@@ -1,4 +1,5 @@
-FROM node:18-alpine AS base
+FROM node:18-alpine3.18 AS base
+# Pinned to 3.18 to avoid this issue: https://github.com/nodejs/docker-node/issues/2009
 
 # Install dependencies only when needed
 FROM base AS deps
