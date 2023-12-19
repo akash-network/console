@@ -38,21 +38,21 @@ export function AddressDeployments({ address }: IProps) {
           </div>
         ) : (
           <Table>
-            <TableHead>
+            <TableHeader>
               <TableRow>
-                <TableHeader>
+                <TableHead>
                   {/* <TableSortLabel active={true} direction={isSortingReversed ? "desc" : "asc"} onClick={handleRequestSort}>
                       DSEQ
                     </TableSortLabel> */}
-                </TableHeader>
-                <TableHeader className="text-center">Status</TableHeader>
-                <TableHeader>Created Height</TableHeader>
-                <TableHeader>Specs</TableHeader>
+                </TableHead>
+                <TableHead className="text-center">Status</TableHead>
+                <TableHead>Created Height</TableHead>
+                <TableHead>Specs</TableHead>
               </TableRow>
 
               <TableRow>
-                <TableCell></TableCell>
-                <TableCell>
+                <TableHead></TableHead>
+                <TableHead className="text-center">
                   {/* <FormControl fullWidth size="small">
                     <Select value={statusFilter} onChange={ev => setStatusFilter(ev.target.value)} MenuProps={{ disableScrollLock: true }}>
                       <MenuItem value={"*"}>All</MenuItem>
@@ -62,7 +62,7 @@ export function AddressDeployments({ address }: IProps) {
                   </FormControl> */}
 
                   <Select>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[180px] m-auto">
                       <SelectValue placeholder="Select a fruit" />
                     </SelectTrigger>
                     <SelectContent>
@@ -76,11 +76,11 @@ export function AddressDeployments({ address }: IProps) {
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                </TableCell>
-                <TableCell></TableCell>
-                <TableCell></TableCell>
+                </TableHead>
+                <TableHead></TableHead>
+                <TableHead></TableHead>
               </TableRow>
-            </TableHead>
+            </TableHeader>
 
             <TableBody>{deploymentsResult?.results.map(deployment => <DeploymentRow key={deployment.dseq} deployment={deployment} />)}</TableBody>
           </Table>
