@@ -139,11 +139,13 @@ export const WalletProvider = ({ children }) => {
     });
   }
 
-  // Redirect to homepage when changing wallet
+  // Update balances on wallet address change
   useEffect(() => {
     if (walletAddress) {
-      router.push(UrlService.home());
-
+      // Redirect to deployment list if on deployment detail page
+      if (router.pathname.startsWith("/deployments/")) {
+        router.push(UrlService.deploymentList());
+      }
       loadWallet();
     }
   }, [walletAddress]);
