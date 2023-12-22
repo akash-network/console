@@ -4,6 +4,8 @@ import { QueryKeys } from "./queryKeys";
 import { ApiUrlService } from "@/lib/apiUtils";
 import { DeploymentSummary, PaginatedResults, TransactionDetail } from "@/types";
 import { removeEmptyFilters } from "@/lib/urlUtils";
+import { z } from "zod";
+import { TransactionRowType, transactionRowSchema } from "@/app/addresses/[address]/deployments/columns";
 
 async function getTransactions(limit: number): Promise<TransactionDetail[]> {
   const response = await axios.get(ApiUrlService.transactions(limit));
@@ -34,7 +36,9 @@ export function useAddressTransactions(
 
 async function getAddressDeployments(address: string, skip: number, limit: number, reverseSorting: boolean, filters: { [key: string]: string }) {
   const response = await axios.get(ApiUrlService.addressDeployments(address, skip, limit, reverseSorting, filters));
-  return response.data;
+  const data = z.array(transactionRowSchema).parse(response.data.results);
+
+  return { results: data, count: response.data.count };
 }
 
 export function useAddressDeployments(
@@ -43,9 +47,9 @@ export function useAddressDeployments(
   limit: number,
   reverseSorting: boolean,
   filters: { [key: string]: string } = {},
-  options?: Omit<UseQueryOptions<PaginatedResults<DeploymentSummary>, Error, any, QueryKey>, "queryKey" | "queryFn">
+  options?: Omit<UseQueryOptions<PaginatedResults<TransactionRowType>, Error, any, QueryKey>, "queryKey" | "queryFn">
 ) {
-  return useQuery<PaginatedResults<DeploymentSummary>, Error>(
+  return useQuery<PaginatedResults<TransactionRowType>, Error>(
     QueryKeys.getAddressDeploymentsKey(address, skip, limit, reverseSorting, removeEmptyFilters(filters)),
     () => getAddressDeployments(address, skip, limit, reverseSorting, removeEmptyFilters(filters)),
     options
