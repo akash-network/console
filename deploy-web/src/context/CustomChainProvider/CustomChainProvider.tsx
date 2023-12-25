@@ -1,7 +1,7 @@
 import { ChainProvider, useManager } from "@cosmos-kit/react";
 import { wallets as keplr } from "@cosmos-kit/keplr";
 import { wallets as leap } from "@cosmos-kit/leap-extension";
-import { wallets as cosmostation } from "@cosmos-kit/cosmostation";
+import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
 import { customRegistry } from "@src/utils/customRegistry";
 import { GasPrice } from "@cosmjs/stargate";
 import { akash, akashAssetList, akashSandbox, akashSandboxAssetList, akashTestnet, akashTestnetAssetList } from "@src/chains";
