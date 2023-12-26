@@ -69,6 +69,7 @@ const allowedDestinationChains: AllowedDestinationChainConfig[] = [
 
 const tabsConfig: TabsConfig = {
   [Tabs.SWAP]: {
+    title: "Cosmos Swaps",
     allowedDestinationChains,
     defaults: {
       sourceChainId: osmosisChainId,
@@ -77,11 +78,15 @@ const tabsConfig: TabsConfig = {
     }
   },
   [Tabs.CROSS_CHAIN_SWAPS]: {
+    title: "EVM Bridge",
     allowedDestinationChains,
     defaults: {
       destinationChainId: akashnetChainId,
       destinationAssetSelector: aktSelector
     }
+  },
+  [Tabs.BRIDGE_USDC]: {
+    enabled: false
   },
   [Tabs.TRANSFER]: {
     enabled: false
@@ -118,7 +123,7 @@ function getWindowWallet(extensionName: string) {
   return null;
 }
 
-export const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ address, aktBalance, refreshBalances }) => {
+const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ address, aktBalance, refreshBalances }) => {
   useInitCachingLayer(AsyncIDBStorage);
 
   const { isWalletConnected } = useWallet();
@@ -226,4 +231,6 @@ export const LiquidityModal: React.FC<{ address: string; aktBalance: number; ref
     </>
   );
 };
+
+export default LiquidityModal;
 
