@@ -58,6 +58,39 @@ export interface RpcDeployment {
 
 type DeploymentGroup = DeploymentGroup_v2 | DeploymentGroup_v3;
 
+interface DeploymentResource_V2 {
+  cpu: {
+    units: {
+      val: string;
+    };
+    attributes: {key: string, value: string}[];
+  };
+  gpu: {
+    units: {
+      val: string;
+    };
+    attributes: {key: string, value: string}[];
+  };
+  memory: {
+    quantity: {
+      val: string;
+    };
+    attributes: {key: string, value: string}[];
+  };
+  storage: Array<{
+    name: string;
+    quantity: {
+      val: string;
+    };
+    attributes: {key: string, value: string}[];
+  }>;
+  endpoints: Array<{
+    kind: string;
+    sequence_number: number;
+  }>;
+}
+interface DeploymentResource_V3 extends DeploymentResource_V2 {}
+
 interface DeploymentGroup_v2 {
   group_id: {
     owner: string;
@@ -78,37 +111,7 @@ interface DeploymentGroup_v2 {
       }>;
     };
     resources: Array<{
-      resources: {
-        cpu: {
-          units: {
-            val: string;
-          };
-          attributes: any[];
-        };
-        gpu: {
-          units: {
-            val: string;
-          };
-          attributes: any[];
-        };
-        memory: {
-          quantity: {
-            val: string;
-          };
-          attributes: any[];
-        };
-        storage: Array<{
-          name: string;
-          quantity: {
-            val: string;
-          };
-          attributes: any[];
-        }>;
-        endpoints: Array<{
-          kind: string;
-          sequence_number: number;
-        }>;
-      };
+      resources: DeploymentResource_V2;
       count: number;
       price: {
         denom: string;
@@ -139,37 +142,7 @@ interface DeploymentGroup_v3 {
       }>;
     };
     resources: Array<{
-      resource: {
-        cpu: {
-          units: {
-            val: string;
-          };
-          attributes: any[];
-        };
-        gpu: {
-          units: {
-            val: string;
-          };
-          attributes: any[];
-        };
-        memory: {
-          quantity: {
-            val: string;
-          };
-          attributes: any[];
-        };
-        storage: Array<{
-          name: string;
-          quantity: {
-            val: string;
-          };
-          attributes: any[];
-        }>;
-        endpoints: Array<{
-          kind: string;
-          sequence_number: number;
-        }>;
-      };
+      resource: DeploymentResource_V3;
       count: number;
       price: {
         denom: string;
@@ -300,6 +273,10 @@ export interface RpcBid {
       amount: string;
     };
     created_at: string;
+    resources_offer: Array<{
+      resources: DeploymentResource_V3;
+      count: number;
+    }>;
   };
   escrow_account: {
     id: {
@@ -337,4 +314,8 @@ export interface BidDto {
     amount: string;
   };
   state: string;
+  resourcesOffer: Array<{
+    resources: DeploymentResource_V3;
+    count: number;
+  }>;
 }

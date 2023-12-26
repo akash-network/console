@@ -1,20 +1,13 @@
 import React, { useCallback, useMemo } from "react";
-import {
-  LiquidityModal as LeapLiquidityModal,
-  Tabs,
-  TxnSummary,
-  defaultBlurs,
-  useInitCachingLayer,
-  AsyncIDBStorage,
-  ErrorBoundary
-} from "@leapwallet/elements";
-import type { ThemeDefinition, WalletClient, AssetSelector, AllowedDestinationChainConfig } from "@leapwallet/elements";
+import { LiquidityModal as LeapLiquidityModal, Tabs, TxnSummary, defaultBlurs, useInitCachingLayer, AsyncIDBStorage } from "@leapwallet/elements";
+import type { ThemeDefinition, WalletClient, AssetSelector, AllowedDestinationChainConfig, TabsConfig } from "@leapwallet/elements";
 import type { StdSignDoc } from "@cosmjs/amino";
 import type { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { useWallet } from "@src/context/WalletProvider";
 import Button from "@mui/material/Button";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { useSelectedChain } from "@src/context/CustomChainProvider";
 
 const theme: ThemeDefinition = {
   colors: {
@@ -70,9 +63,33 @@ const aktSelector: AssetSelector = ["denom", "uakt"];
 const allowedDestinationChains: AllowedDestinationChainConfig[] = [
   {
     chainId: akashnetChainId,
-    assetDenoms: ["uakt", "uusd"]
+    assetDenoms: ["uakt"]
   }
 ];
+
+const tabsConfig: TabsConfig = {
+  [Tabs.SWAP]: {
+    allowedDestinationChains,
+    defaults: {
+      sourceChainId: osmosisChainId,
+      destinationChainId: akashnetChainId,
+      destinationAssetSelector: aktSelector
+    }
+  },
+  [Tabs.CROSS_CHAIN_SWAPS]: {
+    allowedDestinationChains,
+    defaults: {
+      destinationChainId: akashnetChainId,
+      destinationAssetSelector: aktSelector
+    }
+  },
+  [Tabs.TRANSFER]: {
+    enabled: false
+  },
+  [Tabs.FIAT_ON_RAMP]: {
+    enabled: false
+  }
+};
 
 const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
   const _onClick = () => {
@@ -90,33 +107,43 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
   );
 };
 
-const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ address, aktBalance, refreshBalances }) => {
+function getWindowWallet(extensionName: string) {
+  switch (extensionName) {
+    case "leap-extension":
+      return window.leap;
+    case "keplr-extension":
+      return window.keplr;
+  }
+
+  return null;
+}
+
+export const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ address, aktBalance, refreshBalances }) => {
   useInitCachingLayer(AsyncIDBStorage);
 
-  const { isLeapInstalled, isKeplrInstalled, isWalletConnected } = useWallet();
+  const { isWalletConnected } = useWallet();
+  const { wallet } = useSelectedChain();
+  const walletExt = getWindowWallet(wallet?.name);
 
   const handleConnectWallet = useCallback(
     (chainId?: string) => {
-      if (!isWalletConnected) {
-        if (isLeapInstalled) {
-          return window.wallet.enable(chainId);
-        } else if (isKeplrInstalled) {
-          return window.keplr.enable(chainId);
-        } else {
-          throw new Error("No wallet installed");
-        }
+      if (!isWalletConnected && walletExt) {
+        return walletExt.enable(chainId);
       }
     },
-    [isWalletConnected, isLeapInstalled, isKeplrInstalled]
+    [isWalletConnected, walletExt]
   );
 
   const walletClient: WalletClient = {
     enable: (chainIds: string | string[]) => {
-      return window.wallet.enable(chainIds);
+      if (!walletExt) throw "Wallet extension not found";
+      return walletExt.enable(chainIds);
     },
     getAccount: async (chainId: string) => {
-      await window.wallet.enable(chainId);
-      const walletKey = await window.wallet.getKey?.(chainId);
+      if (!walletExt) throw "Wallet extension not found";
+
+      await walletExt.enable(chainId);
+      const walletKey = await walletExt.getKey?.(chainId);
       if (!walletKey) {
         throw new Error("Failed to get connected wallet information");
       }
@@ -128,7 +155,8 @@ const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBal
     },
     // @ts-expect-error Due to some issue with the `Long` type for accountNumber in the signed object
     getSigner: async (chainId: string) => {
-      const offlineSigner = await window.wallet.getOfflineSigner(chainId);
+      if (!walletExt) throw "Wallet extension not found";
+      const offlineSigner = walletExt.getOfflineSigner(chainId);
       if (!offlineSigner) {
         throw new Error("Failed to get connected wallet signer");
       }
@@ -180,47 +208,22 @@ const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBal
       icon: "https://assets.leapwallet.io/akt.png",
       subtitle: `You need only ${formatAmount(5 - aktBalance)} more AKT to get started!`,
       title: "Get AKT",
-      tabsConfig: {
-        [Tabs.SWAP]: {
-          allowedDestinationChains,
-          defaults: {
-            sourceChainId: osmosisChainId,
-            destinationChainId: akashnetChainId,
-            destinationAssetSelector: aktSelector
-          }
-        },
-        [Tabs.CROSS_CHAIN_SWAPS]: {
-          allowedDestinationChains,
-          defaults: {
-            destinationChainId: akashnetChainId,
-            destinationAssetSelector: aktSelector
-          }
-        },
-        [Tabs.BRIDGE_USDC]: {
-          enabled: false
-        },
-        [Tabs.TRANSFER]: {
-          enabled: false
-        },
-        [Tabs.FIAT_ON_RAMP]: {
-          enabled: false
-        }
-      }
+      tabsConfig
     };
   }, [aktBalance]);
 
   return (
-    <ErrorBoundary>
-      <LeapLiquidityModal
-        theme={theme}
-        walletClientConfig={walletClientConfig}
-        onTxnComplete={handleTxnComplete}
-        config={modalConfig}
-        renderLiquidityButton={ToggleLiquidityModalButton}
-      />
-    </ErrorBoundary>
+    <>
+      {walletExt && (
+        <LeapLiquidityModal
+          theme={theme}
+          walletClientConfig={walletClientConfig}
+          onTxnComplete={handleTxnComplete}
+          config={modalConfig}
+          renderLiquidityButton={ToggleLiquidityModalButton}
+        />
+      )}
+    </>
   );
 };
-
-export default LiquidityModal;
 

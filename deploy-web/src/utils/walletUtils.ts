@@ -2,8 +2,8 @@ import { mainnetId } from "./constants";
 
 export type LocalWalletDataType = {
   address: string;
-  cert: string;
-  certKey: string;
+  cert?: string;
+  certKey?: string;
   name: string;
   selected: boolean;
 };

@@ -4,6 +4,10 @@
   white-space: nowrap;
 }
 
+[data-floating-ui-portal] > div {
+  z-index: 1500 !important;
+}
+
 .markdownContainer table th,
 .markdownContainer table td {
   padding: 6px 13px;
