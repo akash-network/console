@@ -1,12 +1,10 @@
 "use client";
-import React, { ReactNode, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { ReactNode } from "react";
 import { UrlService } from "@/lib/urlUtils";
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// import { event } from "nextjs-google-analytics";
-// import { AnalyticsEvents } from "@src/utils/analytics";
+import { useRouter } from "next-nprogress-bar";
 
 type AddressTab = "address" | "transactions" | "deployments";
 type Props = {

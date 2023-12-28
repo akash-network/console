@@ -29,12 +29,14 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   manualPagniation?: boolean;
   manualFiltering?: boolean;
+  manualSorting?: boolean;
   pageCount?: number;
   hasTextFilter?: boolean;
   isLoading?: boolean;
   noResultsText?: string;
   hasRowSelection?: boolean;
   onColumnFiltersChange?: (columnFilters: ColumnFiltersState) => void;
+  onColumnSortingChange?: (sorting: SortingState) => void;
   setPageSize?: (pageSize: number) => void;
   setPageIndex?: (pageIndex: number) => void;
 }
@@ -44,11 +46,13 @@ export function DataTable<TData, TValue>({
   data,
   manualPagniation,
   manualFiltering,
+  manualSorting,
   pageCount,
   isLoading,
   noResultsText,
   hasRowSelection,
   onColumnFiltersChange,
+  onColumnSortingChange,
   setPageIndex,
   setPageSize
 }: DataTableProps<TData, TValue>) {
@@ -58,24 +62,6 @@ export function DataTable<TData, TValue>({
   const [_pageCount, setPageCount] = useState<number>(0);
   const [pagination, setPagination] = React.useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
   const [sorting, setSorting] = React.useState<SortingState>([]);
-
-  useEffect(() => {
-    if (pageCount !== undefined) {
-      setPageCount(pageCount || 0);
-    }
-  }, [pageCount]);
-
-  function onPaginationChange(updater: Updater<PaginationState>) {
-    // TODO fix typing
-    const nextState = (updater as any)(pagination);
-
-    console.log(nextState.pageIndex, nextState.pageSize);
-
-    setPageIndex && setPageIndex(nextState.pageIndex);
-    setPageSize && setPageSize(nextState.pageSize);
-
-    setPagination(nextState);
-  }
 
   const table = useReactTable({
     data,
@@ -91,6 +77,7 @@ export function DataTable<TData, TValue>({
     manualPagination: manualPagniation,
     pageCount: _pageCount,
     manualFiltering: manualFiltering,
+    manualSorting: manualSorting,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -104,7 +91,33 @@ export function DataTable<TData, TValue>({
     onPaginationChange: onPaginationChange
   });
 
-  React.useEffect(() => {
+  function onPaginationChange(updater: Updater<PaginationState>) {
+    // TODO fix typing
+    const nextState = (updater as any)(pagination);
+
+    console.log(nextState.pageIndex, nextState.pageSize);
+
+    setPageIndex && setPageIndex(nextState.pageIndex);
+    setPageSize && setPageSize(nextState.pageSize);
+
+    setPagination(nextState);
+  }
+
+  useEffect(() => {
+    if (pageCount !== undefined) {
+      setPageCount(pageCount || 0);
+    }
+  }, [pageCount]);
+
+  useEffect(() => {
+    if (onColumnSortingChange) {
+      onColumnSortingChange(sorting);
+
+      table.resetPageIndex();
+    }
+  }, [sorting]);
+
+  useEffect(() => {
     if (manualFiltering && onColumnFiltersChange) {
       onColumnFiltersChange(columnFilters);
 

@@ -3,15 +3,16 @@ import { ModeToggle } from "./ModeToggle";
 import { FaGithub, FaBars, FaXTwitter } from "react-icons/fa6";
 import { Button } from "./ui/button";
 import { AkashConsoleLogo } from "./icons/AkashConsoleLogo";
+import Link from "next/link";
 
 export const Nav = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex">
-          <a className="mr-6 flex items-center space-x-2" href="/">
+          <Link className="mr-6 flex items-center space-x-2" href="/">
             <AkashConsoleLogo />
-          </a>
+          </Link>
           {/* <nav className="flex items-center space-x-6 text-sm font-medium">
             <a className="text-foreground/60 transition-colors hover:text-foreground/80" href="/docs">
               Documentation

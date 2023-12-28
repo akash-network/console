@@ -26,9 +26,6 @@ export default async function AddressDeploymentsPage({ params: { address } }: IP
   return (
     <AddressLayout page="deployments" address={address}>
       <div className="mt-4">
-        {/* <Paper sx={{ mt: "1rem", padding: "1rem" }}>
-            
-          </Paper> */}
         <AddressDeployments address={address} />
       </div>
     </AddressLayout>

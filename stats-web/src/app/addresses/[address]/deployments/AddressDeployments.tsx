@@ -1,9 +1,9 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useAddressDeployments } from "@/queries";
 import { DataTable } from "@/components/table/data-table";
 import { columns } from "./columns";
-import { ColumnFiltersState } from "@tanstack/table-core";
+import { ColumnFiltersState, SortingState } from "@tanstack/table-core";
 import { Card, CardContent } from "@/components/ui/card";
 import { SearchX } from "lucide-react";
 
@@ -19,9 +19,13 @@ export function AddressDeployments({ address }: IProps) {
   const { data: deploymentsResult, isLoading } = useAddressDeployments(address, page * pageSize, pageSize, isSortingReversed, { status: statusFilter });
   const pageCount = deploymentsResult?.count ? Math.ceil((deploymentsResult.count || 0) / pageSize) : undefined;
 
-  // const handleRequestSort = (event: React.MouseEvent<unknown>) => {
-  //   setIsSortingReversed(current => !current);
-  // };
+  const onColumnSortingChange = (sorting: SortingState) => {
+    const dseqSort = sorting.find(sort => sort.id === "dseq");
+
+    if (dseqSort) {
+      setIsSortingReversed(dseqSort.desc);
+    }
+  };
 
   const onColumnFiltersChange = (columnFilters: ColumnFiltersState) => {
     const statusFilter = (columnFilters.find(filter => filter.id === "status")?.value as string) || "*";
@@ -40,10 +44,12 @@ export function AddressDeployments({ address }: IProps) {
           <DataTable
             data={deploymentsResult?.results || []}
             columns={columns}
-            manualPagniation
             pageCount={pageCount}
+            manualPagniation
             manualFiltering
+            manualSorting
             onColumnFiltersChange={onColumnFiltersChange}
+            onColumnSortingChange={onColumnSortingChange}
             noResultsText="This address has no deployments."
             isLoading={isLoading}
             setPageIndex={pageIndex => setPage(pageIndex)}
