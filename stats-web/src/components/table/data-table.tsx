@@ -4,13 +4,11 @@ import * as React from "react";
 import {
   ColumnDef,
   ColumnFiltersState,
-  OnChangeFn,
   PaginationState,
   SortingState,
   Updater,
   VisibilityState,
   flexRender,
-  functionalUpdate,
   getCoreRowModel,
   getFacetedRowModel,
   getFacetedUniqueValues,
@@ -24,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { DataTablePagination } from "./data-table-pagination";
 import { SearchX } from "lucide-react";
 import Spinner from "../Spinner";
+import { useEffect, useState } from "react";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -34,6 +33,7 @@ interface DataTableProps<TData, TValue> {
   hasTextFilter?: boolean;
   isLoading?: boolean;
   noResultsText?: string;
+  hasRowSelection?: boolean;
   onColumnFiltersChange?: (columnFilters: ColumnFiltersState) => void;
   setPageSize?: (pageSize: number) => void;
   setPageIndex?: (pageIndex: number) => void;
@@ -47,6 +47,7 @@ export function DataTable<TData, TValue>({
   pageCount,
   isLoading,
   noResultsText,
+  hasRowSelection,
   onColumnFiltersChange,
   setPageIndex,
   setPageSize
@@ -54,8 +55,15 @@ export function DataTable<TData, TValue>({
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [_pageCount, setPageCount] = useState<number>(0);
   const [pagination, setPagination] = React.useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
   const [sorting, setSorting] = React.useState<SortingState>([]);
+
+  useEffect(() => {
+    if (pageCount !== undefined) {
+      setPageCount(pageCount || 0);
+    }
+  }, [pageCount]);
 
   function onPaginationChange(updater: Updater<PaginationState>) {
     // TODO fix typing
@@ -81,7 +89,7 @@ export function DataTable<TData, TValue>({
     },
     enableRowSelection: true,
     manualPagination: manualPagniation,
-    pageCount: pageCount,
+    pageCount: _pageCount,
     manualFiltering: manualFiltering,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
@@ -99,6 +107,8 @@ export function DataTable<TData, TValue>({
   React.useEffect(() => {
     if (manualFiltering && onColumnFiltersChange) {
       onColumnFiltersChange(columnFilters);
+
+      table.resetPageIndex();
     }
   }, [columnFilters]);
 
@@ -154,7 +164,8 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination table={table} />
+
+      {_pageCount > 0 && <DataTablePagination table={table} hasRowSelection={hasRowSelection} />}
     </div>
   );
 }
