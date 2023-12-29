@@ -15,7 +15,7 @@ function Providers({ children }: React.PropsWithChildren) {
     <CustomIntlProvider>
       <QueryClientProvider client={queryClient}>
         <Provider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <ThemeProvider attribute="class" defaultTheme="light" storageKey="theme" enableSystem disableTransitionOnChange>
             <PricingProvider>
               <TooltipProvider>
                 <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />

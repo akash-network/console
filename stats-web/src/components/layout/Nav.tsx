@@ -5,21 +5,17 @@ import { Button } from "../ui/button";
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import Link from "next/link";
 import NetworkSelect from "./NetworkSelect";
-import { useTheme } from "next-themes";
+import useCookieTheme from "@/hooks/useTheme";
 
 export const Nav = () => {
-  const theme = useTheme();
+  const theme = useCookieTheme();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex">
           <Link className="mr-6 flex items-center space-x-2" href="/">
-            {theme.theme === "dark" ? (
-              <AkashConsoleDarkLogo className="h-[25px] max-w-[180px]" />
-            ) : (
-              <AkashConsoleLightLogo className="h-[25px] max-w-[180px]" />
-            )}
+            {theme === "light" ? <AkashConsoleLightLogo className="h-[25px] max-w-[180px]" /> : <AkashConsoleDarkLogo className="h-[25px] max-w-[180px]" />}
           </Link>
         </div>
 

@@ -1,6 +1,5 @@
 import { FormattedNumberParts } from "react-intl";
 import React from "react";
-import { useTheme } from "next-themes";
 
 type Props = {
   value: number;
@@ -10,8 +9,6 @@ type Props = {
 };
 
 export const FormattedDecimal: React.FunctionComponent<Props> = ({ value, precision = 6, style, currency }) => {
-  const theme = useTheme();
-
   return (
     <FormattedNumberParts value={value} maximumFractionDigits={precision} minimumFractionDigits={precision} style={style} currency={currency}>
       {parts => (
