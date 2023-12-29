@@ -1,9 +1,10 @@
 "use client";
-import { ModeToggle } from "./ModeToggle";
+import { ModeToggle } from "../ModeToggle";
 import { FaGithub, FaBars, FaXTwitter } from "react-icons/fa6";
-import { Button } from "./ui/button";
-import { AkashConsoleLogo } from "./icons/AkashConsoleLogo";
+import { Button } from "../ui/button";
+import { AkashConsoleLogo } from "../icons/AkashConsoleLogo";
 import Link from "next/link";
+import NetworkSelect from "./NetworkSelect";
 
 export const Nav = () => {
   return (
@@ -49,6 +50,10 @@ export const Nav = () => {
           </Button>
 
           <nav className="hidden items-center md:flex">
+            <div className="mr-2">
+              <NetworkSelect />
+            </div>
+
             <a target="_blank" rel="noreferrer" href="https://github.com/akash-network/cloudmos">
               <Button variant="ghost" size="icon">
                 <FaGithub />

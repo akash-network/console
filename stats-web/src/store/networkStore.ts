@@ -40,24 +40,24 @@ export let networks: Network[] = [
 /**
  * Get the actual versions and metadata of the available networks
  */
-// export const initiateNetworkData = async () => {
-//   networks = await Promise.all(
-//     networks.map(async network => {
-//       let version = null;
-//       try {
-//         const response = await axios.get(network.versionUrl, { timeout: 10000 });
-//         version = response.data;
-//       } catch (error) {
-//         console.log(error);
-//       }
+export const initiateNetworkData = async () => {
+  networks = await Promise.all(
+    networks.map(async network => {
+      let version = null;
+      try {
+        const response = await axios.get(network.versionUrl, { timeout: 10000 });
+        version = response.data;
+      } catch (error) {
+        console.log(error);
+      }
 
-//       return {
-//         ...network,
-//         version
-//       };
-//     })
-//   );
-// };
+      return {
+        ...network,
+        version
+      };
+    })
+  );
+};
 
 const selectedNetwork = atom<Network>(networks[0]);
 
