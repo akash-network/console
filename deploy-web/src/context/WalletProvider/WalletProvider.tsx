@@ -353,3 +353,4 @@ const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
     </>
   );
 };
+

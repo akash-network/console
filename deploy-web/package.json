@@ -28,7 +28,7 @@
     "@emotion/react": "^11.11.0",
     "@emotion/server": "^11.4.0",
     "@emotion/styled": "^11.8.1",
-    "@leapwallet/elements": "0.10.4",
+    "@leapwallet/elements": "0.12.1",
     "@leapwallet/name-matcha": "^1.7.1",
     "@monaco-editor/react": "^4.4.6",
     "@mui/icons-material": "^5.11.11",
@@ -105,3 +105,4 @@
     "typescript": "^5.3.2"
   }
 }
+
