@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FaBars, FaGithub, FaXTwitter } from "react-icons/fa6";
 import Drawer from "react-modern-drawer";
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import "react-modern-drawer/dist/index.css";
@@ -8,7 +7,8 @@ import useCookieTheme from "@/hooks/useTheme";
 import NetworkSelect from "./NetworkSelect";
 import { ModeToggle } from "../ModeToggle";
 import { NavLinks } from "../NavLinks";
-import { Rocket, LayoutDashboardIcon, ExternalLink } from "lucide-react";
+import { Rocket, StatsUpSquare, ArrowUpRightSquare, Github, X as TwitterX, Discord, Menu } from "iconoir-react";
+import Link from "next/link";
 
 export function MobileNav() {
   const theme = useCookieTheme();
@@ -19,8 +19,8 @@ export function MobileNav() {
 
   return (
     <>
-      <Button variant="ghost" className="text-xl" onClick={() => toggleDrawer()}>
-        <FaBars />
+      <Button variant="ghost" className="text-md" onClick={() => toggleDrawer()}>
+        <Menu />
         <span className="sr-only">Toggle Menu</span>
       </Button>
 
@@ -33,23 +33,25 @@ export function MobileNav() {
               links={[
                 {
                   title: "Deploy",
-                  icon: Rocket,
+                  icon: <Rocket className="rotate-45" />,
                   variant: "default",
                   href: "https://deploy.cloudmos.io",
-                  isExternal: true
+                  isExternal: true,
+                  rel: "noreferrer"
                 },
                 {
                   title: "Dashboard",
-                  icon: LayoutDashboardIcon,
+                  icon: <StatsUpSquare />,
                   variant: "ghost",
                   href: "/"
                 },
                 {
                   title: "akash.network",
-                  icon: ExternalLink,
+                  icon: <ArrowUpRightSquare />,
                   variant: "ghost",
                   href: "https://akash.network",
-                  isExternal: true
+                  isExternal: true,
+                  rel: "noreferrer"
                 }
               ]}
             />
@@ -60,20 +62,28 @@ export function MobileNav() {
             </div>
 
             <div className="flex items-center justify-center pt-4">
-              <a target="_blank" rel="noreferrer" href="https://github.com/akash-network/cloudmos">
-                <Button variant="ghost" size="icon" className="text-md">
-                  <FaGithub />
-                  <span className="sr-only">GitHub</span>
-                </Button>
-              </a>
-              <a target="_blank" rel="noreferrer" href="https://twitter.com/akashnet_">
-                <Button variant="ghost" size="icon" className="text-md">
-                  <FaXTwitter />
-                  <span className="sr-only">Twitter</span>
-                </Button>
-              </a>
+            <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet_" className="text-foreground">
+              <Button variant="ghost" size="icon">
+                <TwitterX width="1.2rem" height="1.2rem" />
+                <span className="sr-only">Twitter</span>
+              </Button>
+            </Link>
 
-              <ModeToggle />
+            <Link target="_blank" rel="noreferrer" href="https://github.com/akash-network/cloudmos" className="text-foreground">
+              <Button variant="ghost" size="icon">
+                <Github width="1.2rem" height="1.2rem" />
+                <span className="sr-only">GitHub</span>
+              </Button>
+            </Link>
+
+            <Link target="_blank" rel="noreferrer" href="https://discord.akash.network" className="text-foreground">
+              <Button variant="ghost" size="icon">
+                <Discord width="1.2rem" height="1.2rem" />
+                <span className="sr-only">Twitter</span>
+              </Button>
+            </Link>
+
+            <ModeToggle />
             </div>
           </div>
         </div>
