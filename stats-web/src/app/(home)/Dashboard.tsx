@@ -317,7 +317,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
         Blockchain
       </Title>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatsCard number={<FormattedNumber value={dashboardData.chainStats.height} />} text="Height" />
 
         <StatsCard number={<FormattedNumber value={dashboardData.chainStats.transactionCount} />} text="Transactions" />
@@ -365,11 +365,11 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
         />
       </div>
 
-      <div className="pt-12 pb-4">
+      <div className="pb-4 pt-12">
         <SearchBar />
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-4">
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="flex w-full flex-col justify-between">
           <CardHeader className="flex flex-row items-center space-y-0 pb-2 pl-4 pr-4">
             <CardTitle className="text-lg font-medium">Blocks</CardTitle>

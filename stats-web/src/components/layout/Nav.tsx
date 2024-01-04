@@ -1,20 +1,13 @@
 "use client";
 import { ModeToggle } from "../ModeToggle";
-import { FaGithub, FaBars, FaXTwitter } from "react-icons/fa6";
+import { FaGithub, FaXTwitter } from "react-icons/fa6";
 import { Button } from "../ui/button";
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import Link from "next/link";
 import NetworkSelect from "./NetworkSelect";
 import useCookieTheme from "@/hooks/useTheme";
 import { MobileNav } from "./MobileNav";
-import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-  navigationMenuTriggerStyle
-} from "../ui/navigation-menu";
+import { NavigationMenu, NavigationMenuLink, NavigationMenuList, navigationMenuTriggerStyle } from "../ui/navigation-menu";
 
 export const Nav = () => {
   const theme = useCookieTheme();
