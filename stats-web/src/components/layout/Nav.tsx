@@ -1,13 +1,12 @@
 "use client";
 import { ModeToggle } from "../ModeToggle";
-import { FaGithub, FaXTwitter } from "react-icons/fa6";
 import { Button } from "../ui/button";
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import Link from "next/link";
 import NetworkSelect from "./NetworkSelect";
 import useCookieTheme from "@/hooks/useTheme";
 import { MobileNav } from "./MobileNav";
-import { NavigationMenu, NavigationMenuLink, NavigationMenuList, navigationMenuTriggerStyle } from "../ui/navigation-menu";
+import { Github, X as TwitterX, Rocket, Discord } from "iconoir-react";
 
 export const Nav = () => {
   const theme = useCookieTheme();
@@ -20,17 +19,9 @@ export const Nav = () => {
             {theme === "light" ? <AkashConsoleLightLogo className="h-[25px] max-w-[180px]" /> : <AkashConsoleDarkLogo className="h-[25px] max-w-[180px]" />}
           </Link>
 
-          <NavigationMenu className="ml-10 hidden md:flex">
-            <NavigationMenuList>
-              <Link rel="noreferrer" href="https://deploy.cloudmos.io" passHref target="_blank">
-                <NavigationMenuLink className={navigationMenuTriggerStyle()}>Deploy</NavigationMenuLink>
-              </Link>
-
-              <Link rel="noreferrer" href="https://akash.network" passHref target="_blank">
-                <NavigationMenuLink className={navigationMenuTriggerStyle()}>Website</NavigationMenuLink>
-              </Link>
-            </NavigationMenuList>
-          </NavigationMenu>
+          <div className="ml-8 hidden md:flex">
+            <NetworkSelect />
+          </div>
         </div>
 
         <div className="flex flex-1 items-center justify-end">
@@ -39,24 +30,41 @@ export const Nav = () => {
           </div>
 
           <nav className="hidden items-center md:flex">
-            <div className="mr-2">
-              <NetworkSelect />
-            </div>
-
-            <a target="_blank" rel="noreferrer" href="https://github.com/akash-network/cloudmos">
+            <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet_" className="text-foreground">
               <Button variant="ghost" size="icon">
-                <FaGithub />
-                <span className="sr-only">GitHub</span>
-              </Button>
-            </a>
-            <a target="_blank" rel="noreferrer" href="https://twitter.com/akashnet_">
-              <Button variant="ghost" size="icon">
-                <FaXTwitter />
+                <TwitterX width="1.2rem" height="1.2rem" />
                 <span className="sr-only">Twitter</span>
               </Button>
-            </a>
+            </Link>
+
+            <Link target="_blank" rel="noreferrer" href="https://github.com/akash-network/cloudmos" className="text-foreground">
+              <Button variant="ghost" size="icon">
+                <Github width="1.2rem" height="1.2rem" />
+                <span className="sr-only">GitHub</span>
+              </Button>
+            </Link>
+
+            <Link target="_blank" rel="noreferrer" href="https://discord.akash.network" className="text-foreground">
+              <Button variant="ghost" size="icon">
+                <Discord width="1.2rem" height="1.2rem" />
+                <span className="sr-only">Twitter</span>
+              </Button>
+            </Link>
 
             <ModeToggle />
+
+            <Link rel="noreferrer" href="https://akash.network" passHref target="_blank" className="ml-4 text-foreground">
+              <Button variant="outline" size="sm" className="h-[30px]">
+                akash.network
+              </Button>
+            </Link>
+
+            <Link rel="noreferrer" href="https://deploy.cloudmos.io" passHref target="_blank" className="ml-4">
+              <Button variant="default" size="sm" className="h-[30px]">
+                Deploy
+                <Rocket className="ml-2 rotate-45" />
+              </Button>
+            </Link>
           </nav>
         </div>
       </div>

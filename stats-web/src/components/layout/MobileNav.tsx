@@ -45,7 +45,7 @@ export function MobileNav() {
                   href: "/"
                 },
                 {
-                  title: "Visit website",
+                  title: "akash.network",
                   icon: ExternalLink,
                   variant: "ghost",
                   href: "https://akash.network",
