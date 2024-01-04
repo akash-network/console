@@ -7,6 +7,14 @@ import Link from "next/link";
 import NetworkSelect from "./NetworkSelect";
 import useCookieTheme from "@/hooks/useTheme";
 import { MobileNav } from "./MobileNav";
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle
+} from "../ui/navigation-menu";
 
 export const Nav = () => {
   const theme = useCookieTheme();
@@ -15,9 +23,21 @@ export const Nav = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex">
-          <Link className="mr-6 flex items-center space-x-2" href="/">
+          <Link className="flex items-center space-x-2" href="/">
             {theme === "light" ? <AkashConsoleLightLogo className="h-[25px] max-w-[180px]" /> : <AkashConsoleDarkLogo className="h-[25px] max-w-[180px]" />}
           </Link>
+
+          <NavigationMenu className="ml-10 hidden md:flex">
+            <NavigationMenuList>
+              <Link rel="noreferrer" href="https://deploy.cloudmos.io" passHref target="_blank">
+                <NavigationMenuLink className={navigationMenuTriggerStyle()}>Deploy</NavigationMenuLink>
+              </Link>
+
+              <Link rel="noreferrer" href="https://akash.network" passHref target="_blank">
+                <NavigationMenuLink className={navigationMenuTriggerStyle()}>Website</NavigationMenuLink>
+              </Link>
+            </NavigationMenuList>
+          </NavigationMenu>
         </div>
 
         <div className="flex flex-1 items-center justify-end">
