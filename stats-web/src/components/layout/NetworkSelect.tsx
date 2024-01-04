@@ -4,10 +4,13 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { initiateNetworkData, networks } from "@/store/networkStore";
 import { mainnetId } from "@/lib/constants";
 import Spinner from "../Spinner";
+import { cn } from "@/lib/utils";
 
-interface NetworkSelectProps {}
+interface NetworkSelectProps {
+  className?: string;
+}
 
-const NetworkSelect: React.FC<NetworkSelectProps> = () => {
+const NetworkSelect: React.FC<NetworkSelectProps> = ({ className }) => {
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [selectedNetworkId, setSelectedNetworkId] = useState(mainnetId);
 
@@ -38,7 +41,7 @@ const NetworkSelect: React.FC<NetworkSelectProps> = () => {
 
   return (
     <Select value={selectedNetworkId} disabled={isLoadingSettings} onValueChange={onSelectNetworkChange}>
-      <SelectTrigger className="h-[30px] min-w-[180px] max-w-[200px]">
+      <SelectTrigger className={cn("h-[30px] min-w-[180px] max-w-[200px]", className)}>
         {isLoadingSettings && <Spinner size="small" />}
         <SelectValue placeholder="Select network" />
       </SelectTrigger>

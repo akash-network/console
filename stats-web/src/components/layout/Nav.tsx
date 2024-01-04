@@ -6,6 +6,7 @@ import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConso
 import Link from "next/link";
 import NetworkSelect from "./NetworkSelect";
 import useCookieTheme from "@/hooks/useTheme";
+import { MobileNav } from "./MobileNav";
 
 export const Nav = () => {
   const theme = useCookieTheme();
@@ -20,10 +21,9 @@ export const Nav = () => {
         </div>
 
         <div className="flex flex-1 items-center justify-end">
-          <Button className="md:hidden">
-            <FaBars />
-            <span className="sr-only">Toggle Menu</span>
-          </Button>
+          <div className="md:hidden">
+            <MobileNav />
+          </div>
 
           <nav className="hidden items-center md:flex">
             <div className="mr-2">
