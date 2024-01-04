@@ -26,12 +26,10 @@ export function NavLinks({ links }: NavLinksProps) {
             target={link.isExternal ? "_blank" : "_self"}
             rel={link.rel ? link.rel : ""}
             href={link.href}
-            className={cn(
-              buttonVariants({ variant: link.variant, size: "sm" }),
-              link.variant === "default" && "dark:bg-muted dark:text-white dark:hover:bg-muted dark:hover:text-white",
-              "text-md flex w-full items-center justify-start",
-              { ["mt-2"]: index > 0, ["text-foreground"]: link.variant === "ghost" }
-            )}
+            className={cn(buttonVariants({ variant: link.variant, size: "sm" }), "text-md flex w-full items-center justify-start", {
+              ["mt-2"]: index > 0,
+              ["text-foreground"]: link.variant === "ghost"
+            })}
           >
             {!!link.icon && <span className="mr-2">{link.icon}</span>}
             {link.title}

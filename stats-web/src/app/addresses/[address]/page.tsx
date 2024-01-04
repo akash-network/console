@@ -51,9 +51,11 @@ export default async function AddressDetailPage({ params: { address }, searchPar
         <Title subTitle className="mb-4">
           Assets
         </Title>
-        <div className="grid h-full gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <AssetList addressDetail={addressDetail} />
-          <div className="col-span-3">
+        <div className="grid h-full grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="col-span-1">
+            <AssetList addressDetail={addressDetail} />
+          </div>
+          <div className="col-span-1 md:col-span-3">
             <AssetAllocation address={address} addressDetail={addressDetail} />
           </div>
         </div>

@@ -9,7 +9,6 @@ import { customColors } from "@/lib/colors copy";
 import { QrCode } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Address } from "@/components/Address";
-import { GradientText } from "@/components/GradientText";
 import { Separator } from "@/components/ui/separator";
 
 interface IProps {
@@ -63,15 +62,7 @@ export function AddressInfo({ address, addressDetail }: IProps) {
             />
 
             <div className="text-2xl">
-              <LabelValue
-                label={
-                  <GradientText>
-                    <strong>AKT</strong>
-                  </GradientText>
-                }
-                value={<AKTAmount uakt={addressDetail.total} showUSD />}
-                labelWidth="10rem"
-              />
+              <LabelValue label={<strong>AKT</strong>} value={<AKTAmount uakt={addressDetail.total} showUSD />} labelWidth="10rem" />
             </div>
 
             <Separator className="mb-4 mt-4" />

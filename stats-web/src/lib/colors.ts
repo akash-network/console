@@ -12,12 +12,3 @@ export const customColors = {
   vsDark: "#1e1e1e",
   vsDarkFont: "#d4d4d4"
 };
-
-export const burningGradient = "linear-gradient(90deg,#EF8C3D 0%,#E54348 100%)";
-export const burningGradientStyle = {
-  background: burningGradient,
-  WebkitBackgroundClip: "text",
-  WebkitTextFillColor: "transparent",
-  backgroundClip: "text",
-  textFillColor: "transparent"
-};

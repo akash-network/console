@@ -37,39 +37,9 @@ export default function AddressLayout({ children, page, address }: Props) {
 
       <Tabs value={page} onValueChange={handleTabChange}>
         <TabsList className="mb-4 grid w-full grid-cols-3">
-          <TabsTrigger
-            value="address"
-            onClick={() => {
-              // event(AnalyticsEvents.ADDRESSES_ADDRESS_TAB, {
-              //   category: "addresses",
-              //   label: "Click on address tab"
-              // });
-            }}
-          >
-            Address
-          </TabsTrigger>
-          <TabsTrigger
-            value="transactions"
-            // onClick={() => {
-            //   event(AnalyticsEvents.ADDRESSES_TRANSACTIONS_TAB, {
-            //     category: "addresses",
-            //     label: "Click on transactions tab"
-            //   });
-            // }}
-          >
-            Transactions
-          </TabsTrigger>
-          <TabsTrigger
-            value="deployments"
-            // onClick={() => {
-            //   event(AnalyticsEvents.ADDRESSES_DEPLOYMENTS_TAB, {
-            //     category: "addresses",
-            //     label: "Click on deployments tab"
-            //   });
-            // }}
-          >
-            Deployments
-          </TabsTrigger>
+          <TabsTrigger value="address">Address</TabsTrigger>
+          <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="deployments">Deployments</TabsTrigger>
         </TabsList>
 
         {children}
