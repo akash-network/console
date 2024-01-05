@@ -17,6 +17,25 @@ export const metadata: Metadata = {
   title: "Akash Network Stats",
   description: "Akash Network Stats",
   metadataBase: new URL("https://stats.akash.network"),
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://stats.akash.network/",
+    siteName: "Akash Stats",
+    description: "Akash Network Analytics. The #1 decentralized supercloud.",
+    images: [
+      {
+        url: "https://stats.akash.network/akash-stats.png",
+        width: 1200,
+        height: 630,
+        alt: "Akash Stats Cover Image"
+      }
+    ]
+  },
+  twitter: {
+    site: "@akashnet_",
+    card: "summary_large_image"
+  },
   icons: [
     {
       url: "/favicon.ico",
