@@ -1,4 +1,14 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {}
+const { version } = require("./package.json");
 
-module.exports = nextConfig
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: "standalone",
+  publicRuntimeConfig: {
+    version
+  },
+  sentry: {
+    hideSourceMaps: true
+  },
+};
+
+module.exports = nextConfig;

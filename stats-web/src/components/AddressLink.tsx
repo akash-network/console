@@ -5,11 +5,10 @@ import { UrlService } from "@/lib/urlUtils";
 
 type Props = {
   address: string;
-  addressBookMode?: "always" | "never" | "alongside";
   children?: ReactNode;
 };
 
-export const AddressLink: React.FunctionComponent<Props> = ({ address, addressBookMode, ...rest }) => {
+export const AddressLink: React.FunctionComponent<Props> = ({ address }) => {
   let href = null;
   if (address.startsWith("akashvaloper")) {
     href = UrlService.validator(address);
@@ -20,7 +19,7 @@ export const AddressLink: React.FunctionComponent<Props> = ({ address, addressBo
   if (href) {
     return (
       <Link href={href}>
-        <Address address={address} addressBookMode={addressBookMode} disableTruncate />
+        <Address address={address} disableTruncate />
       </Link>
     );
   } else {

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { initiateNetworkData, networks } from "@/store/networkStore";
-import { mainnetId } from "@/lib/constants";
+import { mainnetId, setNetworkVersion } from "@/lib/constants";
 import Spinner from "../Spinner";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,7 @@ const NetworkSelect: React.FC<NetworkSelectProps> = ({ className }) => {
   useEffect(() => {
     async function init() {
       await initiateNetworkData();
+      setNetworkVersion();
 
       const selectedNetworkId = localStorage.getItem("selectedNetworkId");
       if (selectedNetworkId) {

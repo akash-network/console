@@ -1,12 +1,5 @@
 import { selectedNetworkId } from "./constants";
 
-type NewDeploymentParams = {
-  step?: string;
-  dseq?: string | number;
-  redeploy?: string | number;
-  templateId?: string;
-};
-
 function getSelectedNetworkQueryParam() {
   if (selectedNetworkId) {
     return selectedNetworkId;
