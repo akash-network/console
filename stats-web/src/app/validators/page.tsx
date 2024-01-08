@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default async function ValidatorsPage({}: IProps) {
   return (
     <PageContainer>
-      <Title className="mb-4">Transactions</Title>
+      <Title className="mb-4">Validators</Title>
 
       <ValidatorsTable />
     </PageContainer>

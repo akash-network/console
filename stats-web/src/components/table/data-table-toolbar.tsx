@@ -33,7 +33,9 @@ export function DataTableToolbar<TData>({ table }: DataTableToolbarProps<TData>)
           </Button>
         )}
       </div>
-      <DataTableViewOptions table={table} />
+      {table.getAllColumns().filter(column => typeof column.accessorFn !== "undefined" && column.getCanHide()).length > 0 && (
+        <DataTableViewOptions table={table} />
+      )}
     </div>
   );
 }

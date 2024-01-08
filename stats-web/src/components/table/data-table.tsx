@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   ColumnDef,
+  AccessorColumnDef,
   ColumnFiltersState,
   PaginationState,
   SortingState,
@@ -25,7 +26,7 @@ import Spinner from "../Spinner";
 import { useEffect, useState } from "react";
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
+  columns: AccessorColumnDef<TData, TValue>[];
   data: TData[];
   manualPagniation?: boolean;
   manualFiltering?: boolean;
@@ -35,6 +36,7 @@ interface DataTableProps<TData, TValue> {
   isLoading?: boolean;
   noResultsText?: string;
   hasRowSelection?: boolean;
+  initialPageSize?: number;
   onColumnFiltersChange?: (columnFilters: ColumnFiltersState) => void;
   onColumnSortingChange?: (sorting: SortingState) => void;
   setPageSize?: (pageSize: number) => void;
@@ -51,6 +53,7 @@ export function DataTable<TData, TValue>({
   isLoading,
   noResultsText,
   hasRowSelection,
+  initialPageSize = 10,
   onColumnFiltersChange,
   onColumnSortingChange,
   setPageIndex,
@@ -60,7 +63,7 @@ export function DataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [_pageCount, setPageCount] = useState<number>(0);
-  const [pagination, setPagination] = React.useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  const [pagination, setPagination] = React.useState<PaginationState>({ pageIndex: 0, pageSize: initialPageSize });
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
   const table = useReactTable({
@@ -135,7 +138,7 @@ export function DataTable<TData, TValue>({
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map(header => {
                   return (
-                    <TableHead key={header.id} colSpan={header.colSpan}>
+                    <TableHead key={header.id} colSpan={header.colSpan} style={{ width: header.getSize() }}>
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   );
@@ -148,7 +151,9 @@ export function DataTable<TData, TValue>({
               table.getRowModel().rows.map(row => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map(cell => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                    <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))}
