@@ -1,18 +1,8 @@
-import packageJson from "../../package.json";
 import express from "express";
-import { getBlock, getBlocks, getPredictedBlockDate, getPredictedDateHeight } from "@src/db/blocksProvider";
+import { getBlock, getBlocks } from "@src/db/blocksProvider";
 import { getTemplateGallery } from "@src/providers/templateReposProvider";
-import { getTransaction, getTransactionByAddress, getTransactions } from "@src/db/transactionsProvider";
-import {
-  getAddressBalance,
-  getAddressDeployments,
-  getChainStats,
-  getDeployment,
-  getProposal,
-  getProposals,
-  getValidator,
-  getValidators
-} from "@src/providers/apiNodeProvider";
+import { getTransactions } from "@src/db/transactionsProvider";
+import { getChainStats, getDeployment } from "@src/providers/apiNodeProvider";
 import { getNetworkCapacity, getProviderDetail, getProviderList } from "@src/providers/providerStatusProvider";
 import { getDashboardData, getGraphData, getProviderActiveLeasesGraphData, getProviderGraphData } from "@src/db/statsProvider";
 import { round } from "@src/utils/math";
@@ -25,7 +15,6 @@ import axios from "axios";
 import { getMarketData } from "@src/providers/marketDataProvider";
 import { getAuditors, getProviderAttributesSchema } from "@src/providers/githubProvider";
 import { getProviderRegions } from "@src/db/providerDataProvider";
-import { getProviderDeployments } from "@src/db/deploymentProvider";
 import { OpenAPIHono } from "@hono/zod-openapi";
 
 import { swaggerUI } from "@hono/swagger-ui";
@@ -89,7 +78,7 @@ function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRou
 
   versionRouter.get(`/swagger`, swaggerInstance);
   versionRouter.get(`/swagger/`, swaggerInstance);
-console.log(versionRoutes[0]);
+  console.log(versionRoutes[0]);
   versionRoutes.forEach((route) => versionRouter.route(`/`, route));
   baseRouter.route(`/${version}`, versionRouter);
 }
@@ -122,118 +111,6 @@ registerApiVersion("v2", apiRouterHono, routesV2);
 //   }
 //   return parsed;
 // }
-
-apiRouter.get(
-  "/addresses/:address/transactions/:skip/:limit",
-  asyncHandler(async (req, res) => {
-    if (!isValidBech32Address(req.params.address, "akash")) {
-      res.status(400).send("Invalid address");
-      return;
-    }
-
-    const skip = parseInt(req.params.skip);
-    const limit = Math.min(100, parseInt(req.params.limit));
-
-    if (isNaN(skip)) {
-      res.status(400).send("Invalid skip.");
-      return;
-    }
-
-    if (isNaN(limit)) {
-      res.status(400).send("Invalid limit.");
-      return;
-    }
-
-    const txs = await getTransactionByAddress(req.params.address, skip, limit);
-    res.send(txs);
-  })
-);
-
-apiRouter.get(
-  "/addresses/:address/deployments/:skip/:limit",
-  asyncHandler(async (req, res) => {
-    const skip = parseInt(req.params.skip);
-    const limit = Math.min(100, parseInt(req.params.limit));
-    const deployments = await getAddressDeployments(req.params.address, skip, limit, req.query?.reverseSorting === "true", {
-      status: req.query?.status as string
-    });
-    res.send(deployments);
-  })
-);
-
-apiRouter.get(
-  "/providers/:provider/deployments/:skip/:limit/:status?",
-  asyncHandler(async (req, res) => {
-    const skip = parseInt(req.params.skip);
-    const limit = Math.min(100, parseInt(req.params.limit));
-    const statusParam = req.params.status as "active" | "closed" | undefined;
-
-    if (statusParam && statusParam !== "active" && statusParam !== "closed") {
-      res.status(400).send(`Invalid status filter: "${statusParam}". Valid values are "active" and "closed".`);
-      return;
-    }
-
-    const deployments = await getProviderDeployments(req.params.provider, skip, limit, statusParam);
-
-    res.send(deployments);
-  })
-);
-
-apiRouter.get(
-  "/validators",
-  asyncHandler(async (req, res) => {
-    const validators = await getValidators();
-    res.send(validators);
-  })
-);
-
-apiRouter.get(
-  "/validators/:address",
-  asyncHandler(async (req, res) => {
-    if (!isValidBech32Address(req.params.address, "akashvaloper")) {
-      res.status(400).send("Invalid address");
-      return;
-    }
-
-    const validator = await getValidator(req.params.address);
-
-    if (!validator) {
-      res.status(404).send("Validator not found");
-      return;
-    }
-
-    res.send(validator);
-  })
-);
-
-apiRouter.get(
-  "/proposals",
-  asyncHandler(async (req, res) => {
-    const proposals = await getProposals();
-    res.send(proposals);
-  })
-);
-
-apiRouter.get(
-  "/proposals/:id",
-  asyncHandler(async (req, res) => {
-    const proposalId = parseInt(req.params.id);
-
-    if (isNaN(proposalId)) {
-      res.status(400).send("Invalid proposal id.");
-      return;
-    }
-
-    const proposal = await getProposal(proposalId);
-
-    if (!proposal) {
-      res.status(404).send("Proposal not found");
-      return;
-    }
-
-    res.send(proposal);
-  })
-);
 
 apiRouter.get(
   "/deployment/:owner/:dseq",

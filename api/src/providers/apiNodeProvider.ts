@@ -169,7 +169,7 @@ export async function getAddressBalance(address: string) {
 }
 
 export async function getValidators() {
-  const response = await fetch(`${apiNodeUrl}/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=1000`);
+  const response = await fetch(`${apiNodeUrl}/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=1000`); // TODO: Type
   const data = await response.json();
 
   const validators = data.validators.map((x) => ({
@@ -177,7 +177,7 @@ export async function getValidators() {
     moniker: x.description.moniker.trim(),
     votingPower: parseInt(x.tokens),
     commission: parseFloat(x.commission.commission_rates.rate),
-  identity: x.description.identity
+    identity: x.description.identity
   }));
 
   const totalVotingPower = validators.reduce((acc, cur) => acc + cur.votingPower, 0);
