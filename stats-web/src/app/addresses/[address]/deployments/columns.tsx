@@ -2,7 +2,7 @@
 
 import { DataTableColumnHeader } from "@/components/table/data-table-column-header";
 import { UrlService } from "@/lib/urlUtils";
-import { ColumnDef } from "@tanstack/react-table";
+import { AccessorColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { z } from "zod";
 import { statuses } from "./data";
@@ -24,7 +24,7 @@ export const transactionRowSchema = z.object({
 });
 export type TransactionRowType = z.infer<typeof transactionRowSchema>;
 
-export const columns: ColumnDef<TransactionRowType>[] = [
+export const columns: AccessorColumnDef<TransactionRowType>[] = [
   {
     accessorKey: "dseq",
     header: ({ column }) => <DataTableColumnHeader column={column} title="DSEQ" />,
@@ -90,6 +90,7 @@ export const columns: ColumnDef<TransactionRowType>[] = [
           <LeaseSpecDetail className="mr-4 inline-flex" iconSize="small" type="storage" value={`${roundDecimal(_storage.value, 1)} ${_storage.unit}`} />
         </div>
       );
-    }
+    },
+    accessorFn: row => row.cpuUnits
   }
 ];
