@@ -1,3 +1,4 @@
+import packageJson from "../../package.json";
 import express from "express";
 import { getBlock, getBlocks, getPredictedBlockDate, getPredictedDateHeight } from "@src/db/blocksProvider";
 import { getTemplateGallery } from "@src/providers/templateReposProvider";
@@ -25,9 +26,11 @@ import { getMarketData } from "@src/providers/marketDataProvider";
 import { getAuditors, getProviderAttributesSchema } from "@src/providers/githubProvider";
 import { getProviderRegions } from "@src/db/providerDataProvider";
 import { getProviderDeployments } from "@src/db/deploymentProvider";
-import { Hono } from "hono";
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { OpenAPIHono } from "@hono/zod-openapi";
+
 import { swaggerUI } from "@hono/swagger-ui";
+import routesV1 from "../routes/v1";
+import routesV2 from "../routes/v2";
 
 export const apiRouter = express.Router();
 
@@ -71,143 +74,54 @@ apiRouter.get(
 
 export const apiRouterHono = new OpenAPIHono();
 
-const ParamsSchema = z.object({
-  height: z
-    .string()
-    .transform((val, ctx) => {
-      const parsed = parseInt(val);
-      if (isNaN(parsed)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Not a number"
-        });
-        return z.NEVER;
-      }
-      return parsed;
-    })
-    //.min(1)
-    .openapi({ param: { name: "height", in: "path" }, type: "integer", description: "Block height", example: 10000000 }),
-  //.transform((v) => parseInt(v)),
-  blockWindow: z
-    .string()
-    //.number()
-    //.min(1)
-    //.max(100_000)
-    //.default(10_000)
-    .optional()
-    .openapi({ param: { name: "blockWindow", in: "path" }, description: "Block window", example: "10000" })
-});
-
-const route = createRoute({
-  method: "get",
-  path: "/predicted-block-date/:height/:blockWindow?",
-  request: { params: ParamsSchema },
-  responses: {
-    200: {
-      description: "Returns predicted block date",
-      content: {
-        "application/json": {
-          schema: z.object({
-            predictedDate: z.date(),
-            height: z.number().openapi({ example: 10_000_000 }),
-            blockWindow: z.number().openapi({ example: 10_000 })
-          })
-        }
-      }
+function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRoutes: OpenAPIHono[]) {
+  const versionRouter = new OpenAPIHono();
+  versionRouter.doc(`/doc`, {
+    openapi: "3.0.0",
+    servers: [{ url: `http://localhost:8787/api/${version}`, description: "Localhost" }], // TODO
+    info: {
+      title: "Cloudmos API",
+      description: "Access Akash data from our indexer",
+      version: version
     }
-  }
-});
-
-apiRouterHono.openapi(route, async (c) => {
-  const { height, blockWindow } = c.req.valid("param");
-  console.log(height, blockWindow, typeof height, typeof blockWindow);
-  //const height = parseInt(c.req.valid("param").height);
-  //const blockWindow = c.req.valid("param").blockWindow ? parseInt(c.req.valid("param").blockWindow) : 10_000;
-
-  if (isNaN(height)) {
-    return c.text("Invalid height.", 400);
-  }
-
-  if (isNaN(blockWindow)) {
-    return c.text("Invalid block window.", 400);
-  }
-
-  const date = await getPredictedBlockDate(height, blockWindow);
-
-  return c.json({
-    predictedDate: date,
-    height: height,
-    blockWindow: blockWindow
   });
-});
+  const swaggerInstance = swaggerUI({ url: `/api/${version}/doc` });
 
-apiRouterHono.doc("/doc", {
-  openapi: "3.0.0",
-  info: {
-    title: "Cloudmos API",
-    description: "Access Akash data from our indexer",
-    version: "1.0.0"
-  }
-});
-apiRouterHono.get("/ui", swaggerUI({ url: "/api/doc" }));
+  versionRouter.get(`/swagger`, swaggerInstance);
+  versionRouter.get(`/swagger/`, swaggerInstance);
+console.log(versionRoutes[0]);
+  versionRoutes.forEach((route) => versionRouter.route(`/`, route));
+  baseRouter.route(`/${version}`, versionRouter);
+}
 
-apiRouterHono.get("/predicted-date-height/:timestamp/:blockWindow?", async (c) => {
-  const timestamp = parseInt(c.req.param("timestamp"));
-  const blockWindow = c.req.param("blockWindow") ? parseInt(c.req.param("blockWindow")) : 10_000;
+registerApiVersion("v1", apiRouterHono, routesV1);
+registerApiVersion("v2", apiRouterHono, routesV2);
 
-  if (isNaN(timestamp)) {
-    return c.text("Invalid timestamp.", 400);
-  }
+// routesV1.forEach((route) => {
+//   apiRouterHono.doc("/v1/doc", {
+//     openapi: "3.0.0",
+//     servers: [{ url: "http://localhost:8787/api/v1", description: "Local" }],
+//     info: {
+//       title: "Cloudmos API",
+//       description: "Access Akash data from our indexer",
+//       version: packageJson.version
+//     }
+//   });
+//   apiRouterHono.get("/v1/swagger", swaggerUI({ url: "/api/v1/doc" }));
+//   apiRouterHono.route("/v1", route);
+// });
 
-  if (isNaN(blockWindow)) {
-    return c.text("Invalid block window.", 400);
-  }
-
-  const date = new Date(timestamp * 1000);
-  const height = await getPredictedDateHeight(date, blockWindow);
-
-  return c.json({
-    predictedHeight: height,
-    date: date,
-    blockWindow: blockWindow
-  });
-});
-
-apiRouter.get(
-  "/transactions",
-  asyncHandler(async (req, res) => {
-    const limit = parseInt(req.query.limit?.toString());
-    const transactions = await getTransactions(limit || 20);
-
-    res.send(transactions);
-  })
-);
-
-apiRouter.get(
-  "/transactions/:hash",
-  asyncHandler(async (req, res) => {
-    const txInfo = await getTransaction(req.params.hash);
-
-    if (txInfo) {
-      res.send(txInfo);
-    } else {
-      res.status(404).send("Tx not found");
-    }
-  })
-);
-
-apiRouter.get(
-  "/addresses/:address",
-  asyncHandler(async (req, res) => {
-    if (!isValidBech32Address(req.params.address, "akash")) {
-      res.status(400).send("Invalid address");
-      return;
-    }
-
-    const balances = await getAddressBalance(req.params.address);
-    res.send(balances);
-  })
-);
+// function parseNumberParam(val, ctx) {
+//   const parsed = parseInt(val);
+//   if (isNaN(parsed)) {
+//     ctx.addIssue({
+//       code: z.ZodIssueCode.custom,
+//       message: "Not a number"
+//     });
+//     return z.NEVER;
+//   }
+//   return parsed;
+// }
 
 apiRouter.get(
   "/addresses/:address/transactions/:skip/:limit",

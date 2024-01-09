@@ -177,14 +177,14 @@ export async function getValidators() {
     moniker: x.description.moniker.trim(),
     votingPower: parseInt(x.tokens),
     commission: parseFloat(x.commission.commission_rates.rate),
-    identity: x.description.identity
+  identity: x.description.identity
   }));
 
   const totalVotingPower = validators.reduce((acc, cur) => acc + cur.votingPower, 0);
 
   const validatorsFromDb = await Validator.findAll({
     where: {
-      keybaseAvatarUrl: { [Op.ne]: null, [Op.ne]: "" }
+      keybaseAvatarUrl: { [Op.not]: null, [Op.ne]: "" }
     }
   });
 
