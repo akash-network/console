@@ -2,7 +2,8 @@
 import React, { useState } from "react";
 import { FormattedNumber } from "react-intl";
 import dynamic from "next/dynamic";
-import { parseAsync } from "json2csv";
+// import { parseAsync } from "json2csv";
+import { Parser } from "@json2csv/plainjs";
 import { ISnapshotMetadata, Snapshots } from "@/types";
 import { selectedRangeValues } from "@/lib/constants";
 import { useGraphSnapshot } from "@/queries";
@@ -34,21 +35,19 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
   async function onDownloadCSVClick() {
     if (!rangedData || !snapshotMetadata) return;
 
-    const csvContent = await parseAsync(
-      rangedData.map(d => ({ date: d.date, value: snapshotMetadata.unitFn(d.value).value })),
-      {
-        fields: [
-          {
-            label: "Date",
-            value: "date"
-          },
-          {
-            label: "Value" + (snapshotMetadata.legend ? ` (${snapshotMetadata.legend})` : ""),
-            value: "value"
-          }
-        ]
-      }
-    );
+    const parser = new Parser({
+      fields: [
+        {
+          label: "Date",
+          value: "date"
+        },
+        {
+          label: "Value" + (snapshotMetadata.legend ? ` (${snapshotMetadata.legend})` : ""),
+          value: "value"
+        }
+      ]
+    });
+    const csvContent = parser.parse(rangedData.map(d => ({ date: d.date, value: snapshotMetadata.unitFn(d.value).value })));
 
     const datePart = new Date().toISOString().substring(0, 10).replaceAll("-", "");
     const rangePart = Object.keys(selectedRangeValues).find(key => selectedRangeValues[key] === selectedRange);
