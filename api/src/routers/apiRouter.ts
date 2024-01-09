@@ -23,13 +23,6 @@ import routesV2 from "../routes/v2";
 
 export const apiRouter = express.Router();
 
-apiRouter.get(
-  "/templates",
-  asyncHandler(async (req, res) => {
-    const response = await cacheResponse(60 * 5, cacheKeys.getTemplates, async () => await getTemplateGallery());
-    res.send(response);
-  })
-);
 
 apiRouter.get(
   "/blocks",
@@ -132,35 +125,6 @@ apiRouter.get(
     } else {
       res.status(404).send("Deployment not found");
     }
-  })
-);
-
-apiRouter.get(
-  "/getNetworkCapacity",
-  asyncHandler(async (req, res) => {
-    const networkCapacity = await getNetworkCapacity();
-    res.send(networkCapacity);
-  })
-);
-
-apiRouter.get(
-  "/providers",
-  asyncHandler(async (req, res) => {
-    const providers = await cacheResponse(60, cacheKeys.getProviderList, getProviderList);
-    res.send(providers);
-  })
-);
-
-apiRouter.get(
-  "/providers/:address",
-  asyncHandler(async (req, res) => {
-    if (!req.params.address) {
-      res.status(400).send("Address is undefined.");
-      return;
-    }
-
-    const provider = await getProviderDetail(req.params.address);
-    res.send(provider);
   })
 );
 

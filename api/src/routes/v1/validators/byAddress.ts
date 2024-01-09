@@ -38,8 +38,11 @@ const route = createRoute({
         }
       }
     },
-    404: {
+    400: {
       description: "Invalid address"
+    },
+    404: {
+      description: "Validator not found"
     }
   }
 });
@@ -52,7 +55,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   const validator = await getValidator(c.req.valid("param").address);
 
   if (!validator) {
-    return c.text("Validator not found", 400);
+    return c.text("Validator not found", 404);
   }
 
   c.json(validator);
