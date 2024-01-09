@@ -8,7 +8,7 @@ import { ThemeProvider } from "next-themes";
 import { PricingProvider } from "@/context/PricingProvider";
 import { TooltipProvider } from "../ui/tooltip";
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
-import { customColors } from "@/lib/colors copy";
+import { customColors } from "@/lib/colors";
 
 function Providers({ children }: React.PropsWithChildren) {
   return (

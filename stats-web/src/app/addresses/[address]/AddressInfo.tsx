@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AKTAmount } from "@/components/AKTAmount";
 import React from "react";
 import { useQRCode } from "next-qrcode";
-import { customColors } from "@/lib/colors copy";
+import { customColors } from "@/lib/colors";
 import { QrCode } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Address } from "@/components/Address";

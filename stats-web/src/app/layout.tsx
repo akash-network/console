@@ -6,7 +6,8 @@ import { Nav } from "@/components/layout/Nav";
 import Providers from "@/components/layout/CustomProviders";
 import { Toaster } from "@/components/ui/toaster";
 import { cookies } from "next/headers";
-import { customColors } from "@/lib/colors copy";
+import { customColors } from "@/lib/colors";
+import GoogleAnalytics from "@/components/layout/CustomGoogleAnalytics";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -93,6 +94,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en" className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
+      <GoogleAnalytics />
+
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.variable)}>
         <Providers>
           <Nav />

@@ -23,7 +23,7 @@ export function NavLinks({ links }: NavLinksProps) {
       <nav className="grid gap-1 px-2">
         {links.map((link, index) => (
           <Link
-            key={link.label}
+            key={index}
             target={link.isExternal ? "_blank" : "_self"}
             rel={link.rel ? link.rel : ""}
             href={link.href}

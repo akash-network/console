@@ -77,9 +77,9 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
               <h3 className="flex items-center text-4xl font-bold sm:justify-center">
                 <FormattedNumber value={metric.modifiedValue || metric.value} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
                 &nbsp;{metric.unit ? `${metric.unit} ` : ""}
-                <DiffPercentageChip value={percIncrease(snapshotData.compareValue, snapshotData.currentValue)} size="medium" />
+                <DiffPercentageChip value={percIncrease(snapshotData.compareValue, snapshotData.currentValue)} size="medium" className="ml-2" />
                 &nbsp;
-                <DiffNumber value={metricDiff.modifiedValue || metricDiff.value} unit={metricDiff.unit} className="text-sm font-light" />
+                <DiffNumber value={metricDiff.modifiedValue || metricDiff.value} unit={metricDiff.unit} className="text-sm font-light whitespace-nowrap" />
               </h3>
             </div>
 
