@@ -104,29 +104,6 @@ registerApiVersion("v2", apiRouterHono, routesV2);
 // }
 
 apiRouter.get(
-  "/deployment/:owner/:dseq",
-  asyncHandler(async (req, res) => {
-    if (isNaN(parseInt(req.params.dseq))) {
-      res.status(400).send("Invalid dseq.");
-      return;
-    }
-
-    if (!isValidBech32Address(req.params.owner, "akash")) {
-      res.status(400).send("Invalid address");
-      return;
-    }
-
-    const deployment = await getDeployment(req.params.owner, req.params.dseq);
-
-    if (deployment) {
-      res.send(deployment);
-    } else {
-      res.status(404).send("Deployment not found");
-    }
-  })
-);
-
-apiRouter.get(
   "/getGraphData/:dataName",
   asyncHandler(async (req, res) => {
     const dataName = req.params.dataName;

@@ -21,6 +21,7 @@ import auditors from "./auditors";
 import nodesMainnet from "./nodes/mainnet";
 import nodesSandbox from "./nodes/sandbox";
 import nodesTestnet from "./nodes/testnet";
+import deploymentByOwnerDseq from "./deployments/byOwnerDseq";
 
 export default [
   predictedBlockDate,
@@ -45,5 +46,6 @@ export default [
   auditors,
   nodesMainnet,
   nodesSandbox,
-  nodesTestnet
+  nodesTestnet,
+  deploymentByOwnerDseq
 ];
