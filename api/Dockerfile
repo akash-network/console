@@ -16,4 +16,5 @@ RUN npm ci
 RUN npm run build
 
 EXPOSE 80
+EXPOSE 8787
 CMD [ "node", "/app/api/dist/server.js" ]

@@ -1,10 +1,7 @@
 import express from "express";
 import { getBlock, getBlocks } from "@src/db/blocksProvider";
-import { getTemplateGallery } from "@src/providers/templateReposProvider";
-import { getTransactions } from "@src/db/transactionsProvider";
-import { getChainStats, getDeployment } from "@src/providers/apiNodeProvider";
-import { getNetworkCapacity, getProviderDetail, getProviderList } from "@src/providers/providerStatusProvider";
-import { getDashboardData, getGraphData, getProviderActiveLeasesGraphData, getProviderGraphData } from "@src/db/statsProvider";
+import { getDeployment } from "@src/providers/apiNodeProvider";
+import { getGraphData, getProviderActiveLeasesGraphData, getProviderGraphData } from "@src/db/statsProvider";
 import { round } from "@src/utils/math";
 import { isValidBech32Address } from "@src/utils/addresses";
 import { getAkashPricing, getAWSPricing, getAzurePricing, getGCPPricing } from "@src/utils/pricing";
@@ -12,7 +9,6 @@ import asyncHandler from "express-async-handler";
 import { ProviderStatsKey } from "@src/types/graph";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import axios from "axios";
-import { getMarketData } from "@src/providers/marketDataProvider";
 import { getAuditors, getProviderAttributesSchema } from "@src/providers/githubProvider";
 import { getProviderRegions } from "@src/db/providerDataProvider";
 import { OpenAPIHono } from "@hono/zod-openapi";
@@ -22,7 +18,6 @@ import routesV1 from "../routes/v1";
 import routesV2 from "../routes/v2";
 
 export const apiRouter = express.Router();
-
 
 apiRouter.get(
   "/blocks",
@@ -60,7 +55,10 @@ function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRou
   const versionRouter = new OpenAPIHono();
   versionRouter.doc(`/doc`, {
     openapi: "3.0.0",
-    servers: [{ url: `http://localhost:8787/api/${version}`, description: "Localhost" }], // TODO
+    servers: [
+      { url: `http://localhost:8787/api/${version}`, description: "Localhost" },
+      { url: `https://api-preview.cloudmos.io/api/${version}`, description: "Online Preview" },
+    ], // TODO
     info: {
       title: "Cloudmos API",
       description: "Access Akash data from our indexer",
@@ -125,38 +123,6 @@ apiRouter.get(
     } else {
       res.status(404).send("Deployment not found");
     }
-  })
-);
-
-apiRouter.get("/marketData", async (req, res) => {
-  const response = await cacheResponse(60 * 5, cacheKeys.getMarketData, getMarketData);
-  res.send(response);
-});
-
-apiRouter.get(
-  "/dashboardData",
-  asyncHandler(async (req, res) => {
-    const chainStatsQuery = await getChainStats();
-    const dashboardData = await getDashboardData();
-    const networkCapacity = await getNetworkCapacity();
-    const networkCapacityStats = await getProviderGraphData("count");
-    const latestBlocks = await getBlocks(5);
-    const latestTransactions = await getTransactions(5);
-
-    const chainStats = {
-      height: latestBlocks[0].height,
-      transactionCount: latestBlocks[0].totalTransactionCount,
-      ...chainStatsQuery
-    };
-
-    res.send({
-      chainStats,
-      ...dashboardData,
-      networkCapacity,
-      networkCapacityStats,
-      latestBlocks,
-      latestTransactions
-    });
   })
 );
 
@@ -226,42 +192,6 @@ apiRouter.get(
   })
 );
 
-apiRouter.post(
-  "/pricing",
-  express.json(),
-  asyncHandler(async (req, res) => {
-    const isArray = Array.isArray(req.body);
-    const specs = isArray ? req.body : [req.body];
-
-    let pricing = [];
-
-    for (const spec of specs) {
-      const cpu = parseInt(spec.cpu);
-      const memory = parseInt(spec.memory);
-      const storage = parseInt(spec.storage);
-
-      if (isNaN(cpu) || isNaN(memory) || isNaN(storage)) {
-        res.status(400).send("Invalid parameters.");
-        return;
-      }
-
-      const akashPricing = getAkashPricing(cpu, memory, storage);
-      const awsPricing = getAWSPricing(cpu, memory, storage);
-      const gcpPricing = getGCPPricing(cpu, memory, storage);
-      const azurePricing = getAzurePricing(cpu, memory, storage);
-
-      pricing.push({
-        spec: spec,
-        akash: round(akashPricing, 2),
-        aws: round(awsPricing, 2),
-        gcp: round(gcpPricing, 2),
-        azure: round(azurePricing, 2)
-      });
-    }
-
-    res.send(isArray ? pricing : pricing[0]);
-  })
-);
 
 apiRouter.get(
   "/getProviderAttributesSchema",
@@ -271,46 +201,6 @@ apiRouter.get(
   })
 );
 
-apiRouter.get(
-  "/getAuditors",
-  asyncHandler(async (req, res) => {
-    const response = await getAuditors();
-    res.send(response);
-  })
-);
-
-apiRouter.get(
-  "/getMainnetNodes",
-  asyncHandler(async (req, res) => {
-    const response = await cacheResponse(60 * 2, cacheKeys.getMainnetNodes, async () => {
-      const res = await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/mainnet-nodes.json");
-      return res.data;
-    });
-    res.send(response);
-  })
-);
-
-apiRouter.get(
-  "/getTestnetNodes",
-  asyncHandler(async (req, res) => {
-    const response = await cacheResponse(60 * 2, cacheKeys.getTestnetNodes, async () => {
-      const res = await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/testnet-nodes.json");
-      return res.data;
-    });
-    res.send(response);
-  })
-);
-
-apiRouter.get(
-  "/getSandboxNodes",
-  asyncHandler(async (req, res) => {
-    const response = await cacheResponse(60 * 2, cacheKeys.getSandboxNodes, async () => {
-      const res = await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/sandbox-nodes.json");
-      return res.data;
-    });
-    res.send(response);
-  })
-);
 
 apiRouter.get(
   "/getMainnetVersion",

@@ -14,6 +14,13 @@ import proposals from "./proposals/list";
 import proposalById from "./proposals/byId";
 import templates from "./templates";
 import networkCapacity from "./networkCapacity";
+import marketData from "./marketData";
+import dashboardData from "./dashboardData";
+import pricing from "./pricing";
+import auditors from "./auditors";
+import nodesMainnet from "./nodes/mainnet";
+import nodesSandbox from "./nodes/sandbox";
+import nodesTestnet from "./nodes/testnet";
 
 export default [
   predictedBlockDate,
@@ -31,5 +38,12 @@ export default [
   proposals,
   proposalById,
   templates,
-  networkCapacity
+  networkCapacity,
+  marketData,
+  dashboardData,
+  pricing,
+  auditors,
+  nodesMainnet,
+  nodesSandbox,
+  nodesTestnet
 ];

@@ -21,7 +21,7 @@ const route = createRoute({
   },
   responses: {
     200: {
-      description: "Returns predicted block date",
+      description: "Returns transaction list",
       content: {
         "application/json": {
           schema: z.array(
@@ -48,7 +48,7 @@ const route = createRoute({
       }
     },
     400: {
-      description: "Invalid height or block window",
+      description: "Invalid limit",
       content: {
         "application/json": {
           schema: z.object({
