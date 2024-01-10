@@ -9,6 +9,7 @@ import { cookies } from "next/headers";
 import { customColors } from "@/lib/colors";
 import GoogleAnalytics from "@/components/layout/CustomGoogleAnalytics";
 import localFont from "next/font/local";
+import { Footer } from "@/components/layout/Footer";
 
 // const inter = Inter({
 //   subsets: ["latin"],
@@ -32,7 +33,7 @@ const satoshi = localFont({
       weight: "400",
       style: "normal"
     }
-  ],
+  ]
   // variable: "--font-sans"
 });
 
@@ -118,10 +119,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
       <GoogleAnalytics />
 
-      <body className={cn("min-h-screen bg-background antialiased", satoshi.className)}>
+      <body className={cn("min-h-screen bg-background tracking-wide antialiased", satoshi.className)}>
         <Providers>
           <Nav />
-          {children}
+          <div className="flex min-h-[calc(100vh-60px)] flex-col justify-between">
+            {children}
+            <Footer />
+          </div>
           <Toaster />
         </Providers>
       </body>
