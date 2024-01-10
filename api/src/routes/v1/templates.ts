@@ -5,7 +5,7 @@ import { getTemplateGallery } from "@src/providers/templateReposProvider";
 const route = createRoute({
   method: "get",
   path: "/templates",
-  request: {},
+  tags: ["Other"],
   responses: {
     200: {
       description: "Returns a list of deployment templates grouped by cateogories",

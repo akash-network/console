@@ -3,7 +3,9 @@ import { getProviderDeployments } from "@src/db/deploymentProvider";
 
 const route = createRoute({
   method: "get",
-  path: "/providers/{provider}/deployments/{skip}/{limit}/{status}", // TODO: Put back status as optional
+  path: "/providers/{provider}/deployments/{skip}/{limit}/{status}", // TODO: Put back status as optional,
+  summary: "Get a list of deployments for a provider.",
+  tags: ["Providers", "Deployments"],
   request: {
     params: z.object({
       provider: z.string().openapi({

@@ -4,6 +4,8 @@ import { getAddressDeployments } from "@src/providers/apiNodeProvider";
 const route = createRoute({
   method: "get",
   path: "/addresses/{address}/deployments/{skip}/{limit}",
+  summary: "Get a list of deployments owner by an address.",
+  tags: ["Addresses", "Deployments"],
   request: {
     params: z.object({
       address: z.string().openapi({

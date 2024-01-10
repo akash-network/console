@@ -5,7 +5,8 @@ import { getProviderList } from "@src/providers/providerStatusProvider";
 const route = createRoute({
   method: "get",
   path: "/providers",
-  request: {},
+  summary: "Get a list of providers.",
+  tags: ["Providers"],
   responses: {
     200: {
       description: "Returns a list of providers",

@@ -6,6 +6,7 @@ import { isValidBech32Address } from "@src/utils/addresses";
 const route = createRoute({
   method: "get",
   path: "/validators/{address}",
+  tags: ["Validators"],
   request: {
     params: z.object({
       address: z.string().openapi({

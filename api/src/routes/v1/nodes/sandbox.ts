@@ -6,6 +6,7 @@ const route = createRoute({
   method: "get",
   path: "/nodes/sandbox",
   summary: "Get a list of sandbox nodes (api/rpc).",
+  tags: ["Chain"],
   responses: {
     200: {
       description: "List of sandbox nodes",

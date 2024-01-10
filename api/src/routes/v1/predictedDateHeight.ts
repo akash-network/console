@@ -7,6 +7,8 @@ const defaultBlockWindow = 10_000;
 const route = createRoute({
   method: "get",
   path: "/predicted-date-height/{timestamp}",
+  summary: "Get the estimated height of a future date and time.",
+  tags: ["Blocks"],
   request: {
     params: z.object({
       timestamp: z.string().openapi({ param: { name: "timestamp", in: "path" }, type: "number", description: "Unix Timestamp", example: "1704392968" })

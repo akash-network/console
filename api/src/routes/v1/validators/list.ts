@@ -5,6 +5,7 @@ import { getValidators } from "@src/providers/apiNodeProvider";
 const route = createRoute({
   method: "get",
   path: "/validators",
+  tags: ["Validators"],
   request: {},
   responses: {
     200: {

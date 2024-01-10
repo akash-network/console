@@ -4,6 +4,7 @@ import { getAuditors } from "@src/providers/githubProvider";
 const route = createRoute({
   method: "get",
   path: "/auditors",
+  tags: ["Providers"],
   summary: "Get a list of auditors.",
   responses: {
     200: {

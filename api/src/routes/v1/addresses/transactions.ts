@@ -5,6 +5,8 @@ import { isValidBech32Address } from "@src/utils/addresses";
 const route = createRoute({
   method: "get",
   path: "/addresses/{address}/transactions/{skip}/{limit}",
+  summary: "Get a list of transactions for a given address.",
+  tags: ["Addresses", "Transactions"],
   request: {
     params: z.object({
       address: z.string().openapi({

@@ -4,6 +4,8 @@ import { getProviderDetail } from "@src/providers/providerStatusProvider";
 const route = createRoute({
   method: "get",
   path: "/providers/{address}",
+  summary: "Get a provider details.",
+  tags: ["Providers"],
   request: {
     params: z.object({
       address: z.string().openapi({

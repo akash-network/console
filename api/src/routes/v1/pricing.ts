@@ -19,6 +19,7 @@ const estimationType = z.object({
 const route = createRoute({
   method: "post",
   path: "/pricing",
+  tags: ["Other"],
   summary: "Estimate the price of a deployment on akash and other cloud providers.",
   request: {
     body: {

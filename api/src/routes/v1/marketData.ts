@@ -5,6 +5,7 @@ import { getMarketData } from "@src/providers/marketDataProvider";
 const route = createRoute({
   method: "get",
   path: "/market-data",
+  tags: ["Analytics"],
   responses: {
     200: {
       description: "Returns market stats",

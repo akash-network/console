@@ -8,7 +8,7 @@ import { getNetworkCapacity } from "@src/providers/providerStatusProvider";
 const route = createRoute({
   method: "get",
   path: "/dashboard-data",
-  request: {},
+  tags: ["Analytics"],
   responses: {
     200: {
       description: "Returns dashboard data",

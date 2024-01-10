@@ -4,7 +4,7 @@ import { getProposals } from "@src/providers/apiNodeProvider";
 const route = createRoute({
   method: "get",
   path: "/proposals",
-  request: {},
+  tags: ["Proposals"],
   responses: {
     200: {
       description: "Returns a list of proposals",

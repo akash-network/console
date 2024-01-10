@@ -5,6 +5,8 @@ import { isValidBech32Address } from "@src/utils/addresses";
 const route = createRoute({
   method: "get",
   path: "/deployment/{owner}/{dseq}",
+  summary: "Get deployment details",
+  tags: ["Deployments"],
   request: {
     params: z.object({
       owner: z.string().openapi({

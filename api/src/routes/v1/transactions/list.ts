@@ -6,6 +6,8 @@ const defaultLimit = 20;
 const route = createRoute({
   method: "get",
   path: "/transactions",
+  summary: "Get a list of transactions.",
+  tags: ["Transactions"],
   request: {
     query: z.object({
       limit: z.string().openapi({

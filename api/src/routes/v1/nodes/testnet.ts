@@ -6,6 +6,7 @@ const route = createRoute({
   method: "get",
   path: "/nodes/testnet",
   summary: "Get a list of testnet nodes (api/rpc).",
+  tags: ["Chain"],
   responses: {
     200: {
       description: "List of testnet nodes",

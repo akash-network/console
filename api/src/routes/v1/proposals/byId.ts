@@ -4,6 +4,7 @@ import { getProposal } from "@src/providers/apiNodeProvider";
 const route = createRoute({
   method: "get",
   path: "/proposals/{id}",
+  tags: ["Proposals"],
   request: {
     params: z.object({
       id: z.string().openapi({

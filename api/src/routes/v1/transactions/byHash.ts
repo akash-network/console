@@ -4,6 +4,8 @@ import { getTransaction } from "@src/db/transactionsProvider";
 const route = createRoute({
   method: "get",
   path: "/transactions/{hash}",
+  summary: "Get a transaction by hash.",
+  tags: ["Transactions"],
   request: {
     params: z.object({
       hash: z.string().openapi({
