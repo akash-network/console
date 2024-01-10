@@ -19,27 +19,24 @@ export const TimeRange: React.FunctionComponent<Props> = ({ selectedRange, onRan
     <ToggleGroup type="single" aria-label="Graph range select" color="secondary" size="sm" className="mx-auto my-0 sm:mx-0">
       <ToggleGroupItem
         value="7D"
-        className={cn({ ["!bg-primary"]: selectedRange === selectedRangeValues["7D"] })}
+        className={cn({ ["!bg-primary font-bold !text-white"]: selectedRange === selectedRangeValues["7D"] })}
         onClick={() => _onRangeChange(selectedRangeValues["7D"])}
-        // color="secondary"
         size="sm"
       >
         7D
       </ToggleGroupItem>
       <ToggleGroupItem
         value="1M"
-        className={cn({ ["!bg-primary"]: selectedRange === selectedRangeValues["1M"] })}
+        className={cn({ ["!bg-primary font-bold !text-white"]: selectedRange === selectedRangeValues["1M"] })}
         onClick={() => _onRangeChange(selectedRangeValues["1M"])}
-        // color="secondary"
         size="sm"
       >
         1M
       </ToggleGroupItem>
       <ToggleGroupItem
         value="ALL"
-        className={cn({ ["!bg-primary"]: selectedRange === selectedRangeValues["ALL"] })}
+        className={cn({ ["!bg-primary font-bold !text-white"]: selectedRange === selectedRangeValues["ALL"] })}
         onClick={() => _onRangeChange(selectedRangeValues["ALL"])}
-        // color="secondary"
         size="sm"
       >
         ALL

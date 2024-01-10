@@ -8,10 +8,32 @@ import { Toaster } from "@/components/ui/toaster";
 import { cookies } from "next/headers";
 import { customColors } from "@/lib/colors";
 import GoogleAnalytics from "@/components/layout/CustomGoogleAnalytics";
+import localFont from "next/font/local";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans"
+// const inter = Inter({
+//   subsets: ["latin"],
+//   variable: "--font-sans"
+// });
+
+const satoshi = localFont({
+  src: [
+    {
+      path: "./fonts/Satoshi-Variable.woff",
+      weight: "400",
+      style: "normal"
+    },
+    {
+      path: "./fonts/Satoshi-Variable.woff2",
+      weight: "400",
+      style: "normal"
+    },
+    {
+      path: "./fonts/Satoshi-Variable.ttf",
+      weight: "400",
+      style: "normal"
+    }
+  ],
+  // variable: "--font-sans"
 });
 
 export const metadata: Metadata = {
@@ -96,7 +118,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
       <GoogleAnalytics />
 
-      <body className={cn("min-h-screen bg-background font-sans antialiased", inter.variable)}>
+      <body className={cn("min-h-screen bg-background antialiased", satoshi.className)}>
         <Providers>
           <Nav />
           {children}
