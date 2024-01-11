@@ -120,6 +120,11 @@ const getTheme = (theme: string | undefined) => {
         text: {
           fill: color
         }
+      },
+      legend: {
+        text: {
+          fill: color
+        }
       }
     },
     grid: {
