@@ -152,7 +152,7 @@ export async function getGraphData(dataName: string): Promise<GraphData> {
 export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
   console.log("getProviderGraphData: " + dataName);
 
-  let getter = (block: ProviderStats) => (typeof block[dataName] === "number" ? block[dataName] : parseInt(block[dataName] as string) || 0);
+  let getter = (block: ProviderStats) => (typeof block[dataName] === "number" ? block[dataName] as number : parseInt(block[dataName] as string) || 0);
 
   let result: ProviderStats[] = await cacheResponse(
     60 * 5, // 5 minutes

@@ -9,6 +9,7 @@ import providerByAddress from "./providers/byAddress";
 import providerDeployments from "./providers/deployments";
 import providerList from "./providers/list";
 import providerAttributesSchema from "./providerAttributesSchema";
+import providerRegions from "./providerRegions";
 import validators from "./validators/list";
 import validatorByAddress from "./validators/byAddress";
 import proposals from "./proposals/list";
@@ -26,6 +27,9 @@ import versionMainnet from "./version/mainnet";
 import versionSandbox from "./version/sandbox";
 import versionTestnet from "./version/testnet";
 import deploymentByOwnerDseq from "./deployments/byOwnerDseq";
+import providerGraphData from "./providerGraphData";
+import graphData from "./graphData";
+import providerActiveLeasesGraphData from "./providerActiveLeasesGraphData";
 
 export default [
   predictedBlockDate,
@@ -39,6 +43,7 @@ export default [
   providerList,
   providerDeployments,
   providerAttributesSchema,
+  providerRegions,
   validators,
   validatorByAddress,
   proposals,
@@ -55,5 +60,8 @@ export default [
   versionMainnet,
   versionSandbox,
   versionTestnet,
-  deploymentByOwnerDseq
+  deploymentByOwnerDseq,
+  providerGraphData,
+  graphData,
+  providerActiveLeasesGraphData
 ];
