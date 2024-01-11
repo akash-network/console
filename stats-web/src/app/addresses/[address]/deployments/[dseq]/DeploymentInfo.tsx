@@ -13,6 +13,7 @@ import { getSplitText } from "@/hooks/useShortText";
 import { roundDecimal, udenomToDenom } from "@/lib/mathHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
 import { UrlService } from "@/lib/urlUtils";
+import { cn } from "@/lib/utils";
 import { DeploymentDetail } from "@/types";
 import Link from "next/link";
 import { FormattedNumber, FormattedTime } from "react-intl";
@@ -42,7 +43,7 @@ export function DeploymentInfo({ deployment }: IProps) {
             />
             <LabelValue
               label="Status"
-              value={<Badge variant={deployment.status === "active" ? "secondary" : "destructive"}>{deployment.status}</Badge>}
+              value={<Badge variant={deployment.status === "active" ? "success" : "destructive"}>{deployment.status}</Badge>}
               labelWidth="12rem"
             />
             <LabelValue label="DSEQ" value={deployment.dseq} labelWidth="12rem" />
@@ -123,7 +124,7 @@ export function DeploymentInfo({ deployment }: IProps) {
                 <LabelValue label="GSEQ" value={lease.gseq} labelWidth="12rem" />
                 <LabelValue
                   label="Status"
-                  value={<Badge variant={lease.status === "active" ? "secondary" : "destructive"}>{lease.status}</Badge>}
+                  value={<Badge variant={lease.status === "active" ? "success" : "destructive"}>{lease.status}</Badge>}
                   labelWidth="12rem"
                 />
                 <LabelValue

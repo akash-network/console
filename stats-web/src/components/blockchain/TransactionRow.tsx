@@ -28,7 +28,7 @@ export const TransactionRow: React.FunctionComponent<Props> = ({ transaction, bl
         </Link>
       </TableCell>
       <TableCell align="center">
-        <Badge className="h-4 max-w-[120px] bg-red-400">
+        <Badge className="h-4 max-w-[120px] bg-primary">
           <span className="truncate">{firstMessageType}</span>
         </Badge>
         <span className="text-xs">{transaction.messages.length > 1 ? " +" + (transaction.messages.length - 1) : ""}</span>

@@ -48,10 +48,7 @@ export const columns: AccessorColumnDef<TransactionRowType>[] = [
       }
 
       return (
-        <Badge
-          className={cn("h-4 max-w-[120px]", { ["bg-red-400"]: row.getValue("status") === "active", ["bg-green-600"]: row.getValue("status") === "active" })}
-          variant="default"
-        >
+        <Badge className={"h-4 max-w-[120px]"} variant={row.getValue("status") === "active" ? "success" : "destructive"}>
           {row.getValue("status")}
         </Badge>
       );
