@@ -15,7 +15,7 @@ export enum Snapshots {
 }
 
 export enum SnapshotsUrlParam {
-  activeDeployment = "active-deployment",
+  activeLeases = "active-leases",
   totalAKTSpent = "total-akt-spent",
   totalUSDCSpent = "total-usdc-spent",
   totalUSDSpent = "total-usd-spent",

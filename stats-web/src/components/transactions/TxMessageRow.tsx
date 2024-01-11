@@ -107,21 +107,12 @@ type Props = {
   message: TransactionMessage;
 };
 
-// const useStyles = makeStyles()(theme => ({
-//   messageType: {
-//     padding: "1rem",
-//     marginBottom: theme.spacing(3),
-//     color: theme.palette.mode === "dark" ? theme.palette.grey[400] : theme.palette.grey[700],
-//     borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[300]}`
-//   }
-// }));
-
 export const TxMessageRow: React.FunctionComponent<Props> = ({ message }) => {
   const friendlyType = useFriendlyMessageType(message.type);
 
   return (
     <div>
-      <div className="mb-4 border-b p-4 text-muted-foreground">{friendlyType}</div>
+      <div className="mb-4 border-b border-b-muted-foreground/10 p-4 text-muted-foreground">{friendlyType}</div>
 
       <div className="break-all px-4 pb-4 pt-0">
         <TxMessage message={message} />

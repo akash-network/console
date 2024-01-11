@@ -4,7 +4,7 @@ export const NOT_FOUND = "NOT_FOUND";
 
 export const urlParamToSnapshot = (snapshotsUrlParam: SnapshotsUrlParam) => {
   const snapshotUrlMapping = {
-    [SnapshotsUrlParam.activeDeployment]: Snapshots.activeLeaseCount,
+    [SnapshotsUrlParam.activeLeases]: Snapshots.activeLeaseCount,
     [SnapshotsUrlParam.allTimeDeploymentCount]: Snapshots.totalLeaseCount,
     [SnapshotsUrlParam.compute]: Snapshots.activeCPU,
     [SnapshotsUrlParam.graphics]: Snapshots.activeGPU,

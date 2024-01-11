@@ -199,7 +199,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
               <div>For example: a simple website to a blockchain node or a video game server.</div>
             </>
           }
-          graphPath={UrlService.graph(SnapshotsUrlParam.activeDeployment)}
+          graphPath={UrlService.graph(SnapshotsUrlParam.activeLeases)}
           diffNumber={dashboardData.now.activeLeaseCount - dashboardData.compare.activeLeaseCount}
           diffPercent={percIncrease(dashboardData.compare.activeLeaseCount, dashboardData.now.activeLeaseCount)}
         />
