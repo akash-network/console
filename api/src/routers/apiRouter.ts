@@ -171,15 +171,6 @@ apiRouter.get(
 
 
 apiRouter.get(
-  "/getProviderAttributesSchema",
-  asyncHandler(async (req, res) => {
-    const providerAttributesSchema = await getProviderAttributesSchema();
-    res.send(providerAttributesSchema);
-  })
-);
-
-
-apiRouter.get(
   "/getMainnetVersion",
   asyncHandler(async (req, res) => {
     const response = await cacheResponse(60 * 5, cacheKeys.getMainnetVersion, async () => {

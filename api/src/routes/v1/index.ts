@@ -8,6 +8,7 @@ import addressDeployments from "./addresses/deployments";
 import providerByAddress from "./providers/byAddress";
 import providerDeployments from "./providers/deployments";
 import providerList from "./providers/list";
+import providerAttributesSchema from "./providerAttributesSchema";
 import validators from "./validators/list";
 import validatorByAddress from "./validators/byAddress";
 import proposals from "./proposals/list";
@@ -21,6 +22,9 @@ import auditors from "./auditors";
 import nodesMainnet from "./nodes/mainnet";
 import nodesSandbox from "./nodes/sandbox";
 import nodesTestnet from "./nodes/testnet";
+import versionMainnet from "./version/mainnet";
+import versionSandbox from "./version/sandbox";
+import versionTestnet from "./version/testnet";
 import deploymentByOwnerDseq from "./deployments/byOwnerDseq";
 
 export default [
@@ -34,6 +38,7 @@ export default [
   providerByAddress,
   providerList,
   providerDeployments,
+  providerAttributesSchema,
   validators,
   validatorByAddress,
   proposals,
@@ -47,5 +52,8 @@ export default [
   nodesMainnet,
   nodesSandbox,
   nodesTestnet,
+  versionMainnet,
+  versionSandbox,
+  versionTestnet,
   deploymentByOwnerDseq
 ];
