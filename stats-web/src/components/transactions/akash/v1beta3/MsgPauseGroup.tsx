@@ -14,7 +14,7 @@ export const MsgPauseGroup: React.FunctionComponent<TxMessageProps> = ({ message
       <LabelValue label="Owner" value={<AddressLink address={message?.data?.id?.owner} />} />
       <LabelValue
         label="dseq"
-        value={<Link href={UrlService.publicDeploymentDetails(message?.data?.id?.owner, message?.data?.id?.dseq)}>{message?.data?.id?.dseq}</Link>}
+        value={<Link href={UrlService.deployment(message?.data?.id?.owner, message?.data?.id?.dseq)}>{message?.data?.id?.dseq}</Link>}
       />
       <LabelValue label="gseq" value={message?.data?.id?.gseq} />
     </>

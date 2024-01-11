@@ -21,27 +21,12 @@ export class UrlService {
   static address = (address: string) => `/addresses/${address}${appendSearchParams({ network: getSelectedNetworkQueryParam() as string })}`;
   static addressTransactions = (address: string) => `/addresses/${address}/transactions`;
   static addressDeployments = (address: string) => `/addresses/${address}/deployments`;
+  static deployment = (owner: string, dseq: string) =>
+    `/addresses/${owner}/deployments/${dseq}${appendSearchParams({ network: getSelectedNetworkQueryParam() as string })}`;
   static validators = () => "/validators";
   static validator = (address: string) => `/validators/${address}${appendSearchParams({ network: getSelectedNetworkQueryParam() as string })}`;
   static proposals = () => "/proposals";
   static proposal = (id: number) => `/proposals/${id}`;
-  static publicDeploymentDetails = (owner: string, dseq: string) =>
-    `/deployment/${owner}/${dseq}${appendSearchParams({ network: getSelectedNetworkQueryParam() as string })}`;
-  // static userSettings = () => "/user/settings";
-  // static userAddressBook = () => `/user/settings/address-book`;
-  // static userFavorites = () => `/user/settings/favorites`;
-  // static userProfile = (username: string) => `/profile/${username}`;
-  // static login = (returnUrl?: string) => {
-  //   let from = "/";
-  //   if (returnUrl) {
-  //     from = returnUrl;
-  //   } else if (typeof window !== "undefined") {
-  //     from = window.location.pathname;
-  //   }
-  //   return `/api/auth/login${appendSearchParams({ from: from })}`;
-  // };
-  // static logout = () => "/api/auth/logout";
-  // static signup = () => "/api/auth/signup";
 }
 
 export function appendSearchParams(params: { [key: string]: string | number | boolean }) {

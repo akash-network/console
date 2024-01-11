@@ -20,7 +20,7 @@ export const MsgCreateDeployment: React.FunctionComponent<TxMessageProps> = ({ m
       <LabelValue label="Owner" value={<AddressLink address={message?.data?.id?.owner} />} />
       <LabelValue
         label="dseq"
-        value={<Link href={UrlService.publicDeploymentDetails(message?.data?.id?.owner, message?.data?.id?.dseq)}>{message?.data?.id?.dseq}</Link>}
+        value={<Link href={UrlService.deployment(message?.data?.id?.owner, message?.data?.id?.dseq)}>{message?.data?.id?.dseq}</Link>}
       />
       <LabelValue label="Version" value={message?.data?.version} />
       <LabelValue label="Deposit" value={<AKTAmount uakt={coinsToAmount(message?.data?.deposit, "uakt")} showAKTLabel showUSD />} />

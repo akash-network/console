@@ -14,7 +14,7 @@ export const MsgCloseDeployment: React.FunctionComponent<TxMessageProps> = ({ me
       <LabelValue label="Owner" value={<AddressLink address={message?.data?.id?.owner} />} />
       <LabelValue
         label="dseq"
-        value={<Link href={UrlService.publicDeploymentDetails(message?.data?.id?.owner, message?.data?.id?.dseq)}>{message?.data?.id?.dseq}</Link>}
+        value={<Link href={UrlService.deployment(message?.data?.id?.owner, message?.data?.id?.dseq)}>{message?.data?.id?.dseq}</Link>}
       />
     </>
   );

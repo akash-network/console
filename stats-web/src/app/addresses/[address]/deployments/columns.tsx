@@ -29,7 +29,7 @@ export const columns: AccessorColumnDef<TransactionRowType>[] = [
     accessorKey: "dseq",
     header: ({ column }) => <DataTableColumnHeader column={column} title="DSEQ" />,
     cell: ({ row }) => (
-      <Link href={UrlService.publicDeploymentDetails(row.original.owner, row.getValue("dseq"))} target="_blank">
+      <Link href={UrlService.deployment(row.original.owner, row.getValue("dseq"))} target="_blank">
         {row.getValue("dseq")}
       </Link>
     ),

@@ -18,7 +18,7 @@ export const MsgCreateBid: React.FunctionComponent<TxMessageProps> = ({ message 
       <LabelValue label="Owner" value={<AddressLink address={message?.data?.order?.owner} />} />
       <LabelValue
         label="dseq"
-        value={<Link href={UrlService.publicDeploymentDetails(message?.data?.order?.owner, message?.data?.order?.dseq)}>{message?.data?.order?.dseq}</Link>}
+        value={<Link href={UrlService.deployment(message?.data?.order?.owner, message?.data?.order?.dseq)}>{message?.data?.order?.dseq}</Link>}
       />
       <LabelValue label="gseq" value={message?.data?.order?.gseq} />
       <LabelValue label="oseq" value={message?.data?.order?.oseq} />
