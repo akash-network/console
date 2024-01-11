@@ -2,14 +2,13 @@
 import React, { useState } from "react";
 import { FormattedNumber } from "react-intl";
 import dynamic from "next/dynamic";
-// import { parseAsync } from "json2csv";
 import { Parser } from "@json2csv/plainjs";
 import { ISnapshotMetadata, Snapshots } from "@/types";
 import { selectedRangeValues } from "@/lib/constants";
 import { useGraphSnapshot } from "@/queries";
 import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download } from "iconoir-react";
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { DiffNumber } from "@/components/DiffNumber";
 import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";

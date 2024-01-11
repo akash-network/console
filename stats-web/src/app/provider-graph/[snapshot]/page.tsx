@@ -6,7 +6,7 @@ import { urlParamToProviderSnapshot } from "@/lib/snapshotsUrlHelpers";
 import PageContainer from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { UrlService } from "@/lib/urlUtils";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "iconoir-react";
 import GraphContainer from "./GraphContainer";
 
 export interface IGraphProps {

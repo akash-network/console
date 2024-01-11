@@ -3,7 +3,7 @@ import React, { ReactNode, useState } from "react";
 import { useToast } from "./ui/use-toast";
 import { copyTextToClipboard } from "@/lib/copyClipboard";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { Copy } from "lucide-react";
+import { Copy } from "iconoir-react";
 import { cn } from "@/lib/utils";
 
 type Props = {

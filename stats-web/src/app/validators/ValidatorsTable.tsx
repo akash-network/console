@@ -3,7 +3,6 @@ import React from "react";
 import { useValidators } from "@/queries";
 import { DataTable } from "@/components/table/data-table";
 import { columns } from "./columns";
-import { SearchX } from "lucide-react";
 
 interface IProps {}
 

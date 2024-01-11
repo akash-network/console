@@ -6,7 +6,7 @@ import { AKTAmount } from "@/components/AKTAmount";
 import React from "react";
 import { useQRCode } from "next-qrcode";
 import { customColors } from "@/lib/colors";
-import { QrCode } from "lucide-react";
+import { QrCode } from "iconoir-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Address } from "@/components/Address";
 import { Separator } from "@/components/ui/separator";

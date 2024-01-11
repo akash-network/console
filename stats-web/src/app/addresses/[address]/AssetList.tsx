@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FormattedDecimal } from "@/components/FormattedDecimal";
 import { getSplitText } from "@/hooks/useShortText";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle } from "iconoir-react";
 import { MdMoneyOff } from "react-icons/md";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";

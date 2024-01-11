@@ -3,10 +3,9 @@ import React from "react";
 import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, GraphUp } from "iconoir-react";
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { DiffNumber } from "@/components/DiffNumber";
-import { LineChart } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface IStatsCardProps {
@@ -37,7 +36,7 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({
         {tooltip && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <HelpCircle size="1rem" className="ml-4 text-muted-foreground" />
+              <HelpCircle className="ml-2 text-xs text-muted-foreground" />
             </TooltipTrigger>
             <TooltipContent>{tooltip}</TooltipContent>
           </Tooltip>
@@ -45,7 +44,7 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({
       </CardHeader>
       <CardContent className="pl-4 pr-4">
         <div className="flex items-end">
-          <div className="leading-6 text-2xl font-bold">{number}</div>
+          <div className="text-2xl font-bold leading-6">{number}</div>
 
           {(!!diffNumber || !!diffPercent) && (
             <div className="inline-flex items-end">
@@ -66,7 +65,7 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({
           <Link href={graphPath} className="w-full">
             <Button aria-label="graph" size="sm" className="w-full rounded-t-[0px] text-sm" variant="secondary">
               <span className="mr-2">Graph</span>
-              <LineChart size="1rem" />
+              <GraphUp className="text-xs" />
             </Button>
           </Link>
 

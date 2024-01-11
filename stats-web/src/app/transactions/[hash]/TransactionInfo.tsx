@@ -9,7 +9,7 @@ import { AKTAmount } from "@/components/AKTAmount";
 import React from "react";
 import { AddressLink } from "@/components/AddressLink";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { LucideAlertTriangle } from "lucide-react";
+import { WarningCircle } from "iconoir-react";
 
 interface IProps {
   transaction: TransactionDetail;
@@ -57,7 +57,7 @@ export function TransactionInfo({ transaction }: IProps) {
 
         {transaction.error && (
           <Alert variant="destructive">
-            <LucideAlertTriangle className="h-4 w-4" />
+            <WarningCircle className="h-4 w-4" />
             <AlertTitle>Error</AlertTitle>
             <AlertDescription>{transaction.error}</AlertDescription>
           </Alert>

@@ -2,14 +2,13 @@
 import React, { useState } from "react";
 import { FormattedNumber } from "react-intl";
 import dynamic from "next/dynamic";
-// import { parseAsync } from "json2csv";
 import { Parser } from "@json2csv/plainjs";
 import { ProviderSnapshots } from "@/types";
 import { selectedRangeValues } from "@/lib/constants";
 import { useProviderGraphSnapshot } from "@/queries";
 import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download } from "iconoir-react";
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { DiffNumber } from "@/components/DiffNumber";
 import { percIncrease } from "@/lib/mathHelpers";
@@ -79,7 +78,7 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
                 &nbsp;{metric.unit ? `${metric.unit} ` : ""}
                 <DiffPercentageChip value={percIncrease(snapshotData.compareValue, snapshotData.currentValue)} size="medium" className="ml-2" />
                 &nbsp;
-                <DiffNumber value={metricDiff.modifiedValue || metricDiff.value} unit={metricDiff.unit} className="text-sm font-light whitespace-nowrap" />
+                <DiffNumber value={metricDiff.modifiedValue || metricDiff.value} unit={metricDiff.unit} className="whitespace-nowrap text-sm font-light" />
               </h3>
             </div>
 
