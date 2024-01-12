@@ -24,7 +24,7 @@ export function MobileNav() {
         <span className="sr-only">Toggle Menu</span>
       </Button>
 
-      <Drawer open={isOpen} onClose={toggleDrawer} direction="left" className="!bg-background p-4">
+      <Drawer open={isOpen} onClose={toggleDrawer} direction="left" className="!bg-background p-4" customIdSuffix="mobile-drawer">
         {theme === "light" ? <AkashConsoleLightLogo className="h-[25px] w-full" /> : <AkashConsoleDarkLogo className="h-[25px] w-full" />}
 
         <div className="flex h-[100%] flex-col items-center justify-between pb-8 pt-4">
