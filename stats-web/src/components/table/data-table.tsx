@@ -37,6 +37,7 @@ interface DataTableProps<TData, TValue> {
   noResultsText?: string;
   hasRowSelection?: boolean;
   initialPageSize?: number;
+  hasStatusFilter?: boolean;
   onColumnFiltersChange?: (columnFilters: ColumnFiltersState) => void;
   onColumnSortingChange?: (sorting: SortingState) => void;
   setPageSize?: (pageSize: number) => void;
@@ -53,6 +54,7 @@ export function DataTable<TData, TValue>({
   isLoading,
   noResultsText,
   hasRowSelection,
+  hasStatusFilter,
   initialPageSize = 10,
   onColumnFiltersChange,
   onColumnSortingChange,
@@ -98,8 +100,6 @@ export function DataTable<TData, TValue>({
     // TODO fix typing
     const nextState = (updater as any)(pagination);
 
-    console.log(nextState.pageIndex, nextState.pageSize);
-
     setPageIndex && setPageIndex(nextState.pageIndex);
     setPageSize && setPageSize(nextState.pageSize);
 
@@ -130,7 +130,7 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-4">
-      <DataTableToolbar table={table} />
+      <DataTableToolbar table={table} hasStatusFilter={hasStatusFilter} />
       <div className="rounded-md border">
         <Table>
           <TableHeader>

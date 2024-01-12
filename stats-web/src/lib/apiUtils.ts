@@ -40,16 +40,6 @@ export class ApiUrlService {
     return `${BASE_API_URL}/getNetworkCapacity`;
   }
 
-  // Github files
-  static mainnetNodes() {
-    return `${BASE_API_URL}/getMainnetNodes`;
-  }
-  static testnetNodes() {
-    return `${BASE_API_URL}/getTestnetNodes`;
-  }
-  static sandboxNodes() {
-    return `${BASE_API_URL}/getSandboxNodes`;
-  }
   static mainnetVersion() {
     return `${BASE_API_URL}/getMainnetVersion`;
   }

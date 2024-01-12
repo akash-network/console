@@ -1,5 +1,3 @@
-// import { Network } from "@src/types/network";
-// import { ApiUrlService } from "@src/utils/apiUtils";
 import { ApiUrlService } from "@/lib/apiUtils";
 import { mainnetId, sandboxId, testnetId } from "@/lib/constants";
 import { Network } from "@/types/network";
