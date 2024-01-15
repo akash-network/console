@@ -10,9 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { LeaseSpecDetail } from "@/components/LeaseSpecDetail";
 import { roundDecimal } from "@/lib/mathHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
-import { cn } from "@/lib/utils";
 
-export const transactionRowSchema = z.object({
+export const deploymentRowSchema = z.object({
   dseq: z.string(),
   owner: z.string(),
   status: z.string(),
@@ -22,9 +21,9 @@ export const transactionRowSchema = z.object({
   memoryQuantity: z.number(),
   storageQuantity: z.number()
 });
-export type TransactionRowType = z.infer<typeof transactionRowSchema>;
+export type DeploymentRowType = z.infer<typeof deploymentRowSchema>;
 
-export const columns: AccessorColumnDef<TransactionRowType>[] = [
+export const columns: AccessorColumnDef<DeploymentRowType>[] = [
   {
     accessorKey: "dseq",
     header: ({ column }) => <DataTableColumnHeader column={column} title="DSEQ" />,

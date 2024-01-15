@@ -6,7 +6,7 @@ import { TransactionsTable } from "./TransactionsTable";
 type Props = {};
 
 export const metadata: Metadata = {
-  title: "Transasctions"
+  title: "Transactions"
 };
 
 const TransactionsPage: React.FunctionComponent<Props> = ({}) => {
