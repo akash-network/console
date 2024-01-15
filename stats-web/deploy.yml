@@ -1,0 +1,41 @@
+---
+version: "2.0"
+
+services:
+  web:
+    image: baktun/akash-stats:<version>
+    env:
+#      - API_BASE_URL=<API_URL_OVERRIDE>
+#      - NEXT_PUBLIC_GA_MEASUREMENT_ID=<GA_MEASUREMENT_ID>
+#      - NEXT_PUBLIC_SENTRY_DSN=<SENTRY_DSN>
+#      - NEXT_PUBLIC_SENTRY_SERVER_NAME=<SERVER_NAME>
+      - MAINTENANCE_MODE=false
+    expose:
+      - port: 3001
+        as: 80
+        accept:
+          - stats.akash.network
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 500mi
+        storage:
+          size: 500mi
+  placement:
+    dcloud:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+
+deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1
