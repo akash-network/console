@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getProviderDeployments } from "@src/db/deploymentProvider";
+import { getProviderDeployments, getProviderDeploymentsCount } from "@src/db/deploymentProvider";
 import { openApiExampleProviderAddress } from "@src/utils/constants";
 
 const route = createRoute({
@@ -90,7 +90,13 @@ export default new OpenAPIHono().openapi(route, async (c) => {
     return c.text(`Invalid status filter: "${statusParam}". Valid values are "active" and "closed".`, 400);
   }
 
-  const deployments = await getProviderDeployments(c.req.valid("param").provider, skip, limit, statusParam);
+  const deploymentCountQuery = getProviderDeploymentsCount(c.req.valid("param").provider, statusParam);
+  const deploymentsQuery = getProviderDeployments(c.req.valid("param").provider, skip, limit, statusParam);
 
-  return c.json(deployments);
+  const [deploymentCount, deployments] = await Promise.all([deploymentCountQuery, deploymentsQuery]);
+
+  return c.json({
+    total: deploymentCount,
+    deployments: deployments
+  });
 });

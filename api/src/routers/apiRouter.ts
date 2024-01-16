@@ -1,9 +1,7 @@
 import express from "express";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import asyncHandler from "express-async-handler";
 import { swaggerUI } from "@hono/swagger-ui";
 import routesV1 from "../routes/v1";
-import { getProviderDeployments, getProviderDeploymentsCount } from "@src/db/deploymentProvider";
 
 export const apiRouter = express.Router();
 
@@ -33,27 +31,3 @@ function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRou
 }
 
 registerApiVersion("v1", apiRouterHono, routesV1);
-
-apiRouter.get(
-  "/providers/:provider/deployments/:skip/:limit/:status?",
-  asyncHandler(async (req, res) => {
-    const skip = parseInt(req.params.skip);
-    const limit = Math.min(100, parseInt(req.params.limit));
-    const statusParam = req.params.status as "active" | "closed" | undefined;
-
-    if (statusParam && statusParam !== "active" && statusParam !== "closed") {
-      res.status(400).send(`Invalid status filter: "${statusParam}". Valid values are "active" and "closed".`);
-      return;
-    }
-
-    const deploymentCountQuery = getProviderDeploymentsCount(req.params.provider, statusParam);
-    const deploymentsQuery = getProviderDeployments(req.params.provider, skip, limit, statusParam);
-
-    const [deploymentCount, deployments] = await Promise.all([deploymentCountQuery, deploymentsQuery]);
-
-    res.send({
-      total: deploymentCount,
-      deployments: deployments
-    });
-  })
-);
