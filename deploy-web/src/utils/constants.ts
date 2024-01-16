@@ -29,11 +29,11 @@ const productionSandboxApiUrl = "https://api-sandbox.cloudmos.io";
 
 export const isProd = process.env.NODE_ENV === "production";
 export const isMaintenanceMode = process.env.MAINTENANCE_MODE === "true";
-export const BASE_API_MAINNET_URL = getApiMainnetUrl();
-export const BASE_API_TESTNET_URL = getApiTestnetUrl();
-export const BASE_API_SANDBOX_URL = getApiSandboxUrl();
+export const BASE_API_MAINNET_URL = getApiMainnetUrl() + "/v1";
+export const BASE_API_TESTNET_URL = getApiTestnetUrl() + "/v1";
+export const BASE_API_SANDBOX_URL = getApiSandboxUrl() + "/v1";
 
-export const BASE_API_URL = getApiUrl();
+export const BASE_API_URL = getApiUrl() + "/v1";
 
 export function getNetworkBaseApiUrl(network: string) {
   switch (network) {
