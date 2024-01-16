@@ -58,11 +58,16 @@ const moduleExports = {
         destination: "https://stats.akash.network",
         permanent: false
       },
-      // {
-      //   source: "/analytics",
-      //   destination: "https://stats.akash.network",
-      //   permanent: false
-      // }
+      {
+        source: "/graph/active-deployment",
+        destination: "https://stats.akash.network/graph/active-leases",
+        permanent: false
+      },
+      {
+        source: "/graph/:path*",
+        destination: "https://stats.akash.network/graph/:path*",
+        permanent: false
+      }
     ];
   }
 };
@@ -86,4 +91,3 @@ const sentryWebpackPluginOptions = {
 // ensure that your source maps include changes from all other Webpack plugins
 module.exports = withBundleAnalyzer(withPWA(withSentryConfig(moduleExports, sentryWebpackPluginOptions)));
 // module.exports = moduleExports
-
