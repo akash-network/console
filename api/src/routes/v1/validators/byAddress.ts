@@ -10,7 +10,6 @@ const route = createRoute({
   request: {
     params: z.object({
       address: z.string().openapi({
-        param: { name: "address", in: "path" },
         description: "Validator Address",
         example: "akashvaloper14mt78hz73d9tdwpdvkd59ne9509kxw8yj7qy8f"
       })

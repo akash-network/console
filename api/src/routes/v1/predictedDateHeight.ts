@@ -11,18 +11,14 @@ const route = createRoute({
   tags: ["Blocks"],
   request: {
     params: z.object({
-      timestamp: z.string().openapi({ param: { name: "timestamp", in: "path" }, type: "number", description: "Unix Timestamp", example: "1704392968" })
+      timestamp: z.string().openapi({ type: "number", description: "Unix Timestamp", example: "1704392968" })
     }),
     query: z.object({
-      blockWindow: z
-        .string()
-        .optional()
-        .openapi({
-          param: { name: "blockWindow", in: "query" },
-          description: "Block window",
-          example: defaultBlockWindow.toString(),
-          default: defaultBlockWindow.toString()
-        })
+      blockWindow: z.string().optional().openapi({
+        description: "Block window",
+        example: defaultBlockWindow.toString(),
+        default: defaultBlockWindow.toString()
+      })
     })
   },
   responses: {

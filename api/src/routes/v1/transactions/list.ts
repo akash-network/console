@@ -11,7 +11,6 @@ const route = createRoute({
   request: {
     query: z.object({
       limit: z.string().openapi({
-        param: { name: "limit", in: "query" },
         type: "number",
         minimum: 1,
         maximum: 100,

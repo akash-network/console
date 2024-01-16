@@ -10,7 +10,6 @@ const route = createRoute({
   request: {
     params: z.object({
       owner: z.string().openapi({
-        param: { name: "owner", in: "path" },
         description: "Owner's Address",
         example: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm"
       }),
@@ -18,7 +17,6 @@ const route = createRoute({
         .string()
         .optional()
         .openapi({
-          param: { name: "dseq", in: "path" },
           description: "Deployment DSEQ",
           example: "1000000"
         })

@@ -8,7 +8,6 @@ const route = createRoute({
   request: {
     params: z.object({
       id: z.string().openapi({
-        param: { name: "id", in: "path" },
         description: "Proposal ID",
         example: "1"
       })

@@ -10,7 +10,6 @@ const route = createRoute({
   request: {
     params: z.object({
       address: z.string().openapi({
-        param: { name: "address", in: "path" },
         description: "Wallet Address",
         example: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm"
       }),
@@ -18,7 +17,6 @@ const route = createRoute({
         .string()
         .optional()
         .openapi({
-          param: { name: "skip", in: "path" },
           description: "Transactions to skip",
           example: "10"
         }),
@@ -26,9 +24,8 @@ const route = createRoute({
         .string()
         .optional()
         .openapi({
-          param: { name: "limit", in: "path" },
           description: "Transactions to return",
-          example: "10"
+          example: "10",
         })
     })
   },

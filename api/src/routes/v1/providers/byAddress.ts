@@ -9,7 +9,6 @@ const route = createRoute({
   request: {
     params: z.object({
       address: z.string().openapi({
-        param: { name: "address", in: "path" },
         description: "Provider Address",
         example: "akash18ga02jzaq8cw52anyhzkwta5wygufgu6zsz6xc"
       })

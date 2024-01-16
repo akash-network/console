@@ -9,17 +9,14 @@ const route = createRoute({
   request: {
     params: z.object({
       provider: z.string().openapi({
-        param: { name: "provider", in: "path" },
         description: "Provider Address",
         example: "akash18ga02jzaq8cw52anyhzkwta5wygufgu6zsz6xc"
       }),
       skip: z.string().openapi({
-        param: { name: "skip", in: "path" },
         description: "Deployments to skip",
         example: "10"
       }),
       limit: z.string().openapi({
-        param: { name: "limit", in: "path" },
         description: "Deployments to return",
         example: "10"
       }),
@@ -27,7 +24,6 @@ const route = createRoute({
         .string()
         .optional()
         .openapi({
-          param: { name: "status", in: "path" },
           description: "Filter by status", // TODO: Set possible statuses?
           example: "closed"
         })

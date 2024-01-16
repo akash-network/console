@@ -10,7 +10,6 @@ const route = createRoute({
   request: {
     params: z.object({
       height: z.string().openapi({
-        param: { name: "height", in: "path" },
         description: "Block Height",
         example: "12121212"
       })
