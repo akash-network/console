@@ -1,5 +1,4 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getTransactions } from "@src/db/transactionsProvider";
 import { getValidators } from "@src/providers/apiNodeProvider";
 
 const route = createRoute({

@@ -1,6 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { getAddressBalance } from "@src/providers/apiNodeProvider";
 import { isValidBech32Address } from "@src/utils/addresses";
+import { openApiExampleAddress } from "@src/utils/constants";
 
 const route = createRoute({
   method: "get",
@@ -10,8 +11,8 @@ const route = createRoute({
   request: {
     params: z.object({
       address: z.string().openapi({
-        description: "Wallet Address",
-        example: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm"
+        description: "Account Address",
+        example: openApiExampleAddress
       })
     })
   },
@@ -68,25 +69,24 @@ const route = createRoute({
             commission: z.number(),
             latestTransactions: z.array(
               z.object({
-                // TODO
-                //   property) results: {
-                //     height: number;
-                //     datetime: Date;
-                //     hash: string;
-                //     isSuccess: boolean;
-                //     error: string;
-                //     gasUsed: number;
-                //     gasWanted: number;
-                //     fee: number;
-                //     memo: string;
-                //     isSigner: boolean;
-                //     messages: {
-                //         id: string;
-                //         type: string;
-                //         amount: number;
-                //         isReceiver: boolean;
-                //     }[];
-                // }[]
+                height: z.number(),
+                datetime: z.string(),
+                hash: z.string(),
+                isSuccess: z.boolean(),
+                error: z.string().nullable(),
+                gasUsed: z.number(),
+                gasWanted: z.number(),
+                fee: z.number(),
+                memo: z.string().nullable(),
+                isSigner: z.boolean(),
+                messages: z.array(
+                  z.object({
+                    id: z.string(),
+                    type: z.string(),
+                    amount: z.number(),
+                    isReceiver: z.boolean()
+                  })
+                )
               })
             )
           })

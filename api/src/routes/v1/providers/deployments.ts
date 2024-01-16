@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { getProviderDeployments } from "@src/db/deploymentProvider";
+import { openApiExampleProviderAddress } from "@src/utils/constants";
 
 const route = createRoute({
   method: "get",
@@ -10,7 +11,7 @@ const route = createRoute({
     params: z.object({
       provider: z.string().openapi({
         description: "Provider Address",
-        example: "akash18ga02jzaq8cw52anyhzkwta5wygufgu6zsz6xc"
+        example: openApiExampleProviderAddress
       }),
       skip: z.string().openapi({
         description: "Deployments to skip",
@@ -20,13 +21,10 @@ const route = createRoute({
         description: "Deployments to return",
         example: "10"
       }),
-      status: z
-        .string()
-        .optional()
-        .openapi({
-          description: "Filter by status", // TODO: Set possible statuses?
-          example: "closed"
-        })
+      status: z.string().optional().openapi({
+        description: "Filter by status", // TODO: Set possible statuses?
+        example: "closed"
+      })
     })
   },
   responses: {

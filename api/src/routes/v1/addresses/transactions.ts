@@ -1,6 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { getTransactionByAddress } from "@src/db/transactionsProvider";
 import { isValidBech32Address } from "@src/utils/addresses";
+import { openApiExampleAddress } from "@src/utils/constants";
 
 const route = createRoute({
   method: "get",
@@ -11,22 +12,16 @@ const route = createRoute({
     params: z.object({
       address: z.string().openapi({
         description: "Wallet Address",
-        example: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm"
+        example: openApiExampleAddress
       }),
-      skip: z
-        .string()
-        .optional()
-        .openapi({
-          description: "Transactions to skip",
-          example: "10"
-        }),
-      limit: z
-        .string()
-        .optional()
-        .openapi({
-          description: "Transactions to return",
-          example: "10",
-        })
+      skip: z.string().openapi({
+        description: "Transactions to skip",
+        example: "10"
+      }),
+      limit: z.string().openapi({
+        description: "Transactions to return",
+        example: "10"
+      })
     })
   },
   responses: {

@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { getProviderDetail } from "@src/providers/providerStatusProvider";
+import { openApiExampleProviderAddress } from "@src/utils/constants";
 
 const route = createRoute({
   method: "get",
@@ -10,7 +11,7 @@ const route = createRoute({
     params: z.object({
       address: z.string().openapi({
         description: "Provider Address",
-        example: "akash18ga02jzaq8cw52anyhzkwta5wygufgu6zsz6xc"
+        example: openApiExampleProviderAddress
       })
     })
   },

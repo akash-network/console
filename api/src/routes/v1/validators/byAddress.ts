@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getTransaction } from "@src/db/transactionsProvider";
 import { getValidator } from "@src/providers/apiNodeProvider";
 import { isValidBech32Address } from "@src/utils/addresses";
+import { openApiExampleValidatorAddress } from "@src/utils/constants";
 
 const route = createRoute({
   method: "get",
@@ -11,7 +11,7 @@ const route = createRoute({
     params: z.object({
       address: z.string().openapi({
         description: "Validator Address",
-        example: "akashvaloper14mt78hz73d9tdwpdvkd59ne9509kxw8yj7qy8f"
+        example: openApiExampleValidatorAddress
       })
     })
   },

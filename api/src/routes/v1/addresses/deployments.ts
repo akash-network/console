@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { getAddressDeployments } from "@src/providers/apiNodeProvider";
+import { openApiExampleAddress } from "@src/utils/constants";
 
 const route = createRoute({
   method: "get",
@@ -10,24 +11,16 @@ const route = createRoute({
     params: z.object({
       address: z.string().openapi({
         description: "Wallet Address",
-        example: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm"
+        example: openApiExampleAddress
       }),
-      skip: z
-        .string()
-        .optional()
-        .openapi({
-          param: { name: "skip", in: "path" },
-          description: "Deployments to skip",
-          example: "10"
-        }),
-      limit: z
-        .string()
-        .optional()
-        .openapi({
-          param: { name: "limit", in: "path" },
-          description: "Deployments to return",
-          example: "10"
-        })
+      skip: z.string().openapi({
+        description: "Deployments to skip",
+        example: "10"
+      }),
+      limit: z.string().openapi({
+        description: "Deployments to return",
+        example: "10"
+      })
     }),
     query: z.object({
       status: z

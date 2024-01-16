@@ -393,7 +393,7 @@ export async function getDeployment(owner: string, dseq: string) {
   };
 }
 
-export async function getAddressDeployments(owner: string, skip: number, limit: number, reverseSorting: boolean, filters: { [key: string]: string } = {}) {
+export async function getAddressDeployments(owner: string, skip: number, limit: number, reverseSorting: boolean, filters: { status?: string } = {}) {
   const response = await axios.get(`${apiNodeUrl}/akash/deployment/${betaTypeVersion}/deployments/list`, {
     params: {
       "filters.owner": owner,
