@@ -4,6 +4,15 @@
   white-space: nowrap;
 }
 
+.leap-elements h2 {
+  font-weight: 900;
+  font-size: 1rem;
+}
+
+[data-floating-ui-portal] > div {
+  z-index: 1500 !important;
+}
+
 .markdownContainer table th,
 .markdownContainer table td {
   padding: 6px 13px;
@@ -52,3 +61,4 @@
   background-color: rgba(175, 184, 193, 0.2);
   border-radius: 6px;
 }
+

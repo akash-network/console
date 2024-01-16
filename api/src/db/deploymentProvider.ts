@@ -70,6 +70,19 @@ export async function getDeploymentRelatedMessages(owner: string, dseq: string) 
   }));
 }
 
+export async function getProviderDeploymentsCount(provider: string, status?: "active" | "closed") {
+  let leaseFilter = { providerAddress: provider };
+  if (status) {
+    leaseFilter["closedHeight"] = status === "active" ? null : { [Op.ne]: null };
+  }
+
+  const result = await Deployment.count({
+    include: [{ model: Lease, attributes: [], required: true, where: leaseFilter }]
+  });
+
+  return result;
+}
+
 export async function getProviderDeployments(provider: string, skip: number, limit: number, status?: "active" | "closed") {
   const leaseFilter = { providerAddress: provider };
 

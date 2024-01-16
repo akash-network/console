@@ -6,10 +6,11 @@ import { getTransactionByAddress } from "@src/db/transactionsProvider";
 import axios from "axios";
 import { Validator } from "@shared/dbSchemas/base";
 import { Op } from "sequelize";
-import { Provider, ProviderAttribute } from "@shared/dbSchemas/akash";
+import { Deployment, Lease, Provider, ProviderAttribute } from "@shared/dbSchemas/akash";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { env } from "@src/utils/env";
 import { RestDeploymentInfoResponse, RestLeaseListResponse } from "@src/types/rest";
+import { Block } from "@shared/dbSchemas";
 
 const defaultNodeUrlMapping = {
   mainnet: "https://rest.cosmos.directory/akash",
@@ -323,8 +324,29 @@ export async function getDeployment(owner: string, dseq: string) {
     `${apiNodeUrl}/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${owner}&filters.dseq=${dseq}&pagination.limit=1000`
   );
   const relatedMessagesQuery = getDeploymentRelatedMessages(owner, dseq);
+  const dbDeploymentQuery = Deployment.findOne({
+    attributes: ["createdHeight", "closedHeight"],
+    where: { owner: owner, dseq: dseq },
+    include: [
+      { model: Block, attributes: ["datetime"], as: "createdBlock" },
+      { model: Block, attributes: ["datetime"], as: "closedBlock" },
+      {
+        model: Lease,
+        attributes: ["createdHeight", "closedHeight", "gseq", "oseq"],
+        include: [
+          { model: Block, attributes: ["datetime"], as: "createdBlock" },
+          { model: Block, attributes: ["datetime"], as: "closedBlock" }
+        ]
+      }
+    ]
+  });
 
-  const [deploymentResponse, leasesResponse, relatedMessages] = await Promise.all([deploymentQuery, leasesQuery, relatedMessagesQuery]);
+  const [deploymentResponse, leasesResponse, relatedMessages, dbDeployment] = await Promise.all([
+    deploymentQuery,
+    leasesQuery,
+    relatedMessagesQuery,
+    dbDeploymentQuery
+  ]);
 
   if (deploymentResponse.status === 404) {
     return null;
@@ -356,10 +378,15 @@ export async function getDeployment(owner: string, dseq: string) {
   const leases = leasesData.leases.map((x) => {
     const provider = providers.find((p) => p.owner === x.lease.lease_id.provider);
     const group = deploymentData.groups.find((g) => g.group_id.gseq === x.lease.lease_id.gseq);
+    const dbLease = dbDeployment?.leases.find((l) => l.gseq === x.lease.lease_id.gseq && l.oseq === x.lease.lease_id.oseq);
 
     return {
       gseq: x.lease.lease_id.gseq,
       oseq: x.lease.lease_id.oseq,
+      createdHeight: dbLease?.createdHeight,
+      createdDate: dbLease?.createdBlock?.datetime,
+      closedHeight: dbLease?.closedHeight,
+      closedDate: dbLease?.closedBlock?.datetime,
       provider: {
         address: provider.owner,
         hostUri: provider.hostUri,
@@ -386,6 +413,10 @@ export async function getDeployment(owner: string, dseq: string) {
     balance: parseFloat(deploymentData.escrow_account.balance.amount),
     denom: deploymentDenom,
     status: deploymentData.deployment.state,
+    createdHeight: dbDeployment?.createdHeight,
+    createdDate: dbDeployment?.createdBlock?.datetime,
+    closedHeight: dbDeployment?.closedHeight,
+    closedDate: dbDeployment?.closedBlock?.datetime,
     totalMonthlyCostUDenom: leases.map((x) => x.monthlyCostUDenom).reduce((a, b) => a + b, 0),
     leases: leases,
     events: relatedMessages || [],

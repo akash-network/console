@@ -48,13 +48,13 @@ const IndexPage: React.FunctionComponent<Props> = ({}) => {
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
 
   useEffect(() => {
-    if (address) {
+    if (address && isSettingsInit) {
       getBalances();
       getLeases();
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address]);
+  }, [address, isSettingsInit]);
 
   useEffect(() => {
     if (isWalletLoaded && isSettingsInit) {
@@ -99,4 +99,3 @@ export async function getServerSideProps() {
 }
 
 export default IndexPage;
-

@@ -38,7 +38,7 @@ const useStyles = makeStyles()(theme => ({
 export const WalletStatus: React.FunctionComponent<Props> = ({}) => {
   const popupState = usePopupState({ variant: "popover", popupId: "walletMenu" });
   const { classes } = useStyles();
-  const { isWalletConnected, walletName, address, walletBalances, logout, isWalletLoaded } = useWallet();
+  const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected } = useWallet();
   const walletBalance = useTotalWalletBalance();
   const router = useRouter();
 

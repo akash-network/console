@@ -1,12 +1,13 @@
 import React, { useCallback, useMemo } from "react";
-import { LiquidityModal as LeapLiquidityModal, Tabs, TxnSummary, defaultZIndices, defaultBlurs } from "@leapwallet/elements";
-import type { ThemeDefinition, WalletClient, TabsConfig, AssetSelector, AllowedDestinationChainConfig } from "@leapwallet/elements";
+import { LiquidityModal as LeapLiquidityModal, Tabs, TxnSummary, defaultBlurs, useInitCachingLayer, AsyncIDBStorage } from "@leapwallet/elements";
+import type { ThemeDefinition, WalletClient, AssetSelector, AllowedDestinationChainConfig, TabsConfig } from "@leapwallet/elements";
 import type { StdSignDoc } from "@cosmjs/amino";
 import type { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { useWallet } from "@src/context/WalletProvider";
 import Button from "@mui/material/Button";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { useSelectedChain } from "@src/context/CustomChainProvider";
 
 const theme: ThemeDefinition = {
   colors: {
@@ -31,14 +32,14 @@ const theme: ThemeDefinition = {
     modalOverlay: "1200"
   },
   borderRadii: {
-    actionButton: "0.5rem",
-    connectWalletButton: "0.25rem",
+    actionButton: "1rem",
+    connectWalletButton: "0.5rem",
     logo: "99rem",
-    modalBody: "0.5rem",
-    primary: "0.5rem",
-    secondary: "0.25rem",
+    modalBody: "0.75rem",
+    primary: "0.6rem",
+    secondary: "0.3rem",
     selector: "99rem",
-    tabBody: "0.25rem",
+    tabBody: "0.5rem",
     tabButton: "0.25rem"
   },
   blurs: defaultBlurs,
@@ -68,6 +69,7 @@ const allowedDestinationChains: AllowedDestinationChainConfig[] = [
 
 const tabsConfig: TabsConfig = {
   [Tabs.SWAP]: {
+    title: "Cosmos Swaps",
     allowedDestinationChains,
     defaults: {
       sourceChainId: osmosisChainId,
@@ -76,11 +78,15 @@ const tabsConfig: TabsConfig = {
     }
   },
   [Tabs.CROSS_CHAIN_SWAPS]: {
+    title: "EVM Bridge",
     allowedDestinationChains,
     defaults: {
       destinationChainId: akashnetChainId,
       destinationAssetSelector: aktSelector
     }
+  },
+  [Tabs.BRIDGE_USDC]: {
+    enabled: false
   },
   [Tabs.TRANSFER]: {
     enabled: false
@@ -106,31 +112,43 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
   );
 };
 
-export const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ address, aktBalance, refreshBalances }) => {
-  const { isLeapInstalled, isKeplrInstalled, isWalletConnected } = useWallet();
+function getWindowWallet(extensionName: string) {
+  switch (extensionName) {
+    case "leap-extension":
+      return window.leap;
+    case "keplr-extension":
+      return window.keplr;
+  }
+
+  return null;
+}
+
+const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ address, aktBalance, refreshBalances }) => {
+  useInitCachingLayer(AsyncIDBStorage);
+
+  const { isWalletConnected } = useWallet();
+  const { wallet } = useSelectedChain();
+  const walletExt = getWindowWallet(wallet?.name);
 
   const handleConnectWallet = useCallback(
     (chainId?: string) => {
-      if (!isWalletConnected) {
-        if (isLeapInstalled) {
-          return window.wallet.enable(chainId);
-        } else if (isKeplrInstalled) {
-          return window.keplr.enable(chainId);
-        } else {
-          throw new Error("No wallet installed");
-        }
+      if (!isWalletConnected && walletExt) {
+        return walletExt.enable(chainId);
       }
     },
-    [isWalletConnected, isLeapInstalled, isKeplrInstalled]
+    [isWalletConnected, walletExt]
   );
 
   const walletClient: WalletClient = {
     enable: (chainIds: string | string[]) => {
-      return window.wallet.enable(chainIds);
+      if (!walletExt) throw "Wallet extension not found";
+      return walletExt.enable(chainIds);
     },
     getAccount: async (chainId: string) => {
-      await window.wallet.enable(chainId);
-      const walletKey = await window.wallet.getKey?.(chainId);
+      if (!walletExt) throw "Wallet extension not found";
+
+      await walletExt.enable(chainId);
+      const walletKey = await walletExt.getKey?.(chainId);
       if (!walletKey) {
         throw new Error("Failed to get connected wallet information");
       }
@@ -142,7 +160,8 @@ export const LiquidityModal: React.FC<{ address: string; aktBalance: number; ref
     },
     // @ts-expect-error Due to some issue with the `Long` type for accountNumber in the signed object
     getSigner: async (chainId: string) => {
-      const offlineSigner = await window.wallet.getOfflineSigner(chainId);
+      if (!walletExt) throw "Wallet extension not found";
+      const offlineSigner = walletExt.getOfflineSigner(chainId);
       if (!offlineSigner) {
         throw new Error("Failed to get connected wallet signer");
       }
@@ -200,13 +219,18 @@ export const LiquidityModal: React.FC<{ address: string; aktBalance: number; ref
 
   return (
     <>
-      <LeapLiquidityModal
-        theme={theme}
-        walletClientConfig={walletClientConfig}
-        onTxnComplete={handleTxnComplete}
-        config={modalConfig}
-        renderLiquidityButton={ToggleLiquidityModalButton}
-      />
+      {walletExt && (
+        <LeapLiquidityModal
+          theme={theme}
+          walletClientConfig={walletClientConfig}
+          onTxnComplete={handleTxnComplete}
+          config={modalConfig}
+          renderLiquidityButton={ToggleLiquidityModalButton}
+        />
+      )}
     </>
   );
 };
+
+export default LiquidityModal;
+

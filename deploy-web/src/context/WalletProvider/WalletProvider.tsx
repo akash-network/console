@@ -2,11 +2,9 @@ import React, { useRef } from "react";
 import { useState, useEffect } from "react";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { uAktDenom } from "@src/utils/constants";
-import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useSnackbar } from "notistack";
 import { Snackbar } from "@src/components/shared/Snackbar";
-import { customRegistry } from "@src/utils/customRegistry";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { OpenInNew } from "@mui/icons-material";
 import { useTheme } from "@mui/material";
@@ -19,6 +17,10 @@ import axios from "axios";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { LocalWalletDataType } from "@src/utils/walletUtils";
+import { useSelectedChain } from "../CustomChainProvider";
+import { customRegistry } from "@src/utils/customRegistry";
+import { useManager } from "@cosmos-kit/react";
 
 type Balances = {
   uakt: number;
@@ -29,28 +31,19 @@ type ContextType = {
   address: string;
   walletName: string;
   walletBalances: Balances;
-  isLeapInstalled: boolean;
-  isKeplrInstalled: boolean;
   isWalletConnected: boolean;
   isWalletLoaded: boolean;
-  connectWallet: (walletSource: Wallets) => Promise<void>;
+  connectWallet: () => Promise<void>;
   logout: () => void;
   setIsWalletLoaded: React.Dispatch<React.SetStateAction<boolean>>;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<any>;
   refreshBalances: (address?: string) => Promise<Balances>;
 };
 
-export enum Wallets {
-  KEPLR = "keplr",
-  LEAP = "leap"
-}
-
 const WalletProviderContext = React.createContext<ContextType>({
   address: null,
   walletName: null,
   walletBalances: null,
-  isLeapInstalled: false,
-  isKeplrInstalled: false,
   isWalletConnected: false,
   isWalletLoaded: false,
   connectWallet: null,
@@ -61,103 +54,40 @@ const WalletProviderContext = React.createContext<ContextType>({
 });
 
 export const WalletProvider = ({ children }) => {
-  const [walletAddress, setWalletAddress] = useState<string>(null);
-  const [walletName, setWalletName] = useState<string>(null);
   const [walletBalances, setWalletBalances] = useState<Balances>(null);
-  const [isKeplrInstalled, setIsKeplrInstalled] = useState<boolean>(false);
-  const [isLeapInstalled, setIsLeapInstalled] = useState<boolean>(false);
-  const [isWindowLoaded, setIsWindowLoaded] = useState<boolean>(false);
-  const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(false);
+  const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const isMounted = useRef(true);
   const sigingClient = useRef<SigningStargateClient>(null);
   const router = useRouter();
-  const { settings, isSettingsInit } = useSettings();
+  const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
+  const { disconnect, getOfflineSigner, isWalletConnected, address: walletAddress, connect, username, estimateFee, sign, broadcast } = useSelectedChain();
+  const { addEndpoints } = useManager();
 
   useEffect(() => {
-    if (document.readyState === "complete") {
-      setIsWindowLoaded(true);
-    } else {
-      const onLoad = () => {
-        setIsWindowLoaded(true);
-      };
-      window.addEventListener("load", onLoad);
-      // Remove the event listener when component unmounts
-      return () => window.removeEventListener("load", onLoad);
-    }
-  }, []);
+    if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
+
+    addEndpoints({
+      akash: { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] },
+      "akash-sandbox": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] },
+      "akash-testnet": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] }
+    });
+  }, [settings.apiEndpoint, settings.rpcEndpoint]);
 
   useEffect(() => {
-    isMounted.current = true;
-
-    if (isWindowLoaded && isSettingsInit) {
-      if (!!window.keplr || !!window.leap) {
-        if (!!window.keplr) {
-          setIsKeplrInstalled(true);
-        }
-
-        if (!!window.leap) {
-          setIsLeapInstalled(true);
-        }
-
-        if (localStorage.getItem("wallet_autoconnect")) {
-          const storedWallet = localStorage.getItem("wallet_autoconnect");
-
-          if (storedWallet === Wallets.KEPLR) {
-            window.wallet = window.keplr;
-          } else if (storedWallet === Wallets.LEAP) {
-            window.wallet = window.leap;
-          }
-
-          window.wallet.defaultOptions = {
-            sign: {
-              preferNoSetMemo: true
-            }
-          };
-
-          loadWallet();
-        } else {
-          setIsWalletLoaded(true);
-        }
-
-        const keplrOnKeystoreChange = () => onKeystoreChange(Wallets.KEPLR);
-        const leapOnKeystoreChange = () => onKeystoreChange(Wallets.LEAP);
-        window.addEventListener("keplr_keystorechange", keplrOnKeystoreChange);
-        window.addEventListener("leap_keystorechange", leapOnKeystoreChange);
-
-        return () => {
-          isMounted.current = false;
-
-          window.removeEventListener("keplr_keystorechange", keplrOnKeystoreChange);
-          window.removeEventListener("leap_keystorechange", leapOnKeystoreChange);
-        };
-      } else {
-        setIsWalletLoaded(true);
+    (async () => {
+      if (settings?.rpcEndpoint && isWalletConnected) {
+        sigingClient.current = await createStargateClient();
       }
-    }
-  }, [isWindowLoaded, isSettingsInit]);
-
-  useEffect(() => {
-    if (settings?.rpcEndpoint && sigingClient.current) {
-      sigingClient.current = null;
-    }
-  }, [settings?.rpcEndpoint]);
-
-  const onKeystoreChange = (wallet: Wallets) => {
-    console.log(`Key store in ${wallet} is changed.`);
-
-    loadWallet();
-
-    router.push(UrlService.home());
-  };
+    })();
+  }, [settings?.rpcEndpoint, isWalletConnected]);
 
   async function createStargateClient() {
     const selectedNetwork = getSelectedNetwork();
 
-    const offlineSigner = window.wallet.getOfflineSigner(selectedNetwork.chainId);
+    const offlineSigner = getOfflineSigner();
     let rpc = settings?.rpcEndpoint ? settings?.rpcEndpoint : selectedNetwork.rpcEndpoint;
 
     try {
@@ -185,12 +115,9 @@ export const WalletProvider = ({ children }) => {
     return sigingClient.current;
   }
 
-  function logout(): void {
-    setWalletAddress(null);
-    setWalletName(null);
+  function logout() {
     setWalletBalances(null);
-
-    localStorage.removeItem("wallet_autoconnect");
+    disconnect();
 
     event(AnalyticsEvents.DISCONNECT_WALLET, {
       category: "wallet",
@@ -200,17 +127,9 @@ export const WalletProvider = ({ children }) => {
     router.push(UrlService.home());
   }
 
-  async function connectWallet(walletSource: Wallets): Promise<void> {
-    console.log(`connecting to ${walletSource}`);
-
-    window.wallet = window[walletSource];
-    const selectedNetwork = getSelectedNetwork();
-
-    if (selectedNetwork.suggestWalletChain) {
-      await selectedNetwork.suggestWalletChain();
-    }
-
-    await window.wallet.enable(selectedNetwork.chainId);
+  async function connectWallet() {
+    console.log("Connecting wallet with CosmosKit...");
+    connect();
 
     await loadWallet();
 
@@ -218,48 +137,34 @@ export const WalletProvider = ({ children }) => {
       category: "wallet",
       label: "Connect wallet"
     });
-
-    localStorage.setItem("wallet_autoconnect", walletSource);
   }
 
-  async function loadWallet(): Promise<void> {
-    let wallet = null;
-    let selectedNetwork = null;
-    try {
-      selectedNetwork = getSelectedNetwork();
-      wallet = await window.wallet.getKey(selectedNetwork.chainId);
-    } catch (err) {
-      console.error(err);
-
-      if (err.message.includes("There is no chain info for")) {
-        await selectedNetwork?.suggestWalletChain();
-        wallet = await window.wallet.getKey(selectedNetwork.chainId);
-      } else {
-        setIsWalletLoaded(true);
-        return;
+  // Update balances on wallet address change
+  useEffect(() => {
+    if (walletAddress) {
+      // Redirect to deployment list if on deployment detail page
+      if (router.pathname.startsWith("/deployments/")) {
+        router.push(UrlService.deploymentList());
       }
+      loadWallet();
+    }
+  }, [walletAddress]);
+
+  async function loadWallet(): Promise<void> {
+    const selectedNetwork = getSelectedNetwork();
+    const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetwork.id}/wallets`)) as LocalWalletDataType[];
+
+    let currentWallets = storageWallets ?? [];
+
+    if (!currentWallets.some(x => x.address === walletAddress)) {
+      currentWallets.push({ name: username, address: walletAddress, selected: true });
     }
 
-    if (!isMounted.current) return;
+    currentWallets = currentWallets.map(x => ({ ...x, selected: x.address === walletAddress }));
 
-    const address = wallet?.bech32Address;
-    const selectedNetworkId = localStorage.getItem("selectedNetworkId");
-    const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`));
+    localStorage.setItem(`${selectedNetwork.id}/wallets`, JSON.stringify(currentWallets));
 
-    const currentWallets = storageWallets ? [...storageWallets] : [];
-    const newWallets =
-      currentWallets.findIndex(x => x.address === address) === -1 ? [...currentWallets].concat({ name: wallet?.name, address }) : [...currentWallets];
-
-    for (let i = 0; i < newWallets.length; i++) {
-      newWallets[i].selected = newWallets[i].address === address;
-    }
-
-    localStorage.setItem(`${selectedNetworkId}/wallets`, JSON.stringify(newWallets));
-
-    setWalletAddress(address);
-    setWalletName(wallet.name);
-
-    await refreshBalances(address);
+    await refreshBalances();
 
     setIsWalletLoaded(true);
   }
@@ -268,22 +173,10 @@ export const WalletProvider = ({ children }) => {
     setIsWaitingForApproval(true);
     let pendingSnackbarKey = null;
     try {
-      const client = await getStargateClient();
-      const simulation = await client.simulate(walletAddress, msgs, "");
-      const txRaw = await client.sign(
-        walletAddress,
-        msgs,
-        {
-          amount: [
-            {
-              amount: "0.025",
-              denom: uAktDenom
-            }
-          ],
-          gas: Math.ceil(simulation * 1.25).toString()
-        },
-        ""
-      );
+      const estimatedFees = await estimateFee(msgs);
+
+      const txRaw = await sign(msgs, estimatedFees);
+
       setIsWaitingForApproval(false);
       setIsBroadcastingTx(true);
       pendingSnackbarKey = enqueueSnackbar(<Snackbar title="Broadcasting transaction..." subTitle="Please wait a few seconds" showLoading />, {
@@ -291,8 +184,7 @@ export const WalletProvider = ({ children }) => {
         autoHideDuration: null
       });
 
-      const txRawBytes = Uint8Array.from(TxRaw.encode(txRaw).finish());
-      const txResult = await client.broadcastTx(txRawBytes);
+      const txResult = await broadcast(txRaw);
 
       setIsBroadcastingTx(false);
 
@@ -316,9 +208,9 @@ export const WalletProvider = ({ children }) => {
       const transactionHash = err.txHash;
       let errorMsg = "An error has occured";
 
-      if (err.message.includes("was submitted but was not yet found on the chain")) {
+      if (err.message?.includes("was submitted but was not yet found on the chain")) {
         errorMsg = "Transaction timeout";
-      } else {
+      } else if (err.message) {
         try {
           const reg = /Broadcasting transaction failed with code (.+?) \(codespace: (.+?)\)/i;
           const match = err.message.match(reg);
@@ -421,11 +313,9 @@ export const WalletProvider = ({ children }) => {
     <WalletProviderContext.Provider
       value={{
         address: walletAddress,
-        walletName,
+        walletName: username,
         walletBalances,
-        isKeplrInstalled,
-        isLeapInstalled,
-        isWalletConnected: !!walletName,
+        isWalletConnected: isWalletConnected,
         isWalletLoaded,
         connectWallet,
         logout,
@@ -465,3 +355,4 @@ const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
     </>
   );
 };
+
