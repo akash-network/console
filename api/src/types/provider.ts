@@ -120,7 +120,7 @@ export type ProviderAttributeSchemaDetail = {
   values?: Array<ProviderAttributeSchemaDetailValue>;
 };
 
-export type ProviderAttributeSchemaDetailValue = { key: string; description: string; value?: any };
+export type ProviderAttributeSchemaDetailValue = { key: string; description: string; value?: string };
 
 export type Auditor = {
   id: string;

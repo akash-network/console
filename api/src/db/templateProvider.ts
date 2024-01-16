@@ -39,7 +39,7 @@ export async function getTemplates(username: string, userId: string = "") {
         required: false,
         // TODO fix this typing https://github.com/sequelize/sequelize-typescript/issues/1095
         where: {
-          [Op.or]: [{ isPublic: true }, { userId: userId }] as any
+          [Op.or]: [{ isPublic: true }, { userId: userId }] as any // eslint-disable-line @typescript-eslint/no-explicit-any
         }
       }
     ],
@@ -96,7 +96,7 @@ export async function saveTemplate(
 }
 
 export async function saveTemplateDesc(id: string, userId: string, description: string = "") {
-  let template = await Template.findOne({
+  const template = await Template.findOne({
     where: {
       id: id,
       userId: userId

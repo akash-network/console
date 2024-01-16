@@ -1,16 +1,4 @@
 import express from "express";
-import { getBlock, getBlocks } from "@src/db/blocksProvider";
-import { getDeployment } from "@src/providers/apiNodeProvider";
-import { getGraphData, getProviderActiveLeasesGraphData, getProviderGraphData } from "@src/db/statsProvider";
-import { round } from "@src/utils/math";
-import { isValidBech32Address } from "@src/utils/addresses";
-import { getAkashPricing, getAWSPricing, getAzurePricing, getGCPPricing } from "@src/utils/pricing";
-import asyncHandler from "express-async-handler";
-import { ProviderStatsKey } from "@src/types/graph";
-import { cacheKeys, cacheResponse } from "@src/caching/helpers";
-import axios from "axios";
-import { getAuditors, getProviderAttributesSchema } from "@src/providers/githubProvider";
-import { getProviderRegions } from "@src/db/providerDataProvider";
 import { OpenAPIHono } from "@hono/zod-openapi";
 
 import { swaggerUI } from "@hono/swagger-ui";
@@ -18,16 +6,6 @@ import routesV1 from "../routes/v1";
 import routesV2 from "../routes/v2";
 
 export const apiRouter = express.Router();
-
-apiRouter.get(
-  "/blocks",
-  asyncHandler(async (req, res) => {
-    const limit = parseInt(req.query.limit?.toString());
-    const blocks = await getBlocks(limit || 20);
-
-    res.send(blocks);
-  })
-);
 
 export const apiRouterHono = new OpenAPIHono();
 
@@ -37,7 +15,7 @@ function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRou
     openapi: "3.0.0",
     servers: [
       { url: `http://localhost:8787/api/${version}`, description: "Localhost" },
-      { url: `https://api-preview.cloudmos.io/api/${version}`, description: "Online Preview" },
+      { url: `https://api-preview.cloudmos.io/api/${version}`, description: "Online Preview" }
     ], // TODO
     info: {
       title: "Cloudmos API",
@@ -82,4 +60,3 @@ registerApiVersion("v2", apiRouterHono, routesV2);
 //   }
 //   return parsed;
 // }
-

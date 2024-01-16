@@ -22,7 +22,7 @@ const betaTypeVersion = "v1beta3";
 const betaTypeVersionMarket = "v1beta4";
 
 export async function getChainStats() {
-  const result: { communityPool: number; inflation: number; communityTax: number; bondedTokens: number; totalSupply: number } = await cacheResponse(
+  const result = await cacheResponse(
     60 * 5, // 5 minutes
     cacheKeys.getChainStats,
     async () => {
@@ -265,7 +265,7 @@ export async function getProposal(id: number) {
 
   const data = await response.json();
 
-  let proposer = null;
+  const proposer = null; // TODO: Fix
   if (id > 3) {
     // const proposerResponse = await fetch(`${apiNodeUrl}/gov/proposals/${id}/proposer`);
     // const proposerData = await proposerResponse.json();

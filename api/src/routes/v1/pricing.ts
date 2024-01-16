@@ -52,7 +52,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   const isArray = Array.isArray(body);
   const specs = isArray ? body : [body];
 
-  let pricing = [];
+  const pricing = [];
 
   for (const spec of specs) {
     const cpu = parseInt(spec.cpu);

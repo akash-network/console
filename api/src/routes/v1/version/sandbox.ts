@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import axios from "axios";
 
@@ -6,7 +6,8 @@ const route = createRoute({
   method: "get",
   path: "/version/sandbox",
   summary: "Get sandbox version.",
-  description: "Provide a cached version of this file: [https://raw.githubusercontent.com/akash-network/net/master/sandbox/version.txt](https://raw.githubusercontent.com/akash-network/net/master/sandbox/version.txt)",
+  description:
+    "Provide a cached version of this file: [https://raw.githubusercontent.com/akash-network/net/master/sandbox/version.txt](https://raw.githubusercontent.com/akash-network/net/master/sandbox/version.txt)",
   tags: ["Chain"],
   responses: {
     200: {

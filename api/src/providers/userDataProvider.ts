@@ -61,7 +61,7 @@ export async function updateSettings(
 }
 
 export async function getSettingsOrInit(userId: string, wantedUsername: string, email: string, emailVerified: boolean, subscribedToNewsletter: boolean) {
-  let [userSettings, created] = await UserSetting.findCreateFind({
+  const [userSettings, created] = await UserSetting.findCreateFind({
     where: { userId: userId },
     defaults: {
       userId: userId,

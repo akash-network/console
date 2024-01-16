@@ -5,10 +5,46 @@ import { add } from "date-fns";
 import { getTodayUTC } from "@src/utils/date";
 import { round, uaktToAKT, udenomToDenom } from "@src/utils/math";
 
+type DalyRevenueType = {
+  date: number;
+  revenue: number;
+  revenueUAkt?: number;
+  revenueUUsdc?: number;
+  aktPrice?: number;
+  dateStr?: Date;
+};
+
+type RevenueStatsType = {
+  now: number;
+  oneDayAgo: number;
+  twoDaysAgo: number;
+  oneWeekAgo: number;
+  twoWeeksAgo: number;
+  thirtyDaysAgo: number;
+  sixtyDaysAgo: number;
+  ninetyDaysAgo: number;
+  nowAkt?: number;
+  oneDayAgoAkt?: number;
+  twoDaysAgoAkt?: number;
+  oneWeekAgoAkt?: number;
+  twoWeeksAgAkt?: number;
+  thirtyDaysAgoAkt?: number;
+  sixtyDaysAgoAkt?: number;
+  ninetyDaysAgoAkt?: number;
+  nowUsdc?: number;
+  oneDayAgoUsdc?: number;
+  twoDaysAgoUsdc?: number;
+  oneWeekAgoUsdc?: number;
+  twoWeeksAgUsdc?: number;
+  thirtyDaysAgoUsdc?: number;
+  sixtyDaysAgoUsdc?: number;
+  ninetyDaysAgoUsdc?: number;
+};
+
 export const getWeb3IndexRevenue = async (debug?: boolean) => {
   const dailyNetworkRevenues = await getDailyRevenue();
 
-  let days = dailyNetworkRevenues.map((r) => ({
+  let days: DalyRevenueType[] = dailyNetworkRevenues.map((r) => ({
     date: r.date.getTime() / 1000,
     revenue: round(r.usd, 2),
     revenueUAkt: r.uakt,
@@ -95,10 +131,10 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
   }, 0);
 
   if (!debug) {
-    days = days.map(({ dateStr, revenueUAkt, revenueUUsdc, aktPrice, ...others }) => others) as any;
+    days = days.map(({ dateStr, revenueUAkt, revenueUUsdc, aktPrice, ...others }) => others);
   }
 
-  let revenueStats = {
+  let revenueStats: RevenueStatsType = {
     now: round(totalRevenue),
     oneDayAgo: round(oneDayAgoRevenue),
     twoDaysAgo: round(twoDaysAgoRevenue),
@@ -128,7 +164,7 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
       thirtyDaysAgoUsdc: udenomToDenom(thirtyDaysAgoRevenueUUsdc, 6),
       sixtyDaysAgoUsdc: udenomToDenom(sixtyDaysAgoRevenueUUsdc, 6),
       ninetyDaysAgoUsdc: udenomToDenom(ninetyDaysAgoRevenueUUsdc, 6)
-    } as any;
+    };
   }
 
   const responseObj = {
@@ -156,14 +192,14 @@ export async function getDailyRevenue() {
     order: [["date", "ASC"]]
   });
 
-  let stats = result.map((day) => ({
+  const stats = result.map((day) => ({
     date: day.date,
     totalUAktSpent: (day.lastBlockYet as Block).totalUAktSpent,
     totalUUsdcSpent: (day.lastBlockYet as Block).totalUUsdcSpent,
     aktPrice: day.aktPrice // TODO handle no price
   }));
 
-  let relativeStats: { date: Date; uakt: number; uusdc: number; aktPrice: number }[] = stats.reduce((arr, dataPoint, index) => {
+  const relativeStats: { date: Date; uakt: number; uusdc: number; aktPrice: number }[] = stats.reduce((arr, dataPoint, index) => {
     arr[index] = {
       date: dataPoint.date,
       uakt: dataPoint.totalUAktSpent - (index > 0 ? stats[index - 1].totalUAktSpent : 0),

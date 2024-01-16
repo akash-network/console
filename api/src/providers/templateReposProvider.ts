@@ -10,7 +10,7 @@ import { dataFolderPath } from "@src/utils/constants";
 import { GithubChainRegistryAssetListResponse } from "@src/types";
 import { GithubDirectoryItem } from "@src/types/github";
 
-let generatingTasks = {};
+const generatingTasks = {};
 let lastServedData = null;
 let githubRequestsRemaining = null;
 
@@ -65,7 +65,7 @@ async function getTemplatesFromRepo(octokit: Octokit, repoOwner: string, repoNam
 }
 
 function mergeTemplateCategories(...categories: Category[]) {
-  let mergedCategories: Category[] = [];
+  const mergedCategories: Category[] = [];
   for (const category of categories.flat()) {
     const existingCategory = mergedCategories.find((c) => c.title.toLowerCase() === category.title.toLowerCase());
     if (existingCategory) {
@@ -218,7 +218,7 @@ async function fetchAwesomeAkashTemplates(octokit: Octokit, repoVersion: string)
   const categoryRegex = /### (.+)\n*([\w ]+)?\n*((?:- \[(?:.+)]\((?:.+)\)\n?)*)/gm;
   const templateRegex = /(- \[(.+)]\((.+)\)\n?)/gm;
 
-  let categories = [];
+  const categories = [];
 
   // Looping through categories
   const matches = data.matchAll(categoryRegex);
@@ -279,7 +279,7 @@ async function fetchLinuxServerTemplates(octokit: Octokit, repoVersion: string) 
   const categoryRegex = /### (.+)\n*([\w ]+)?\n*((?:- \[(?:.+)]\((?:.+)\)\n?)*)/gm;
   const templateRegex = /(- \[(.+)]\((.+)\)\n?)/gm;
 
-  let categories = [];
+  const categories = [];
 
   // Looping through categories
   const matches = data.matchAll(categoryRegex);
@@ -522,7 +522,7 @@ function getLinuxServerTemplateSummary(readme: string) {
 // Replaces local links with absolute links
 function replaceLinks(markdown: string, owner: string, repo: string, version: string, folder: string) {
   let newMarkdown = markdown;
-  const linkRegex = /!?\[([^\[]+)\]\((.*?)\)/gm;
+  const linkRegex = /!?\[([^[]+)\]\((.*?)\)/gm;
   const matches = newMarkdown.matchAll(linkRegex);
   for (const match of matches) {
     const url = match[2].startsWith("/") ? match[2].substring(1) : match[2];

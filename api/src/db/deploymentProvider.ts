@@ -71,7 +71,7 @@ export async function getDeploymentRelatedMessages(owner: string, dseq: string) 
 }
 
 export async function getProviderDeployments(provider: string, skip: number, limit: number, status?: "active" | "closed") {
-  let leaseFilter = { providerAddress: provider };
+  const leaseFilter = { providerAddress: provider };
 
   if (status) {
     leaseFilter["closedHeight"] = status === "active" ? null : { [Op.ne]: null };

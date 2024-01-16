@@ -128,7 +128,7 @@ export async function getGraphData(dataName: string): Promise<GraphData> {
   }));
 
   if (isRelative) {
-    let relativeStats = stats.reduce((arr, dataPoint, index) => {
+    const relativeStats = stats.reduce((arr, dataPoint, index) => {
       arr[index] = {
         date: dataPoint.date,
         value: dataPoint.value - (index > 0 ? stats[index - 1].value : 0)
@@ -152,9 +152,9 @@ export async function getGraphData(dataName: string): Promise<GraphData> {
 export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
   console.log("getProviderGraphData: " + dataName);
 
-  let getter = (block: ProviderStats) => (typeof block[dataName] === "number" ? block[dataName] as number : parseInt(block[dataName] as string) || 0);
+  const getter = (block: ProviderStats) => (typeof block[dataName] === "number" ? (block[dataName] as number) : parseInt(block[dataName] as string) || 0);
 
-  let result: ProviderStats[] = await cacheResponse(
+  const result = await cacheResponse(
     60 * 5, // 5 minutes
     cacheKeys.getProviderGraphData,
     async () => {
@@ -220,7 +220,7 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
 export const getProviderActiveLeasesGraphData = async (providerAddress: string) => {
   console.log("getProviderActiveLeasesGraphData");
 
-  let result: ProviderActiveLeasesStats[] = (await chainDb.query(
+  const result: ProviderActiveLeasesStats[] = (await chainDb.query(
     `SELECT "date" AS date, COUNT(l."id") AS count
     FROM "day" d
     LEFT JOIN "lease" l 
