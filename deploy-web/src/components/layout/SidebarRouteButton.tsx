@@ -55,7 +55,7 @@ export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, sx =
         target={route.target ?? "_self"}
       >
         <ListItemIcon sx={{ minWidth: 0, zIndex: 100, margin: isNavOpen ? "initial" : "0 auto" }}>
-          {route.icon({ color: isSelected ? "secondary" : "disabled" })}
+          {route.icon({ color: isSelected ? "secondary" : "disabled", fontSize: "small" })}
         </ListItemIcon>
 
         {isNavOpen && (

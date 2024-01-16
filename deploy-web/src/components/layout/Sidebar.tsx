@@ -24,9 +24,7 @@ import { DiscordIcon } from "../shared/icons";
 import { NodeStatusBar } from "./NodeStatusBar";
 import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import MenuIcon from "@mui/icons-material/Menu";
-import SavingsIcon from "@mui/icons-material/Savings";
 import ConstructionIcon from "@mui/icons-material/Construction";
-import InsightsIcon from "@mui/icons-material/Insights";
 import HelpIcon from "@mui/icons-material/Help";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
@@ -132,7 +130,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       routes: [
         {
           title: "Akash Network",
-          icon: props => <img src="/images/akash-logo.svg" alt="Akash Logo" style={{ height: "24px" }} {...props} />,
+          icon: props => <img src="/images/akash-logo.svg" alt="Akash Logo" style={{ height: "20px" }} {...props} />,
           url: "https://akash.network",
           activeRoutes: [],
           target: "_blank"

@@ -73,6 +73,13 @@ const moduleExports = {
         destination: "https://akash.network/about/pricing/custom/",
         permanent: false
       }
+      // TODO
+      // Validators
+      // Addresses
+      // Blocks
+      // Transactions
+      // Public deployment
+
     ];
   }
 };
