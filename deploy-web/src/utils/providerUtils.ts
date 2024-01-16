@@ -1,4 +1,6 @@
+import { ISnapshotMetadata, ProviderSnapshots } from "@src/types";
 import { ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
+import { bytesToShrink } from "./unitUtils";
 
 export type LocalProviderData = {
   favorites: string[];
@@ -48,6 +50,37 @@ export function updateProviderLocalData(data: LocalProviderData) {
   const selectedNetworkId = localStorage.getItem("selectedNetworkId");
   localStorage.setItem(`${selectedNetworkId}/provider.data`, JSON.stringify(newData));
 }
+
+export const getSnapshotMetadata = (snapshot?: ProviderSnapshots): { unitFn: (number: number) => ISnapshotMetadata; legend?: string } => {
+  switch (snapshot) {
+    case ProviderSnapshots.cpu:
+      return {
+        unitFn: x => ({ value: x / 1000 })
+      };
+    case ProviderSnapshots.gpu:
+      return {
+        unitFn: x => ({ value: x })
+      };
+    case ProviderSnapshots.memory:
+    case ProviderSnapshots.storage:
+      return {
+        unitFn: x => {
+          const _ = bytesToShrink(x);
+          return {
+            value: x / 1000 / 1000 / 1000,
+            unit: _.unit,
+            modifiedValue: _.value
+          };
+        },
+        legend: "GB"
+      };
+
+    default:
+      return {
+        unitFn: x => ({ value: x })
+      };
+  }
+};
 
 export const getProviderNameFromUri = (uri: string) => {
   const name = new URL(uri).hostname;
