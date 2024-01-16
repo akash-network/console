@@ -52,7 +52,17 @@ const moduleExports = {
         source: "/deploy",
         destination: "/cloud-deploy",
         permanent: true
-      }
+      },
+      {
+        source: "/analytics",
+        destination: "https://stats.akash.network",
+        permanent: false
+      },
+      // {
+      //   source: "/analytics",
+      //   destination: "https://stats.akash.network",
+      //   permanent: false
+      // }
     ];
   }
 };
