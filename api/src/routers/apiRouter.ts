@@ -29,26 +29,6 @@ apiRouter.get(
   })
 );
 
-apiRouter.get(
-  "/blocks/:height",
-  asyncHandler(async (req, res) => {
-    const heightInt = parseInt(req.params.height);
-
-    if (isNaN(heightInt)) {
-      res.status(400).send("Invalid height.");
-      return;
-    }
-
-    const blockInfo = await getBlock(heightInt);
-
-    if (blockInfo) {
-      res.send(blockInfo);
-    } else {
-      res.status(404).send("Block not found");
-    }
-  })
-);
-
 export const apiRouterHono = new OpenAPIHono();
 
 function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRoutes: OpenAPIHono[]) {

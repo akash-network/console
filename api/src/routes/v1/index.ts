@@ -1,5 +1,7 @@
 import predictedBlockDate from "./predictedBlockDate";
 import predictedDateHeight from "./predictedDateHeight";
+import blocks from "./blocks/list";
+import blockByHeight from "./blocks/byHeight";
 import transactions from "./transactions/list";
 import transactionByHash from "./transactions/byHash";
 import address from "./addresses/address";
@@ -32,6 +34,8 @@ import graphData from "./graphData";
 import providerActiveLeasesGraphData from "./providerActiveLeasesGraphData";
 
 export default [
+  blocks,
+  blockByHeight,
   predictedBlockDate,
   predictedDateHeight,
   transactions,
