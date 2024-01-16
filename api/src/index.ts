@@ -66,7 +66,7 @@ app.use(Sentry.Handlers.tracingHandler());
 
 app.use("/", apiRouter);
 app.use("/user", userRouter);
-app.use("/web3-index", web3IndexRouter);
+appHono.route("/web3-index", web3IndexRouter);
 appHono.route("/dashboard", dashboardRouter);
 
 appHono.get("/status", (c) => {

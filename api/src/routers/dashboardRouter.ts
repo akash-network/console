@@ -1,6 +1,5 @@
 import { Template, UserSetting } from "@shared/dbSchemas/user";
 import { privateMiddleware } from "@src/middlewares/privateMiddleware";
-import asyncHandler from "express-async-handler"; // TODO: Uninstall
 import { Hono } from "hono";
 
 export const dashboardRouter = new Hono();
