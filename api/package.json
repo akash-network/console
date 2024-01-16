@@ -8,6 +8,7 @@
   "scripts": {
     "start": "webpack --config webpack.dev.js --watch",
     "build": "webpack --config webpack.prod.js",
+    "lint": "eslint .",
     "test": "jest"
   },
   "repository": {
@@ -61,7 +62,10 @@
     "@types/pg": "^8.6.5",
     "@types/semver": "^7.5.2",
     "@types/uuid": "^8.3.1",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
     "alias-hq": "^5.1.6",
+    "eslint": "^8.56.0",
     "nodemon": "^2.0.7",
     "nodemon-webpack-plugin": "^4.5.2",
     "supertest": "^6.1.5",
