@@ -1,5 +1,5 @@
 import express from "express";
-import cors from "cors";
+import expressCors from "cors";
 import packageJson from "../package.json";
 import { isProd } from "./utils/constants";
 import * as Sentry from "@sentry/node";
@@ -12,17 +12,24 @@ import { env } from "./utils/env";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { dashboardRouter } from "./routers/dashboardRouter";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
 
 const app = express();
 app.use(
-  cors({
+  expressCors({
     origin: env.AKASHLYTICS_CORS_WEBSITE_URLS?.split(",") || ["http://localhost:3000", "http://localhost:3001"],
     optionsSuccessStatus: 200
   })
 );
 
 const appHono = new Hono();
+appHono.use(
+  "/*",
+  cors({
+    origin: env.AKASHLYTICS_CORS_WEBSITE_URLS?.split(",") || ["http://localhost:3000", "http://localhost:3001"]
+  })
+);
 
 const { PORT = 3080 } = process.env;
 
@@ -114,13 +121,13 @@ async function initApp() {
 
     startScheduler();
 
-    app.listen(PORT, () => {
-      console.log("server started at http://localhost:" + PORT);
-    });
+    // app.listen(PORT, () => {
+    //   console.log("server started at http://localhost:" + PORT);
+    // });
 
     serve({
       fetch: appHono.fetch,
-      port: 8787
+      port: 3080
     });
   } catch (err) {
     console.error("Error while initializing app", err);
