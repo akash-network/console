@@ -67,9 +67,8 @@ app.use(Sentry.Handlers.tracingHandler());
 app.use("/", apiRouter);
 app.use("/user", userRouter);
 app.use("/web3-index", web3IndexRouter);
-app.use("/dashboard", dashboardRouter);
+appHono.route("/dashboard", dashboardRouter);
 
-appHono.get("/", (c) => c.text("Hono!"));
 appHono.get("/status", (c) => {
   const version = packageJson.version;
   const tasksStatus = scheduler.getTasksStatus();
@@ -84,7 +83,7 @@ appHono.get("/status", (c) => {
   return c.json({ version, memory, tasks: tasksStatus });
 });
 
-appHono.route("/api", apiRouterHono);
+appHono.route("/", apiRouterHono);
 
 // The error handler must be before any other error middleware and after all controllers
 app.use(Sentry.Handlers.errorHandler());

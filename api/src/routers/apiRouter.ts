@@ -13,8 +13,8 @@ function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRou
   versionRouter.doc(`/doc`, {
     openapi: "3.0.0",
     servers: [
-      { url: `http://localhost:8787/api/${version}`, description: "Localhost" },
-      { url: `https://api-preview.cloudmos.io/api/${version}`, description: "Online Preview" }
+      { url: `http://localhost:8787/${version}`, description: "Localhost" },
+      { url: `https://api-preview.cloudmos.io/${version}`, description: "Online Preview" }
     ], // TODO
     info: {
       title: "Cloudmos API",
@@ -22,11 +22,11 @@ function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRou
       version: version
     }
   });
-  const swaggerInstance = swaggerUI({ url: `/api/${version}/doc` });
+  const swaggerInstance = swaggerUI({ url: `/${version}/doc` });
 
   versionRouter.get(`/swagger`, swaggerInstance);
   versionRouter.get(`/swagger/`, swaggerInstance);
-  console.log(versionRoutes[0]);
+
   versionRoutes.forEach((route) => versionRouter.route(`/`, route));
   baseRouter.route(`/${version}`, versionRouter);
 }
