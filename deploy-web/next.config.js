@@ -54,6 +54,11 @@ const moduleExports = {
         permanent: true
       },
       {
+        source: "/price-compare",
+        destination: "https://akash.network/about/pricing/custom/",
+        permanent: false
+      },
+      {
         source: "/analytics",
         destination: "https://stats.akash.network",
         permanent: false
@@ -69,17 +74,55 @@ const moduleExports = {
         permanent: false
       },
       {
-        source: "/price-compare",
-        destination: "https://akash.network/about/pricing/custom/",
+        source: "/validators",
+        destination: "https://stats.akash.network/validators",
+        permanent: false
+      },
+      {
+        source: "/validators/:address*",
+        destination: "https://stats.akash.network/validators/:address*",
+        permanent: false
+      },
+      {
+        source: "/addresses/:address*",
+        destination: "https://stats.akash.network/addresses/:address*",
+        permanent: false
+      },
+      {
+        source: "/addresses/:address/transactions",
+        destination: "https://stats.akash.network/addresses/:address/transactions",
+        permanent: false
+      },
+      {
+        source: "/addresses/:address/deployments",
+        destination: "https://stats.akash.network/addresses/:address/deployments",
+        permanent: false
+      },
+      {
+        source: "/deployment/:address/:dseq*",
+        destination: "https://stats.akash.network/addresses/:address/deployments/:dseq*",
+        permanent: false
+      },
+      {
+        source: "/blocks",
+        destination: "https://stats.akash.network/blocks",
+        permanent: false
+      },
+      {
+        source: "/blocks/:height*",
+        destination: "https://stats.akash.network/blocks/:height*",
+        permanent: false
+      },
+      {
+        source: "/transactions",
+        destination: "https://stats.akash.network/transactions",
+        permanent: false
+      },
+      {
+        source: "/transactions/:hash*",
+        destination: "https://stats.akash.network/transactions/:hash*",
         permanent: false
       }
-      // TODO
-      // Validators
-      // Addresses
-      // Blocks
-      // Transactions
-      // Public deployment
-
     ];
   }
 };
