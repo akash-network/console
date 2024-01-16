@@ -19,7 +19,7 @@ export async function getBlocks(limit: number) {
   return blocks.map((block) => ({
     height: block.height,
     proposer: {
-      address: block.proposerValidator?.accountAddress,
+      address: block.proposerValidator.accountAddress,
       operatorAddress: block.proposerValidator.operatorAddress,
       moniker: block.proposerValidator.moniker,
       avatarUrl: block.proposerValidator.keybaseAvatarUrl

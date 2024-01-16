@@ -12,7 +12,7 @@ interface CachedObject<T> {
 
 export async function cacheResponse<T>(seconds: number, key: string, refreshRequest: () => Promise<T>, keepData?: boolean): Promise<T> {
   const duration = seconds * 1000;
-  const cachedObject = cacheEngine.getFromCache(key) as CachedObject<T>;
+  const cachedObject = cacheEngine.getFromCache(key) as CachedObject<T> | undefined;
 
   console.log(`Cache key: ${key}`);
 
