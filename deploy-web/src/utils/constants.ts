@@ -4,12 +4,6 @@ export const mainnetId = "mainnet";
 export const testnetId = "testnet";
 export const sandboxId = "sandbox";
 
-export enum SelectedRange {
-  "7D" = 7,
-  "1M" = 30,
-  "ALL" = Number.MAX_SAFE_INTEGER
-}
-
 // UI
 export const statusBarHeight = 30;
 export const drawerWidth = 240;

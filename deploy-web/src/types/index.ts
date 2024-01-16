@@ -1,5 +1,4 @@
 export * from "./dashboard";
-export * from "./snapshots";
 export * from "./block";
 export * from "./transaction";
 export * from "./coin";
@@ -22,6 +21,7 @@ export type PaginatedResults<T> = {
 
 export type ISidebarGroupMenu = {
   title?: string;
+  hasDivider?: boolean;
   routes: Array<ISidebarRoute>;
 };
 
@@ -31,4 +31,5 @@ export type ISidebarRoute = {
   url: string;
   activeRoutes: string[];
   isNew?: boolean;
+  target?: string;
 };

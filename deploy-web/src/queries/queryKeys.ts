@@ -15,8 +15,6 @@ export class QueryKeys {
   ];
   static getValidatorsKey = () => ["VALIDATORS"];
   static getProposalsKey = () => ["PROPOSALS"];
-  static getGraphKey = (snapshot: string) => ["GRAPH", snapshot];
-  static getProviderGraphKey = (snapshot: string) => ["PROVIDER_GRAPH", snapshot];
   static getTemplateKey = (id: string) => ["SDL_TEMPLATES", id];
   static getUserTemplatesKey = (username: string) => ["USER_TEMPLATES", username];
   static getUserFavoriteTemplatesKey = (userId: string) => ["USER_FAVORITES_TEMPLATES", userId];

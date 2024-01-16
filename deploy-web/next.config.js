@@ -67,10 +67,17 @@ const moduleExports = {
         source: "/graph/:path*",
         destination: "https://stats.akash.network/graph/:path*",
         permanent: false
+      },
+      {
+        source: "/price-compare",
+        destination: "https://akash.network/about/pricing/custom/",
+        permanent: false
       }
     ];
   }
 };
+
+// https://akash.network/about/pricing/custom/
 
 const sentryWebpackPluginOptions = {
   // Additional config options for the Sentry Webpack plugin. Keep in mind that

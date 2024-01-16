@@ -31,6 +31,7 @@ import HelpIcon from "@mui/icons-material/Help";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
 import { MobileSidebarUser } from "./MobileSidebarUser";
+import { ISidebarGroupMenu } from "@src/types";
 
 const { publicRuntimeConfig } = getConfig();
 
@@ -97,7 +98,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
 
-  const routeGroups = [
+  const routeGroups: ISidebarGroupMenu[] = [
     {
       hasDivider: false,
       routes: [
@@ -121,20 +122,35 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           activeRoutes: [UrlService.sdlBuilder()]
         },
         { title: "Providers", icon: props => <DnsIcon {...props} />, url: UrlService.providers(), activeRoutes: [UrlService.providers()] },
+
+        { title: "FAQ", icon: props => <HelpIcon {...props} />, url: UrlService.faq(), activeRoutes: [UrlService.faq()] },
+        { title: "Settings", icon: props => <SettingsIcon {...props} />, url: UrlService.settings(), activeRoutes: [UrlService.settings()] }
+      ]
+    },
+    {
+      hasDivider: true,
+      routes: [
         {
-          title: "Akashlytics",
-          icon: props => <InsightsIcon {...props} />,
-          url: UrlService.analytics(),
-          activeRoutes: [UrlService.analytics()]
+          title: "Akash Network",
+          icon: props => <img src="/images/akash-logo.svg" alt="Akash Logo" style={{ height: "24px" }} {...props} />,
+          url: "https://akash.network",
+          activeRoutes: [],
+          target: "_blank"
+        },
+        {
+          title: "Stats",
+          icon: props => <LaunchIcon {...props} />,
+          url: "https://stats.akash.network",
+          activeRoutes: [],
+          target: "_blank"
         },
         {
           title: "Price Compare",
-          icon: props => <SavingsIcon {...props} />,
-          url: UrlService.priceCompare(),
-          activeRoutes: [UrlService.priceCompare()]
-        },
-        { title: "FAQ", icon: props => <HelpIcon {...props} />, url: UrlService.faq(), activeRoutes: [UrlService.faq()] },
-        { title: "Settings", icon: props => <SettingsIcon {...props} />, url: UrlService.settings(), activeRoutes: [UrlService.settings()] }
+          icon: props => <LaunchIcon {...props} />,
+          url: "https://akash.network/about/pricing/custom/",
+          activeRoutes: [],
+          target: "_blank"
+        }
       ]
     }
   ];
