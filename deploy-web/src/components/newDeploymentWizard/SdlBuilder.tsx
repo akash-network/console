@@ -8,7 +8,6 @@ import { Alert, Box, Button, CircularProgress } from "@mui/material";
 import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
 import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
-import { Subscription } from "react-hook-form/dist/utils/createSubject";
 
 interface Props {
   sdlString: string;
