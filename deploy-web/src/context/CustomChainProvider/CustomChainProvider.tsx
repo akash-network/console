@@ -18,6 +18,14 @@ export function CustomChainProvider({ children }: Props) {
       chains={[akash, akashSandbox, akashTestnet]}
       assetLists={[akashAssetList, akashSandboxAssetList, akashTestnetAssetList]}
       wallets={[...keplr, ...leap, ...cosmostation]}
+      sessionOptions={{
+        duration: 31_556_926_000, // 1 year
+        callback: () => {
+          console.log("session expired");
+          window.localStorage.removeItem("cosmos-kit@2:core//current-wallet");
+          window.location.reload();
+        }
+      }}
       walletConnectOptions={{
         signClient: {
           projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID
