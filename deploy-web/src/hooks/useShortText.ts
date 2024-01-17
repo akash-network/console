@@ -1,4 +1,4 @@
-export const getShortText = (text: string, length: number) => {
+export const getShortText = (text: string = "", length: number) => {
   return text.length < length ? text : `${text.substring(0, length - 3)}...`;
 };
 
