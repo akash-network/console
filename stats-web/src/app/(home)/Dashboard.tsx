@@ -127,7 +127,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <StatsCard
-          number={<FormattedNumber value={dashboardData.now.activeLeaseCount} notation="compact" compactDisplay="short" />}
+          number={<FormattedNumber value={dashboardData.now.activeLeaseCount} notation="compact" compactDisplay="short" maximumFractionDigits={2} />}
           text="Active leases"
           tooltip={
             <>
@@ -207,7 +207,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
         <StatsCard
           number={
             <>
-              <FormattedNumber value={dashboardData.networkCapacity.totalCPU / 1000} maximumFractionDigits={0} notation="compact" compactDisplay="short" />{" "}
+              <FormattedNumber value={dashboardData.networkCapacity.totalCPU / 1000} maximumFractionDigits={2} notation="compact" compactDisplay="short" />{" "}
               <span className="text-sm">CPU</span>
             </>
           }
@@ -219,7 +219,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
         <StatsCard
           number={
             <>
-              <FormattedNumber value={dashboardData.networkCapacity.totalGPU} maximumFractionDigits={0} notation="compact" compactDisplay="short" />{" "}
+              <FormattedNumber value={dashboardData.networkCapacity.totalGPU} maximumFractionDigits={2} notation="compact" compactDisplay="short" />{" "}
               <span className="text-sm">GPU</span>
             </>
           }
