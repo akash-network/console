@@ -23,9 +23,10 @@ export const importSimpleSdl = (yamlStr: string, providerAttributesSchema: Provi
 
       const compute = yamlJson.profiles.compute[svcName];
       const storages = compute.resources.storage.map ? compute.resources.storage : [compute.resources.storage];
-      const hasPersistentStorage = storages.some(s => s.attributes?.persistent === true);
       const persistentStorage = storages.find(s => s.attributes?.persistent === true);
+      const hasPersistentStorage = !!persistentStorage;
       const ephStorage = storages.find(s => !s.attributes);
+      const persistentStorageName = hasPersistentStorage ? persistentStorage.name : "data";
 
       // TODO validation
       // Service compute profile
@@ -43,10 +44,10 @@ export const importSimpleSdl = (yamlStr: string, providerAttributesSchema: Provi
         persistentStorage: hasPersistentStorage ? getResourceDigit(persistentStorage?.size) : 10,
         persistentStorageUnit: hasPersistentStorage ? getResourceUnit(persistentStorage?.size) : "Gi",
         persistentStorageParam: {
-          name: hasPersistentStorage ? persistentStorage?.name : "data",
+          name: persistentStorageName,
           type: hasPersistentStorage ? persistentStorage?.attributes?.class : "beta2",
-          mount: hasPersistentStorage ? svc.params?.storage?.data?.mount : "",
-          readOnly: hasPersistentStorage ? svc.params?.storage?.data?.readOnly : false
+          mount: hasPersistentStorage ? svc.params?.storage[persistentStorageName]?.mount : "",
+          readOnly: hasPersistentStorage ? svc.params?.storage[persistentStorageName]?.readOnly : false
         }
       };
 
