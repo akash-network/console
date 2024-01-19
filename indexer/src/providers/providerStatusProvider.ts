@@ -6,7 +6,7 @@ import { ProviderSnapshot } from "@src/../../shared/dbSchemas/akash/providerSnap
 import { toUTC } from "@src/shared/utils/date";
 
 const ConcurrentStatusCall = 10;
-const StatusCallTimeout = 30_000; // 30 seconds
+const StatusCallTimeout = 10_000; // 10 seconds
 
 export async function syncProvidersInfo() {
   let providers = await Provider.findAll({
@@ -91,11 +91,13 @@ export async function syncProvidersInfo() {
         });
       } catch (err) {
         const checkDate = new Date();
+        const errorMessage = err?.message?.toString() ?? err?.toString();
+
         await Provider.update(
           {
             isOnline: false,
             lastCheckDate: checkDate,
-            error: err?.message || err,
+            error: errorMessage,
             akashVersion: null,
             cosmosSdkVersion: null,
             deploymentCount: null,
@@ -121,7 +123,7 @@ export async function syncProvidersInfo() {
         await ProviderSnapshot.create({
           owner: provider.owner,
           isOnline: false,
-          error: err?.message || err,
+          error: errorMessage,
           checkDate: checkDate
         });
       } finally {
