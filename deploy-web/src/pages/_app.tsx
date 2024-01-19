@@ -30,7 +30,7 @@ import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import "@interchain-ui/react/styles";
 import { ChainParamProvider } from "@src/context/ChainParamProvider";
 import { Inter as FontSans } from "next/font/google";
-import { cn } from "@src/@/lib/utils";
+import { cn } from "@src/utils/styleUtils";
 
 export const fontSans = FontSans({
   subsets: ["latin"],
