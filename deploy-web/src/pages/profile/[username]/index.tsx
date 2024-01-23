@@ -100,7 +100,6 @@ export async function getServerSideProps({ params }) {
       }
     };
   } catch (error) {
-    console.log("Error", error);
     if (error.response?.status === 404 || error.response?.status === 400) {
       return {
         notFound: true
