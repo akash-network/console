@@ -1,3 +1,4 @@
+"use client";
 import React, { useEffect, useState } from "react";
 import { darken, lighten, PaletteMode } from "@mui/material";
 import { createTheme, ThemeProvider, ThemeOptions } from "@mui/material/styles";

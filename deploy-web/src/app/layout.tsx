@@ -1,10 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-// import { cn } from "@src/utils/utils";
-// import { Nav } from "@/components/layout/Nav";
-// import Providers from "@/components/layout/CustomProviders";
-// import { Toaster } from "@/components/ui/toaster";
 import { cookies } from "next/headers";
 // import { customColors } from "@/lib/colors";
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
@@ -13,6 +9,7 @@ import { customColors } from "@src/utils/colors";
 import { cn } from "@src/utils/styleUtils";
 import Providers from "@src/components/layout/CustomProviders";
 import { Toaster } from "@src/components/ui/toaster";
+import { Nav } from "@src/components/layout/Nav";
 
 // const inter = Inter({
 //   subsets: ["latin"],
@@ -124,7 +121,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
       <body className={cn("min-h-screen bg-background tracking-wide antialiased", satoshi.className)}>
         <Providers>
-          {/* <Nav /> */}
+          <Nav />
           <div className="flex min-h-[calc(100vh-60px)] flex-col justify-between">{children}</div>
           <Toaster />
         </Providers>

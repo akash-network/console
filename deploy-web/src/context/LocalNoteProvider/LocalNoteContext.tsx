@@ -4,14 +4,14 @@ import React, { useState, useEffect } from "react";
 import { DeploymentNameModal } from "./DeploymentNameModal";
 
 type ContextType = {
-  getDeploymentName: (dseq: string | number) => string;
+  getDeploymentName: (dseq: string | number) => string | null | undefined;
   changeDeploymentName: (dseq: string | number) => void;
-  getDeploymentData: (dseq: string | number) => LocalDeploymentData;
+  getDeploymentData: (dseq: string | number) => LocalDeploymentData | null;
   favoriteProviders: string[];
   updateFavoriteProviders: (newFavorites: string[]) => void;
 };
 
-const LocalNoteProviderContext = React.createContext<Partial<ContextType>>({});
+const LocalNoteProviderContext = React.createContext<ContextType>({} as ContextType);
 
 export const LocalNoteProvider = ({ children }) => {
   const [dseq, setDseq] = useState<number | string | null>(null);

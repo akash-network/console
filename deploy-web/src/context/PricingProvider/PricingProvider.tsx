@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { useMarketData } from "@src/queries";

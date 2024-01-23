@@ -1,3 +1,4 @@
+"use client";
 import { Button } from "@mui/material";
 import { Snackbar } from "@src/components/shared/Snackbar";
 import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";

@@ -2,15 +2,27 @@
 import React from "react";
 import { CustomIntlProvider } from "./CustomIntlProvider";
 import { QueryClientProvider } from "react-query";
-import { queryClient } from "@/queries";
+import { queryClient } from "@src/queries";
 import { Provider } from "jotai";
 import { ThemeProvider } from "next-themes";
-import { PricingProvider } from "@/context/PricingProvider";
+import { PricingProvider } from "@src/context/PricingProvider";
 import { TooltipProvider } from "../ui/tooltip";
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
-import { customColors } from "@/lib/colors";
+import { customColors } from "@src/utils/colors";
+import { SettingsProvider } from "@src/context/SettingsProvider";
+import { CustomChainProvider } from "@src/context/CustomChainProvider";
 
-function Providers({ children }: React.PropsWithChildren) {
+function Providers({ children }: React.PropsWithChildren<{}>) {
+  //               <PricingProvider>
+  //                 <UserProvider>
+  //                   <AddressBookProvider>
+  //                     <SettingsProvider>
+  //                       <CustomChainProvider>
+  //                         <WalletProvider>
+  //                           <CertificateProvider>
+  //                             <TemplatesProvider>
+  //                               <LocalNoteProvider>
+  //                                 <BackgroundTaskProvider></BackgroundTaskProvider>
   return (
     <CustomIntlProvider>
       <QueryClientProvider client={queryClient}>
@@ -18,9 +30,13 @@ function Providers({ children }: React.PropsWithChildren) {
           <ThemeProvider attribute="class" defaultTheme="light" storageKey="theme" enableSystem disableTransitionOnChange>
             <PricingProvider>
               <TooltipProvider>
-                <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
+                <SettingsProvider>
+                  <CustomChainProvider>
+                    <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
 
-                {children}
+                    {children}
+                  </CustomChainProvider>
+                </SettingsProvider>
               </TooltipProvider>
             </PricingProvider>
           </ThemeProvider>

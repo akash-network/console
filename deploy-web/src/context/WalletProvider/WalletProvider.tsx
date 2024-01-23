@@ -1,3 +1,4 @@
+"use client";
 import React, { useRef } from "react";
 import { useState, useEffect } from "react";
 import { SigningStargateClient } from "@cosmjs/stargate";

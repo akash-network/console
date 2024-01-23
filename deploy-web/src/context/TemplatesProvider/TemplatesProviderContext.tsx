@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import { useTemplates as useTemplatesQuery } from "@src/queries/useTemplateQuery";
 import { ApiTemplate } from "@src/types";
@@ -26,4 +27,3 @@ export const TemplatesProvider = ({ children }) => {
 export const useTemplates = () => {
   return { ...React.useContext(TemplatesProviderContext) };
 };
-

@@ -1,3 +1,4 @@
+"use client";
 import getConfig from "next/config";
 import { Copyright } from "iconoir-react";
 const { publicRuntimeConfig } = getConfig();

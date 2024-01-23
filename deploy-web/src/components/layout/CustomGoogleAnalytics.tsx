@@ -1,6 +1,6 @@
 "use client";
 
-import { isProd } from "@/lib/constants";
+import { isProd } from "@src/utils/constants";
 import { event, GoogleAnalytics as GAnalytics } from "nextjs-google-analytics";
 import { useReportWebVitals } from "next/web-vitals";
 

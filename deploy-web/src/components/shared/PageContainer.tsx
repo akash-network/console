@@ -1,14 +1,13 @@
-import { SxProps, Theme } from "@mui/material";
-import Container from "@mui/material/Container";
+import { cn } from "@src/utils/styleUtils";
 import { ReactNode } from "react";
 
 type Props = {
   children?: ReactNode;
-  sx?: SxProps<Theme>;
+  className?: string;
 };
 
-export const PageContainer: React.FunctionComponent<Props> = ({ children, sx = {} }) => {
-  return <Container sx={{ paddingTop: { xs: "1rem", sm: "2rem" }, paddingBottom: "2rem", ...sx }}>{children}</Container>;
+export const PageContainer: React.FunctionComponent<Props> = ({ children, className = "" }) => {
+  return <div className={cn("container pb-8 pt-4 sm:pt-8", className)}>{children}</div>;
 };
 
 export default PageContainer;

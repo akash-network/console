@@ -1,3 +1,4 @@
+"use client";
 import getConfig from "next/config";
 import { gt, neq } from "semver";
 import { mainnetId } from "./constants";
