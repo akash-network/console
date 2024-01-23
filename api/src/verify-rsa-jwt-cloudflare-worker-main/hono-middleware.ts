@@ -7,6 +7,7 @@ export type VerifyRsaJwtConfig = {
   kvStore?: GeneralKeyValueStore;
   payloadValidator?: (payload: VerificationResult, ctx: Context) => void;
   verbose?: boolean;
+  optional?: boolean;
 };
 
 const PAYLOAD_KEY = 'verifyRsaJwtPayload';
@@ -39,7 +40,12 @@ export function verifyRsaJwt(config?: VerifyRsaJwtConfig): MiddlewareHandler {
     } catch (error) {
       config?.verbose &&
         console.error({ message: 'verification failed', error });
-      return new Response((error as Error).message, { status: 401 });
+
+      if (config?.optional) {
+        await next();
+      } else {
+        return new Response((error as Error).message, { status: 401 });
+      }
     }
   };
 }

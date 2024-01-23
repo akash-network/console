@@ -26,25 +26,29 @@ import { getBillingPortalUrl, getCheckoutUrl } from "@src/providers/stripeProvid
 import asyncHandler from "express-async-handler";
 import { Context, Hono } from "hono";
 import { getPayloadFromContext } from "../verify-rsa-jwt-cloudflare-worker-main";
-import { requiredUserMiddleware } from "@src/middlewares/userMiddleware";
+import { optionalUserMiddleware, requiredUserMiddleware } from "@src/middlewares/userMiddleware";
 
 export const userRouter = new Hono();
+
+const userRequiredRouter = new Hono();
+userRequiredRouter.use("*", requiredUserMiddleware);
+
+const userOptionalRouter = new Hono();
+userRequiredRouter.use("*", optionalUserMiddleware);
 
 function getCurrentUserId(c: Context) {
   const claims = getPayloadFromContext(c);
   return claims?.sub;
 }
 
-userRouter.use("*", requiredUserMiddleware);
-
-userRouter.post("/manage-subscription", async (c) => {
+userRequiredRouter.post("/manage-subscription", async (c) => {
   const userId = getCurrentUserId(c);
   const portalUrl = await getBillingPortalUrl(userId);
 
   return c.redirect(portalUrl);
 });
 
-userRouter.post("/subscribe", async (c) => {
+userRequiredRouter.post("/subscribe", async (c) => {
   const userId = getCurrentUserId(c);
   const { planCode, period } = await c.req.json(); // TODO Test
 
@@ -60,30 +64,30 @@ userRouter.post("/subscribe", async (c) => {
   return c.redirect(checkoutUrl, 303);
 });
 
-// userRouter.get(
-//   "/byUsername/:username",
-//   asyncHandler(async (req, res) => {
-//     const username = req.params.username;
+userOptionalRouter.get(
+  "/byUsername/:username",
+  // Optional
+  async (c) => {
+    const username = c.req.param("username");
 
-//     const user = await getUserByUsername(username);
+    const user = await getUserByUsername(username);
 
-//     if (!user) {
-//       res.status(404).send("User not found");
-//       return;
-//     }
+    if (!user) {
+      return c.text("User not found", 404);
+    }
 
-//     res.send(user);
-//   })
-// );
+    return c.json(user);
+  }
+);
 
-userRouter.get("/addressNames", async (c) => {
+userRequiredRouter.get("/addressNames", async (c) => {
   const userId = getCurrentUserId(c);
   const addressNames = await getAddressNames(userId);
 
   return c.json(addressNames);
 });
 
-userRouter.post("/saveAddressName", async (c) => {
+userRequiredRouter.post("/saveAddressName", async (c) => {
   const userId = getCurrentUserId(c);
   const { address, name } = await c.req.json();
 
@@ -104,7 +108,7 @@ userRouter.post("/saveAddressName", async (c) => {
   return c.text("Saved");
 });
 
-userRouter.delete("/removeAddressName/:address", async (c) => {
+userRequiredRouter.delete("/removeAddressName/:address", async (c) => {
   const userId = getCurrentUserId(c);
 
   if (!c.req.param("address")) {
@@ -120,7 +124,7 @@ userRouter.delete("/removeAddressName/:address", async (c) => {
   return c.text("Removed");
 });
 
-userRouter.post("/tokenInfo", async (c) => {
+userRequiredRouter.post("/tokenInfo", async (c) => {
   const userId = getCurrentUserId(c);
   const { wantedUsername, email, emailVerified, subscribedToNewsletter } = await c.req.json();
 
@@ -129,7 +133,7 @@ userRouter.post("/tokenInfo", async (c) => {
   return c.json(settings);
 });
 
-userRouter.put("/updateSettings", async (c, res) => {
+userRequiredRouter.put("/updateSettings", async (c, res) => {
   const userId = getCurrentUserId(c);
   const { username, subscribedToNewsletter, bio, youtubeUsername, twitterUsername, githubUsername } = await c.req.json();
 
@@ -142,30 +146,25 @@ userRouter.put("/updateSettings", async (c, res) => {
   return c.text("Saved");
 });
 
-// userRouter.get(
-//   "/template/:id",
-//   optionalUserMiddleware,
-//   asyncHandler(async (req: JWTRequest, res) => {
-//     const userId = req.auth?.sub;
-//     const templateId = req.params.id;
+userOptionalRouter.get("/template/:id", async (c) => {
+  const userId = getCurrentUserId(c);
+  const templateId = c.req.param("id");
 
-//     if (!uuid.validate(templateId)) {
-//       res.status(400).send("Invalid template id");
-//       return;
-//     }
+  if (!uuid.validate(templateId)) {
+    return c.text("Invalid template id", 400);
+    return;
+  }
 
-//     const template = await getTemplateById(templateId, userId);
+  const template = await getTemplateById(templateId, userId);
 
-//     if (!template) {
-//       res.status(404).send("Template not found");
-//       return;
-//     }
+  if (!template) {
+    return c.text("Template not found", 404);
+  }
 
-//     res.send(template);
-//   })
-// );
+  return c.json(template);
+});
 
-userRouter.post("/saveTemplate", async (c) => {
+userRequiredRouter.post("/saveTemplate", async (c) => {
   const userId = getCurrentUserId(c);
   const { id, sdl, isPublic, title, cpu, ram, storage } = await c.req.json();
 
@@ -182,7 +181,7 @@ userRouter.post("/saveTemplate", async (c) => {
   return c.text(templateId);
 });
 
-userRouter.post("/saveTemplateDesc", async (c) => {
+userRequiredRouter.post("/saveTemplateDesc", async (c) => {
   const userId = getCurrentUserId(c);
   const { id, description } = await c.req.json();
 
@@ -191,25 +190,21 @@ userRouter.post("/saveTemplateDesc", async (c) => {
   return c.text("Saved");
 });
 
-// userRouter.get(
-//   "/templates/:username",
-//   optionalUserMiddleware,
-//   asyncHandler(async (req: JWTRequest, res) => {
-//     const username = req.params.username;
-//     const userId = req.auth?.sub;
+userOptionalRouter.get("/templates/:username", async (c) => {
+  console.log("/templates/:username CALLED");
+  const username = c.req.param("username");
+  const userId = getCurrentUserId(c);
 
-//     const templates = await getTemplates(username, userId);
+  const templates = await getTemplates(username, userId);
 
-//     if (!templates) {
-//       res.status(404).send("User not found.");
-//       return;
-//     }
+  if (!templates) {
+    return c.text("User not found.", 404);
+  }
 
-//     res.send(templates);
-//   })
-// );
+  return c.json(templates);
+});
 
-userRouter.delete("/deleteTemplate/:id", async (c) => {
+userRequiredRouter.delete("/deleteTemplate/:id", async (c) => {
   const userId = getCurrentUserId(c);
 
   if (!c.req.param("id")) {
@@ -225,20 +220,20 @@ userRouter.delete("/deleteTemplate/:id", async (c) => {
   return c.text("Removed");
 });
 
-// userRouter.get("/checkUsernameAvailability/:username", async (c) => {
-//   const isAvailable = await checkUsernameAvailable(c.req.param("username"));
+userOptionalRouter.get("/checkUsernameAvailability/:username", async (c) => {
+  const isAvailable = await checkUsernameAvailable(c.req.param("username"));
 
-//   return c.json({ isAvailable: isAvailable });
-// });
+  return c.json({ isAvailable: isAvailable });
+});
 
-userRouter.get("/favoriteTemplates", async (c) => {
+userRequiredRouter.get("/favoriteTemplates", async (c) => {
   const userId = getCurrentUserId(c);
   const templates = await getFavoriteTemplates(userId);
 
   return c.json(templates);
 });
 
-userRouter.post("/addFavoriteTemplate/:templateId", async (c) => {
+userRequiredRouter.post("/addFavoriteTemplate/:templateId", async (c) => {
   const userId = getCurrentUserId(c);
 
   if (!c.req.param("templateId")) {
@@ -250,7 +245,7 @@ userRouter.post("/addFavoriteTemplate/:templateId", async (c) => {
   return c.text("Added");
 });
 
-userRouter.delete("/removeFavoriteTemplate/:templateId", async (c) => {
+userRequiredRouter.delete("/removeFavoriteTemplate/:templateId", async (c) => {
   const userId = getCurrentUserId(c);
 
   if (!c.req.param("templateId")) {
@@ -262,10 +257,13 @@ userRouter.delete("/removeFavoriteTemplate/:templateId", async (c) => {
   return c.text("Removed");
 });
 
-userRouter.post("/subscribeToNewsletter", async (c) => {
+userRequiredRouter.post("/subscribeToNewsletter", async (c) => {
   const userId = getCurrentUserId(c);
 
   await subscribeToNewsletter(userId);
 
   return c.text("Subscribed");
 });
+
+userRouter.route("/", userOptionalRouter);
+userRouter.route("/", userRequiredRouter);
