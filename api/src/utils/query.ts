@@ -11,7 +11,7 @@ export async function loadWithPagination(baseUrl: string, dataKey: string, limit
     }
     console.log(`Querying ${dataKey} [${callCount}] from : ${queryUrl}`);
     const response = await fetch(queryUrl);
-    const data = await response.json();
+    const data = await response.json() as any;
 
     if (!nextKey) {
       totalCount = data.pagination.total;

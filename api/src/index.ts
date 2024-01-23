@@ -72,7 +72,7 @@ app.use(Sentry.Handlers.requestHandler());
 app.use(Sentry.Handlers.tracingHandler());
 
 app.use("/", apiRouter);
-app.use("/user", userRouter);
+appHono.route("/user", userRouter);
 appHono.route("/web3-index", web3IndexRouter);
 appHono.route("/dashboard", dashboardRouter);
 

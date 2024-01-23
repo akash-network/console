@@ -1,28 +1,28 @@
 import { env } from "@src/utils/env";
-import { expressjwt as jwt, GetVerificationKey, Request as JWTRequest } from "express-jwt";
-import { expressJwtSecret } from "jwks-rsa";
+import { verifyRsaJwt } from "../verify-rsa-jwt-cloudflare-worker-main";
 
-export { JWTRequest };
-
-const jwtSecret = expressJwtSecret({
-  cache: true,
-  rateLimit: true,
-  jwksRequestsPerMinute: 5,
-  jwksUri: env.Auth0JWKSUri
-}) as GetVerificationKey;
-
-export const optionalUserMiddleware = jwt({
-  secret: jwtSecret,
-  audience: env.Auth0Audience,
-  issuer: env.Auth0Issuer,
-  algorithms: ["RS256"],
-  credentialsRequired: false
+export const requiredUserMiddleware = verifyRsaJwt({
+  jwksUri: env.Auth0JWKSUri,
+  // kvStore: {
+  //   get: async (key: string, format: "json") => {
+  //     console.log("Get " + key);
+  //     return null as unknown;
+  //   },
+  //   put: async (key: string, value: string, options: any) => {
+  //     console.log("Get", key, value, options);
+  //   }
+  // }, // Anything that keeps a value, KVNamespace would work too.
+  payloadValidator: (payload, ctx) => {
+    /* Validate the payload, throw an error if invalid */
+    console.log("payloadValidator", payload);
+  },
+  verbose: true
 });
 
-export const requiredUserMiddleware = jwt({
-  secret: jwtSecret,
-  audience: env.Auth0Audience,
-  issuer: env.Auth0Issuer,
-  algorithms: ["RS256"],
-  credentialsRequired: true
-});
+// export const optionalUserMiddleware = verifyRsaJwt({
+//   jwksUri: env.Auth0JWKSUri,
+//   payloadValidator: (payload, ctx) => {
+//     /* Validate the payload, throw an error if invalid */
+//     console.log("payloadValidator", payload, ctx);
+//   }
+// });

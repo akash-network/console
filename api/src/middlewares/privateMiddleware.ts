@@ -1,5 +1,5 @@
 import { env } from "@src/utils/env";
-import { Context } from "hono";
+import {Context} from "hono";
 
 export async function privateMiddleware(c: Context, next) {
   if (!env.SecretToken) {
@@ -9,4 +9,5 @@ export async function privateMiddleware(c: Context, next) {
   } else {
     return c.text("Unauthorized", 401);
   }
+
 }
