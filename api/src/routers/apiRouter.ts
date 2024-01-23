@@ -1,11 +1,8 @@
-import express from "express";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { swaggerUI } from "@hono/swagger-ui";
 import routesV1 from "../routes/v1";
 
-export const apiRouter = express.Router();
-
-export const apiRouterHono = new OpenAPIHono();
+export const apiRouter = new OpenAPIHono();
 
 function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRoutes: OpenAPIHono[]) {
   const versionRouter = new OpenAPIHono();
@@ -14,7 +11,7 @@ function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRou
     servers: [
       { url: `http://localhost:8787/${version}`, description: "Localhost" },
       { url: `https://api-preview.cloudmos.io/${version}`, description: "Online Preview" }
-    ], // TODO
+    ],
     info: {
       title: "Cloudmos API",
       description: "Access Akash data from our indexer",
@@ -30,4 +27,4 @@ function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRou
   baseRouter.route(`/${version}`, versionRouter);
 }
 
-registerApiVersion("v1", apiRouterHono, routesV1);
+registerApiVersion("v1", apiRouter, routesV1);

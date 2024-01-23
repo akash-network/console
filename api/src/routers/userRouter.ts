@@ -1,5 +1,3 @@
-import express from "express";
-// import { optionalUserMiddleware, requiredUserMiddleware } from "@src/middlewares/userMiddleware";
 import {
   saveAddressName,
   getAddressNames,
@@ -23,10 +21,8 @@ import {
   addTemplateFavorite
 } from "@src/db/templateProvider";
 import { getBillingPortalUrl, getCheckoutUrl } from "@src/providers/stripeProvider";
-import asyncHandler from "express-async-handler";
-import { Context, Hono } from "hono";
-import { getPayloadFromContext } from "../verify-rsa-jwt-cloudflare-worker-main";
-import { optionalUserMiddleware, requiredUserMiddleware } from "@src/middlewares/userMiddleware";
+import { Hono } from "hono";
+import { getCurrentUserId, optionalUserMiddleware, requiredUserMiddleware } from "@src/middlewares/userMiddleware";
 
 export const userRouter = new Hono();
 
@@ -35,11 +31,6 @@ userRequiredRouter.use("*", requiredUserMiddleware);
 
 const userOptionalRouter = new Hono();
 userRequiredRouter.use("*", optionalUserMiddleware);
-
-function getCurrentUserId(c: Context) {
-  const claims = getPayloadFromContext(c);
-  return claims?.sub;
-}
 
 userRequiredRouter.post("/manage-subscription", async (c) => {
   const userId = getCurrentUserId(c);
@@ -64,21 +55,17 @@ userRequiredRouter.post("/subscribe", async (c) => {
   return c.redirect(checkoutUrl, 303);
 });
 
-userOptionalRouter.get(
-  "/byUsername/:username",
-  // Optional
-  async (c) => {
-    const username = c.req.param("username");
+userOptionalRouter.get("/byUsername/:username", async (c) => {
+  const username = c.req.param("username");
 
-    const user = await getUserByUsername(username);
+  const user = await getUserByUsername(username);
 
-    if (!user) {
-      return c.text("User not found", 404);
-    }
-
-    return c.json(user);
+  if (!user) {
+    return c.text("User not found", 404);
   }
-);
+
+  return c.json(user);
+});
 
 userRequiredRouter.get("/addressNames", async (c) => {
   const userId = getCurrentUserId(c);

@@ -1,10 +1,8 @@
-import express from "express";
-import expressCors from "cors";
 import packageJson from "../package.json";
 import { isProd } from "./utils/constants";
 import * as Sentry from "@sentry/node";
 import { Scheduler } from "./scheduler";
-import { apiRouter, apiRouterHono } from "./routers/apiRouter";
+import { apiRouter } from "./routers/apiRouter";
 import { userRouter } from "./routers/userRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
 import { bytesToHumanReadableSize } from "./utils/files";
@@ -14,14 +12,6 @@ import { dashboardRouter } from "./routers/dashboardRouter";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
-
-const app = express();
-app.use(
-  expressCors({
-    origin: env.AKASHLYTICS_CORS_WEBSITE_URLS?.split(",") || ["http://localhost:3000", "http://localhost:3001"],
-    optionsSuccessStatus: 200
-  })
-);
 
 const appHono = new Hono();
 appHono.use(
@@ -41,14 +31,7 @@ Sentry.init({
   enabled: isProd,
   integrations: [
     // enable HTTP calls tracing
-    new Sentry.Integrations.Http({ tracing: true }),
-    // enable Express.js middleware tracing
-    new Sentry.Integrations.Express({
-      // to trace all requests to the default router
-      app
-      // alternatively, you can specify the routes you want to trace:
-      // router: someRouter,
-    })
+    new Sentry.Integrations.Http({ tracing: true })
   ],
 
   // Set tracesSampleRate to 1.0 to capture 100%
@@ -65,13 +48,6 @@ const scheduler = new Scheduler({
   }
 });
 
-// RequestHandler creates a separate execution context using domains, so that every
-// transaction/span/breadcrumb is attached to its own Hub instance
-app.use(Sentry.Handlers.requestHandler());
-// TracingHandler creates a trace for every incoming request
-app.use(Sentry.Handlers.tracingHandler());
-
-app.use("/", apiRouter);
 appHono.route("/user", userRouter);
 appHono.route("/web3-index", web3IndexRouter);
 appHono.route("/dashboard", dashboardRouter);
@@ -90,10 +66,7 @@ appHono.get("/status", (c) => {
   return c.json({ version, memory, tasks: tasksStatus });
 });
 
-appHono.route("/", apiRouterHono);
-
-// The error handler must be before any other error middleware and after all controllers
-app.use(Sentry.Handlers.errorHandler());
+appHono.route("/", apiRouter);
 
 function startScheduler() {
   scheduler.start();
@@ -121,13 +94,11 @@ async function initApp() {
 
     startScheduler();
 
-    // app.listen(PORT, () => {
-    //   console.log("server started at http://localhost:" + PORT);
-    // });
+    console.log("Starting server at http://localhost:" + PORT);
 
     serve({
       fetch: appHono.fetch,
-      port: 3080
+      port: typeof PORT === "string" ? parseInt(PORT) : PORT
     });
   } catch (err) {
     console.error("Error while initializing app", err);
@@ -137,5 +108,3 @@ async function initApp() {
 }
 
 initApp();
-
-export default app;
