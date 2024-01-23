@@ -178,7 +178,6 @@ userRequiredRouter.post("/saveTemplateDesc", async (c) => {
 });
 
 userOptionalRouter.get("/templates/:username", async (c) => {
-  console.log("/templates/:username CALLED");
   const username = c.req.param("username");
   const userId = getCurrentUserId(c);
 
