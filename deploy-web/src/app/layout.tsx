@@ -10,6 +10,9 @@ import { cn } from "@src/utils/styleUtils";
 import Providers from "@src/components/layout/CustomProviders";
 import { Toaster } from "@src/components/ui/toaster";
 import { Nav } from "@src/components/layout/Nav";
+import { ErrorBoundary } from "react-error-boundary";
+import { ErrorFallback } from "@src/components/shared/ErrorFallback";
+import { AppLayoutContainer } from "@src/components/layout/AppLayoutContainer";
 
 // const inter = Inter({
 //   subsets: ["latin"],
@@ -121,9 +124,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
       <body className={cn("min-h-screen bg-background tracking-wide antialiased", satoshi.className)}>
         <Providers>
-          <Nav />
-          <div className="flex min-h-[calc(100vh-60px)] flex-col justify-between">{children}</div>
           <Toaster />
+
+          <AppLayoutContainer>{children}</AppLayoutContainer>
         </Providers>
       </body>
     </html>

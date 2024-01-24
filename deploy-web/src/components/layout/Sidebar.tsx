@@ -1,3 +1,4 @@
+"use client";
 import Drawer from "@mui/material/Drawer";
 import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";

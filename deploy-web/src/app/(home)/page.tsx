@@ -1,12 +1,6 @@
-import PageContainer from "@src/components/shared/PageContainer";
+import { PageContainer } from "@src/components/shared/PageContainer";
 import React from "react";
 import { HomeContainer } from "./HomeContainer";
-import getConfig from "next/config";
-
-// Only holds serverRuntimeConfig and publicRuntimeConfig
-const { publicRuntimeConfig } = getConfig();
-// Will be available on both server-side and client-side
-console.log(publicRuntimeConfig.version);
 
 export default function Home() {
   return (
