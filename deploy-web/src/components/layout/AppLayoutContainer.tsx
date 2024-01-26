@@ -103,10 +103,14 @@ export function AppLayoutContainer({ children, version }: React.PropsWithChildre
               />
 
               <div
-                className="ml-0 flex-grow md:ml-[240px]"
+                className="ml-0 flex-grow md:ml-[240px] h-full"
                 style={{ marginLeft: !smallScreen ? 0 : isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }}
                 // className={classes.viewContentContainer}
                 // sx={{ marginLeft: { xs: 0, sm: 0, md: isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }, minWidth: 0 }}
+                // viewContentContainer: {
+                //   flexGrow: 1,
+                //   transition: "margin-left .3s ease"
+                // }
               >
                 {children}
               </div>

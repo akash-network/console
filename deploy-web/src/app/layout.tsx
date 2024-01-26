@@ -126,7 +126,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
       <GoogleAnalytics />
 
-      <body className={cn("min-h-screen bg-background tracking-wide antialiased", satoshi.className)}>
+      <body className={cn("bg-background tracking-wide antialiased", satoshi.className)}>
         <Providers version={version}>
           <Toaster />
 

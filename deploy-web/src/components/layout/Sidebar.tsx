@@ -17,7 +17,7 @@ import { Button, buttonVariants } from "../ui/button";
 import { cn } from "@src/utils/styleUtils";
 import { Rocket, StatsUpSquare, ArrowUpRightSquare, Github, X as TwitterX, Discord, Menu, MenuScale } from "iconoir-react";
 // import Drawer from "react-modern-drawer";
-import { Drawer } from "@rewind-ui/core"
+import { Drawer } from "@rewind-ui/core";
 
 // const useStyles = makeStyles()(theme => ({
 //   version: {
@@ -238,7 +238,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
       </div>
 
       <div className="w-full">
-        {smallScreen && <MobileSidebarUser />}
+        {!smallScreen && <MobileSidebarUser />}
 
         {_isNavOpen && (
           <div className="pb-4 pl-4 pr-4">
@@ -358,8 +358,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
 
   return (
     <nav
-      style={{ width: !smallScreen ? 0 : _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth }}
-      className="fixed z-[100] md:flex-shrink-0"
+      style={{ width: !smallScreen ? 0 : _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth, height: `calc(100% - ${accountBarHeight}px)` }}
+      className="fixed z-[100] h-full md:flex-shrink-0"
       // sx={{
       //   position: "fixed",
       //   zIndex: 100,
@@ -395,7 +395,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
 
       {/* Desktop Drawer */}
       <div
-        className="hidden md:block"
+        className="hidden h-full md:block"
         // variant="permanent"
         // sx={{
         //   display: { xs: "none", sm: "none", md: "block" },
