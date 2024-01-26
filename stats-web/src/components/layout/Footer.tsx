@@ -1,10 +1,9 @@
 "use client";
-import getConfig from "next/config";
 import { Copyright } from "iconoir-react";
-const { publicRuntimeConfig } = getConfig();
 
-export function Footer() {
+export function Footer({version}: {version: string}) {
   const year = new Date().getFullYear();
+
   return (
     <footer className="py-6 md:px-8 md:py-0">
       <div className="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
@@ -13,7 +12,7 @@ export function Footer() {
           &nbsp;Akash Network {year}
         </p>
 
-        <span className="text-xs">v{publicRuntimeConfig?.version}</span>
+        <span className="text-xs">v{version}</span>
       </div>
     </footer>
   );
