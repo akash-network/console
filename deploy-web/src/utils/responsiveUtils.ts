@@ -6,6 +6,7 @@ type Breakpoints = {
   };
 };
 
+// TODO: Implement up/down https://mui.com/material-ui/customization/breakpoints/
 export const breakpoints: Breakpoints = {
   xs: { value: 0, mediaQuery: "(max-width: 640px)" },
   sm: { value: 640, mediaQuery: "(min-width: 640px)" },

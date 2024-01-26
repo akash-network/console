@@ -1,3 +1,4 @@
+"use client";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import Box from "@mui/material/Box";
 import { useWallet } from "@src/context/WalletProvider";
@@ -18,7 +19,7 @@ import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { FormattedNumber } from "react-intl";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 
 type Props = {
   children?: ReactNode;

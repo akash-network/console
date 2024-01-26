@@ -1,8 +1,6 @@
-import { useTheme } from "@mui/material/styles";
 import { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import getConfig from "next/config";
 import { makeStyles } from "tss-react/mui";
 import { UrlService } from "@src/utils/urlUtils";
 import { Avatar, Box, Button, CircularProgress, Divider, List, ListItem } from "@mui/material";
@@ -32,8 +30,6 @@ type Props = {
 
 export const MobileSidebarUser: React.FunctionComponent<Props> = ({}) => {
   const { classes } = useStyles();
-  const theme = useTheme();
-  const router = useRouter();
   const { user, error, isLoading } = useCustomUser();
 
   return (

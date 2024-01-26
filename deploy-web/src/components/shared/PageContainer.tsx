@@ -41,10 +41,7 @@ export const PageContainer: React.FunctionComponent<Props> = ({ children, classN
 
 const Loading: React.FunctionComponent<{ text: string }> = ({ text }) => {
   return (
-    <div
-      className="flex h-full w-full flex-col items-center justify-center pb-12 pt-12"
-      // sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", width: "100%", flexDirection: "column", padding: "3rem 0" }}
-    >
+    <div className="flex h-full w-full flex-col items-center justify-center pb-12 pt-12">
       <div className="pb-4">
         <Spinner size="large" />
       </div>

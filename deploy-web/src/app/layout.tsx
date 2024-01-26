@@ -13,6 +13,9 @@ import { Nav } from "@src/components/layout/Nav";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@src/components/shared/ErrorFallback";
 import { AppLayoutContainer } from "@src/components/layout/AppLayoutContainer";
+import getConfig from "next/config";
+
+const { publicRuntimeConfig } = getConfig();
 
 // const inter = Inter({
 //   subsets: ["latin"],
@@ -117,16 +120,17 @@ function getTheme() {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const theme = getTheme() as string;
+  const version = publicRuntimeConfig?.version;
 
   return (
     <html lang="en" className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
       <GoogleAnalytics />
 
       <body className={cn("min-h-screen bg-background tracking-wide antialiased", satoshi.className)}>
-        <Providers>
+        <Providers version={version}>
           <Toaster />
 
-          <AppLayoutContainer>{children}</AppLayoutContainer>
+          <AppLayoutContainer version={version}>{children}</AppLayoutContainer>
         </Providers>
       </body>
     </html>

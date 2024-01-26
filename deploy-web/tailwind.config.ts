@@ -3,7 +3,14 @@ import defaultTheme, { fontFamily } from "tailwindcss/defaultTheme";
 
 const config: Config = {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+    "./node_modules/@rewind-ui/core/dist/theme/styles/Drawer.styles.js",
+    "./node_modules/@rewind-ui/core/dist/theme/styles/Overlay.styles.js"
+  ],
   theme: {
     container: {
       center: true,
@@ -73,8 +80,7 @@ const config: Config = {
       }
     }
   },
-  plugins: [require("tailwindcss-animate")]
+  plugins: [require("tailwindcss-animate"), require("tailwind-scrollbar")({ nocompatible: true })]
 };
 
 export default config;
-

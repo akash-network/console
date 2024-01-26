@@ -1,9 +1,10 @@
+"use client";
 import { useSettings } from "../../context/SettingsProvider";
 import { makeStyles } from "tss-react/mui";
 import { Box, Typography, useTheme } from "@mui/material";
 import { NodeStatus } from "../shared/NodeStatus";
 import { LinkTo } from "../shared/LinkTo";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { UrlService } from "@src/utils/urlUtils";
 import { getSplitText } from "@src/hooks/useShortText";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";

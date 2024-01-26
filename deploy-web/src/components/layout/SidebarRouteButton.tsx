@@ -1,79 +1,89 @@
-import Button from "@mui/material/Button";
-import { SxProps, Theme, useTheme } from "@mui/material/styles";
+"use client";
 import { ReactNode } from "react";
 import Link from "next/link";
-import { cx } from "@emotion/css";
-import { useRouter } from "next/router";
-import { makeStyles } from "tss-react/mui";
+import { useRouter, usePathname } from "next/navigation";
 import { UrlService } from "@src/utils/urlUtils";
 import { ISidebarRoute } from "@src/types";
-import { Chip, ListItem, ListItemIcon, ListItemText } from "@mui/material";
+import { cn } from "@src/utils/styleUtils";
+import { buttonVariants } from "../ui/button";
 
-const useStyles = makeStyles()(theme => ({
-  notSelected: {
-    color: theme.palette.mode === "dark" ? theme.palette.grey[500] : theme.palette.grey[700],
-    fontWeight: 500
-  },
-  selected: {
-    fontWeight: "bold"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   notSelected: {
+//     color: theme.palette.mode === "dark" ? theme.palette.grey[500] : theme.palette.grey[700],
+//     fontWeight: 500
+//   },
+//   selected: {
+//     fontWeight: "bold"
+//   }
+// }));
 
 type Props = {
   children?: ReactNode;
-  sx?: SxProps<Theme>;
   route: ISidebarRoute;
   isNavOpen?: boolean;
+  className?: string;
 };
 
-export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, sx = {}, isNavOpen = true }) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
+export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, className = "", isNavOpen = true }) => {
   const router = useRouter();
-  const isSelected = route.url === UrlService.home() ? router.asPath === "/" : route.activeRoutes.some(x => router.asPath.startsWith(x));
+  const pathname = usePathname();
+  const isSelected = route.url === UrlService.home() ? pathname === "/" : route.activeRoutes.some(x => pathname?.startsWith(x));
 
   return (
-    <ListItem sx={{ padding: "4px 0" }}>
-      <Button
-        fullWidth
+    <li>
+      <Link
+        target={route.isExternal ? "_blank" : "_self"}
+        rel={route.rel ? route.rel : ""}
         href={route.url}
-        component={Link}
-        color="inherit"
-        className={cx({
-          [classes.selected]: isSelected,
-          [classes.notSelected]: !isSelected
+        className={cn(buttonVariants({ variant: isSelected ? "secondary" : "ghost", size: "sm" }), "text-md flex w-full items-center justify-start", {
+          // ["mt-2"]: index > 0,
+          // ["text-foreground"]: route.variant === "ghost"
         })}
-        sx={{
-          justifyContent: "flex-start",
-          textTransform: "initial",
-          fontSize: "1rem",
-          height: "40px",
-          padding: isNavOpen ? ".2rem 1rem" : ".5rem",
-          minWidth: isNavOpen ? "initial" : 0,
-          ...sx
-        }}
-        target={route.target ?? "_self"}
       >
-        <ListItemIcon sx={{ minWidth: 0, zIndex: 100, margin: isNavOpen ? "initial" : "0 auto" }}>
-          {route.icon({ color: isSelected ? "secondary" : "disabled", fontSize: "small" })}
-        </ListItemIcon>
-
-        {isNavOpen && (
-          <ListItemText
-            sx={{ marginLeft: "1rem", whiteSpace: "nowrap" }}
-            primaryTypographyProps={{
-              className: cx({ [classes.selected]: isSelected, [classes.notSelected]: !isSelected }),
-              style: { opacity: isNavOpen ? 1 : 0 }
-            }}
-            primary={
-              <>
-                {route.title}
-                {route.isNew && <Chip variant="outlined" sx={{ marginLeft: 2, cursor: "pointer" }} label="NEW" size="small" color="secondary" />}
-              </>
-            }
-          />
-        )}
-      </Button>
-    </ListItem>
+        {!!route.icon && <span className="mr-2">{route.icon}</span>}
+        {route.title}
+        {/* {route.label && <span className={cn("ml-auto", route.variant === "default" && "text-background dark:text-white")}>{link.label}</span>} */}
+      </Link>
+    </li>
   );
 };
+
+// <Button
+//   fullWidth
+//   href={route.url}
+//   component={Link}
+//   color="inherit"
+//   className={cx({
+//     [classes.selected]: isSelected,
+//     [classes.notSelected]: !isSelected
+//   })}
+//   sx={{
+//     justifyContent: "flex-start",
+//     textTransform: "initial",
+//     fontSize: "1rem",
+//     height: "40px",
+//     padding: isNavOpen ? ".2rem 1rem" : ".5rem",
+//     minWidth: isNavOpen ? "initial" : 0,
+//     ...sx
+//   }}
+// >
+//   <ListItemIcon sx={{ minWidth: 0, zIndex: 100, margin: isNavOpen ? "initial" : "0 auto" }}>
+//     {route.icon({ color: isSelected ? "secondary" : "disabled" })}
+//   </ListItemIcon>
+
+//   {isNavOpen && (
+//     <ListItemText
+//       sx={{ marginLeft: "1rem", whiteSpace: "nowrap" }}
+//       primaryTypographyProps={{
+//         className: cx({ [classes.selected]: isSelected, [classes.notSelected]: !isSelected }),
+//         style: { opacity: isNavOpen ? 1 : 0 }
+//       }}
+//       primary={
+//         <>
+//           {route.title}
+//           {route.isNew && <Chip variant="outlined" sx={{ marginLeft: 2, cursor: "pointer" }} label="NEW" size="small" color="secondary" />}
+//         </>
+//       }
+//     />
+//   )}
+// </Button>

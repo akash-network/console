@@ -11,8 +11,9 @@ import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
 import { customColors } from "@src/utils/colors";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
+import { UserProvider } from "@auth0/nextjs-auth0/client";
 
-function Providers({ children }: React.PropsWithChildren<{}>) {
+function Providers({ children, version }: React.PropsWithChildren<{ version: string }>) {
   //               <PricingProvider>
   //                 <UserProvider>
   //                   <AddressBookProvider>
@@ -29,15 +30,17 @@ function Providers({ children }: React.PropsWithChildren<{}>) {
         <Provider>
           <ThemeProvider attribute="class" defaultTheme="light" storageKey="theme" enableSystem disableTransitionOnChange>
             <PricingProvider>
-              <TooltipProvider>
-                <SettingsProvider>
-                  <CustomChainProvider>
-                    <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
+              <UserProvider>
+                <TooltipProvider>
+                  <SettingsProvider version={version}>
+                    <CustomChainProvider>
+                      <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
 
-                    {children}
-                  </CustomChainProvider>
-                </SettingsProvider>
-              </TooltipProvider>
+                      {children}
+                    </CustomChainProvider>
+                  </SettingsProvider>
+                </TooltipProvider>
+              </UserProvider>
             </PricingProvider>
           </ThemeProvider>
         </Provider>

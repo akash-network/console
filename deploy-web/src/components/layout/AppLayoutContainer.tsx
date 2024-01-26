@@ -1,7 +1,6 @@
 "use client";
 
 import { Nav } from "./Nav";
-// import { Sidebar } from "./Sidebar";
 import { useEffect, useState } from "react";
 import { useWallet } from "@src/context/WalletProvider";
 import { useMediaQuery } from "usehooks-ts";
@@ -10,13 +9,15 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { ErrorFallback } from "../shared/ErrorFallback";
 import { breakpoints } from "@src/utils/responsiveUtils";
 import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
+import { Sidebar } from "./Sidebar";
 
-export function AppLayoutContainer({ children }: { children: React.ReactNode }) {
+export function AppLayoutContainer({ children, version }: React.PropsWithChildren<{ version: string }>) {
   const [isShowingWelcome, setIsShowingWelcome] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { refreshNodeStatuses } = useSettings();
   // TODO Verify
+  // TODO Fix the breakpoints
   const smallScreen = useMediaQuery(breakpoints.md.mediaQuery);
 
   useEffect(() => {
@@ -93,11 +94,17 @@ export function AppLayoutContainer({ children }: { children: React.ReactNode }) 
               //   height: "100%"
               // }}
             >
-              {/* <Sidebar onOpenMenuClick={onOpenMenuClick} isNavOpen={isNavOpen} handleDrawerToggle={handleDrawerToggle} isMobileOpen={isMobileOpen} /> */}
+              <Sidebar
+                onOpenMenuClick={onOpenMenuClick}
+                isNavOpen={isNavOpen}
+                handleDrawerToggle={handleDrawerToggle}
+                isMobileOpen={isMobileOpen}
+                version={version}
+              />
 
               <div
                 className="ml-0 flex-grow md:ml-[240px]"
-                style={{ marginLeft: smallScreen ? 0 : isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }}
+                style={{ marginLeft: !smallScreen ? 0 : isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }}
                 // className={classes.viewContentContainer}
                 // sx={{ marginLeft: { xs: 0, sm: 0, md: isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }, minWidth: 0 }}
               >

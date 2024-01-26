@@ -4,11 +4,10 @@ import axios from "axios";
 import { queryClient } from "@src/queries";
 import { mainnetId, mainnetNodes } from "@src/utils/constants";
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
-// import { migrateLocalStorage } from "@src/utils/localStorage";
 import { initAppTypes } from "@src/utils/init";
 import { NodeStatus } from "@src/types/node";
 import { initiateNetworkData, networks } from "@src/store/networkStore";
-import { DepositParams } from "@src/types/deployment";
+import { migrateLocalStorage } from "@src/utils/localStorage";
 
 type Node = {
   api: string;
@@ -50,7 +49,7 @@ const defaultSettings: Settings = {
   customNode: null
 };
 
-export const SettingsProvider = ({ children }) => {
+export function SettingsProvider ({ children, version }: React.PropsWithChildren<{ version: string }>) {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSettingsInit, setIsSettingsInit] = useState(false);
@@ -68,7 +67,7 @@ export const SettingsProvider = ({ children }) => {
       await initiateNetworkData();
 
       // Apply local storage migrations
-      // migrateLocalStorage();
+      migrateLocalStorage(version);
 
       // Init app types based on the selected network id
       initAppTypes();
