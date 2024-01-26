@@ -1,6 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { getDeployment } from "@src/providers/apiNodeProvider";
 import { isValidBech32Address } from "@src/utils/addresses";
+import { openApiExampleAddress } from "@src/utils/constants";
 
 const route = createRoute({
   method: "get",
@@ -11,15 +12,12 @@ const route = createRoute({
     params: z.object({
       owner: z.string().openapi({
         description: "Owner's Address",
-        example: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm"
+        example: openApiExampleAddress
       }),
-      dseq: z
-        .string()
-        .optional()
-        .openapi({
-          description: "Deployment DSEQ",
-          example: "1000000"
-        })
+      dseq: z.string().optional().openapi({
+        description: "Deployment DSEQ",
+        example: "1000000"
+      })
     })
   },
   responses: {

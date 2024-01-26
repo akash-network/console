@@ -40,6 +40,7 @@ type Template = {
   persistentStorageEnabled?: boolean;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getTemplatesFromRepo(octokit: Octokit, repoOwner: string, repoName: string, fetcher: (ocktokit: Octokit, version: string) => Promise<any>) {
   const repoVersion = await fetchRepoVersion(octokit, repoOwner, repoName);
   const cacheFilePath = `${dataFolderPath}/templates/${repoOwner}-${repoName}-${repoVersion}.json`;

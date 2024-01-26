@@ -1,4 +1,4 @@
-export type RestLeaseListResponse = {
+export type RestAkashLeaseListResponse = {
   leases: {
     lease: {
       lease_id: {

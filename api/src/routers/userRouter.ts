@@ -120,7 +120,7 @@ userRequiredRouter.post("/tokenInfo", async (c) => {
   return c.json(settings);
 });
 
-userRequiredRouter.put("/updateSettings", async (c, res) => {
+userRequiredRouter.put("/updateSettings", async (c) => {
   const userId = getCurrentUserId(c);
   const { username, subscribedToNewsletter, bio, youtubeUsername, twitterUsername, githubUsername } = await c.req.json();
 
