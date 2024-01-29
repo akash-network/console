@@ -2,7 +2,7 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { getProviderGraphData } from "@src/db/statsProvider";
 import { ProviderStatsKey } from "@src/types";
 
-const authorizedDataNames = ["count", "cpu", "gpu", "memory", "storage"] as const;
+const authorizedDataNames = ["count", "cpu", "gpu", "memory", "storage"];
 
 const route = createRoute({
   method: "get",
@@ -10,7 +10,7 @@ const route = createRoute({
   tags: ["Analytics"],
   request: {
     params: z.object({
-      dataName: z.enum(authorizedDataNames).openapi({ example: "cpu" })
+      dataName: z.string().openapi({ example: "cpu", enum: authorizedDataNames })
     })
   },
   responses: {

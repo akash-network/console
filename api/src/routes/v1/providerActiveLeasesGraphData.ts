@@ -1,5 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { getProviderActiveLeasesGraphData } from "@src/db/statsProvider";
+import { isValidBech32Address } from "@src/utils/addresses";
+import { openApiExampleProviderAddress } from "@src/utils/constants";
 
 const route = createRoute({
   method: "get",
@@ -7,7 +9,7 @@ const route = createRoute({
   tags: ["Analytics", "Providers"],
   request: {
     params: z.object({
-      providerAddress: z.string().openapi({ example: "akash18ga02jzaq8cw52anyhzkwta5wygufgu6zsz6xc" })
+      providerAddress: z.string().openapi({ example: openApiExampleProviderAddress })
     })
   },
   responses: {
@@ -33,12 +35,19 @@ const route = createRoute({
           })
         }
       }
+    },
+    400: {
+      description: "Invalid address"
     }
   }
 });
 
 export default new OpenAPIHono().openapi(route, async (c) => {
   const providerAddress = c.req.valid("param").providerAddress;
+
+  if (!isValidBech32Address(providerAddress, "akash")) {
+    return c.text("Invalid address", 400);
+  }
 
   const graphData = await getProviderActiveLeasesGraphData(providerAddress);
   return c.json(graphData);

@@ -9,7 +9,7 @@ function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRou
   versionRouter.doc(`/doc`, {
     openapi: "3.0.0",
     servers: [
-      { url: `http://localhost:8787/${version}`, description: "Localhost" },
+      { url: `http://localhost:3080/${version}`, description: "Localhost" },
       { url: `https://api-preview.cloudmos.io/${version}`, description: "Online Preview" }
     ],
     info: {

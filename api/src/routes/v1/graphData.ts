@@ -15,7 +15,7 @@ const authorizedDataNames = [
   "activeGPU",
   "activeMemory",
   "activeStorage"
-] as const;
+];
 
 const route = createRoute({
   method: "get",
@@ -23,7 +23,7 @@ const route = createRoute({
   tags: ["Analytics"],
   request: {
     params: z.object({
-      dataName: z.enum(authorizedDataNames).openapi({ example: "dailyUAktSpent" })
+      dataName: z.string().openapi({ example: "dailyUAktSpent", enum: authorizedDataNames })
     })
   },
   responses: {

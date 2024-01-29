@@ -224,14 +224,15 @@ export const getProviderActiveLeasesGraphData = async (providerAddress: string) 
     `SELECT "date" AS date, COUNT(l."id") AS count
     FROM "day" d
     LEFT JOIN "lease" l 
-        ON l."providerAddress" = '${providerAddress}'
+        ON l."providerAddress" = ':providerAddress'
         AND l."createdHeight" <= d."lastBlockHeightYet"
         AND (l."closedHeight" IS NULL OR l."closedHeight" > d."lastBlockHeightYet")
         AND (l."predictedClosedHeight" IS NULL OR l."predictedClosedHeight" > d."lastBlockHeightYet")
     GROUP BY "date"
     ORDER BY "date" ASC`,
     {
-      type: QueryTypes.SELECT
+      type: QueryTypes.SELECT,
+      replacements: { providerAddress: providerAddress }
     }
   )) as ProviderActiveLeasesStats[];
 

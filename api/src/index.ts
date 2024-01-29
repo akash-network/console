@@ -12,6 +12,7 @@ import { dashboardRouter } from "./routers/dashboardRouter";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
+import { legacyRouter } from "./routers/legacyRouter";
 
 const appHono = new Hono();
 appHono.use(
@@ -48,6 +49,8 @@ const scheduler = new Scheduler({
   }
 });
 
+appHono.route("/", legacyRouter);
+appHono.route("/", apiRouter);
 appHono.route("/user", userRouter);
 appHono.route("/web3-index", web3IndexRouter);
 appHono.route("/dashboard", dashboardRouter);
@@ -65,8 +68,6 @@ appHono.get("/status", (c) => {
 
   return c.json({ version, memory, tasks: tasksStatus });
 });
-
-appHono.route("/", apiRouter);
 
 function startScheduler() {
   scheduler.start();
