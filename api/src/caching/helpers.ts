@@ -2,7 +2,7 @@ import { differenceInSeconds } from "date-fns";
 import MemoryCacheEngine from "./memoryCacheEngine";
 import * as Sentry from "@sentry/node";
 
-const cacheEngine = new MemoryCacheEngine();
+export const cacheEngine = new MemoryCacheEngine();
 const pendingRequests: { [key: string]: Promise<unknown> } = {};
 
 interface CachedObject<T> {
