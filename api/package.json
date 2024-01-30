@@ -24,6 +24,7 @@
     "@cosmjs/proto-signing": "^0.28.11",
     "@cosmjs/stargate": "^0.28.11",
     "@hono/node-server": "1.4.0",
+    "@hono/sentry": "^1.0.0",
     "@hono/swagger-ui": "0.2.1",
     "@hono/zod-openapi": "0.9.5",
     "@octokit/rest": "^18.12.0",

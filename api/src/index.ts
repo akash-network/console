@@ -13,6 +13,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
 import { legacyRouter } from "./routers/legacyRouter";
+import { sentry } from "@hono/sentry";
 
 const appHono = new Hono();
 appHono.use(
@@ -48,6 +49,21 @@ const scheduler = new Scheduler({
     Sentry.captureException(error);
   }
 });
+
+appHono.use(
+  "*",
+  sentry({
+    dsn: env.SentryDSN,
+    environment: env.NODE_ENV,
+    beforeSend: (event) => {
+      event.server_name = env.SentryServerName;
+      return event;
+    },
+    tracesSampleRate: 0.01,
+    release: packageJson.version,
+    enabled: isProd
+  })
+);
 
 appHono.route("/", legacyRouter);
 appHono.route("/", apiRouter);
