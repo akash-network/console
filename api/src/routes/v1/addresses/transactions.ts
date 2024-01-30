@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getTransactionByAddress } from "@src/db/transactionsProvider";
+import { getTransactionByAddress } from "@src/services/db/transactionsService";
 import { isValidBech32Address } from "@src/utils/addresses";
 import { openApiExampleAddress } from "@src/utils/constants";
 

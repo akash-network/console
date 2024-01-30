@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
-import { getTemplateGallery } from "@src/providers/templateReposProvider";
+import { getTemplateGallery } from "@src/services/external/templateReposService";
 
 const route = createRoute({
   method: "get",

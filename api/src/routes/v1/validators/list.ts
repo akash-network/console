@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getValidators } from "@src/providers/apiNodeProvider";
+import { getValidators } from "@src/services/external/apiNodeService";
 
 const route = createRoute({
   method: "get",

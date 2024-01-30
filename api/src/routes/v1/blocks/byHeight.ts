@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getBlock } from "@src/db/blocksProvider";
+import { getBlock } from "@src/services/db/blocksService";
 
 const route = createRoute({
   method: "get",

@@ -2,7 +2,7 @@ import { Transaction, AddressReference } from "@shared/dbSchemas/base";
 import { AkashBlock as Block, AkashMessage as Message } from "@shared/dbSchemas/akash";
 import { msgToJSON } from "@src/utils/protobuf";
 import { QueryTypes } from "sequelize";
-import { chainDb } from "./dbConnection";
+import { chainDb } from "@src/db/dbConnection";
 
 export async function getTransactions(limit: number) {
   const _limit = Math.min(limit, 100);

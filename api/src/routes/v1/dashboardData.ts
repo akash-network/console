@@ -1,9 +1,9 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getBlocks } from "@src/db/blocksProvider";
-import { getDashboardData, getProviderGraphData } from "@src/db/statsProvider";
-import { getTransactions } from "@src/db/transactionsProvider";
-import { getChainStats } from "@src/providers/apiNodeProvider";
-import { getNetworkCapacity } from "@src/providers/providerStatusProvider";
+import { getBlocks } from "@src/services/db/blocksService";
+import { getDashboardData, getProviderGraphData } from "@src/services/db/statsService";
+import { getTransactions } from "@src/services/db/transactionsService";
+import { getChainStats } from "@src/services/external/apiNodeService";
+import { getNetworkCapacity } from "@src/services/db/providerStatusService";
 
 const route = createRoute({
   method: "get",

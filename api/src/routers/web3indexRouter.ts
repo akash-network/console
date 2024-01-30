@@ -1,4 +1,4 @@
-import { getWeb3IndexRevenue } from "@src/db/networkRevenueProvider";
+import { getWeb3IndexRevenue } from "@src/services/db/networkRevenueService";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { Hono } from "hono";
 

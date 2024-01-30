@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getTransaction } from "@src/db/transactionsProvider";
+import { getTransaction } from "@src/services/db/transactionsService";
 import { openApiExampleTransactionHash } from "@src/utils/constants";
 
 const route = createRoute({

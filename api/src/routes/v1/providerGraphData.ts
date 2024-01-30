@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getProviderGraphData } from "@src/db/statsProvider";
+import { getProviderGraphData } from "@src/services/db/statsService";
 import { ProviderStatsKey } from "@src/types";
 
 const authorizedDataNames = ["count", "cpu", "gpu", "memory", "storage"];

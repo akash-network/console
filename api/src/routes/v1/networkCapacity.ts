@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getNetworkCapacity } from "@src/providers/providerStatusProvider";
+import { getNetworkCapacity } from "@src/services/db/providerStatusService";
 
 const route = createRoute({
   method: "get",

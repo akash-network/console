@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
-import { getProviderRegions } from "@src/db/providerDataProvider";
+import { getProviderRegions } from "@src/services/db/providerDataService";
 
 const route = createRoute({
   method: "get",

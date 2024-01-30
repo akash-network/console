@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getProviderDeployments, getProviderDeploymentsCount } from "@src/db/deploymentProvider";
+import { getProviderDeployments, getProviderDeploymentsCount } from "@src/services/db/deploymentService";
 import { openApiExampleProviderAddress } from "@src/utils/constants";
 
 const route = createRoute({

@@ -4,7 +4,7 @@ import { toUTC } from "@src/utils/date";
 import { add } from "date-fns";
 import { Op } from "sequelize";
 import { mapProviderToList } from "@src/utils/map/provider";
-import { getAuditors, getProviderAttributesSchema } from "./githubProvider";
+import { getAuditors, getProviderAttributesSchema } from "../external/githubService";
 import { ProviderDetail } from "@src/types/provider";
 
 export async function getNetworkCapacity() {

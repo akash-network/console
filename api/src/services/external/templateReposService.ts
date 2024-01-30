@@ -1,14 +1,14 @@
 import fetch from "node-fetch";
 import { markdownToTxt } from "markdown-to-txt";
 import path from "path";
-import { getOctokit } from "./githubProvider";
+import { getOctokit } from "./githubService";
 import { isUrlAbsolute } from "@src/utils/urls";
 import * as fs from "fs";
 import { Octokit } from "@octokit/rest";
-import { getLogoFromPath } from "./templateReposLogos";
 import { dataFolderPath } from "@src/utils/constants";
 import { GithubChainRegistryAssetListResponse } from "@src/types";
 import { GithubDirectoryItem } from "@src/types/github";
+import { getLogoFromPath } from "@src/utils/templateReposLogos";
 
 const generatingTasks = {};
 let lastServedData = null;

@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getAuditors } from "@src/providers/githubProvider";
+import { getAuditors } from "@src/services/external/githubService";
 
 const route = createRoute({
   method: "get",

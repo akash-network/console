@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getGraphData } from "@src/db/statsProvider";
+import { getGraphData } from "@src/services/db/statsService";
 
 const authorizedDataNames = [
   "dailyUAktSpent",

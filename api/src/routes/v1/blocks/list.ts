@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getBlocks } from "@src/db/blocksProvider";
+import { getBlocks } from "@src/services/db/blocksService";
 
 const defaultLimit = 20;
 

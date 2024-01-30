@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getTransactions } from "@src/db/transactionsProvider";
+import { getTransactions } from "@src/services/db/transactionsService";
 
 const defaultLimit = 20;
 

@@ -1,8 +1,8 @@
 import fetch from "node-fetch";
-import { getDeploymentRelatedMessages } from "../db/deploymentProvider";
+import { getDeploymentRelatedMessages } from "../db/deploymentService";
 import { averageBlockCountInAMonth } from "@src/utils/constants";
 import { coinToAsset } from "@src/utils/coin";
-import { getTransactionByAddress } from "@src/db/transactionsProvider";
+import { getTransactionByAddress } from "@src/services/db/transactionsService";
 import axios from "axios";
 import { Validator } from "@shared/dbSchemas/base";
 import { Op } from "sequelize";

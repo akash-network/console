@@ -7,7 +7,7 @@ import {
   getUserByUsername,
   checkUsernameAvailable,
   subscribeToNewsletter
-} from "@src/providers/userDataProvider";
+} from "@src/services/db/userDataService";
 import { isValidBech32Address } from "@src/utils/addresses";
 import * as uuid from "uuid";
 import {
@@ -19,8 +19,8 @@ import {
   saveTemplateDesc,
   removeTemplateFavorite,
   addTemplateFavorite
-} from "@src/db/templateProvider";
-import { getBillingPortalUrl, getCheckoutUrl } from "@src/providers/stripeProvider";
+} from "@src/services/db/templateService";
+import { getBillingPortalUrl, getCheckoutUrl } from "@src/services/external/stripeService";
 import { Hono } from "hono";
 import { getCurrentUserId, optionalUserMiddleware, requiredUserMiddleware } from "@src/middlewares/userMiddleware";
 

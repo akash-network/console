@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import { getPredictedDateHeight } from "@src/db/blocksProvider";
+import { getPredictedDateHeight } from "@src/services/db/blocksService";
 import { z } from "zod";
 
 const defaultBlockWindow = 10_000;

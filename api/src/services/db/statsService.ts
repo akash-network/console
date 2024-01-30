@@ -2,7 +2,7 @@ import { Day } from "@shared/dbSchemas/base";
 import { AkashBlock as Block } from "@shared/dbSchemas/akash";
 import { subHours } from "date-fns";
 import { Op, QueryTypes } from "sequelize";
-import { chainDb } from "./dbConnection";
+import { chainDb } from "@src/db/dbConnection";
 import { ProviderActiveLeasesStats, ProviderStats, ProviderStatsKey } from "@src/types/graph";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 

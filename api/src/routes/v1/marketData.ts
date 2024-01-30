@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
-import { getMarketData } from "@src/providers/marketDataProvider";
+import { getMarketData } from "@src/services/external/marketDataService";
 
 const route = createRoute({
   method: "get",

@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getValidator } from "@src/providers/apiNodeProvider";
+import { getValidator } from "@src/services/external/apiNodeService";
 import { isValidBech32Address } from "@src/utils/addresses";
 import { openApiExampleValidatorAddress } from "@src/utils/constants";
 

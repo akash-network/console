@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getDeployment } from "@src/providers/apiNodeProvider";
+import { getDeployment } from "@src/services/external/apiNodeService";
 import { isValidBech32Address } from "@src/utils/addresses";
 import { openApiExampleAddress } from "@src/utils/constants";
 

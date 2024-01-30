@@ -1,5 +1,5 @@
 import { Provider, ProviderAttribute } from "@shared/dbSchemas/akash";
-import { getProviderAttributesSchema } from "@src/providers/githubProvider";
+import { getProviderAttributesSchema } from "@src/services/external/githubService";
 
 export async function getProviderRegions() {
   const providerAttributesSchema = await getProviderAttributesSchema();
