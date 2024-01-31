@@ -13,6 +13,7 @@ import { Button } from "../ui/button";
 import useCookieTheme from "@src/hooks/useTheme";
 import { accountBarHeight } from "@src/utils/constants";
 import { Badge } from "../ui/badge";
+import { WalletStatus } from "./WalletStatus";
 
 export const Nav = () => {
   const theme = useCookieTheme();
@@ -58,7 +59,9 @@ export const Nav = () => {
           </div>
 
           <div className="flex items-center">
-            <div className="ml-4">{/* <WalletStatus /> */}</div>
+            <div className="ml-4">
+              <WalletStatus />
+            </div>
 
             {/* <AccountMenu /> */}
           </div>

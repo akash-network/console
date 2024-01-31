@@ -4,14 +4,14 @@ import { useState, useEffect } from "react";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { uAktDenom } from "@src/utils/constants";
 import { EncodeObject } from "@cosmjs/proto-signing";
-import { useSnackbar } from "notistack";
-import { Snackbar } from "@src/components/shared/Snackbar";
+// import { useSnackbar } from "notistack";
+// import { Snackbar } from "@src/components/shared/Snackbar";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { OpenInNew } from "@mui/icons-material";
 import { useTheme } from "@mui/material";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { useRouter } from "next/router";
+import { usePathname, useRouter } from "next/navigation";
 import { UrlService } from "@src/utils/urlUtils";
 import { useSettings } from "../SettingsProvider";
 import axios from "axios";
@@ -22,6 +22,7 @@ import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { customRegistry } from "@src/utils/customRegistry";
 import { useManager } from "@cosmos-kit/react";
+import { useToast } from "@src/components/ui/use-toast";
 
 type Balances = {
   uakt: number;
@@ -31,7 +32,7 @@ type Balances = {
 type ContextType = {
   address: string;
   walletName: string;
-  walletBalances: Balances;
+  walletBalances: Balances | null;
   isWalletConnected: boolean;
   isWalletLoaded: boolean;
   connectWallet: () => Promise<void>;
@@ -41,27 +42,18 @@ type ContextType = {
   refreshBalances: (address?: string) => Promise<Balances>;
 };
 
-const WalletProviderContext = React.createContext<ContextType>({
-  address: null,
-  walletName: null,
-  walletBalances: null,
-  isWalletConnected: false,
-  isWalletLoaded: false,
-  connectWallet: null,
-  logout: null,
-  setIsWalletLoaded: null,
-  signAndBroadcastTx: null,
-  refreshBalances: null
-});
+const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
 
 export const WalletProvider = ({ children }) => {
-  const [walletBalances, setWalletBalances] = useState<Balances>(null);
+  const [walletBalances, setWalletBalances] = useState<Balances | null>(null);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const sigingClient = useRef<SigningStargateClient>(null);
+  // const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const { toast, dismiss } = useToast();
+  const sigingClient = useRef<SigningStargateClient | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
   const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
   const { disconnect, getOfflineSigner, isWalletConnected, address: walletAddress, connect, username, estimateFee, sign, broadcast } = useSelectedChain();
@@ -89,14 +81,14 @@ export const WalletProvider = ({ children }) => {
     const selectedNetwork = getSelectedNetwork();
 
     const offlineSigner = getOfflineSigner();
-    let rpc = settings?.rpcEndpoint ? settings?.rpcEndpoint : selectedNetwork.rpcEndpoint;
+    let rpc = settings?.rpcEndpoint ? settings?.rpcEndpoint : (selectedNetwork.rpcEndpoint as string);
 
     try {
       await axios.get(`${rpc}/abci_info`);
     } catch (error) {
       // If the rpc node has cors enabled, switch to the backup rpc cosmos.directory
       if (error.code === "ERR_NETWORK" || error?.response?.status === 0) {
-        rpc = selectedNetwork.rpcEndpoint;
+        rpc = selectedNetwork.rpcEndpoint as string;
       }
     }
 
@@ -144,7 +136,7 @@ export const WalletProvider = ({ children }) => {
   useEffect(() => {
     if (walletAddress) {
       // Redirect to deployment list if on deployment detail page
-      if (router.pathname.startsWith("/deployments/")) {
+      if (pathname?.startsWith("/deployments/")) {
         router.push(UrlService.deploymentList());
       }
       loadWallet();
@@ -153,12 +145,12 @@ export const WalletProvider = ({ children }) => {
 
   async function loadWallet(): Promise<void> {
     const selectedNetwork = getSelectedNetwork();
-    const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetwork.id}/wallets`)) as LocalWalletDataType[];
+    const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetwork.id}/wallets`) || "") as LocalWalletDataType[];
 
     let currentWallets = storageWallets ?? [];
 
     if (!currentWallets.some(x => x.address === walletAddress)) {
-      currentWallets.push({ name: username, address: walletAddress, selected: true });
+      currentWallets.push({ name: username || "", address: walletAddress as string, selected: true });
     }
 
     currentWallets = currentWallets.map(x => ({ ...x, selected: x.address === walletAddress }));
@@ -172,7 +164,7 @@ export const WalletProvider = ({ children }) => {
 
   async function signAndBroadcastTx(msgs: EncodeObject[]): Promise<boolean> {
     setIsWaitingForApproval(true);
-    let pendingSnackbarKey = null;
+    let pendingSnackbarKey: string | null = null;
     try {
       const estimatedFees = await estimateFee(msgs);
 
@@ -180,10 +172,18 @@ export const WalletProvider = ({ children }) => {
 
       setIsWaitingForApproval(false);
       setIsBroadcastingTx(true);
-      pendingSnackbarKey = enqueueSnackbar(<Snackbar title="Broadcasting transaction..." subTitle="Please wait a few seconds" showLoading />, {
-        variant: "info",
-        autoHideDuration: null
+      // pendingSnackbarKey = toast(<Snackbar title="Broadcasting transaction..." subTitle="Please wait a few seconds" showLoading />, {
+      //   variant: "info",
+      //   autoHideDuration: null
+      // });
+
+      const { id } = toast({
+        title: "Broadcasting transaction...",
+        description: "Please wait a few seconds",
+        loading: true,
+        variant: "default"
       });
+      pendingSnackbarKey = id;
 
       const txResult = await broadcast(txRaw);
 
@@ -193,7 +193,27 @@ export const WalletProvider = ({ children }) => {
         throw new Error(txResult.rawLog);
       }
 
-      showTransactionSnackbar("Transaction success!", "", txResult.transactionHash, "success");
+      // showTransactionSnackbar("Transaction success!", "", txResult.transactionHash, "success");
+      toast({
+        title: "Transaction success!",
+        description: (
+          <LinkTo
+            className="flex items-center"
+            // sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
+            onClick={() => window.open(UrlService.transaction(txResult.transactionHash), "_blank")}
+          >
+            View transaction <OpenInNew sx={{ fontSize: "1rem", marginLeft: ".5rem" }} />
+          </LinkTo>
+        ),
+        variant: "success"
+      });
+
+      // <LinkTo
+      //     sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
+      //     onClick={() => window.open(txUrl, "_blank")}
+      //   >
+      //     View transaction <OpenInNew sx={{ fontSize: "1rem", marginLeft: ".5rem" }} />
+      //   </LinkTo>
 
       event(AnalyticsEvents.SUCCESSFUL_TX, {
         category: "transactions",
@@ -253,12 +273,25 @@ export const WalletProvider = ({ children }) => {
         });
       }
 
-      showTransactionSnackbar("Transaction has failed...", errorMsg, transactionHash, "error");
+      // showTransactionSnackbar("Transaction has failed...", errorMsg, transactionHash, "error");
+      toast({
+        title: "Transaction has failed...",
+        description: (
+          <LinkTo
+            className="flex items-center"
+            // sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
+            onClick={() => window.open(UrlService.transaction(transactionHash), "_blank")}
+          >
+            View transaction <OpenInNew sx={{ fontSize: "1rem", marginLeft: ".5rem" }} />
+          </LinkTo>
+        ),
+        variant: "success"
+      });
 
       return false;
     } finally {
       if (pendingSnackbarKey) {
-        closeSnackbar(pendingSnackbarKey);
+        dismiss(pendingSnackbarKey);
       }
 
       setIsWaitingForApproval(false);
@@ -266,31 +299,31 @@ export const WalletProvider = ({ children }) => {
     }
   }
 
-  const showTransactionSnackbar = (
-    snackTitle: string,
-    snackMessage: string,
-    transactionHash: string,
-    snackVariant: React.ComponentProps<typeof Snackbar>["iconVariant"]
-  ) => {
-    enqueueSnackbar(
-      <Snackbar
-        title={snackTitle}
-        subTitle={<TransactionSnackbarContent snackMessage={snackMessage} transactionHash={transactionHash} />}
-        iconVariant={snackVariant}
-      />,
-      {
-        variant: snackVariant,
-        autoHideDuration: 10000
-      }
-    );
-  };
+  // const showTransactionSnackbar = (
+  //   snackTitle: string,
+  //   snackMessage: string,
+  //   transactionHash: string,
+  //   snackVariant: React.ComponentProps<typeof Snackbar>["iconVariant"]
+  // ) => {
+  //   enqueueSnackbar(
+  //     <Snackbar
+  //       title={snackTitle}
+  //       subTitle={<TransactionSnackbarContent snackMessage={snackMessage} transactionHash={transactionHash} />}
+  //       iconVariant={snackVariant}
+  //     />,
+  //     {
+  //       variant: snackVariant,
+  //       autoHideDuration: 10000
+  //     }
+  //   );
+  // };
 
   async function refreshBalances(address?: string): Promise<{ uakt: number; usdc: number }> {
     const _address = address || walletAddress;
     const client = await getStargateClient();
 
     if (client) {
-      const balances = await client.getAllBalances(_address);
+      const balances = await client.getAllBalances(_address as string);
       const uaktBalance = balances.find(b => b.denom === uAktDenom);
       const usdcBalance = balances.find(b => b.denom === usdcIbcDenom);
 
@@ -313,8 +346,8 @@ export const WalletProvider = ({ children }) => {
   return (
     <WalletProviderContext.Provider
       value={{
-        address: walletAddress,
-        walletName: username,
+        address: walletAddress as string,
+        walletName: username as string,
         walletBalances,
         isWalletConnected: isWalletConnected,
         isWalletLoaded,
@@ -337,22 +370,22 @@ export function useWallet() {
   return { ...React.useContext(WalletProviderContext) };
 }
 
-const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
-  const theme = useTheme();
-  const txUrl = transactionHash && `https://stats.akash.network/transactions/${transactionHash}`;
+// const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
+//   const theme = useTheme();
+//   const txUrl = transactionHash && `https://stats.akash.network/transactions/${transactionHash}`;
 
-  return (
-    <>
-      {snackMessage}
-      {snackMessage && <br />}
-      {txUrl && (
-        <LinkTo
-          sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
-          onClick={() => window.open(txUrl, "_blank")}
-        >
-          View transaction <OpenInNew sx={{ fontSize: "1rem", marginLeft: ".5rem" }} />
-        </LinkTo>
-      )}
-    </>
-  );
-};
+//   return (
+//     <>
+//       {snackMessage}
+//       {snackMessage && <br />}
+//       {txUrl && (
+//         <LinkTo
+//           sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
+//           onClick={() => window.open(txUrl, "_blank")}
+//         >
+//           View transaction <OpenInNew sx={{ fontSize: "1rem", marginLeft: ".5rem" }} />
+//         </LinkTo>
+//       )}
+//     </>
+//   );
+// };

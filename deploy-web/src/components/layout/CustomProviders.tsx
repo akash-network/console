@@ -12,6 +12,9 @@ import { customColors } from "@src/utils/colors";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
+import { WalletProvider } from "@src/context/WalletProvider";
+
+import "@interchain-ui/react/styles";
 
 function Providers({ children, version }: React.PropsWithChildren<{ version: string }>) {
   //               <PricingProvider>
@@ -34,9 +37,11 @@ function Providers({ children, version }: React.PropsWithChildren<{ version: str
                 <TooltipProvider>
                   <SettingsProvider version={version}>
                     <CustomChainProvider>
-                      <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
+                      <WalletProvider>
+                        <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
 
-                      {children}
+                        {children}
+                      </WalletProvider>
                     </CustomChainProvider>
                   </SettingsProvider>
                 </TooltipProvider>

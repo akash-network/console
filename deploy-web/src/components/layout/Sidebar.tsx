@@ -4,8 +4,8 @@ import { accountBarHeight, closedDrawerWidth, drawerWidth } from "@src/utils/con
 import { UrlService } from "@src/utils/urlUtils";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
 import Link from "next/link";
-import { LinkTo } from "../shared/LinkTo";
-import { DiscordIcon } from "../shared/icons";
+// import { LinkTo } from "../shared/LinkTo";
+// import { DiscordIcon } from "../shared/icons";
 import { NodeStatusBar } from "./NodeStatusBar";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
@@ -15,8 +15,7 @@ import { useMediaQuery } from "usehooks-ts";
 import { Badge } from "../ui/badge";
 import { Button, buttonVariants } from "../ui/button";
 import { cn } from "@src/utils/styleUtils";
-import { Rocket, StatsUpSquare, ArrowUpRightSquare, Github, X as TwitterX, Discord, Menu, MenuScale } from "iconoir-react";
-// import Drawer from "react-modern-drawer";
+import { Rocket, Github, X as TwitterX, Discord, Menu, MenuScale } from "iconoir-react";
 import { Drawer } from "@rewind-ui/core";
 
 // const useStyles = makeStyles()(theme => ({

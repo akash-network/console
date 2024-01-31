@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "../styles/index.css";
 import { cookies } from "next/headers";
 // import { customColors } from "@/lib/colors";
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
