@@ -8,12 +8,13 @@ import {
   Lease,
   Provider,
   ProviderAttribute,
-  ProviderAttributeSignature
+  ProviderAttributeSignature,
+  ProviderSnapshot,
+  ProviderSnapshotNode
 } from "./dbSchemas/akash";
 import { Block, Message } from "./dbSchemas/base";
 import { Model, ModelCtor } from "sequelize-typescript";
 import * as dotenv from "dotenv";
-import { ProviderSnapshot } from "./dbSchemas/akash/providerSnapshot";
 dotenv.config();
 
 export interface ChainDef {
@@ -71,7 +72,8 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       Provider,
       ProviderAttribute,
       ProviderAttributeSignature,
-      ProviderSnapshot
+      ProviderSnapshot,
+      ProviderSnapshotNode
     ]
   },
   akashTestnet: {

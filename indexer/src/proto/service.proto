@@ -1,0 +1,26 @@
+syntax = "proto3";
+package akash.provider.v1;
+
+import "google/protobuf/empty.proto";
+import "google/api/annotations.proto";
+import "akash/provider/v1/status.proto";
+
+option go_package = "github.com/akash-network/akash-api/go/provider/v1";
+
+// ProviderRPC defines the RPC server for provider
+service ProviderRPC {
+  // GetStatus defines a method to query provider state
+  // buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE
+  // buf:lint:ignore RPC_RESPONSE_STANDARD_NAME
+  rpc GetStatus(google.protobuf.Empty) returns (Status) {
+    option (google.api.http) = {
+      get: "/v1/status",
+      response_body: "*"
+    };
+  }
+
+  // Status defines a method to stream provider state
+  // buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE
+  // buf:lint:ignore RPC_RESPONSE_STANDARD_NAME
+  rpc StreamStatus(google.protobuf.Empty) returns (stream Status);
+}
