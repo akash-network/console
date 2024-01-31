@@ -18,6 +18,7 @@ function getSelectedNetworkQueryParam() {
   return undefined;
 }
 
+// TODO Refactor the explorer routes to stats.akash.network
 export class UrlService {
   static home = () => "/";
   static getStarted = () => "/get-started";

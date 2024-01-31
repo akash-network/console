@@ -1,3 +1,4 @@
+"use client";
 import { Progress } from "@src/components/ui/progress";
 import { useEffect, useState } from "react";
 

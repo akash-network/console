@@ -1,58 +1,77 @@
+"use client";
 import { ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/router";
-import { makeStyles } from "tss-react/mui";
 import { UrlService } from "@src/utils/urlUtils";
-import { Avatar, Box, Button, CircularProgress, Divider, List, ListItem } from "@mui/material";
-import CollectionsIcon from "@mui/icons-material/Collections";
-import Logout from "@mui/icons-material/Logout";
-import MenuBookIcon from "@mui/icons-material/MenuBook";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { SidebarRouteButton } from "./SidebarRouteButton";
 import { WalletStatus } from "./WalletStatus";
-import Settings from "@mui/icons-material/Settings";
+import { Separator } from "../ui/separator";
+import Spinner from "../shared/Spinner";
+import { Avatar } from "../ui/avatar";
+import { BookStack, MediaImageList, Settings, LogOut } from "iconoir-react";
+import { buttonVariants } from "../ui/button";
+import { cn } from "@src/utils/styleUtils";
 
-const useStyles = makeStyles()(theme => ({
-  list: {
-    padding: 0,
-    overflow: "hidden",
-    width: "100%",
-    border: "none"
-  },
-  listItem: {
-    padding: "4px 0"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   list: {
+//     padding: 0,
+//     overflow: "hidden",
+//     width: "100%",
+//     border: "none"
+//   },
+//   listItem: {
+//     padding: "4px 0"
+//   }
+// }));
 
 type Props = {
   children?: ReactNode;
 };
 
 export const MobileSidebarUser: React.FunctionComponent<Props> = ({}) => {
-  const { classes } = useStyles();
+  // const { classes } = useStyles();
   const { user, error, isLoading } = useCustomUser();
 
   return (
-    <List className={classes.list}>
-      <Divider />
+    // <ul role="list" className="-mx-2 space-y-1">
+    //       {!!group.title && isNavOpen && (
+    //         <li
+    //         // sx={{ padding: ".5rem 0 .75rem", color: theme.palette.mode === "dark" ? theme.palette.grey[500] : theme.palette.grey[800] }}
+    //         >
+    //           <span
+    //             className="text-sm font-light"
+    //             // variant="body2" sx={{ fontWeight: "light", fontSize: "1rem" }}
+    //           >
+    //             {group.title}
+    //           </span>
+    //         </li>
+    //       )}
 
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", padding: ".5rem" }}>
+    //       {group.routes.map(route => {
+    //         return <SidebarRouteButton key={route.title} route={route} isNavOpen={isNavOpen} />;
+    //       })}
+    //     </ul>
+
+    <ul className="w-full overflow-hidden border-0 p-0">
+      <Separator />
+
+      <div className="flex items-center justify-center p-2">
         <WalletStatus />
-      </Box>
+      </div>
 
-      <Divider />
+      <Separator />
 
       {isLoading ? (
-        <Box textAlign={"center"}>
-          <CircularProgress size="1.5rem" color="secondary" />
-        </Box>
+        <div className="text-center">
+          <Spinner size="small" />
+        </div>
       ) : user ? (
-        <Box sx={{ padding: ".5rem" }}>
+        <div className="p-2">
           <SidebarRouteButton
             route={{
               title: user.username,
               icon: props => (
-                <Avatar {...props} sx={{ width: "1.5rem", height: "1.5rem" }}>
+                <Avatar {...props} className="h-6 w-6">
                   {user.username && user.username[0].toUpperCase()}
                 </Avatar>
               ),
@@ -63,7 +82,7 @@ export const MobileSidebarUser: React.FunctionComponent<Props> = ({}) => {
           <SidebarRouteButton
             route={{
               title: "Templates",
-              icon: props => <CollectionsIcon {...props} />,
+              icon: props => <MediaImageList {...props} />,
               url: UrlService.userProfile(user.username),
               activeRoutes: [UrlService.userProfile(user.username)]
             }}
@@ -71,7 +90,7 @@ export const MobileSidebarUser: React.FunctionComponent<Props> = ({}) => {
           <SidebarRouteButton
             route={{
               title: "Addresses",
-              icon: props => <MenuBookIcon {...props} />,
+              icon: props => <BookStack {...props} />,
               url: UrlService.userAddressBook(),
               activeRoutes: [UrlService.userAddressBook()]
             }}
@@ -87,27 +106,32 @@ export const MobileSidebarUser: React.FunctionComponent<Props> = ({}) => {
           <SidebarRouteButton
             route={{
               title: "Logout",
-              icon: props => <Logout {...props} />,
+              icon: props => <LogOut {...props} />,
               url: UrlService.logout(),
               activeRoutes: []
             }}
           />
-        </Box>
+        </div>
       ) : (
-        <Box sx={{ padding: ".5rem" }}>
-          <ListItem className={classes.listItem}>
-            <Button component={Link} href={UrlService.signup()} color="secondary" variant="contained" fullWidth>
+        <div className="p-2">
+          <li className="">
+            {/* <Button component={Link} href={UrlService.signup()} color="secondary" variant="contained" fullWidth>
               Sign up
-            </Button>
-          </ListItem>
-          <ListItem component="a" href={UrlService.login()} sx={{ justifyContent: "center" }}>
-            Sign in
-          </ListItem>
-        </Box>
+            </Button> */}
+
+            <Link href={UrlService.signup()} className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}>
+              Sign up
+            </Link>
+          </li>
+          <li>
+            <Link href={UrlService.login()} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full")}>
+              Sign in
+            </Link>
+          </li>
+        </div>
       )}
 
-      <Divider sx={{ marginBottom: "1rem" }} />
-    </List>
+      <Separator className="mb-4" />
+    </ul>
   );
 };
-

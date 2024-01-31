@@ -1,22 +1,21 @@
+"use client";
 import React, { ReactNode } from "react";
-import Box from "@mui/material/Box";
-import Button, { ButtonProps } from "@mui/material/Button";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
+import { Button, ButtonProps } from "../ui/button";
+import { Wallet } from "iconoir-react";
 
 interface Props extends ButtonProps {
   children?: ReactNode;
+  className?: string;
 }
 
-export const ConnectWalletButton: React.FunctionComponent<Props> = ({ ...rest }) => {
+export const ConnectWalletButton: React.FunctionComponent<Props> = ({ className = "", ...rest }) => {
   const { connect } = useSelectedChain();
 
   return (
-    <Button variant="outlined" color="secondary" onClick={() => connect()} {...rest}>
-      <AccountBalanceWalletIcon fontSize="small" />
-      <Box component="span" sx={{ marginLeft: ".5rem", whiteSpace: "nowrap" }}>
-        Connect Wallet
-      </Box>
+    <Button variant="outline" color="primary" onClick={() => connect()} className={className} {...rest}>
+      <Wallet className="text-xs" />
+      <span className="ml-2 whitespace-nowrap">Connect Wallet</span>
     </Button>
   );
 };

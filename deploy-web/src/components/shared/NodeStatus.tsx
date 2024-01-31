@@ -1,4 +1,5 @@
-import { Box, Typography } from "@mui/material";
+"use client";
+import { cn } from "@src/utils/styleUtils";
 import { StatusPill } from "./StatusPill";
 
 type Props = {
@@ -9,15 +10,18 @@ type Props = {
 
 export const NodeStatus: React.FunctionComponent<Props> = ({ latency, status, variant = "regular" }) => {
   return (
-    <Box sx={{ display: "flex", alignItems: "center" }}>
+    <div className="flex items-center">
       <div>
-        <Typography variant="caption" sx={{ fontSize: variant === "regular" ? ".75rem" : ".65rem" }}>
+        <span
+          className={cn("text-muted-foreground", { ["text-sm"]: variant === "regular", ["text-xs"]: variant === "dense" })}
+          //  variant="caption" sx={{ fontSize: variant === "regular" ? ".75rem" : ".65rem" }}
+        >
           {latency}ms{latency >= 10000 && "+"}
-        </Typography>
+        </span>
       </div>
       <div>
         <StatusPill state={status === "active" ? "active" : "closed"} size={variant === "regular" ? "medium" : "small"} />
       </div>
-    </Box>
+    </div>
   );
 };

@@ -193,7 +193,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
         // }}
       >
         <Link
-          className={cn(buttonVariants({ variant: "secondary", size: "lg" }), "h-[45px] w-full leading-4", {
+          className={cn(buttonVariants({ variant: "default", size: "lg" }), "h-[45px] w-full leading-4", {
             ["h-[45px] w-[45px] min-w-0 pb-2 pt-2"]: !_isNavOpen
             // ["text-foreground"]: route.variant === "ghost"
           })}
@@ -201,7 +201,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
           onClick={onDeployClick}
         >
           {_isNavOpen && "Deploy "}
-          <Rocket className="ml-4" fontSize="small" />
+          <Rocket className="ml-4 rotate-45" fontSize="small" />
         </Link>
 
         {/* {_isNavOpen ? (

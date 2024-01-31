@@ -1,56 +1,37 @@
 "use client";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
-import Box from "@mui/material/Box";
 import { useWallet } from "@src/context/WalletProvider";
-import React, { ReactNode, useState } from "react";
-import { makeStyles } from "tss-react/mui";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
-import MoreVertIcon from "@mui/icons-material/MoreHoriz";
-import { Chip, CircularProgress, IconButton, Menu } from "@mui/material";
-import { usePopupState, bindTrigger, bindMenu } from "material-ui-popup-state/hooks";
-import { CustomTooltip } from "../shared/CustomTooltip";
 import { Address } from "../shared/Address";
-import { CustomMenuItem } from "../shared/CustomMenuItem";
-import ExitToAppIcon from "@mui/icons-material/ExitToApp";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+// import { CustomMenuItem } from "../shared/CustomMenuItem";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { FormattedNumber } from "react-intl";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 import { useRouter } from "next/navigation";
+import { Button } from "../ui/button";
+import { MoreHoriz, Wallet, Bank, LogOut } from "iconoir-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { Badge } from "../ui/badge";
+import Spinner from "../shared/Spinner";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 
-type Props = {
-  children?: ReactNode;
-};
-
-const useStyles = makeStyles()(theme => ({
-  accountBalances: {
-    display: "flex",
-    alignItems: "center",
-    whiteSpace: "nowrap",
-    color: theme.palette.grey[500],
-    fontWeight: "bold",
-    marginLeft: ".5rem"
-  }
-}));
-
-export const WalletStatus: React.FunctionComponent<Props> = ({}) => {
-  const popupState = usePopupState({ variant: "popover", popupId: "walletMenu" });
-  const { classes } = useStyles();
+export function WalletStatus({ children }: React.PropsWithChildren<{}>) {
+  // const popupState = usePopupState({ variant: "popover", popupId: "walletMenu" });
+  // const { classes } = useStyles();
   const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected } = useWallet();
   const walletBalance = useTotalWalletBalance();
   const router = useRouter();
 
   function onDisconnectClick() {
-    popupState.close();
+    // popupState.close();
 
     logout();
   }
 
   const onAuthorizeSpendingClick = () => {
-    popupState.close();
+    // popupState.close();
 
     router.push(UrlService.settingsAuthorizations());
   };
@@ -60,79 +41,89 @@ export const WalletStatus: React.FunctionComponent<Props> = ({}) => {
       {isWalletLoaded ? (
         isWalletConnected ? (
           <>
-            <Box sx={{ display: "flex", alignItems: "center", paddingRight: ".5rem" }}>
-              <Box sx={{ padding: "0 .5rem" }}>
-                <IconButton {...bindTrigger(popupState)} size="small">
-                  <MoreVertIcon />
-                </IconButton>
-              </Box>
+            <div className="flex items-center pr-2">
+              <div className="pl-2 pr-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreHoriz />
+                      <span className="sr-only">Toggle theme</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onAuthorizeSpendingClick()}>
+                      <Bank />
+                      &nbsp;Authorize Spending
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onDisconnectClick()}>
+                      <LogOut />
+                      &nbsp;Disconnect Wallet
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
-              <Box sx={{ textAlign: "left", display: "flex", alignItems: "center" }}>
-                <Box sx={{ fontWeight: "bold", fontSize: ".9rem", display: "flex", alignItems: "center" }}>
-                  <AccountBalanceWalletIcon fontSize="small" sx={{ fontSize: "1rem" }} color="disabled" />
-                  <Box
-                    sx={{ marginLeft: ".5rem", lineHeight: ".9rem", cursor: "pointer" }}
-                    component={Link}
-                    target="_blank"
-                    href={`https://stats.akash.network/addresses/${address}`}
-                  >
-                    <CustomTooltip arrow title={<Address address={address} isCopyable />}>
-                      <span>{walletName}</span>
-                    </CustomTooltip>
-                  </Box>
-                </Box>
+              <div className="flex items-center text-left">
+                <div className="flex items-center text-sm font-bold">
+                  <Wallet className="text-sm" />
+                  <Link className="ml-2 cursor-pointer leading-4" href={`https://stats.akash.network/addresses/${address}`} target="_blank">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>{walletName}</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <Address address={address} isCopyable />
+                      </TooltipContent>
+                    </Tooltip>
+                  </Link>
+                </div>
 
                 {walletBalances && (
-                  <div className={classes.accountBalances}>
-                    <CustomTooltip
-                      title={
-                        <Box sx={{ fontSize: "1rem" }}>
-                          <div>
-                            <FormattedDecimal value={udenomToDenom(walletBalances.uakt, 2)} />
-                            <Box component="span" sx={{ marginLeft: ".2rem", fontSize: ".6rem" }}>
-                              AKT
-                            </Box>
-                          </div>
-                          <div>
-                            <FormattedDecimal value={udenomToDenom(walletBalances.usdc, 2)} />
-                            <Box component="span" sx={{ marginLeft: ".2rem", fontSize: ".6rem" }}>
-                              USDC
-                            </Box>
-                          </div>
-                        </Box>
-                      }
-                    >
-                      <Chip
-                        label={
+                  <div className="ml-2 flex items-center whitespace-nowrap font-bold text-muted-foreground">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge
+                          className="text-xs font-bold"
+                          // size="small"
+                          // sx={{ fontSize: ".75rem", fontWeight: "bold" }}
+                        >
                           <FormattedNumber
                             value={walletBalance}
                             // eslint-disable-next-line react/style-prop-object
                             style="currency"
                             currency="USD"
                           />
-                        }
-                        size="small"
-                        sx={{ fontSize: ".75rem", fontWeight: "bold" }}
-                      />
-                    </CustomTooltip>
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="text-base">
+                          <div>
+                            <FormattedDecimal value={udenomToDenom(walletBalances.uakt, 2)} />
+                            <span className="ml-1 text-xs">AKT</span>
+                          </div>
+                          <div>
+                            <FormattedDecimal value={udenomToDenom(walletBalances.usdc, 2)} />
+                            <span className="ml-1 text-xs">USDC</span>
+                          </div>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 )}
-              </Box>
-
-              <Menu {...bindMenu(popupState)} disableScrollLock>
-                <CustomMenuItem onClick={() => onAuthorizeSpendingClick()} icon={<AccountBalanceIcon fontSize="small" />} text="Authorize Spending" />
-                <CustomMenuItem onClick={() => onDisconnectClick()} icon={<ExitToAppIcon fontSize="small" />} text="Disconnect Wallet" />
-              </Menu>
-            </Box>
+              </div>
+            </div>
           </>
         ) : (
-          <ConnectWalletButton sx={{ width: { xs: "100%", sm: "100%", md: "auto" } }} />
+          <ConnectWalletButton
+            className="w-full md:w-auto"
+            // sx={{ width: { xs: "100%", sm: "100%", md: "auto" } }}
+          />
         )
       ) : (
-        <Box sx={{ padding: "0 .5rem" }}>
-          <CircularProgress size={20} color="secondary" />
-        </Box>
+        <div className="pl-2 pr-2">
+          <Spinner size="small" />
+        </div>
       )}
     </>
   );
-};
+}
