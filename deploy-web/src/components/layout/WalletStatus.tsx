@@ -43,7 +43,7 @@ export function WalletStatus({ children }: React.PropsWithChildren<{}>) {
           <>
             <div className="flex items-center pr-2">
               <div className="pl-2 pr-2">
-                <DropdownMenu>
+                <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">
                       <MoreHoriz />

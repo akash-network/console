@@ -13,6 +13,7 @@ import { SettingsProvider } from "@src/context/SettingsProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { WalletProvider } from "@src/context/WalletProvider";
+// import { AddressBookProvider } from "@src/context/AddressBookProvider";
 
 import "@interchain-ui/react/styles";
 
@@ -34,6 +35,7 @@ function Providers({ children, version }: React.PropsWithChildren<{ version: str
           <ThemeProvider attribute="class" defaultTheme="light" storageKey="theme" enableSystem disableTransitionOnChange>
             <PricingProvider>
               <UserProvider>
+                {/* <AddressBookProvider> */}
                 <TooltipProvider>
                   <SettingsProvider version={version}>
                     <CustomChainProvider>
@@ -45,6 +47,7 @@ function Providers({ children, version }: React.PropsWithChildren<{ version: str
                     </CustomChainProvider>
                   </SettingsProvider>
                 </TooltipProvider>
+                {/* </AddressBookProvider> */}
               </UserProvider>
             </PricingProvider>
           </ThemeProvider>
