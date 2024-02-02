@@ -1,4 +1,4 @@
-import { Column, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
+import { Column, HasMany, BelongsTo, Model, PrimaryKey, Table, Default } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
 import { ProviderAttribute } from "./providerAttribute";
 import { ProviderAttributeSignature } from "./providerAttributeSignature";
@@ -19,8 +19,10 @@ export class Provider extends Model {
   @Column website?: string;
   @Column akashVersion?: string;
   @Column cosmosSdkVersion?: string;
+  @Required @Default(false) @Column isDuplicate: boolean;
 
   // Stats
+  @Column(DataTypes.UUID) lastSnapshotId?: string;
   @Column isOnline?: boolean;
   @Column lastCheckDate?: Date;
   @Column(DataTypes.TEXT) error?: string;
@@ -53,4 +55,5 @@ export class Provider extends Model {
   @HasMany(() => ProviderAttribute, "provider") providerAttributes: ProviderAttribute[];
   @HasMany(() => ProviderAttributeSignature, "provider") providerAttributeSignatures: ProviderAttributeSignature[];
   @HasMany(() => ProviderSnapshot, "owner") providerSnapshots: ProviderSnapshot[];
+  @BelongsTo(() => ProviderSnapshot, "lastSnapshotId") lastSnapshot: ProviderSnapshot;
 }

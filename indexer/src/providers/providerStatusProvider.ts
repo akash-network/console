@@ -6,10 +6,10 @@ import { ProviderSnapshot } from "@src/../../shared/dbSchemas/akash/providerSnap
 import { getTodayUTC, toUTC } from "@src/shared/utils/date";
 import { sequelize } from "@src/db/dbConnection";
 import { QueryTypes } from "sequelize";
-import { addDays } from "date-fns";
+import { addDays, isSameDay } from "date-fns";
 import * as grpc from "@grpc/grpc-js";
 import * as protoLoader from "@grpc/proto-loader";
-import { parseSizeStr } from "@src/shared/utils/files";
+import { parseCPUKubernetesString, parseSizeStr } from "@src/shared/utils/files";
 const { exec } = require("child_process");
 
 const ConcurrentStatusCall = 10;
@@ -149,6 +149,7 @@ export async function syncProvidersInfo() {
     where: {
       deletedHeight: null
     },
+    include: [{ model: ProviderSnapshot, as: "lastSnapshot" }],
     order: [["isOnline", "DESC"]]
   });
 
@@ -201,77 +202,101 @@ export async function syncProvidersInfo() {
         const availableResources = { cpu: 0, gpu: 0, memory: 0, storage: 0 }; //sumResources(response.data.cluster.inventory.available);
         const checkDate = toUTC(new Date());
 
-        await Provider.update(
-          {
-            isOnline: true,
-            error: null,
-            lastCheckDate: checkDate,
-            cosmosSdkVersion: versionResponse.data.akash.cosmosSdkVersion,
-            akashVersion: versionResponse.data.akash.version,
-            deploymentCount: data.manifest.deployments,
-            leaseCount: 0, //data.cluster.leases,
-            activeCPU: activeResources.cpu,
-            activeGPU: activeResources.gpu,
-            activeMemory: activeResources.memory,
-            activeStorage: activeResources.storage,
-            pendingCPU: pendingResources.cpu,
-            pendingGPU: pendingResources.gpu,
-            pendingMemory: pendingResources.memory,
-            pendingStorage: pendingResources.storage,
-            availableCPU: availableResources.cpu,
-            availableGPU: availableResources.gpu,
-            availableMemory: availableResources.memory,
-            availableStorage: availableResources.storage
-          },
-          {
-            where: { owner: provider.owner }
+        console.time("updateData");
+        await sequelize.transaction(async (t) => {
+          const createdSnapshot = await ProviderSnapshot.create(
+            {
+              owner: provider.owner,
+              isOnline: true,
+              checkDate: checkDate,
+              deploymentCount: data.manifest.deployments,
+              leaseCount: 0, // data.cluster.leases,
+              activeCPU: activeResources.cpu,
+              activeGPU: activeResources.gpu,
+              activeMemory: activeResources.memory,
+              activeStorage: activeResources.storage,
+              pendingCPU: pendingResources.cpu,
+              pendingGPU: pendingResources.gpu,
+              pendingMemory: pendingResources.memory,
+              pendingStorage: pendingResources.storage,
+              availableCPU: availableResources.cpu,
+              availableGPU: availableResources.gpu,
+              availableMemory: availableResources.memory,
+              availableStorage: availableResources.storage
+            },
+            { transaction: t }
+          );
+
+          if (provider.lastSnapshot && isSameDay(provider.lastSnapshot.checkDate, checkDate)) {
+            await ProviderSnapshot.update(
+              {
+                isLastOfDay: false
+              },
+              {
+                where: { id: provider.lastSnapshot.id },
+                transaction: t
+              }
+            );
           }
-        );
 
-        const createdSnapshot = await ProviderSnapshot.create({
-          owner: provider.owner,
-          isOnline: true,
-          checkDate: checkDate,
-          deploymentCount: data.manifest.deployments,
-          leaseCount: 0, // data.cluster.leases,
-          activeCPU: activeResources.cpu,
-          activeGPU: activeResources.gpu,
-          activeMemory: activeResources.memory,
-          activeStorage: activeResources.storage,
-          pendingCPU: pendingResources.cpu,
-          pendingGPU: pendingResources.gpu,
-          pendingMemory: pendingResources.memory,
-          pendingStorage: pendingResources.storage,
-          availableCPU: availableResources.cpu,
-          availableGPU: availableResources.gpu,
-          availableMemory: availableResources.memory,
-          availableStorage: availableResources.storage
+          await Provider.update(
+            {
+              lastSnapshotId: createdSnapshot.id,
+              isOnline: true,
+              error: null,
+              lastCheckDate: checkDate,
+              cosmosSdkVersion: versionResponse.data.akash.cosmosSdkVersion,
+              akashVersion: versionResponse.data.akash.version,
+              deploymentCount: data.manifest.deployments,
+              leaseCount: 0, //data.cluster.leases,
+              activeCPU: activeResources.cpu,
+              activeGPU: activeResources.gpu,
+              activeMemory: activeResources.memory,
+              activeStorage: activeResources.storage,
+              pendingCPU: pendingResources.cpu,
+              pendingGPU: pendingResources.gpu,
+              pendingMemory: pendingResources.memory,
+              pendingStorage: pendingResources.storage,
+              availableCPU: availableResources.cpu,
+              availableGPU: availableResources.gpu,
+              availableMemory: availableResources.memory,
+              availableStorage: availableResources.storage
+            },
+            {
+              where: { owner: provider.owner },
+              transaction: t
+            }
+          );
+
+          for (let node of data.cluster.inventory.cluster.nodes) {
+            await ProviderSnapshotNode.create(
+              {
+                snapshotId: createdSnapshot.id,
+                name: node.name,
+                cpuAllocatable: parseCPUKubernetesString(node.resources.cpu.quantity.allocatable.string) * 1000,
+                cpuAllocated: parseCPUKubernetesString(node.resources.cpu.quantity.allocated.string) * 1000,
+                cpuVendor: node.resources.cpu.info[0].vendor,
+                cpuModel: node.resources.cpu.info[0].model,
+                memoryAllocatable: parseInt(node.resources.memory.quantity.allocatable.string),
+                memoryAllocated: parseSizeStr(node.resources.memory.quantity.allocated.string),
+                ephemeralStorageAllocatable: parseInt(node.resources.ephemeralStorage.allocatable.string),
+                ephemeralStorageAllocated: parseSizeStr(node.resources.ephemeralStorage.allocated.string),
+                capabilitiesStorageHDD: node.capabilities.storageClasses.includes("beta1"),
+                capabilitiesStorageSSD: node.capabilities.storageClasses.includes("beta2"),
+                capabilitiesStorageNVME: node.capabilities.storageClasses.includes("beta3"),
+                gpuAllocatable: parseInt(node.resources.gpu.quantity.allocatable.string),
+                gpuAllocated: parseInt(node.resources.gpu.quantity.allocated.string),
+                gpuVendor: node.resources.gpu.info?.[0].vendor,
+                gpuName: node.resources.gpu.info?.[0].name,
+                gpuModelId: node.resources.gpu.info?.[0].modelid,
+                gpuInterface: node.resources.gpu.info?.[0].interface,
+                gpuMemorySize: node.resources.gpu.info?.[0].memorySize
+              },
+              { transaction: t }
+            );
+          }
         });
-
-        for (let node of data.cluster.inventory.cluster.nodes) {
-          await ProviderSnapshotNode.create({
-            snapshotId: createdSnapshot.id,
-            name: node.name,
-            cpuAllocatable: parseInt(node.resources.cpu.quantity.allocatable.string) * 1000,
-            cpuAllocated: parseSizeStr(node.resources.cpu.quantity.allocated.string),
-            cpuVendor: node.resources.cpu.info[0].vendor,
-            cpuModel: node.resources.cpu.info[0].model,
-            memoryAllocatable: parseInt(node.resources.memory.quantity.allocatable.string),
-            memoryAllocated: parseSizeStr(node.resources.memory.quantity.allocated.string),
-            ephemeralStorageAllocatable: parseInt(node.resources.ephemeralStorage.allocatable.string),
-            ephemeralStorageAllocated: parseSizeStr(node.resources.ephemeralStorage.allocated.string),
-            capabilitiesStorageHDD: node.capabilities.storageClasses.includes("beta1"),
-            capabilitiesStorageSSD: node.capabilities.storageClasses.includes("beta2"),
-            capabilitiesStorageNVME: node.capabilities.storageClasses.includes("beta3"),
-            gpuAllocatable: parseInt(node.resources.gpu.quantity.allocatable.string),
-            gpuAllocated: parseInt(node.resources.gpu.quantity.allocated.string),
-            gpuVendor: node.resources.gpu.info?.[0].vendor,
-            gpuName: node.resources.gpu.info?.[0].name,
-            gpuModelId: node.resources.gpu.info?.[0].modelid,
-            gpuInterface: node.resources.gpu.info?.[0].interface,
-            gpuMemorySize: node.resources.gpu.info?.[0].memorySize
-          });
-        }
+        console.timeEnd("updateData");
       } catch (err) {
         const checkDate = new Date();
         const errorMessage = err?.message?.toString() ?? err?.toString();
@@ -318,28 +343,26 @@ export async function syncProvidersInfo() {
 
   console.log("Finished refreshing provider infos");
 
-  console.time("updateIsLastOfDay");
-  const yesterdayDate = addDays(getTodayUTC(), -1);
-  console.log("Updating isLastOfDay for provider snapshots", yesterdayDate);
-  const result = await sequelize.query(
-    `WITH last_snapshots AS (
-    SELECT DISTINCT ON("hostUri",DATE("checkDate")) DATE("checkDate") AS date, ps."id" AS "psId", ps."activeCPU", ps."pendingCPU", ps."availableCPU", ps."activeGPU", ps."pendingGPU", ps."availableGPU", ps."activeMemory", ps."pendingMemory", ps."availableMemory", ps."activeStorage", ps."pendingStorage", ps."availableStorage", ps."isOnline"
-                          FROM "providerSnapshot" ps
-                          INNER JOIN "provider" ON "provider"."owner"=ps."owner"
-              WHERE "checkDate" >= '${yesterdayDate.toISOString().slice(0, 10)}'
-                          ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
-   ) 
-   UPDATE "providerSnapshot" AS ps
-   SET "isLastOfDay" = TRUE
-   FROM last_snapshots AS ls
-   WHERE ls."psId"=ps.id`,
-    {
-      type: QueryTypes.UPDATE
-    }
-  ); // TODO set isLastOfDay to false for all other snapshots
-  console.timeEnd("updateIsLastOfDay");
-
-  console.log(result[0], result[1]);
+  // console.time("updateIsLastOfDay");
+  // const yesterdayDate = addDays(getTodayUTC(), -1);
+  // console.log("Updating isLastOfDay for provider snapshots", yesterdayDate);
+  // const result = await sequelize.query(
+  //   `WITH last_snapshots AS (
+  //   SELECT DISTINCT ON("hostUri",DATE("checkDate")) DATE("checkDate") AS date, ps."id" AS "psId", ps."activeCPU", ps."pendingCPU", ps."availableCPU", ps."activeGPU", ps."pendingGPU", ps."availableGPU", ps."activeMemory", ps."pendingMemory", ps."availableMemory", ps."activeStorage", ps."pendingStorage", ps."availableStorage", ps."isOnline"
+  //                         FROM "providerSnapshot" ps
+  //                         INNER JOIN "provider" ON "provider"."owner"=ps."owner"
+  //             WHERE "checkDate" >= '${yesterdayDate.toISOString().slice(0, 10)}'
+  //                         ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
+  //  )
+  //  UPDATE "providerSnapshot" AS ps
+  //  SET "isLastOfDay" = TRUE
+  //  FROM last_snapshots AS ls
+  //  WHERE ls."psId"=ps.id`,
+  //   {
+  //     type: QueryTypes.UPDATE
+  //   }
+  // ); // TODO set isLastOfDay to false for all other snapshots
+  // console.timeEnd("updateIsLastOfDay");
 }
 
 function getStorageFromResource(resource) {
