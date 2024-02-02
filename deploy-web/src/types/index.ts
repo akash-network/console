@@ -30,6 +30,6 @@ export type ISidebarRoute = {
   url: string;
   activeRoutes: string[];
   isNew?: boolean;
-  isExternal?: boolean;
   rel?: string;
+  target?: string;
 };
