@@ -188,7 +188,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
                   <strong>v{version}</strong>
                 </span>
 
-                <Badge color="secondary" className="h-[12px] text-sm font-bold">
+                <Badge color="secondary" className="h-[12px] text-xs font-bold">
                   beta
                 </Badge>
               </div>
@@ -210,7 +210,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
   return (
     <nav
       style={{ width: !smallScreen ? 0 : _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth, height: `calc(100% - ${accountBarHeight}px)` }}
-      className="fixed z-[100] h-full md:flex-shrink-0"
+      className="fixed z-[100] h-full md:flex-shrink-0 bg-header/95"
     >
       {/* Mobile Drawer */}
       <Drawer

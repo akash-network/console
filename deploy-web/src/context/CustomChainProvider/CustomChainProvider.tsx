@@ -29,7 +29,7 @@ export function CustomChainProvider({ children }: Props) {
       }}
       walletConnectOptions={{
         signClient: {
-          projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID
+          projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID as string
         }
       }}
       endpointOptions={{

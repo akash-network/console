@@ -12,10 +12,7 @@ export const NodeStatus: React.FunctionComponent<Props> = ({ latency, status, va
   return (
     <div className="flex items-center">
       <div>
-        <span
-          className={cn("text-muted-foreground", { ["text-sm"]: variant === "regular", ["text-xs"]: variant === "dense" })}
-          //  variant="caption" sx={{ fontSize: variant === "regular" ? ".75rem" : ".65rem" }}
-        >
+        <span className={cn("text-muted-foreground", { ["text-sm"]: variant === "regular", ["text-xs"]: variant === "dense" })}>
           {latency}ms{latency >= 10000 && "+"}
         </span>
       </div>

@@ -24,6 +24,12 @@ export function LinearLoadingSkeleton({ isLoading }: IProps) {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (!isLoading) {
+      setProgress(13);
+    }
+  }, [isLoading]);
+
   function randomIntFromInterval(min: number, max: number) {
     return Math.floor(Math.random() * (max - min + 1) + min);
   }

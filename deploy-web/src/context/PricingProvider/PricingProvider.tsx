@@ -8,20 +8,13 @@ import { useUsdcDenom } from "@src/hooks/useDenom";
 type ContextType = {
   isLoaded: boolean;
   isLoading: boolean;
-  price: number;
-  uaktToUSD: (amount: number) => number;
-  aktToUSD: (amount: number) => number;
-  getPriceForDenom: (denom: string) => number;
+  price: number | undefined;
+  uaktToUSD: (amount: number) => number | null;
+  aktToUSD: (amount: number) => number | null;
+  getPriceForDenom: (denom: string) => number | undefined;
 };
 
-const PricingProviderContext = React.createContext<ContextType>({
-  isLoaded: false,
-  isLoading: false,
-  price: null,
-  uaktToUSD: null,
-  aktToUSD: null,
-  getPriceForDenom: null
-});
+const PricingProviderContext = React.createContext<ContextType>({} as ContextType);
 
 export const PricingProvider = ({ children }) => {
   const { data: marketData, isLoading } = useMarketData({ refetchInterval: 60_000 });
