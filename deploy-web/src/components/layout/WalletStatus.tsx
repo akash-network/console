@@ -4,7 +4,6 @@ import { udenomToDenom } from "@src/utils/mathHelpers";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { Address } from "../shared/Address";
-// import { CustomMenuItem } from "../shared/CustomMenuItem";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { FormattedNumber } from "react-intl";
@@ -17,22 +16,16 @@ import { Badge } from "../ui/badge";
 import Spinner from "../shared/Spinner";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 
-export function WalletStatus({ children }: React.PropsWithChildren<{}>) {
-  // const popupState = usePopupState({ variant: "popover", popupId: "walletMenu" });
-  // const { classes } = useStyles();
+export function WalletStatus({}: React.PropsWithChildren<{}>) {
   const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected } = useWallet();
   const walletBalance = useTotalWalletBalance();
   const router = useRouter();
 
   function onDisconnectClick() {
-    // popupState.close();
-
     logout();
   }
 
   const onAuthorizeSpendingClick = () => {
-    // popupState.close();
-
     router.push(UrlService.settingsAuthorizations());
   };
 
@@ -72,7 +65,7 @@ export function WalletStatus({ children }: React.PropsWithChildren<{}>) {
                         <span>{walletName}</span>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <Address address={address} isCopyable />
+                        <Address address={address} isCopyable disableTooltip />
                       </TooltipContent>
                     </Tooltip>
                   </Link>
@@ -81,12 +74,8 @@ export function WalletStatus({ children }: React.PropsWithChildren<{}>) {
                 {walletBalances && (
                   <div className="ml-2 flex items-center whitespace-nowrap font-bold text-muted-foreground">
                     <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge
-                          className="text-xs font-bold"
-                          // size="small"
-                          // sx={{ fontSize: ".75rem", fontWeight: "bold" }}
-                        >
+                      <TooltipTrigger>
+                        <Badge className="h-5 text-xs font-bold" variant="secondary">
                           <FormattedNumber
                             value={walletBalance}
                             // eslint-disable-next-line react/style-prop-object
@@ -114,10 +103,7 @@ export function WalletStatus({ children }: React.PropsWithChildren<{}>) {
             </div>
           </>
         ) : (
-          <ConnectWalletButton
-            className="w-full md:w-auto"
-            // sx={{ width: { xs: "100%", sm: "100%", md: "auto" } }}
-          />
+          <ConnectWalletButton className="w-full md:w-auto" />
         )
       ) : (
         <div className="pl-2 pr-2">

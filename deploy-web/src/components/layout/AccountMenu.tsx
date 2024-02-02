@@ -5,11 +5,11 @@ import { UrlService } from "@src/utils/urlUtils";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import Spinner from "../shared/Spinner";
 import { Button } from "../ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Avatar, AvatarFallback } from "../ui/avatar";
 import { User } from "iconoir-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuIconItem } from "../ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
-import { Settings, MediaImageList, Star, Bell, Book, LogOut } from "iconoir-react";
+import { Settings, MultiplePages, Star, Bell, Book, LogOut } from "iconoir-react";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 
 export function AccountMenu({}: React.PropsWithChildren<{}>) {
@@ -57,7 +57,7 @@ export function AccountMenu({}: React.PropsWithChildren<{}>) {
                     <CustomDropdownLinkItem onClick={() => router.push(UrlService.userSettings())} icon={<Settings />}>
                       Settings
                     </CustomDropdownLinkItem>
-                    <CustomDropdownLinkItem onClick={() => router.push(UrlService.userProfile(username))} icon={<MediaImageList />}>
+                    <CustomDropdownLinkItem onClick={() => router.push(UrlService.userProfile(username))} icon={<MultiplePages />}>
                       Templates
                     </CustomDropdownLinkItem>
                     <CustomDropdownLinkItem onClick={() => router.push(UrlService.userFavorites())} icon={<Star />}>
@@ -76,10 +76,10 @@ export function AccountMenu({}: React.PropsWithChildren<{}>) {
                   </div>
                 ) : (
                   <div>
-                    <DropdownMenuItem className="hover:bg-primary-dark bg-primary text-white" onClick={() => router.push(UrlService.signup())}>
+                    <CustomDropdownLinkItem className="hover:bg-primary-dark bg-primary !text-white" onClick={() => router.push(UrlService.signup())}>
                       Sign up
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push(UrlService.login())}>Sign in</DropdownMenuItem>
+                    </CustomDropdownLinkItem>
+                    <CustomDropdownLinkItem onClick={() => router.push(UrlService.login())}>Sign in</CustomDropdownLinkItem>
                   </div>
                 )}
               </DropdownMenuContent>

@@ -10,11 +10,12 @@ type Props = {
   address: string;
   isCopyable?: boolean;
   disableTruncate?: boolean;
+  disableTooltip?: boolean;
   showIcon?: boolean;
   children?: ReactNode;
 };
 
-export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, disableTruncate, showIcon, ...rest }) => {
+export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, disableTruncate, disableTooltip, showIcon, ...rest }) => {
   const [isOver, setIsOver] = useState(false);
   const { toast } = useToast();
   let formattedAddress = disableTruncate ? address : [address?.slice(0, 8), "...", address?.slice(address?.length - 5)].join("");
@@ -45,7 +46,7 @@ export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, d
     </span>
   );
 
-  return disableTruncate ? (
+  return disableTruncate || disableTooltip ? (
     content
   ) : (
     <Tooltip>
