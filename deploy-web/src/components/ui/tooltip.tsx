@@ -5,7 +5,6 @@ import { cn } from "@src/utils/styleUtils";
 
 const TooltipProvider = TooltipPrimitive.Provider;
 
-// const Tooltip = TooltipPrimitive.Root;
 interface TooltipProps extends TooltipPrimitive.TooltipProps {
   alwaysOpen?: boolean;
 }
