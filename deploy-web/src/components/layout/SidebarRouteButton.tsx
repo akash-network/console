@@ -19,17 +19,23 @@ export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, clas
   const isSelected = route.url === UrlService.home() ? pathname === "/" : route.activeRoutes.some(x => pathname?.startsWith(x));
 
   return (
-    <li>
+    <li className={className}>
       <Link
         target={route.target ?? "_self"}
         rel={route.rel ? route.rel : ""}
         href={route.url}
         className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "text-md flex w-full items-center justify-start text-current hover:text-primary", {
-          ["font-bold"]: isSelected
+          ["font-bold"]: isSelected,
+          ["min-w-[initial] px-4 py-1"]: isNavOpen,
+          ["min-w-0 p-4"]: !isNavOpen
         })}
       >
-        {!!route.icon && <span className="mr-4">{route.icon({ className: cn({ ["text-primary font-bold"]: isSelected }, "text-xs") })}</span>}
-        {route.title}
+        {!!route.icon && (
+          <span className={cn("z-[100] min-w-0", { ["m-[initial]"]: isNavOpen, ["mx-auto"]: !isNavOpen })}>
+            {route.icon({ className: cn({ ["text-primary font-bold"]: isSelected, ["mx-auto"]: !isNavOpen }, "text-xs") })}
+          </span>
+        )}
+        {isNavOpen && <span className="mb-1 ml-4 mt-1 min-w-0 flex-auto whitespace-nowrap">{route.title}</span>}
       </Link>
     </li>
   );

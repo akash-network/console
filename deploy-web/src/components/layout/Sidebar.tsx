@@ -32,7 +32,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
   const _isNavOpen = isNavOpen || isHovering;
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   // TODO Verify
-  const smallScreen = useMediaQuery(breakpoints.md.mediaQuery);
+  const mdScreen = useMediaQuery(breakpoints.md.mediaQuery);
   const mobileScreen = useMediaQuery(breakpoints.xs.mediaQuery);
 
   const routeGroups: ISidebarGroupMenu[] = [
@@ -130,18 +130,18 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
   const drawer = (
     <div
       style={{ width: _isNavOpen ? drawerWidth : closedDrawerWidth }}
-      className={`flex h-full flex-col items-center justify-between md:h-[calc(100%-${accountBarHeight}px)] transition-width flex-shrink-0 overflow-y-auto border-r-[1px] border-muted-foreground/20 transition-[width] duration-300 ease-in-out`}
+      className={`flex h-full flex-col items-center justify-between md:h-[calc(100%-${accountBarHeight}px)] box-border flex-shrink-0 overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 transition-[width] duration-300 ease-in-out`}
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: _isNavOpen, ["pb-2 pt-2"]: !_isNavOpen })}>
         <Link
-          className={cn(buttonVariants({ variant: "default", size: "lg" }), "h-[45px] w-full leading-4", {
+          className={cn(buttonVariants({ variant: "default", size: _isNavOpen ? "lg" : "icon" }), "h-[45px] w-full leading-4", {
             ["h-[45px] w-[45px] min-w-0 pb-2 pt-2"]: !_isNavOpen
           })}
           href={UrlService.newDeployment()}
           onClick={onDeployClick}
         >
           {_isNavOpen && "Deploy "}
-          <Rocket className="ml-4 rotate-45" fontSize="small" />
+          <Rocket className={cn("rotate-45", { ["ml-4"]: _isNavOpen })} fontSize="small" />
         </Link>
 
         {routeGroups.map((g, i) => (
@@ -150,7 +150,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
       </div>
 
       <div className="w-full">
-        {!smallScreen && <MobileSidebarUser />}
+        {!mdScreen && <MobileSidebarUser />}
 
         {_isNavOpen && (
           <div className="pb-4 pl-4 pr-4">
@@ -196,7 +196,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
           </div>
         )}
 
-        {!smallScreen && (
+        {mdScreen && (
           <div className="flex items-center justify-between border-t border-muted-foreground/20 px-3 py-1">
             <Button size="icon" variant="ghost" onClick={onToggleMenuClick}>
               {isNavOpen ? <MenuScale /> : <Menu />}
@@ -209,8 +209,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
 
   return (
     <nav
-      style={{ width: !smallScreen ? 0 : _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth, height: `calc(100% - ${accountBarHeight}px)` }}
-      className="fixed z-[100] h-full md:flex-shrink-0 bg-header/95"
+      style={{ width: !mdScreen ? 0 : _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth, height: `calc(100% - ${accountBarHeight}px)` }}
+      className="ease fixed z-[100] h-full bg-header/95  transition-[width] duration-300 md:flex-shrink-0"
     >
       {/* Mobile Drawer */}
       <Drawer

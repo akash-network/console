@@ -348,9 +348,9 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
       {...dialogProps}
       onOpenChange={handleOnClose}
     >
-      <DialogTrigger asChild>
+      {/* <DialogTrigger asChild>
         <Button variant="outline">TODO</Button>
-      </DialogTrigger>
+      </DialogTrigger> */}
 
       <ErrorBoundary FallbackComponent={ErrorFallback}>
         <DialogContent

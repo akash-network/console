@@ -1,5 +1,4 @@
 "use client";
-
 import { Nav } from "./Nav";
 import { useEffect, useState } from "react";
 import { useWallet } from "@src/context/WalletProvider";
@@ -103,7 +102,7 @@ export function AppLayoutContainer({ children, version }: React.PropsWithChildre
               />
 
               <div
-                className="ml-0 flex-grow md:ml-[240px] h-full"
+                className="ease ml-0 h-full flex-grow transition-[margin-left] duration-300 md:ml-[240px]"
                 style={{ marginLeft: !smallScreen ? 0 : isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }}
                 // className={classes.viewContentContainer}
                 // sx={{ marginLeft: { xs: 0, sm: 0, md: isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }, minWidth: 0 }}
