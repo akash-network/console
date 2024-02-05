@@ -1,71 +1,76 @@
 import * as React from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "./ErrorFallback";
-import { ButtonProps, CircularProgress, DialogProps, IconButton, Paper, useTheme } from "@mui/material";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import TextField from "@mui/material/TextField";
-import CloseIcon from "@mui/icons-material/Close";
-import { makeStyles } from "tss-react/mui";
-import { default as MuiDialogTitle } from "@mui/material/DialogTitle";
-import { cx } from "@emotion/css";
+import { ButtonProps, Button } from "../ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle as _DialogTitle, DialogTrigger } from "../ui/dialog";
+import { DialogProps } from "@radix-ui/react-dialog";
+import Spinner from "./Spinner";
+import { Input } from "../ui/input";
+// import { ButtonProps, CircularProgress, DialogProps, IconButton, Paper, useTheme } from "@mui/material";
+// import Typography from "@mui/material/Typography";
+// import Button from "@mui/material/Button";
+// import Dialog from "@mui/material/Dialog";
+// import DialogActions from "@mui/material/DialogActions";
+// import DialogContent from "@mui/material/DialogContent";
+// import DialogContentText from "@mui/material/DialogContentText";
+// import TextField from "@mui/material/TextField";
+// import CloseIcon from "@mui/icons-material/Close";
+// import { makeStyles } from "tss-react/mui";
+// import { default as MuiDialogTitle } from "@mui/material/DialogTitle";
+// import { cx } from "@emotion/css";
 
-const useStyles = makeStyles()(theme => ({
-  closeButton: {
-    position: "absolute",
-    right: theme.spacing(1),
-    top: "50%",
-    transform: "translateY(-50%)",
-    color: theme.palette.grey[500]
-  },
-  paper: {
-    margin: "1rem",
-    width: "100%"
-  },
-  dialogTitle: {
-    position: "relative",
-    padding: "1rem"
-  },
-  dailogTitleText: {
-    fontSize: "1.5rem",
-    fontWeight: "normal"
-  },
-  dialogContent: {
-    margin: 0,
-    padding: "1rem"
-  },
-  justifyContentBetween: {
-    justifyContent: "space-between"
-  },
-  genericDialogActions: {},
-  genericDialogActionButton: {
-    textTransform: "initial"
-  },
-  dialogActionSpaced: {
-    "& > :not(:first-of-type)": {
-      marginLeft: ".5rem"
-    }
-  },
-  fixedTopPosition: {
-    position: "absolute"
-  },
-  fixedTopPosition10: {
-    top: "10%"
-  },
-  fixedTopPosition15: {
-    top: "15%"
-  },
-  fixedTopPosition20: {
-    top: "20%"
-  },
-  fixedTopPosition25: {
-    top: "25%"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   closeButton: {
+//     position: "absolute",
+//     right: theme.spacing(1),
+//     top: "50%",
+//     transform: "translateY(-50%)",
+//     color: theme.palette.grey[500]
+//   },
+//   paper: {
+//     margin: "1rem",
+//     width: "100%"
+//   },
+//   dialogTitle: {
+//     position: "relative",
+//     padding: "1rem"
+//   },
+//   dailogTitleText: {
+//     fontSize: "1.5rem",
+//     fontWeight: "normal"
+//   },
+//   dialogContent: {
+//     margin: 0,
+//     padding: "1rem"
+//   },
+//   justifyContentBetween: {
+//     justifyContent: "space-between"
+//   },
+//   genericDialogActions: {},
+//   genericDialogActionButton: {
+//     textTransform: "initial"
+//   },
+//   dialogActionSpaced: {
+//     "& > :not(:first-of-type)": {
+//       marginLeft: ".5rem"
+//     }
+//   },
+//   fixedTopPosition: {
+//     position: "absolute"
+//   },
+//   fixedTopPosition10: {
+//     top: "10%"
+//   },
+//   fixedTopPosition15: {
+//     top: "15%"
+//   },
+//   fixedTopPosition20: {
+//     top: "20%"
+//   },
+//   fixedTopPosition25: {
+//     top: "25%"
+//   }
+// }));
 
 type MessageProps = {
   variant: "message";
@@ -101,7 +106,7 @@ type CommonProps = {
   fullWidth?: boolean;
   dividers?: boolean;
   maxWidth?: false | "xs" | "sm" | "md" | "lg" | "xl";
-  dialogProps?: Partial<DialogProps>;
+  dialogProps?: any; // TODO: Partial<DialogProps>;
   fixedTopPosition?: boolean;
   fixedTopPositionHeight?: "10%" | "15%" | "20%" | "25%";
   enableCloseOnBackdropClick?: boolean;
@@ -125,28 +130,26 @@ export interface DialogTitleProps {
 
 export const DialogTitle = (props: DialogTitleProps) => {
   const { children, onClose, ...other } = props;
-  const { classes } = useStyles();
+  // const { classes } = useStyles();
 
   return (
-    <MuiDialogTitle className={classes.dialogTitle} {...other}>
-      <Typography variant="body1" className={classes.dailogTitleText}>
-        {children}
-      </Typography>
-      {onClose ? (
+    <_DialogTitle className="relative p-4" {...other}>
+      <span className="text-lg">{children}</span>
+      {/* {onClose ? (
         // TODO => onTouchStart added to handle the touch, onClick was not enough. Investigated how to handle both in one way
         <IconButton aria-label="close" className={classes.closeButton} onClick={onClose} onTouchStart={onClose}>
           <CloseIcon />
         </IconButton>
-      ) : null}
-    </MuiDialogTitle>
+      ) : null} */}
+    </_DialogTitle>
   );
 };
 
-export const Popup: React.FC<PopupProps> = props => {
+export function Popup(props: React.PropsWithChildren<PopupProps>) {
   const [promptInput, setPromptInput] = React.useState("");
   const component = [] as JSX.Element[];
-  const { classes } = useStyles();
-  const theme = useTheme();
+  // const { classes } = useStyles();
+  // const theme = useTheme();
 
   const onClose: TOnCloseHandler = (event, reason) => {
     setPromptInput("");
@@ -174,37 +177,34 @@ export const Popup: React.FC<PopupProps> = props => {
   }
 
   if (props.message && props.variant !== "prompt") {
-    component.push(
-      <DialogContent key="dialog-content" className={classes.dialogContent} dividers={props.dividers}>
-        <DialogContentText>{props.message}</DialogContentText>
-      </DialogContent>
-    );
+    component.push(<div>{props.message}</div>);
   } else {
     component.push(
-      <DialogContent key="dialog-content" className={classes.dialogContent} dividers={props.dividers}>
+      <React.Fragment
+        key="dialog-content"
+        // dividers={props.dividers}
+      >
         {props.variant === "prompt" ? (
-          <TextField
-            label={props.message}
+          <Input
+            // label={props.message}
             value={promptInput}
             // eslint-disable-next-line no-void
             onChange={_ => void setPromptInput(_.target.value)}
-            fullWidth
+            className="w-full"
           />
         ) : (
           props.children
         )}
-      </DialogContent>
+      </React.Fragment>
     );
   }
 
   switch (props.variant) {
     case "confirm":
       component.push(
-        <DialogActions key="dialog-actions" className={cx(classes.genericDialogActions, classes.justifyContentBetween)}>
+        <DialogFooter key="dialog-actions" className="justify-between">
           <Button
-            variant="text"
-            className={classes.genericDialogActionButton}
-            disableElevation
+            variant="ghost"
             onClick={() => {
               onClose(null, "action");
               props.onCancel();
@@ -213,10 +213,8 @@ export const Popup: React.FC<PopupProps> = props => {
             {CancelButtonLabel}
           </Button>
           <Button
-            variant="contained"
-            color="secondary"
-            className={classes.genericDialogActionButton}
-            disableElevation
+            variant="default"
+            color="priamry"
             onClick={() => {
               onClose(null, "action");
               props.onValidate();
@@ -224,16 +222,14 @@ export const Popup: React.FC<PopupProps> = props => {
           >
             {ConfirmButtonLabel}
           </Button>
-        </DialogActions>
+        </DialogFooter>
       );
       break;
     case "prompt":
       component.push(
-        <DialogActions key="DialogActions" className={cx(classes.genericDialogActions, classes.justifyContentBetween)}>
+        <DialogFooter key="DialogActions" className="justify-between">
           <Button
-            variant="text"
-            className={classes.genericDialogActionButton}
-            disableElevation
+            variant="ghost"
             onClick={() => {
               props.onCancel();
               onClose(null, "action");
@@ -242,10 +238,8 @@ export const Popup: React.FC<PopupProps> = props => {
             {CancelButtonLabel}
           </Button>
           <Button
-            variant="contained"
-            color="secondary"
-            className={classes.genericDialogActionButton}
-            disableElevation
+            variant="default"
+            color="primary"
             onClick={() => {
               props.onValidate(promptInput);
               onClose(null, "action");
@@ -253,17 +247,15 @@ export const Popup: React.FC<PopupProps> = props => {
           >
             {ConfirmButtonLabel}
           </Button>
-        </DialogActions>
+        </DialogFooter>
       );
       break;
     case "message":
       component.push(
-        <DialogActions key="DialogActions" className={classes.genericDialogActions}>
+        <DialogFooter key="DialogActions">
           <Button
-            variant="contained"
-            color="secondary"
-            className={classes.genericDialogActionButton}
-            disableElevation
+            variant="default"
+            color="primary"
             onClick={() => {
               props.onValidate();
               onClose(null, "action");
@@ -271,19 +263,20 @@ export const Popup: React.FC<PopupProps> = props => {
           >
             {ConfirmButtonLabel}
           </Button>
-        </DialogActions>
+        </DialogFooter>
       );
       break;
     case "custom": {
       const leftButtons = props.actions
         ?.filter(x => x.side === "left")
         .map(({ isLoading, isLoadingColor, side, label, ...rest }, idx) => (
-          <Button key={`dialog-action-button-${idx}`} className={classes.genericDialogActionButton} disableElevation {...rest}>
+          <Button key={`dialog-action-button-${idx}`} {...rest}>
             {isLoading ? (
-              <CircularProgress
-                size="1.5rem"
-                color={isLoadingColor ? isLoadingColor : "secondary"}
-                sx={{ color: !isLoadingColor && rest.color === "secondary" ? theme.palette.secondary.contrastText : "" }}
+              <Spinner
+                size="small"
+                // TODO
+                // color={isLoadingColor ? isLoadingColor : "secondary"}
+                // sx={{ color: !isLoadingColor && rest.color === "secondary" ? theme.palette.secondary.contrastText : "" }}
               />
             ) : (
               label
@@ -293,12 +286,13 @@ export const Popup: React.FC<PopupProps> = props => {
       const rightButtons = props.actions
         ?.filter(x => x.side === "right")
         .map(({ isLoading, isLoadingColor, side, label, ...rest }, idx) => (
-          <Button key={`dialog-action-button-${idx}`} className={classes.genericDialogActionButton} disableElevation {...rest}>
+          <Button key={`dialog-action-button-${idx}`} {...rest}>
             {isLoading ? (
-              <CircularProgress
-                size="1.5rem"
-                color={isLoadingColor ? isLoadingColor : "secondary"}
-                sx={{ color: !isLoadingColor && rest.color === "secondary" ? theme.palette.secondary.contrastText : "" }}
+              <Spinner
+                size="small"
+                // TODO
+                // color={isLoadingColor ? isLoadingColor : "secondary"}
+                // sx={{ color: !isLoadingColor && rest.color === "secondary" ? theme.palette.secondary.contrastText : "" }}
               />
             ) : (
               label
@@ -306,52 +300,67 @@ export const Popup: React.FC<PopupProps> = props => {
           </Button>
         ));
       component.push(
-        <DialogActions className={cx(classes.genericDialogActions, classes.justifyContentBetween)} key="DialogCustomActions">
-          <div className={classes.dialogActionSpaced}>{leftButtons}</div>
-          <div className={classes.dialogActionSpaced}>{rightButtons}</div>
-        </DialogActions>
+        <DialogFooter className="justify-between space-x-2" key="DialogCustomActions">
+          <div>{leftButtons}</div>
+          <div>{rightButtons}</div>
+        </DialogFooter>
       );
       break;
     }
   }
 
-  const getFixedPositionHeightClass = () => {
-    switch (props.fixedTopPositionHeight) {
-      case "10%":
-        return classes.fixedTopPosition10;
-      case "15%":
-        return classes.fixedTopPosition15;
-      case "20%":
-        return classes.fixedTopPosition20;
-      case "25%":
-        return classes.fixedTopPosition25;
+  // const getFixedPositionHeightClass = () => {
+  //   switch (props.fixedTopPositionHeight) {
+  //     case "10%":
+  //       return classes.fixedTopPosition10;
+  //     case "15%":
+  //       return classes.fixedTopPosition15;
+  //     case "20%":
+  //       return classes.fixedTopPosition20;
+  //     case "25%":
+  //       return classes.fixedTopPosition25;
 
-      default:
-        break;
-    }
-  };
+  //     default:
+  //       break;
+  //   }
+  // };
 
   /**
    * Prevent close because of click on backdrop unless enabled through the setting 'enableCloseOnBackdropClick'.
    */
-  const handleOnClose = (event, reason) => {
-    if ((props.enableCloseOnBackdropClick || reason !== "backdropClick") && props.onClose) {
-      props.onClose(event, reason);
+  const handleOnClose = (open: boolean) => {
+    // if ((props.enableCloseOnBackdropClick || reason !== "backdropClick") && props.onClose) {
+    //   props.onClose();
+    // }
+    if (!open && props.onClose) {
+      // TODO
+      props.onClose(null, "action");
     }
   };
 
   return (
     <Dialog
       key="Dialog"
-      PaperComponent={Paper}
-      disableScrollLock
-      classes={{
-        paper: `${props.fixedTopPosition && props.fixedTopPositionHeight && classes.fixedTopPosition} ${getFixedPositionHeightClass()} ${classes.paper}`
-      }}
+      // disableScrollLock
+      // classes={{
+      //   paper: `${props.fixedTopPosition && props.fixedTopPositionHeight && classes.fixedTopPosition} ${getFixedPositionHeightClass()} ${classes.paper}`
+      // }}
       {...dialogProps}
-      onClose={handleOnClose}
+      onOpenChange={handleOnClose}
     >
-      <ErrorBoundary FallbackComponent={ErrorFallback}>{component}</ErrorBoundary>
+      <DialogTrigger asChild>
+        <Button variant="outline">TODO</Button>
+      </DialogTrigger>
+
+      <ErrorBoundary FallbackComponent={ErrorFallback}>
+        <DialogContent
+          // TODO sizes
+          // dividers={props.dividers}
+          className="m-0 p-4 sm:max-w-[425px]"
+        >
+          {component}
+        </DialogContent>
+      </ErrorBoundary>
     </Dialog>
   );
-};
+}

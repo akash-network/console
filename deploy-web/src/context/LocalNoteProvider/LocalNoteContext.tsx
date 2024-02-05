@@ -1,3 +1,4 @@
+"use client";
 import { LocalDeploymentData, getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { getProviderLocalData, updateProviderLocalData } from "@src/utils/providerUtils";
 import React, { useState, useEffect } from "react";

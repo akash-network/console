@@ -19,16 +19,10 @@ export const Nav = () => {
           {theme === "light" ? <AkashConsoleLightLogo className="h-[25px] max-w-[180px]" /> : <AkashConsoleDarkLogo className="h-[25px] max-w-[180px]" />}
         </Link>
 
-        <div
-          className={`hidden items-center md:flex h-[${accountBarHeight}px]`}
-          // sx={{ maxHeight: `${accountBarHeight}px`, alignItems: "center", display: { xs: "none", sm: "none", md: "flex" } }}
-        >
+        <div className={`hidden items-center md:flex h-[${accountBarHeight}px]`}>
           <div>
             <Link passHref href={UrlService.getStarted()}>
-              <Button
-                variant="outline"
-                className="relative"
-              >
+              <Button variant="outline" className="relative">
                 Get Started
                 <Badge className="absolute -right-1 -top-1 h-2 w-2 rounded-full p-0" />
               </Button>

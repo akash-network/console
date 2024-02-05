@@ -7,8 +7,6 @@ import { EncodeObject } from "@cosmjs/proto-signing";
 // import { useSnackbar } from "notistack";
 // import { Snackbar } from "@src/components/shared/Snackbar";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
-import { OpenInNew } from "@mui/icons-material";
-import { useTheme } from "@mui/material";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { usePathname, useRouter } from "next/navigation";
@@ -23,6 +21,7 @@ import { useSelectedChain } from "../CustomChainProvider";
 import { customRegistry } from "@src/utils/customRegistry";
 import { useManager } from "@cosmos-kit/react";
 import { useToast } from "@src/components/ui/use-toast";
+import { OpenInWindow } from "iconoir-react";
 
 type Balances = {
   uakt: number;
@@ -202,7 +201,7 @@ export const WalletProvider = ({ children }) => {
             // sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
             onClick={() => window.open(UrlService.transaction(txResult.transactionHash), "_blank")}
           >
-            View transaction <OpenInNew sx={{ fontSize: "1rem", marginLeft: ".5rem" }} />
+            View transaction <OpenInWindow className="ml-2 text-sm" />
           </LinkTo>
         ),
         variant: "success"
@@ -282,7 +281,7 @@ export const WalletProvider = ({ children }) => {
             // sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
             onClick={() => window.open(UrlService.transaction(transactionHash), "_blank")}
           >
-            View transaction <OpenInNew sx={{ fontSize: "1rem", marginLeft: ".5rem" }} />
+            View transaction <OpenInWindow className="ml-2 text-sm" />
           </LinkTo>
         ),
         variant: "success"
