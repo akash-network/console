@@ -4,9 +4,10 @@ import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@src/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@src/components/ui/collapsible";
-import { Expand, Rocket, SearchEngine, Learning } from "iconoir-react";
+import { Expand, Rocket, SearchEngine, Learning, NavArrowDown } from "iconoir-react";
 import { Button } from "@src/components/ui/button";
 import { Avatar, AvatarFallback } from "@src/components/ui/avatar";
+import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   children?: ReactNode;
@@ -23,7 +24,7 @@ export const WelcomePanel: React.FC<Props> = () => {
 
           <CollapsibleTrigger asChild>
             <Button size="icon" variant="ghost" className="!m-0 rounded-full" onClick={() => setExpanded(prev => !prev)}>
-              <Expand fontSize="1rem" />
+              <NavArrowDown fontSize="1rem" className={cn("transition-all duration-100", { ["rotate-180"]: expanded })} />
             </Button>
           </CollapsibleTrigger>
         </CardHeader>

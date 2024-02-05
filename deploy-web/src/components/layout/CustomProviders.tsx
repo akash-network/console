@@ -18,6 +18,7 @@ import { WalletProvider } from "@src/context/WalletProvider";
 import "@interchain-ui/react/styles";
 import { CertificateProvider } from "@src/context/CertificateProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
+import { TemplatesProvider } from "@src/context/TemplatesProvider";
 
 function Providers({ children, version }: React.PropsWithChildren<{ version: string }>) {
   //*              <PricingProvider>
@@ -27,7 +28,7 @@ function Providers({ children, version }: React.PropsWithChildren<{ version: str
   //*                      <CustomChainProvider>
   //*                        <WalletProvider>
   //*                          <CertificateProvider>
-  //                             <TemplatesProvider>
+  //*                            <TemplatesProvider>
   //*                              <LocalNoteProvider>
   //                                 <BackgroundTaskProvider></BackgroundTaskProvider>
   return (
@@ -43,11 +44,13 @@ function Providers({ children, version }: React.PropsWithChildren<{ version: str
                     <CustomChainProvider>
                       <WalletProvider>
                         <CertificateProvider>
-                          <LocalNoteProvider>
-                            <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
+                          <TemplatesProvider>
+                            <LocalNoteProvider>
+                              <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
 
-                            {children}
-                          </LocalNoteProvider>
+                              {children}
+                            </LocalNoteProvider>
+                          </TemplatesProvider>
                         </CertificateProvider>
                       </WalletProvider>
                     </CustomChainProvider>

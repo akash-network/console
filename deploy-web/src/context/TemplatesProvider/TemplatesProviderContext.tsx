@@ -10,7 +10,7 @@ type ContextType = {
   getTemplateById: (id: string) => ApiTemplate;
 };
 
-const TemplatesProviderContext = React.createContext<Partial<ContextType>>({});
+const TemplatesProviderContext = React.createContext<ContextType>({} as ContextType);
 
 export const TemplatesProvider = ({ children }) => {
   const { data, isFetching: isLoading } = useTemplatesQuery();
