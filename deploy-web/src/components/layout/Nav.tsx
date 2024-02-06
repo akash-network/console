@@ -19,7 +19,7 @@ export const Nav = () => {
           {theme === "light" ? <AkashConsoleLightLogo className="h-[25px] max-w-[180px]" /> : <AkashConsoleDarkLogo className="h-[25px] max-w-[180px]" />}
         </Link>
 
-        <div className={`hidden items-center md:flex h-[${accountBarHeight}px]`}>
+        <div style={{ height: `${accountBarHeight}px` }} className={`hidden items-center md:flex `}>
           <div>
             <Link passHref href={UrlService.getStarted()}>
               <Button variant="outline" className="relative">

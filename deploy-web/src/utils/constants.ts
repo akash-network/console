@@ -13,8 +13,8 @@ export enum SelectedRange {
 // UI
 export const statusBarHeight = 30;
 export const drawerWidth = 240;
-export const closedDrawerWidth = 58;
-export const accountBarHeight = 58;
+export const closedDrawerWidth = 57;
+export const accountBarHeight = 57;
 
 // Deployment creation
 export enum RouteStepKeys {

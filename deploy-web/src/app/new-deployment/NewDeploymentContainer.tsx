@@ -18,8 +18,6 @@ import { PageContainer } from "@src/components/shared/PageContainer";
 import { Button } from "@src/components/ui/button";
 import { NavArrowLeft } from "iconoir-react";
 
-const steps = ["Choose Template", "Create Deployment", "Choose providers"];
-
 // type Props = {};
 
 // const useStyles = makeStyles()(theme => ({
@@ -137,22 +135,19 @@ export function NewDeploymentContainer() {
   }
 
   return (
-    <PageContainer isLoading={isLoadingTemplates} isUsingSettings isUsingWallet>
-      {/* <Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet>
-      <Container className={classes.root}> */}
-      <div className="flex w-full items-center">
+    <>
+      <div className="flex w-full items-center">{activeStep !== null && <CustomizedSteppers activeStep={activeStep} />}</div>
+      <PageContainer isLoading={isLoadingTemplates} isUsingSettings isUsingWallet>
         <div className="pb-2">
-          <Button aria-label="back" onClick={handleBackClick} size="icon">
+          <Button aria-label="back" onClick={handleBackClick} size="icon" variant="ghost">
             <NavArrowLeft />
           </Button>
         </div>
 
-        {activeStep !== null && <CustomizedSteppers steps={steps} activeStep={activeStep} />}
-      </div>
-
-      {/* {activeStep === 0 && <TemplateList setSelectedTemplate={setSelectedTemplate} setEditedManifest={setEditedManifest} />} */}
-      {/* {activeStep === 1 && <ManifestEdit selectedTemplate={selectedTemplate} editedManifest={editedManifest} setEditedManifest={setEditedManifest} />} */}
-      {/* {activeStep === 2 && <CreateLease dseq={router.query.dseq as string} />} */}
-    </PageContainer>
+        {/* {activeStep === 0 && <TemplateList setSelectedTemplate={setSelectedTemplate} setEditedManifest={setEditedManifest} />} */}
+        {/* {activeStep === 1 && <ManifestEdit selectedTemplate={selectedTemplate} editedManifest={editedManifest} setEditedManifest={setEditedManifest} />} */}
+        {/* {activeStep === 2 && <CreateLease dseq={router.query.dseq as string} />} */}
+      </PageContainer>
+    </>
   );
 }

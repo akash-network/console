@@ -1,11 +1,9 @@
 "use client";
 import { Nav } from "./Nav";
 import { useEffect, useState } from "react";
-import { useWallet } from "@src/context/WalletProvider";
 import { useMediaQuery } from "usehooks-ts";
 import { useSettings } from "@src/context/SettingsProvider";
 // import { WelcomeModal } from "./WelcomeModal";
-import { ErrorFallback } from "../shared/ErrorFallback";
 import { breakpoints } from "@src/utils/responsiveUtils";
 import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { Sidebar } from "./Sidebar";
@@ -73,7 +71,7 @@ export function AppLayoutContainer({ children, version }: React.PropsWithChildre
         // sx={{ height: "100%" }}
       >
         <div
-          className="mt-[58px] h-full w-full"
+          className={`mt-[57px] h-full w-full`}
           // className={classes.root} sx={{ marginTop: `${accountBarHeight}px`, height: "100%" }}
         >
           <div
