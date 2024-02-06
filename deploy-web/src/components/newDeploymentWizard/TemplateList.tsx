@@ -1,26 +1,22 @@
+"use client";
 import React, { Dispatch, useEffect, useRef, useState } from "react";
-import { Box, Typography, Button } from "@mui/material";
-import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
-import DescriptionIcon from "@mui/icons-material/Description";
-import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import { makeStyles } from "tss-react/mui";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { UrlService } from "@src/utils/urlUtils";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";
 import Link from "next/link";
-import { BuildCircleTwoTone } from "@mui/icons-material";
-import { TemplateCreation } from "@src/types";
+import { ApiTemplate, TemplateCreation } from "@src/types";
 import { helloWorldTemplate, ubuntuTemplate } from "@src/utils/templates";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
-import ShutterSpeedIcon from "@mui/icons-material/ShutterSpeed";
-
-const useStyles = makeStyles()(theme => ({}));
+import { Rocket, Cpu, Wrench, Page, ArrowRight } from "iconoir-react";
+import { Button, buttonVariants } from "../ui/button";
+import { cn } from "@src/utils/styleUtils";
+import { NavArrowLeft } from "iconoir-react";
+import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 
 const previewTemplateIds = [
   "akash-network-cosmos-omnibus-cosmoshub",
@@ -42,11 +38,11 @@ type Props = {
 
 export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTemplate, setEditedManifest }) => {
   const { templates } = useTemplates();
-  const { classes } = useStyles();
   const router = useRouter();
-  const fileUploadRef = useRef(null);
-  const [previewTemplates, setPreviewTemplates] = useState([]);
+  const fileUploadRef = useRef<HTMLInputElement>(null);
+  const [previewTemplates, setPreviewTemplates] = useState<ApiTemplate[]>([]);
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
+  const previousRoute = usePreviousRoute();
 
   useEffect(() => {
     if (templates) {
@@ -55,14 +51,8 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
     }
   }, [templates]);
 
-  function selectTemplate(template) {
-    setSelectedTemplate(template);
-    setEditedManifest(template.content);
-    router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
-  }
-
   async function fromFile() {
-    fileUploadRef.current.click();
+    fileUploadRef.current?.click();
   }
 
   const handleFileChange = event => {
@@ -75,9 +65,9 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
         code: "from-file",
         category: "General",
         description: "Custom uploaded file",
-        content: event.target.result as string
+        content: event.target?.result as string
       });
-      setEditedManifest(event.target.result as string);
+      setEditedManifest(event.target?.result as string);
       router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
     };
 
@@ -89,6 +79,14 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
     router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
   }
 
+  function handleBackClick() {
+    if (previousRoute) {
+      router.back();
+    } else {
+      router.push(UrlService.deploymentList());
+    }
+  }
+
   return (
     <>
       <CustomNextSeo
@@ -96,67 +94,56 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
         url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.chooseTemplate })}`}
       />
 
-      <Typography variant="h1" sx={{ marginBottom: "2rem", fontSize: "2rem", marginTop: "2rem" }}>
-        <strong>What do you want to deploy?</strong>
-      </Typography>
+      <div className="mb-8 mt-8 flex items-center">
+        <Button aria-label="back" onClick={handleBackClick} size="icon" variant="ghost">
+          <NavArrowLeft />
+        </Button>
+        <h1 className="ml-4 text-2xl">
+          <strong>What do you want to deploy?</strong>
+        </h1>
+      </div>
 
-      <Box sx={{ marginBottom: "2rem" }}>
-        <Box
-          sx={{
-            gridTemplateColumns: { xs: "repeat(2,1fr)", sm: "repeat(2,1fr)", md: "repeat(4,1fr)" },
-            display: "grid",
-            gap: { xs: ".5rem", sm: ".5rem", md: "1rem" }
-          }}
-        >
+      <div className="mb-8">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
           <DeployOptionBox
             title={helloWorldTemplate.title}
             description={helloWorldTemplate.description}
-            icon={<RocketLaunchIcon />}
+            icon={<Rocket className="rotate-45" />}
             onClick={() => router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: helloWorldTemplate.code }))}
           />
 
           <DeployOptionBox
             title="Rent GPUs"
             description="Rent GPUs from the Akash Network providers to run your AI workloads."
-            icon={<ShutterSpeedIcon />}
+            icon={<Cpu />}
             onClick={() => router.push(UrlService.rentGpus())}
           />
 
           <DeployOptionBox
             title={"Build your template"}
             description={"With our new SDL Builder, you can create your own SDL from scratch in a few clicks!"}
-            icon={<BuildCircleTwoTone />}
+            icon={<Wrench />}
             onClick={onSDLBuilderClick}
           />
 
           <input type="file" ref={fileUploadRef} onChange={handleFileChange} style={{ display: "none" }} accept=".yml,.yaml,.txt" />
-          <DeployOptionBox
-            title={"Upload SDL"}
-            description={"Upload a deploy.yml file from the computer."}
-            icon={<DescriptionIcon />}
-            onClick={() => fromFile()}
-          />
-        </Box>
-      </Box>
+          <DeployOptionBox title={"Upload SDL"} description={"Upload a deploy.yml file from the computer."} icon={<Page />} onClick={() => fromFile()} />
+        </div>
+      </div>
 
-      <Box sx={{ display: "flex", alingItems: "center", marginBottom: "1rem" }}>
-        <Typography variant="h5">
+      <div className="mb-4 flex items-center">
+        <h5>
           <strong>Staff Picks</strong>
-        </Typography>
+        </h5>
 
-        <Box component={Link} href={UrlService.templates()} sx={{ display: "flex", alignItems: "center", fontSize: "1rem", marginLeft: "1rem" }}>
-          Search marketplace <ArrowForwardIcon fontSize="small" sx={{ marginLeft: ".5rem" }} />
-        </Box>
-      </Box>
+        <Link href={UrlService.templates()} className="ml-4 flex items-center">
+          Search marketplace
+          <ArrowRight className="ml-2 text-xs" />
+        </Link>
+      </div>
 
-      <Box sx={{ marginBottom: "2rem" }}>
-        <Box
-          sx={{
-            gridTemplateColumns: { xs: "repeat(2,1fr)", sm: "repeat(2,1fr)", md: "repeat(4,1fr)" },
-            display: "grid",
-            gap: { xs: ".5rem", sm: ".5rem", md: "1rem" }
-          }}
-        >
+      <div className="mb-8">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
           <DeployOptionBox
             title={ubuntuTemplate.title}
             description={ubuntuTemplate.description}
@@ -171,14 +158,14 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
               linkHref={UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: template?.id })}
             />
           ))}
-        </Box>
-      </Box>
+        </div>
+      </div>
 
-      <Box sx={{ textAlign: "center", paddingBottom: "2rem" }}>
-        <Button href={UrlService.templates()} component={Link} variant="contained" color="secondary">
+      <div className="pb-8 text-center">
+        <Link href={UrlService.templates()} className={cn(buttonVariants({ size: "lg", variant: "default" }))}>
           See all categories
-        </Button>
-      </Box>
+        </Link>
+      </div>
     </>
   );
 };

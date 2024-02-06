@@ -21,13 +21,13 @@ export const PageContainer: React.FunctionComponent<Props> = ({ children, classN
   const { isWalletLoaded } = useWallet();
 
   return (
-    <div className={cn("container pb-8 pt-4 sm:pt-8", className)}>
+    <div className={cn("", className)}>
       {isLoading !== undefined && <LinearLoadingSkeleton isLoading={isLoading} />}
 
       <ErrorBoundary FallbackComponent={ErrorFallback}>
         {!isUsingSettings || isSettingsInit ? (
           !isUsingWallet || isWalletLoaded ? (
-            children
+            <div className="container h-full pb-8 pt-4 sm:pt-8">{children}</div>
           ) : (
             <Loading text="Loading wallet..." />
           )

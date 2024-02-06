@@ -4,7 +4,7 @@ import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@src/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@src/components/ui/collapsible";
-import { Expand, Rocket, SearchEngine, Learning, NavArrowDown } from "iconoir-react";
+import { Rocket, SearchEngine, Learning, NavArrowDown } from "iconoir-react";
 import { Button } from "@src/components/ui/button";
 import { Avatar, AvatarFallback } from "@src/components/ui/avatar";
 import { cn } from "@src/utils/styleUtils";

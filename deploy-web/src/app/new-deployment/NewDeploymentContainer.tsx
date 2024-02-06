@@ -16,7 +16,6 @@ import { useAtomValue } from "jotai";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { PageContainer } from "@src/components/shared/PageContainer";
 import { Button } from "@src/components/ui/button";
-import { NavArrowLeft } from "iconoir-react";
 
 // type Props = {};
 
@@ -41,7 +40,6 @@ export function NewDeploymentContainer() {
   const { getTemplateById } = useTemplates();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const previousRoute = usePreviousRoute();
 
   useEffect(() => {
     if (!templates) return;
@@ -114,14 +112,6 @@ export function NewDeploymentContainer() {
     return null;
   };
 
-  function handleBackClick() {
-    if (previousRoute) {
-      router.back();
-    } else {
-      router.push(UrlService.deploymentList());
-    }
-  }
-
   function getStepIndexByParam(step) {
     switch (step) {
       case RouteStepKeys.editDeployment:
@@ -135,19 +125,12 @@ export function NewDeploymentContainer() {
   }
 
   return (
-    <>
+    <PageContainer isLoading={isLoadingTemplates} isUsingSettings isUsingWallet className="h-full">
       <div className="flex w-full items-center">{activeStep !== null && <CustomizedSteppers activeStep={activeStep} />}</div>
-      <PageContainer isLoading={isLoadingTemplates} isUsingSettings isUsingWallet>
-        <div className="pb-2">
-          <Button aria-label="back" onClick={handleBackClick} size="icon" variant="ghost">
-            <NavArrowLeft />
-          </Button>
-        </div>
 
-        {/* {activeStep === 0 && <TemplateList setSelectedTemplate={setSelectedTemplate} setEditedManifest={setEditedManifest} />} */}
-        {/* {activeStep === 1 && <ManifestEdit selectedTemplate={selectedTemplate} editedManifest={editedManifest} setEditedManifest={setEditedManifest} />} */}
-        {/* {activeStep === 2 && <CreateLease dseq={router.query.dseq as string} />} */}
-      </PageContainer>
-    </>
+      {activeStep === 0 && <TemplateList setSelectedTemplate={setSelectedTemplate} setEditedManifest={setEditedManifest} />}
+      {/* {activeStep === 1 && <ManifestEdit selectedTemplate={selectedTemplate} editedManifest={editedManifest} setEditedManifest={setEditedManifest} />} */}
+      {/* {activeStep === 2 && <CreateLease dseq={router.query.dseq as string} />} */}
+    </PageContainer>
   );
 }

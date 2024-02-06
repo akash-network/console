@@ -24,7 +24,7 @@ export const CustomizedSteppers = ({ activeStep }: React.PropsWithChildren<{ act
   }
 
   return (
-    <nav aria-label="Progress" className="-ml-[1px] -mt-[1px] w-full">
+    <nav aria-label="Progress" className="w-full">
       <ol role="list" className="divide-y divide-muted-foreground/20 border border-muted-foreground/20 md:flex md:divide-y-0">
         {steps.map((step, stepIdx) => (
           <li key={step.name} className="relative md:flex md:flex-1">
@@ -40,7 +40,7 @@ export const CustomizedSteppers = ({ activeStep }: React.PropsWithChildren<{ act
             ) : step.id === activeStep ? (
               <div className="flex items-center px-6 py-4 text-sm font-medium" aria-current="step">
                 <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-2 border-primary">
-                  <span className="text-primary">{step.id + 1}</span>
+                  <span className="text-primary font-bold">{step.id + 1}</span>
                 </span>
                 <span className="ml-4 text-sm font-bold text-primary">{step.name}</span>
               </div>

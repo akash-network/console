@@ -158,7 +158,10 @@ export const WalletProvider = ({ children }) => {
 
     await refreshBalances();
 
-    setIsWalletLoaded(true);
+    setTimeout(() => {
+      setIsWalletLoaded(true);
+    }, 10000);
+    // setIsWalletLoaded(true);
   }
 
   async function signAndBroadcastTx(msgs: EncodeObject[]): Promise<boolean> {
