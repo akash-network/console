@@ -1,10 +1,9 @@
 "use client";
 import { ApiTemplate } from "@src/types";
-import Link from "next/link"; // TODO
+import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { getShortText } from "@src/utils/stringUtils";
-import { Card, CardContent, CardHeader, cardClasses } from "../ui/card";
-import { useRouter } from "next/navigation";
+import { CardContent, CardHeader, cardClasses } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { MediaImage } from "iconoir-react";
 import { cn } from "@src/utils/styleUtils";
@@ -16,12 +15,10 @@ type Props = {
 };
 
 export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref }) => {
-  const router = useRouter();
   return (
     <Link
-      className={cn(cardClasses, "min-h-[100px] cursor-pointer hover:bg-primary/10 !no-underline")}
+      className={cn(cardClasses, "min-h-[100px] cursor-pointer !no-underline hover:bg-primary/10")}
       href={linkHref ? linkHref : UrlService.templateDetails(template.id as string)}
-      // onClick={() => router.push()}
     >
       <CardHeader>
         <div className="flex items-center">

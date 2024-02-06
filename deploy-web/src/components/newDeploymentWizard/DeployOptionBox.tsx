@@ -3,16 +3,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { MediaImage } from "iconoir-react";
 
-// const useStyles = makeStyles()(theme => ({
-//   root: {
-//     cursor: "pointer",
-//     minHeight: "100px",
-//     "&:hover": {
-//       backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100]
-//     }
-//   }
-// }));
-
 type Props = {
   title: string;
   description: string;
