@@ -7,7 +7,7 @@ import * as fs from "fs";
 import { Octokit } from "@octokit/rest";
 import { getLogoFromPath } from "./templateReposLogos";
 import { dataFolderPath } from "@src/utils/constants";
-import { GithubChainRegistryAssetListResponse } from "@src/types";
+import { GithubChainRegistryChainResponse } from "@src/types";
 import { GithubDirectoryItem } from "@src/types/github";
 
 let generatingTasks = {};
@@ -157,31 +157,16 @@ async function fetchOmnibusTemplates(octokit: Octokit, repoVersion: string) {
 
   for (const template of templates) {
     try {
-      const assetListResponse = await fetch(`https://raw.githubusercontent.com/cosmos/chain-registry/master/${template.path}/assetlist.json`);
+      const chainResponse = await fetch(`https://raw.githubusercontent.com/cosmos/chain-registry/master/${template.path}/chain.json`);
 
-      if (assetListResponse.status !== 200) throw "Could not fetch assetlist.json";
+      if (chainResponse.status !== 200) throw "Could not fetch chain.json for " + template.path;
 
-      const assetList = (await assetListResponse.json()) as GithubChainRegistryAssetListResponse;
-      if (assetList.assets.length === 0) {
-        throw "No asset found";
-      }
-
-      if (assetList.assets.length > 1) {
-        const asset = assetList.assets.find((a) => a.name.toLowerCase() === template.name.toLocaleLowerCase());
-        if (!asset) {
-          throw "More than one asset found";
-        }
-
-        template.name = asset.name;
-        template.logoUrl = Object.values(asset.logo_URIs)[0];
-      } else {
-        const asset = assetList.assets[0];
-        template.name = asset.name;
-        template.summary = asset.description;
-        template.logoUrl = Object.values(asset.logo_URIs)[0];
-      }
+      const chainData = (await chainResponse.json()) as GithubChainRegistryChainResponse;
+      template.name = chainData.pretty_name;
+      template.summary = chainData.description ?? template.summary;
+      template.logoUrl = Object.values(chainData.logo_URIs ?? {})[0];
     } catch (err) {
-      console.log("Could not fetch assetlist for", template.path);
+      console.log("Could not fetch chain for", template.path);
       console.error(err);
     }
   }
@@ -430,7 +415,7 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
         const deploy = await findFileContentAsync(["deploy.yaml", "deploy.yml"], response.data);
         const guide = await findFileContentAsync("GUIDE.md", response.data);
 
-        template.readme = replaceLinks(readme, template.repoOwner, template.repoName, template.repoVersion, template.path);
+        template.readme = readme && replaceLinks(readme, template.repoOwner, template.repoName, template.repoVersion, template.path);
         template.deploy = deploy;
         template.persistentStorageEnabled = deploy && (deploy.includes("persistent: true") || deploy.includes("persistent:true"));
         template.guide = guide;
