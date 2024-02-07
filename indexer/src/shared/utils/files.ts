@@ -62,7 +62,7 @@ const kubernetesDecimalSuffixes = {
   E: 1000 * 1000 * 1000 * 1000 * 1000 * 1000
 };
 
-export function parseCPUKubernetesString(str: string) {
+export function parseDecimalKubernetesString(str: string) {
   try {
     const suffix = Object.keys(kubernetesDecimalSuffixes).find((s) => str.endsWith(s));
 

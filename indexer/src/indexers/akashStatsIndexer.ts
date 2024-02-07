@@ -18,7 +18,9 @@ import {
   ProviderAttribute,
   ProviderAttributeSignature,
   ProviderSnapshot,
-  ProviderSnapshotNode
+  ProviderSnapshotNode,
+  ProviderSnapshotNodeCPU,
+  ProviderSnapshotNodeGPU
 } from "@shared/dbSchemas/akash";
 import { AkashBlock as Block, AkashMessage as Message } from "@shared/dbSchemas/akash";
 import { Op, Transaction as DbTransaction } from "sequelize";
@@ -121,6 +123,8 @@ export class AkashStatsIndexer extends Indexer {
   async dropTables(): Promise<void> {
     await Bid.drop({ cascade: true });
     await Lease.drop({ cascade: true });
+    await ProviderSnapshotNodeCPU.drop({ cascade: true });
+    await ProviderSnapshotNodeGPU.drop({ cascade: true });
     await ProviderSnapshotNode.drop({ cascade: true });
     await ProviderSnapshot.drop({ cascade: true });
     await ProviderAttributeSignature.drop({ cascade: true });
@@ -140,6 +144,8 @@ export class AkashStatsIndexer extends Indexer {
     await ProviderAttributeSignature.sync({ force: false });
     await ProviderSnapshot.sync({ force: false });
     await ProviderSnapshotNode.sync({ force: false });
+    await ProviderSnapshotNodeCPU.sync({ force: false });
+    await ProviderSnapshotNodeGPU.sync({ force: false });
     await Lease.sync({ force: false });
     await Bid.sync({ force: false });
   }

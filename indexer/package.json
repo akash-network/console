@@ -45,6 +45,7 @@
     "pg-hstore": "^2.3.4",
     "protobufjs": "^6.11.2",
     "reflect-metadata": "^0.1.13",
+    "semver": "^7.6.0",
     "sequelize": "^6.28.0",
     "sequelize-typescript": "^2.1.5"
   },
@@ -55,6 +56,7 @@
     "@types/node-fetch": "^2.6.2",
     "@types/node-gzip": "^1.1.0",
     "@types/pg": "^8.6.5",
+    "@types/semver": "^7.5.6",
     "@types/uuid": "^8.3.1",
     "@types/validator": "^13.7.8",
     "alias-hq": "^5.1.6",

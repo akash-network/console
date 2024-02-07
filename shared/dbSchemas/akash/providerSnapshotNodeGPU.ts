@@ -1,0 +1,18 @@
+import { Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
+import { DataTypes } from "sequelize";
+import { Required } from "../decorators/requiredDecorator";
+
+@Table({
+  modelName: "providerSnapshotNodeGPU"
+})
+export class ProviderSnapshotNodeGPU extends Model {
+  @Required @PrimaryKey @Default(DataTypes.UUIDV4) @Column(DataTypes.UUID) id: string;
+  @Required @Column(DataTypes.UUID) snapshotNodeId: string;
+
+  // Stats
+  @Column vendor: string;
+  @Column name: string;
+  @Column modelId: string;
+  @Column interface: string;
+  @Column memorySize: string;
+}

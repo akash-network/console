@@ -10,7 +10,9 @@ import {
   ProviderAttribute,
   ProviderAttributeSignature,
   ProviderSnapshot,
-  ProviderSnapshotNode
+  ProviderSnapshotNode,
+  ProviderSnapshotNodeCPU,
+  ProviderSnapshotNodeGPU
 } from "./dbSchemas/akash";
 import { Block, Message } from "./dbSchemas/base";
 import { Model, ModelCtor } from "sequelize-typescript";
@@ -73,7 +75,9 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       ProviderAttribute,
       ProviderAttributeSignature,
       ProviderSnapshot,
-      ProviderSnapshotNode
+      ProviderSnapshotNode,
+      ProviderSnapshotNodeCPU,
+      ProviderSnapshotNodeGPU
     ]
   },
   akashTestnet: {
@@ -102,7 +106,10 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       Provider,
       ProviderAttribute,
       ProviderAttributeSignature,
-      ProviderSnapshot
+      ProviderSnapshot,
+      ProviderSnapshotNode,
+      ProviderSnapshotNodeCPU,
+      ProviderSnapshotNodeGPU
     ]
   },
   akashSandbox: {
@@ -131,7 +138,10 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       Provider,
       ProviderAttribute,
       ProviderAttributeSignature,
-      ProviderSnapshot
+      ProviderSnapshot,
+      ProviderSnapshotNode,
+      ProviderSnapshotNodeCPU,
+      ProviderSnapshotNodeGPU
     ]
   },
   passage: {
