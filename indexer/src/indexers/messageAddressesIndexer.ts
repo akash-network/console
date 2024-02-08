@@ -125,21 +125,31 @@ export class MessageAddressesIndexer extends Indexer {
     for (const signerInfo of signerInfos) {
       if (!signerInfo.publicKey) continue;
 
-      const pubkey = decodePubkey(signerInfo.publicKey);
-      if (pubkey.type === "tendermint/PubKeySecp256k1") {
-        const pubKeyBuffer = Buffer.from(pubkey.value, "base64");
+      try {
+        const pubkey = decodePubkey(signerInfo.publicKey);
+        if (pubkey.type === "tendermint/PubKeySecp256k1") {
+          const pubKeyBuffer = Buffer.from(pubkey.value, "base64");
 
-        addresses.push(toBech32(activeChain.bech32Prefix, rawSecp256k1PubkeyToRawAddress(pubKeyBuffer)));
-      } else if (pubkey.type === "tendermint/PubKeyMultisigThreshold") {
-        multisigThreshold = pubkey.value.threshold;
-        addresses = addresses.concat(
-          pubkey.value.pubkeys.map((p) => {
-            const pubKeyBuffer = Buffer.from(p.value, "base64");
-            return toBech32(activeChain.bech32Prefix, rawSecp256k1PubkeyToRawAddress(pubKeyBuffer));
-          })
-        );
-      } else {
-        throw "Unrecognized pubkey type: " + JSON.stringify(pubkey);
+          addresses.push(toBech32(activeChain.bech32Prefix, rawSecp256k1PubkeyToRawAddress(pubKeyBuffer)));
+        } else if (pubkey.type === "tendermint/PubKeyMultisigThreshold") {
+          multisigThreshold = pubkey.value.threshold;
+          addresses = addresses.concat(
+            pubkey.value.pubkeys.map((p) => {
+              const pubKeyBuffer = Buffer.from(p.value, "base64");
+              return toBech32(activeChain.bech32Prefix, rawSecp256k1PubkeyToRawAddress(pubKeyBuffer));
+            })
+          );
+        } else {
+          throw "Unrecognized pubkey type: " + JSON.stringify(pubkey);
+        }
+      } catch (e) {
+        // TEMPORARY FIX FOR TX 63CBF2B5C23E30B774F5072F625E3400603C95B993F0428E375F8078EAC95B17
+        if (signerInfo.publicKey.typeUrl === "/cosmos.crypto.multisig.LegacyAminoPubKey") {
+          console.log("FAILED TO DECODE MULTISIG PUBKEY: ", hash);
+          return { multisigThreshold: null, addresses: [] };
+        }
+
+        throw e;
       }
     }
 
