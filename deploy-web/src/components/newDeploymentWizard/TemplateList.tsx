@@ -89,10 +89,11 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
 
   return (
     <>
-      <CustomNextSeo
+      {/* TODO */}
+      {/* <CustomNextSeo
         title="Create Deployment - Template List"
         url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.chooseTemplate })}`}
-      />
+      /> */}
 
       <div className="mb-8 mt-8 flex items-center">
         <Button aria-label="back" onClick={handleBackClick} size="icon" variant="ghost">

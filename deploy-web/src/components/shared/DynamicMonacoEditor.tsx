@@ -1,3 +1,4 @@
+"use client";
 import { useTheme } from "@mui/material/styles";
 import { monacoOptions } from "@src/utils/constants";
 import dynamic from "next/dynamic";

@@ -17,19 +17,6 @@ import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { PageContainer } from "@src/components/shared/PageContainer";
 import { Button } from "@src/components/ui/button";
 
-// type Props = {};
-
-// const useStyles = makeStyles()(theme => ({
-//   root: {
-//     height: "100%"
-//   },
-//   stepContainer: {
-//     width: "100%",
-//     display: "flex",
-//     alignItems: "center"
-//   }
-// }));
-
 export function NewDeploymentContainer() {
   const { isLoading: isLoadingTemplates, templates } = useTemplates();
   const [activeStep, setActiveStep] = useState<number | null>(null);
@@ -129,7 +116,9 @@ export function NewDeploymentContainer() {
       <div className="flex w-full items-center">{activeStep !== null && <CustomizedSteppers activeStep={activeStep} />}</div>
 
       {activeStep === 0 && <TemplateList setSelectedTemplate={setSelectedTemplate} setEditedManifest={setEditedManifest} />}
-      {/* {activeStep === 1 && <ManifestEdit selectedTemplate={selectedTemplate} editedManifest={editedManifest} setEditedManifest={setEditedManifest} />} */}
+      {activeStep === 1 && (
+        <ManifestEdit selectedTemplate={selectedTemplate as TemplateCreation} editedManifest={editedManifest as string} setEditedManifest={setEditedManifest} />
+      )}
       {/* {activeStep === 2 && <CreateLease dseq={router.query.dseq as string} />} */}
     </PageContainer>
   );

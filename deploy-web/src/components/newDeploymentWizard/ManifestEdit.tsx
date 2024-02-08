@@ -1,15 +1,11 @@
+"use client";
 import { useState, useEffect, Dispatch, useRef } from "react";
-import { Box, Typography, Button, TextField, CircularProgress, Tooltip, Alert, useMediaQuery, useTheme, ButtonGroup } from "@mui/material";
-import InfoIcon from "@mui/icons-material/Info";
-import ArrowForwardIosIcon from "@mui/icons-material/ArrowForward";
 import { useSettings } from "../../context/SettingsProvider";
-import { makeStyles } from "tss-react/mui";
 import { useWallet } from "@src/context/WalletProvider";
 import { useRouter } from "next/router";
 import { Timer } from "@src/utils/timer";
 import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
-import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { LinkTo } from "../shared/LinkTo";
 import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
 import ViewPanel from "../shared/ViewPanel";
@@ -29,20 +25,24 @@ import { useAtom } from "jotai";
 import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { useChainParam } from "@src/context/ChainParamProvider";
+import { useMediaQuery } from "usehooks-ts";
+import { breakpoints } from "@src/utils/responsiveUtils";
 
-const useStyles = makeStyles()(theme => ({
-  tooltip: {
-    fontSize: "1rem"
-  },
-  tooltipIcon: {
-    fontSize: "1.5rem",
-    marginRight: "1rem",
-    color: theme.palette.text.secondary
-  },
-  alert: {
-    marginBottom: "1rem"
-  }
-}));
+const yaml = require("js-yaml");
+
+// const useStyles = makeStyles()(theme => ({
+//   tooltip: {
+//     fontSize: "1rem"
+//   },
+//   tooltipIcon: {
+//     fontSize: "1.5rem",
+//     marginRight: "1rem",
+//     color: theme.palette.text.secondary
+//   },
+//   alert: {
+//     marginBottom: "1rem"
+//   }
+// }));
 
 type Props = {
   selectedTemplate: TemplateCreation;
@@ -51,7 +51,7 @@ type Props = {
 };
 
 export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, setEditedManifest, selectedTemplate }) => {
-  const [parsingError, setParsingError] = useState(null);
+  const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentName, setDeploymentName] = useState("");
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
@@ -61,10 +61,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const { settings } = useSettings();
   const { address, signAndBroadcastTx } = useWallet();
   const router = useRouter();
-  const { classes } = useStyles();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
-  const theme = useTheme();
   const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
   const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
   const { minDeposit } = useChainParam();
@@ -96,7 +94,12 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     setEditedManifest(value);
   }
 
-  async function createAndValidateDeploymentData(yamlStr: string, dseq = null, deposit = defaultInitialDeposit, depositorAddress = null) {
+  async function createAndValidateDeploymentData(
+    yamlStr: string,
+    dseq: string | null = null,
+    deposit: number = defaultInitialDeposit,
+    depositorAddress: string | null = null
+  ) {
     try {
       if (!yamlStr) return null;
 
@@ -217,10 +220,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
   return (
     <>
-      <CustomNextSeo
+      {/* TODO */}
+      {/* <CustomNextSeo
         title="Create Deployment - Manifest Edit"
         url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`}
-      />
+      /> */}
 
       <Box sx={{ marginBottom: ".5rem" }}>
         <Box

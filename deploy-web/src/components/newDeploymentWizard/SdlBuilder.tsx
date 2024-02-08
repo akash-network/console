@@ -1,13 +1,16 @@
+"use client";
 import React, { Dispatch, useEffect, useRef, useState } from "react";
 import { defaultService } from "@src/utils/sdl/data";
 import { useFieldArray, useForm } from "react-hook-form";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { nanoid } from "nanoid";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
-import { Alert, Box, Button, CircularProgress } from "@mui/material";
 import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { useGpuModels } from "@src/queries/useGpuQuery";
+import Spinner from "../shared/Spinner";
+import { Button } from "../ui/button";
+import { Alert } from "../ui/alert";
 
 interface Props {
   sdlString: string;
@@ -20,8 +23,8 @@ export type SdlBuilderRefType = {
 };
 
 export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlString, setEditedManifest }, ref) => {
-  const [error, setError] = useState(null);
-  const formRef = useRef<HTMLFormElement>();
+  const [error, setError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [isInit, setIsInit] = useState(false);
   const { control, trigger, watch, setValue } = useForm<SdlBuilderFormValues>({
     defaultValues: {
@@ -71,7 +74,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   }, [watch]);
 
   const getSdl = () => {
-    return generateSdl(_services);
+    return generateSdl(_services as Service[]);
   };
 
   const createAndValidateSdl = (yamlStr: string) => {
@@ -105,20 +108,20 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   };
 
   return (
-    <Box sx={{ paddingBottom: "2rem" }}>
+    <div className="pb-8">
       {!isInit ? (
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem" }}>
-          <CircularProgress size="3rem" color="secondary" />
-        </Box>
+        <div className="flex items-center justify-center p-8">
+          <Spinner size="large" />
+        </div>
       ) : (
         <form ref={formRef} autoComplete="off">
           {services.map((service, serviceIndex) => (
             <SimpleServiceFormControl
               key={service.id}
               serviceIndex={serviceIndex}
-              _services={_services}
               gpuModels={gpuModels}
               setValue={setValue}
+              _services={_services as Service[]}
               control={control}
               trigger={trigger}
               onRemoveService={onRemoveService}
@@ -128,20 +131,20 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
           ))}
 
           {error && (
-            <Alert severity="error" variant="outlined" sx={{ marginTop: "1rem" }}>
+            <Alert variant="destructive" className="mt-4">
               {error}
             </Alert>
           )}
 
-          <Box sx={{ paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+          <div className="flex items-center justify-end pt-4">
             <div>
-              <Button color="secondary" variant="contained" size="small" onClick={onAddService}>
+              <Button variant="default" size="sm" onClick={onAddService}>
                 Add Service
               </Button>
             </div>
-          </Box>
+          </div>
         </form>
       )}
-    </Box>
+    </div>
   );
 });

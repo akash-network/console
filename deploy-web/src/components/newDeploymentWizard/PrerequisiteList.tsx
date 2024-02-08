@@ -1,20 +1,13 @@
+"use client";
 import React, { useEffect, useState } from "react";
-import { List, ListItem, ListItemText, ListItemIcon, CircularProgress, Box, useTheme, Paper } from "@mui/material";
-import { green } from "@mui/material/colors";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import { makeStyles } from "tss-react/mui";
 import { useWallet } from "@src/context/WalletProvider";
 import { ConnectWallet } from "../shared/ConnectWallet";
 import { Popup } from "../shared/Popup";
+import { Card, CardContent } from "../ui/card";
+import Spinner from "../shared/Spinner";
+import { CheckCircle, WarningCircle } from "iconoir-react";
+import { Avatar, AvatarFallback } from "../ui/avatar";
 import { useChainParam } from "@src/context/ChainParamProvider";
-
-const useStyles = makeStyles()(theme => ({
-  list: {
-    paddingTop: 0,
-    paddingBottom: "1rem"
-  }
-}));
 
 type Props = {
   onClose: () => void;
@@ -22,10 +15,8 @@ type Props = {
 };
 
 export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onContinue }) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
   const [isLoadingPrerequisites, setIsLoadingPrerequisites] = useState(false);
-  const [isBalanceValidated, setIsBalanceValidated] = useState(null);
+  const [isBalanceValidated, setIsBalanceValidated] = useState<boolean | null>(null);
   const { address, walletBalances, refreshBalances } = useWallet();
   const { minDeposit } = useChainParam();
 
@@ -58,15 +49,15 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       actions={[
         {
           label: "Close",
-          color: "primary",
-          variant: "text",
+          color: "secondary",
+          variant: "ghost",
           side: "left",
           onClick: onClose
         },
         {
           label: "Continue",
-          color: "secondary",
-          variant: "contained",
+          color: "primary",
+          variant: "default",
           side: "right",
           isLoading: isLoadingPrerequisites,
           onClick: onContinue
@@ -78,25 +69,33 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       title="Checking Prerequisites"
     >
       {address ? (
-        <Paper sx={{ padding: "1rem" }}>
-          <List className={classes.list}>
-            <ListItem>
-              <ListItemIcon>
-                {isBalanceValidated === null && <CircularProgress color="secondary" />}
-                {isBalanceValidated === true && <CheckCircleOutlineIcon fontSize="large" style={{ color: green[500] }} />}
-                {isBalanceValidated === false && <ErrorOutlineIcon fontSize="large" color="secondary" />}
-              </ListItemIcon>
-              <ListItemText
-                primary="Wallet Balance"
-                secondary={`The balance of the wallet needs to be of at least ${minDeposit.akt} AKT or ${minDeposit.usdc} USDC. If you do not have ${minDeposit.akt} AKT or ${minDeposit.usdc} USDC, you will need to specify an authorized depositor.`}
-              />
-            </ListItem>
-          </List>
-        </Paper>
+        <Card>
+          <CardContent className="p-4">
+            <ul className="space-y-4 pb-4 pt-0">
+              <li className="flex items-center">
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback>
+                    {isBalanceValidated === null && <Spinner size="medium" />}
+                    {isBalanceValidated === true && <CheckCircle className="text-green-600" />}
+                    {isBalanceValidated === false && <WarningCircle className="text-destructive" />}
+                  </AvatarFallback>
+                </Avatar>
+
+                <div className="ml-4 flex flex-col">
+                  <p className="text-xl">Wallet Balance</p>
+                  <p className="text-muted-foreground">
+                    The balance of the wallet needs to be of at least {minDeposit.akt} AKT or {minDeposit.usdc} USDC. If you do not have {minDeposit.akt} AKT or{" "}
+                    {minDeposit.usdc} USDC, you will need to specify an authorized depositor.
+                  </p>
+                </div>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
       ) : (
-        <Box sx={{ padding: "2rem 0" }}>
+        <div className="py-8">
           <ConnectWallet text="Connect your wallet to deploy!" />
-        </Box>
+        </div>
       )}
     </Popup>
   );
