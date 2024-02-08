@@ -1,9 +1,11 @@
+"use client";
 import { ReactNode } from "react";
-import { makeStyles } from "tss-react/mui";
 import { Popup } from "../shared/Popup";
 import { Control, Controller } from "react-hook-form";
-import { Box, InputLabel, Paper, TextareaAutosize, TextField, useTheme } from "@mui/material";
 import { SdlBuilderFormValues } from "@src/types";
+import { Card, CardContent } from "../ui/card";
+import { FormInput, Textarea } from "../ui/input";
+import { FormLabel } from "../ui/form";
 
 type Props = {
   serviceIndex: number;
@@ -12,19 +14,16 @@ type Props = {
   children?: ReactNode;
 };
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   formControl: {
+//     marginBottom: theme.spacing(1.5)
+//   },
+//   textField: {
+//     width: "100%"
+//   }
+// }));
 
 export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, onClose }) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
-
   return (
     <Popup
       fullWidth
@@ -35,7 +34,7 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
         {
           label: "Close",
           color: "primary",
-          variant: "text",
+          variant: "ghost",
           side: "right",
           onClick: onClose
         }
@@ -44,21 +43,21 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
       maxWidth="sm"
       enableCloseOnBackdropClick
     >
-      <Paper elevation={2} sx={{ display: "flex", padding: "1rem" }}>
-        <Box sx={{ flexGrow: 1 }}>
+      <Card className="flex p-4">
+        <CardContent className="flex-grow">
           <Controller
             control={control}
             name={`services.${serviceIndex}.command.command`}
             render={({ field }) => (
-              <TextField
+              <FormInput
                 type="text"
-                variant="outlined"
+                // variant="outlined"
                 label="Command"
-                color="secondary"
-                fullWidth
+                // color="secondary"
+                // fullWidth
                 value={field.value}
                 placeholder="Example: bash -c"
-                size="small"
+                // size="small"
                 onChange={event => field.onChange(event.target.value)}
               />
             )}
@@ -68,22 +67,22 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
             control={control}
             name={`services.${serviceIndex}.command.arg`}
             render={({ field }) => (
-              <Box sx={{ marginTop: ".5rem" }}>
-                <InputLabel sx={{ marginBottom: ".2rem", fontSize: ".8rem" }}>Arguments</InputLabel>
-                <TextareaAutosize
+              <div className="mt-2">
+                <FormLabel>Arguments</FormLabel>
+                <Textarea
                   aria-label="Args"
-                  minRows={4}
                   placeholder="Example: apt-get update; apt-get install -y --no-install-recommends -- ssh;"
-                  style={{ width: "100%", padding: ".5rem 1rem", fontFamily: "inherit", fontSize: ".8rem" }}
+                  className="w-full px-4 py-2 text-sm"
+                  // style={{ width: "100%", padding: ".5rem 1rem", fontFamily: "inherit", fontSize: ".8rem" }}
                   value={field.value}
                   spellCheck={false}
                   onChange={field.onChange}
                 />
-              </Box>
+              </div>
             )}
           />
-        </Box>
-      </Paper>
+        </CardContent>
+      </Card>
     </Popup>
   );
 };
