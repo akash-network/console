@@ -2,6 +2,7 @@
 import * as React from "react";
 import { cn } from "@src/utils/styleUtils";
 import { FormControl, FormItem, FormLabel } from "./form";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
@@ -81,16 +82,32 @@ const InputWithIcon = React.forwardRef<HTMLInputElement, InputWithIconProps>(({ 
 });
 InputWithIcon.displayName = "InputWithIcon";
 
-export interface TextareaProps extends React.InputHTMLAttributes<HTMLTextAreaElement> {}
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
 
-const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, type, ...props }, ref) => {
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, onChange, ...props }, ref) => {
+  const [value, setValue] = useState("");
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  useImperativeHandle(ref, () => textAreaRef.current as HTMLTextAreaElement);
+
+  useEffect(() => {
+    textAreaRef.current!.style.height = "auto";
+    textAreaRef.current!.style.height = textAreaRef.current!.scrollHeight + "px";
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setValue(e.target.value);
+    onChange && onChange(e);
+  };
+
   return (
     <textarea
       className={cn(
         "flex h-10 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
-      ref={ref}
+      ref={textAreaRef}
+      onChange={handleChange}
       {...props}
     />
   );

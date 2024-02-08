@@ -75,6 +75,7 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
                   className="w-full px-4 py-2 text-sm"
                   // style={{ width: "100%", padding: ".5rem 1rem", fontFamily: "inherit", fontSize: ".8rem" }}
                   value={field.value}
+                  rows={4}
                   spellCheck={false}
                   onChange={field.onChange}
                 />
