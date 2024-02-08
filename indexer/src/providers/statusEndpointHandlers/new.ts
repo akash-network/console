@@ -4,6 +4,9 @@ import { toUTC } from "@src/shared/utils/date";
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
 import { isSameDay } from "date-fns";
 import { exec } from "child_process";
+import { loadFileDescriptorSetFromBuffer } from "@grpc/proto-loader";
+import * as fs from "fs";
+import * as grpc from "@grpc/grpc-js";
 
 async function execAsync(command: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
@@ -16,11 +19,38 @@ async function execAsync(command: string): Promise<string> {
   });
 }
 
-export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVersion: string, version: string, timeout: number) {
-  const url = provider.hostUri.replace("8443", "8444"); // Use 8444 as default GRPC port for now, enventually get from on-chain data
-  const response = await execAsync(`grpcurl -insecure ${url} akash.provider.v1.ProviderRPC.GetStatus`);
+async function queryStatus(hostUri: string, timeout: number) {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = hostUri.replace("https://", "").replace(":8443", ":8444"); // Use 8444 as default GRPC port for now, enventually get from on-chain data
 
-  const data = JSON.parse(response) as NewStatusResponseType;
+      const grpcClient = new (packageDef as any).akash.provider.v1.ProviderRPC(url, { deadline: Date.now() + timeout }, clientInsecureCreds);
+
+      grpcClient.getStatus({}, (err, response) => {
+        console.log("err", err, "response", response);
+        if (err) {
+          reject(err);
+        } else {
+          resolve(response);
+        }
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+const protosetBuffer = fs.readFileSync("./src/proto/gen/descriptor.bin");
+const descriptorSet = loadFileDescriptorSetFromBuffer(protosetBuffer);
+const packageDef = grpc.loadPackageDefinition(descriptorSet);
+const clientInsecureCreds = grpc.credentials.createInsecure();
+
+export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVersion: string, version: string, timeout: number) {
+  //const response = await execAsync(`grpcurl -insecure ${url} akash.provider.v1.ProviderRPC.GetStatus`);
+
+  const response = await queryStatus(provider.hostUri, timeout);
+  throw "STOP";
+  const data = JSON.parse(response as string) as NewStatusResponseType;
 
   const activeResources = sumResources(data.cluster.inventory.reservations.active);
   const pendingResources = sumResources(data.cluster.inventory.reservations.pending);
@@ -54,6 +84,7 @@ export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVer
         owner: provider.owner,
         isOnline: true,
         checkDate: checkDate,
+        isLastOfDay: true,
         deploymentCount: data.manifest.deployments,
         leaseCount: data.cluster.leases.active ?? 0,
         activeCPU: activeResources.cpu,

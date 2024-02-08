@@ -25,7 +25,7 @@ export async function syncProvidersInfo() {
 
   let doneCount = 0;
   await eachLimit(
-    providers.slice(0, 1),
+    providers,
     ConcurrentStatusCall,
     asyncify(async (provider: Provider) => {
       try {
@@ -34,10 +34,12 @@ export async function syncProvidersInfo() {
           timeout: StatusCallTimeout
         });
 
-        if (semver.gte(versionResponse.data.akash.version, "0.5.0")) {
+        const versionStr = versionResponse.data.akash.version;
+        if (versionStr && semver.gte(versionStr, "0.5.0")) {
           console.log("Fetching using new status endpoint: " + provider.owner);
           await newFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
         } else {
+          console.log("Fetching using old status endpoint: " + provider.owner);
           await oldFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
         }
       } catch (err) {
