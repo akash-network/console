@@ -3,21 +3,9 @@ import { sequelize } from "@src/db/dbConnection";
 import { toUTC } from "@src/shared/utils/date";
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
 import { isSameDay } from "date-fns";
-import { exec } from "child_process";
 import { loadFileDescriptorSetFromBuffer } from "@grpc/proto-loader";
 import * as fs from "fs";
 import * as grpc from "@grpc/grpc-js";
-
-async function execAsync(command: string): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    exec(command, (err, stdout, stderr) => {
-      if (err) {
-        reject(err);
-      }
-      resolve(stdout.toString());
-    });
-  });
-}
 
 async function queryStatus(hostUri: string, timeout: number) {
   return new Promise((resolve, reject) => {
