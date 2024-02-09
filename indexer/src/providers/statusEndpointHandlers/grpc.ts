@@ -28,7 +28,7 @@ async function queryStatus(hostUri: string, timeout: number) {
   });
 }
 
-const protosetBuffer = fs.readFileSync("./src/proto/gen/descriptor.bin");
+const protosetBuffer = fs.readFileSync("./src/proto/akash/providerServiceDescriptor.bin");
 const descriptorSet = loadFileDescriptorSetFromBuffer(protosetBuffer);
 const packageDef = grpc.loadPackageDefinition(descriptorSet);
 const clientInsecureCreds = grpc.credentials.createInsecure();
