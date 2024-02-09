@@ -4,8 +4,8 @@ import semver from "semver";
 import { Provider } from "@shared/dbSchemas/akash";
 import { asyncify, eachLimit } from "async";
 import { ProviderSnapshot } from "@src/../../shared/dbSchemas/akash/providerSnapshot";
-import { fetchAndSaveProviderStats as newFetchAndSaveProviderStats } from "./statusEndpointHandlers/new";
-import { fetchAndSaveProviderStats as oldFetchAndSaveProviderStats } from "./statusEndpointHandlers/old";
+import { fetchAndSaveProviderStats as grpcFetchAndSaveProviderStats } from "./statusEndpointHandlers/grpc";
+import { fetchAndSaveProviderStats as restFetchAndSaveProviderStats } from "./statusEndpointHandlers/rest";
 
 const ConcurrentStatusCall = 10;
 const StatusCallTimeout = 10_000; // 10 seconds
@@ -37,10 +37,10 @@ export async function syncProvidersInfo() {
         const versionStr = versionResponse.data.akash.version;
         if (versionStr && semver.gte(versionStr, "0.5.0")) {
           console.log("Fetching using new status endpoint: " + provider.owner);
-          await newFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
+          await grpcFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
         } else {
           console.log("Fetching using old status endpoint: " + provider.owner);
-          await oldFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
+          await restFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
         }
       } catch (err) {
         const checkDate = new Date();
