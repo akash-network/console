@@ -13,9 +13,7 @@ export class ProviderSnapshotNode extends Model {
   @Column name: string;
   @Column(DataTypes.BIGINT) cpuAllocatable: number;
   @Column(DataTypes.BIGINT) cpuAllocated: number;
-  // @Column cpuVendor: string;
-  // @Column cpuModel: string;
-  
+
   @Column(DataTypes.BIGINT) memoryAllocatable: number;
   @Column(DataTypes.BIGINT) memoryAllocated: number;
 
@@ -28,9 +26,4 @@ export class ProviderSnapshotNode extends Model {
 
   @Column(DataTypes.BIGINT) gpuAllocatable: number;
   @Column(DataTypes.BIGINT) gpuAllocated: number;
-  // @Column gpuVendor: string;
-  // @Column gpuName: string;
-  // @Column gpuModelId: string;
-  // @Column gpuInterface: string;
-  // @Column gpuMemorySize: string;
 }

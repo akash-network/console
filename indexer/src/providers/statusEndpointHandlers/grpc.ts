@@ -34,11 +34,9 @@ const packageDef = grpc.loadPackageDefinition(descriptorSet);
 const clientInsecureCreds = grpc.credentials.createInsecure();
 
 export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVersion: string, version: string, timeout: number) {
-  //const response = await execAsync(`grpcurl -insecure ${url} akash.provider.v1.ProviderRPC.GetStatus`);
-
   const response = await queryStatus(provider.hostUri, timeout);
-  throw "STOP";
-  const data = JSON.parse(response as string) as NewStatusResponseType;
+
+  const data = response as NewStatusResponseType;
 
   const activeResources = sumResources(data.cluster.inventory.reservations.active);
   const pendingResources = sumResources(data.cluster.inventory.reservations.pending);
@@ -213,118 +211,112 @@ type NewStatusResponseType = {
     leases: { active?: number };
     inventory: {
       cluster: {
-        nodes: [
-          {
-            name: "node1";
-            resources: {
-              cpu: {
-                quantity: {
-                  allocatable: {
-                    string: "16";
-                  };
-                  allocated: {
-                    string: "6870m";
-                  };
-                };
-                info: [
-                  {
-                    id: "0";
-                    vendor: "GenuineIntel";
-                    model: "Intel(R) Xeon(R) CPU @ 2.20GHz";
-                    vcores: 16;
-                  }
-                ];
-              };
-              memory: {
-                quantity: {
-                  allocatable: {
-                    string: "67309027328";
-                  };
-                  allocated: {
-                    string: "10834980Ki";
-                  };
-                };
-              };
-              gpu: {
-                quantity: {
-                  allocatable: {
-                    string: "1";
-                  };
-                  allocated: {
-                    string: "0";
-                  };
-                };
-                info: [
-                  {
-                    vendor: "nvidia";
-                    name: "a100";
-                    modelid: "20b0";
-                    interface: "SXM4";
-                    memorySize: "40Gi";
-                  }
-                ];
-              };
-              ephemeralStorage: {
+        nodes: {
+          name: string;
+          resources: {
+            cpu: {
+              quantity: {
                 allocatable: {
-                  string: "233966001789";
+                  string: string;
                 };
                 allocated: {
-                  string: "0";
+                  string: string;
                 };
               };
-              volumesAttached: {
+              info: {
+                id: string;
+                vendor: string;
+                model: string;
+                vcores: number;
+              }[];
+            };
+            memory: {
+              quantity: {
                 allocatable: {
-                  string: "0";
+                  string: string;
                 };
                 allocated: {
-                  string: "0";
-                };
-              };
-              volumesMounted: {
-                allocatable: {
-                  string: "0";
-                };
-                allocated: {
-                  string: "0";
+                  string: string;
                 };
               };
             };
-            capabilities: {
-              storageClasses: ("beta1" | "beta2" | "beta3")[];
+            gpu: {
+              quantity: {
+                allocatable: {
+                  string: string;
+                };
+                allocated: {
+                  string: string;
+                };
+              };
+              info: {
+                vendor: string;
+                name: string;
+                modelid: string;
+                interface: string;
+                memorySize: string;
+              }[];
             };
-          }
-        ];
+            ephemeralStorage: {
+              allocatable: {
+                string: string;
+              };
+              allocated: {
+                string: string;
+              };
+            };
+            volumesAttached: {
+              allocatable: {
+                string: string;
+              };
+              allocated: {
+                string: string;
+              };
+            };
+            volumesMounted: {
+              allocatable: {
+                string: string;
+              };
+              allocated: {
+                string: string;
+              };
+            };
+          };
+          capabilities: {
+            storageClasses: ("beta1" | "beta2" | "beta3")[];
+          };
+        }[];
       };
       reservations: {
         pending: {
           resources: {
             cpu: {
-              string: "0";
+              string: string;
             };
             memory: {
-              string: "0";
+              string: string;
             };
             gpu: {
-              string: "0";
+              string: string;
             };
             ephemeralStorage: {
-              string: "0";
+              string: string;
             };
           };
         };
         active: {
           resources: {
             cpu: {
-              string: "0";
+              string: string;
             };
             memory: {
-              string: "0";
+              string: string;
             };
             gpu: {
-              string: "0";
+              string: string;
             };
             ephemeralStorage: {
-              string: "0";
+              string: string;
             };
           };
         };
@@ -333,8 +325,8 @@ type NewStatusResponseType = {
   };
   bidEngine: {};
   manifest: {
-    deployments: 1;
+    deployments: number;
   };
-  publicHostnames: ["provider.akashtesting.xyz"];
-  timestamp: "2024-01-31T16:53:28.982937903Z";
+  publicHostnames: string[];
+  timestamp: string;
 };

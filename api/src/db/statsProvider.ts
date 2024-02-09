@@ -153,12 +153,11 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
   console.log("getProviderGraphData: " + dataName);
 
   let getter = (block: ProviderStats) => (typeof block[dataName] === "number" ? block[dataName] : parseInt(block[dataName] as string) || 0);
-console.time("getProviderGraphData")
+
   let result: ProviderStats[] = await cacheResponse(
     60 * 5, // 5 minutes
     cacheKeys.getProviderGraphData,
     async () => {
-      
       return (await chainDb.query(
         `SELECT d."date", (SUM(ps."activeCPU") + SUM(ps."pendingCPU") + SUM(ps."availableCPU")) AS "cpu", (SUM(ps."activeGPU") + SUM(ps."pendingGPU") + SUM(ps."availableGPU")) AS "gpu", (SUM(ps."activeMemory") + SUM(ps."pendingMemory") + SUM(ps."availableMemory")) AS memory, (SUM(ps."activeStorage") + SUM(ps."pendingStorage") + SUM(ps."availableStorage")) as storage, COUNT(*) as count
         FROM "day" d
@@ -172,27 +171,10 @@ console.time("getProviderGraphData")
           type: QueryTypes.SELECT
         }
       )) as ProviderStats[];
-
-      // return (await chainDb.query(
-      //   `SELECT d."date", (SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU")) AS "cpu", (SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU")) AS "gpu", (SUM("activeMemory") + SUM("pendingMemory") + SUM("availableMemory")) AS memory, (SUM("activeStorage") + SUM("pendingStorage") + SUM("availableStorage")) as storage, COUNT(*) as count
-      //   FROM "day" d
-      //   INNER JOIN (
-      //       SELECT DISTINCT ON("hostUri",DATE("checkDate")) DATE("checkDate") AS date, ps."activeCPU", ps."pendingCPU", ps."availableCPU", ps."activeGPU", ps."pendingGPU", ps."availableGPU", ps."activeMemory", ps."pendingMemory", ps."availableMemory", ps."activeStorage", ps."pendingStorage", ps."availableStorage", ps."isOnline"
-      //                   FROM "providerSnapshot" ps
-      //                   INNER JOIN "provider" ON "provider"."owner"=ps."owner"
-      //                   ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
-      //       ) "dailyProviderStats"
-      //   ON d."date"="dailyProviderStats"."date" AND "isOnline" IS TRUE
-      //   GROUP BY d."date"
-      //   ORDER BY d."date" ASC`,
-      //   {
-      //     type: QueryTypes.SELECT
-      //   }
-      // )) as ProviderStats[];
     },
     true
   );
-  console.timeEnd("getProviderGraphData")
+
   if (result.length < 2) {
     return {
       currentValue: 0,
