@@ -1,11 +1,18 @@
+"use client";
 import { ReactNode } from "react";
-import { makeStyles } from "tss-react/mui";
 import { Control, Controller } from "react-hook-form";
-import { Box, Checkbox, FormControlLabel, InputAdornment, MenuItem, Paper, Select, TextField, Typography, useTheme } from "@mui/material";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import InfoIcon from "@mui/icons-material/Info";
-import { CustomTooltip } from "../shared/CustomTooltip";
 import { nextCases } from "@src/utils/sdl/data";
+import { CardContent } from "@mui/material";
+import { Card } from "../ui/card";
+import { cn } from "@src/utils/styleUtils";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { InfoCircle } from "iconoir-react";
+import { Checkbox } from "../ui/checkbox";
+import { InputWithIcon } from "../ui/input";
+import { Select } from "../ui/select";
+import MultipleSelector from "../ui/multiple-selector";
 
 type Props = {
   serviceIndex: number;
@@ -15,40 +22,40 @@ type Props = {
   children?: ReactNode;
 };
 
-const useStyles = makeStyles()(theme => ({
-  root: {
-    marginTop: "1rem",
-    padding: "1rem",
-    height: "100%",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    backgroundColor: theme.palette.mode === "dark" ? theme.palette.primary.dark : theme.palette.grey[300]
-  },
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   root: {
+//     marginTop: "1rem",
+//     padding: "1rem",
+//     height: "100%",
+//     display: "flex",
+//     flexDirection: "column",
+//     justifyContent: "space-between",
+//     backgroundColor: theme.palette.mode === "dark" ? theme.palette.primary.dark : theme.palette.grey[300]
+//   },
+//   formControl: {
+//     marginBottom: theme.spacing(1.5)
+//   },
+//   textField: {
+//     width: "100%"
+//   }
+// }));
 
 export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, exposeIndex, services }) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
   const currentService = services[serviceIndex];
 
   return (
-    <Paper elevation={1} className={classes.root}>
-      <div>
-        <Box sx={{ display: "flex", alignItems: "center", marginBottom: currentService.expose[exposeIndex]?.hasCustomHttpOptions ? "2rem" : 0 }}>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Typography variant="body2">
+    <Card className="mt-4 flex h-full flex-col justify-between bg-muted p-4">
+      <CardContent>
+        <div
+          className={cn("flex items-center", { ["mb-8"]: !!currentService.expose[exposeIndex]?.hasCustomHttpOptions })}
+          // sx={{ display: "flex", alignItems: "center", marginBottom: currentService.expose[exposeIndex]?.hasCustomHttpOptions ? "2rem" : 0 }}
+        >
+          <div className="flex items-center">
+            <p>
               <strong>HTTP Options</strong>
-            </Typography>
+            </p>
 
             <CustomTooltip
-              arrow
               title={
                 <>
                   Akash deployment SDL services stanza definitions have been augmented to include “http_options” allowing granular specification of HTTP
@@ -62,27 +69,28 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                 </>
               }
             >
-              <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+              <InfoCircle className="ml-4" />
             </CustomTooltip>
-          </Box>
+          </div>
 
-          <Box sx={{ display: "flex", alignItems: "center", marginLeft: "2rem" }}>
+          <div className="ml-8 flex items-center">
             <Controller
               control={control}
               name={`services.${serviceIndex}.expose.${exposeIndex}.hasCustomHttpOptions`}
               render={({ field }) => (
-                <FormControlLabel
-                  labelPlacement="end"
-                  componentsProps={{ typography: { variant: "body2" } }}
-                  control={
-                    <Checkbox checked={field.value} onChange={field.onChange} color="secondary" size="small" sx={{ marginRight: ".5rem", padding: 0 }} />
-                  }
-                  label="Custom Options"
-                />
+                <div className="flex items-center space-x-2">
+                  <Checkbox id={`custom-options-${serviceIndex}-${exposeIndex}`} checked={field.value} onChange={field.onChange} />
+                  <label
+                    htmlFor={`custom-options-${serviceIndex}-${exposeIndex}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Custom Options
+                  </label>
+                </div>
               )}
             />
-          </Box>
-        </Box>
+          </div>
+        </div>
 
         {currentService.expose[exposeIndex]?.hasCustomHttpOptions && (
           <>
@@ -90,27 +98,33 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
               control={control}
               name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.maxBodySize`}
               render={({ field, fieldState }) => (
-                <TextField
+                <InputWithIcon
                   type="number"
-                  variant="outlined"
+                  // variant="outlined"
                   label="Max Body Size"
                   color="secondary"
-                  fullWidth
+                  // fullWidth
                   value={field.value}
-                  error={!!fieldState.error}
-                  className={classes.formControl}
-                  size="small"
+                  error={fieldState.error?.message}
+                  // className={classes.formControl}
+                  // size="small"
                   onChange={event => field.onChange(parseInt(event.target.value))}
-                  inputProps={{ min: 0 }}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <CustomTooltip arrow title="Sets the maximum size of an individual HTTP request body.">
-                          <InfoIcon color="disabled" fontSize="small" />
-                        </CustomTooltip>
-                      </InputAdornment>
-                    )
-                  }}
+                  endIcon={
+                    <CustomTooltip title="Sets the maximum size of an individual HTTP request body.">
+                      <InfoCircle className="text-muted-foreground" />
+                    </CustomTooltip>
+                  }
+                  min={0}
+                  // inputProps={{ min: 0 }}
+                  // InputProps={{
+                  //   endAdornment: (
+                  //     <InputAdornment position="end">
+                  //       <CustomTooltip arrow title="Sets the maximum size of an individual HTTP request body.">
+                  //         <InfoIcon color="disabled" fontSize="small" />
+                  //       </CustomTooltip>
+                  //     </InputAdornment>
+                  //   )
+                  // }}
                 />
               )}
             />
@@ -119,27 +133,33 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
               control={control}
               name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.readTimeout`}
               render={({ field, fieldState }) => (
-                <TextField
+                <InputWithIcon
                   type="number"
-                  variant="outlined"
+                  // variant="outlined"
                   label="Read Timeout"
                   color="secondary"
-                  fullWidth
+                  // fullWidth
                   value={field.value}
-                  error={!!fieldState.error}
-                  className={classes.formControl}
-                  size="small"
+                  error={fieldState.error?.message}
+                  // className={classes.formControl}
+                  // size="small"
                   onChange={event => field.onChange(parseInt(event.target.value))}
-                  inputProps={{ min: 0 }}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <CustomTooltip arrow title="Duration the proxy will wait for a response from the service.">
-                          <InfoIcon color="disabled" fontSize="small" />
-                        </CustomTooltip>
-                      </InputAdornment>
-                    )
-                  }}
+                  min={0}
+                  endIcon={
+                    <CustomTooltip title="Duration the proxy will wait for a response from the service.">
+                      <InfoCircle className="text-muted-foreground" />
+                    </CustomTooltip>
+                  }
+                  // inputProps={{ min: 0 }}
+                  // InputProps={{
+                  //   endAdornment: (
+                  //     <InputAdornment position="end">
+                  //       <CustomTooltip arrow title="Duration the proxy will wait for a response from the service.">
+                  //         <InfoIcon color="disabled" fontSize="small" />
+                  //       </CustomTooltip>
+                  //     </InputAdornment>
+                  //   )
+                  // }}
                 />
               )}
             />
@@ -148,27 +168,33 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
               control={control}
               name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.sendTimeout`}
               render={({ field, fieldState }) => (
-                <TextField
+                <InputWithIcon
                   type="number"
-                  variant="outlined"
+                  // variant="outlined"
                   label="Send Timeout"
                   color="secondary"
-                  fullWidth
+                  // fullWidth
                   value={field.value}
-                  error={!!fieldState.error}
-                  className={classes.formControl}
-                  size="small"
+                  error={fieldState.error?.message}
+                  // className={classes.formControl}
+                  // size="small"
                   onChange={event => field.onChange(parseInt(event.target.value))}
-                  inputProps={{ min: 0 }}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <CustomTooltip arrow title="Duration the proxy will wait for the service to accept a request.">
-                          <InfoIcon color="disabled" fontSize="small" />
-                        </CustomTooltip>
-                      </InputAdornment>
-                    )
-                  }}
+                  min={0}
+                  endIcon={
+                    <CustomTooltip title="Duration the proxy will wait for the service to accept a request.">
+                      <InfoCircle className="text-muted-foreground" />
+                    </CustomTooltip>
+                  }
+                  // inputProps={{ min: 0 }}
+                  // InputProps={{
+                  //   endAdornment: (
+                  //     <InputAdornment position="end">
+                  //       <CustomTooltip arrow title="Duration the proxy will wait for the service to accept a request.">
+                  //         <InfoIcon color="disabled" fontSize="small" />
+                  //       </CustomTooltip>
+                  //     </InputAdornment>
+                  //   )
+                  // }}
                 />
               )}
             />
@@ -177,27 +203,33 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
               control={control}
               name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.nextTries`}
               render={({ field, fieldState }) => (
-                <TextField
+                <InputWithIcon
                   type="number"
-                  variant="outlined"
+                  // variant="outlined"
                   label="Next Tries"
                   color="secondary"
-                  fullWidth
+                  // fullWidth
                   value={field.value}
-                  error={!!fieldState.error}
-                  className={classes.formControl}
-                  size="small"
+                  error={fieldState.error?.message}
+                  // className={classes.formControl}
+                  // size="small"
                   onChange={event => field.onChange(parseInt(event.target.value))}
-                  inputProps={{ min: 0 }}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <CustomTooltip arrow title="Number of attempts the proxy will attempt another replica.">
-                          <InfoIcon color="disabled" fontSize="small" />
-                        </CustomTooltip>
-                      </InputAdornment>
-                    )
-                  }}
+                  min={0}
+                  endIcon={
+                    <CustomTooltip title="Number of attempts the proxy will attempt another replica.">
+                      <InfoCircle className="text-muted-foreground" />
+                    </CustomTooltip>
+                  }
+                  // inputProps={{ min: 0 }}
+                  // InputProps={{
+                  //   endAdornment: (
+                  //     <InputAdornment position="end">
+                  //       <CustomTooltip arrow title="Number of attempts the proxy will attempt another replica.">
+                  //         <InfoIcon color="disabled" fontSize="small" />
+                  //       </CustomTooltip>
+                  //     </InputAdornment>
+                  //   )
+                  // }}
                 />
               )}
             />
@@ -206,27 +238,33 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
               control={control}
               name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.nextTimeout`}
               render={({ field, fieldState }) => (
-                <TextField
+                <InputWithIcon
                   type="number"
-                  variant="outlined"
+                  // variant="outlined"
                   label="Next Timeout"
                   color="secondary"
-                  fullWidth
+                  // fullWidth
                   value={field.value}
-                  error={!!fieldState.error}
-                  className={classes.formControl}
-                  size="small"
+                  error={fieldState.error?.message}
+                  // className={classes.formControl}
+                  // size="small"
                   onChange={event => field.onChange(parseInt(event.target.value))}
-                  inputProps={{ min: 0 }}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <CustomTooltip arrow title="Duration the proxy will wait for the service to connect to another replica.">
-                          <InfoIcon color="disabled" fontSize="small" />
-                        </CustomTooltip>
-                      </InputAdornment>
-                    )
-                  }}
+                  min={0}
+                  endIcon={
+                    <CustomTooltip title="Duration the proxy will wait for the service to connect to another replica.">
+                      <InfoCircle className="text-muted-foreground" />
+                    </CustomTooltip>
+                  }
+                  // inputProps={{ min: 0 }}
+                  // InputProps={{
+                  //   endAdornment: (
+                  //     <InputAdornment position="end">
+                  //       <CustomTooltip arrow title="Duration the proxy will wait for the service to connect to another replica.">
+                  //         <InfoIcon color="disabled" fontSize="small" />
+                  //       </CustomTooltip>
+                  //     </InputAdornment>
+                  //   )
+                  // }}
                 />
               )}
             />
@@ -236,26 +274,24 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
               name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.nextCases`}
               defaultValue={[]}
               render={({ field }) => (
-                <Select
-                  value={field.value || ""}
-                  onChange={field.onChange}
-                  variant="outlined"
-                  size="small"
-                  fullWidth
-                  multiple
-                  MenuProps={{ disableScrollLock: true }}
-                >
-                  {nextCases.map(u => (
-                    <MenuItem key={u.id} value={u.value}>
-                      {u.value}
-                    </MenuItem>
-                  ))}
-                </Select>
+                <MultipleSelector
+                  value={field.value.map(v => ({ value: v, label: v })) || []}
+                  // defaultOptions={nextCases}
+                  options={nextCases}
+                  hidePlaceholderWhenSelected
+                  placeholder="Select Next Cases"
+
+                  // emptyIndicator={
+                  //   <p className="text-center text-lg leading-10 text-gray-600 dark:text-gray-400">
+                  //     no results found.
+                  //   </p>
+                  // }
+                />
               )}
             />
           </>
         )}
-      </div>
-    </Paper>
+      </CardContent>
+    </Card>
   );
 };

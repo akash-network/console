@@ -1,18 +1,23 @@
+"use client";
 import { ReactNode, useRef } from "react";
 import { Popup } from "../shared/Popup";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Box, Checkbox, FormControlLabel, Grid, IconButton, InputAdornment, MenuItem, Select, TextField } from "@mui/material";
 import { Expose, SdlBuilderFormValues, Service } from "@src/types";
-import DeleteIcon from "@mui/icons-material/Delete";
 import { AcceptFormControl, AcceptRefType } from "./AcceptFormControl";
 import { nanoid } from "nanoid";
 import { ToFormControl, ToRefType } from "./ToFormControl";
 import { protoTypes } from "@src/utils/sdl/data";
 import { FormPaper } from "./FormPaper";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import InfoIcon from "@mui/icons-material/Info";
 import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 import { HttpOptionsFormControl } from "./HttpOptionsFormControl";
+import { ProviderAttributesSchema } from "@src/types/providerAttributes";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { Button } from "../ui/button";
+import { Bin, InfoCircle } from "iconoir-react";
+import { InputWithIcon } from "../ui/input";
+import { cn } from "@src/utils/styleUtils";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Checkbox } from "../ui/checkbox";
 
 type Props = {
   serviceIndex: number;
@@ -24,8 +29,8 @@ type Props = {
 };
 
 export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, onClose, expose: _expose, services }) => {
-  const acceptRef = useRef<AcceptRefType>();
-  const toRef = useRef<ToRefType>();
+  const acceptRef = useRef<AcceptRefType>(null);
+  const toRef = useRef<ToRefType>(null);
   const {
     fields: expose,
     remove: removeExpose,
@@ -41,17 +46,17 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
   };
 
   const _onClose = () => {
-    const acceptToRemove = [];
-    const toToRemove = [];
+    const acceptToRemove: number[] = [];
+    const toToRemove: number[] = [];
 
     _expose.forEach((e, i) => {
-      e.accept.forEach((a, ii) => {
+      e.accept?.forEach((a, ii) => {
         if (!a.value.trim()) {
           acceptToRemove.push(ii);
         }
       });
 
-      e.to.forEach((a, ii) => {
+      e.to?.forEach((a, ii) => {
         if (!a.value.trim()) {
           toToRemove.push(ii);
         }
@@ -70,10 +75,9 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
       open
       variant="custom"
       title={
-        <Box component="span" sx={{ display: "flex", alignItems: "center" }}>
+        <div className="flex items-center">
           Edit Port Expose
           <CustomTooltip
-            arrow
             title={
               <>
                 Expose is a list of settings describing what can connect to the service.
@@ -88,22 +92,22 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
               </>
             }
           >
-            <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+            <InfoCircle className="ml-4 text-muted-foreground" />
           </CustomTooltip>
-        </Box>
+        </div>
       }
       actions={[
         {
           label: "Close",
-          color: "primary",
-          variant: "text",
+          color: "secondary",
+          variant: "ghost",
           side: "left",
           onClick: _onClose
         },
         {
           label: "Add Expose",
-          color: "secondary",
-          variant: "contained",
+          color: "primary",
+          variant: "default",
           side: "right",
           onClick: onAddExpose
         }
@@ -118,141 +122,160 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
         return (
           <FormPaper
             key={exp.id}
-            elevation={2}
-            sx={{
-              display: "flex",
-              padding: "1rem",
-              marginBottom: expIndex + 1 === expose.length ? 0 : "1rem",
-              paddingBottom: "2rem"
-            }}
+            className={cn("flex p-4 pb-8", { ["mb-4"]: expIndex + 1 !== expose.length })}
+            // sx={{
+            //   display: "flex",
+            //   padding: "1rem",
+            //   marginBottom: expIndex + 1 === expose.length ? 0 : "1rem",
+            //   paddingBottom: "2rem"
+            // }}
           >
-            <Box sx={{ flexGrow: 1 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={3}>
+            <div className="flex-grow">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
+                <div>
                   <Controller
                     control={control}
                     name={`services.${serviceIndex}.expose.${expIndex}.port`}
                     rules={{ pattern: { value: /^[1-9]d*$/, message: "Port numbers don't allow decimals." } }}
                     render={({ field, fieldState }) => (
-                      <TextField
+                      <InputWithIcon
                         type="number"
-                        variant="outlined"
+                        // variant="outlined"
                         label="Port"
                         color="secondary"
-                        fullWidth
+                        // fullWidth
                         value={field.value}
-                        error={!!fieldState.error}
-                        size="small"
+                        error={fieldState.error?.message}
+                        // size="small"
                         onChange={event => field.onChange(parseInt(event.target.value))}
-                        InputProps={{
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              <CustomTooltip arrow title={<>Container port to expose.</>}>
-                                <InfoIcon color="disabled" fontSize="small" />
-                              </CustomTooltip>
-                            </InputAdornment>
-                          )
-                        }}
+                        endIcon={
+                          <CustomTooltip title={<>Container port to expose.</>}>
+                            <InfoCircle className="text-muted-foreground" />
+                          </CustomTooltip>
+                        }
+                        // InputProps={{
+                        //   endAdornment: (
+                        //     <InputAdornment position="end">
+                        //       <CustomTooltip arrow title={<>Container port to expose.</>}>
+                        //         <InfoIcon color="disabled" fontSize="small" />
+                        //       </CustomTooltip>
+                        //     </InputAdornment>
+                        //   )
+                        // }}
                       />
                     )}
                   />
-                </Grid>
-                <Grid item xs={12} sm={3}>
+                </div>
+                <div>
                   <Controller
                     control={control}
                     name={`services.${serviceIndex}.expose.${expIndex}.as`}
                     rules={{ pattern: { value: /^[1-9]d*$/, message: "Port numbers don't allow decimals." } }}
                     render={({ field, fieldState }) => (
-                      <TextField
+                      <InputWithIcon
                         type="number"
-                        variant="outlined"
+                        // variant="outlined"
                         label="As"
                         color="secondary"
-                        fullWidth
+                        // fullWidth
                         value={field.value}
-                        error={!!fieldState.error}
-                        size="small"
+                        error={fieldState.error?.message}
+                        // size="small"
                         onChange={event => field.onChange(parseInt(event.target.value))}
-                        InputProps={{
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              <CustomTooltip arrow title={<>Port number to expose the container port as.</>}>
-                                <InfoIcon color="disabled" fontSize="small" />
-                              </CustomTooltip>
-                            </InputAdornment>
-                          )
-                        }}
+                        endIcon={
+                          <CustomTooltip title={<>Port number to expose the container port as.</>}>
+                            <InfoCircle className="text-muted-foreground" />
+                          </CustomTooltip>
+                        }
+                        // InputProps={{
+                        //   endAdornment: (
+                        //     <InputAdornment position="end">
+                        //       <CustomTooltip arrow title={<>Port number to expose the container port as.</>}>
+                        //         <InfoIcon color="disabled" fontSize="small" />
+                        //       </CustomTooltip>
+                        //     </InputAdornment>
+                        //   )
+                        // }}
                       />
                     )}
                   />
-                </Grid>
-                <Grid item xs={12} sm={3}>
+                </div>
+                <div>
                   <Controller
                     control={control}
                     name={`services.${serviceIndex}.expose.${expIndex}.proto`}
                     render={({ field }) => (
-                      <Select
-                        value={field.value || ""}
-                        onChange={field.onChange}
-                        variant="outlined"
-                        size="small"
-                        fullWidth
-                        MenuProps={{ disableScrollLock: true }}
-                      >
-                        {protoTypes.map(t => (
-                          <MenuItem key={t.id} value={t.name}>
-                            {t.name}
-                          </MenuItem>
-                        ))}
+                      <Select value={field.value || ""} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select proto" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {protoTypes.map(t => {
+                              return (
+                                <SelectItem key={t.id} value={t.name}>
+                                  {t.name}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectGroup>
+                        </SelectContent>
                       </Select>
                     )}
                   />
-                </Grid>
+                </div>
 
-                <Grid item xs={12} sm={3}>
-                  <Box sx={{ display: "flex", alignItems: "center", height: "100%" }}>
+                <div>
+                  <div className="flex h-full items-center">
                     <Controller
                       control={control}
                       name={`services.${serviceIndex}.expose.${expIndex}.global`}
                       render={({ field }) => (
-                        <FormControlLabel
-                          labelPlacement="start"
-                          sx={{ paddingRight: "1rem" }}
-                          componentsProps={{ typography: { variant: "body2" } }}
-                          control={
-                            <Checkbox checked={field.value} onChange={field.onChange} color="secondary" size="small" sx={{ marginLeft: ".5rem", padding: 0 }} />
-                          }
-                          label="Global"
-                        />
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id={`global-${serviceIndex}-${expIndex}`} checked={field.value} onChange={field.onChange} />
+                          <label
+                            htmlFor={`custom-options-${serviceIndex}-${expIndex}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            Global
+                          </label>
+                        </div>
                       )}
                     />
 
-                    <CustomTooltip arrow title={<>Check if you want this service to be accessible from outside the datacenter.</>}>
-                      <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+                    <CustomTooltip title={<>Check if you want this service to be accessible from outside the datacenter.</>}>
+                      <InfoCircle className="ml-4 text-muted-foreground" />
                     </CustomTooltip>
-                  </Box>
-                </Grid>
-              </Grid>
+                  </div>
+                </div>
+              </div>
 
-              <Grid container spacing={2} sx={{ paddingBottom: "1rem" }}>
-                <Grid item xs={12} sm={6}>
-                  <AcceptFormControl control={control} serviceIndex={serviceIndex} exposeIndex={expIndex} ref={acceptRef} accept={currentExpose?.accept} />
-                </Grid>
+              <div className="grid grid-cols-1 gap-2 pb-4 sm:grid-cols-2">
+                <div>
+                  <AcceptFormControl
+                    control={control}
+                    serviceIndex={serviceIndex}
+                    exposeIndex={expIndex}
+                    ref={acceptRef}
+                    accept={currentExpose?.accept || []}
+                  />
+                </div>
 
-                <Grid item xs={12} sm={6}>
+                <div>
                   <ToFormControl control={control} serviceIndex={serviceIndex} exposeIndex={expIndex} ref={toRef} services={services} />
-                </Grid>
-              </Grid>
+                </div>
+              </div>
 
-              <Box sx={{ marginTop: "1rem" }}>
+              <div className="mt-4">
                 <Controller
                   control={control}
                   name={`services.${serviceIndex}.expose.${expIndex}.ipName`}
                   rules={{
                     validate: value => {
-                      const hasValidChars = endpointNameValidationRegex.test(value);
-                      const hasValidStartingChar = /^[a-z]/.test(value);
-                      const hasValidEndingChar = !value.endsWith("-");
+                      const _val = value || "";
+                      const hasValidChars = endpointNameValidationRegex.test(_val);
+                      const hasValidStartingChar = /^[a-z]/.test(_val);
+                      const hasValidEndingChar = !_val.endsWith("-");
 
                       if (!hasValidChars) {
                         return "Invalid ip name. It must only be lower case letters, numbers and dashes.";
@@ -266,56 +289,80 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                     }
                   }}
                   render={({ field, fieldState }) => (
-                    <TextField
+                    <InputWithIcon
                       type="text"
-                      variant="outlined"
+                      // variant="outlined"
                       label="IP Name"
                       color="secondary"
-                      fullWidth
+                      // fullWidth
                       value={field.value}
-                      error={!!fieldState.error}
-                      size="small"
+                      error={fieldState.error?.message}
+                      // size="small"
                       onChange={event => field.onChange(event.target.value)}
-                      InputProps={{
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <CustomTooltip
-                              arrow
-                              title={
-                                <>
-                                  Optional.
-                                  <br />
-                                  <br />
-                                  Option for Tenants to request publicly routable IP addresses for the services they deploy
-                                  <br />
-                                  <br />
-                                  <a href="https://docs.akash.network/features/ip-leases/ip-leases-features-and-limitations" target="_blank" rel="noopener">
-                                    View official documentation.
-                                  </a>
-                                </>
-                              }
-                            >
-                              <InfoIcon color="disabled" fontSize="small" />
-                            </CustomTooltip>
-                          </InputAdornment>
-                        )
-                      }}
+                      endIcon={
+                        <CustomTooltip
+                          title={
+                            <>
+                              Optional.
+                              <br />
+                              <br />
+                              Option for Tenants to request publicly routable IP addresses for the services they deploy
+                              <br />
+                              <br />
+                              <a href="https://docs.akash.network/features/ip-leases/ip-leases-features-and-limitations" target="_blank" rel="noopener">
+                                View official documentation.
+                              </a>
+                            </>
+                          }
+                        >
+                          <InfoCircle className="text-muted-foreground" />
+                        </CustomTooltip>
+                      }
+                      // InputProps={{
+                      //   endAdornment: (
+                      //     <InputAdornment position="end">
+                      //       <CustomTooltip
+                      //         arrow
+                      //         title={
+                      //           <>
+                      //             Optional.
+                      //             <br />
+                      //             <br />
+                      //             Option for Tenants to request publicly routable IP addresses for the services they deploy
+                      //             <br />
+                      //             <br />
+                      //             <a href="https://docs.akash.network/features/ip-leases/ip-leases-features-and-limitations" target="_blank" rel="noopener">
+                      //               View official documentation.
+                      //             </a>
+                      //           </>
+                      //         }
+                      //       >
+                      //         <InfoIcon color="disabled" fontSize="small" />
+                      //       </CustomTooltip>
+                      //     </InputAdornment>
+                      //   )
+                      // }}
                     />
                   )}
                 />
-              </Box>
+              </div>
 
-              <Box sx={{ marginTop: "1rem" }}>
-                <HttpOptionsFormControl control={control} serviceIndex={serviceIndex} exposeIndex={expIndex} services={services} />
-              </Box>
-            </Box>
+              <div className="mt-4">
+                <HttpOptionsFormControl
+                  control={control}
+                  serviceIndex={serviceIndex}
+                  exposeIndex={expIndex}
+                  services={services}
+                />
+              </div>
+            </div>
 
             {expIndex !== 0 && (
-              <Box sx={{ paddingLeft: ".5rem" }}>
-                <IconButton onClick={() => removeExpose(expIndex)} size="small">
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
+              <div className="pl-2">
+                <Button onClick={() => removeExpose(expIndex)} size="icon">
+                  <Bin />
+                </Button>
+              </div>
             )}
           </FormPaper>
         );
