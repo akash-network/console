@@ -58,5 +58,5 @@ export default new OpenAPIHono().openapi(route, async (c) => {
     return c.text("Validator not found", 404);
   }
 
-  c.json(validator);
+  return c.json(validator);
 });

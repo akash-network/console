@@ -81,6 +81,7 @@ export const getProviderDetail = async (address: string): Promise<ProviderDetail
       },
       {
         model: ProviderSnapshot,
+        as: "providerSnapshots",
         attributes: ["isOnline", "id", "checkDate"],
         required: false,
         separate: true,

@@ -3,6 +3,8 @@ import { getTransactionByAddress } from "@src/services/db/transactionsService";
 import { isValidBech32Address } from "@src/utils/addresses";
 import { openApiExampleAddress } from "@src/utils/constants";
 
+const maxLimit = 100;
+
 const route = createRoute({
   method: "get",
   path: "/addresses/{address}/transactions/{skip}/{limit}",
@@ -20,7 +22,8 @@ const route = createRoute({
       }),
       limit: z.string().openapi({
         description: "Transactions to return",
-        example: "10"
+        example: "10",
+        maximum: maxLimit
       })
     })
   },
@@ -69,7 +72,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   }
 
   const skip = parseInt(c.req.valid("param").skip);
-  const limit = Math.min(100, parseInt(c.req.valid("param").limit));
+  const limit = Math.min(maxLimit, parseInt(c.req.valid("param").limit));
 
   if (isNaN(skip)) {
     return c.text("Invalid skip.", 400);
@@ -77,7 +80,6 @@ export default new OpenAPIHono().openapi(route, async (c) => {
 
   if (isNaN(limit)) {
     return c.text("Invalid limit.", 400);
-    return;
   }
 
   const txs = await getTransactionByAddress(c.req.valid("param").address, skip, limit);
