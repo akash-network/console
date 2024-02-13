@@ -1,12 +1,12 @@
 import { ReactNode, useEffect, useState } from "react";
-import { Popup } from "../shared/Popup";
+import { Popup } from "../../components/shared/Popup";
 import { Box, Paper, TextField } from "@mui/material";
 import { getSplitText } from "@src/hooks/useShortText";
 import CheckIcon from "@mui/icons-material/Check";
 import { useRemoveAddressName, useSaveAddressName } from "@src/queries/useAddressNames";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useSnackbar } from "notistack";
-import { Snackbar } from "../shared/Snackbar";
+import { Snackbar } from "../../components/shared/Snackbar";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 
