@@ -4,7 +4,7 @@ import { toUTC } from "@src/shared/utils/date";
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
 import { isSameDay } from "date-fns";
 import { loadFileDescriptorSetFromBuffer } from "@grpc/proto-loader";
-import { ProviderStatusResponseType } from "@src/shared/types/grpc/providerStatusResponseType";
+import { ProviderStatusResponseType } from "@src/types/grpc/providerStatusResponseType";
 import * as fs from "fs";
 import * as grpc from "@grpc/grpc-js";
 
