@@ -8,8 +8,7 @@
   "scripts": {
     "start": "webpack --config webpack.dev.js --watch",
     "build": "webpack --config webpack.prod.js",
-    "lint": "eslint .",
-    "test": "jest"
+    "lint": "eslint ."
   },
   "repository": {
     "type": "git",
