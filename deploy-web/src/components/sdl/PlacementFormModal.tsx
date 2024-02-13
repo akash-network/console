@@ -81,7 +81,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
       title="Edit placement"
       actions={[
         {
-          label: "Close",
+          label: "Done",
           color: "primary",
           variant: "text",
           side: "right",
