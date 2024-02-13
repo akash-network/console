@@ -5,10 +5,9 @@ const route = createRoute({
   method: "get",
   path: "/validators",
   tags: ["Validators"],
-  request: {},
   responses: {
     200: {
-      description: "Returns predicted block date",
+      description: "Returns validators",
       content: {
         "application/json": {
           schema: z.array(

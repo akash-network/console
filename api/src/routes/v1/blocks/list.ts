@@ -10,7 +10,7 @@ const route = createRoute({
   tags: ["Blocks"],
   request: {
     query: z.object({
-      limit: z.string().openapi({
+      limit: z.string().optional().openapi({
         type: "number",
         minimum: 1,
         maximum: 100,
