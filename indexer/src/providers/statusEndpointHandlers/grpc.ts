@@ -4,29 +4,9 @@ import { toUTC } from "@src/shared/utils/date";
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
 import { isSameDay } from "date-fns";
 import { loadFileDescriptorSetFromBuffer } from "@grpc/proto-loader";
+import { ProviderStatusResponseType } from "@src/shared/types/grpc/providerStatusResponseType";
 import * as fs from "fs";
 import * as grpc from "@grpc/grpc-js";
-
-async function queryStatus(hostUri: string, timeout: number) {
-  return new Promise((resolve, reject) => {
-    try {
-      const url = hostUri.replace("https://", "").replace(":8443", ":8444"); // Use 8444 as default GRPC port for now, enventually get from on-chain data
-
-      const grpcClient = new (packageDef as any).akash.provider.v1.ProviderRPC(url, { deadline: Date.now() + timeout }, clientInsecureCreds);
-
-      grpcClient.getStatus({}, (err, response) => {
-        console.log("err", err, "response", response);
-        if (err) {
-          reject(err);
-        } else {
-          resolve(response);
-        }
-      });
-    } catch (err) {
-      reject(err);
-    }
-  });
-}
 
 const protosetBuffer = fs.readFileSync("./src/proto/akash/providerServiceDescriptor.bin");
 const descriptorSet = loadFileDescriptorSetFromBuffer(protosetBuffer);
@@ -36,7 +16,7 @@ const clientInsecureCreds = grpc.credentials.createInsecure();
 export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVersion: string, version: string, timeout: number) {
   const response = await queryStatus(provider.hostUri, timeout);
 
-  const data = response as NewStatusResponseType;
+  const data = response as ProviderStatusResponseType;
 
   const activeResources = sumResources(data.cluster.inventory.reservations.active);
   const pendingResources = sumResources(data.cluster.inventory.reservations.pending);
@@ -63,7 +43,6 @@ export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVer
     );
   const checkDate = toUTC(new Date());
 
-  console.time("updateData");
   await sequelize.transaction(async (t) => {
     const createdSnapshot = await ProviderSnapshot.create(
       {
@@ -177,7 +156,27 @@ export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVer
       }
     }
   });
-  console.timeEnd("updateData");
+}
+
+async function queryStatus(hostUri: string, timeout: number) {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = hostUri.replace("https://", "").replace(":8443", ":8444"); // Use 8444 as default GRPC port for now, enventually get from on-chain data
+
+      const grpcClient = new (packageDef as any).akash.provider.v1.ProviderRPC(url, { deadline: Date.now() + timeout }, clientInsecureCreds);
+
+      grpcClient.getStatus({}, (err, response) => {
+        console.log("err", err, "response", response);
+        if (err) {
+          reject(err);
+        } else {
+          resolve(response);
+        }
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
 }
 
 function sumResources(resources) {
@@ -205,128 +204,3 @@ function sumResources(resources) {
       }
     );
 }
-
-type NewStatusResponseType = {
-  cluster: {
-    leases: { active?: number };
-    inventory: {
-      cluster: {
-        nodes: {
-          name: string;
-          resources: {
-            cpu: {
-              quantity: {
-                allocatable: {
-                  string: string;
-                };
-                allocated: {
-                  string: string;
-                };
-              };
-              info: {
-                id: string;
-                vendor: string;
-                model: string;
-                vcores: number;
-              }[];
-            };
-            memory: {
-              quantity: {
-                allocatable: {
-                  string: string;
-                };
-                allocated: {
-                  string: string;
-                };
-              };
-            };
-            gpu: {
-              quantity: {
-                allocatable: {
-                  string: string;
-                };
-                allocated: {
-                  string: string;
-                };
-              };
-              info: {
-                vendor: string;
-                name: string;
-                modelid: string;
-                interface: string;
-                memorySize: string;
-              }[];
-            };
-            ephemeralStorage: {
-              allocatable: {
-                string: string;
-              };
-              allocated: {
-                string: string;
-              };
-            };
-            volumesAttached: {
-              allocatable: {
-                string: string;
-              };
-              allocated: {
-                string: string;
-              };
-            };
-            volumesMounted: {
-              allocatable: {
-                string: string;
-              };
-              allocated: {
-                string: string;
-              };
-            };
-          };
-          capabilities: {
-            storageClasses: ("beta1" | "beta2" | "beta3")[];
-          };
-        }[];
-      };
-      reservations: {
-        pending: {
-          resources: {
-            cpu: {
-              string: string;
-            };
-            memory: {
-              string: string;
-            };
-            gpu: {
-              string: string;
-            };
-            ephemeralStorage: {
-              string: string;
-            };
-          };
-        };
-        active: {
-          resources: {
-            cpu: {
-              string: string;
-            };
-            memory: {
-              string: string;
-            };
-            gpu: {
-              string: string;
-            };
-            ephemeralStorage: {
-              string: string;
-            };
-          };
-        };
-      };
-    };
-  };
-  bidEngine: {};
-  manifest: {
-    deployments: number;
-  };
-  publicHostnames: string[];
-  timestamp: string;
-};
