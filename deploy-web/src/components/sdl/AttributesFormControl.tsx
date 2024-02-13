@@ -1,12 +1,14 @@
+"use client";
 import { ReactNode, useImperativeHandle, forwardRef } from "react";
-import { makeStyles } from "tss-react/mui";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Box, Button, IconButton, Paper, TextField, Typography, useTheme } from "@mui/material";
 import { PlacementAttribute, SdlBuilderFormValues } from "@src/types";
-import DeleteIcon from "@mui/icons-material/Delete";
 import { nanoid } from "nanoid";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import InfoIcon from "@mui/icons-material/Info";
+import { Card, CardContent } from "../ui/card";
+import { Button } from "../ui/button";
+import { Bin, InfoCircle } from "iconoir-react";
+import { cn } from "@src/utils/styleUtils";
+import { FormInput, Input } from "../ui/input";
 
 type Props = {
   serviceIndex: number;
@@ -19,33 +21,31 @@ export type AttributesRefType = {
   _removeAttribute: (index: number | number[]) => void;
 };
 
-const useStyles = makeStyles()(theme => ({
-  root: {
-    marginTop: "1rem",
-    padding: "1rem",
-    paddingBottom: 0,
-    height: "100%",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    backgroundColor: theme.palette.mode === "dark" ? theme.palette.primary.dark : theme.palette.grey[300]
-  },
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  },
-  none: {
-    fontSize: ".7rem",
-    color: theme.palette.grey[500],
-    marginBottom: ".5rem"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   root: {
+//     marginTop: "1rem",
+//     padding: "1rem",
+//     paddingBottom: 0,
+//     height: "100%",
+//     display: "flex",
+//     flexDirection: "column",
+//     justifyContent: "space-between",
+//     backgroundColor: theme.palette.mode === "dark" ? theme.palette.primary.dark : theme.palette.grey[300]
+//   },
+//   formControl: {
+//     marginBottom: theme.spacing(1.5)
+//   },
+//   textField: {
+//     width: "100%"
+//   },
+//   none: {
+//     fontSize: ".7rem",
+//     color: theme.palette.grey[500],
+//     marginBottom: ".5rem"
+//   }
+// }));
 
 export const AttributesFormControl = forwardRef<AttributesRefType, Props>(({ control, serviceIndex, attributes: _attributes = [] }, ref) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
   const {
     fields: attributes,
     remove: removeAttribute,
@@ -67,82 +67,89 @@ export const AttributesFormControl = forwardRef<AttributesRefType, Props>(({ con
   }));
 
   return (
-    <Paper elevation={1} className={classes.root}>
-      <div>
-        <Box sx={{ marginBottom: _attributes.length ? "1rem" : 0, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Typography variant="caption">
+    <Card className="mt-4 flex h-full flex-col justify-between bg-muted p-4">
+      <CardContent>
+        <div
+          className={cn("flex items-start justify-between", { ["mb-4"]: !!_attributes.length })}
+          // sx={{ marginBottom: _attributes.length ? "1rem" : 0, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}
+        >
+          <div className="flex items-center">
+            <span className="text-sm">
               <strong>Attributes</strong>
-            </Typography>
-            <CustomTooltip arrow title={<>Filter providers that have these attributes.</>}>
-              <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+            </span>
+            <CustomTooltip title={<>Filter providers that have these attributes.</>}>
+              <InfoCircle className="ml-4 text-muted-foreground" />
             </CustomTooltip>
-          </Box>
+          </div>
 
-          <Button color="secondary" variant="contained" size="small" onClick={onAddAttribute}>
+          <Button variant="default" size="sm" onClick={onAddAttribute}>
             Add Attribute
           </Button>
-        </Box>
+        </div>
 
         {attributes.length > 0 ? (
           attributes.map((att, attIndex) => {
             return (
-              <Box key={att.id} sx={{ marginBottom: attIndex + 1 === _attributes.length ? 0 : ".5rem" }}>
-                <Box sx={{ display: "flex" }}>
-                  <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center" }}>
+              <div
+                key={att.id}
+                className={cn({ ["mb-2"]: attIndex + 1 !== _attributes.length })}
+                // sx={{ marginBottom: attIndex + 1 === _attributes.length ? 0 : ".5rem" }}
+              >
+                <div className="flex">
+                  <div className="flex flex-grow items-center">
                     {/** TODO All list of attribute keys and values from pre-defined provider attributes */}
-                    <Box>
+                    <div>
                       <Controller
                         control={control}
                         name={`services.${serviceIndex}.placement.attributes.${attIndex}.key`}
                         render={({ field }) => (
-                          <TextField
+                          <FormInput
                             type="text"
-                            variant="outlined"
+                            // variant="outlined"
                             label="Key"
                             color="secondary"
-                            fullWidth
+                            className="w-full"
                             value={field.value}
-                            size="small"
+                            // size="small"
                             onChange={event => field.onChange(event.target.value)}
                           />
                         )}
                       />
-                    </Box>
+                    </div>
 
-                    <Box sx={{ marginLeft: ".5rem" }}>
+                    <div className="ml-2">
                       <Controller
                         control={control}
                         name={`services.${serviceIndex}.placement.attributes.${attIndex}.value`}
                         render={({ field }) => (
-                          <TextField
+                          <FormInput
                             type="text"
-                            variant="outlined"
+                            // variant="outlined"
                             label="Value"
                             color="secondary"
-                            fullWidth
+                            className="w-full"
                             value={field.value}
-                            size="small"
+                            // size="small"
                             onChange={event => field.onChange(event.target.value)}
                           />
                         )}
                       />
-                    </Box>
-                  </Box>
+                    </div>
+                  </div>
 
-                  <Box sx={{ paddingLeft: ".5rem" }}>
-                    <IconButton onClick={() => removeAttribute(attIndex)} size="small">
-                      <DeleteIcon />
-                    </IconButton>
-                  </Box>
-                </Box>
-              </Box>
+                  <div className="pl-2">
+                    <Button onClick={() => removeAttribute(attIndex)} size="icon">
+                      <Bin />
+                    </Button>
+                  </div>
+                </div>
+              </div>
             );
           })
         ) : (
-          <div className={classes.none}>None</div>
+          <div className="mb-2 text-xs text-muted-foreground">None</div>
         )}
-      </div>
-    </Paper>
+      </CardContent>
+    </Card>
   );
 });

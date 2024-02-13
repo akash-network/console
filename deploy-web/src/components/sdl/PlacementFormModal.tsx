@@ -1,14 +1,12 @@
+"use client";
 import { ReactNode, useRef } from "react";
-import { makeStyles } from "tss-react/mui";
 import { Popup } from "../shared/Popup";
 import { Control, Controller } from "react-hook-form";
-import { Box, FormControl, Grid, InputAdornment, InputLabel, MenuItem, Select, TextField } from "@mui/material";
 import { Placement, SdlBuilderFormValues, Service } from "@src/types";
 import { FormPaper } from "./FormPaper";
 import { SignedByFormControl, SignedByRefType } from "./SignedByFormControl";
 import { AttributesFormControl, AttributesRefType } from "./AttributesFormControl";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import InfoIcon from "@mui/icons-material/Info";
 import { PriceValue } from "../shared/PriceValue";
 import { getAvgCostPerMonth, toReadableDenom } from "@src/utils/priceUtils";
 import { uAktDenom } from "@src/utils/constants";
@@ -16,6 +14,10 @@ import { useSdlDenoms } from "@src/hooks/useDenom";
 import { FormattedNumber } from "react-intl";
 import { USDLabel } from "../shared/UsdLabel";
 import { udenomToDenom } from "@src/utils/mathHelpers";
+import { InfoCircle } from "iconoir-react";
+import { FormControl, FormItem, FormLabel } from "../ui/form";
+import { FormInput, InputWithIcon } from "../ui/input";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 type Props = {
   serviceIndex: number;
@@ -26,41 +28,40 @@ type Props = {
   placement: Placement;
 };
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   formControl: {
+//     marginBottom: theme.spacing(1.5)
+//   },
+//   textField: {
+//     width: "100%"
+//   }
+// }));
 
 export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, services, serviceIndex, onClose, placement: _placement }) => {
-  const { classes } = useStyles();
-  const signedByRef = useRef<SignedByRefType>();
-  const attritubesRef = useRef<AttributesRefType>();
+  const signedByRef = useRef<SignedByRefType>(null);
+  const attritubesRef = useRef<AttributesRefType>(null);
   const supportedSdlDenoms = useSdlDenoms();
   const currentService = services[serviceIndex];
   const selectedDenom = supportedSdlDenoms.find(x => x.value === currentService.placement.pricing.denom);
 
   const _onClose = () => {
-    const attributesToRemove = [];
-    const signedByAnyToRemove = [];
-    const signedByAllToRemove = [];
+    const attributesToRemove: number[] = [];
+    const signedByAnyToRemove: number[] = [];
+    const signedByAllToRemove: number[] = [];
 
-    _placement.attributes.forEach((e, i) => {
+    _placement.attributes?.forEach((e, i) => {
       if (!e.key.trim() || !e.value.trim()) {
         attributesToRemove.push(i);
       }
     });
 
-    _placement.signedBy.anyOf.forEach((e, i) => {
+    _placement.signedBy?.anyOf.forEach((e, i) => {
       if (!e.value.trim()) {
         signedByAnyToRemove.push(i);
       }
     });
 
-    _placement.signedBy.allOf.forEach((e, i) => {
+    _placement.signedBy?.allOf.forEach((e, i) => {
       if (!e.value.trim()) {
         signedByAllToRemove.push(i);
       }
@@ -81,9 +82,9 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
       title="Edit placement"
       actions={[
         {
-          label: "Done",
-          color: "primary",
-          variant: "text",
+          label: "Close",
+          color: "secondary",
+          variant: "ghost",
           side: "right",
           onClick: _onClose
         }
@@ -93,16 +94,16 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
       enableCloseOnBackdropClick
     >
       <FormPaper
-        elevation={2}
-        sx={{
-          display: "flex",
-          padding: "1rem",
-          paddingBottom: "2rem"
-        }}
+        className="flex p-4 pb-8"
+        // sx={{
+        //   display: "flex",
+        //   padding: "1rem",
+        //   paddingBottom: "2rem"
+        // }}
       >
-        <Box sx={{ flexGrow: 1 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+        <div className="flex-grow">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
               <Controller
                 control={control}
                 name={`services.${serviceIndex}.placement.name`}
@@ -125,52 +126,102 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                   }
                 }}
                 render={({ field, fieldState }) => (
-                  <TextField
+                  <InputWithIcon
                     type="text"
-                    variant="outlined"
+                    // variant="outlined"
                     label="Name"
-                    fullWidth
+                    // fullWidth
                     value={field.value}
-                    error={!!fieldState.error}
-                    size="small"
+                    error={fieldState.error?.message}
+                    // size="small"
                     onChange={event => field.onChange(event.target.value)}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <CustomTooltip arrow title={<>The name of the placement.</>}>
-                            <InfoIcon color="disabled" fontSize="small" />
-                          </CustomTooltip>
-                        </InputAdornment>
-                      )
-                    }}
+                    endIcon={
+                      <CustomTooltip title={<>The name of the placement.</>}>
+                        <InfoCircle className="text-muted-foreground" />
+                      </CustomTooltip>
+                    }
+                    // InputProps={{
+                    //   endAdornment: (
+                    //     <InputAdornment position="end">
+                    //       <CustomTooltip title={<>The name of the placement.</>}>
+                    //         <InfoCircle className="text-muted-foreground" />
+                    //       </CustomTooltip>
+                    //     </InputAdornment>
+                    //   )
+                    // }}
                   />
                 )}
               />
-            </Grid>
+            </div>
 
-            <Grid item xs={12} sm={6}>
-              <FormControl className={classes.formControl} fullWidth sx={{ display: "flex", alignItems: "center", flexDirection: "row" }}>
-                <Box sx={{ display: "flex", alignItems: "center", flexGrow: 1, marginLeft: ".5rem" }}>
+            <div>
+              <FormControl className="flex w-full flex-row items-center">
+                <Controller
+                  control={control}
+                  name={`services.${serviceIndex}.placement.pricing.denom`}
+                  defaultValue=""
+                  rules={{
+                    required: true
+                  }}
+                  render={({ fieldState, field }) => {
+                    return (
+                      <FormItem>
+                        <FormLabel>Token</FormLabel>
+                        <Select value={field.value || ""} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select token" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {supportedSdlDenoms.map(t => {
+                                return (
+                                  <SelectItem key={t.id} value={t.value}>
+                                    {t.value}
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    );
+                    // return (
+                    //   <Select {...field} labelId="sdl-token" label="Token" size="small" error={!!fieldState.error}>
+                    //     {supportedSdlDenoms.map(token => (
+                    //       <MenuItem key={token.id} value={token.value}>
+                    //         {token.label}
+                    //       </MenuItem>
+                    //     ))}
+                    //   </Select>
+
+                    // );
+                  }}
+                />
+
+                <div className="ml-2 flex flex-grow items-center">
                   <Controller
                     control={control}
                     name={`services.${serviceIndex}.placement.pricing.amount`}
                     rules={{ required: "Pricing is required" }}
                     render={({ field, fieldState }) => (
-                      <TextField
+                      <FormInput
                         type="number"
-                        variant="outlined"
-                        label={`Pricing, ${toReadableDenom(currentService.placement.pricing.denom)}`}
-                        fullWidth
+                        // variant="outlined"
+                        label="Pricing"
+                        // fullWidth
                         value={field.value}
-                        error={!!fieldState.error}
-                        size="small"
-                        inputProps={{ min: 1, step: 1, max: 10000000 }}
+                        // error={!!fieldState.error}
+                        description={fieldState.error?.message}
+                        // size="small"
+                        min={1}
+                        step={1}
+                        max={10000000}
+                        // inputProps={{ min: 1, step: 1, max: 10000000 }}
                         onChange={event => field.onChange(parseFloat(event.target.value))}
                       />
                     )}
                   />
                   <CustomTooltip
-                    arrow
                     title={
                       <>
                         The maximum amount of {selectedDenom?.label} you're willing to pay per block (~6 seconds).
@@ -195,29 +246,29 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                       </>
                     }
                   >
-                    <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+                    <InfoCircle className="ml-4 text-muted-foreground" />
                   </CustomTooltip>
-                </Box>
+                </div>
               </FormControl>
-            </Grid>
-          </Grid>
+            </div>
+          </div>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
               <SignedByFormControl
                 control={control}
                 serviceIndex={serviceIndex}
-                signedByAnyOf={_placement.signedBy?.anyOf}
-                signedByAllOf={_placement.signedBy?.allOf}
+                signedByAnyOf={_placement.signedBy?.anyOf || []}
+                signedByAllOf={_placement.signedBy?.allOf || []}
                 ref={signedByRef}
               />
-            </Grid>
+            </div>
 
-            <Grid item xs={12} sm={6}>
-              <AttributesFormControl control={control} serviceIndex={serviceIndex} attributes={_placement.attributes} ref={attritubesRef} />
-            </Grid>
-          </Grid>
-        </Box>
+            <div>
+              <AttributesFormControl control={control} serviceIndex={serviceIndex} attributes={_placement.attributes || []} ref={attritubesRef} />
+            </div>
+          </div>
+        </div>
       </FormPaper>
     </Popup>
   );

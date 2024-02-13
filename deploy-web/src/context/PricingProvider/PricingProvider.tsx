@@ -11,7 +11,7 @@ type ContextType = {
   price: number | undefined;
   uaktToUSD: (amount: number) => number | null;
   aktToUSD: (amount: number) => number | null;
-  getPriceForDenom: (denom: string) => number | undefined;
+  getPriceForDenom: (denom: string) => number;
 };
 
 const PricingProviderContext = React.createContext<ContextType>({} as ContextType);
@@ -33,7 +33,7 @@ export const PricingProvider = ({ children }) => {
   const getPriceForDenom = (denom: string) => {
     switch (denom) {
       case uAktDenom:
-        return marketData?.price;
+        return marketData?.price || 0;
       case usdcIbcDenom:
         return 1; // TODO Get price from API
 

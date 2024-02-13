@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import { cn } from "@src/utils/styleUtils";
-import { FormControl, FormItem, FormLabel } from "./form";
+import { FormControl, FormDescription, FormItem, FormLabel } from "./form";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
@@ -23,9 +23,10 @@ Input.displayName = "Input";
 
 export interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
+  description?: string;
 }
 
-const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ className, type, label, ...props }, ref) => {
+const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ className, type, label, description, ...props }, ref) => {
   return (
     <FormItem>
       <FormLabel>{label}</FormLabel>
@@ -40,6 +41,7 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ classNam
           {...props}
         />
       </FormControl>
+      {description && <FormDescription>{description}</FormDescription>}
     </FormItem>
   );
 });
