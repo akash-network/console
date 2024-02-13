@@ -11,7 +11,7 @@ Version 1.7.0 adds some tables and fields to improve provider queries as well as
 ```
 -- Add new Provider columns
 ALTER TABLE IF EXISTS public.provider
-    ADD COLUMN "lastSnapshotId" uuid,
+    ADD COLUMN "lastSnapshotId" uuid;
 
 -- Set lastSnapshotId to the most recent snapshot for each providers
 UPDATE "provider" p SET "lastSnapshotId" = (
@@ -33,7 +33,7 @@ WITH last_snapshots AS (
 UPDATE "providerSnapshot" AS ps
 SET "isLastOfDay" = TRUE
 FROM last_snapshots AS ls
-WHERE ls."psId"=ps.id
+WHERE ls."psId"=ps.id;
 
 -- Add index for isLastofDay
 CREATE INDEX IF NOT EXISTS provider_snapshot_id_where_isonline_and_islastofday
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS public."providerSnapshotNode"
     "gpuAllocatable" bigint,
     "gpuAllocated" bigint,
     CONSTRAINT "providerSnapshotNode_pkey" PRIMARY KEY (id)
-)
+);
 
 CREATE TABLE IF NOT EXISTS public."providerSnapshotNodeCPU"
 (
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS public."providerSnapshotNodeCPU"
     model character varying(255) COLLATE pg_catalog."default",
     vcores character varying(255) COLLATE pg_catalog."default",
     CONSTRAINT "providerSnapshotNodeCPU_pkey" PRIMARY KEY (id)
-)
+);
 
 CREATE TABLE IF NOT EXISTS public."providerSnapshotNodeGPU"
 (
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS public."providerSnapshotNodeGPU"
     interface character varying(255) COLLATE pg_catalog."default",
     "memorySize" character varying(255) COLLATE pg_catalog."default",
     CONSTRAINT "providerSnapshotNodeGPU_pkey" PRIMARY KEY (id)
-)
+);
 ```
 
 ## v1.5.0
