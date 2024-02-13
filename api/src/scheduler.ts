@@ -1,6 +1,6 @@
 import humanInterval from "human-interval";
 import { getPrettyTime } from "./utils/date";
-import fetch from "node-fetch";
+import axios from "axios";
 
 class TaskDef {
   name: string;
@@ -123,7 +123,7 @@ export class Scheduler {
 
   async healthchecksPingStart(runningTask: TaskDef): Promise<void> {
     try {
-      await fetch(`https://hc-ping.com/${runningTask.healthchecksConfig.id}/start`);
+      await axios.get(`https://hc-ping.com/${runningTask.healthchecksConfig.id}/start`);
     } catch (err) {
       console.error(err);
     }
@@ -131,7 +131,7 @@ export class Scheduler {
 
   async healthchecksPingSuccess(runningTask: TaskDef): Promise<void> {
     try {
-      await fetch(`https://hc-ping.com/${runningTask.healthchecksConfig.id}`);
+      await axios.get(`https://hc-ping.com/${runningTask.healthchecksConfig.id}`);
     } catch (err) {
       console.error(err);
     }
@@ -139,7 +139,7 @@ export class Scheduler {
 
   async healthchecksPingFailure(runningTask: TaskDef): Promise<void> {
     try {
-      await fetch(`https://hc-ping.com/${runningTask.healthchecksConfig.id}/fail`);
+      await axios.get(`https://hc-ping.com/${runningTask.healthchecksConfig.id}/fail`);
     } catch (err) {
       console.error(err);
     }

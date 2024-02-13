@@ -1,5 +1,3 @@
-import express from "express";
-import cors from "cors";
 import packageJson from "../package.json";
 import { isProd } from "./utils/constants";
 import * as Sentry from "@sentry/node";
@@ -11,12 +9,17 @@ import { bytesToHumanReadableSize } from "./utils/files";
 import { env } from "./utils/env";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { dashboardRouter } from "./routers/dashboardRouter";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { serve } from "@hono/node-server";
+import { legacyRouter } from "./routers/legacyRouter";
+import { sentry } from "@hono/sentry";
 
-const app = express();
-app.use(
+const appHono = new Hono();
+appHono.use(
+  "/*",
   cors({
-    origin: env.AKASHLYTICS_CORS_WEBSITE_URLS?.split(",") || ["http://localhost:3000", "http://localhost:3001"],
-    optionsSuccessStatus: 200
+    origin: env.AKASHLYTICS_CORS_WEBSITE_URLS?.split(",") || ["http://localhost:3000", "http://localhost:3001"]
   })
 );
 
@@ -30,14 +33,7 @@ Sentry.init({
   enabled: isProd,
   integrations: [
     // enable HTTP calls tracing
-    new Sentry.Integrations.Http({ tracing: true }),
-    // enable Express.js middleware tracing
-    new Sentry.Integrations.Express({
-      // to trace all requests to the default router
-      app
-      // alternatively, you can specify the routes you want to trace:
-      // router: someRouter,
-    })
+    new Sentry.Integrations.Http({ tracing: true })
   ],
 
   // Set tracesSampleRate to 1.0 to capture 100%
@@ -54,18 +50,28 @@ const scheduler = new Scheduler({
   }
 });
 
-// RequestHandler creates a separate execution context using domains, so that every
-// transaction/span/breadcrumb is attached to its own Hub instance
-app.use(Sentry.Handlers.requestHandler());
-// TracingHandler creates a trace for every incoming request
-app.use(Sentry.Handlers.tracingHandler());
+appHono.use(
+  "*",
+  sentry({
+    dsn: env.SentryDSN,
+    environment: env.NODE_ENV,
+    beforeSend: (event) => {
+      event.server_name = env.SentryServerName;
+      return event;
+    },
+    tracesSampleRate: 0.01,
+    release: packageJson.version,
+    enabled: isProd
+  })
+);
 
-app.use("/", apiRouter);
-app.use("/user", userRouter);
-app.use("/web3-index", web3IndexRouter);
-app.use("/dashboard", dashboardRouter);
+appHono.route("/", legacyRouter);
+appHono.route("/", apiRouter);
+appHono.route("/user", userRouter);
+appHono.route("/web3-index", web3IndexRouter);
+appHono.route("/dashboard", dashboardRouter);
 
-app.get("/status", (req, res) => {
+appHono.get("/status", (c) => {
   const version = packageJson.version;
   const tasksStatus = scheduler.getTasksStatus();
   const memoryInBytes = process.memoryUsage();
@@ -76,11 +82,8 @@ app.get("/status", (req, res) => {
     external: bytesToHumanReadableSize(memoryInBytes.external)
   };
 
-  res.send({ version, memory, tasks: tasksStatus });
+  return c.json({ version, memory, tasks: tasksStatus });
 });
-
-// The error handler must be before any other error middleware and after all controllers
-app.use(Sentry.Handlers.errorHandler());
 
 function startScheduler() {
   scheduler.start();
@@ -108,8 +111,11 @@ async function initApp() {
 
     startScheduler();
 
-    app.listen(PORT, () => {
-      console.log("server started at http://localhost:" + PORT);
+    console.log("Starting server at http://localhost:" + PORT);
+
+    serve({
+      fetch: appHono.fetch,
+      port: typeof PORT === "string" ? parseInt(PORT) : PORT
     });
   } catch (err) {
     console.error("Error while initializing app", err);
@@ -119,5 +125,3 @@ async function initApp() {
 }
 
 initApp();
-
-export default app;

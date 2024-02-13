@@ -1,4 +1,4 @@
-export function isUrlAbsolute(url) {
+export function isUrlAbsolute(url: string) {
   if (url.indexOf("//") === 0) {
     return true;
   } // URL is protocol-relative (= absolute)
