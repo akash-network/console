@@ -19,7 +19,7 @@ import { PlacementFormModal } from "./PlacementFormModal";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import Link from "next/link";
 import { PriceValue } from "../shared/PriceValue";
-import { getAvgCostPerMonth } from "@src/utils/priceUtils";
+import { getAvgCostPerMonth, toReadableDenom } from "@src/utils/priceUtils";
 import Image from "next/legacy/image";
 import { uAktDenom } from "@src/utils/constants";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
@@ -434,7 +434,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                     <div>
                       <strong>Pricing</strong>&nbsp;&nbsp;
                       <Box component="span" className={classes.formValue} sx={{ display: "inline-flex", alignItems: "center" }}>
-                        Max {udenomToDenom(currentService.placement.pricing.amount, 6)} AKT per block
+                        Max {udenomToDenom(currentService.placement.pricing.amount, 6)} {toReadableDenom(currentService.placement.pricing.denom)} per block
                         <CustomTooltip
                           arrow
                           title={
