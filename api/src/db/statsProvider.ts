@@ -159,14 +159,18 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
     cacheKeys.getProviderGraphData,
     async () => {
       return (await chainDb.query(
-        `SELECT d."date", (SUM(ps."activeCPU") + SUM(ps."pendingCPU") + SUM(ps."availableCPU")) AS "cpu", (SUM(ps."activeGPU") + SUM(ps."pendingGPU") + SUM(ps."availableGPU")) AS "gpu", (SUM(ps."activeMemory") + SUM(ps."pendingMemory") + SUM(ps."availableMemory")) AS memory, (SUM(ps."activeStorage") + SUM(ps."pendingStorage") + SUM(ps."availableStorage")) as storage, COUNT(*) as count
-        FROM "day" d
-        INNER JOIN "providerSnapshot" ps
-        	ON DATE(d."date")=DATE(ps."checkDate") AND "isOnline" IS TRUE AND "isLastOfDay" IS TRUE
-        INNER JOIN "provider" p
-          ON p."owner"=ps."owner" AND p."isDuplicate" IS FALSE 
-        GROUP BY d."date"
-        ORDER BY d."date" ASC`,
+        `SELECT d."date", (SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU")) AS "cpu", (SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU")) AS "gpu", (SUM("activeMemory") + SUM("pendingMemory") + SUM("availableMemory")) AS memory, (SUM("activeStorage") + SUM("pendingStorage") + SUM("availableStorage")) as storage, COUNT(*) as count
+         FROM "day" d
+         INNER JOIN (
+            SELECT DISTINCT ON("hostUri",DATE("checkDate")) DATE("checkDate") AS date, ps."activeCPU", ps."pendingCPU", ps."availableCPU", ps."activeGPU", ps."pendingGPU", ps."availableGPU", ps."activeMemory", ps."pendingMemory", ps."availableMemory", ps."activeStorage", ps."pendingStorage", ps."availableStorage", ps."isOnline"
+            FROM "providerSnapshot" ps
+            INNER JOIN "provider" ON "provider"."owner"=ps."owner"
+            WHERE ps."isLastOfDay" = TRUE AND ps."isOnline" = TRUE
+            ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
+         ) "dailyProviderStats"
+         ON DATE(d."date")="dailyProviderStats"."date"
+         GROUP BY d."date"
+         ORDER BY d."date" ASC`,
         {
           type: QueryTypes.SELECT
         }

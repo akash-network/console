@@ -19,7 +19,6 @@ export class Provider extends Model {
   @Column website?: string;
   @Column akashVersion?: string;
   @Column cosmosSdkVersion?: string;
-  @Required @Default(false) @Column isDuplicate: boolean;
 
   // Stats
   @Column(DataTypes.UUID) lastSnapshotId?: string;

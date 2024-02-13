@@ -825,8 +825,6 @@ export class AkashStatsIndexer extends Indexer {
       { transaction: blockGroupTransaction }
     );
 
-    await this.updateProviderDuplicateFlag(blockGroupTransaction);
-
     this.activeProviderCount++;
   }
 
@@ -865,8 +863,6 @@ export class AkashStatsIndexer extends Indexer {
       })),
       { transaction: blockGroupTransaction }
     );
-
-    await this.updateProviderDuplicateFlag(blockGroupTransaction);
   }
 
   private async handleDeleteProvider(
@@ -885,21 +881,7 @@ export class AkashStatsIndexer extends Indexer {
       }
     );
 
-    await this.updateProviderDuplicateFlag(blockGroupTransaction);
-
     this.activeProviderCount--;
-  }
-
-  private async updateProviderDuplicateFlag(blockGroupTransaction: DbTransaction) {
-    await sequelize.query(
-      `
-    UPDATE provider p 
-    SET "isDuplicate" = (
-      SELECT COUNT(*) FROM provider p2 WHERE p2."hostUri"=p."hostUri" AND p2."createdHeight" > p."createdHeight" AND p2."deletedHeight" IS NULL
-    ) > 0
-    `,
-      { type: QueryTypes.UPDATE, transaction: blockGroupTransaction }
-    );
   }
 
   private async handleSignProviderAttributes(

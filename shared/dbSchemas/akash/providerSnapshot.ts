@@ -7,7 +7,7 @@ import { Required } from "../decorators/requiredDecorator";
   indexes: [
     { unique: false, fields: ["owner"] },
     { unique: false, fields: ["owner", "checkDate"] },
-    { unique: false, fields: ["isOnline", "isLastOfDay"] }
+    { name: "provider_snapshot_id_where_isonline_and_islastofday", unique: false, fields: ["id"], where: { isOnline: true, isLastOfDay: true } }
   ]
 })
 export class ProviderSnapshot extends Model {
@@ -16,8 +16,8 @@ export class ProviderSnapshot extends Model {
   @Required @Default(false) @Column isLastOfDay: boolean;
 
   // Stats
-  @Column isOnline?: boolean;
-  @Column checkDate?: Date;
+  @Required @Column isOnline?: boolean;
+  @Required @Column checkDate?: Date;
   @Column(DataTypes.TEXT) error?: string;
   @Column deploymentCount?: number;
   @Column leaseCount?: number;

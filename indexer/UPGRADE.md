@@ -1,6 +1,8 @@
 # Upgrade instructions
 
-Some indexer updates changes the database schemas and an upgrade script must be run on the database to migrate the data before or after updating the indexer. Here is a list of those migrations. If a version is not listed here it means the indexer can be updated without any manual migration.
+Some indexer updates changes the database schemas and an upgrade script must be run on the database to migrate the data before or after updating the indexer. Here is a list of those migrations. If a version is not listed here it means the indexer can be updated without any manual migration. 
+
+**It is recommended to stop the indexer before running any migration script.**
 
 ## v1.7.0
 
@@ -10,28 +12,22 @@ Version 1.7.0 adds some tables and fields to improve provider queries as well as
 -- Add new Provider columns
 ALTER TABLE IF EXISTS public.provider
     ADD COLUMN "lastSnapshotId" uuid,
-    ADD COLUMN "isDuplicate" boolean NOT NULL DEFAULT false;
-	
--- Set isDuplicate to true if there is another more recent provider with the same hostUri
-UPDATE provider p 
-SET "isDuplicate" = (
-	SELECT COUNT(*) FROM provider p2 WHERE p2."hostUri"=p."hostUri" AND p2."createdHeight" > p."createdHeight" AND p2."deletedHeight" IS NULL
-) > 0
 
 -- Set lastSnapshotId to the most recent snapshot for each providers
 UPDATE "provider" p SET "lastSnapshotId" = (
 	SELECT ps.id FROM "providerSnapshot" ps WHERE ps."owner" = p."owner" ORDER BY "checkDate" DESC LIMIT 1
 )
 
--- new ProviderSnapshot columns
+-- Update ProviderSnapshot schemas
 ALTER TABLE IF EXISTS public."providerSnapshot"
-    ADD COLUMN "isLastOfDay" boolean NOT NULL DEFAULT false;
+    ADD COLUMN "isLastOfDay" boolean NOT NULL DEFAULT false,
+	ALTER COLUMN "isOnline" SET NOT NULL,
+	ALTER COLUMN "checkDate" SET NOT NULL;
 	
 -- Set isLastOfDay to true for snapshots that are the last of each day for every providers
 WITH last_snapshots AS (
 	SELECT DISTINCT ON(ps."owner",DATE("checkDate")) DATE("checkDate") AS date, ps."id" AS "psId"
 	FROM "providerSnapshot" ps
-	INNER JOIN "provider" ON "provider"."owner"=ps."owner"
 	ORDER BY ps."owner",DATE("checkDate"),"checkDate" DESC
 ) 
 UPDATE "providerSnapshot" AS ps
@@ -40,10 +36,11 @@ FROM last_snapshots AS ls
 WHERE ls."psId"=ps.id
 
 -- Add index for isLastofDay
-CREATE INDEX IF NOT EXISTS provider_snapshot_is_online_is_last_of_day
+CREATE INDEX IF NOT EXISTS provider_snapshot_id_where_isonline_and_islastofday
     ON public."providerSnapshot" USING btree
-    ("isOnline" ASC NULLS LAST, "isLastOfDay" ASC NULLS LAST)
-    TABLESPACE pg_default;
+    (id ASC NULLS LAST)
+    TABLESPACE pg_default
+    WHERE "isOnline" = true AND "isLastOfDay" = true;
 
 -- Create new tables for tracking nodes/gpu/cpu info
 CREATE TABLE IF NOT EXISTS public."providerSnapshotNode"
