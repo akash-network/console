@@ -10,7 +10,7 @@ import { AttributesFormControl, AttributesRefType } from "./AttributesFormContro
 import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import { PriceValue } from "../shared/PriceValue";
-import { getAvgCostPerMonth } from "@src/utils/priceUtils";
+import { getAvgCostPerMonth, toReadableDenom } from "@src/utils/priceUtils";
 import { uAktDenom } from "@src/utils/constants";
 import { useSdlDenoms } from "@src/hooks/useDenom";
 import { FormattedNumber } from "react-intl";
@@ -150,27 +150,6 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
 
             <Grid item xs={12} sm={6}>
               <FormControl className={classes.formControl} fullWidth sx={{ display: "flex", alignItems: "center", flexDirection: "row" }}>
-                <InputLabel id="grant-token">Token</InputLabel>
-                <Controller
-                  control={control}
-                  name={`services.${serviceIndex}.placement.pricing.denom`}
-                  defaultValue=""
-                  rules={{
-                    required: true
-                  }}
-                  render={({ fieldState, field }) => {
-                    return (
-                      <Select {...field} labelId="sdl-token" label="Token" size="small" error={!!fieldState.error}>
-                        {supportedSdlDenoms.map(token => (
-                          <MenuItem key={token.id} value={token.value}>
-                            {token.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    );
-                  }}
-                />
-
                 <Box sx={{ display: "flex", alignItems: "center", flexGrow: 1, marginLeft: ".5rem" }}>
                   <Controller
                     control={control}
@@ -180,7 +159,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                       <TextField
                         type="number"
                         variant="outlined"
-                        label="Pricing"
+                        label={`Pricing, ${toReadableDenom(currentService.placement.pricing.denom)}`}
                         fullWidth
                         value={field.value}
                         error={!!fieldState.error}

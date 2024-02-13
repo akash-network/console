@@ -31,6 +31,7 @@ import { GpuFormControl } from "./GpuFormControl";
 import { CpuFormControl } from "./CpuFormControl";
 import { MemoryFormControl } from "./MemoryFormControl";
 import { StorageFormControl } from "./StorageFormControl";
+import { TokenFormControl } from "./TokenFormControl";
 
 type Props = {
   _services: Service[];
@@ -390,6 +391,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                     />
                   )}
                 />
+              </Grid>
+
+              <Grid item xs={12} sx={{ marginTop: "1rem" }}>
+                <TokenFormControl control={control} name={`services.${serviceIndex}.placement.pricing.denom`} />
               </Grid>
             </Grid>
           </Grid>
