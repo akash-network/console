@@ -90,47 +90,48 @@ export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, childr
             }}
           />
 
-          {user?.username === username && (
-            <>
-              {/** Only show favorites/address book/settings for current user */}
-              <Tab
-                value="favorites"
-                label="Favorites"
-                {...a11yTabProps("favorites-tab", "favorites-panel", 1)}
-                classes={{ selected: classes.selectedTab }}
-                onClick={() => {
-                  event(AnalyticsEvents.USER_PROFILE_FAVORITES_TAB, {
-                    category: "profile",
-                    label: "Click on favorites tab"
-                  });
-                }}
-              />
-              <Tab
-                value="address-book"
-                label="Address Book"
-                {...a11yTabProps("address-book-tab", "address-book-tab-panel", 1)}
-                classes={{ selected: classes.selectedTab }}
-                onClick={() => {
-                  event(AnalyticsEvents.USER_PROFILE_ADDRESS_BOOK_TAB, {
-                    category: "profile",
-                    label: "Click on address book tab"
-                  });
-                }}
-              />
-              <Tab
-                value="settings"
-                label="Settings"
-                {...a11yTabProps("settings-tab", "settings-panel", 1)}
-                classes={{ selected: classes.selectedTab }}
-                onClick={() => {
-                  event(AnalyticsEvents.USER_PROFILE_SETTINGS_TAB, {
-                    category: "profile",
-                    label: "Click on settings tab"
-                  });
-                }}
-              />
-            </>
-          )}
+          {/** Only show favorites/address book/settings for current user */}
+          {user?.username === username && [
+            <Tab
+              key="favorites"
+              value="favorites"
+              label="Favorites"
+              {...a11yTabProps("favorites-tab", "favorites-panel", 1)}
+              classes={{ selected: classes.selectedTab }}
+              onClick={() => {
+                event(AnalyticsEvents.USER_PROFILE_FAVORITES_TAB, {
+                  category: "profile",
+                  label: "Click on favorites tab"
+                });
+              }}
+            />,
+            <Tab
+              key="address-book"
+              value="address-book"
+              label="Address Book"
+              {...a11yTabProps("address-book-tab", "address-book-tab-panel", 1)}
+              classes={{ selected: classes.selectedTab }}
+              onClick={() => {
+                event(AnalyticsEvents.USER_PROFILE_ADDRESS_BOOK_TAB, {
+                  category: "profile",
+                  label: "Click on address book tab"
+                });
+              }}
+            />,
+            <Tab
+              key="settings"
+              value="settings"
+              label="Settings"
+              {...a11yTabProps("settings-tab", "settings-panel", 1)}
+              classes={{ selected: classes.selectedTab }}
+              onClick={() => {
+                event(AnalyticsEvents.USER_PROFILE_SETTINGS_TAB, {
+                  category: "profile",
+                  label: "Click on settings tab"
+                });
+              }}
+            />
+          ]}
         </Tabs>
       </Box>
 
