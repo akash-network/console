@@ -14,9 +14,7 @@ const packageDef = grpc.loadPackageDefinition(descriptorSet);
 const clientInsecureCreds = grpc.credentials.createInsecure();
 
 export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVersion: string, version: string, timeout: number) {
-  const response = await queryStatus(provider.hostUri, timeout);
-
-  const data = response as ProviderStatusResponseType;
+  const data = await queryStatus(provider.hostUri, timeout);
 
   const activeResources = sumResources(data.cluster.inventory.reservations.active);
   const pendingResources = sumResources(data.cluster.inventory.reservations.pending);
@@ -158,12 +156,12 @@ export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVer
   });
 }
 
-async function queryStatus(hostUri: string, timeout: number) {
+async function queryStatus(hostUri: string, timeout: number): Promise<ProviderStatusResponseType> {
   return new Promise((resolve, reject) => {
     try {
       const url = hostUri.replace("https://", "").replace(":8443", ":8444"); // Use 8444 as default GRPC port for now, enventually get from on-chain data
 
-      const grpcClient = new (packageDef as any).akash.provider.v1.ProviderRPC(url, { deadline: Date.now() + timeout }, clientInsecureCreds);
+      const grpcClient = new (packageDef as any).akash.provider.v1.ProviderRPC(url, clientInsecureCreds); // TODO: Add deadline { deadline: Date.now() + timeout },
 
       grpcClient.getStatus({}, (err, response) => {
         console.log("err", err, "response", response);

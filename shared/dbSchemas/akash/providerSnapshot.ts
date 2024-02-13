@@ -16,8 +16,8 @@ export class ProviderSnapshot extends Model {
   @Required @Default(false) @Column isLastOfDay: boolean;
 
   // Stats
-  @Required @Column isOnline?: boolean;
-  @Required @Column checkDate?: Date;
+  @Required @Column isOnline: boolean;
+  @Required @Column checkDate: Date;
   @Column(DataTypes.TEXT) error?: string;
   @Column deploymentCount?: number;
   @Column leaseCount?: number;
