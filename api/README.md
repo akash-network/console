@@ -56,12 +56,9 @@ Here is a list of endpoints that have changed in this release. Old endpoints wil
 
 |Old|New|
 |-|-
-|`/predicted-block-date/<height>/<blockWindow>` | `/predicted-block-date/<height>?blockWindow=<blockWindow>`
-|`/predicted-date-height/<timestamp>/<blockWindow>` | `/predicted-date-height/<timestamp>?blockWindow=<blockWindow>`
-|`/getNetworkCapacity`|`/network-capacity`
-|`/marketData`|`/market-data`
 |`/dashboardData`|`/dashboard-data`
-|`getMainnetNodes`|`/nodes/mainnet`
+|`/getNetworkCapacity`|`/network-capacity`
+|`/getMainnetNodes`|`/nodes/mainnet`
 |`/getSandboxNodes`|`/nodes/sandbox`
 |`/getTestnetNodes`|`/nodes/testnet`
 |`/getProviderAttributesSchema`|`/provider-attributes-schema`
@@ -71,3 +68,7 @@ Here is a list of endpoints that have changed in this release. Old endpoints wil
 |`/getProviderGraphData/<dataName>`|`/provider-graph-data/<dataName>`
 |`/getProviderActiveLeasesGraphData/<address>`|`/provider-active-leases-graph-data/<address>`
 |`/getGraphData/<dataName>`|`/graph-data/<dataName>`
+|`/marketData`|`/market-data`
+|`/predicted-block-date/<height>/<blockWindow>` | `/predicted-block-date/<height>?blockWindow=<blockWindow>`
+|`/predicted-date-height/<timestamp>/<blockWindow>` | `/predicted-date-height/<timestamp>?blockWindow=<blockWindow>`
+|`/providers/<provider>/deployments/<skip>/<take>/<status>`|`/providers/<provider>/deployments/<skip>/<take>?status=<status>`
