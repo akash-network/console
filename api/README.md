@@ -34,7 +34,7 @@ Auth0Issuer|ex: `'https://auth.cloudmos.io/'`
 StripeSecretKey|ex: `sk_test_12aw315wdawd3...293d12d32df8jf`
 WebsiteUrl|`http://localhost:3001`
 
-## Changes from **beta** to **v1** (March 2024)
+## Changes from **beta** to **v1** (February 2024)
 
 ### Api Versioning
 
