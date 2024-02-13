@@ -33,16 +33,16 @@ export const BASE_API_MAINNET_URL = getApiMainnetUrl();
 export const BASE_API_TESTNET_URL = getApiTestnetUrl();
 export const BASE_API_SANDBOX_URL = getApiSandboxUrl();
 
-export const BASE_API_URL = getApiUrl();
+export const BASE_API_URL = getApiUrl() + "/v1";
 
 export function getNetworkBaseApiUrl(network: string) {
   switch (network) {
     case testnetId:
-      return BASE_API_TESTNET_URL;
+      return BASE_API_TESTNET_URL + "/v1";
     case sandboxId:
-      return BASE_API_SANDBOX_URL;
+      return BASE_API_SANDBOX_URL + "/v1";
     default:
-      return BASE_API_MAINNET_URL;
+      return BASE_API_MAINNET_URL + "/v1";
   }
 }
 
@@ -179,4 +179,3 @@ export const monacoOptions = {
 };
 
 export const txFeeBuffer = 10000; // 10000 uAKT
-

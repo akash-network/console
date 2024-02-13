@@ -52,6 +52,76 @@ const moduleExports = {
         source: "/deploy",
         destination: "/cloud-deploy",
         permanent: true
+      },
+      {
+        source: "/price-compare",
+        destination: "https://akash.network/about/pricing/custom/",
+        permanent: false
+      },
+      {
+        source: "/analytics",
+        destination: "https://stats.akash.network",
+        permanent: false
+      },
+      {
+        source: "/graph/active-deployment",
+        destination: "https://stats.akash.network/graph/active-leases",
+        permanent: false
+      },
+      {
+        source: "/graph/:path*",
+        destination: "https://stats.akash.network/graph/:path*",
+        permanent: false
+      },
+      {
+        source: "/validators",
+        destination: "https://stats.akash.network/validators",
+        permanent: false
+      },
+      {
+        source: "/validators/:address*",
+        destination: "https://stats.akash.network/validators/:address*",
+        permanent: false
+      },
+      {
+        source: "/addresses/:address*",
+        destination: "https://stats.akash.network/addresses/:address*",
+        permanent: false
+      },
+      {
+        source: "/addresses/:address/transactions",
+        destination: "https://stats.akash.network/addresses/:address/transactions",
+        permanent: false
+      },
+      {
+        source: "/addresses/:address/deployments",
+        destination: "https://stats.akash.network/addresses/:address/deployments",
+        permanent: false
+      },
+      {
+        source: "/deployment/:address/:dseq*",
+        destination: "https://stats.akash.network/addresses/:address/deployments/:dseq*",
+        permanent: false
+      },
+      {
+        source: "/blocks",
+        destination: "https://stats.akash.network/blocks",
+        permanent: false
+      },
+      {
+        source: "/blocks/:height*",
+        destination: "https://stats.akash.network/blocks/:height*",
+        permanent: false
+      },
+      {
+        source: "/transactions",
+        destination: "https://stats.akash.network/transactions",
+        permanent: false
+      },
+      {
+        source: "/transactions/:hash*",
+        destination: "https://stats.akash.network/transactions/:hash*",
+        permanent: false
       }
     ];
   }
@@ -76,4 +146,3 @@ const sentryWebpackPluginOptions = {
 // ensure that your source maps include changes from all other Webpack plugins
 module.exports = withBundleAnalyzer(withPWA(withSentryConfig(moduleExports, sentryWebpackPluginOptions)));
 // module.exports = moduleExports
-

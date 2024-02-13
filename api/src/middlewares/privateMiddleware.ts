@@ -1,11 +1,12 @@
 import { env } from "@src/utils/env";
+import { Context } from "hono";
 
-export function privateMiddleware(req, res, next) {
+export async function privateMiddleware(c: Context, next) {
   if (!env.SecretToken) {
-    next();
-  } else if (req.query.token === env.SecretToken) {
-    next();
+    await next();
+  } else if (c.req.query("token") === env.SecretToken) {
+    await next();
   } else {
-    res.status(401).send("Unauthorized");
+    return c.text("Unauthorized", 401);
   }
 }

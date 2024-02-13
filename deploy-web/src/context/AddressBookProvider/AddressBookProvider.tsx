@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAddressNames } from "@src/queries/useAddressNames";
-import { EditAddressBookmarkModal } from "@src/components/address/EditAddressBookmarkModal";
+import { EditAddressBookmarkModal } from "@src/context/AddressBookProvider/EditAddressBookmarkModal";
 
 type ContextType = {
   isLoading: boolean;
