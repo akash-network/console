@@ -1,10 +1,13 @@
 import https from "https";
 import axios from "axios";
+import semver from "semver";
 import { Provider } from "@shared/dbSchemas/akash";
 import { asyncify, eachLimit } from "async";
 import { ProviderSnapshot } from "@src/../../shared/dbSchemas/akash/providerSnapshot";
-import { toUTC } from "@src/shared/utils/date";
+import { fetchAndSaveProviderStats as grpcFetchAndSaveProviderStats } from "./statusEndpointHandlers/grpc";
+import { fetchAndSaveProviderStats as restFetchAndSaveProviderStats } from "./statusEndpointHandlers/rest";
 
+const IsGrpcEnpointEnabled = false;
 const ConcurrentStatusCall = 10;
 const StatusCallTimeout = 10_000; // 10 seconds
 
@@ -13,6 +16,7 @@ export async function syncProvidersInfo() {
     where: {
       deletedHeight: null
     },
+    include: [{ model: ProviderSnapshot, as: "lastSnapshot" }],
     order: [["isOnline", "DESC"]]
   });
 
@@ -26,69 +30,18 @@ export async function syncProvidersInfo() {
     ConcurrentStatusCall,
     asyncify(async (provider: Provider) => {
       try {
-        const response = await axios.get(provider.hostUri + "/status", {
+        const versionResponse = await axios.get<ProviderVersionEndpointResponseType>(provider.hostUri + "/version", {
           httpsAgent: httpsAgent,
           timeout: StatusCallTimeout
         });
+        
 
-        if (response.status !== 200) throw "Invalid response status: " + response.status;
-
-        const versionResponse = await axios.get(provider.hostUri + "/version", {
-          httpsAgent: httpsAgent,
-          timeout: StatusCallTimeout
-        });
-
-        const activeResources = sumResources(response.data.cluster.inventory.active);
-        const pendingResources = sumResources(response.data.cluster.inventory.pending);
-        const availableResources = sumResources(response.data.cluster.inventory.available);
-        const checkDate = toUTC(new Date());
-
-        await Provider.update(
-          {
-            isOnline: true,
-            error: null,
-            lastCheckDate: checkDate,
-            cosmosSdkVersion: versionResponse.data.akash.cosmosSdkVersion,
-            akashVersion: versionResponse.data.akash.version,
-            deploymentCount: response.data.manifest.deployments,
-            leaseCount: response.data.cluster.leases,
-            activeCPU: activeResources.cpu,
-            activeGPU: activeResources.gpu,
-            activeMemory: activeResources.memory,
-            activeStorage: activeResources.storage,
-            pendingCPU: pendingResources.cpu,
-            pendingGPU: pendingResources.gpu,
-            pendingMemory: pendingResources.memory,
-            pendingStorage: pendingResources.storage,
-            availableCPU: availableResources.cpu,
-            availableGPU: availableResources.gpu,
-            availableMemory: availableResources.memory,
-            availableStorage: availableResources.storage
-          },
-          {
-            where: { owner: provider.owner }
-          }
-        );
-
-        await ProviderSnapshot.create({
-          owner: provider.owner,
-          isOnline: true,
-          checkDate: checkDate,
-          deploymentCount: response.data.manifest.deployments,
-          leaseCount: response.data.cluster.leases,
-          activeCPU: activeResources.cpu,
-          activeGPU: activeResources.gpu,
-          activeMemory: activeResources.memory,
-          activeStorage: activeResources.storage,
-          pendingCPU: pendingResources.cpu,
-          pendingGPU: pendingResources.gpu,
-          pendingMemory: pendingResources.memory,
-          pendingStorage: pendingResources.storage,
-          availableCPU: availableResources.cpu,
-          availableGPU: availableResources.gpu,
-          availableMemory: availableResources.memory,
-          availableStorage: availableResources.storage
-        });
+        const versionStr = versionResponse.data.akash.version;
+        if (IsGrpcEnpointEnabled && versionStr && semver.gte(versionStr, "0.5.0")) {
+          await grpcFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
+        } else {
+          await restFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
+        }
       } catch (err) {
         const checkDate = new Date();
         const errorMessage = err?.message?.toString() ?? err?.toString();
@@ -136,40 +89,17 @@ export async function syncProvidersInfo() {
   console.log("Finished refreshing provider infos");
 }
 
-function getStorageFromResource(resource) {
-  return Object.keys(resource).includes("storage_ephemeral") ? resource.storage_ephemeral : resource.storage;
-}
-
-function getUnitValue(resource) {
-  return typeof resource === "number" ? resource : parseInt(resource.units.val);
-}
-
-function getByteValue(val) {
-  return typeof val === "number" ? val : parseInt(val.size.val);
-}
-
-function sumResources(resources) {
-  const resourcesArr = resources?.nodes || resources || [];
-
-  return resourcesArr
-    .map((x) => ({
-      cpu: getUnitValue(x.cpu),
-      gpu: x.gpu ? getUnitValue(x.gpu) : 0,
-      memory: getByteValue(x.memory),
-      storage: getByteValue(getStorageFromResource(x))
-    }))
-    .reduce(
-      (prev, next) => ({
-        cpu: prev.cpu + next.cpu,
-        gpu: prev.gpu + next.gpu,
-        memory: prev.memory + next.memory,
-        storage: prev.storage + next.storage
-      }),
-      {
-        cpu: 0,
-        gpu: 0,
-        memory: 0,
-        storage: 0
-      }
-    );
-}
+type ProviderVersionEndpointResponseType = {
+  akash: { version: string; commit: string; buildTags: string; go: string; cosmosSdkVersion: string };
+  kube: {
+    major: string;
+    minor: string;
+    gitVersion: string;
+    gitCommit: string;
+    gitTreeState: string;
+    buildDate: string;
+    goVersion: string;
+    compiler: string;
+    platform: string;
+  };
+};

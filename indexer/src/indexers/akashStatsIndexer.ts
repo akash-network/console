@@ -16,11 +16,15 @@ import {
   Lease,
   Provider,
   ProviderAttribute,
-  ProviderAttributeSignature
+  ProviderAttributeSignature,
+  ProviderSnapshot,
+  ProviderSnapshotNode,
+  ProviderSnapshotNodeCPU,
+  ProviderSnapshotNodeGPU
 } from "@shared/dbSchemas/akash";
 import { AkashBlock as Block, AkashMessage as Message } from "@shared/dbSchemas/akash";
-import { Op, Transaction as DbTransaction } from "sequelize";
-import { ProviderSnapshot } from "@src/../../shared/dbSchemas/akash/providerSnapshot";
+import { Op, Transaction as DbTransaction, QueryTypes } from "sequelize";
+import { sequelize } from "@src/db/dbConnection";
 
 class ITotalResources {
   count: number;
@@ -120,6 +124,9 @@ export class AkashStatsIndexer extends Indexer {
   async dropTables(): Promise<void> {
     await Bid.drop({ cascade: true });
     await Lease.drop({ cascade: true });
+    await ProviderSnapshotNodeCPU.drop({ cascade: true });
+    await ProviderSnapshotNodeGPU.drop({ cascade: true });
+    await ProviderSnapshotNode.drop({ cascade: true });
     await ProviderSnapshot.drop({ cascade: true });
     await ProviderAttributeSignature.drop({ cascade: true });
     await ProviderAttribute.drop({ cascade: true });
@@ -137,6 +144,9 @@ export class AkashStatsIndexer extends Indexer {
     await ProviderAttribute.sync({ force: false });
     await ProviderAttributeSignature.sync({ force: false });
     await ProviderSnapshot.sync({ force: false });
+    await ProviderSnapshotNode.sync({ force: false });
+    await ProviderSnapshotNodeCPU.sync({ force: false });
+    await ProviderSnapshotNodeGPU.sync({ force: false });
     await Lease.sync({ force: false });
     await Bid.sync({ force: false });
   }
