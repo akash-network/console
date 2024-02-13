@@ -58,10 +58,10 @@ export class ApiUrlService {
     return `${apiEndpoint}/cosmos/feegrant/v1beta1/allowances/${address}`;
   }
   static dashboardData() {
-    return `${BASE_API_URL}/dashboardData`;
+    return `${BASE_API_URL}/dashboard-data`;
   }
   static marketData() {
-    return `${BASE_API_URL}/marketData`;
+    return `${BASE_API_URL}/market-data`;
   }
   static proposals() {
     return `${BASE_API_URL}/proposals`;
@@ -85,44 +85,44 @@ export class ApiUrlService {
     return `${BASE_API_URL}/addresses/${address}/deployments/${skip}/${limit}${appendSearchParams({ reverseSorting, ...filters })}`;
   }
   static graphData(snapshot: string) {
-    return `${BASE_API_URL}/getGraphData/${snapshot}`;
+    return `${BASE_API_URL}/graph-data/${snapshot}`;
   }
   static providerGraphData(snapshot: string) {
-    return `${BASE_API_URL}/getProviderGraphData/${snapshot}`;
+    return `${BASE_API_URL}/provider-graph-data/${snapshot}`;
   }
   static blocks(limit: number) {
     return `${BASE_API_URL}/blocks${appendSearchParams({ limit })}`;
   }
   static providerActiveLeasesGraph(providerAddress: string) {
-    return `${BASE_API_URL}/getProviderActiveLeasesGraphData/${providerAddress}`;
+    return `${BASE_API_URL}/provider-active-leases-graph-data/${providerAddress}`;
   }
   static providerAttributesSchema() {
-    return `${BASE_API_URL}/getProviderAttributesSchema`;
+    return `${BASE_API_URL}/provider-attributes-schema`;
   }
   static networkCapacity() {
-    return `${BASE_API_URL}/getNetworkCapacity`;
+    return `${BASE_API_URL}/network-capacity`;
   }
   // Github
   static auditors() {
-    return `${BASE_API_URL}/getAuditors`;
+    return `${BASE_API_URL}/auditors`;
   }
   static mainnetNodes() {
-    return `${BASE_API_URL}/getMainnetNodes`;
+    return `${BASE_API_URL}/nodes/mainnet`;
   }
   static testnetNodes() {
-    return `${BASE_API_URL}/getTestnetNodes`;
+    return `${BASE_API_URL}/nodes/testnet`;
   }
   static sandboxNodes() {
-    return `${BASE_API_URL}/getSandboxNodes`;
+    return `${BASE_API_URL}/nodes/sandbox`;
   }
   static mainnetVersion() {
-    return `${BASE_API_URL}/getMainnetVersion`;
+    return `${BASE_API_URL}/version/mainnet`;
   }
   static testnetVersion() {
-    return `${BASE_API_URL}/getTestnetVersion`;
+    return `${BASE_API_URL}/version/testnet`;
   }
   static sandboxVersion() {
-    return `${BASE_API_URL}/getSandboxVersion`;
+    return `${BASE_API_URL}/version/sandbox`;
   }
 }
 

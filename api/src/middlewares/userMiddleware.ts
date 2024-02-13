@@ -1,28 +1,37 @@
 import { env } from "@src/utils/env";
-import { expressjwt as jwt, GetVerificationKey, Request as JWTRequest } from "express-jwt";
-import { expressJwtSecret } from "jwks-rsa";
+import { getPayloadFromContext, verifyRsaJwt } from "../verify-rsa-jwt-cloudflare-worker-main";
+import { Context } from "hono";
+import { cacheEngine } from "@src/caching/helpers";
 
-export { JWTRequest };
+export const kvStore = {
+  async get(key: string, format: string) {
+    const result = cacheEngine.getFromCache(key);
+    if (!result) {
+      return null;
+    } else if (format === "json") {
+      return JSON.parse(result);
+    } else {
+      return cacheEngine.getFromCache(key);
+    }
+  },
+  async put(key: string, value: any) {
+    cacheEngine.storeInCache(key, value);
+  }
+};
 
-const jwtSecret = expressJwtSecret({
-  cache: true,
-  rateLimit: true,
-  jwksRequestsPerMinute: 5,
-  jwksUri: env.Auth0JWKSUri
-}) as GetVerificationKey;
-
-export const optionalUserMiddleware = jwt({
-  secret: jwtSecret,
-  audience: env.Auth0Audience,
-  issuer: env.Auth0Issuer,
-  algorithms: ["RS256"],
-  credentialsRequired: false
+export const requiredUserMiddleware = verifyRsaJwt({
+  jwksUri: env.Auth0JWKSUri,
+  kvStore: kvStore,
+  verbose: true
 });
 
-export const requiredUserMiddleware = jwt({
-  secret: jwtSecret,
-  audience: env.Auth0Audience,
-  issuer: env.Auth0Issuer,
-  algorithms: ["RS256"],
-  credentialsRequired: true
+export const optionalUserMiddleware = verifyRsaJwt({
+  jwksUri: env.Auth0JWKSUri,
+  kvStore: kvStore,
+  optional: true
 });
+
+export function getCurrentUserId(c: Context) {
+  const claims = getPayloadFromContext(c);
+  return claims?.sub;
+}

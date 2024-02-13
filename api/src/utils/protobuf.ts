@@ -31,7 +31,7 @@ export function decodeMsg(type: string, msg: Uint8Array) {
   return msgType.decode(msg);
 }
 
-export function msgToJSON(type: string, msg) {
+export function msgToJSON(type: string, msg: Uint8Array) {
   const myRegistry = new Registry([...defaultRegistryTypes, ...akashTypes, ...missingTypes]);
 
   const msgType = myRegistry.lookupType(type);

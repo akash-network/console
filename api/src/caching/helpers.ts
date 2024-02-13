@@ -2,17 +2,17 @@ import { differenceInSeconds } from "date-fns";
 import MemoryCacheEngine from "./memoryCacheEngine";
 import * as Sentry from "@sentry/node";
 
-const cacheEngine = new MemoryCacheEngine();
-const pendingRequests: { [key: string]: Promise<any> } = {};
+export const cacheEngine = new MemoryCacheEngine();
+const pendingRequests: { [key: string]: Promise<unknown> } = {};
 
-interface CachedObject {
+interface CachedObject<T> {
   date: Date;
-  data: any;
+  data: T;
 }
 
-export const cacheResponse = async (seconds: number, key: string, refreshRequest: () => Promise<any>, keepData?: boolean): Promise<any> => {
+export async function cacheResponse<T>(seconds: number, key: string, refreshRequest: () => Promise<T>, keepData?: boolean): Promise<T> {
   const duration = seconds * 1000;
-  const cachedObject = cacheEngine.getFromCache(key) as CachedObject;
+  const cachedObject = cacheEngine.getFromCache(key) as CachedObject<T> | undefined;
 
   console.log(`Cache key: ${key}`);
 
@@ -40,9 +40,9 @@ export const cacheResponse = async (seconds: number, key: string, refreshRequest
     return cachedObject.data;
   } else {
     console.log(`Waiting for pending request: ${key}`);
-    return await pendingRequests[key];
+    return (await pendingRequests[key]) as T;
   }
-};
+}
 
 export const cacheKeys = {
   getProviderGraphData: "getProviderGraphData",
