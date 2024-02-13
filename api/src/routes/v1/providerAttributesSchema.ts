@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { getProviderAttributesSchema } from "@src/services/external/githubService";
 
-const attributeSChemaType = z.object({
+const attributeSchemaType = z.object({
   key: z.string(),
   type: z.enum(["string", "number", "boolean", "option", "multiple-option"]),
   required: z.boolean(),
@@ -28,33 +28,33 @@ const route = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            host: attributeSChemaType,
-            email: attributeSChemaType,
-            organization: attributeSChemaType,
-            website: attributeSChemaType,
-            tier: attributeSChemaType,
-            "status-page": attributeSChemaType,
-            "location-region": attributeSChemaType,
-            country: attributeSChemaType,
-            city: attributeSChemaType,
-            timezone: attributeSChemaType,
-            "location-type": attributeSChemaType,
-            "hosting-provider": attributeSChemaType,
-            "hardware-cpu": attributeSChemaType,
-            "hardware-cpu-arch": attributeSChemaType,
-            "hardware-gpu": attributeSChemaType,
-            "hardware-gpu-model": attributeSChemaType,
-            "hardware-disk": attributeSChemaType,
-            "hardware-memory": attributeSChemaType,
-            "network-provider": attributeSChemaType,
-            "network-speed-up": attributeSChemaType,
-            "network-speed-down": attributeSChemaType,
-            "feat-persistent-storage": attributeSChemaType,
-            "feat-persistent-storage-type": attributeSChemaType,
-            "workload-support-chia": attributeSChemaType,
-            "workload-support-chia-capabilities": attributeSChemaType,
-            "feat-endpoint-ip": attributeSChemaType,
-            "feat-endpoint-custom-domain": attributeSChemaType
+            host: attributeSchemaType,
+            email: attributeSchemaType,
+            organization: attributeSchemaType,
+            website: attributeSchemaType,
+            tier: attributeSchemaType,
+            "status-page": attributeSchemaType,
+            "location-region": attributeSchemaType,
+            country: attributeSchemaType,
+            city: attributeSchemaType,
+            timezone: attributeSchemaType,
+            "location-type": attributeSchemaType,
+            "hosting-provider": attributeSchemaType,
+            "hardware-cpu": attributeSchemaType,
+            "hardware-cpu-arch": attributeSchemaType,
+            "hardware-gpu": attributeSchemaType,
+            "hardware-gpu-model": attributeSchemaType,
+            "hardware-disk": attributeSchemaType,
+            "hardware-memory": attributeSchemaType,
+            "network-provider": attributeSchemaType,
+            "network-speed-up": attributeSchemaType,
+            "network-speed-down": attributeSchemaType,
+            "feat-persistent-storage": attributeSchemaType,
+            "feat-persistent-storage-type": attributeSchemaType,
+            "workload-support-chia": attributeSchemaType,
+            "workload-support-chia-capabilities": attributeSchemaType,
+            "feat-endpoint-ip": attributeSchemaType,
+            "feat-endpoint-custom-domain": attributeSchemaType
           })
         }
       }

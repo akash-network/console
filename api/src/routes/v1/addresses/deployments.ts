@@ -2,6 +2,8 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { getAddressDeployments } from "@src/services/external/apiNodeService";
 import { openApiExampleAddress } from "@src/utils/constants";
 
+const maxLimit = 100;
+
 const route = createRoute({
   method: "get",
   path: "/addresses/{address}/deployments/{skip}/{limit}",
@@ -19,7 +21,8 @@ const route = createRoute({
       }),
       limit: z.string().openapi({
         description: "Deployments to return",
-        example: "10"
+        example: "10",
+        maximum: maxLimit
       })
     }),
     query: z.object({
@@ -27,7 +30,6 @@ const route = createRoute({
         .string()
         .optional()
         .openapi({
-          param: { name: "status", in: "query" },
           description: "Filter by status", // TODO: Set possible statuses?
           example: "closed"
         }),
@@ -69,7 +71,7 @@ const route = createRoute({
 
 export default new OpenAPIHono().openapi(route, async (c) => {
   const skip = parseInt(c.req.valid("param").skip);
-  const limit = Math.min(100, parseInt(c.req.valid("param").limit));
+  const limit = Math.min(maxLimit, parseInt(c.req.valid("param").limit));
 
   // TODO Add param validation
 

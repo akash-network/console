@@ -2,9 +2,11 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { getProviderDeployments, getProviderDeploymentsCount } from "@src/services/db/deploymentService";
 import { openApiExampleProviderAddress } from "@src/utils/constants";
 
+const maxLimit = 100;
+
 const route = createRoute({
   method: "get",
-  path: "/providers/{provider}/deployments/{skip}/{limit}/{status}", // TODO: Put back status as optional,
+  path: "/providers/{provider}/deployments/{skip}/{limit}",
   summary: "Get a list of deployments for a provider.",
   tags: ["Providers", "Deployments"],
   request: {
@@ -19,12 +21,19 @@ const route = createRoute({
       }),
       limit: z.string().openapi({
         description: "Deployments to return",
-        example: "10"
-      }),
-      status: z.string().optional().openapi({
-        description: "Filter by status", // TODO: Set possible statuses?
-        example: "closed"
+        example: "10",
+        maximum: maxLimit
       })
+    }),
+    query: z.object({
+      status: z
+        .string()
+        .optional()
+        .openapi({
+          description: "Filter by status",
+          enum: ["active", "closed"],
+          example: "closed"
+        })
     })
   },
   responses: {
@@ -83,8 +92,8 @@ const route = createRoute({
 
 export default new OpenAPIHono().openapi(route, async (c) => {
   const skip = parseInt(c.req.valid("param").skip);
-  const limit = Math.min(100, parseInt(c.req.valid("param").limit));
-  const statusParam = c.req.valid("param").status as "active" | "closed" | undefined;
+  const limit = Math.min(maxLimit, parseInt(c.req.valid("param").limit));
+  const statusParam = c.req.query("status") as "active" | "closed" | undefined;
   // TODO: Validate skip/limit
   if (statusParam && statusParam !== "active" && statusParam !== "closed") {
     return c.text(`Invalid status filter: "${statusParam}". Valid values are "active" and "closed".`, 400);
