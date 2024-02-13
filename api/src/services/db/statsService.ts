@@ -1,5 +1,5 @@
 import { Day } from "@shared/dbSchemas/base";
-import { AkashBlock as Block } from "@shared/dbSchemas/akash";
+import { AkashBlock as Block, Provider } from "@shared/dbSchemas/akash";
 import { subHours } from "date-fns";
 import { Op, QueryTypes } from "sequelize";
 import { chainDb } from "@src/db/dbConnection";
@@ -160,16 +160,17 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
     async () => {
       return (await chainDb.query(
         `SELECT d."date", (SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU")) AS "cpu", (SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU")) AS "gpu", (SUM("activeMemory") + SUM("pendingMemory") + SUM("availableMemory")) AS memory, (SUM("activeStorage") + SUM("pendingStorage") + SUM("availableStorage")) as storage, COUNT(*) as count
-        FROM "day" d
-        INNER JOIN (
+         FROM "day" d
+         INNER JOIN (
             SELECT DISTINCT ON("hostUri",DATE("checkDate")) DATE("checkDate") AS date, ps."activeCPU", ps."pendingCPU", ps."availableCPU", ps."activeGPU", ps."pendingGPU", ps."availableGPU", ps."activeMemory", ps."pendingMemory", ps."availableMemory", ps."activeStorage", ps."pendingStorage", ps."availableStorage", ps."isOnline"
-                        FROM "providerSnapshot" ps
-                        INNER JOIN "provider" ON "provider"."owner"=ps."owner"
-                        ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
-            ) "dailyProviderStats"
-        ON d."date"="dailyProviderStats"."date" AND "isOnline" IS TRUE
-        GROUP BY d."date"
-        ORDER BY d."date" ASC`,
+            FROM "providerSnapshot" ps
+            INNER JOIN "provider" ON "provider"."owner"=ps."owner"
+            WHERE ps."isLastOfDay" = TRUE AND ps."isOnline" = TRUE
+            ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
+         ) "dailyProviderStats"
+         ON DATE(d."date")="dailyProviderStats"."date"
+         GROUP BY d."date"
+         ORDER BY d."date" ASC`,
         {
           type: QueryTypes.SELECT
         }

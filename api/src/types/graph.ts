@@ -1,4 +1,4 @@
-export type ProviderStatsKey = "count" | "cpu" | "gpu" | "memory" | "storage";
+export type ProviderStatsKey = keyof Omit<ProviderStats, "date">;
 
 export type ProviderStats = {
   date: string;
