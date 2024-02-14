@@ -16,7 +16,7 @@ ALTER TABLE IF EXISTS public.provider
 -- Set lastSnapshotId to the most recent snapshot for each providers
 UPDATE "provider" p SET "lastSnapshotId" = (
 	SELECT ps.id FROM "providerSnapshot" ps WHERE ps."owner" = p."owner" ORDER BY "checkDate" DESC LIMIT 1
-)
+);
 
 -- Update ProviderSnapshot schemas
 ALTER TABLE IF EXISTS public."providerSnapshot"
