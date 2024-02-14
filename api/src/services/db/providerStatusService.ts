@@ -93,6 +93,9 @@ export const getProviderDetail = async (address: string): Promise<ProviderDetail
       }
     ]
   });
+
+  if (!provider) return null;
+
   const providerAttributeSchemaQuery = getProviderAttributesSchema();
   const auditorsQuery = getAuditors();
 

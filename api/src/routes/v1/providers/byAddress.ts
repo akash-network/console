@@ -105,6 +105,9 @@ const route = createRoute({
         }
       }
     },
+    404: {
+      description: "Provider not found"
+    },
     400: {
       description: "Invalid address"
     }
@@ -117,5 +120,10 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   }
 
   const provider = await getProviderDetail(c.req.valid("param").address);
+
+  if (!provider) {
+    return c.text("Provider not found.", 404);
+  }
+
   return c.json(provider);
 });
