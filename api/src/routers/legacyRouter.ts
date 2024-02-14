@@ -116,8 +116,8 @@ legacyRouter.get("/dashboardData", async (c) => {
   return c.redirect("/v1/dashboard-data", redirectStatusCode);
 });
 
-legacyRouter.get("/pricing", async (c) => {
-  return c.redirect("/v1/pricing", redirectStatusCode);
+legacyRouter.post("/pricing", async (c) => {
+  return c.redirect("/v1/pricing", 307);
 });
 
 legacyRouter.get("/getAuditors", async (c) => {
