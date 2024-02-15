@@ -3,6 +3,7 @@ import axios from "axios";
 import { appendSearchParams } from "./urlUtils";
 
 export class ApiUrlService {
+  static BASE_API_URL = `${BASE_API_URL}/v1`;
   static deploymentList(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/akash/deployment/${networkVersion}/deployments/list?filters.owner=${address}`;
   }
@@ -19,13 +20,13 @@ export class ApiUrlService {
     return `${apiEndpoint}/akash/provider/${networkVersion}/providers`;
   }
   static providerList() {
-    return `${BASE_API_URL}/providers`;
+    return `${this.BASE_API_URL}/providers`;
   }
   static providerDetail(owner: string) {
-    return `${BASE_API_URL}/providers/${owner}`;
+    return `${this.BASE_API_URL}/providers/${owner}`;
   }
   static providerRegions() {
-    return `${BASE_API_URL}/provider-regions`;
+    return `${this.BASE_API_URL}/provider-regions`;
   }
   static block(apiEndpoint: string, id: string) {
     return `${apiEndpoint}/blocks/${id}`;
@@ -58,71 +59,71 @@ export class ApiUrlService {
     return `${apiEndpoint}/cosmos/feegrant/v1beta1/allowances/${address}`;
   }
   static dashboardData() {
-    return `${BASE_API_URL}/dashboard-data`;
+    return `${this.BASE_API_URL}/dashboard-data`;
   }
   static marketData() {
-    return `${BASE_API_URL}/market-data`;
+    return `${this.BASE_API_URL}/market-data`;
   }
   static proposals() {
-    return `${BASE_API_URL}/proposals`;
+    return `${this.BASE_API_URL}/proposals`;
   }
   static apiProviders() {
-    return `${BASE_API_URL}/providers`;
+    return `${this.BASE_API_URL}/providers`;
   }
   static templates() {
-    return `${BASE_API_URL}/templates`;
+    return `${this.BASE_API_URL}/templates`;
   }
   static validators() {
-    return `${BASE_API_URL}/validators`;
+    return `${this.BASE_API_URL}/validators`;
   }
   static transactions(limit: number) {
-    return `${BASE_API_URL}/transactions${appendSearchParams({ limit })}`;
+    return `${this.BASE_API_URL}/transactions${appendSearchParams({ limit })}`;
   }
   static addressTransactions(address: string, skip: number, limit: number) {
-    return `${BASE_API_URL}/addresses/${address}/transactions/${skip}/${limit}`;
+    return `${this.BASE_API_URL}/addresses/${address}/transactions/${skip}/${limit}`;
   }
   static addressDeployments(address: string, skip: number, limit: number, reverseSorting: boolean, filters: { [key: string]: string }) {
-    return `${BASE_API_URL}/addresses/${address}/deployments/${skip}/${limit}${appendSearchParams({ reverseSorting, ...filters })}`;
+    return `${this.BASE_API_URL}/addresses/${address}/deployments/${skip}/${limit}${appendSearchParams({ reverseSorting, ...filters })}`;
   }
   static graphData(snapshot: string) {
-    return `${BASE_API_URL}/graph-data/${snapshot}`;
+    return `${this.BASE_API_URL}/graph-data/${snapshot}`;
   }
   static providerGraphData(snapshot: string) {
-    return `${BASE_API_URL}/provider-graph-data/${snapshot}`;
+    return `${this.BASE_API_URL}/provider-graph-data/${snapshot}`;
   }
   static blocks(limit: number) {
-    return `${BASE_API_URL}/blocks${appendSearchParams({ limit })}`;
+    return `${this.BASE_API_URL}/blocks${appendSearchParams({ limit })}`;
   }
   static providerActiveLeasesGraph(providerAddress: string) {
-    return `${BASE_API_URL}/provider-active-leases-graph-data/${providerAddress}`;
+    return `${this.BASE_API_URL}/provider-active-leases-graph-data/${providerAddress}`;
   }
   static providerAttributesSchema() {
-    return `${BASE_API_URL}/provider-attributes-schema`;
+    return `${this.BASE_API_URL}/provider-attributes-schema`;
   }
   static networkCapacity() {
-    return `${BASE_API_URL}/network-capacity`;
+    return `${this.BASE_API_URL}/network-capacity`;
   }
   // Github
   static auditors() {
-    return `${BASE_API_URL}/auditors`;
+    return `${this.BASE_API_URL}/auditors`;
   }
   static mainnetNodes() {
-    return `${BASE_API_URL}/nodes/mainnet`;
+    return `${this.BASE_API_URL}/nodes/mainnet`;
   }
   static testnetNodes() {
-    return `${BASE_API_URL}/nodes/testnet`;
+    return `${this.BASE_API_URL}/nodes/testnet`;
   }
   static sandboxNodes() {
-    return `${BASE_API_URL}/nodes/sandbox`;
+    return `${this.BASE_API_URL}/nodes/sandbox`;
   }
   static mainnetVersion() {
-    return `${BASE_API_URL}/version/mainnet`;
+    return `${this.BASE_API_URL}/version/mainnet`;
   }
   static testnetVersion() {
-    return `${BASE_API_URL}/version/testnet`;
+    return `${this.BASE_API_URL}/version/testnet`;
   }
   static sandboxVersion() {
-    return `${BASE_API_URL}/version/sandbox`;
+    return `${this.BASE_API_URL}/version/sandbox`;
   }
 }
 

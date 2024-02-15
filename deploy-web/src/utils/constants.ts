@@ -38,11 +38,11 @@ export const BASE_API_URL = getApiUrl();
 export function getNetworkBaseApiUrl(network: string) {
   switch (network) {
     case testnetId:
-      return BASE_API_TESTNET_URL + "/v1";
+      return BASE_API_TESTNET_URL;
     case sandboxId:
-      return BASE_API_SANDBOX_URL + "/v1";
+      return BASE_API_SANDBOX_URL;
     default:
-      return BASE_API_MAINNET_URL + "/v1";
+      return BASE_API_MAINNET_URL;
   }
 }
 
