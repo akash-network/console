@@ -242,7 +242,7 @@ export default ProviderDetailPage;
 
 export async function getServerSideProps({ params, query }) {
   const apiUrl = getNetworkBaseApiUrl(query.network as string);
-  const response = await axios.get(`${apiUrl}/providers/${params?.owner}`);
+  const response = await axios.get(`${apiUrl}/v1/providers/${params?.owner}`);
 
   return {
     props: {
