@@ -26,21 +26,14 @@ const route = createRoute({
       })
     }),
     query: z.object({
-      status: z
-        .string()
-        .optional()
-        .openapi({
-          description: "Filter by status", // TODO: Set possible statuses?
-          example: "closed"
-        }),
-      reverseSorting: z
-        .string()
-        .optional()
-        .openapi({
-          param: { name: "reverseSorting", in: "query" },
-          description: "Reverse sorting",
-          example: "true"
-        })
+      status: z.string().optional().openapi({
+        description: "Filter by status", // TODO: Set possible statuses?
+        example: "closed"
+      }),
+      reverseSorting: z.string().optional().openapi({
+        description: "Reverse sorting",
+        example: "true"
+      })
     })
   },
   responses: {
