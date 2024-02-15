@@ -54,7 +54,22 @@ legacyRouter.get("/addresses/:address/deployments/:skip/:limit", async (c) => {
   const address = c.req.param("address");
   const skip = c.req.param("skip");
   const limit = c.req.param("limit");
-  return c.redirect(`/v1/addresses/${address}/deployments/${skip}/${limit}`, redirectStatusCode);
+  const status = c.req.query("status");
+  const reverseSorting = c.req.query("reverseSorting");
+
+  const urlParams = new URLSearchParams("");
+
+  if (status) {
+    urlParams.append("status", status);
+  }
+
+  if (reverseSorting) {
+    urlParams.append("reverseSorting", reverseSorting);
+  }
+
+  const q = urlParams.toString();
+
+  return c.redirect(`/v1/addresses/${address}/deployments/${skip}/${limit}${q ? "?" + q : ""}`, redirectStatusCode);
 });
 
 legacyRouter.get("/providers/:address", async (c) => {
