@@ -1,5 +1,5 @@
-import { Alert, Box, Button, CircularProgress, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Typography, useTheme } from "@mui/material";
-import { useForm, Controller } from "react-hook-form";
+import { Alert, Box, Button, CircularProgress, Grid, Paper, Typography } from "@mui/material";
+import { useForm } from "react-hook-form";
 import { useEffect, useRef, useState } from "react";
 import { ApiTemplate, RentGpusFormValues, Service } from "@src/types";
 import { defaultAnyRegion, defaultRentGpuService } from "@src/utils/sdl/data";
@@ -7,14 +7,13 @@ import { useRouter } from "next/router";
 import sdlStore from "@src/store/sdlStore";
 import { useAtom } from "jotai";
 import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
-import { makeStyles } from "tss-react/mui";
-import { useSdlDenoms } from "@src/hooks/useDenom";
 import { RegionSelect } from "./RegionSelect";
 import { AdvancedConfig } from "./AdvancedConfig";
 import { GpuFormControl } from "./GpuFormControl";
 import { CpuFormControl } from "./CpuFormControl";
 import { MemoryFormControl } from "./MemoryFormControl";
 import { StorageFormControl } from "./StorageFormControl";
+import { TokenFormControl } from "./TokenFormControl";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { UrlService, handleDocClick } from "@src/utils/urlUtils";
 import { RouteStepKeys, defaultInitialDeposit } from "@src/utils/constants";
@@ -41,15 +40,7 @@ const yaml = require("js-yaml");
 
 type Props = {};
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  }
-}));
-
 export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
-  const theme = useTheme();
-  const { classes } = useStyles();
   const [error, setError] = useState(null);
   // const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
@@ -65,9 +56,8 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
       region: { ...defaultAnyRegion }
     }
   });
-  const { services: _services, region: _region } = watch();
+  const { services: _services } = watch();
   const router = useRouter();
-  const supportedSdlDenoms = useSdlDenoms();
   const currentService: Service = _services[0] || ({} as any);
   const { settings } = useSettings();
   const { address, signAndBroadcastTx } = useWallet();
@@ -273,36 +263,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
               <RegionSelect control={control} />
             </Grid>
             <Grid item xs={6}>
-              <FormControl className={classes.formControl} fullWidth sx={{ display: "flex", alignItems: "center", flexDirection: "row" }}>
-                <InputLabel id="grant-token">Token</InputLabel>
-                <Controller
-                  control={control}
-                  name={`services.0.placement.pricing.denom`}
-                  defaultValue=""
-                  rules={{
-                    required: true
-                  }}
-                  render={({ fieldState, field }) => {
-                    return (
-                      <Select
-                        {...field}
-                        labelId="sdl-token"
-                        label="Token"
-                        size="small"
-                        error={!!fieldState.error}
-                        fullWidth
-                        MenuProps={{ disableScrollLock: true }}
-                      >
-                        {supportedSdlDenoms.map(token => (
-                          <MenuItem key={token.id} value={token.value}>
-                            {token.tokenLabel}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    );
-                  }}
-                />
-              </FormControl>
+              <TokenFormControl control={control} name="services.0.placement.pricing.denom" />
             </Grid>
           </Grid>
         </Paper>
