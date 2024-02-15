@@ -1,14 +1,17 @@
+"use client";
 import { ReactNode } from "react";
-import { makeStyles } from "tss-react/mui";
-import { Box, FormControl, FormHelperText, MenuItem, Select, Slider, TextField, Typography, useTheme } from "@mui/material";
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import InfoIcon from "@mui/icons-material/Info";
 import { FormPaper } from "./FormPaper";
 import { Control, Controller } from "react-hook-form";
-import { cx } from "@emotion/css";
 import { validationConfig, storageUnits } from "../shared/akash/units";
-import StorageIcon from "@mui/icons-material/Storage";
+import { cn } from "@src/utils/styleUtils";
+import { FormControl, FormDescription } from "../ui/form";
+import { Slider } from "../ui/slider";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Input } from "../ui/input";
+import { MdStorage } from "react-icons/md";
+import { InfoCircle } from "iconoir-react";
 
 type Props = {
   serviceIndex: number;
@@ -17,19 +20,16 @@ type Props = {
   currentService: Service;
 };
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   formControl: {
+//     marginBottom: theme.spacing(1.5)
+//   },
+//   textField: {
+//     width: "100%"
+//   }
+// }));
 
 export const StorageFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, currentService }) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
-
   return (
     <Controller
       control={control}
@@ -38,7 +38,7 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
           if (!v) return "Storage amount is required.";
 
           const currentUnit = storageUnits.find(u => currentService.profile.storageUnit === u.suffix);
-          const _value = (v || 0) * currentUnit.value;
+          const _value = (v || 0) * (currentUnit?.value || 0);
 
           if (currentService.count * _value < validationConfig.minStorage) {
             return "Minimum amount of storage for a single service instance is 5 Mi.";
@@ -51,26 +51,29 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
       }}
       name={`services.${serviceIndex}.profile.storage`}
       render={({ field, fieldState }) => (
-        <FormPaper elevation={1} sx={{ padding: ".5rem 1rem", borderBottom: !!fieldState.error && `1px solid ${theme.palette.error.main}` }}>
+        <FormPaper
+          className={cn("px-2 py-4", { ["border-b border-red-500"]: !!fieldState.error })}
+          // sx={{ padding: ".5rem 1rem", borderBottom: !!fieldState.error && `1px solid ${theme.palette.error.main}` }}
+        >
           <FormControl
-            className={cx(classes.formControl, classes.textField)}
-            variant="standard"
-            sx={{ marginBottom: "0 !important" }}
-            error={!!fieldState.error}
+          // className={cx(classes.formControl, classes.textField)}
+          // variant="standard"
+          // sx={{ marginBottom: "0 !important" }}
+          // error={!!fieldState.error}
           >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: { xs: "flex-start", sm: "center" },
-                flexDirection: { xs: "column", sm: "row" }
-              }}
+            <div
+              className="flex flex-col items-start sm:flex-row sm:items-center"
+              // sx={{
+              //   display: "flex",
+              //   alignItems: { xs: "flex-start", sm: "center" },
+              //   flexDirection: { xs: "column", sm: "row" }
+              // }}
             >
-              <Typography variant="body2" sx={{ display: "flex", alignItems: "center" }}>
-                <StorageIcon sx={{ color: theme.palette.grey[600], marginRight: ".5rem" }} fontSize="medium" />
+              <div className="flex items-center">
+                <MdStorage className="mr-2 text-muted-foreground" />
                 <strong>Ephemeral Storage</strong>
 
                 <CustomTooltip
-                  arrow
                   title={
                     <>
                       The amount of ephemeral disk storage required for this workload.
@@ -86,21 +89,27 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
                     </>
                   }
                 >
-                  <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+                  <InfoCircle className="ml-4 text-sm text-muted-foreground" />
                 </CustomTooltip>
-              </Typography>
+              </div>
 
-              <Box sx={{ marginTop: { xs: ".5rem", sm: 0 }, marginLeft: { xs: 0, sm: "1rem" } }}>
-                <TextField
+              <div
+                className="mt-2 sm:ml-4 sm:mt-0"
+                // sx={{ marginTop: { xs: ".5rem", sm: 0 }, marginLeft: { xs: 0, sm: "1rem" } }}
+              >
+                <Input
                   type="number"
-                  variant="outlined"
+                  // variant="outlined"
                   color="secondary"
                   value={field.value || ""}
-                  error={!!fieldState.error}
+                  // error={!!fieldState.error}
                   onChange={event => field.onChange(parseFloat(event.target.value))}
-                  inputProps={{ min: 1, step: 1 }}
-                  size="small"
-                  sx={{ width: "100px" }}
+                  min={1}
+                  step={1}
+                  // inputProps={{ min: 1, step: 1 }}
+                  // size="small"
+                  className="w-[100px]"
+                  // sx={{ width: "100px" }}
                 />
 
                 <Controller
@@ -109,37 +118,53 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
                   rules={{ required: "Storage unit is required." }}
                   defaultValue=""
                   render={({ field }) => (
-                    <Select
-                      value={field.value || ""}
-                      onChange={field.onChange}
-                      variant="outlined"
-                      size="small"
-                      sx={{ width: "75px", marginLeft: ".25rem" }}
-                      MenuProps={{ disableScrollLock: true }}
-                    >
-                      {storageUnits.map(u => (
-                        <MenuItem key={u.id} value={u.suffix}>
-                          {u.suffix}
-                        </MenuItem>
-                      ))}
+                    <Select value={field.value || ""} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select unit" className="ml-1 w-[75px]" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {storageUnits.map(t => {
+                            return (
+                              <SelectItem key={t.id} value={t.suffix}>
+                                {t.suffix}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectGroup>
+                      </SelectContent>
                     </Select>
+                    // <Select
+                    //   value={field.value || ""}
+                    //   onChange={field.onChange}
+                    //   variant="outlined"
+                    //   size="small"
+                    //   sx={{ width: "75px", marginLeft: ".25rem" }}
+                    //   MenuProps={{ disableScrollLock: true }}
+                    // >
+                    //   {storageUnits.map(u => (
+                    //     <MenuItem key={u.id} value={u.suffix}>
+                    //       {u.suffix}
+                    //     </MenuItem>
+                    //   ))}
+                    // </Select>
                   )}
                 />
-              </Box>
-            </Box>
+              </div>
+            </div>
 
             <Slider
-              value={field.value || 0}
+              value={[field.value || 0]}
               min={1}
               max={512}
               step={1}
               color="secondary"
               aria-label="Storage"
-              valueLabelDisplay="auto"
-              onChange={(event, newValue) => field.onChange(newValue)}
+              // valueLabelDisplay="auto"
+              onValueChange={newValue => field.onChange(newValue)}
             />
 
-            {!!fieldState.error && <FormHelperText>{fieldState.error.message}</FormHelperText>}
+            {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}
           </FormControl>
         </FormPaper>
       )}

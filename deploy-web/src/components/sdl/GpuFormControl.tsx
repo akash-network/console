@@ -1,33 +1,20 @@
+"use client";
 import { ReactNode } from "react";
-import { makeStyles } from "tss-react/mui";
-import {
-  Box,
-  Button,
-  Checkbox,
-  CircularProgress,
-  FormControl,
-  FormHelperText,
-  Grid,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
-  Slider,
-  TextField,
-  Typography,
-  useTheme
-} from "@mui/material";
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import InfoIcon from "@mui/icons-material/Info";
 import { FormPaper } from "./FormPaper";
-import { Control, Controller, UseFormSetValue, useFieldArray } from "react-hook-form";
-import SpeedIcon from "@mui/icons-material/Speed";
+import { Control, Controller, useFieldArray } from "react-hook-form";
 import { gpuVendors } from "../shared/akash/gpu";
 import { validationConfig } from "../shared/akash/units";
-import { GpuVendor } from "@src/types/gpu";
-import DeleteIcon from "@mui/icons-material/Delete";
-import ClearIcon from "@mui/icons-material/Clear";
+import { cn } from "@src/utils/styleUtils";
+import { FormControl, FormDescription } from "../ui/form";
+import { Slider } from "../ui/slider";
+import Spinner from "../shared/Spinner";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Input } from "../ui/input";
+import { Checkbox } from "../ui/checkbox";
+import { InfoCircle } from "iconoir-react";
+import { MdSpeed } from "react-icons/md";
 
 type Props = {
   serviceIndex: number;
@@ -148,7 +135,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                     />
                   </Box>
                 )}
-              </Box>
+              </div>
 
               {hasGpu && (
                 <Slider

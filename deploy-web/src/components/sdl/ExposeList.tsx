@@ -1,10 +1,10 @@
+"use client";
 import { Dispatch, ReactNode, SetStateAction } from "react";
-import { makeStyles } from "tss-react/mui";
-import { Box, Typography } from "@mui/material";
 import { Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import InfoIcon from "@mui/icons-material/Info";
 import { FormPaper } from "./FormPaper";
+import { InfoCircle } from "iconoir-react";
+import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   currentService: Service;
@@ -13,31 +13,28 @@ type Props = {
   setIsEditingExpose: Dispatch<SetStateAction<boolean | number>>;
 };
 
-const useStyles = makeStyles()(theme => ({
-  editLink: {
-    color: theme.palette.secondary.light,
-    textDecoration: "underline",
-    cursor: "pointer",
-    fontWeight: "normal",
-    fontSize: ".8rem"
-  },
-  formValue: {
-    color: theme.palette.grey[500]
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   editLink: {
+//     color: theme.palette.secondary.light,
+//     textDecoration: "underline",
+//     cursor: "pointer",
+//     fontWeight: "normal",
+//     fontSize: ".8rem"
+//   },
+//   formValue: {
+//     color: theme.palette.grey[500]
+//   }
+// }));
 
 export const ExposeList: React.FunctionComponent<Props> = ({ currentService, setIsEditingExpose, serviceIndex }) => {
-  const { classes } = useStyles();
-
   return (
-    <FormPaper elevation={1} sx={{ padding: ".5rem 1rem" }}>
-      <Box sx={{ display: "flex", alignItems: "center", marginBottom: ".5rem" }}>
-        <Typography variant="body1">
+    <FormPaper className="px-4 py-2">
+      <div className="mb-2 flex items-center">
+        <p>
           <strong>Expose</strong>
-        </Typography>
+        </p>
 
         <CustomTooltip
-          arrow
           title={
             <>
               Expose is a list of port settings describing what can connect to the service.
@@ -49,50 +46,56 @@ export const ExposeList: React.FunctionComponent<Props> = ({ currentService, set
             </>
           }
         >
-          <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+          <InfoCircle className="ml-4 text-sm text-muted-foreground" />
         </CustomTooltip>
 
-        <Box
-          component="span"
-          sx={{ marginLeft: "1rem" }}
-          className={classes.editLink}
+        <span
+          className="ml-4 cursor-pointer text-sm font-normal text-primary-foreground underline"
           onClick={() => setIsEditingExpose(serviceIndex !== undefined ? serviceIndex : true)}
         >
           Edit
-        </Box>
-      </Box>
+        </span>
+      </div>
 
       {currentService.expose?.map((exp, i) => (
-        <Box key={i} sx={{ fontSize: ".75rem", marginBottom: i + 1 === currentService.expose.length ? 0 : ".5rem" }}>
+        <div
+          key={i}
+          className={cn("text-xs", { ["mb-2"]: i + 1 !== currentService.expose.length })}
+          // sx={{ fontSize: ".75rem", marginBottom: i + 1 === currentService.expose.length ? 0 : ".5rem" }}
+        >
           <div>
             <strong>Port</strong>&nbsp;&nbsp;
-            <span className={classes.formValue}>
+            <span className="text-muted-foreground">
               {exp.port} : {exp.as} ({exp.proto})
             </span>
           </div>
           <div>
             <strong>Global</strong>&nbsp;&nbsp;
-            <span className={classes.formValue}>{exp.global ? "True" : "False"}</span>
+            <span className="text-muted-foreground">{exp.global ? "True" : "False"}</span>
           </div>
           {exp.ipName && (
             <div>
               <strong>IP Name</strong>&nbsp;&nbsp;
-              <span className={classes.formValue}>{exp.ipName}</span>
+              <span className="text-muted-foreground">{exp.ipName}</span>
             </div>
           )}
           <div>
             <strong>Accept</strong>&nbsp;&nbsp;
-            <span className={classes.formValue}>
-              {exp.accept?.length > 0
+            <span className="text-muted-foreground">
+              {(exp.accept?.length || 0) > 0
                 ? exp.accept?.map((a, i) => (
-                    <Box key={i} component="span" sx={{ marginLeft: i === 0 ? 0 : ".5rem" }}>
+                    <span
+                      key={i}
+                      className={cn({ ["ml-2"]: i !== 0 })}
+                      // sx={{ marginLeft: i === 0 ? 0 : ".5rem" }}
+                    >
                       {a.value}
-                    </Box>
+                    </span>
                   ))
                 : "None"}
             </span>
           </div>
-        </Box>
+        </div>
       ))}
     </FormPaper>
   );

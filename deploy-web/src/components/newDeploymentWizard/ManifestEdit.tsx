@@ -2,7 +2,7 @@
 import { useState, useEffect, Dispatch, useRef } from "react";
 import { useSettings } from "../../context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { Timer } from "@src/utils/timer";
 import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
