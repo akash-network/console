@@ -4,35 +4,12 @@ import { DataTableColumnHeader } from "@/components/table/data-table-column-head
 import { UrlService } from "@/lib/urlUtils";
 import { AccessorColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { getSplitText } from "@/hooks/useShortText";
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
 import { AKTAmount } from "@/components/AKTAmount";
 import { FormattedRelativeTime } from "react-intl";
-
-export const transactionRowSchema = z.object({
-  hash: z.string(),
-  messages: z.array(
-    z.object({
-      id: z.string(),
-      type: z.string(),
-      data: z.any().optional(),
-      isReceiver: z.boolean().optional(),
-      amount: z.number().optional()
-    })
-  ),
-  height: z.number(),
-  datetime: z.string(),
-  isSuccess: z.boolean(),
-  error: z.string(),
-  gasUsed: z.number(),
-  gasWanted: z.number(),
-  fee: z.number(),
-  memo: z.string()
-});
-
-export type TransactionRowType = z.infer<typeof transactionRowSchema>;
+import { TransactionRowType } from "@/lib/zod/transactionRow";
 
 export const columns: AccessorColumnDef<TransactionRowType>[] = [
   {
