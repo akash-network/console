@@ -338,7 +338,7 @@ export function useWallet() {
 
 const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
   const theme = useTheme();
-  const txUrl = transactionHash && UrlService.transaction(transactionHash);
+  const txUrl = transactionHash && `https://stats.akash.network/transactions/${transactionHash}`;
 
   return (
     <>
@@ -355,4 +355,3 @@ const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
     </>
   );
 };
-
