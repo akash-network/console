@@ -4,24 +4,12 @@ import { DataTableColumnHeader } from "@/components/table/data-table-column-head
 import { UrlService } from "@/lib/urlUtils";
 import { AccessorColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { z } from "zod";
 import { statuses } from "./data";
 import { Badge } from "@/components/ui/badge";
 import { LeaseSpecDetail } from "@/components/LeaseSpecDetail";
 import { roundDecimal } from "@/lib/mathHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
-
-export const deploymentRowSchema = z.object({
-  dseq: z.string(),
-  owner: z.string(),
-  status: z.string(),
-  createdHeight: z.number(),
-  cpuUnits: z.number(),
-  gpuUnits: z.number(),
-  memoryQuantity: z.number(),
-  storageQuantity: z.number()
-});
-export type DeploymentRowType = z.infer<typeof deploymentRowSchema>;
+import { DeploymentRowType } from "@/lib/zod/deploymentRow";
 
 export const columns: AccessorColumnDef<DeploymentRowType>[] = [
   {
