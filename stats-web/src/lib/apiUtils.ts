@@ -4,50 +4,50 @@ import { appendSearchParams } from "./urlUtils";
 
 export class ApiUrlService {
   static dashboardData() {
-    return `${BASE_API_URL}/dashboardData`;
+    return `${BASE_API_URL}/v1/dashboard-data`;
   }
   static marketData() {
-    return `${BASE_API_URL}/marketData`;
+    return `${BASE_API_URL}/v1/market-data`;
   }
   static proposals() {
-    return `${BASE_API_URL}/proposals`;
+    return `${BASE_API_URL}/v1/proposals`;
   }
   static validators() {
-    return `${BASE_API_URL}/validators`;
+    return `${BASE_API_URL}/v1/validators`;
   }
   static transactions(limit: number) {
-    return `${BASE_API_URL}/transactions${appendSearchParams({ limit })}`;
+    return `${BASE_API_URL}/v1/transactions${appendSearchParams({ limit })}`;
   }
   static addressTransactions(address: string, skip: number, limit: number) {
-    return `${BASE_API_URL}/addresses/${address}/transactions/${skip}/${limit}`;
+    return `${BASE_API_URL}/v1/addresses/${address}/transactions/${skip}/${limit}`;
   }
   static addressDeployments(address: string, skip: number, limit: number, reverseSorting: boolean, filters: { [key: string]: string }) {
-    return `${BASE_API_URL}/addresses/${address}/deployments/${skip}/${limit}${appendSearchParams({ reverseSorting, ...filters })}`;
+    return `${BASE_API_URL}/v1/addresses/${address}/deployments/${skip}/${limit}${appendSearchParams({ reverseSorting, ...filters })}`;
   }
   static graphData(snapshot: string) {
-    return `${BASE_API_URL}/getGraphData/${snapshot}`;
+    return `${BASE_API_URL}/v1/graph-data/${snapshot}`;
   }
   static providerGraphData(snapshot: string) {
-    return `${BASE_API_URL}/getProviderGraphData/${snapshot}`;
+    return `${BASE_API_URL}/v1/provider-graph-data/${snapshot}`;
   }
   static blocks(limit: number) {
-    return `${BASE_API_URL}/blocks${appendSearchParams({ limit })}`;
+    return `${BASE_API_URL}/v1/blocks${appendSearchParams({ limit })}`;
   }
   static providerAttributesSchema() {
-    return `${BASE_API_URL}/getProviderAttributesSchema`;
+    return `${BASE_API_URL}/v1/provider-attributes-schema`;
   }
   static networkCapacity() {
-    return `${BASE_API_URL}/getNetworkCapacity`;
+    return `${BASE_API_URL}/v1/network-capacity`;
   }
 
   static mainnetVersion() {
-    return `${BASE_API_URL}/getMainnetVersion`;
+    return `${BASE_API_URL}/v1/version/mainnet`;
   }
   static testnetVersion() {
-    return `${BASE_API_URL}/getTestnetVersion`;
+    return `${BASE_API_URL}/v1/version/testnet`;
   }
   static sandboxVersion() {
-    return `${BASE_API_URL}/getSandboxVersion`;
+    return `${BASE_API_URL}/v1/version/sandbox`;
   }
 }
 

@@ -2,10 +2,11 @@ import { UseQueryOptions, useQuery, QueryKey } from "react-query";
 import axios from "axios";
 import { QueryKeys } from "./queryKeys";
 import { ApiUrlService } from "@/lib/apiUtils";
-import { DeploymentSummary, PaginatedResults, TransactionDetail } from "@/types";
+import { PaginatedResults, TransactionDetail } from "@/types";
 import { removeEmptyFilters } from "@/lib/urlUtils";
 import { z } from "zod";
-import { DeploymentRowType, transactionRowSchema } from "@/app/addresses/[address]/deployments/columns";
+import { transactionRowSchema } from "@/lib/zod/transactionRow";
+import { DeploymentRowType } from "@/lib/zod/deploymentRow";
 
 async function getTransactions(limit: number): Promise<TransactionDetail[]> {
   const response = await axios.get(ApiUrlService.transactions(limit));
@@ -36,7 +37,7 @@ export function useAddressTransactions(
 
 async function getAddressDeployments(address: string, skip: number, limit: number, reverseSorting: boolean, filters: { [key: string]: string }) {
   const response = await axios.get(ApiUrlService.addressDeployments(address, skip, limit, reverseSorting, filters));
-  const data = z.array(transactionRowSchema).parse(response.data.results);
+  const data = z.array(transactionRowSchema).parse(response.data.results) as unknown as DeploymentRowType[];
 
   return { results: data, count: response.data.count };
 }
