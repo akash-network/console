@@ -23,8 +23,8 @@ export function TermsOfService() {
           These Terms of Use constitute a legally binding agreement made between you, whether personally or on behalf of an entity (&ldquo;you&rdquo;) and
           MaxMax Labs Inc. (&quot;Company&quot;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;), concerning your access to and use of the
           https://cloudmos.io/ website as well as any other media form, media channel, mobile website or mobile application related, linked, or otherwise
-          connected thereto (collectively, the &ldquo;Site&rdquo;). We are registered in Canada and have our registered office at CP 82027 Terrebonne RPO chemin
-          gascon, Terrebonne, Quebec J6X 0J8. Our VAT number is 1229169005. You agree that by accessing the Site, you have read, understood, and agree to be
+          connected thereto (collectively, the &ldquo;Site&rdquo;). We are registered in Canada and have our registered office at P.O. Box 144, 3119 9 Forum
+          Lane, Camana Bay, George Town, Grand Cayman KY1-9006, Cayman Islands. You agree that by accessing the Site, you have read, understood, and agree to be
           bound by all of these Terms of Use. IF YOU DO NOT AGREE WITH ALL OF THESE TERMS OF USE, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SITE AND YOU
           MUST DISCONTINUE USE IMMEDIATELY.
         </p>
@@ -569,7 +569,7 @@ export function TermsOfService() {
 
         <p>In order to resolve a complaint regarding the Site or to receive further information regarding use of the Site, please contact us at:</p>
 
-        <p>MaxMax Labs Inc. CP 82027 Terrebonne RPO chemin gascon Terrebonne, Quebec J6X 0J8 Canada Phone: (888) 546-3184 contact@cloudmos.io</p>
+        <p>P.O. Box 144, 3119 9 Forum Lane, Camana Bay, George Town, Grand Cayman KY1-9006, Cayman Islands. support@akash.network</p>
       </PageContainer>
     </Layout>
   );
