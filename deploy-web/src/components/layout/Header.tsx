@@ -1,4 +1,4 @@
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
@@ -12,11 +12,9 @@ import { WalletStatus } from "./WalletStatus";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { useRouter } from "next/router";
-import SearchBar from "./SearchBar";
 import { AccountMenu } from "./AccountMenu";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
-import SearchIcon from "@mui/icons-material/Search";
 
 type Props = {
   isMobileOpen: boolean;
@@ -71,49 +69,36 @@ export const Header: React.FunctionComponent<Props> = ({ children, isMobileOpen,
   const { classes } = useStyles();
   const router = useRouter();
   const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
-  const [isMobileSearch, setIsMobileSearch] = useState(false);
 
   return (
     <AppBar position="fixed" color="default" elevation={0} component="header">
       <Toolbar variant="dense" className={classes.accountBar}>
         <ErrorBoundary FallbackComponent={ErrorFallback}>
-          {!isMobileSearch && (
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Box href={UrlService.home()} component={Link} sx={{ height: "35px", width: "140px" }}>
-                <Image
-                  alt="Cloudmos Logo"
-                  src={theme.palette.mode === "dark" ? "/images/cloudmos-logo.png" : "/images/cloudmos-logo-light.png"}
-                  layout="responsive"
-                  quality={100}
-                  width={140}
-                  height={35}
-                  loading="eager"
-                  priority
-                />
-              </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box href={UrlService.home()} component={Link} sx={{ height: "35px", width: "140px" }}>
+              <Image
+                alt="Cloudmos Logo"
+                src={theme.palette.mode === "dark" ? "/images/cloudmos-logo.png" : "/images/cloudmos-logo-light.png"}
+                layout="responsive"
+                quality={100}
+                width={140}
+                height={35}
+                loading="eager"
+                priority
+              />
             </Box>
-          )}
-
-          {(isMobileSearch || !smallScreen) && <SearchBar isMobileSearch={isMobileSearch} onSearchClose={() => setIsMobileSearch(false)} />}
+          </Box>
 
           <Box>
-            {smallScreen && !isMobileSearch && (
-              <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={() => setIsMobileSearch(true)} sx={{ display: { md: "none" } }}>
-                <SearchIcon />
-              </IconButton>
-            )}
-
-            {!isMobileSearch && (
-              <IconButton
-                color="inherit"
-                aria-label="open drawer"
-                edge="start"
-                onClick={handleDrawerToggle}
-                sx={{ display: { md: "none" }, marginLeft: ".5rem" }}
-              >
-                {isMobileOpen ? <CloseIcon /> : <MenuIcon />}
-              </IconButton>
-            )}
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ display: { md: "none" }, marginLeft: ".5rem" }}
+            >
+              {isMobileOpen ? <CloseIcon /> : <MenuIcon />}
+            </IconButton>
           </Box>
 
           <Box sx={{ maxHeight: `${accountBarHeight}px`, alignItems: "center", display: { xs: "none", sm: "none", md: "flex" } }}>
@@ -148,4 +133,3 @@ export const Header: React.FunctionComponent<Props> = ({ children, isMobileOpen,
     </AppBar>
   );
 };
-
