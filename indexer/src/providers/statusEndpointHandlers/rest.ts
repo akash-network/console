@@ -92,7 +92,7 @@ export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVer
 
 function sumResources(resources) {
   const resourcesArr = resources?.nodes || resources || [];
-
+  console.log(resourcesArr.find((x) => typeof x.cpu === "undefined" || typeof x.gpu === "undefined"));
   return resourcesArr
     .map((x) => ({
       cpu: getUnitValue(x.cpu),

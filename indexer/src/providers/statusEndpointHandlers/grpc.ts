@@ -3,20 +3,15 @@ import { sequelize } from "@src/db/dbConnection";
 import { toUTC } from "@src/shared/utils/date";
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
 import { isSameDay } from "date-fns";
-import { loadFileDescriptorSetFromBuffer } from "@grpc/proto-loader";
-import { ProviderStatusResponseType } from "@src/types/grpc/providerStatusResponseType";
-import * as fs from "fs";
-import * as grpc from "@grpc/grpc-js";
-
-const protosetBuffer = fs.readFileSync("./src/proto/akash/providerServiceDescriptor.bin");
-const descriptorSet = loadFileDescriptorSetFromBuffer(protosetBuffer);
-const packageDef = grpc.loadPackageDefinition(descriptorSet);
-const clientInsecureCreds = grpc.credentials.createInsecure();
+import { createPromiseClient } from "@connectrpc/connect";
+import { createGrpcTransport } from "@connectrpc/connect-node";
+import { ProviderRPC } from "@src/proto/gen/akash/provider/v1/service_connect";
+import { ReservationsMetric, Status } from "@src/proto/gen/akash/provider/v1/status_pb";
 
 export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVersion: string, version: string, timeout: number) {
   const data = await queryStatus(provider.hostUri, timeout);
 
-  const activeResources = sumResources(data.cluster.inventory.reservations.active);
+  const activeResources = data.cluster.inventory.reservations.active.resources;
   const pendingResources = sumResources(data.cluster.inventory.reservations.pending);
   const availableResources = data.cluster.inventory.cluster.nodes
     .map((x) => ({
@@ -40,6 +35,9 @@ export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVer
       }
     );
   const checkDate = toUTC(new Date());
+
+  console.log(activeResources, pendingResources, availableResources);
+  throw "STOP";
 
   await sequelize.transaction(async (t) => {
     const createdSnapshot = await ProviderSnapshot.create(
@@ -156,30 +154,78 @@ export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVer
   });
 }
 
-async function queryStatus(hostUri: string, timeout: number): Promise<ProviderStatusResponseType> {
-  return new Promise((resolve, reject) => {
-    try {
-      const url = hostUri.replace("https://", "").replace(":8443", ":8444"); // Use 8444 as default GRPC port for now, enventually get from on-chain data
+async function queryStatus(hostUri: string, timeout: number): Promise<Status> {
+  // return new Promise((resolve, reject) => {
+  //   try {
+  // const protosetBuffer = fs.readFileSync("./src/proto/akash/providerServiceDescriptor.bin");
+  // const descriptorSet = loadFileDescriptorSetFromBuffer(protosetBuffer);
+  // const packageDef = grpc.loadPackageDefinition(descriptorSet);
+  // const clientInsecureCreds = grpc.credentials.createInsecure();
+  // grpc.setLogger(console);
+  // grpc.setLogVerbosity(grpc.logVerbosity.DEBUG);
+  // const sslCreds = grpc.credentials.createSsl(undefined, undefined, undefined, {
+  //   checkServerIdentity: (hostname: string, cert: PeerCertificate) => undefined
+  // });
 
-      const grpcClient = new (packageDef as any).akash.provider.v1.ProviderRPC(url, clientInsecureCreds); // TODO: Add deadline { deadline: Date.now() + timeout },
+  const url = hostUri.replace(":8443", ":8444"); // Use 8444 as default GRPC port for now, enventually get from on-chain data
+  console.log(url);
+  //const grpcClient = new (packageDef as any).akash.provider.v1.ProviderRPC("104.154.172.246:8444", clientInsecureCreds); // TODO: Add deadline { deadline: Date.now() + timeout },
 
-      grpcClient.getStatus({}, (err, response) => {
-        console.log("err", err, "response", response);
-        if (err) {
-          reject(err);
-        } else {
-          resolve(response);
-        }
-      });
-    } catch (err) {
-      reject(err);
-    }
+  // console.log(grpcClient.getStatus.toString);
+  // const call = grpcClient.getStatus({deadline: Number.POSITIVE_INFINITY}, (err, response) => {
+  //   console.log("err", err, "response", response);
+  //   if (err) {
+  //     reject(err);
+  //   } else {
+  //     resolve(response);
+  //   }
+  // });
+  // call.on("data", function (data) {
+  //   console.log("data", data);
+  // });
+  // call.on("end", function () {
+  //   console.log("On End -----");
+  // });
+  // call.on("error", function (e) {
+  //   console.log("On Error", e);
+  // });
+  // call.on("status", function (status) {
+  //   console.log("On Status ------", status);
+  // });
+  //console.log("Call", call);
+
+  // const transport = createConnectTransport({
+  //   httpVersion: "1.1",
+  //   baseUrl: "104.154.172.246:8444"
+  // });
+  console.time("grpc");
+  const transport = createGrpcTransport({
+    // Requests will be made to <baseUrl>/<package>.<service>/method
+    baseUrl: url,
+
+    // You have to tell the Node.js http API which HTTP version to use.
+    httpVersion: "2",
+    nodeOptions: { rejectUnauthorized: false },
+
+    // Interceptors apply to all calls running through this transport.
+    interceptors: []
   });
+  const client = createPromiseClient(ProviderRPC, transport);
+  const res = await client.getStatus({});
+
+  console.log(res);
+  console.timeEnd("grpc");
+  return res;
+  //   } catch (err) {
+  //     reject(err);
+  //   }
+  // });
 }
 
-function sumResources(resources) {
+function sumResources(resources: any) {
+  console.log(resources);
   const resourcesArr = resources?.nodes || resources || [];
-
+  resources.resources;
   return resourcesArr
     .map((x) => ({
       cpu: parseDecimalKubernetesString(x.cpu) * 1000,
