@@ -82,7 +82,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
       title="Edit placement"
       actions={[
         {
-          label: "Close",
+          label: "Done",
           color: "secondary",
           variant: "ghost",
           side: "right",
@@ -155,6 +155,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
             </div>
 
             <div>
+              {/** TODO Token Form Control */}
               <FormControl className="flex w-full flex-row items-center">
                 <Controller
                   control={control}
@@ -207,7 +208,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                       <FormInput
                         type="number"
                         // variant="outlined"
-                        label="Pricing"
+                        label={`Pricing, ${toReadableDenom(currentService.placement.pricing.denom)}`}
                         // fullWidth
                         value={field.value}
                         // error={!!fieldState.error}
