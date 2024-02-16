@@ -35,17 +35,8 @@ export class UrlService {
   static faq = (q?: FaqAnchorType) => `/faq${q ? "#" + q : ""}`;
   static privacyPolicy = () => "/privacy-policy";
   static termsOfService = () => "/terms-of-service";
-  static blocks = () => `/blocks`;
-  static block = (height: number) => `/blocks/${height}${appendSearchParams({ network: getSelectedNetworkQueryParam() })}`;
-  static transactions = () => `/transactions`;
-  static transaction = (hash: string) => `/transactions/${hash}${appendSearchParams({ network: getSelectedNetworkQueryParam() })}`;
-  static address = (address: string) => `/addresses/${address}${appendSearchParams({ network: getSelectedNetworkQueryParam() })}`;
-  static addressTransactions = (address: string) => `/addresses/${address}/transactions`;
-  static addressDeployments = (address: string) => `/addresses/${address}/deployments`;
-  static validators = () => "/validators";
-  static validator = (address: string) => `/validators/${address}${appendSearchParams({ network: getSelectedNetworkQueryParam() })}`;
-  static proposals = () => "/proposals";
-  static proposal = (id: number) => `/proposals/${id}`;
+
+  // User
   static userSettings = () => "/user/settings";
   static userAddressBook = () => `/user/settings/address-book`;
   static userFavorites = () => `/user/settings/favorites`;
