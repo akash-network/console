@@ -33,3 +33,42 @@ Auth0Issuer|ex: `'https://dev-5aprb0lr.us.auth0.com/'`
 Auth0Issuer|ex: `'https://auth.cloudmos.io/'`
 StripeSecretKey|ex: `sk_test_12aw315wdawd3...293d12d32df8jf`
 WebsiteUrl|`http://localhost:3001`
+
+## Changes from **beta** to **v1** (February 2024)
+
+### Api Versioning
+
+The public api version will now be included in the url like so: api.cloudmos.io/**v1**/\<endpoint>
+
+Changes that are backward compatible like adding new endpoint will be done in the existing version.
+Changes that are **not** backward compatible, such as removing an endpoint, will be done in a new version. When releasing a new version, a list of breaking changes will be made available. We will keep the old version available for a while to give users enough time to migrate their applications to the latest version.
+
+### Swagger Documentation
+
+A swagger documentation is now available at https://api.cloudmos.io/v1/swagger. You can use it to see the list of available endpoints and try them directly in your browser.
+
+### Route Changes
+
+The `/api` prefix was removed from every public endpoints and instead the version should be used (ex: `/v1/<endpoint>`)
+
+Here is a list of endpoints that have changed in this release. Old endpoints will temporarily redirect to the new ones. In future releases, the [versioning system](#api-versioning) will be used instead of redirects.
+
+
+|Old|New|
+|-|-
+|`/dashboardData`|`/dashboard-data`
+|`/getNetworkCapacity`|`/network-capacity`
+|`/getMainnetNodes`|`/nodes/mainnet`
+|`/getSandboxNodes`|`/nodes/sandbox`
+|`/getTestnetNodes`|`/nodes/testnet`
+|`/getProviderAttributesSchema`|`/provider-attributes-schema`
+|`/getMainnetVersion`|`/version/mainnet`
+|`/getSandboxVersion`|`/version/sandbox`
+|`/getTestnetVersion`|`/version/testnet`
+|`/getProviderGraphData/<dataName>`|`/provider-graph-data/<dataName>`
+|`/getProviderActiveLeasesGraphData/<address>`|`/provider-active-leases-graph-data/<address>`
+|`/getGraphData/<dataName>`|`/graph-data/<dataName>`
+|`/marketData`|`/market-data`
+|`/predicted-block-date/<height>/<blockWindow>` | `/predicted-block-date/<height>?blockWindow=<blockWindow>`
+|`/predicted-date-height/<timestamp>/<blockWindow>` | `/predicted-date-height/<timestamp>?blockWindow=<blockWindow>`
+|`/providers/<provider>/deployments/<skip>/<take>/<status>`|`/providers/<provider>/deployments/<skip>/<take>?status=<status>`

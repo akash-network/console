@@ -1,34 +1,26 @@
 import { Template, UserSetting } from "@shared/dbSchemas/user";
 import { privateMiddleware } from "@src/middlewares/privateMiddleware";
-import express from "express";
-import asyncHandler from "express-async-handler";
+import { Hono } from "hono";
 
-export const dashboardRouter = express.Router();
+export const dashboardRouter = new Hono();
 
-dashboardRouter.use(privateMiddleware);
+dashboardRouter.use("*", privateMiddleware);
 
-dashboardRouter.get(
-  "/stats",
-  asyncHandler(async (req, res) => {
-    const userCountRequest = UserSetting.count();
-    const publicTemplateCountRequest = Template.count({
-      where: { isPublic: true }
-    });
-    const privateTemplateCountRequest = Template.count({
-      where: { isPublic: false }
-    });
+dashboardRouter.get("/stats", async (c) => {
+  const userCountRequest = UserSetting.count();
+  const publicTemplateCountRequest = Template.count({
+    where: { isPublic: true }
+  });
+  const privateTemplateCountRequest = Template.count({
+    where: { isPublic: false }
+  });
 
-    const [userCount, publicTemplateCount, privateTemplateCount] = await Promise.all([
-      userCountRequest,
-      publicTemplateCountRequest,
-      privateTemplateCountRequest
-    ]);
+  const [userCount, publicTemplateCount, privateTemplateCount] = await Promise.all([userCountRequest, publicTemplateCountRequest, privateTemplateCountRequest]);
 
-    res.send({
-      userCount,
-      publicTemplateCount,
-      privateTemplateCount,
-      totalTemplateCount: publicTemplateCount + privateTemplateCount
-    });
-  })
-);
+  return c.json({
+    userCount,
+    publicTemplateCount,
+    privateTemplateCount,
+    totalTemplateCount: publicTemplateCount + privateTemplateCount
+  });
+});

@@ -1,5 +1,5 @@
-import { ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
 import { ISnapshotMetadata, ProviderSnapshots } from "@src/types";
+import { ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
 import { bytesToShrink } from "./unitUtils";
 
 export type LocalProviderData = {

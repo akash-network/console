@@ -128,7 +128,7 @@ export const generateSdl = (services: Service[], region?: string) => {
     // Placement
     sdl.profiles.placement[service.placement.name] = sdl.profiles.placement[service.placement.name] || { pricing: {} };
     sdl.profiles.placement[service.placement.name].pricing[service.title] = {
-      denom: "uakt",
+      denom: service.placement.pricing.denom,
       amount: service.placement.pricing.amount
     };
 

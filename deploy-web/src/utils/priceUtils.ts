@@ -4,7 +4,7 @@ import { averageDaysInMonth } from "./dateUtils";
 import { Coin } from "@cosmjs/stargate";
 import { denomToUdenom } from "./mathHelpers";
 import { getUsdcDenom } from "@src/hooks/useDenom";
-import { uAktDenom } from "./constants";
+import { readableDenoms, uAktDenom } from "./constants";
 
 export const averageBlockTime = 6.098;
 
@@ -75,4 +75,8 @@ export function useRealTimeLeft(pricePerBlock: number, balance: number, settledA
     escrow: Math.max(blocksLeft * pricePerBlock, 0),
     amountSpent: Math.min(blocksSinceCreation * pricePerBlock, balance)
   };
+}
+
+export function toReadableDenom(denom: string) {
+  return readableDenoms[denom];
 }

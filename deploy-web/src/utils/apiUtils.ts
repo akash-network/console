@@ -19,13 +19,13 @@ export class ApiUrlService {
     return `${apiEndpoint}/akash/provider/${networkVersion}/providers`;
   }
   static providerList() {
-    return `${BASE_API_URL}/providers`;
+    return `${BASE_API_URL}/v1/providers`;
   }
   static providerDetail(owner: string) {
-    return `${BASE_API_URL}/providers/${owner}`;
+    return `${BASE_API_URL}/v1/providers/${owner}`;
   }
   static providerRegions() {
-    return `${BASE_API_URL}/provider-regions`;
+    return `${BASE_API_URL}/v1/provider-regions`;
   }
   static block(apiEndpoint: string, id: string) {
     return `${apiEndpoint}/blocks/${id}`;
@@ -58,71 +58,71 @@ export class ApiUrlService {
     return `${apiEndpoint}/cosmos/feegrant/v1beta1/allowances/${address}`;
   }
   static dashboardData() {
-    return `${BASE_API_URL}/dashboardData`;
+    return `${BASE_API_URL}/v1/dashboard-data`;
   }
   static marketData() {
-    return `${BASE_API_URL}/marketData`;
+    return `${BASE_API_URL}/v1/market-data`;
   }
   static proposals() {
-    return `${BASE_API_URL}/proposals`;
+    return `${BASE_API_URL}/v1/proposals`;
   }
   static apiProviders() {
-    return `${BASE_API_URL}/providers`;
+    return `${BASE_API_URL}/v1/providers`;
   }
   static templates() {
-    return `${BASE_API_URL}/templates`;
+    return `${BASE_API_URL}/v1/templates`;
   }
   static validators() {
-    return `${BASE_API_URL}/validators`;
+    return `${BASE_API_URL}/v1/validators`;
   }
   static transactions(limit: number) {
-    return `${BASE_API_URL}/transactions${appendSearchParams({ limit })}`;
+    return `${BASE_API_URL}/v1/transactions${appendSearchParams({ limit })}`;
   }
   static addressTransactions(address: string, skip: number, limit: number) {
-    return `${BASE_API_URL}/addresses/${address}/transactions/${skip}/${limit}`;
+    return `${BASE_API_URL}/v1/addresses/${address}/transactions/${skip}/${limit}`;
   }
   static addressDeployments(address: string, skip: number, limit: number, reverseSorting: boolean, filters: { [key: string]: string }) {
-    return `${BASE_API_URL}/addresses/${address}/deployments/${skip}/${limit}${appendSearchParams({ reverseSorting, ...filters })}`;
+    return `${BASE_API_URL}/v1/addresses/${address}/deployments/${skip}/${limit}${appendSearchParams({ reverseSorting, ...filters })}`;
   }
   static graphData(snapshot: string) {
-    return `${BASE_API_URL}/getGraphData/${snapshot}`;
+    return `${BASE_API_URL}/v1/graph-data/${snapshot}`;
   }
   static providerGraphData(snapshot: string) {
-    return `${BASE_API_URL}/getProviderGraphData/${snapshot}`;
+    return `${BASE_API_URL}/v1/provider-graph-data/${snapshot}`;
   }
   static blocks(limit: number) {
-    return `${BASE_API_URL}/blocks${appendSearchParams({ limit })}`;
+    return `${BASE_API_URL}/v1/blocks${appendSearchParams({ limit })}`;
   }
   static providerActiveLeasesGraph(providerAddress: string) {
-    return `${BASE_API_URL}/getProviderActiveLeasesGraphData/${providerAddress}`;
+    return `${BASE_API_URL}/v1/provider-active-leases-graph-data/${providerAddress}`;
   }
   static providerAttributesSchema() {
-    return `${BASE_API_URL}/getProviderAttributesSchema`;
+    return `${BASE_API_URL}/v1/provider-attributes-schema`;
   }
   static networkCapacity() {
-    return `${BASE_API_URL}/getNetworkCapacity`;
+    return `${BASE_API_URL}/v1/network-capacity`;
   }
   // Github
   static auditors() {
-    return `${BASE_API_URL}/getAuditors`;
+    return `${BASE_API_URL}/v1/auditors`;
   }
   static mainnetNodes() {
-    return `${BASE_API_URL}/getMainnetNodes`;
+    return `${BASE_API_URL}/v1/nodes/mainnet`;
   }
   static testnetNodes() {
-    return `${BASE_API_URL}/getTestnetNodes`;
+    return `${BASE_API_URL}/v1/nodes/testnet`;
   }
   static sandboxNodes() {
-    return `${BASE_API_URL}/getSandboxNodes`;
+    return `${BASE_API_URL}/v1/nodes/sandbox`;
   }
   static mainnetVersion() {
-    return `${BASE_API_URL}/getMainnetVersion`;
+    return `${BASE_API_URL}/v1/version/mainnet`;
   }
   static testnetVersion() {
-    return `${BASE_API_URL}/getTestnetVersion`;
+    return `${BASE_API_URL}/v1/version/testnet`;
   }
   static sandboxVersion() {
-    return `${BASE_API_URL}/getSandboxVersion`;
+    return `${BASE_API_URL}/v1/version/sandbox`;
   }
 }
 

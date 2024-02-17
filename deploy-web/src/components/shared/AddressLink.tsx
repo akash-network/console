@@ -1,6 +1,5 @@
 import React, { ReactNode } from "react";
 import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
 import { Address } from "./Address";
 
 type Props = {
@@ -11,15 +10,18 @@ type Props = {
 
 export const AddressLink: React.FunctionComponent<Props> = ({ address, addressBookMode, ...rest }) => {
   let href = null;
+  let target = "_self";
   if (address.startsWith("akashvaloper")) {
-    href = UrlService.validator(address);
+    href = `https://stats.akash.network/validators/${address}`;
+    target = "_blank";
   } else if (address.startsWith("akash")) {
-    href = UrlService.address(address);
+    href = `https://stats.akash.network/addresses/${address}`;
+    target = "_blank";
   }
 
   if (href) {
     return (
-      <Link href={href}>
+      <Link href={href} target={target}>
         <Address address={address} addressBookMode={addressBookMode} disableTruncate />
       </Link>
     );

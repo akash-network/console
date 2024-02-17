@@ -1,13 +1,12 @@
 import { averageHoursInAMonth } from "./constants";
 
-
 export function getAkashPricing(cpu: number, memory: number, storage: number) {
   // Pricing obtained from https://github.com/akash-network/helm-charts/blob/main/charts/akash-provider/scripts/price_script_generic.sh
   const targetMemory = 1.25; // USD/GB-month
   const targetHDEphemeral = 0.08; // USD/GB-month
-  const targetHDPersHDD = 0.1; // USD/GB-month
-  const targetHDPersSSD = 0.12; // USD/GB-month
-  const targetHDPersNVME = 0.14; // USD/GB-month
+  // const targetHDPersHDD = 0.1; // USD/GB-month
+  // const targetHDPersSSD = 0.12; // USD/GB-month
+  // const targetHDPersNVME = 0.14; // USD/GB-month
   const targetCPU = 4.5; // USD/thread-month
 
   const price = (cpu / 1_000) * targetCPU + (memory / (1000 * 1000 * 1000)) * targetMemory + (storage / (1000 * 1000 * 1000)) * targetHDEphemeral;

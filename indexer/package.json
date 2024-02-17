@@ -1,6 +1,6 @@
 {
   "name": "cloudmos-indexer",
-  "version": "1.6.2",
+  "version": "1.7.0",
   "description": "Indexer for any Cosmos based blockchain",
   "author": "Cloudmos",
   "license": "Apache-2.0",
@@ -25,6 +25,8 @@
     "@cosmjs/math": "^0.31.1",
     "@cosmjs/proto-signing": "^0.31.1",
     "@cosmjs/stargate": "^0.31.1",
+    "@grpc/grpc-js": "^1.9.14",
+    "@grpc/proto-loader": "^0.7.10",
     "@sentry/node": "^7.52.0",
     "async": "^3.2.4",
     "axios": "^0.27.2",
@@ -43,6 +45,7 @@
     "pg-hstore": "^2.3.4",
     "protobufjs": "^6.11.2",
     "reflect-metadata": "^0.1.13",
+    "semver": "^7.6.0",
     "sequelize": "^6.28.0",
     "sequelize-typescript": "^2.1.5"
   },
@@ -53,6 +56,7 @@
     "@types/node-fetch": "^2.6.2",
     "@types/node-gzip": "^1.1.0",
     "@types/pg": "^8.6.5",
+    "@types/semver": "^7.5.6",
     "@types/uuid": "^8.3.1",
     "@types/validator": "^13.7.8",
     "alias-hq": "^5.1.6",

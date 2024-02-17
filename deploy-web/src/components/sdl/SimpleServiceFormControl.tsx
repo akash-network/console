@@ -19,7 +19,7 @@ import { PlacementFormModal } from "./PlacementFormModal";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import Link from "next/link";
 import { PriceValue } from "../shared/PriceValue";
-import { getAvgCostPerMonth } from "@src/utils/priceUtils";
+import { getAvgCostPerMonth, toReadableDenom } from "@src/utils/priceUtils";
 import Image from "next/legacy/image";
 import { uAktDenom } from "@src/utils/constants";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
@@ -31,6 +31,7 @@ import { GpuFormControl } from "./GpuFormControl";
 import { CpuFormControl } from "./CpuFormControl";
 import { MemoryFormControl } from "./MemoryFormControl";
 import { StorageFormControl } from "./StorageFormControl";
+import { TokenFormControl } from "./TokenFormControl";
 
 type Props = {
   _services: Service[];
@@ -391,6 +392,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                   )}
                 />
               </Grid>
+
+              <Grid item xs={12} sx={{ marginTop: "1rem" }}>
+                <TokenFormControl control={control} name={`services.${serviceIndex}.placement.pricing.denom`} />
+              </Grid>
             </Grid>
           </Grid>
           <Box sx={{ marginTop: "1rem", wordBreak: "break-all" }}>
@@ -434,7 +439,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                     <div>
                       <strong>Pricing</strong>&nbsp;&nbsp;
                       <Box component="span" className={classes.formValue} sx={{ display: "inline-flex", alignItems: "center" }}>
-                        Max {udenomToDenom(currentService.placement.pricing.amount, 6)} AKT per block
+                        Max {udenomToDenom(currentService.placement.pricing.amount, 6)} {toReadableDenom(currentService.placement.pricing.denom)} per block
                         <CustomTooltip
                           arrow
                           title={
