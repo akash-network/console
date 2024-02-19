@@ -1,10 +1,10 @@
 "use client";
-import { useTheme } from "@mui/material/styles";
 import { monacoOptions } from "@src/utils/constants";
 import dynamic from "next/dynamic";
 import { OnChange, OnMount } from "@monaco-editor/react";
+import { useTheme } from "next-themes";
 
-const _DynamicMonacoEditor = dynamic(import("@monaco-editor/react"), { ssr: false });
+const _DynamicMonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false, loading: () => <div>Loading...</div> });
 
 type Props = {
   value: string;
@@ -15,14 +15,14 @@ type Props = {
   options?: object;
 };
 
-export const DynamicMonacoEditor: React.FunctionComponent<Props> = ({ value, height, onChange, onMount, language = "yaml", options = {} }) => {
-  const theme = useTheme();
+export const DynamicMonacoEditor: React.FunctionComponent<Props> = ({ value, height = "100%", onChange, onMount, language = "yaml", options = {} }) => {
+  const { theme } = useTheme();
 
   return (
     <_DynamicMonacoEditor
       height={height}
       language={language}
-      theme={theme.palette.mode === "dark" ? "vs-dark" : "hc-light"}
+      theme={theme === "dark" ? "vs-dark" : "hc-light"}
       value={value}
       onChange={onChange}
       options={{ ...monacoOptions, ...options }}
