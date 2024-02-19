@@ -1,5 +1,6 @@
 // import { styled, Tooltip, tooltipClasses, TooltipProps } from "@mui/material";
 
+import { cn } from "@src/utils/styleUtils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 // export const CustomTooltip = styled(({ className, ...props }: TooltipProps) => (
@@ -18,8 +19,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 export function CustomTooltip({ children, className = "", title }: React.PropsWithChildren<{ className?: string; title: string | React.ReactNode }>) {
   return (
     <Tooltip>
-      <TooltipTrigger>{children}</TooltipTrigger>
-      <TooltipContent className={className}>{title}</TooltipContent>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent className={cn(className, "max-w-md")}>{title}</TooltipContent>
     </Tooltip>
   );
 }

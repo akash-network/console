@@ -3,6 +3,7 @@ import * as React from "react";
 import { cn } from "@src/utils/styleUtils";
 import { FormControl, FormDescription, FormItem, FormLabel } from "./form";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Label } from "./label";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
@@ -30,7 +31,7 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ classNam
   return (
     <FormItem>
       {/** TODO */}
-      <label>{label}</label>
+      <Label>{label}</Label>
       {/* <FormControl> */}
       <input
         type={type}

@@ -14,6 +14,7 @@ const Tooltip = ({ alwaysOpen, children, ...rest }: TooltipProps): React.ReactEl
   return (
     <TooltipPrimitive.Root open={alwaysOpen || open} delayDuration={0} onOpenChange={setOpen} {...rest}>
       <div
+        className="flex-shrink-0"
         onClick={() => setOpen(prevOpen => !prevOpen)}
         onFocus={() => setTimeout(() => setOpen(true), 0)} // timeout needed to run this after onOpenChange to prevent bug on mobile
         onBlur={() => setOpen(false)}

@@ -233,9 +233,9 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
         url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`}
       /> */}
 
-      <div className="mb-2">
+      <div className="mb-2 pt-4">
         <div
-          className="mb-2 flex flex-col items-center justify-between md:flex-row"
+          className="mb-2 flex flex-col items-end justify-between md:flex-row"
           // sx={{
           //   marginBottom: ".5rem",
           //   display: "flex",
@@ -244,7 +244,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           //   flexDirection: { xs: "column", sm: "column", md: "row" }
           // }}
         >
-          <div className="w-full flex-grow pr-0 md:pr-4">
+          <div className="flex-grow">
             <FormInput
               value={deploymentName}
               onChange={ev => setDeploymentName(ev.target.value)}
@@ -255,45 +255,42 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
             />
           </div>
 
-          <div
-            className="flex w-full items-center pt-2 md:w-auto md:pt-0"
-            // sx={{ display: "flex", alignItems: "center", width: { xs: "100%", sm: "100%", md: "auto" }, paddingTop: { xs: ".5rem", md: 0 } }}
-          >
+          <div className="flex w-full min-w-0 items-center pt-2 md:w-auto md:pt-0">
             <CustomTooltip
               title={
-                <>
-                  <p>
-                    You may use the sample deployment file as-is or modify it for your own needs as described in the{" "}
-                    <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/intro-to-akash/stack-definition-language")}>
-                      SDL (Stack Definition Language)
-                    </LinkTo>{" "}
-                    documentation. A typical modification would be to reference your own image instead of the demo app image.
-                  </p>
-                </>
+                <p>
+                  You may use the sample deployment file as-is or modify it for your own needs as described in the{" "}
+                  <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/intro-to-akash/stack-definition-language")}>
+                    SDL (Stack Definition Language)
+                  </LinkTo>{" "}
+                  documentation. A typical modification would be to reference your own image instead of the demo app image.
+                </p>
               }
             >
-              <InfoCircle className="mr-4 text-primary" />
+              <InfoCircle className="mx-4 text-sm text-primary" />
             </CustomTooltip>
 
-            <Button
-              variant="default"
-              // color="secondary"
-              disabled={isCreatingDeployment || !!parsingError || !editedManifest}
-              onClick={() => handleCreateDeployment()}
-              className="w-full whitespace-nowrap sm:w-auto"
-              // sx={{ whiteSpace: "nowrap", width: { xs: "100%", sm: "auto" } }}
-            >
-              {isCreatingDeployment ? (
-                <Spinner size="medium" />
-              ) : (
-                <>
-                  Create Deployment{" "}
-                  <span className="ml-2 flex items-center">
-                    <ArrowRight fontSize="small" />
-                  </span>
-                </>
-              )}
-            </Button>
+            <div>
+              <Button
+                variant="default"
+                // color="secondary"
+                disabled={isCreatingDeployment || !!parsingError || !editedManifest}
+                onClick={() => handleCreateDeployment()}
+                className="w-full whitespace-nowrap sm:w-auto"
+                // sx={{ whiteSpace: "nowrap", width: { xs: "100%", sm: "auto" } }}
+              >
+                {isCreatingDeployment ? (
+                  <Spinner size="medium" />
+                ) : (
+                  <>
+                    Create Deployment{" "}
+                    <span className="ml-2 flex items-center">
+                      <ArrowRight fontSize="small" />
+                    </span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -302,6 +299,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           variant={selectedSdlEditMode === "builder" ? "default" : "outline"}
           // color={selectedSdlEditMode === "builder" ? "secondary" : "primary"}
           onClick={() => onModeChange("builder")}
+          size="sm"
         >
           Builder
         </Button>
@@ -309,6 +307,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           variant={selectedSdlEditMode === "yaml" ? "default" : "outline"}
           color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
           onClick={() => onModeChange("yaml")}
+          size="sm"
         >
           YAML
         </Button>
@@ -319,7 +318,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       {parsingError && <Alert variant="destructive">{parsingError}</Alert>}
 
       {selectedSdlEditMode === "yaml" && (
-        <ViewPanel stickToBottom style={{ overflow: "hidden", margin: smallScreen ? "0 -1rem" : 0 }}>
+        <ViewPanel stickToBottom style={{ overflow: "hidden", margin: !smallScreen ? "0 -1rem" : 0 }}>
           <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
         </ViewPanel>
       )}
