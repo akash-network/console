@@ -8,6 +8,8 @@ import { GasPrice } from "@cosmjs/stargate";
 import { akash, akashAssetList, akashSandbox, akashSandboxAssetList, akashTestnet, akashTestnetAssetList } from "@src/chains";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { useChain } from "@cosmos-kit/react";
+import "@interchain-ui/react/styles";
+import "@interchain-ui/react/globalStyles";
 
 type Props = {
   children: React.ReactNode;

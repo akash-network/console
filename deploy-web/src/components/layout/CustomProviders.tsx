@@ -15,7 +15,6 @@ import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { WalletProvider } from "@src/context/WalletProvider";
 // import { AddressBookProvider } from "@src/context/AddressBookProvider";
 
-import "@interchain-ui/react/styles";
 import { CertificateProvider } from "@src/context/CertificateProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { TemplatesProvider } from "@src/context/TemplatesProvider";
