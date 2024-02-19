@@ -5,7 +5,6 @@ import { Control, Controller } from "react-hook-form";
 import { SdlBuilderFormValues } from "@src/types";
 import { Card, CardContent } from "../ui/card";
 import { FormInput, Textarea } from "../ui/input";
-import { FormLabel } from "../ui/form";
 
 type Props = {
   serviceIndex: number;
@@ -68,7 +67,7 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
             name={`services.${serviceIndex}.command.arg`}
             render={({ field }) => (
               <div className="mt-2">
-                <FormLabel>Arguments</FormLabel>
+                <label>Arguments</label>
                 <Textarea
                   aria-label="Args"
                   placeholder="Example: apt-get update; apt-get install -y --no-install-recommends -- ssh;"

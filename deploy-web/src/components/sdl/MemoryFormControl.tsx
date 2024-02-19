@@ -5,7 +5,7 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import { FormPaper } from "./FormPaper";
 import { Control, Controller } from "react-hook-form";
 import { validationConfig, memoryUnits } from "../shared/akash/units";
-import { FormControl, FormDescription } from "../ui/form";
+import { FormControl, FormDescription, FormItem } from "../ui/form";
 import { Slider } from "../ui/slider";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Input } from "../ui/input";
@@ -57,7 +57,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
           className={cn("px-2 py-4", { ["border-b border-red-500"]: !!fieldState.error })}
           // sx={{ padding: ".5rem 1rem", borderBottom: !!fieldState.error && `1px solid ${theme.palette.error.main}` }}
         >
-          <FormControl
+          <FormItem
           // className={cx(classes.formControl, classes.textField)}
           // variant="standard"
           // sx={{ marginBottom: "0 !important" }}
@@ -164,7 +164,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
             />
 
             {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}
-          </FormControl>
+          </FormItem>
         </FormPaper>
       )}
     />

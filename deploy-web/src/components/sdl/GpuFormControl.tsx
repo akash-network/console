@@ -7,7 +7,7 @@ import { Control, Controller, useFieldArray } from "react-hook-form";
 import { gpuVendors } from "../shared/akash/gpu";
 import { validationConfig } from "../shared/akash/units";
 import { cn } from "@src/utils/styleUtils";
-import { FormControl, FormDescription } from "../ui/form";
+import { FormControl, FormDescription, FormItem } from "../ui/form";
 import { Slider } from "../ui/slider";
 import Spinner from "../shared/Spinner";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";

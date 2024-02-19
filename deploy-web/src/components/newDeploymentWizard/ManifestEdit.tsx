@@ -9,7 +9,7 @@ import { deploymentData } from "@src/utils/deploymentData";
 import { LinkTo } from "../shared/LinkTo";
 import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
 import ViewPanel from "../shared/ViewPanel";
-import { DeploymentDepositModal } from "../deploymentDetail/DeploymentDepositModal";
+// import { DeploymentDepositModal } from "../deploymentDetail/DeploymentDepositModal";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { UrlService, handleDocClick } from "@src/utils/urlUtils";
@@ -27,6 +27,13 @@ import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useMediaQuery } from "usehooks-ts";
 import { breakpoints } from "@src/utils/responsiveUtils";
+import { EncodeObject } from "@cosmjs/proto-signing";
+import { Alert } from "../ui/alert";
+import { Button } from "../ui/button";
+import { ArrowRight, InfoCircle } from "iconoir-react";
+import Spinner from "../shared/Spinner";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { FormInput } from "../ui/input";
 
 const yaml = require("js-yaml");
 
@@ -125,7 +132,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
   const handleCreateDeployment = async () => {
     if (selectedSdlEditMode === "builder") {
-      const valid = await sdlBuilderRef.current.validate();
+      const valid = await sdlBuilderRef.current?.validate();
       if (!valid) return;
     }
 
@@ -145,7 +152,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   async function handleCreateClick(deposit: number, depositorAddress: string) {
     setIsCreatingDeployment(true);
 
-    const sdl = selectedSdlEditMode === "yaml" ? editedManifest : sdlBuilderRef.current?.getSdl();
+    const sdl = selectedSdlEditMode === "yaml" ? editedManifest : (sdlBuilderRef.current?.getSdl() as string);
     const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
 
     const validCertificates = await loadValidCertificates();
@@ -156,7 +163,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     if (!dd) return;
 
     try {
-      const messages = [];
+      const messages: EncodeObject[] = [];
       const hasValidCert = isCertificateValidated && isLocalCertificateValidated;
       let _crtpem: string;
       let _encryptedKey: string;
@@ -211,7 +218,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     if (mode === selectedSdlEditMode) return;
 
     if (mode === "yaml") {
-      const sdl = sdlBuilderRef.current?.getSdl();
+      const sdl = sdlBuilderRef.current?.getSdl() as string;
       setEditedManifest(sdl);
     }
 
@@ -226,86 +233,90 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
         url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`}
       /> */}
 
-      <Box sx={{ marginBottom: ".5rem" }}>
-        <Box
-          sx={{
-            marginBottom: ".5rem",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexDirection: { xs: "column", sm: "column", md: "row" }
-          }}
+      <div className="mb-2">
+        <div
+          className="mb-2 flex flex-col items-center justify-between md:flex-row"
+          // sx={{
+          //   marginBottom: ".5rem",
+          //   display: "flex",
+          //   alignItems: "center",
+          //   justifyContent: "space-between",
+          //   flexDirection: { xs: "column", sm: "column", md: "row" }
+          // }}
         >
-          <Box sx={{ flexGrow: 1, paddingRight: { xs: 0, sm: 0, md: "1rem" }, width: "100%" }}>
-            <TextField
+          <div className="w-full flex-grow pr-0 md:pr-4">
+            <FormInput
               value={deploymentName}
               onChange={ev => setDeploymentName(ev.target.value)}
-              fullWidth
+              // fullWidth
               label="Name your deployment (optional)"
-              variant="outlined"
-              size="small"
+              // variant="outlined"
+              // size="small"
             />
-          </Box>
+          </div>
 
-          <Box sx={{ display: "flex", alignItems: "center", width: { xs: "100%", sm: "100%", md: "auto" }, paddingTop: { xs: ".5rem", md: 0 } }}>
-            <Tooltip
-              classes={{ tooltip: classes.tooltip }}
-              arrow
+          <div
+            className="flex w-full items-center pt-2 md:w-auto md:pt-0"
+            // sx={{ display: "flex", alignItems: "center", width: { xs: "100%", sm: "100%", md: "auto" }, paddingTop: { xs: ".5rem", md: 0 } }}
+          >
+            <CustomTooltip
               title={
                 <>
-                  <Typography>
+                  <p>
                     You may use the sample deployment file as-is or modify it for your own needs as described in the{" "}
                     <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/intro-to-akash/stack-definition-language")}>
                       SDL (Stack Definition Language)
                     </LinkTo>{" "}
                     documentation. A typical modification would be to reference your own image instead of the demo app image.
-                  </Typography>
+                  </p>
                 </>
               }
             >
-              <InfoIcon className={classes.tooltipIcon} />
-            </Tooltip>
+              <InfoCircle className="mr-4 text-primary" />
+            </CustomTooltip>
 
             <Button
-              variant="contained"
-              color="secondary"
+              variant="default"
+              // color="secondary"
               disabled={isCreatingDeployment || !!parsingError || !editedManifest}
               onClick={() => handleCreateDeployment()}
-              sx={{ whiteSpace: "nowrap", width: { xs: "100%", sm: "auto" } }}
+              className="w-full whitespace-nowrap sm:w-auto"
+              // sx={{ whiteSpace: "nowrap", width: { xs: "100%", sm: "auto" } }}
             >
               {isCreatingDeployment ? (
-                <CircularProgress size="24px" color="secondary" />
+                <Spinner size="medium" />
               ) : (
                 <>
                   Create Deployment{" "}
-                  <Box component="span" marginLeft=".5rem" display="flex" alignItems="center">
-                    <ArrowForwardIosIcon fontSize="small" />
-                  </Box>
+                  <span className="ml-2 flex items-center">
+                    <ArrowRight fontSize="small" />
+                  </span>
                 </>
               )}
             </Button>
-          </Box>
-        </Box>
+          </div>
+        </div>
 
-        <ButtonGroup size="small">
-          <Button
-            variant={selectedSdlEditMode === "builder" ? "contained" : "outlined"}
-            color={selectedSdlEditMode === "builder" ? "secondary" : "primary"}
-            onClick={() => onModeChange("builder")}
-          >
-            Builder
-          </Button>
-          <Button
-            variant={selectedSdlEditMode === "yaml" ? "contained" : "outlined"}
-            color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
-            onClick={() => onModeChange("yaml")}
-          >
-            YAML
-          </Button>
-        </ButtonGroup>
-      </Box>
+        {/* <ButtonGroup size="small"> */}
+        <Button
+          variant={selectedSdlEditMode === "builder" ? "default" : "outline"}
+          // color={selectedSdlEditMode === "builder" ? "secondary" : "primary"}
+          onClick={() => onModeChange("builder")}
+        >
+          Builder
+        </Button>
+        <Button
+          variant={selectedSdlEditMode === "yaml" ? "default" : "outline"}
+          color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
+          onClick={() => onModeChange("yaml")}
+        >
+          YAML
+        </Button>
+        {/* </ButtonGroup> */}
+      </div>
 
-      {parsingError && <Alert severity="warning">{parsingError}</Alert>}
+      {/** TODO Warning alert variant */}
+      {parsingError && <Alert variant="destructive">{parsingError}</Alert>}
 
       {selectedSdlEditMode === "yaml" && (
         <ViewPanel stickToBottom style={{ overflow: "hidden", margin: smallScreen ? "0 -1rem" : 0 }}>
@@ -314,23 +325,23 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       )}
       {selectedSdlEditMode === "builder" && <SdlBuilder sdlString={editedManifest} ref={sdlBuilderRef} setEditedManifest={setEditedManifest} />}
 
-      {isDepositingDeployment && (
+      {/* {isDepositingDeployment && (
         <DeploymentDepositModal
           handleCancel={() => setIsDepositingDeployment(false)}
           onDeploymentDeposit={onDeploymentDeposit}
           denom={sdlDenom}
           infoText={
-            <Alert severity="info" className={classes.alert} variant="outlined">
-              <Typography variant="caption">
-                To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
+            <Alert className="mb-4" variant="default">
+              <p>
+                To create a deployment, you need to have at least <b>5 AKT</b> or <b>5 USDC</b> in an escrow account.{" "}
                 <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/glossary/escrow#escrow-accounts")}>
                   <strong>Learn more.</strong>
                 </LinkTo>
-              </Typography>
+              </p>
             </Alert>
           }
         />
-      )}
+      )} */}
       {isCheckingPrerequisites && <PrerequisiteList onClose={() => setIsCheckingPrerequisites(false)} onContinue={onPrerequisiteContinue} />}
     </>
   );

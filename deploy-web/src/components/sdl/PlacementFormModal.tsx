@@ -15,7 +15,7 @@ import { FormattedNumber } from "react-intl";
 import { USDLabel } from "../shared/UsdLabel";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { InfoCircle } from "iconoir-react";
-import { FormControl, FormItem, FormLabel } from "../ui/form";
+import { FormControl, FormItem } from "../ui/form";
 import { FormInput, InputWithIcon } from "../ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
@@ -156,7 +156,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
 
             <div>
               {/** TODO Token Form Control */}
-              <FormControl className="flex w-full flex-row items-center">
+              <FormItem className="flex w-full flex-row items-center">
                 <Controller
                   control={control}
                   name={`services.${serviceIndex}.placement.pricing.denom`}
@@ -167,7 +167,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                   render={({ fieldState, field }) => {
                     return (
                       <FormItem>
-                        <FormLabel>Token</FormLabel>
+                        <label>Token</label>
                         <Select value={field.value || ""} onValueChange={field.onChange}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select token" />
@@ -250,7 +250,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                     <InfoCircle className="ml-4 text-muted-foreground" />
                   </CustomTooltip>
                 </div>
-              </FormControl>
+              </FormItem>
             </div>
           </div>
 

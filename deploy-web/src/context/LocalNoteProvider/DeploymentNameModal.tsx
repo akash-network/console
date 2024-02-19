@@ -6,7 +6,7 @@ import { useToast } from "@src/components/ui/use-toast";
 import { Popup } from "@src/components/shared/Popup";
 import { Card, CardContent } from "@src/components/ui/card";
 import { Input } from "@src/components/ui/input";
-import { FormControl, FormLabel } from "@src/components/ui/form";
+import { FormControl } from "@src/components/ui/form";
 
 export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName }) => {
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -70,16 +70,16 @@ export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName 
       <Card className="flex p-4">
         <CardContent className="flex-grow">
           <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-            <FormControl>
-              <FormLabel>Name</FormLabel>
-              <Controller
-                control={control}
-                name="name"
-                render={({ field }) => {
-                  return <Input {...field} autoFocus type="text" />;
-                }}
-              />
-            </FormControl>
+            {/* <FormControl> */}
+            <label>Name</label>
+            <Controller
+              control={control}
+              name="name"
+              render={({ field }) => {
+                return <Input {...field} autoFocus type="text" />;
+              }}
+            />
+            {/* </FormControl> */}
           </form>
         </CardContent>
       </Card>

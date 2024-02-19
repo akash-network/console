@@ -4,10 +4,9 @@ import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { FormPaper } from "./FormPaper";
 import { Control, Controller } from "react-hook-form";
-import { cx } from "@emotion/css";
 import { persistentStorageTypes, storageUnits } from "../shared/akash/units";
 import { cn } from "@src/utils/styleUtils";
-import { FormControl, FormDescription, FormItem, FormLabel } from "../ui/form";
+import { FormControl, FormDescription, FormItem } from "../ui/form";
 import { InfoCircle } from "iconoir-react";
 import { MdStorage } from "react-icons/md";
 import { Checkbox } from "../ui/checkbox";
@@ -48,7 +47,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
           }
         }}
         render={({ field, fieldState }) => (
-          <FormControl
+          <FormItem
           // className={cx(classes.formControl, classes.textField)}
           // variant="standard"
           // sx={{ marginBottom: "0 !important" }}
@@ -171,7 +170,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
             )}
 
             {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}
-          </FormControl>
+          </FormItem>
         )}
       />
 
@@ -293,7 +292,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                   className="w-full basis-[40%]"
                   // fullWidth sx={{ flexBasis: "40%" }}
                 >
-                  <FormLabel>Token</FormLabel>
+                  <label>Token</label>
                   <Select value={field.value || ""} onValueChange={field.onChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select token" />

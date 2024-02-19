@@ -1,12 +1,11 @@
+"use client";
 import { useState, useRef, useEffect, ReactNode } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useSettings } from "../../context/SettingsProvider";
 import { useSnackbar } from "notistack";
 import compareAsc from "date-fns/compareAsc";
 import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
-import { Snackbar } from "../shared/Snackbar";
 import { uAktDenom } from "@src/utils/constants";
-import { Alert, Box, Checkbox, FormControl, FormControlLabel, InputAdornment, InputLabel, MenuItem, Select, TextField } from "@mui/material";
 import { useWallet } from "@src/context/WalletProvider";
 import { LinkTo } from "../shared/LinkTo";
 import { event } from "nextjs-google-analytics";
@@ -17,6 +16,7 @@ import { Popup } from "../shared/Popup";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
+import { useToast } from "../ui/use-toast";
 
 type Props = {
   infoText?: string | ReactNode;
@@ -28,9 +28,10 @@ type Props = {
 };
 
 export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleCancel, onDeploymentDeposit, disableMin, denom, infoText = null }) => {
-  const formRef = useRef(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const { settings } = useSettings();
-  const { enqueueSnackbar } = useSnackbar();
+  // const { enqueueSnackbar } = useSnackbar();
+  const { toast } = useToast();
   const [error, setError] = useState("");
   const [isCheckingDepositor, setIsCheckingDepositor] = useState(false);
   const { walletBalances, address } = useWallet();
@@ -107,7 +108,8 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
       return true;
     } catch (err) {
       console.error(err);
-      enqueueSnackbar(<Snackbar title={err.message} iconVariant="error" />, { variant: "error" });
+      // enqueueSnackbar(<Snackbar title={err.message} iconVariant="error" />, { variant: "error" });
+      toast({ title: err.message, variant: "destructive" });
       return false;
     } finally {
       setIsCheckingDepositor(false);
@@ -125,7 +127,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
 
   const onDepositClick = event => {
     event.preventDefault();
-    formRef.current.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
   const onSubmit = async ({ amount }) => {
@@ -168,14 +170,14 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
         {
           label: "Cancel",
           color: "primary",
-          variant: "text",
+          variant: "ghost",
           side: "left",
           onClick: onClose
         },
         {
           label: "Continue",
           color: "secondary",
-          variant: "contained",
+          variant: "default",
           side: "right",
           disabled: !amount || isCheckingDepositor,
           isLoading: isCheckingDepositor,

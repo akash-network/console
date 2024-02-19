@@ -202,7 +202,8 @@ export const WalletProvider = ({ children }) => {
           <LinkTo
             className="flex items-center"
             // sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
-            onClick={() => window.open(UrlService.transaction(txResult.transactionHash), "_blank")}
+            // onClick={() => window.open(UrlService.transaction(txResult.transactionHash), "_blank")}
+            onClick={() => window.open(`https://stats.akash.network/transactions/${txResult.transactionHash}`, "_blank")}
           >
             View transaction <OpenInWindow className="ml-2 text-sm" />
           </LinkTo>
@@ -282,7 +283,8 @@ export const WalletProvider = ({ children }) => {
           <LinkTo
             className="flex items-center"
             // sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
-            onClick={() => window.open(UrlService.transaction(transactionHash), "_blank")}
+            // onClick={() => window.open(UrlService.transaction(transactionHash), "_blank")}
+            onClick={() => window.open(`https://stats.akash.network/transactions/${transactionHash}`, "_blank")}
           >
             View transaction <OpenInWindow className="ml-2 text-sm" />
           </LinkTo>
