@@ -20,7 +20,7 @@ export function CustomTooltip({ children, className = "", title }: React.PropsWi
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent className={cn(className, "max-w-md")}>{title}</TooltipContent>
+      <TooltipContent className={cn(className, "max-w-md z-[500]")}>{title}</TooltipContent>
     </Tooltip>
   );
 }

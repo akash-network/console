@@ -32,7 +32,7 @@ import { Button, buttonVariants } from "../ui/button";
 import { NavArrowDown, Bin, InfoCircle, OpenInWindow } from "iconoir-react";
 import { cn } from "@src/utils/styleUtils";
 import { InputWithIcon } from "../ui/input";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { CustomTooltip } from "../shared/CustomTooltip";
 
 type Props = {
   _services: Service[];
@@ -45,30 +45,6 @@ type Props = {
   setValue: UseFormSetValue<SdlBuilderFormValues>;
   gpuModels: GpuVendor[];
 };
-
-// const useStyles = makeStyles()(theme => ({
-//   formControl: {
-//     marginBottom: theme.spacing(1.5)
-//   },
-//   textField: {
-//     width: "100%"
-//   },
-//   serviceBox: {
-//     marginTop: "1rem",
-//     border: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100]}`,
-//     borderRadius: ".5rem"
-//   },
-//   editLink: {
-//     color: theme.palette.secondary.light,
-//     textDecoration: "underline",
-//     cursor: "pointer",
-//     fontWeight: "normal",
-//     fontSize: ".8rem"
-//   },
-//   formValue: {
-//     color: theme.palette.grey[500]
-//   }
-// }));
 
 export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   serviceIndex,
@@ -107,7 +83,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   return (
     <Collapsible open={expanded} onOpenChange={onExpandClick}>
       <Card className="mt-4 rounded-sm border border-muted-foreground/20">
-        <CardContent>
+        <CardContent className="p-0">
           {/** Edit Environment Variables */}
           {_isEditingEnv && (
             <EnvFormModal control={control} onClose={() => setIsEditingEnv(null)} serviceIndex={serviceIndex} envs={currentService.env || []} />
@@ -135,16 +111,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
             />
           )}
 
-          <div
-            className="flex items-center justify-between border-b border-muted-foreground/20 p-4"
-            // sx={{
-            //   padding: "1rem",
-            //   borderBottom: expanded ? `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200]}` : "none",
-            //   display: "flex",
-            //   alignItems: "center",
-            //   justifyContent: "space-between"
-            // }}
-          >
+          <div className={cn("flex items-end justify-between p-4", { ["border-b border-muted-foreground/20"]: expanded })}>
             <Controller
               control={control}
               name={`services.${serviceIndex}.title`}
@@ -178,15 +145,11 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                   // fullWidth
                   value={field.value}
                   // size="small"
+                  className="flex-grow"
                   onChange={event => field.onChange((event.target.value || "").toLowerCase())}
                   endIcon={
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span>
-                          <InfoCircle className="text-muted-foreground" />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
+                    <CustomTooltip
+                      title={
                         <>
                           The service name serves as a identifier for the workload to be ran on the Akash Network.
                           <br />
@@ -195,8 +158,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                             View official documentation.
                           </a>
                         </>
-                      </TooltipContent>
-                    </Tooltip>
+                      }
+                    >
+                      <InfoCircle className="text-muted-foreground" />
+                    </CustomTooltip>
                   }
                 />
               )}
@@ -205,9 +170,13 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
             <div className="ml-4 flex items-center">
               {!expanded && isDesktop && (
                 <div className="flex items-center whitespace-nowrap">
-                  <LeaseSpecDetail type="cpu" value={currentService.profile.cpu} />
-                  <LeaseSpecDetail type="ram" className="ml-4" value={`${currentService.profile.ram} ${currentService.profile.ramUnit}`} />
-                  <LeaseSpecDetail type="storage" className="ml-4" value={`${currentService.profile.storage} ${currentService.profile.storageUnit}`} />
+                  <LeaseSpecDetail type="cpu" className="flex-shrink-0" value={currentService.profile.cpu} />
+                  <LeaseSpecDetail type="ram" className="ml-4 flex-shrink-0" value={`${currentService.profile.ram} ${currentService.profile.ramUnit}`} />
+                  <LeaseSpecDetail
+                    type="storage"
+                    className="ml-4 flex-shrink-0"
+                    value={`${currentService.profile.storage} ${currentService.profile.storageUnit}`}
+                  />
                 </div>
               )}
               {_services.length > 1 && (
@@ -296,13 +265,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                           )}
                         />
 
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <InfoCircle className="text-muted-foreground" />
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
+                        <CustomTooltip
+                          title={
                             <>
                               The service name serves as a identifier for the workload to be ran on the Akash Network.
                               <br />
@@ -311,8 +275,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                 View official documentation.
                               </a>
                             </>
-                          </TooltipContent>
-                        </Tooltip>
+                          }
+                        >
+                          <InfoCircle className="text-muted-foreground" />
+                        </CustomTooltip>
                         {/* <CustomTooltip
                           arrow
                           title={
@@ -410,13 +376,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                           // size="small"
                           // fullWidth
                           endIcon={
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span>
-                                  <InfoCircle className="text-muted-foreground" />
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
+                            <CustomTooltip
+                              title={
                                 <>
                                   The number of instances of the current service. Each instance will have the resources defined in this service.
                                   <br />
@@ -425,8 +386,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                     View official documentation.
                                   </a>
                                 </>
-                              </TooltipContent>
-                            </Tooltip>
+                              }
+                            >
+                              <InfoCircle className="text-muted-foreground" />
+                            </CustomTooltip>
                           }
                           // InputProps={{
                           //   endAdornment: (
@@ -464,13 +427,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                           <strong>Placement</strong>
                         </p>
 
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="ml-4">
-                              <InfoCircle className="text-muted-foreground" />
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
+                        <CustomTooltip
+                          title={
                             <>
                               Placement is a list of settings to specify where to host the current service workload.
                               <br />
@@ -482,8 +440,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                 View official documentation.
                               </a>
                             </>
-                          </TooltipContent>
-                        </Tooltip>
+                          }
+                        >
+                          <InfoCircle className="text-muted-foreground" />
+                        </CustomTooltip>
                         {/* <CustomTooltip
                           arrow
                           title={
@@ -517,13 +477,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                           <strong>Pricing</strong>&nbsp;&nbsp;
                           <span className="inline-flex items-center text-muted-foreground">
                             Max {udenomToDenom(currentService.placement.pricing.amount, 6)} AKT per block
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="ml-4">
-                                  <InfoCircle className="text-muted-foreground" />
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
+                            <CustomTooltip
+                              title={
                                 <>
                                   The maximum amount of uAKT you're willing to pay per block (~6 seconds).
                                   <br />
@@ -539,8 +494,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                     &nbsp; per month
                                   </div>
                                 </>
-                              </TooltipContent>
-                            </Tooltip>
+                              }
+                            >
+                              <InfoCircle className="text-muted-foreground" />
+                            </CustomTooltip>
                             {/* <CustomTooltip
                               arrow
                               title={

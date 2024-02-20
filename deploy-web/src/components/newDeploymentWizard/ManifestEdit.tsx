@@ -33,7 +33,7 @@ import { Button } from "../ui/button";
 import { ArrowRight, InfoCircle } from "iconoir-react";
 import Spinner from "../shared/Spinner";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { FormInput } from "../ui/input";
+import { FormInput, InputWithIcon } from "../ui/input";
 
 const yaml = require("js-yaml");
 
@@ -245,7 +245,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           // }}
         >
           <div className="flex-grow">
-            <FormInput
+            <InputWithIcon
               value={deploymentName}
               onChange={ev => setDeploymentName(ev.target.value)}
               // fullWidth

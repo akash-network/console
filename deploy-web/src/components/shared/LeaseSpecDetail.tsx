@@ -15,14 +15,12 @@ type Props = {
 export const LeaseSpecDetail: React.FunctionComponent<Props> = ({ value, type, className, iconSize = "large" }) => {
   return (
     <div className={cn("flex items-center", className)}>
-      {type === "cpu" && (
-        <div className="text-muted-foreground">
-          <MdSpeed fontSize={iconSize} />
-        </div>
-      )}
-      {type === "gpu" && <MdDeveloperBoard fontSize={iconSize} />}
-      {type === "ram" && <MdMemory fontSize={iconSize} />}
-      {type === "storage" && <MdStorage fontSize={iconSize} />}
+      <div className="text-muted-foreground">
+        {type === "cpu" && <MdSpeed fontSize={iconSize} />}
+        {type === "gpu" && <MdDeveloperBoard fontSize={iconSize} />}
+        {type === "ram" && <MdMemory fontSize={iconSize} />}
+        {type === "storage" && <MdStorage fontSize={iconSize} />}
+      </div>
 
       <div className="ml-1">{typeof value === "string" ? value : <FormattedNumber value={value} />}</div>
       <div className="ml-1 text-muted-foreground">
