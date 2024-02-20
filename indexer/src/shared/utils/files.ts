@@ -69,7 +69,7 @@ export function parseDecimalKubernetesString(str: string) {
     if (suffix) {
       const suffixPos = str.length - suffix.length;
       const numberStr = str.substring(0, suffixPos);
-      return parseFloat(numberStr) * specSuffixes[suffix];
+      return parseFloat(numberStr) * kubernetesDecimalSuffixes[suffix];
     } else {
       return parseFloat(str);
     }
