@@ -10,7 +10,7 @@ Storing cpu vcores as numbers instead of strings
 
 ```
 ALTER TABLE IF EXISTS public."providerSnapshotNodeCPU"
-    ALTER COLUMN vcores smallint;
+    ALTER COLUMN vcores TYPE smallint USING vcores::smallint;
 ```
 
 ## v1.7.0
