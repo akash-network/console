@@ -4,6 +4,15 @@ Some indexer updates changes the database schemas and an upgrade script must be 
 
 **It is recommended to stop the indexer before running any migration script.**
 
+## v1.8.0
+
+Improve akash provider tracking (persistent storage)
+
+```
+ALTER TABLE IF EXISTS public."providerSnapshotNodeCPU"
+    ALTER COLUMN vcores smallint;
+```
+
 ## v1.7.0
 
 Version 1.7.0 adds some tables and fields to improve provider queries as well as keep track of node/cpu/gpu data provided by the new status endpoint (grpc).

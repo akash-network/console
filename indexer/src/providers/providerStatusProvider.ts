@@ -26,7 +26,7 @@ export async function syncProvidersInfo() {
 
   let doneCount = 0;
   await eachLimit(
-    providers.filter((x) => x.hostUri.includes('akashtesting')),
+    providers,
     ConcurrentStatusCall,
     asyncify(async (provider: Provider) => {
       try {
@@ -36,14 +36,12 @@ export async function syncProvidersInfo() {
         });
 
         const versionStr = versionResponse.data.akash.version;
-        if (false) {
-          //if (IsGrpcEnpointEnabled && versionStr && semver.gte(versionStr, "0.5.0")) {
+        if (IsGrpcEnpointEnabled && versionStr && semver.gte(versionStr, "0.5.0")) {
           await grpcFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
         } else {
           await restFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
         }
       } catch (err) {
-        throw err;
         const checkDate = new Date();
         const errorMessage = err?.message?.toString() ?? err?.toString();
 
