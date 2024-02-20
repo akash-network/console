@@ -131,7 +131,7 @@ export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVer
             snapshotNodeId: providerSnapshotNode.id,
             vendor: cpuInfo.vendor,
             model: cpuInfo.model,
-            vcores: cpuInfo.vcores // TODO: Change type to integer?
+            vcores: cpuInfo.vcores
           },
           { transaction: t }
         );

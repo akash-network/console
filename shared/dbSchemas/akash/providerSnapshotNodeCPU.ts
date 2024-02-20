@@ -11,5 +11,5 @@ export class ProviderSnapshotNodeCPU extends Model {
 
   @Column vendor: string;
   @Column model: string;
-  @Column vcores: string;
+  @Column(DataTypes.SMALLINT) vcores: number;
 }
