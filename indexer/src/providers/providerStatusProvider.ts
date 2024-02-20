@@ -7,7 +7,6 @@ import { ProviderSnapshot } from "@src/../../shared/dbSchemas/akash/providerSnap
 import { fetchAndSaveProviderStats as grpcFetchAndSaveProviderStats } from "./statusEndpointHandlers/grpc";
 import { fetchAndSaveProviderStats as restFetchAndSaveProviderStats } from "./statusEndpointHandlers/rest";
 
-const IsGrpcEnpointEnabled = false;
 const ConcurrentStatusCall = 10;
 const StatusCallTimeout = 10_000; // 10 seconds
 
@@ -34,13 +33,13 @@ export async function syncProvidersInfo() {
           httpsAgent: httpsAgent,
           timeout: StatusCallTimeout
         });
-        
 
-        const versionStr = versionResponse.data.akash.version;
-        if (IsGrpcEnpointEnabled && versionStr && semver.gte(versionStr, "0.5.0")) {
-          await grpcFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
+        const versionStr = semver.valid(versionResponse.data.akash.version);
+
+        if (versionStr && semver.gte(versionStr, "0.5.0-0")) {
+          await grpcFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionStr, StatusCallTimeout);
         } else {
-          await restFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
+          await restFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionStr, StatusCallTimeout);
         }
       } catch (err) {
         const checkDate = new Date();
