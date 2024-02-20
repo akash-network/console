@@ -4,7 +4,7 @@ Some indexer updates changes the database schemas and an upgrade script must be 
 
 **It is recommended to stop the indexer before running any migration script.**
 
-## v1.8.0
+## v1.7.1
 
 Storing cpu vcores as numbers instead of strings
 
