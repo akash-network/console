@@ -31,7 +31,7 @@ export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVer
       }
     );
   const checkDate = toUTC(new Date());
-
+  
   await sequelize.transaction(async (t) => {
     const createdSnapshot = await ProviderSnapshot.create(
       {
@@ -165,7 +165,7 @@ async function queryStatus(hostUri: string, timeout: number): Promise<Status> {
 
 function parseResources(resources: ResourcesMetric) {
   return {
-    cpu: parseDecimalKubernetesString(resources.cpu.string) * 1_000,
+    cpu: Math.round(parseDecimalKubernetesString(resources.cpu.string) * 1_000),
     memory: parseSizeStr(resources.memory.string),
     storage: parseSizeStr(resources.ephemeralStorage.string),
     gpu: parseDecimalKubernetesString(resources.gpu.string)
@@ -174,8 +174,8 @@ function parseResources(resources: ResourcesMetric) {
 
 function parseNodeResources(resources: NodeResources) {
   return {
-    allocatableCPU: parseDecimalKubernetesString(resources.cpu.quantity.allocatable.string) * 1_000,
-    allocatedCPU: parseDecimalKubernetesString(resources.cpu.quantity.allocated.string) * 1_000,
+    allocatableCPU: Math.round(parseDecimalKubernetesString(resources.cpu.quantity.allocatable.string) * 1_000),
+    allocatedCPU: Math.round(parseDecimalKubernetesString(resources.cpu.quantity.allocated.string) * 1_000),
     allocatableMemory: parseSizeStr(resources.memory.quantity.allocatable.string),
     allocatedMemory: parseSizeStr(resources.memory.quantity.allocated.string),
     allocatableStorage: parseSizeStr(resources.ephemeralStorage.allocatable.string),
