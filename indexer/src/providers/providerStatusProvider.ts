@@ -34,11 +34,12 @@ export async function syncProvidersInfo() {
           timeout: StatusCallTimeout
         });
 
-        const versionStr = versionResponse.data.akash.version;
-        if (versionStr && semver.gte(versionStr, "0.5.0")) {
-          await grpcFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
+        const versionStr = semver.valid(versionResponse.data.akash.version);
+
+        if (versionStr && semver.gte(versionStr, "0.5.0-0")) {
+          await grpcFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionStr, StatusCallTimeout);
         } else {
-          await restFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
+          await restFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionStr, StatusCallTimeout);
         }
       } catch (err) {
         const checkDate = new Date();
