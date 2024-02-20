@@ -12,7 +12,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type,
     <input
       type={type}
       className={cn(
-        "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "flex h-10 w-full rounded-md border border-input bg-popover px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       ref={ref}
@@ -36,7 +36,7 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ classNam
       <input
         type={type}
         className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-10 w-full rounded-md border border-input bg-popover px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
         ref={ref}
@@ -50,34 +50,40 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ classNam
 FormInput.displayName = "FormInput";
 
 export interface InputWithIconProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label: string;
+  label: string | React.ReactNode;
   startIcon?: React.ReactNode;
   endIcon?: React.ReactNode;
   error?: string;
   inputClassName?: string;
 }
 
+// TODO Variants
+
 const InputWithIcon = React.forwardRef<HTMLInputElement, InputWithIconProps>(
   ({ className, inputClassName, type, label, startIcon, endIcon, error, ...props }, ref) => {
+    const id = React.useId();
+
     return (
       <div className={className}>
-        <Label htmlFor={`${label}-input`}>{label}</Label>
-        <div className="relative mt-2 rounded-md shadow-sm">
-          {startIcon && <div className="absolute inset-y-0 left-0 flex items-center pl-3">{startIcon}</div>}
+        <Label htmlFor={`${id}-input`}>{label}</Label>
+        <div className="mt-2 flex h-10 w-full items-center rounded-md border border-input bg-popover px-3 py-2 text-sm shadow-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+          {startIcon && <div className="inset-y-0 left-0 flex items-center">{startIcon}</div>}
           <input
-            id={`${label}-input`}
+            id={`${id}-input`}
             type={type}
             className={cn(
-              "flex h-10 w-full rounded-md border border-input px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-              inputClassName
+              "flex-grow file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none",
+              // "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+              inputClassName,
+              { ["pl-4"]: !!startIcon, ["pr-4"]: !!endIcon }
             )}
             ref={ref}
             {...props}
           />
-          {endIcon && <div className="absolute inset-y-0 right-0 flex items-center pr-3">{endIcon}</div>}
+          {endIcon && <div className="inset-y-0 right-0 flex items-center">{endIcon}</div>}
         </div>
         {error && (
-          <p className="mt-2 text-sm text-red-600" id={`${label}-error`}>
+          <p className="mt-2 text-sm text-red-600" id={`${id}-error`}>
             {error}
           </p>
         )}
@@ -108,7 +114,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ classNa
   return (
     <textarea
       className={cn(
-        "flex h-10 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "flex h-10 w-full resize-y rounded-md border border-input bg-popover px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       ref={textAreaRef}

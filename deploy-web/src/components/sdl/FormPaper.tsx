@@ -1,15 +1,11 @@
 "use client";
+import { cn } from "@src/utils/styleUtils";
 import { Card, CardContent } from "../ui/card";
 
-// export const FormPaper = styled(Paper)(({ theme }) => ({
-//   backgroundColor: theme.palette.mode === "dark" ? theme.palette.background.paper : theme.palette.grey[100]
-// }));
-
 export function FormPaper({ children, className = "" }: React.PropsWithChildren<{ className?: string }>) {
-  // TODO
   return (
-    <Card className={className}>
-      <CardContent>{children}</CardContent>
+    <Card className="bg-background/30">
+      <CardContent className={cn("px-4 py-4", className)}>{children}</CardContent>
     </Card>
   );
 }

@@ -13,7 +13,7 @@ export const CustomDropdownLinkItem = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DropdownMenuIconItem> & Props
 >(({ onClick, icon, children, className = "" }, ref) => {
   return (
-    <DropdownMenuIconItem className={cn("cursor-pointer hover:!text-primary", className)} onClick={onClick} icon={icon} ref={ref}>
+    <DropdownMenuIconItem className={cn("cursor-pointer hover:text-primary", className)} onClick={onClick} icon={icon} ref={ref}>
       {children}
     </DropdownMenuIconItem>
   );

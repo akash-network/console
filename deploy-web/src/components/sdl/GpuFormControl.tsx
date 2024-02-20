@@ -7,7 +7,7 @@ import { Control, Controller, useFieldArray } from "react-hook-form";
 import { gpuVendors } from "../shared/akash/gpu";
 import { validationConfig } from "../shared/akash/units";
 import { cn } from "@src/utils/styleUtils";
-import { FormControl, FormDescription, FormItem } from "../ui/form";
+import { FormDescription, FormItem } from "../ui/form";
 import { Slider } from "../ui/slider";
 import Spinner from "../shared/Spinner";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -15,6 +15,7 @@ import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
 import { InfoCircle } from "iconoir-react";
 import { MdSpeed } from "react-icons/md";
+import { Label } from "../ui/label";
 
 type Props = {
   serviceIndex: number;

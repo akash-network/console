@@ -29,7 +29,7 @@ export const CommandList: React.FunctionComponent<Props> = ({ currentService, se
   // const { classes } = useStyles();
 
   return (
-    <FormPaper className="px-4 py-2">
+    <FormPaper>
       <div className="mb-2 flex items-center">
         <p>
           <strong>Commands</strong>

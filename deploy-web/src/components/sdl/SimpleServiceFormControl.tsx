@@ -136,33 +136,32 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
               render={({ field, fieldState }) => (
                 <InputWithIcon
                   type="text"
-                  // variant="outlined"
-                  label="Service Name"
+                  label={
+                    <div className="inline-flex items-center">
+                      Service Name
+                      <CustomTooltip
+                        title={
+                          <>
+                            The service name serves as a identifier for the workload to be ran on the Akash Network.
+                            <br />
+                            <br />
+                            <a href="https://docs.akash.network/readme/stack-definition-language#services" target="_blank" rel="noopener">
+                              View official documentation.
+                            </a>
+                          </>
+                        }
+                      >
+                        <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                      </CustomTooltip>
+                    </div>
+                  }
                   color="secondary"
                   // errorMessage={!!fieldState.error}
                   // helperText={fieldState.error?.message}
                   error={fieldState.error?.message}
-                  // fullWidth
                   value={field.value}
-                  // size="small"
                   className="flex-grow"
                   onChange={event => field.onChange((event.target.value || "").toLowerCase())}
-                  endIcon={
-                    <CustomTooltip
-                      title={
-                        <>
-                          The service name serves as a identifier for the workload to be ran on the Akash Network.
-                          <br />
-                          <br />
-                          <a href="https://docs.akash.network/readme/stack-definition-language#services" target="_blank" rel="noopener">
-                            View official documentation.
-                          </a>
-                        </>
-                      }
-                    >
-                      <InfoCircle className="text-muted-foreground" />
-                    </CustomTooltip>
-                  }
                 />
               )}
             />
@@ -185,10 +184,6 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                 </Button>
               )}
 
-              {/* <ExpandMoreButton expand={expanded} onClick={onExpandClick} aria-expanded={expanded} aria-label="show more" sx={{ marginLeft: ".5rem" }}>
-                <ExpandMoreIcon />
-              </ExpandMoreButton> */}
-
               <CollapsibleTrigger asChild>
                 <Button size="icon" variant="ghost" className="ml-2 rounded-full" onClick={onExpandClick}>
                   <NavArrowDown fontSize="1rem" className={cn("transition-all duration-100", { ["rotate-180"]: expanded })} />
@@ -202,97 +197,62 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <div className="grid gap-4">
-                    <div>
-                      <div className="flex items-center">
-                        <Controller
-                          control={control}
-                          name={`services.${serviceIndex}.image`}
-                          rules={{
-                            required: "Docker image name is required.",
-                            validate: value => {
-                              const hasValidChars = /^[a-z0-9\-_/:.]+$/.test(value);
+                    <div className="flex items-end">
+                      <Controller
+                        control={control}
+                        name={`services.${serviceIndex}.image`}
+                        rules={{
+                          required: "Docker image name is required.",
+                          validate: value => {
+                            const hasValidChars = /^[a-z0-9\-_/:.]+$/.test(value);
 
-                              if (!hasValidChars) {
-                                return "Invalid docker image name.";
-                              }
-
-                              return true;
+                            if (!hasValidChars) {
+                              return "Invalid docker image name.";
                             }
-                          }}
-                          render={({ field, fieldState }) => (
-                            <InputWithIcon
-                              type="text"
-                              // variant="outlined"
-                              label={`Docker Image / OS`}
-                              placeholder="Example: mydockerimage:1.01"
-                              color="secondary"
-                              // error={!!fieldState.error}
-                              error={fieldState.error?.message}
-                              // fullWidth
-                              // size="small"
-                              value={field.value}
-                              onChange={event => field.onChange((event.target.value || "").toLowerCase())}
-                              startIcon={<Image alt="Docker Logo" src="/images/docker.png" layout="fixed" quality={100} width={24} height={18} priority />}
-                              endIcon={
-                                <Link
-                                  href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`}
-                                  className={buttonVariants({ variant: "default", size: "icon" })}
-                                  target="_blank"
-                                >
-                                  <OpenInWindow />
-                                </Link>
-                              }
-                              // InputProps={{
-                              //   startAdornment: (
-                              //     <InputAdornment position="start">
-                              //       <Image alt="Docker Logo" src="/images/docker.png" layout="fixed" quality={100} width={24} height={18} priority />
-                              //     </InputAdornment>
-                              //   ),
-                              //   endAdornment: (
-                              //     <InputAdornment position="end">
-                              //       <IconButton
-                              //         href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`}
-                              //         component={Link}
-                              //         size="small"
-                              //         target="_blank"
-                              //       >
-                              //         <OpenInNewIcon fontSize="small" />
-                              //       </IconButton>
-                              //     </InputAdornment>
-                              //   )
-                              // }}
-                            />
-                          )}
-                        />
 
-                        <CustomTooltip
-                          title={
-                            <>
-                              The service name serves as a identifier for the workload to be ran on the Akash Network.
-                              <br />
-                              <br />
-                              <a href="https://docs.akash.network/readme/stack-definition-language#services" target="_blank" rel="noopener">
-                                View official documentation.
-                              </a>
-                            </>
+                            return true;
                           }
-                        >
-                          <InfoCircle className="text-muted-foreground" />
-                        </CustomTooltip>
-                        {/* <CustomTooltip
-                          arrow
-                          title={
-                            <>
-                              Docker image of the container.
-                              <br />
-                              <br />
-                              Best practices: avoid using :latest image tags as Akash Providers heavily cache images.
-                            </>
-                          }
-                        >
-                          <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: ".5rem" }} />
-                        </CustomTooltip> */}
-                      </div>
+                        }}
+                        render={({ field, fieldState }) => (
+                          <InputWithIcon
+                            type="text"
+                            label={
+                              <div className="inline-flex items-center">
+                                Docker Image / OS
+                                <CustomTooltip
+                                  title={
+                                    <>
+                                      Docker image of the container.
+                                      <br />
+                                      <br />
+                                      Best practices: avoid using :latest image tags as Akash Providers heavily cache images.
+                                    </>
+                                  }
+                                >
+                                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                                </CustomTooltip>
+                              </div>
+                            }
+                            placeholder="Example: mydockerimage:1.01"
+                            color="secondary"
+                            // error={!!fieldState.error}
+                            error={fieldState.error?.message}
+                            className="flex-grow"
+                            value={field.value}
+                            onChange={event => field.onChange((event.target.value || "").toLowerCase())}
+                            startIcon={<Image alt="Docker Logo" src="/images/docker.png" layout="fixed" quality={100} width={24} height={18} priority />}
+                            endIcon={
+                              <Link
+                                href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`}
+                                className={cn(buttonVariants({ variant: "text", size: "icon" }), "text-muted-foreground")}
+                                target="_blank"
+                              >
+                                <OpenInWindow />
+                              </Link>
+                            }
+                          />
+                        )}
+                      />
                     </div>
 
                     <div>

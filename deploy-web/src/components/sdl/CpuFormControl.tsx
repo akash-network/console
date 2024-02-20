@@ -19,15 +19,6 @@ type Props = {
   currentService: Service;
 };
 
-// const useStyles = makeStyles()(theme => ({
-//   formControl: {
-//     marginBottom: theme.spacing(1.5)
-//   },
-//   textField: {
-//     width: "100%"
-//   }
-// }));
-
 export const CpuFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, currentService }) => {
   return (
     <Controller
@@ -51,10 +42,7 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
         }
       }}
       render={({ field, fieldState }) => (
-        <FormPaper
-          className={cn("px-2 py-4", { ["border-b border-red-500"]: !!fieldState.error })}
-          // sx={{ padding: ".5rem 1rem", borderBottom: !!fieldState.error && `1px solid ${theme.palette.error.main}` }}
-        >
+        <FormPaper className={cn({ ["border-b border-red-500"]: !!fieldState.error })}>
           <FormItem
           // className={cx(classes.formControl, classes.textField)}
           // variant="standard"
@@ -63,8 +51,8 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
           >
             <div className="flex items-center">
               <div className="flex items-center">
-                <MdSpeed className="mr-2 text-muted-foreground" />
-                <strong>CPU</strong>
+                <MdSpeed className="mr-2 text-2xl text-muted-foreground" />
+                <strong className="text-sm">CPU</strong>
 
                 <CustomTooltip
                   title={
@@ -79,7 +67,7 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
                     </>
                   }
                 >
-                  <InfoCircle className="ml-4 text-sm text-muted-foreground" />
+                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                 </CustomTooltip>
               </div>
 
@@ -100,16 +88,18 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
               />
             </div>
 
-            <Slider
-              value={[field.value || 0]}
-              min={0.1}
-              max={validationConfig.maxCpuAmount}
-              step={1}
-              color="secondary"
-              aria-label="CPU"
-              // valueLabelDisplay="auto"
-              onValueChange={newValue => field.onChange(newValue)}
-            />
+            <div className="pt-2">
+              <Slider
+                value={[field.value || 0]}
+                min={0.1}
+                max={validationConfig.maxCpuAmount}
+                step={1}
+                color="secondary"
+                aria-label="CPU"
+                // valueLabelDisplay="auto"
+                onValueChange={newValue => field.onChange(newValue)}
+              />
+            </div>
 
             {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}
           </FormItem>
