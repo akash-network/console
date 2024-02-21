@@ -6,7 +6,7 @@ import { FormPaper } from "./FormPaper";
 import { Control, Controller } from "react-hook-form";
 import { validationConfig } from "../shared/akash/units";
 import { cn } from "@src/utils/styleUtils";
-import { FormControl, FormDescription, FormItem } from "../ui/form";
+import { FormDescription, FormItem } from "../ui/form";
 import { Slider } from "../ui/slider";
 import { Input } from "../ui/input";
 import { InfoCircle } from "iconoir-react";
@@ -73,18 +73,14 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
 
               <Input
                 type="number"
-                // variant="outlined"
                 color="secondary"
                 // error={!!fieldState.error}
                 value={field.value || ""}
                 onChange={event => field.onChange(parseFloat(event.target.value))}
-                // inputProps={{ min: 0.1, max: validationConfig.maxCpuAmount, step: 0.1 }}
                 min={0.1}
                 step={0.1}
                 max={validationConfig.maxCpuAmount}
-                // size="small"
                 className="ml-4 w-[100px]"
-                // sx={{ width: "100px", marginLeft: "1rem" }}
               />
             </div>
 

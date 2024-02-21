@@ -51,27 +51,17 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
       }}
       name={`services.${serviceIndex}.profile.storage`}
       render={({ field, fieldState }) => (
-        <FormPaper
-          className={cn("px-2 py-4", { ["border-b border-red-500"]: !!fieldState.error })}
-          // sx={{ padding: ".5rem 1rem", borderBottom: !!fieldState.error && `1px solid ${theme.palette.error.main}` }}
-        >
+        <FormPaper className={cn({ ["border-b border-red-500"]: !!fieldState.error })}>
           <FormItem
           // className={cx(classes.formControl, classes.textField)}
           // variant="standard"
           // sx={{ marginBottom: "0 !important" }}
           // error={!!fieldState.error}
           >
-            <div
-              className="flex flex-col items-start sm:flex-row sm:items-center"
-              // sx={{
-              //   display: "flex",
-              //   alignItems: { xs: "flex-start", sm: "center" },
-              //   flexDirection: { xs: "column", sm: "row" }
-              // }}
-            >
+            <div className="flex flex-col items-start sm:flex-row sm:items-center">
               <div className="flex items-center">
-                <MdStorage className="mr-2 text-muted-foreground" />
-                <strong>Ephemeral Storage</strong>
+                <MdStorage className="mr-2 text-2xl text-muted-foreground" />
+                <strong className="text-sm">Ephemeral Storage</strong>
 
                 <CustomTooltip
                   title={
@@ -89,27 +79,20 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
                     </>
                   }
                 >
-                  <InfoCircle className="ml-4 text-sm text-muted-foreground" />
+                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                 </CustomTooltip>
               </div>
 
-              <div
-                className="mt-2 sm:ml-4 sm:mt-0"
-                // sx={{ marginTop: { xs: ".5rem", sm: 0 }, marginLeft: { xs: 0, sm: "1rem" } }}
-              >
+              <div className="mt-2 flex items-center sm:ml-4 sm:mt-0">
                 <Input
                   type="number"
-                  // variant="outlined"
                   color="secondary"
                   value={field.value || ""}
                   // error={!!fieldState.error}
                   onChange={event => field.onChange(parseFloat(event.target.value))}
                   min={1}
                   step={1}
-                  // inputProps={{ min: 1, step: 1 }}
-                  // size="small"
                   className="w-[100px]"
-                  // sx={{ width: "100px" }}
                 />
 
                 <Controller
@@ -119,8 +102,8 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
                   defaultValue=""
                   render={({ field }) => (
                     <Select value={field.value || ""} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select unit" className="ml-1 w-[75px]" />
+                      <SelectTrigger className="ml-1">
+                        <SelectValue placeholder="Select unit" className="w-[75px]" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
@@ -134,20 +117,6 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                    // <Select
-                    //   value={field.value || ""}
-                    //   onChange={field.onChange}
-                    //   variant="outlined"
-                    //   size="small"
-                    //   sx={{ width: "75px", marginLeft: ".25rem" }}
-                    //   MenuProps={{ disableScrollLock: true }}
-                    // >
-                    //   {storageUnits.map(u => (
-                    //     <MenuItem key={u.id} value={u.suffix}>
-                    //       {u.suffix}
-                    //     </MenuItem>
-                    //   ))}
-                    // </Select>
                   )}
                 />
               </div>
@@ -162,6 +131,7 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
               aria-label="Storage"
               // valueLabelDisplay="auto"
               onValueChange={newValue => field.onChange(newValue)}
+              className="pt-2"
             />
 
             {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}

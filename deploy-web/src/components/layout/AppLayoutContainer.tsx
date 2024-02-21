@@ -71,7 +71,7 @@ export function AppLayoutContainer({ children, version }: React.PropsWithChildre
         // sx={{ height: "100%" }}
       >
         <div
-          className={`mt-[57px] h-full w-full`}
+          className="h-full w-full"
           // className={classes.root} sx={{ marginTop: `${accountBarHeight}px`, height: "100%" }}
         >
           <div

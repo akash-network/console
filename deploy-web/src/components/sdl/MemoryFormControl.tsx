@@ -5,7 +5,7 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import { FormPaper } from "./FormPaper";
 import { Control, Controller } from "react-hook-form";
 import { validationConfig, memoryUnits } from "../shared/akash/units";
-import { FormControl, FormDescription, FormItem } from "../ui/form";
+import { FormDescription, FormItem } from "../ui/form";
 import { Slider } from "../ui/slider";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Input } from "../ui/input";
@@ -19,15 +19,6 @@ type Props = {
   control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
   currentService: Service;
 };
-
-// const useStyles = makeStyles()(theme => ({
-//   formControl: {
-//     marginBottom: theme.spacing(1.5)
-//   },
-//   textField: {
-//     width: "100%"
-//   }
-// }));
 
 export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, currentService }) => {
   return (
@@ -53,27 +44,17 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
         }
       }}
       render={({ field, fieldState }) => (
-        <FormPaper
-          className={cn("px-2 py-4", { ["border-b border-red-500"]: !!fieldState.error })}
-          // sx={{ padding: ".5rem 1rem", borderBottom: !!fieldState.error && `1px solid ${theme.palette.error.main}` }}
-        >
+        <FormPaper className={cn({ ["border-b border-red-500"]: !!fieldState.error })}>
           <FormItem
           // className={cx(classes.formControl, classes.textField)}
           // variant="standard"
           // sx={{ marginBottom: "0 !important" }}
           // error={!!fieldState.error}
           >
-            <div
-              className="flex flex-col items-start sm:flex-row sm:items-center"
-              // sx={{
-              //   display: "flex",
-              //   alignItems: { xs: "flex-start", sm: "center" },
-              //   flexDirection: { xs: "column", sm: "row" }
-              // }}
-            >
+            <div className="flex flex-col items-start sm:flex-row sm:items-center">
               <div className="flex items-center">
-                <MdMemory className="mr-2 text-muted-foreground" fontSize="medium" />
-                <strong>Memory</strong>
+                <MdMemory className="mr-2 text-2xl text-muted-foreground" />
+                <strong className="text-sm">Memory</strong>
 
                 <CustomTooltip
                   title={
@@ -88,27 +69,20 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
                     </>
                   }
                 >
-                  <InfoCircle className="ml-4 text-sm text-muted-foreground" />
+                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                 </CustomTooltip>
               </div>
 
-              <div
-                className="mt-2 sm:ml-4 sm:mt-0"
-                // sx={{ marginTop: { xs: ".5rem", sm: 0 }, marginLeft: { xs: 0, sm: "1rem" } }}
-              >
+              <div className="mt-2 flex items-center sm:ml-4 sm:mt-0">
                 <Input
                   type="number"
-                  // variant="outlined"
                   // error={!!fieldState.error}
                   color="secondary"
                   value={field.value || ""}
                   onChange={event => field.onChange(parseFloat(event.target.value))}
-                  // inputProps={{ min: 1, step: 1 }}
                   min={1}
                   step={1}
-                  // size="small"
                   className="w-[100px]"
-                  // sx={{ width: "100px" }}
                 />
 
                 <Controller
@@ -118,8 +92,8 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
                   defaultValue=""
                   render={({ field }) => (
                     <Select value={field.value || ""} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select unit" className="ml-1 w-[75px]" />
+                      <SelectTrigger className="ml-1">
+                        <SelectValue placeholder="Select unit" className="w-[75px]" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
@@ -133,20 +107,6 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                    // <Select
-                    //   value={field.value || ""}
-                    //   onChange={field.onChange}
-                    //   variant="outlined"
-                    //   size="small"
-                    //   sx={{ width: "75px", marginLeft: ".25rem" }}
-                    //   MenuProps={{ disableScrollLock: true }}
-                    // >
-                    //   {memoryUnits.map(u => (
-                    //     <MenuItem key={u.id} value={u.suffix}>
-                    //       {u.suffix}
-                    //     </MenuItem>
-                    //   ))}
-                    // </Select>
                   )}
                 />
               </div>
@@ -161,6 +121,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
               aria-label="RAM"
               // valueLabelDisplay="auto"
               onValueChange={newValue => field.onChange(newValue)}
+              className="pt-2"
             />
 
             {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}
