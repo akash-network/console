@@ -31,7 +31,7 @@ export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVer
       }
     );
   const checkDate = toUTC(new Date());
-  
+
   await sequelize.transaction(async (t) => {
     const createdSnapshot = await ProviderSnapshot.create(
       {
@@ -181,7 +181,7 @@ function parseNodeResources(resources: NodeResources) {
     allocatableStorage: parseSizeStr(resources.ephemeralStorage.allocatable.string),
     allocatedStorage: parseSizeStr(resources.ephemeralStorage.allocated.string),
     allocatableGPU: parseDecimalKubernetesString(resources.gpu.quantity.allocatable.string),
-    allocatedGPU: parseDecimalKubernetesString(resources.gpu.quantity.allocatable.string)
+    allocatedGPU: parseDecimalKubernetesString(resources.gpu.quantity.allocated.string)
   };
 }
 
