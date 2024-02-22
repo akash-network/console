@@ -1,4 +1,4 @@
-# List of endpoints that are not part of the public api
+# Internal endpoints that are not part of the public api
 
 Those endpoints are used for debugging and analytics purposes.
 
