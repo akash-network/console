@@ -73,21 +73,18 @@ internalRouter.get("/gpu", async (c) => {
 
   const gpuNodes = (await chainDb.query(
     `
-    WITH nodes_with_gpu AS (
+    WITH snapshots AS (
       SELECT DISTINCT ON("hostUri") 
-        "hostUri", 
-        p."owner",
-        psn.id AS "id", 
-        name,
-        "gpuAllocatable" AS "allocatable",
-        "gpuAllocated" AS "allocated"
+      ps.id AS id,
+      "hostUri", 
+      p."owner"
       FROM provider p
       INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSnapshotId"
-      INNER JOIN "providerSnapshotNode" psn ON psn."snapshotId"=ps.id
-      WHERE p."isOnline" IS TRUE AND "gpuAllocatable" > 0
+      WHERE p."isOnline" IS TRUE
     )
-    SELECT n."hostUri", n."name", n."allocatable", n."allocated", gpu."modelId", gpu.vendor, gpu.name AS "modelName", gpu.interface, gpu."memorySize"
-    FROM nodes_with_gpu n
+    SELECT s."hostUri", n."name", n."gpuAllocatable" AS allocatable, n."gpuAllocated" AS allocated, gpu."modelId", gpu.vendor, gpu.name AS "modelName", gpu.interface, gpu."memorySize"
+    FROM snapshots s
+    INNER JOIN "providerSnapshotNode" n ON n."snapshotId"=s.id AND n."gpuAllocatable" > 0
     LEFT JOIN (
       SELECT DISTINCT ON (gpu."snapshotNodeId") gpu.*
       FROM "providerSnapshotNodeGPU" gpu
@@ -96,8 +93,8 @@ internalRouter.get("/gpu", async (c) => {
       (:vendor IS NULL OR gpu.vendor = :vendor)
       AND (:model IS NULL OR gpu.name = :model)
       AND (:memory_size IS NULL OR gpu."memorySize" = :memory_size)
-      AND (:provider_address IS NULL OR n."owner" = :provider_address)
-      AND (:provider_hosturi IS NULL OR n."hostUri" = :provider_hosturi)
+      AND (:provider_address IS NULL OR s."owner" = :provider_address)
+      AND (:provider_hosturi IS NULL OR s."hostUri" = :provider_hosturi)
 `,
     {
       type: QueryTypes.SELECT,
