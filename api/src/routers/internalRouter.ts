@@ -52,51 +52,71 @@ internalRouter.get("/provider-versions", async (c) => {
 });
 
 internalRouter.get("/gpu-models", async (c) => {
-  const results = (await chainDb.query(
+  const gpuNodes = (await chainDb.query(
     `
-WITH "gpus" AS (
-	SELECT DISTINCT ON("hostUri") "hostUri", psng.*
-	FROM provider p
-	INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSnapshotId"
-	INNER JOIN "providerSnapshotNode" psn ON psn."snapshotId"=ps.id
-	INNER JOIN "providerSnapshotNodeGPU" psng ON psng."snapshotNodeId"=psn.id
-	WHERE p."isOnline" IS TRUE
-) 
-SELECT "vendor","name","interface","memorySize", COUNT(*)
-FROM "gpus"
-GROUP BY "vendor","name","interface","memorySize"
+    WITH nodes AS (
+      SELECT DISTINCT ON("hostUri") 
+        "hostUri", 
+        psn.id AS "id", 
+        name,
+        "gpuAllocatable" AS "allocatable",
+        "gpuAllocated" AS "allocated"
+      FROM provider p
+      INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSnapshotId"
+      INNER JOIN "providerSnapshotNode" psn ON psn."snapshotId"=ps.id
+      WHERE p."isOnline" IS TRUE
+    )
+    SELECT n."hostUri", n."name", n."allocatable", n."allocated", gpu."modelId", gpu.vendor, gpu.name AS "modelName", gpu.interface, gpu."memorySize"
+    FROM nodes n
+    LEFT JOIN (
+      SELECT DISTINCT ON (gpu."snapshotNodeId") gpu.*
+      FROM "providerSnapshotNodeGPU" gpu
+    ) gpu ON gpu."snapshotNodeId" = n.id
+    
 `,
     { type: QueryTypes.SELECT }
-  )) as { vendor: string; name: string; interface: string; memorySize: string; count: number }[];
+  )) as {
+    hostUri: string;
+    name: string;
+    allocatable: number;
+    allocated: number;
+    modelId: string;
+    vendor: string;
+    modelName: string;
+    interface: string;
+    memorySize: string;
+  }[];
 
   const response = {
-    count: results.map((x) => x.count).reduce((a, b) => a + b, 0),
-    vendors: {}
+    gpus: {
+      total: {
+        allocatable: gpuNodes.map((x) => x.allocatable).reduce((acc, x) => acc + x, 0),
+        allocated: gpuNodes.map((x) => x.allocated).reduce((acc, x) => acc + x, 0)
+      },
+      details: {} as { [key: string]: { model: string; ram: string; interface: string; allocatable: number; allocated: number }[] }
+    }
   };
 
-  const uniqueVendors = new Set(results.map((x) => x.vendor));
+  for (const gpuNode of gpuNodes.filter((x) => x.vendor)) {
+    if (!(gpuNode.vendor in response.gpus.details)) {
+      response.gpus.details[gpuNode.vendor] = [];
+    }
 
-  for (const vendor of uniqueVendors) {
-    const vendorGpus = results.filter((x) => x.vendor === vendor);
-    const uniqueModels = new Set(vendorGpus.map((x) => x.name));
+    const existing = response.gpus.details[gpuNode.vendor].find(
+      (x) => x.model === gpuNode.modelName && x.interface === gpuNode.interface && x.ram === gpuNode.memorySize
+    );
 
-    response.vendors[vendor] = {
-      count: vendorGpus.map((x) => x.count).reduce((a, b) => a + b, 0),
-      models: {}
-    };
-
-    for (const model of uniqueModels) {
-      const modelGpus = vendorGpus.filter((x) => x.name === model);
-      response.vendors[vendor].models[model] = {
-        count: modelGpus.map((x) => x.count).reduce((a, b) => a + b, 0),
-        memory: {}
-      };
-
-      const uniqueMemorySizes = new Set(modelGpus.map((x) => x.memorySize));
-      for (const memorySize of uniqueMemorySizes) {
-        const memorySizeGpus = modelGpus.filter((x) => x.memorySize === memorySize);
-        response.vendors[vendor].models[model].memory[memorySize] = memorySizeGpus.map((x) => x.count).reduce((a, b) => a + b, 0);
-      }
+    if (existing) {
+      existing.allocatable += gpuNode.allocatable;
+      existing.allocated += gpuNode.allocated;
+    } else {
+      response.gpus.details[gpuNode.vendor].push({
+        model: gpuNode.modelName,
+        ram: gpuNode.memorySize,
+        interface: gpuNode.interface,
+        allocatable: gpuNode.allocatable,
+        allocated: gpuNode.allocated
+      });
     }
   }
 
