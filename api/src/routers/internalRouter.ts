@@ -1,5 +1,6 @@
-import { Provider, ProviderSnapshot } from "@shared/dbSchemas/akash";
+import { Provider } from "@shared/dbSchemas/akash";
 import { chainDb } from "@src/db/dbConnection";
+import { isValidBech32Address } from "@src/utils/addresses";
 import { round } from "@src/utils/math";
 import { Hono } from "hono";
 import * as semver from "semver";
@@ -51,12 +52,31 @@ internalRouter.get("/provider-versions", async (c) => {
   return c.json(sorted);
 });
 
-internalRouter.get("/gpu-models", async (c) => {
+internalRouter.get("/gpu", async (c) => {
+  const provider = c.req.query("provider");
+  const vendor = c.req.query("vendor");
+  const model = c.req.query("model");
+  const memory_size = c.req.query("memory_size");
+
+  let provider_address = null;
+  let provider_hosturi = null;
+
+  if (provider) {
+    if (isValidBech32Address(provider)) {
+      provider_address = provider;
+    } else if (URL.canParse(provider)) {
+      provider_hosturi = provider;
+    } else {
+      return c.json({ error: "Invalid provider parameter, should be a valid akash address or host uri" }, 400);
+    }
+  }
+
   const gpuNodes = (await chainDb.query(
     `
-    WITH nodes AS (
+    WITH nodes_with_gpu AS (
       SELECT DISTINCT ON("hostUri") 
         "hostUri", 
+        p."owner",
         psn.id AS "id", 
         name,
         "gpuAllocatable" AS "allocatable",
@@ -64,17 +84,31 @@ internalRouter.get("/gpu-models", async (c) => {
       FROM provider p
       INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSnapshotId"
       INNER JOIN "providerSnapshotNode" psn ON psn."snapshotId"=ps.id
-      WHERE p."isOnline" IS TRUE
+      WHERE p."isOnline" IS TRUE AND "gpuAllocatable" > 0
     )
     SELECT n."hostUri", n."name", n."allocatable", n."allocated", gpu."modelId", gpu.vendor, gpu.name AS "modelName", gpu.interface, gpu."memorySize"
-    FROM nodes n
+    FROM nodes_with_gpu n
     LEFT JOIN (
       SELECT DISTINCT ON (gpu."snapshotNodeId") gpu.*
       FROM "providerSnapshotNodeGPU" gpu
     ) gpu ON gpu."snapshotNodeId" = n.id
-    
+    WHERE 
+      (:vendor IS NULL OR gpu.vendor = :vendor)
+      AND (:model IS NULL OR gpu.name = :model)
+      AND (:memory_size IS NULL OR gpu."memorySize" = :memory_size)
+      AND (:provider_address IS NULL OR n."owner" = :provider_address)
+      AND (:provider_hosturi IS NULL OR n."hostUri" = :provider_hosturi)
 `,
-    { type: QueryTypes.SELECT }
+    {
+      type: QueryTypes.SELECT,
+      replacements: {
+        vendor: vendor ?? null,
+        model: model ?? null,
+        memory_size: memory_size ?? null,
+        provider_address: provider_address ?? null,
+        provider_hosturi: provider_hosturi ?? null
+      }
+    }
   )) as {
     hostUri: string;
     name: string;
@@ -97,12 +131,13 @@ internalRouter.get("/gpu-models", async (c) => {
     }
   };
 
-  for (const gpuNode of gpuNodes.filter((x) => x.vendor)) {
-    if (!(gpuNode.vendor in response.gpus.details)) {
-      response.gpus.details[gpuNode.vendor] = [];
+  for (const gpuNode of gpuNodes) {
+    const vendorName = gpuNode.vendor ?? "<UNKNOWN>";
+    if (!(vendorName in response.gpus.details)) {
+      response.gpus.details[vendorName] = [];
     }
 
-    const existing = response.gpus.details[gpuNode.vendor].find(
+    const existing = response.gpus.details[vendorName].find(
       (x) => x.model === gpuNode.modelName && x.interface === gpuNode.interface && x.ram === gpuNode.memorySize
     );
 
@@ -110,7 +145,7 @@ internalRouter.get("/gpu-models", async (c) => {
       existing.allocatable += gpuNode.allocatable;
       existing.allocated += gpuNode.allocated;
     } else {
-      response.gpus.details[gpuNode.vendor].push({
+      response.gpus.details[vendorName].push({
         model: gpuNode.modelName,
         ram: gpuNode.memorySize,
         interface: gpuNode.interface,
