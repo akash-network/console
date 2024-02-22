@@ -33,6 +33,7 @@ import { NavArrowDown, Bin, InfoCircle, OpenInWindow } from "iconoir-react";
 import { cn } from "@src/utils/styleUtils";
 import { InputWithIcon } from "../ui/input";
 import { CustomTooltip } from "../shared/CustomTooltip";
+import { TokenFormControl } from "./TokenFormControl";
 
 type Props = {
   _services: Service[];
@@ -351,6 +352,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         />
                       )}
                     />
+                  </div>
+
+                  <div className="mt-4">
+                    <TokenFormControl control={control} name={`services.${serviceIndex}.placement.pricing.denom`} />
                   </div>
                 </div>
               </div>

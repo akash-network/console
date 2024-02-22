@@ -157,48 +157,6 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
             <div>
               {/** TODO Token Form Control */}
               <FormItem className="flex w-full flex-row items-center">
-                <Controller
-                  control={control}
-                  name={`services.${serviceIndex}.placement.pricing.denom`}
-                  defaultValue=""
-                  rules={{
-                    required: true
-                  }}
-                  render={({ fieldState, field }) => {
-                    return (
-                      <FormItem>
-                        <label>Token</label>
-                        <Select value={field.value || ""} onValueChange={field.onChange}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select token" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              {supportedSdlDenoms.map(t => {
-                                return (
-                                  <SelectItem key={t.id} value={t.value}>
-                                    {t.value}
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    );
-                    // return (
-                    //   <Select {...field} labelId="sdl-token" label="Token" size="small" error={!!fieldState.error}>
-                    //     {supportedSdlDenoms.map(token => (
-                    //       <MenuItem key={token.id} value={token.value}>
-                    //         {token.label}
-                    //       </MenuItem>
-                    //     ))}
-                    //   </Select>
-
-                    // );
-                  }}
-                />
-
                 <div className="ml-2 flex flex-grow items-center">
                   <Controller
                     control={control}

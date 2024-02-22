@@ -339,7 +339,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
   };
 
   return (
-    <Dialog key="Dialog" modal={false} {...dialogProps} onOpenChange={handleOnClose}>
+    <Dialog key="Dialog" {...dialogProps} onOpenChange={handleOnClose}>
       <ErrorBoundary FallbackComponent={ErrorFallback}>
         <DialogContent
           // TODO sizes

@@ -101,7 +101,7 @@ function getApiUrl() {
   if (window.location?.hostname === "deploy.cloudmos.io") {
     try {
       const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
-      return getNetworkBaseApiUrl(_selectedNetworkId);
+      return getNetworkBaseApiUrl(_selectedNetworkId || mainnetId);
     } catch (e) {
       console.error(e);
       return productionMainnetApiUrl;
