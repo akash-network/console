@@ -313,9 +313,25 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                       render={({ field, fieldState }) => (
                         <InputWithIcon
                           type="number"
-                          // variant="outlined"
-                          // color="secondary"
-                          label="Count"
+                          label={
+                            <div className="inline-flex items-center">
+                              Service Count
+                              <CustomTooltip
+                                title={
+                                  <>
+                                    The number of instances of the service to run.
+                                    <br />
+                                    <br />
+                                    <a href="https://docs.akash.network/readme/stack-definition-language#services.count" target="_blank" rel="noopener">
+                                      View official documentation.
+                                    </a>
+                                  </>
+                                }
+                              >
+                                <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                              </CustomTooltip>
+                            </div>
+                          }
                           value={field.value || ""}
                           // error={!!fieldState.error}
                           error={fieldState.error?.message}
@@ -329,49 +345,9 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                               trigger(`services.${serviceIndex}.profile.storage`);
                             }
                           }}
-                          // inputProps={{ min: 1, max: 20, step: 1 }}
                           min={1}
                           max={20}
                           step={1}
-                          // size="small"
-                          // fullWidth
-                          endIcon={
-                            <CustomTooltip
-                              title={
-                                <>
-                                  The number of instances of the current service. Each instance will have the resources defined in this service.
-                                  <br />
-                                  <br />
-                                  <a href="https://docs.akash.network/readme/stack-definition-language#deployment" target="_blank" rel="noopener">
-                                    View official documentation.
-                                  </a>
-                                </>
-                              }
-                            >
-                              <InfoCircle className="text-muted-foreground" />
-                            </CustomTooltip>
-                          }
-                          // InputProps={{
-                          //   endAdornment: (
-                          //     <InputAdornment position="end">
-                          //       <CustomTooltip
-                          //         arrow
-                          //         title={
-                          //           <>
-                          //             The number of instances of the current service. Each instance will have the resources defined in this service.
-                          //             <br />
-                          //             <br />
-                          //             <a href="https://docs.akash.network/readme/stack-definition-language#deployment" target="_blank" rel="noopener">
-                          //               View official documentation.
-                          //             </a>
-                          //           </>
-                          //         }
-                          //       >
-                          //         <InfoIcon color="disabled" fontSize="small" />
-                          //       </CustomTooltip>
-                          //     </InputAdornment>
-                          //   )
-                          // }}
                         />
                       )}
                     />
@@ -381,11 +357,9 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
               <div className="mt-4 break-all">
                 <div className="grid gap-4">
                   <div>
-                    <FormPaper className="px-4 py-2">
+                    <FormPaper>
                       <div className="mb-2 flex items-center">
-                        <p>
-                          <strong>Placement</strong>
-                        </p>
+                        <strong className="text-sm">Placement</strong>
 
                         <CustomTooltip
                           title={
@@ -402,28 +376,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                             </>
                           }
                         >
-                          <InfoCircle className="text-muted-foreground" />
+                          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                         </CustomTooltip>
-                        {/* <CustomTooltip
-                          arrow
-                          title={
-                            <>
-                              Placement is a list of settings to specify where to host the current service workload.
-                              <br />
-                              <br />
-                              You can filter providers by attributes, audited by and pricing.
-                              <br />
-                              <br />
-                              <a href="https://docs.akash.network/readme/stack-definition-language#profiles.placement" target="_blank" rel="noopener">
-                                View official documentation.
-                              </a>
-                            </>
-                          }
-                        >
-                          <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
-                        </CustomTooltip> */}
 
-                        <span className="ml-4 cursor-pointer text-xs text-primary underline" onClick={() => setIsEditingPlacement(serviceIndex)}>
+                        <span className="ml-4 cursor-pointer text-sm text-primary underline" onClick={() => setIsEditingPlacement(serviceIndex)}>
                           Edit
                         </span>
                       </div>
@@ -456,30 +412,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                 </>
                               }
                             >
-                              <InfoCircle className="text-muted-foreground" />
+                              <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                             </CustomTooltip>
-                            {/* <CustomTooltip
-                              arrow
-                              title={
-                                <>
-                                  The maximum amount of uAKT you're willing to pay per block (~6 seconds).
-                                  <br />
-                                  <br />
-                                  Akash will only show providers costing <strong>less</strong> than this amount.
-                                  <br />
-                                  <br />
-                                  <div>
-                                    <strong>
-                                      ~
-                                      <PriceValue denom={uAktDenom} value={udenomToDenom(getAvgCostPerMonth(currentService.placement.pricing.amount))} />
-                                    </strong>
-                                    &nbsp; per month
-                                  </div>
-                                </>
-                              }
-                            >
-                              <InfoIcon color="disabled" fontSize="inherit" sx={{ marginLeft: ".5rem" }} />
-                            </CustomTooltip> */}
                           </span>
                         </div>
                         <div>

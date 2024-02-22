@@ -12,26 +12,11 @@ type Props = {
   setIsEditingEnv: Dispatch<SetStateAction<boolean | number>>;
 };
 
-// const useStyles = makeStyles()(theme => ({
-//   editLink: {
-//     color: theme.palette.secondary.light,
-//     textDecoration: "underline",
-//     cursor: "pointer",
-//     fontWeight: "normal",
-//     fontSize: ".8rem"
-//   },
-//   formValue: {
-//     color: theme.palette.grey[500]
-//   }
-// }));
-
 export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, setIsEditingEnv, serviceIndex }) => {
   return (
-    <FormPaper className="px-4 py-2">
+    <FormPaper>
       <div className="mb-2 flex items-center">
-        <p>
-          <strong>Environment Variables</strong>
-        </p>
+        <strong className="text-sm">Environment Variables</strong>
 
         <CustomTooltip
           title={
@@ -45,11 +30,11 @@ export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, set
             </>
           }
         >
-          <InfoCircle className="ml-4 text-sm text-muted-foreground" />
+          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
         </CustomTooltip>
 
         <span
-          className="ml-4 cursor-pointer text-sm font-normal text-primary-foreground underline"
+          className="ml-4 cursor-pointer text-sm font-normal text-primary underline"
           onClick={() => setIsEditingEnv(serviceIndex !== undefined ? serviceIndex : true)}
         >
           Edit

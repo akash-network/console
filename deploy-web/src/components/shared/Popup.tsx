@@ -5,7 +5,7 @@ import { ButtonProps, Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle as _DialogTitle, DialogTrigger } from "../ui/dialog";
 import { DialogProps } from "@radix-ui/react-dialog";
 import Spinner from "./Spinner";
-import { Input } from "../ui/input";
+import { Input, InputWithIcon } from "../ui/input";
 // import { ButtonProps, CircularProgress, DialogProps, IconButton, Paper, useTheme } from "@mui/material";
 // import Typography from "@mui/material/Typography";
 // import Button from "@mui/material/Button";
@@ -185,8 +185,8 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
         // dividers={props.dividers}
       >
         {props.variant === "prompt" ? (
-          <Input
-            // label={props.message}
+          <InputWithIcon
+            label={props.message}
             value={promptInput}
             // eslint-disable-next-line no-void
             onChange={_ => void setPromptInput(_.target.value)}
@@ -300,7 +300,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
           </Button>
         ));
       component.push(
-        <DialogFooter className="justify-between space-x-2" key="DialogCustomActions">
+        <DialogFooter className="flex justify-between space-x-2 sm:justify-between" key="DialogCustomActions">
           <div>{leftButtons}</div>
           <div>{rightButtons}</div>
         </DialogFooter>
@@ -339,19 +339,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
   };
 
   return (
-    <Dialog
-      key="Dialog"
-      // disableScrollLock
-      // classes={{
-      //   paper: `${props.fixedTopPosition && props.fixedTopPositionHeight && classes.fixedTopPosition} ${getFixedPositionHeightClass()} ${classes.paper}`
-      // }}
-      {...dialogProps}
-      onOpenChange={handleOnClose}
-    >
-      {/* <DialogTrigger asChild>
-        <Button variant="outline">TODO</Button>
-      </DialogTrigger> */}
-
+    <Dialog key="Dialog" modal={false} {...dialogProps} onOpenChange={handleOnClose}>
       <ErrorBoundary FallbackComponent={ErrorFallback}>
         <DialogContent
           // TODO sizes

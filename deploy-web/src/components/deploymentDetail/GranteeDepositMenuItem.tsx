@@ -1,5 +1,5 @@
+"use client";
 import React, { ReactNode } from "react";
-import { Box, MenuItem } from "@mui/material";
 import { Address } from "../shared/Address";
 import { FormattedDate } from "react-intl";
 import { coinToUDenom } from "@src/utils/priceUtils";
@@ -16,7 +16,7 @@ export const GranteeDepositMenuItem: React.FunctionComponent<Props> = ({ grant }
   const denomData = useDenomData(grant.authorization.spend_limit.denom);
 
   return (
-    <Box sx={{ fontSize: ".9rem" }}>
+    <div className="text-sm">
       <Address address={grant.granter} />
       &nbsp;|&nbsp;
       <AKTAmount uakt={coinToUDenom(grant.authorization.spend_limit)} />
@@ -28,6 +28,6 @@ export const GranteeDepositMenuItem: React.FunctionComponent<Props> = ({ grant }
         <FormattedDate value={new Date(grant.expiration)} />
       </small>
       )
-    </Box>
+    </div>
   );
 };

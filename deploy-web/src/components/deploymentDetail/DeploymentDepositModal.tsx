@@ -2,7 +2,6 @@
 import { useState, useRef, useEffect, ReactNode } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useSettings } from "../../context/SettingsProvider";
-import { useSnackbar } from "notistack";
 import compareAsc from "date-fns/compareAsc";
 import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { uAktDenom } from "@src/utils/constants";
@@ -17,6 +16,13 @@ import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
 import { useToast } from "../ui/use-toast";
+import { Alert } from "../ui/alert";
+import { FormItem } from "../ui/form";
+import { cn } from "@src/utils/styleUtils";
+import { InputWithIcon } from "../ui/input";
+import { Checkbox } from "../ui/checkbox";
+import { Label } from "../ui/label";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 type Props = {
   infoText?: string | ReactNode;
@@ -134,6 +140,8 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
     setError("");
     clearErrors();
     const deposit = denomToUdenom(amount);
+    const uaktBalance = walletBalances?.uakt || 0;
+    const usdcBalance = walletBalances?.usdc || 0;
 
     if (!disableMin && deposit < depositData?.min) {
       setError(`Deposit amount must be greater or equal than ${depositData?.min}.`);
@@ -150,15 +158,15 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
         category: "deployments",
         label: "Use depositor to deposit in deployment"
       });
-    } else if (denom === uAktDenom && deposit > walletBalances.uakt) {
-      setError(`You can't deposit more than you currently have in your balance. Current balance is: ${uaktToAKT(walletBalances.uakt)} AKT.`);
+    } else if (denom === uAktDenom && deposit > uaktBalance) {
+      setError(`You can't deposit more than you currently have in your balance. Current balance is: ${uaktToAKT(uaktBalance)} AKT.`);
       return;
-    } else if (denom === usdcIbcDenom && deposit > walletBalances.usdc) {
-      setError(`You can't deposit more than you currently have in your balance. Current balance is: ${udenomToDenom(walletBalances.usdc)} USDC.`);
+    } else if (denom === usdcIbcDenom && deposit > usdcBalance) {
+      setError(`You can't deposit more than you currently have in your balance. Current balance is: ${udenomToDenom(usdcBalance)} USDC.`);
       return;
     }
 
-    onDeploymentDeposit(deposit, depositorAddress);
+    onDeploymentDeposit(deposit, depositorAddress as string);
   };
 
   return (
@@ -192,13 +200,16 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
         {infoText}
 
-        <Box marginBottom=".5rem" marginTop={infoText ? 0 : ".5rem"} textAlign="right">
+        <div className={cn("mb-2 text-right", { ["mt-2"]: !infoText })}>
           <LinkTo onClick={() => onBalanceClick()}>
             Balance: {depositData?.balance} {depositData?.label}
           </LinkTo>
-        </Box>
+        </div>
 
-        <FormControl error={!errors.amount} fullWidth>
+        <FormItem
+          className="w-full"
+          // error={!errors.amount} fullWidth
+        >
           <Controller
             control={control}
             name="amount"
@@ -209,63 +220,73 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
               const helperText = fieldState.error?.type === "validate" ? "Invalid amount." : "Amount is required.";
 
               return (
-                <TextField
+                <InputWithIcon
                   {...field}
                   type="number"
-                  variant="outlined"
                   label="Amount"
                   autoFocus
-                  error={!!fieldState.error}
-                  helperText={fieldState.error && helperText}
-                  inputProps={{ min: (!disableMin && depositData?.min) || 0, step: 0.000001, max: depositData?.inputMax }}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">{depositData?.label}</InputAdornment>
-                  }}
+                  error={fieldState.error && helperText}
+                  // helperText={fieldState.error && helperText}
+                  min={min}
+                  step={0.000001}
+                  max={depositData?.inputMax}
+                  startIcon={depositData?.label}
                 />
               );
             }}
           />
-        </FormControl>
+        </FormItem>
 
-        <FormControl>
+        <FormItem className="flex items-center">
+          <Label>Use another address to fund</Label>
           <Controller
             control={control}
             name="useDepositor"
-            render={({ fieldState, field }) => {
-              return <FormControlLabel control={<Checkbox {...field} color="secondary" />} label="Use another address to fund" />;
+            render={({ field }) => {
+              return <Checkbox checked={field.value} onCheckedChange={field.onChange} />;
             }}
           />
-        </FormControl>
+        </FormItem>
 
         {useDepositor && (
-          <FormControl fullWidth sx={{ marginTop: ".5rem" }}>
-            <InputLabel id="deposit-grantee-address">Address</InputLabel>
-            <Controller
-              control={control}
-              name="depositorAddress"
-              defaultValue=""
-              rules={{
-                required: true
-              }}
-              render={({ fieldState, field }) => {
-                return (
-                  <Select {...field} labelId="deposit-grantee-address" label="Address" error={!!fieldState.error}>
-                    {granteeGrants
-                      .filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1 && x.authorization.spend_limit.denom === denom)
-                      .map(grant => (
-                        <MenuItem key={grant.granter} value={grant.granter}>
-                          <GranteeDepositMenuItem grant={grant} />
-                        </MenuItem>
-                      ))}
+          <Controller
+            control={control}
+            name="depositorAddress"
+            defaultValue=""
+            rules={{
+              required: true
+            }}
+            render={({ fieldState, field }) => {
+              return (
+                <FormItem
+                  className="mt-2 w-full"
+                  // error={fieldState.error}
+                >
+                  <Label htmlFor="deposit-grantee-address">Address</Label>
+                  <Select value={field.value || ""} onValueChange={field.onChange}>
+                    <SelectTrigger id="deposit-grantee-address">
+                      <SelectValue placeholder="Select vendor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {granteeGrants
+                          .filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1 && x.authorization.spend_limit.denom === denom)
+                          .map(grant => (
+                            <SelectItem key={grant.granter} value={grant.granter}>
+                              <GranteeDepositMenuItem grant={grant} />
+                            </SelectItem>
+                          ))}
+                      </SelectGroup>
+                    </SelectContent>
                   </Select>
-                );
-              }}
-            />
-          </FormControl>
+                </FormItem>
+              );
+            }}
+          />
         )}
 
         {error && (
-          <Alert severity="warning" sx={{ marginTop: "1rem" }}>
+          <Alert variant="destructive" className="mt-4">
             {error}
           </Alert>
         )}

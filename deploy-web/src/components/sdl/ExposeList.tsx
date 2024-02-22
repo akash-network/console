@@ -13,26 +13,11 @@ type Props = {
   setIsEditingExpose: Dispatch<SetStateAction<boolean | number>>;
 };
 
-// const useStyles = makeStyles()(theme => ({
-//   editLink: {
-//     color: theme.palette.secondary.light,
-//     textDecoration: "underline",
-//     cursor: "pointer",
-//     fontWeight: "normal",
-//     fontSize: ".8rem"
-//   },
-//   formValue: {
-//     color: theme.palette.grey[500]
-//   }
-// }));
-
 export const ExposeList: React.FunctionComponent<Props> = ({ currentService, setIsEditingExpose, serviceIndex }) => {
   return (
-    <FormPaper className="px-4 py-2">
+    <FormPaper>
       <div className="mb-2 flex items-center">
-        <p>
-          <strong>Expose</strong>
-        </p>
+        <strong className="text-sm">Expose</strong>
 
         <CustomTooltip
           title={
@@ -46,11 +31,11 @@ export const ExposeList: React.FunctionComponent<Props> = ({ currentService, set
             </>
           }
         >
-          <InfoCircle className="ml-4 text-sm text-muted-foreground" />
+          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
         </CustomTooltip>
 
         <span
-          className="ml-4 cursor-pointer text-sm font-normal text-primary-foreground underline"
+          className="ml-4 cursor-pointer text-sm font-normal text-primary underline"
           onClick={() => setIsEditingExpose(serviceIndex !== undefined ? serviceIndex : true)}
         >
           Edit
@@ -58,11 +43,7 @@ export const ExposeList: React.FunctionComponent<Props> = ({ currentService, set
       </div>
 
       {currentService.expose?.map((exp, i) => (
-        <div
-          key={i}
-          className={cn("text-xs", { ["mb-2"]: i + 1 !== currentService.expose.length })}
-          // sx={{ fontSize: ".75rem", marginBottom: i + 1 === currentService.expose.length ? 0 : ".5rem" }}
-        >
+        <div key={i} className={cn("text-xs", { ["mb-2"]: i + 1 !== currentService.expose.length })}>
           <div>
             <strong>Port</strong>&nbsp;&nbsp;
             <span className="text-muted-foreground">

@@ -12,28 +12,11 @@ type Props = {
   setIsEditingCommands: Dispatch<SetStateAction<boolean | number>>;
 };
 
-// const useStyles = makeStyles()(theme => ({
-//   editLink: {
-//     color: theme.palette.secondary.light,
-//     textDecoration: "underline",
-//     cursor: "pointer",
-//     fontWeight: "normal",
-//     fontSize: ".8rem"
-//   },
-//   formValue: {
-//     color: theme.palette.grey[500]
-//   }
-// }));
-
 export const CommandList: React.FunctionComponent<Props> = ({ currentService, setIsEditingCommands, serviceIndex }) => {
-  // const { classes } = useStyles();
-
   return (
     <FormPaper>
       <div className="mb-2 flex items-center">
-        <p>
-          <strong>Commands</strong>
-        </p>
+        <strong className="text-sm">Commands</strong>
 
         <CustomTooltip
           title={
@@ -45,11 +28,11 @@ export const CommandList: React.FunctionComponent<Props> = ({ currentService, se
             </>
           }
         >
-          <InfoCircle className="ml-4 text-sm text-muted-foreground" />
+          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
         </CustomTooltip>
 
         <span
-          className="ml-4 cursor-pointer text-sm font-normal text-primary-foreground underline"
+          className="ml-4 cursor-pointer text-sm font-normal text-primary underline"
           onClick={() => setIsEditingCommands(serviceIndex !== undefined ? serviceIndex : true)}
         >
           Edit

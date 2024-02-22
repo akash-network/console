@@ -9,7 +9,6 @@ import { deploymentData } from "@src/utils/deploymentData";
 import { LinkTo } from "../shared/LinkTo";
 import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
 import ViewPanel from "../shared/ViewPanel";
-// import { DeploymentDepositModal } from "../deploymentDetail/DeploymentDepositModal";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { UrlService, handleDocClick } from "@src/utils/urlUtils";
@@ -33,7 +32,8 @@ import { Button } from "../ui/button";
 import { ArrowRight, InfoCircle } from "iconoir-react";
 import Spinner from "../shared/Spinner";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { FormInput, InputWithIcon } from "../ui/input";
+import { InputWithIcon } from "../ui/input";
+import { DeploymentDepositModal } from "../deploymentDetail/DeploymentDepositModal";
 
 const yaml = require("js-yaml");
 
@@ -234,25 +234,9 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       /> */}
 
       <div className="mb-2 pt-4">
-        <div
-          className="mb-2 flex flex-col items-end justify-between md:flex-row"
-          // sx={{
-          //   marginBottom: ".5rem",
-          //   display: "flex",
-          //   alignItems: "center",
-          //   justifyContent: "space-between",
-          //   flexDirection: { xs: "column", sm: "column", md: "row" }
-          // }}
-        >
+        <div className="mb-2 flex flex-col items-end justify-between md:flex-row">
           <div className="flex-grow">
-            <InputWithIcon
-              value={deploymentName}
-              onChange={ev => setDeploymentName(ev.target.value)}
-              // fullWidth
-              label="Name your deployment (optional)"
-              // variant="outlined"
-              // size="small"
-            />
+            <InputWithIcon value={deploymentName} onChange={ev => setDeploymentName(ev.target.value)} label="Name your deployment (optional)" />
           </div>
 
           <div className="flex w-full min-w-0 items-center pt-2 md:w-auto md:pt-0">
@@ -267,17 +251,15 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
                 </p>
               }
             >
-              <InfoCircle className="mx-4 text-sm text-primary" />
+              <InfoCircle className="mx-4 text-sm text-muted-foreground" />
             </CustomTooltip>
 
             <div>
               <Button
                 variant="default"
-                // color="secondary"
                 disabled={isCreatingDeployment || !!parsingError || !editedManifest}
                 onClick={() => handleCreateDeployment()}
                 className="w-full whitespace-nowrap sm:w-auto"
-                // sx={{ whiteSpace: "nowrap", width: { xs: "100%", sm: "auto" } }}
               >
                 {isCreatingDeployment ? (
                   <Spinner size="medium" />
@@ -324,7 +306,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       )}
       {selectedSdlEditMode === "builder" && <SdlBuilder sdlString={editedManifest} ref={sdlBuilderRef} setEditedManifest={setEditedManifest} />}
 
-      {/* {isDepositingDeployment && (
+      {isDepositingDeployment && (
         <DeploymentDepositModal
           handleCancel={() => setIsDepositingDeployment(false)}
           onDeploymentDeposit={onDeploymentDeposit}
@@ -340,7 +322,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
             </Alert>
           }
         />
-      )} */}
+      )}
       {isCheckingPrerequisites && <PrerequisiteList onClose={() => setIsCheckingPrerequisites(false)} onContinue={onPrerequisiteContinue} />}
     </>
   );
