@@ -138,7 +138,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
 
           <div className="flex items-center justify-end pt-4">
             <div>
-              <Button variant="default" size="sm" onClick={onAddService}>
+              <Button variant="default" size="sm" type="button" onClick={onAddService}>
                 Add Service
               </Button>
             </div>

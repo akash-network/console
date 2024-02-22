@@ -8,7 +8,7 @@ import { SignedByFormControl, SignedByRefType } from "./SignedByFormControl";
 import { AttributesFormControl, AttributesRefType } from "./AttributesFormControl";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { PriceValue } from "../shared/PriceValue";
-import { getAvgCostPerMonth, toReadableDenom } from "@src/utils/priceUtils";
+import { getAvgCostPerMonth, toReadableDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { uAktDenom } from "@src/utils/constants";
 import { useSdlDenoms } from "@src/hooks/useDenom";
 import { FormattedNumber } from "react-intl";
@@ -90,19 +90,12 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
         }
       ]}
       onClose={_onClose}
-      maxWidth="md"
+      maxWidth="xl"
       enableCloseOnBackdropClick
     >
-      <FormPaper
-        className="flex p-4 pb-8"
-        // sx={{
-        //   display: "flex",
-        //   padding: "1rem",
-        //   paddingBottom: "2rem"
-        // }}
-      >
+      <FormPaper contentClassName="flex">
         <div className="flex-grow">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="mb-4 grid gap-4 sm:grid-cols-2">
             <div>
               <Controller
                 control={control}
@@ -128,86 +121,73 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                 render={({ field, fieldState }) => (
                   <InputWithIcon
                     type="text"
-                    // variant="outlined"
-                    label="Name"
-                    // fullWidth
+                    label={
+                      <div className="flex items-center">
+                        Name
+                        <CustomTooltip title={<>The name of the placement.</>}>
+                          <InfoCircle className="ml-2 text-sm text-muted-foreground" />
+                        </CustomTooltip>
+                      </div>
+                    }
                     value={field.value}
                     error={fieldState.error?.message}
-                    // size="small"
                     onChange={event => field.onChange(event.target.value)}
-                    endIcon={
-                      <CustomTooltip title={<>The name of the placement.</>}>
-                        <InfoCircle className="text-muted-foreground" />
-                      </CustomTooltip>
-                    }
-                    // InputProps={{
-                    //   endAdornment: (
-                    //     <InputAdornment position="end">
-                    //       <CustomTooltip title={<>The name of the placement.</>}>
-                    //         <InfoCircle className="text-muted-foreground" />
-                    //       </CustomTooltip>
-                    //     </InputAdornment>
-                    //   )
-                    // }}
                   />
                 )}
               />
             </div>
 
             <div>
-              {/** TODO Token Form Control */}
-              <FormItem className="flex w-full flex-row items-center">
-                <div className="ml-2 flex flex-grow items-center">
-                  <Controller
-                    control={control}
-                    name={`services.${serviceIndex}.placement.pricing.amount`}
-                    rules={{ required: "Pricing is required" }}
-                    render={({ field, fieldState }) => (
-                      <FormInput
-                        type="number"
-                        // variant="outlined"
-                        label={`Pricing, ${toReadableDenom(currentService.placement.pricing.denom)}`}
-                        // fullWidth
-                        value={field.value}
-                        // error={!!fieldState.error}
-                        description={fieldState.error?.message}
-                        // size="small"
-                        min={1}
-                        step={1}
-                        max={10000000}
-                        // inputProps={{ min: 1, step: 1, max: 10000000 }}
-                        onChange={event => field.onChange(parseFloat(event.target.value))}
-                      />
-                    )}
-                  />
-                  <CustomTooltip
-                    title={
-                      <>
-                        The maximum amount of {selectedDenom?.label} you're willing to pay per block (~6 seconds).
-                        <br />
-                        <br />
-                        Akash will only show providers costing <strong>less</strong> than{" "}
-                        <strong>
-                          {selectedDenom?.value === uAktDenom ? (
-                            <>
-                              ~<PriceValue denom={uAktDenom} value={getAvgCostPerMonth(_placement.pricing.amount)} />
-                            </>
-                          ) : (
-                            <>
-                              <span>
-                                <FormattedNumber value={udenomToDenom(getAvgCostPerMonth(_placement.pricing.amount))} maximumFractionDigits={2} />
-                              </span>
-                              <USDLabel />
-                            </>
-                          )}
-                        </strong>
-                        &nbsp;per month
-                      </>
-                    }
-                  >
-                    <InfoCircle className="ml-4 text-muted-foreground" />
-                  </CustomTooltip>
-                </div>
+              <FormItem>
+                <Controller
+                  control={control}
+                  name={`services.${serviceIndex}.placement.pricing.amount`}
+                  rules={{ required: "Pricing is required" }}
+                  render={({ field, fieldState }) => (
+                    <InputWithIcon
+                      type="number"
+                      label={
+                        <div className="flex items-center">
+                          Pricing, ${toReadableDenom(currentService.placement.pricing.denom)}
+                          <CustomTooltip
+                            title={
+                              <>
+                                The maximum amount of {selectedDenom?.label} you're willing to pay per block (~6 seconds).
+                                <br />
+                                <br />
+                                Akash will only show providers costing <strong>less</strong> than{" "}
+                                <strong>
+                                  {selectedDenom?.value === uAktDenom ? (
+                                    <>
+                                      ~<PriceValue denom={uAktDenom} value={getAvgCostPerMonth(uaktToAKT(_placement.pricing.amount))} />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>
+                                        <FormattedNumber value={getAvgCostPerMonth(udenomToDenom(_placement.pricing.amount))} maximumFractionDigits={2} />
+                                      </span>
+                                      <USDLabel />
+                                    </>
+                                  )}
+                                </strong>
+                                &nbsp;per month
+                              </>
+                            }
+                          >
+                            <InfoCircle className="ml-2 text-sm text-muted-foreground" />
+                          </CustomTooltip>
+                        </div>
+                      }
+                      value={field.value}
+                      error={fieldState.error?.message}
+                      // description={fieldState.error?.message}
+                      min={1}
+                      step={1}
+                      max={10000000}
+                      onChange={event => field.onChange(parseFloat(event.target.value))}
+                    />
+                  )}
+                />
               </FormItem>
             </div>
           </div>

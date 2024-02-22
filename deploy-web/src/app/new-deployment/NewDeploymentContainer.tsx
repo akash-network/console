@@ -34,6 +34,8 @@ export function NewDeploymentContainer() {
     const redeployTemplate = getRedeployTemplate();
     const galleryTemplate = getGalleryTemplate();
 
+    console.log("uhhh");
+
     if (redeployTemplate) {
       // If it's a redeploy, set the template from local storage
       setSelectedTemplate(redeployTemplate as TemplateCreation);

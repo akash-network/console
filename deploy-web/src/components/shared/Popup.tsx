@@ -2,75 +2,11 @@ import * as React from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "./ErrorFallback";
 import { ButtonProps, Button } from "../ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle as _DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogTitle as _DialogTitle } from "../ui/dialog";
 import { DialogProps } from "@radix-ui/react-dialog";
 import Spinner from "./Spinner";
-import { Input, InputWithIcon } from "../ui/input";
-// import { ButtonProps, CircularProgress, DialogProps, IconButton, Paper, useTheme } from "@mui/material";
-// import Typography from "@mui/material/Typography";
-// import Button from "@mui/material/Button";
-// import Dialog from "@mui/material/Dialog";
-// import DialogActions from "@mui/material/DialogActions";
-// import DialogContent from "@mui/material/DialogContent";
-// import DialogContentText from "@mui/material/DialogContentText";
-// import TextField from "@mui/material/TextField";
-// import CloseIcon from "@mui/icons-material/Close";
-// import { makeStyles } from "tss-react/mui";
-// import { default as MuiDialogTitle } from "@mui/material/DialogTitle";
-// import { cx } from "@emotion/css";
-
-// const useStyles = makeStyles()(theme => ({
-//   closeButton: {
-//     position: "absolute",
-//     right: theme.spacing(1),
-//     top: "50%",
-//     transform: "translateY(-50%)",
-//     color: theme.palette.grey[500]
-//   },
-//   paper: {
-//     margin: "1rem",
-//     width: "100%"
-//   },
-//   dialogTitle: {
-//     position: "relative",
-//     padding: "1rem"
-//   },
-//   dailogTitleText: {
-//     fontSize: "1.5rem",
-//     fontWeight: "normal"
-//   },
-//   dialogContent: {
-//     margin: 0,
-//     padding: "1rem"
-//   },
-//   justifyContentBetween: {
-//     justifyContent: "space-between"
-//   },
-//   genericDialogActions: {},
-//   genericDialogActionButton: {
-//     textTransform: "initial"
-//   },
-//   dialogActionSpaced: {
-//     "& > :not(:first-of-type)": {
-//       marginLeft: ".5rem"
-//     }
-//   },
-//   fixedTopPosition: {
-//     position: "absolute"
-//   },
-//   fixedTopPosition10: {
-//     top: "10%"
-//   },
-//   fixedTopPosition15: {
-//     top: "15%"
-//   },
-//   fixedTopPosition20: {
-//     top: "20%"
-//   },
-//   fixedTopPosition25: {
-//     top: "25%"
-//   }
-// }));
+import { InputWithIcon } from "../ui/input";
+import { cn } from "@src/utils/styleUtils";
 
 type MessageProps = {
   variant: "message";
@@ -130,17 +66,10 @@ export interface DialogTitleProps {
 
 export const DialogTitle = (props: DialogTitleProps) => {
   const { children, onClose, ...other } = props;
-  // const { classes } = useStyles();
 
   return (
-    <_DialogTitle className="relative p-4" {...other}>
+    <_DialogTitle {...other}>
       <span className="text-lg">{children}</span>
-      {/* {onClose ? (
-        // TODO => onTouchStart added to handle the touch, onClick was not enough. Investigated how to handle both in one way
-        <IconButton aria-label="close" className={classes.closeButton} onClick={onClose} onTouchStart={onClose}>
-          <CloseIcon />
-        </IconButton>
-      ) : null} */}
     </_DialogTitle>
   );
 };
@@ -148,8 +77,6 @@ export const DialogTitle = (props: DialogTitleProps) => {
 export function Popup(props: React.PropsWithChildren<PopupProps>) {
   const [promptInput, setPromptInput] = React.useState("");
   const component = [] as JSX.Element[];
-  // const { classes } = useStyles();
-  // const theme = useTheme();
 
   const onClose: TOnCloseHandler = (event, reason) => {
     setPromptInput("");
@@ -344,7 +271,13 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
         <DialogContent
           // TODO sizes
           // dividers={props.dividers}
-          className="m-0 p-4 sm:max-w-[425px]"
+          className={cn("m-0 p-4 ", {
+            ["sm:max-w-[400px]"]: props.maxWidth === "xs",
+            ["sm:max-w-[425px]"]: props.maxWidth === "sm",
+            ["sm:max-w-[500px]"]: props.maxWidth === "md",
+            ["sm:max-w-[600px]"]: props.maxWidth === "lg",
+            ["sm:max-w-[700px]"]: props.maxWidth === "xl"
+          })}
         >
           {component}
         </DialogContent>

@@ -29,7 +29,7 @@ import { breakpoints } from "@src/utils/responsiveUtils";
 import { Card, CardContent } from "../ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Button, buttonVariants } from "../ui/button";
-import { NavArrowDown, Bin, InfoCircle, OpenInWindow } from "iconoir-react";
+import { NavArrowDown, Bin, InfoCircle, OpenInWindow, BinMinusIn } from "iconoir-react";
 import { cn } from "@src/utils/styleUtils";
 import { InputWithIcon } from "../ui/input";
 import { CustomTooltip } from "../shared/CustomTooltip";
@@ -180,8 +180,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                 </div>
               )}
               {_services.length > 1 && (
-                <Button size="icon" className="ml-2" onClick={() => onRemoveService(serviceIndex)}>
-                  <Bin />
+                <Button size="icon" className="ml-2" variant="ghost" onClick={() => onRemoveService(serviceIndex)}>
+                  <BinMinusIn />
                 </Button>
               )}
 

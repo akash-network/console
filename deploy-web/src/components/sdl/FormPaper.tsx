@@ -2,10 +2,10 @@
 import { cn } from "@src/utils/styleUtils";
 import { Card, CardContent } from "../ui/card";
 
-export function FormPaper({ children, className = "" }: React.PropsWithChildren<{ className?: string }>) {
+export function FormPaper({ children, className = "", contentClassName = "" }: React.PropsWithChildren<{ className?: string; contentClassName?: string }>) {
   return (
-    <Card className="bg-background/30">
-      <CardContent className={cn("px-4 py-4", className)}>{children}</CardContent>
+    <Card className={cn(className, "bg-background/30")}>
+      <CardContent className={cn("px-4 py-4", contentClassName)}>{children}</CardContent>
     </Card>
   );
 }
