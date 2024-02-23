@@ -7,7 +7,6 @@ import { ProviderSnapshot } from "@src/../../shared/dbSchemas/akash/providerSnap
 import { fetchAndSaveProviderStats as grpcFetchAndSaveProviderStats } from "./statusEndpointHandlers/grpc";
 import { fetchAndSaveProviderStats as restFetchAndSaveProviderStats } from "./statusEndpointHandlers/rest";
 
-const IsGrpcEnpointEnabled = false;
 const ConcurrentStatusCall = 10;
 const StatusCallTimeout = 10_000; // 10 seconds
 
@@ -34,13 +33,16 @@ export async function syncProvidersInfo() {
           httpsAgent: httpsAgent,
           timeout: StatusCallTimeout
         });
-        
 
-        const versionStr = versionResponse.data.akash.version;
-        if (IsGrpcEnpointEnabled && versionStr && semver.gte(versionStr, "0.5.0")) {
-          await grpcFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
+        const akashVersion = semver.valid(versionResponse.data.akash.version);
+        const cosmosVersion = semver.valid(
+          "cosmosSdkVersion" in versionResponse.data.akash ? versionResponse.data.akash.cosmosSdkVersion : versionResponse.data.akash.cosmos_sdk_version
+        );
+
+        if (akashVersion && semver.gte(akashVersion, "0.5.0-0")) {
+          await grpcFetchAndSaveProviderStats(provider, cosmosVersion, akashVersion, StatusCallTimeout);
         } else {
-          await restFetchAndSaveProviderStats(provider, versionResponse.data.akash.cosmosSdkVersion, versionResponse.data.akash.version, StatusCallTimeout);
+          await restFetchAndSaveProviderStats(provider, cosmosVersion, akashVersion, StatusCallTimeout);
         }
       } catch (err) {
         const checkDate = new Date();
@@ -89,17 +91,40 @@ export async function syncProvidersInfo() {
   console.log("Finished refreshing provider infos");
 }
 
-type ProviderVersionEndpointResponseType = {
-  akash: { version: string; commit: string; buildTags: string; go: string; cosmosSdkVersion: string };
-  kube: {
-    major: string;
-    minor: string;
-    gitVersion: string;
-    gitCommit: string;
-    gitTreeState: string;
-    buildDate: string;
-    goVersion: string;
-    compiler: string;
-    platform: string;
-  };
-};
+type ProviderVersionEndpointResponseType =
+  | {
+      akash: { version: string; commit: string; buildTags: string; go: string; cosmosSdkVersion: string };
+      kube: {
+        major: string;
+        minor: string;
+        gitVersion: string;
+        gitCommit: string;
+        gitTreeState: string;
+        buildDate: string;
+        goVersion: string;
+        compiler: string;
+        platform: string;
+      };
+    }
+  | {
+      akash: {
+        name: string;
+        server_name: string;
+        version: string;
+        commit: string;
+        build_tags: string;
+        go: string;
+        cosmos_sdk_version: string;
+      };
+      kube: {
+        major: string;
+        minor: string;
+        gitVersion: string;
+        gitCommit: string;
+        gitTreeState: string;
+        buildDate: string;
+        goVersion: string;
+        compiler: string;
+        platform: string;
+      };
+    };

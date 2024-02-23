@@ -1,8 +1,17 @@
 # Upgrade instructions
 
-Some indexer updates changes the database schemas and an upgrade script must be run on the database to migrate the data before or after updating the indexer. Here is a list of those migrations. If a version is not listed here it means the indexer can be updated without any manual migration. 
+Some indexer updates changes the database schemas and an upgrade script must be run on the database to migrate the data before or after updating the indexer. Here is a list of those migrations. If a version is not listed here it means the indexer can be updated without any manual migration.
 
 **It is recommended to stop the indexer before running any migration script.**
+
+## v1.7.1
+
+Storing cpu vcores as numbers instead of strings
+
+```
+ALTER TABLE IF EXISTS public."providerSnapshotNodeCPU"
+    ALTER COLUMN vcores TYPE smallint USING vcores::smallint;
+```
 
 ## v1.7.0
 
@@ -23,13 +32,13 @@ ALTER TABLE IF EXISTS public."providerSnapshot"
     ADD COLUMN "isLastOfDay" boolean NOT NULL DEFAULT false,
 	ALTER COLUMN "isOnline" SET NOT NULL,
 	ALTER COLUMN "checkDate" SET NOT NULL;
-	
+
 -- Set isLastOfDay to true for snapshots that are the last of each day for every providers
 WITH last_snapshots AS (
 	SELECT DISTINCT ON(ps."owner",DATE("checkDate")) DATE("checkDate") AS date, ps."id" AS "psId"
 	FROM "providerSnapshot" ps
 	ORDER BY ps."owner",DATE("checkDate"),"checkDate" DESC
-) 
+)
 UPDATE "providerSnapshot" AS ps
 SET "isLastOfDay" = TRUE
 FROM last_snapshots AS ls
