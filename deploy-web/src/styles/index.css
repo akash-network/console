@@ -14,6 +14,11 @@
   pointer-events: auto !important;
 }
 
+/* Hack to make the Select component show in Dialog */
+[data-radix-popper-content-wrapper] {
+  z-index: 1500 !important;
+}
+
 .markdownContainer table th,
 .markdownContainer table td {
   padding: 6px 13px;

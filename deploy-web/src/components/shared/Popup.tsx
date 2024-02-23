@@ -7,6 +7,7 @@ import { DialogProps } from "@radix-ui/react-dialog";
 import Spinner from "./Spinner";
 import { InputWithIcon } from "../ui/input";
 import { cn } from "@src/utils/styleUtils";
+import { ScrollArea } from "../ui/scroll-area";
 
 type MessageProps = {
   variant: "message";
@@ -104,11 +105,16 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
   }
 
   if (props.message && props.variant !== "prompt") {
-    component.push(<div>{props.message}</div>);
+    component.push(
+      <ScrollArea className="max-h-[75vh]" key="dialog-content">
+        {props.message}
+      </ScrollArea>
+    );
   } else {
     component.push(
-      <React.Fragment
+      <ScrollArea
         key="dialog-content"
+        className="max-h-[75vh]"
         // dividers={props.dividers}
       >
         {props.variant === "prompt" ? (
@@ -122,7 +128,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
         ) : (
           props.children
         )}
-      </React.Fragment>
+      </ScrollArea>
     );
   }
 
@@ -275,11 +281,12 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
             ["sm:max-w-[400px]"]: props.maxWidth === "xs",
             ["sm:max-w-[425px]"]: props.maxWidth === "sm",
             ["sm:max-w-[500px]"]: props.maxWidth === "md",
-            ["sm:max-w-[600px]"]: props.maxWidth === "lg",
-            ["sm:max-w-[700px]"]: props.maxWidth === "xl"
+            ["sm:max-w-[750px]"]: props.maxWidth === "lg",
+            ["sm:max-w-[900px]"]: props.maxWidth === "xl"
           })}
         >
           {component}
+          {/* <ScrollArea className="max-h-screen">{component}</ScrollArea> */}
         </DialogContent>
       </ErrorBoundary>
     </Dialog>

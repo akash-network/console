@@ -18,6 +18,8 @@ import { InputWithIcon } from "../ui/input";
 import { cn } from "@src/utils/styleUtils";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Checkbox } from "../ui/checkbox";
+import { FormItem } from "../ui/form";
+import { Label } from "../ui/label";
 
 type Props = {
   serviceIndex: number;
@@ -92,7 +94,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
               </>
             }
           >
-            <InfoCircle className="ml-4 text-muted-foreground" />
+            <InfoCircle className="ml-2 text-xs text-muted-foreground" />
           </CustomTooltip>
         </div>
       }
@@ -113,25 +115,16 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
         }
       ]}
       onClose={_onClose}
-      maxWidth="md"
+      maxWidth="xl"
       enableCloseOnBackdropClick
     >
       {expose.map((exp, expIndex) => {
         const currentExpose = _expose[expIndex];
 
         return (
-          <FormPaper
-            key={exp.id}
-            className={cn("flex p-4 pb-8", { ["mb-4"]: expIndex + 1 !== expose.length })}
-            // sx={{
-            //   display: "flex",
-            //   padding: "1rem",
-            //   marginBottom: expIndex + 1 === expose.length ? 0 : "1rem",
-            //   paddingBottom: "2rem"
-            // }}
-          >
+          <FormPaper key={exp.id} className={cn({ ["mb-4"]: expIndex + 1 !== expose.length })} contentClassName="flex">
             <div className="flex-grow">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
+              <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-4">
                 <div>
                   <Controller
                     control={control}
@@ -140,28 +133,20 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                     render={({ field, fieldState }) => (
                       <InputWithIcon
                         type="number"
-                        // variant="outlined"
-                        label="Port"
-                        color="secondary"
-                        // fullWidth
+                        label={
+                          <div className="inline-flex items-center">
+                            Port
+                            <CustomTooltip title={<>Container port to expose.</>}>
+                              <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                            </CustomTooltip>
+                          </div>
+                        }
+                        min={1}
+                        max={65535}
+                        step={1}
                         value={field.value}
                         error={fieldState.error?.message}
-                        // size="small"
                         onChange={event => field.onChange(parseInt(event.target.value))}
-                        endIcon={
-                          <CustomTooltip title={<>Container port to expose.</>}>
-                            <InfoCircle className="text-muted-foreground" />
-                          </CustomTooltip>
-                        }
-                        // InputProps={{
-                        //   endAdornment: (
-                        //     <InputAdornment position="end">
-                        //       <CustomTooltip arrow title={<>Container port to expose.</>}>
-                        //         <InfoIcon color="disabled" fontSize="small" />
-                        //       </CustomTooltip>
-                        //     </InputAdornment>
-                        //   )
-                        // }}
                       />
                     )}
                   />
@@ -174,28 +159,18 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                     render={({ field, fieldState }) => (
                       <InputWithIcon
                         type="number"
-                        // variant="outlined"
-                        label="As"
+                        label={
+                          <div className="inline-flex items-center">
+                            As
+                            <CustomTooltip title={<>Port number to expose the container port as.</>}>
+                              <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                            </CustomTooltip>
+                          </div>
+                        }
                         color="secondary"
-                        // fullWidth
                         value={field.value}
                         error={fieldState.error?.message}
-                        // size="small"
                         onChange={event => field.onChange(parseInt(event.target.value))}
-                        endIcon={
-                          <CustomTooltip title={<>Port number to expose the container port as.</>}>
-                            <InfoCircle className="text-muted-foreground" />
-                          </CustomTooltip>
-                        }
-                        // InputProps={{
-                        //   endAdornment: (
-                        //     <InputAdornment position="end">
-                        //       <CustomTooltip arrow title={<>Port number to expose the container port as.</>}>
-                        //         <InfoIcon color="disabled" fontSize="small" />
-                        //       </CustomTooltip>
-                        //     </InputAdornment>
-                        //   )
-                        // }}
                       />
                     )}
                   />
@@ -205,37 +180,40 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                     control={control}
                     name={`services.${serviceIndex}.expose.${expIndex}.proto`}
                     render={({ field }) => (
-                      <Select value={field.value || ""} onValueChange={field.onChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select proto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            {protoTypes.map(t => {
-                              return (
-                                <SelectItem key={t.id} value={t.name}>
-                                  {t.name}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                      <FormItem>
+                        <Label>Protocol</Label>
+                        <Select value={field.value || ""} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select protocol" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {protoTypes.map(t => {
+                                return (
+                                  <SelectItem key={t.id} value={t.name}>
+                                    {t.name}
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
                     )}
                   />
                 </div>
 
                 <div>
-                  <div className="flex h-full items-center">
+                  <div className="flex h-full items-start">
                     <Controller
                       control={control}
                       name={`services.${serviceIndex}.expose.${expIndex}.global`}
                       render={({ field }) => (
                         <div className="flex items-center space-x-2">
-                          <Checkbox id={`global-${serviceIndex}-${expIndex}`} checked={field.value} onChange={field.onChange} />
+                          <Checkbox id={`global-${serviceIndex}-${expIndex}`} checked={field.value} onCheckedChange={field.onChange} />
                           <label
-                            htmlFor={`custom-options-${serviceIndex}-${expIndex}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            htmlFor={`global-${serviceIndex}-${expIndex}`}
+                            className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
                             Global
                           </label>
@@ -244,13 +222,13 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                     />
 
                     <CustomTooltip title={<>Check if you want this service to be accessible from outside the datacenter.</>}>
-                      <InfoCircle className="ml-4 text-muted-foreground" />
+                      <InfoCircle className="ml-4 text-xs text-muted-foreground" />
                     </CustomTooltip>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-2 pb-4 sm:grid-cols-2">
+              <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <AcceptFormControl
                     control={control}
@@ -266,7 +244,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                 </div>
               </div>
 
-              <div className="mt-4">
+              <div className="mb-4">
                 <Controller
                   control={control}
                   name={`services.${serviceIndex}.expose.${expIndex}.ipName`}
@@ -291,63 +269,38 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                   render={({ field, fieldState }) => (
                     <InputWithIcon
                       type="text"
-                      // variant="outlined"
-                      label="IP Name"
+                      label={
+                        <div className="inline-flex items-center">
+                          IP Name
+                          <CustomTooltip
+                            title={
+                              <>
+                                Optional.
+                                <br />
+                                <br />
+                                Option for Tenants to request publicly routable IP addresses for the services they deploy
+                                <br />
+                                <br />
+                                <a href="https://docs.akash.network/features/ip-leases/ip-leases-features-and-limitations" target="_blank" rel="noopener">
+                                  View official documentation.
+                                </a>
+                              </>
+                            }
+                          >
+                            <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                          </CustomTooltip>
+                        </div>
+                      }
                       color="secondary"
-                      // fullWidth
                       value={field.value}
                       error={fieldState.error?.message}
-                      // size="small"
                       onChange={event => field.onChange(event.target.value)}
-                      endIcon={
-                        <CustomTooltip
-                          title={
-                            <>
-                              Optional.
-                              <br />
-                              <br />
-                              Option for Tenants to request publicly routable IP addresses for the services they deploy
-                              <br />
-                              <br />
-                              <a href="https://docs.akash.network/features/ip-leases/ip-leases-features-and-limitations" target="_blank" rel="noopener">
-                                View official documentation.
-                              </a>
-                            </>
-                          }
-                        >
-                          <InfoCircle className="text-muted-foreground" />
-                        </CustomTooltip>
-                      }
-                      // InputProps={{
-                      //   endAdornment: (
-                      //     <InputAdornment position="end">
-                      //       <CustomTooltip
-                      //         arrow
-                      //         title={
-                      //           <>
-                      //             Optional.
-                      //             <br />
-                      //             <br />
-                      //             Option for Tenants to request publicly routable IP addresses for the services they deploy
-                      //             <br />
-                      //             <br />
-                      //             <a href="https://docs.akash.network/features/ip-leases/ip-leases-features-and-limitations" target="_blank" rel="noopener">
-                      //               View official documentation.
-                      //             </a>
-                      //           </>
-                      //         }
-                      //       >
-                      //         <InfoIcon color="disabled" fontSize="small" />
-                      //       </CustomTooltip>
-                      //     </InputAdornment>
-                      //   )
-                      // }}
                     />
                   )}
                 />
               </div>
 
-              <div className="mt-4">
+              <div>
                 <HttpOptionsFormControl
                   control={control}
                   serviceIndex={serviceIndex}
