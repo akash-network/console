@@ -127,6 +127,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
               onRemoveService={onRemoveService}
               serviceCollapsed={serviceCollapsed}
               setServiceCollapsed={setServiceCollapsed}
+              hasSecretOption={false}
             />
           ))}
 

@@ -122,7 +122,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
         const currentExpose = _expose[expIndex];
 
         return (
-          <FormPaper key={exp.id} className={cn({ ["mb-4"]: expIndex + 1 !== expose.length })} contentClassName="flex">
+          <FormPaper key={exp.id} className={cn({ ["mb-4"]: expIndex + 1 !== expose.length })} contentClassName="flex bg-popover">
             <div className="flex-grow">
               <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-4">
                 <div>

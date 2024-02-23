@@ -1,5 +1,5 @@
 "use client";
-import { Controller, Control, UseFormTrigger } from "react-hook-form";
+import { Controller, Control, UseFormTrigger, UseFormSetValue } from "react-hook-form";
 import { Dispatch, SetStateAction, useState } from "react";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { CommandFormModal } from "./CommandFormModal";
@@ -33,7 +33,6 @@ import { NavArrowDown, Bin, InfoCircle, OpenInWindow, BinMinusIn } from "iconoir
 import { cn } from "@src/utils/styleUtils";
 import { InputWithIcon } from "../ui/input";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { TokenFormControl } from "./TokenFormControl";
 
 type Props = {
   _services: Service[];
@@ -45,6 +44,7 @@ type Props = {
   setServiceCollapsed: Dispatch<SetStateAction<number[]>>;
   setValue: UseFormSetValue<SdlBuilderFormValues>;
   gpuModels: GpuVendor[];
+  hasSecretOption?: boolean;
 };
 
 export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
@@ -56,7 +56,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   serviceCollapsed,
   setServiceCollapsed,
   setValue,
-  gpuModels
+  gpuModels,
+  hasSecretOption
 }) => {
   const [isEditingCommands, setIsEditingCommands] = useState<number | boolean | null>(null);
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(null);
@@ -87,7 +88,13 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
         <CardContent className="p-0">
           {/** Edit Environment Variables */}
           {_isEditingEnv && (
-            <EnvFormModal control={control} onClose={() => setIsEditingEnv(null)} serviceIndex={serviceIndex} envs={currentService.env || []} />
+            <EnvFormModal
+              control={control}
+              onClose={() => setIsEditingEnv(null)}
+              serviceIndex={serviceIndex}
+              envs={currentService.env || []}
+              hasSecretOption={hasSecretOption}
+            />
           )}
           {/** Edit Commands */}
           {_isEditingCommands && <CommandFormModal control={control} onClose={() => setIsEditingCommands(null)} serviceIndex={serviceIndex} />}

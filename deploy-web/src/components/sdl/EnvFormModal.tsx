@@ -10,6 +10,7 @@ import { Bin } from "iconoir-react";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import { CustomTooltip } from "../shared/CustomTooltip";
+import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;
@@ -78,10 +79,10 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
         }
       ]}
       onClose={_onClose}
-      maxWidth="sm"
+      maxWidth="md"
       enableCloseOnBackdropClick
     >
-      <div>
+      <FormPaper contentClassName="bg-popover">
         {envs.map((env, envIndex) => {
           return (
             <div key={env.id} className={cn("flex", { ["mb-2"]: envIndex + 1 !== envs.length })}>
@@ -90,7 +91,16 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
                   control={control}
                   name={`services.${serviceIndex}.env.${envIndex}.key`}
                   render={({ field }) => (
-                    <FormInput type="text" label="Key" color="secondary" value={field.value} onChange={event => field.onChange(event.target.value)} />
+                    <div className="basis-[40%]">
+                      <FormInput
+                        type="text"
+                        label="Key"
+                        color="secondary"
+                        value={field.value}
+                        onChange={event => field.onChange(event.target.value)}
+                        className="w-full"
+                      />
+                    </div>
                   )}
                 />
 
@@ -98,14 +108,21 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
                   control={control}
                   name={`services.${serviceIndex}.env.${envIndex}.value`}
                   render={({ field }) => (
-                    <div className="ml-2">
-                      <FormInput type="text" label="Value" color="secondary" value={field.value} onChange={event => field.onChange(event.target.value)} />
+                    <div className="ml-2 flex-grow">
+                      <FormInput
+                        type="text"
+                        label="Value"
+                        color="secondary"
+                        value={field.value}
+                        onChange={event => field.onChange(event.target.value)}
+                        className="w-full"
+                      />
                     </div>
                   )}
                 />
               </div>
 
-              <div className={cn("flex w-[50px] flex-col items-start pl-2", { ["justify-between"]: envIndex > 0, ["justify-end"]: envIndex === 0 })}>
+              <div className={cn("flex w-[50px] flex-col items-start pl-2", { ["justify-between"]: envIndex > 0, ["justify-end"]: envIndex === 0 || !hasSecretOption })}>
                 {envIndex > 0 && (
                   <Button onClick={() => removeEnv(envIndex)} size="icon" variant="ghost">
                     <Bin />
@@ -129,13 +146,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
                           </>
                         }
                       >
-                        <Switch
-                          checked={field.value || false}
-                          onCheckedChange={field.onChange}
-                          color="primary"
-                          // color="secondary"
-                          // size="small" sx={{ margin: 0 }}
-                        />
+                        <Switch checked={field.value || false} onCheckedChange={field.onChange} color="primary" />
                       </CustomTooltip>
                     )}
                   />
@@ -144,7 +155,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
             </div>
           );
         })}
-      </div>
+      </FormPaper>
     </Popup>
   );
 };
