@@ -14,6 +14,7 @@ import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
 import { legacyRouter } from "./routers/legacyRouter";
 import { sentry } from "@hono/sentry";
+import { internalRouter } from "./routers/internalRouter";
 
 const appHono = new Hono();
 appHono.use(
@@ -70,6 +71,7 @@ appHono.route("/", apiRouter);
 appHono.route("/user", userRouter);
 appHono.route("/web3-index", web3IndexRouter);
 appHono.route("/dashboard", dashboardRouter);
+appHono.route("/internal", internalRouter);
 
 appHono.get("/status", (c) => {
   const version = packageJson.version;
