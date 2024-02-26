@@ -22,6 +22,7 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import { Badge } from "../ui/badge";
 import { WarningTriangle, CloudXmark } from "iconoir-react";
 import Spinner from "../shared/Spinner";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 
 // const useStyles = makeStyles()(theme => ({
 //   root: {
@@ -269,15 +270,24 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
                   </Badge>
                 </div>
               ) : (
-                <Radio
-                  checked={isCurrentBid}
-                  onChange={() => handleBidSelected(bid)}
-                  value={bid.id}
-                  name="radio-button-demo"
-                  disabled={bid.state !== "open" || disabled}
-                  size="small"
-                  color="success"
-                />
+                <RadioGroup>
+                  <RadioGroupItem
+                    value={bid.id}
+                    id={bid.id}
+                    checked={isCurrentBid}
+                    onChange={() => handleBidSelected(bid)}
+                    disabled={bid.state !== "open" || disabled}
+                  />
+                </RadioGroup>
+                // <Radio
+                //   checked={isCurrentBid}
+                //   onChange={() => handleBidSelected(bid)}
+                //   value={bid.id}
+                //   name="radio-button-demo"
+                //   disabled={bid.state !== "open" || disabled}
+                //   size="small"
+                //   color="success"
+                // />
               )}
             </>
           )}

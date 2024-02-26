@@ -109,11 +109,21 @@ export const BidGroup: React.FunctionComponent<Props> = ({
     }
   }, [deploymentDetail, gseq]);
 
+  //   subHeader: {
+  //     display: "flex",
+  //     alignItems: "center",
+  //     justifyContent: "space-between",
+  //     paddingBottom: "6px",
+  //     paddingTop: "6px",
+  //     zIndex: 100,
+  //     lineHeight: "2rem",
+  //     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100]
+  //   },
   return (
     <FormPaper className="mb-4">
-      <List
-        subheader={
-          <ListSubheader component="div" className={classes.subHeader}>
+      <ul>
+        <li>
+          <div className="z-[100] flex items-center justify-between bg-muted-foreground/90 pb-4 pt-4 leading-8">
             <div className="flex items-center">
               <h6>
                 <LabelValueOld label="GSEQ:" value={gseq} />
@@ -139,10 +149,8 @@ export const BidGroup: React.FunctionComponent<Props> = ({
                 {groupIndex + 1} of {totalBids}
               </div>
             </div>
-          </ListSubheader>
-        }
-      >
-        <ListItem>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -190,7 +198,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
               })}
             </TableBody>
           </Table>
-        </ListItem>
+        </li>
 
         {isFilteringFavorites && fBids.length === 0 && (
           <div className="px-4 py-2">
@@ -209,7 +217,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
             </Alert>
           </div>
         )}
-      </List>
+      </ul>
     </FormPaper>
   );
 };
