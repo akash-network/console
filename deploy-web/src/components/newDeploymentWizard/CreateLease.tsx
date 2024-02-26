@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { BidGroup } from "./BidGroup";
 import { useCertificate } from "../../context/CertificateProvider";
 import { useLocalNotes } from "../../context/LocalNoteProvider";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { useWallet } from "@src/context/WalletProvider";
 import { useBidList } from "@src/queries/useBidQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
@@ -22,6 +22,16 @@ import { BidCountdownTimer } from "./BidCountdownTimer";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { useToast } from "../ui/use-toast";
+import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
+import { Button } from "../ui/button";
+import { Alert } from "../ui/alert";
+import { Checkbox } from "../ui/checkbox";
+import { ArrowRight, InfoCircle, UserBadgeCheck, Xmark, MoreHoriz } from "iconoir-react";
+import Spinner from "../shared/Spinner";
+import { InputWithIcon } from "../ui/input";
+import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
 
 const yaml = require("js-yaml");
 
@@ -63,7 +73,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const [search, setSearch] = useState("");
   const { address, signAndBroadcastTx } = useWallet();
   const { localCert } = useCertificate();
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const { toast, dismiss } = useToast();
   const router = useRouter();
   const [anchorEl, setAnchorEl] = useState(null);
   const [numberOfRequests, setNumberOfRequests] = useState(0);
@@ -150,11 +160,12 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
   async function sendManifest(providerInfo, manifest) {
     try {
-      const response = await sendManifestToProvider(providerInfo, manifest, dseq, localCert);
+      const response = await sendManifestToProvider(providerInfo, manifest, dseq, localCert as LocalCert);
 
       return response;
     } catch (err) {
-      enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
+      toast({ title: "Error", description: `Error while sending manifest to provider. ${err}`, variant: "destructive" });
+      // return <Snackbar title="Error" subTitle={`Error while sending manifest to provider. ${err}`} iconVariant="error" />;
       throw err;
     }
   }
@@ -191,10 +202,11 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     if (localDeploymentData && localDeploymentData.manifest) {
       // Send the manifest
 
-      const sendManifestKey = enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
-        variant: "info",
-        autoHideDuration: null
-      });
+      // const sendManifestKey = enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
+      //   variant: "info",
+      //   autoHideDuration: null
+      // });
+      const { id: sendManifestKey } = toast({ title: "Deploying! 🚀", description: "Please wait a few seconds...", loading: true, variant: "default" });
 
       try {
         const yamlJson = yaml.load(localDeploymentData.manifest);
@@ -202,14 +214,14 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
         for (let i = 0; i < bidKeys.length; i++) {
           const currentBid = selectedBids[bidKeys[i]];
-          const provider = providers.find(x => x.owner === currentBid.provider);
+          const provider = providers?.find(x => x.owner === currentBid.provider);
           await sendManifest(provider, mani);
         }
       } catch (err) {
         console.error(err);
       }
-
-      closeSnackbar(sendManifestKey);
+      dismiss(sendManifestKey);
+      // closeSnackbar(sendManifestKey);
     }
 
     event(AnalyticsEvents.SEND_MANIFEST, {
@@ -253,35 +265,53 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.createLeases })}`}
       />
 
-      <Box>
-        {!isLoadingBids && bids.length > 0 && !allClosed && (
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexDirection: { xs: "column", sm: "column", md: "row" } }}>
-            <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center", width: { xs: "100%", sm: "100%", md: "auto" } }}>
-              <TextField
+      <div>
+        {!isLoadingBids && (bids?.length || 0) > 0 && !allClosed && (
+          <div
+            className="flex flex-col items-center justify-between py-2 md:flex-row"
+            // sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexDirection: { xs: "column", sm: "column", md: "row" } }}
+          >
+            <div
+              className="flex w-full items-center md:w-auto"
+              // sx={{ flexGrow: 1, display: "flex", alignItems: "center", width: { xs: "100%", sm: "100%", md: "auto" } }}
+            >
+              <InputWithIcon
                 label="Search provider..."
-                disabled={bids.length === 0 || isSendingManifest}
+                disabled={bids?.length === 0 || isSendingManifest}
                 value={search}
                 onChange={onSearchChange}
                 type="text"
-                variant="outlined"
-                fullWidth
-                size="small"
-                InputProps={{
-                  endAdornment: search && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setSearch("")}>
-                        <CloseIcon />
-                      </IconButton>
-                    </InputAdornment>
+                className="w-full"
+                endIcon={
+                  search && (
+                    <Button size="icon" onClick={() => setSearch("")}>
+                      <Xmark />
+                    </Button>
                   )
-                }}
+                }
+                // InputProps={{
+                //   endAdornment: search && <InputAdornment position="end"></InputAdornment>
+                // }}
               />
 
-              <Box margin="0 .5rem">
-                <IconButton aria-label="settings" aria-haspopup="true" onClick={handleMenuClick} size="small">
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <div className="mx-2">
+                    <Button size="icon" variant="ghost" onClick={handleMenuClick}>
+                      <MoreHoriz />
+                    </Button>
+                  </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <CustomDropdownLinkItem onClick={() => handleCloseDeployment()}>Close Deployment</CustomDropdownLinkItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* <div className="mx-2">
+                <Button aria-haspopup="true" onClick={handleMenuClick} size="small">
                   <MoreHorizIcon fontSize="large" />
-                </IconButton>
-              </Box>
+                </Button>
+              </div>
               <Menu
                 id="bid-actions-menu"
                 anchorEl={anchorEl}
@@ -299,140 +329,156 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
                 onClick={handleMenuClose}
               >
                 <MenuItem onClick={() => handleCloseDeployment()}>Close Deployment</MenuItem>
-              </Menu>
-            </Box>
+              </Menu> */}
+            </div>
 
-            <Box
-              sx={{ display: "flex", alignItems: "center", width: { xs: "100%", sm: "100%", md: "auto" }, margin: { xs: ".5rem 0", sm: ".4rem 0", md: "0" } }}
+            <div
+              className="flex w-full items-center py-2 md:w-auto md:py-0"
+              // sx={{ display: "flex", alignItems: "center", width: { xs: "100%", sm: "100%", md: "auto" }, margin: { xs: ".5rem 0", sm: ".4rem 0", md: "0" } }}
             >
               <Button
-                variant="contained"
+                variant="default"
                 color="secondary"
                 onClick={handleNext}
-                classes={{ text: classes.nowrap }}
-                sx={{ width: { xs: "100%", sm: "100%", md: "auto" } }}
+                className="w-full whitespace-nowrap md:w-auto"
+                // classes={{ text: classes.nowrap }}
+                // sx={{ width: { xs: "100%", sm: "100%", md: "auto" } }}
                 disabled={dseqList.some(gseq => !selectedBids[gseq]) || isSendingManifest || isCreatingLeases}
               >
                 {isCreatingLeases ? (
-                  <CircularProgress size="24px" color="secondary" />
+                  <Spinner size="small" />
                 ) : (
                   <>
                     Accept Bid{dseqList.length > 1 ? "s" : ""}
-                    <Box component="span" marginLeft=".5rem" display="flex" alignItems="center">
-                      <ArrowForwardIosIcon fontSize="small" />
-                    </Box>
+                    <span className="ml-2 flex items-center">
+                      <ArrowRight className="text-xs" />
+                    </span>
                   </>
                 )}
               </Button>
-            </Box>
-          </Box>
+            </div>
+          </div>
         )}
 
-        <Box display="flex" alignItems="center">
-          {!isLoadingBids && (allClosed || bids.length === 0) && (
-            <Button variant="contained" color="secondary" onClick={handleCloseDeployment} size="small">
+        <div className="flex items-center">
+          {!isLoadingBids && (allClosed || bids?.length === 0) && (
+            <Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm">
               Close Deployment
             </Button>
           )}
-        </Box>
+        </div>
 
-        {(isLoadingBids || bids.length === 0) && !maxRequestsReached && !isSendingManifest && (
-          <Box textAlign="center" paddingTop="1rem">
-            <CircularProgress color="secondary" size="4rem" />
-            <Box paddingTop="1rem">
-              <Typography variant="body1">Waiting for bids...</Typography>
-            </Box>
-          </Box>
+        {(isLoadingBids || (bids?.length || 0) === 0) && !maxRequestsReached && !isSendingManifest && (
+          <div className="pt-4 text-center">
+            <Spinner size="large" />
+            <div className="pt-4">Waiting for bids...</div>
+          </div>
         )}
 
-        {warningRequestsReached && !maxRequestsReached && bids.length === 0 && (
-          <Box paddingTop="1rem">
-            <Alert variant="standard" severity="info">
+        {warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
+          <div className="pt-4">
+            <Alert
+            // severity="info"
+            >
               There should be bids by now... You can wait longer in case a bid shows up or close the deployment and try again with a different configuration.
             </Alert>
-          </Box>
+          </div>
         )}
 
-        {maxRequestsReached && bids.length === 0 && (
-          <Box paddingTop="1rem">
-            <Alert variant="standard" severity="warning">
+        {maxRequestsReached && (bids?.length || 0) === 0 && (
+          <div className="pt-4">
+            <Alert
+            // severity="warning"
+            >
               There's no bid for the current deployment. You can close the deployment and try again with a different configuration.
             </Alert>
-          </Box>
+          </div>
         )}
 
-        {bids.length > 0 && (
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexDirection: { xs: "column", sm: "column", md: "row" },
-              marginBottom: { xs: ".2rem", sm: ".2rem", md: 0 }
-            }}
+        {bids && bids.length > 0 && (
+          <div
+            className="mb-1 flex flex-col items-center justify-between md:mb-0 md:flex-row"
+            // sx={{
+            //   display: "flex",
+            //   alignItems: "center",
+            //   justifyContent: "space-between",
+            //   flexDirection: { xs: "column", sm: "column", md: "row" },
+            //   marginBottom: { xs: ".2rem", sm: ".2rem", md: 0 }
+            // }}
           >
-            <Box sx={{ display: "flex", alignItem: "center", width: { xs: "100%", sm: "100%", md: "auto" } }}>
-              <FormControlLabel
-                control={<Checkbox checked={isFilteringFavorites} onChange={(ev, value) => setIsFilteringFavorites(value)} color="secondary" size="small" />}
-                label="Favorites"
-              />
+            <div
+              className="flex w-full items-center md:w-auto"
+              // sx={{ display: "flex", alignItem: "center", width: { xs: "100%", sm: "100%", md: "auto" } }}
+            >
+              <div className="flex items-center space-x-2">
+                <Checkbox checked={isFilteringFavorites} onCheckedChange={value => setIsFilteringFavorites(value as boolean)} id="provider-favorites" />
+                <label
+                  htmlFor="provider-favorites"
+                  className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Favorites
+                </label>
+              </div>
 
-              <FormControlLabel
-                control={<Checkbox checked={isFilteringAudited} onChange={(ev, value) => setIsFilteringAudited(value)} color="secondary" size="small" />}
-                label={
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    Audited
-                    <VerifiedUserIcon fontSize="small" color="success" sx={{ marginLeft: ".5rem" }} />
-                  </Box>
-                }
-              />
+              <div className="flex items-center space-x-2">
+                <Checkbox checked={isFilteringFavorites} onCheckedChange={value => setIsFilteringFavorites(value as boolean)} />
+                <Checkbox checked={isFilteringAudited} onCheckedChange={value => setIsFilteringAudited(value as boolean)} id="provider-audited" />
+                <label
+                  htmlFor="provider-audited"
+                  className="inline-flex cursor-pointer items-center text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Audited
+                  <UserBadgeCheck className="ml-2 text-sm text-green-600" />
+                </label>
+              </div>
 
               {!isLoadingBids && allClosed && (
-                <Box sx={{ display: "flex", alignItems: "center", marginLeft: "1rem" }}>
+                <div className="ml-4 flex items-center">
                   <CustomTooltip
-                    arrow
                     title={
-                      <Alert severity="warning" variant="outlined">
+                      <Alert variant="warning">
                         All bids for this deployment are closed. This can happen if no bids are accepted for more than 5 minutes after the deployment creation.
                         You can close this deployment and create a new one.
                       </Alert>
                     }
                   >
-                    <InfoIcon color="error" fontSize="small" />
+                    <InfoCircle className="text-xs text-red-600" />
                   </CustomTooltip>
-                </Box>
+                </div>
               )}
-            </Box>
+            </div>
 
             {!isSendingManifest && (
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginLeft: { xs: 0, sm: 0, md: "1rem" },
-                  marginTop: { xs: ".2rem", sm: ".2rem", md: 0 },
-                  alignSelf: { xs: "start", sm: "center" }
-                }}
+              <div
+                className="mt-2 flex items-center self-start sm:self-center md:ml-4 md:mt-0"
+                // sx={{
+                //   display: "flex",
+                //   alignItems: "center",
+                //   marginLeft: { xs: 0, sm: 0, md: "1rem" },
+                //   marginTop: { xs: ".2rem", sm: ".2rem", md: 0 },
+                //   alignSelf: { xs: "start", sm: "center" }
+                // }}
               >
-                <BidCountdownTimer height={bids?.length > 0 ? bids[0].dseq : null} />
-              </Box>
+                <BidCountdownTimer height={bids && bids?.length > 0 ? bids[0].dseq : null} />
+              </div>
             )}
 
             {!maxRequestsReached && !isSendingManifest && (
-              <Box sx={{ display: "flex", alignItems: "center", lineHeight: "1rem", fontSize: ".7rem", alignSelf: { xs: "start", sm: "center" } }}>
-                <Typography variant="caption" color="grey">
-                  Waiting for more bids...
-                </Typography>
-                <Box marginLeft=".5rem">
-                  <CircularProgress size=".7rem" color="secondary" />
-                </Box>
-              </Box>
+              <div
+                className="flex items-center self-start text-xs leading-4 sm:self-center"
+                // sx={{ display: "flex", alignItems: "center", lineHeight: "1rem", fontSize: ".7rem", alignSelf: { xs: "start", sm: "center" } }}
+              >
+                <p className="text-xs text-muted-foreground">Waiting for more bids...</p>
+                <div className="ml-2">
+                  <Spinner size="small" />
+                </div>
+              </div>
             )}
-          </Box>
+          </div>
         )}
 
         <LinearLoadingSkeleton isLoading={isSendingManifest} />
-      </Box>
+      </div>
 
       {dseqList.length > 0 && (
         <ViewPanel stickToBottom style={{ overflow: "auto", paddingBottom: "2rem" }}>

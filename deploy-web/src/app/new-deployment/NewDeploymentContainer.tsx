@@ -27,14 +27,13 @@ export function NewDeploymentContainer() {
   const { getTemplateById } = useTemplates();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const dseq = searchParams?.get("dseq");
 
   useEffect(() => {
     if (!templates) return;
 
     const redeployTemplate = getRedeployTemplate();
     const galleryTemplate = getGalleryTemplate();
-
-    console.log("uhhh");
 
     if (redeployTemplate) {
       // If it's a redeploy, set the template from local storage
@@ -121,7 +120,7 @@ export function NewDeploymentContainer() {
       {activeStep === 1 && (
         <ManifestEdit selectedTemplate={selectedTemplate as TemplateCreation} editedManifest={editedManifest as string} setEditedManifest={setEditedManifest} />
       )}
-      {/* {activeStep === 2 && <CreateLease dseq={router.query.dseq as string} />} */}
+      {activeStep === 2 && <CreateLease dseq={dseq as string} />}
     </PageContainer>
   );
 }

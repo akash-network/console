@@ -66,9 +66,9 @@ type Props = {
   selectedBid: BidDto;
   handleBidSelected: (bid: BidDto) => void;
   disabled: boolean;
-  providers: ApiProviderList[];
+  providers: ApiProviderList[] | undefined;
   filteredBids: string[];
-  deploymentDetail: DeploymentDto;
+  deploymentDetail: DeploymentDto | null | undefined;
   isFilteringFavorites: boolean;
   isFilteringAudited: boolean;
   groupIndex: number;

@@ -1,6 +1,7 @@
+"use client";
 import { ReactNode } from "react";
 import { Popup } from "../shared/Popup";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import Spinner from "../shared/Spinner";
 
 type Props = {
   state: "waitingForApproval" | "broadcasting";
@@ -21,15 +22,15 @@ export const TransactionModal: React.FunctionComponent<Props> = ({ state, open, 
       maxWidth="xs"
       enableCloseOnBackdropClick={false}
     >
-      <Box sx={{ padding: "1rem", textAlign: "center" }}>
-        <Box sx={{ margin: "2rem 0 3rem" }}>
-          <CircularProgress size="5rem" color="secondary" />
-        </Box>
-
-        <div>
-          <Typography variant="caption">{state === "waitingForApproval" ? "APPROVE OR REJECT TX TO CONTINUE..." : "BROADCASTING TRANSACTION..."}</Typography>
+      <div className="p-4 text-center">
+        <div className="mb-12 mt-8">
+          <Spinner size="large" className="justify-center" />
         </div>
-      </Box>
+
+        <div className="text-sm text-muted-foreground">
+          {state === "waitingForApproval" ? "APPROVE OR REJECT TX TO CONTINUE..." : "BROADCASTING TRANSACTION..."}
+        </div>
+      </div>
     </Popup>
   );
 };

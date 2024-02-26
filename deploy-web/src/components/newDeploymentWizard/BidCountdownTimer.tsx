@@ -8,7 +8,7 @@ import { Alert } from "../ui/alert";
 import { InfoCircle } from "iconoir-react";
 
 type Props = {
-  height: string;
+  height: string | null;
 };
 
 // 5 minutes
