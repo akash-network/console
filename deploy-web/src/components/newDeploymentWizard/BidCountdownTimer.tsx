@@ -1,9 +1,11 @@
+"use client";
 import React, { useEffect, useState } from "react";
 import { useBlock } from "@src/queries/useBlocksQuery";
 import { differenceInSeconds } from "date-fns";
-import { Alert, Chip, Typography } from "@mui/material";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import InfoIcon from "@mui/icons-material/Info";
+import { Badge } from "../ui/badge";
+import { Alert } from "../ui/alert";
+import { InfoCircle } from "iconoir-react";
 
 type Props = {
   height: string;
@@ -55,32 +57,20 @@ export const BidCountdownTimer: React.FunctionComponent<Props> = ({ height }) =>
   if (!isTimerInit) return null;
 
   return (
-    <Chip
-      size="small"
-      color={timeLeft === 0 ? "default" : "secondary"}
-      variant="outlined"
-      label={
-        <Typography variant="caption" sx={{ display: "inline-flex", alignItems: "center" }}>
-          {timeLeft === 0 ? (
-            <>Time's up!</>
-          ) : (
-            <>
-              Time Remaining: {formattedMinutes}:{formattedSeconds}
-            </>
-          )}
+    <Badge variant={timeLeft === 0 ? "default" : "secondary"}>
+      <span className="inline-flex items-center">
+        {timeLeft === 0 ? (
+          <>Time's up!</>
+        ) : (
+          <>
+            Time Remaining: {formattedMinutes}:{formattedSeconds}
+          </>
+        )}
 
-          <CustomTooltip
-            arrow
-            title={
-              <Alert severity="info" variant="outlined">
-                Bids automatically close 5 minutes after the deployment is created if none are selected for a lease.
-              </Alert>
-            }
-          >
-            <InfoIcon fontSize="small" sx={{ fontSize: ".9rem", marginLeft: ".5rem" }} />
-          </CustomTooltip>
-        </Typography>
-      }
-    />
+        <CustomTooltip title={<Alert>Bids automatically close 5 minutes after the deployment is created if none are selected for a lease.</Alert>}>
+          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+        </CustomTooltip>
+      </span>
+    </Badge>
   );
 };

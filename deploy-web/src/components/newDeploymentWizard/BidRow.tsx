@@ -1,84 +1,85 @@
-import { Radio, Box, Chip, TableCell, CircularProgress, Typography, lighten, darken } from "@mui/material";
-import CloudOffIcon from "@mui/icons-material/CloudOff";
+"use client";
 import { useEffect } from "react";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { FavoriteButton } from "../shared/FavoriteButton";
 import { AuditorButton } from "../providers/AuditorButton";
-import { makeStyles } from "tss-react/mui";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
-import { CustomTableRow } from "../shared/CustomTable";
-import { CustomTooltip } from "../shared/CustomTooltip";
 import { getSplitText } from "@src/hooks/useShortText";
 import { BidDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
-import { cx } from "@emotion/css";
 import { Uptime } from "../providers/Uptime";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
-import WarningIcon from "@mui/icons-material/Warning";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
+import { TableCell, TableRow } from "../ui/table";
+import { cn } from "@src/utils/styleUtils";
+import { useTheme } from "next-themes";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { Badge } from "../ui/badge";
+import { WarningTriangle, CloudXmark } from "iconoir-react";
+import Spinner from "../shared/Spinner";
 
-const useStyles = makeStyles()(theme => ({
-  root: {
-    cursor: "pointer",
-    transition: "background-color .2s ease",
-    "&:hover": {
-      backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[300]
-    }
-  },
-  selectedRow: {
-    backgroundColor: `${theme.palette.mode === "dark" ? darken(theme.palette.success.main, 0.8) : lighten(theme.palette.success.main, 0.8)} !important`,
-    border: "1px solid"
-  },
-  secondaryText: {
-    fontSize: ".8rem"
-  },
-  chip: {
-    height: "1rem",
-    fontSize: ".75rem",
-    lineHeight: ".75rem"
-  },
-  priceTooltip: {
-    display: "flex",
-    alignItems: "center",
-    color: theme.palette.grey[600]
-  },
-  pricePerMonth: {
-    fontSize: "1.25rem"
-  },
-  bidState: {
-    marginBottom: "4px"
-  },
-  providerOffline: {
-    marginTop: "4px",
-    fontSize: ".85rem"
-  },
-  stateIcon: {
-    marginRight: ".5rem"
-  },
-  stateActive: {
-    color: theme.palette.secondary.main
-  },
-  stateInactive: {
-    color: theme.palette.primary.contrastText
-  },
-  flexCenter: {
-    display: "flex",
-    alignItems: "center"
-  },
-  gpuChip: {
-    height: "16px",
-    fontSize: ".65rem",
-    fontWeight: "bold"
-  },
-  gpuChipLabel: {
-    padding: "0 4px"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   root: {
+//     cursor: "pointer",
+//     transition: "background-color .2s ease",
+//     "&:hover": {
+//       backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[300]
+//     }
+//   },
+//   selectedRow: {
+//     backgroundColor: `${theme.palette.mode === "dark" ? darken(theme.palette.success.main, 0.8) : lighten(theme.palette.success.main, 0.8)} !important`,
+//     border: "1px solid"
+//   },
+//   secondaryText: {
+//     fontSize: ".8rem"
+//   },
+//   chip: {
+//     height: "1rem",
+//     fontSize: ".75rem",
+//     lineHeight: ".75rem"
+//   },
+//   priceTooltip: {
+//     display: "flex",
+//     alignItems: "center",
+//     color: theme.palette.grey[600]
+//   },
+//   pricePerMonth: {
+//     fontSize: "1.25rem"
+//   },
+//   bidState: {
+//     marginBottom: "4px"
+//   },
+//   providerOffline: {
+//     marginTop: "4px",
+//     fontSize: ".85rem"
+//   },
+//   stateIcon: {
+//     marginRight: ".5rem"
+//   },
+//   stateActive: {
+//     color: theme.palette.secondary.main
+//   },
+//   stateInactive: {
+//     color: theme.palette.primary.contrastText
+//   },
+//   flexCenter: {
+//     display: "flex",
+//     alignItems: "center"
+//   },
+//   gpuChip: {
+//     height: "16px",
+//     fontSize: ".65rem",
+//     fontWeight: "bold"
+//   },
+//   gpuChipLabel: {
+//     padding: "0 4px"
+//   }
+// }));
 
 type Props = {
   bid: BidDto;
@@ -90,8 +91,8 @@ type Props = {
 };
 
 export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handleBidSelected, disabled, provider, isSendingManifest }) => {
-  const { classes } = useStyles();
   const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
+  const { theme } = useTheme();
   const isFavorite = favoriteProviders.some(x => provider.owner === x);
   const isCurrentBid = selectedBid?.id === bid.id;
   const {
@@ -125,19 +126,25 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
     }
   };
 
-  if (!provider) return null;
+  //   root: {
+  //     cursor: "pointer",
+  //     transition: "background-color .2s ease",
+  //     "&:hover": {
+  //       backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[300]
+  //     }
+  //   },
+  //   selectedRow: {
+  //     backgroundColor: `${theme.palette.mode === "dark" ? darken(theme.palette.success.main, 0.8) : lighten(theme.palette.success.main, 0.8)} !important`,
+  //     border: "1px solid"
+  //   },
 
   return (
-    <CustomTableRow
-      key={bid.id}
-      className={cx({ [classes.root]: bid.state === "open", [classes.selectedRow]: isCurrentBid }, "bid-list-row")}
-      onClick={onRowClick}
-    >
+    <TableRow key={bid.id} className={cn({ ["hover: cursor-pointer"]: bid.state === "open", ["border-b"]: isCurrentBid }, "bid-list-row")} onClick={onRowClick}>
       <TableCell align="center">
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <PricePerMonth denom={bid.price.denom} perBlockValue={udenomToDenom(bid.price.amount, 10)} className={classes.pricePerMonth} />
+        <div className="flex items-center justify-center">
+          <PricePerMonth denom={bid.price.denom} perBlockValue={udenomToDenom(bid.price.amount, 10)} className="text-2xl" />
           <PriceEstimateTooltip denom={bid.price.denom} value={bid.price.amount} />
-        </Box>
+        </div>
       </TableCell>
 
       <TableCell align="center">
@@ -161,9 +168,9 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
       <TableCell align="center">{provider.uptime7d ? <Uptime value={provider.uptime7d} /> : <div>-</div>}</TableCell>
 
       <TableCell align="left">
-        <Box sx={{ display: "flex", alignItems: "center" }}>
+        <div className="flex items-center">
           <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
-          <Box sx={{ marginLeft: ".5rem" }}>
+          <div className="ml-2">
             {provider.name ? (
               <Link href={UrlService.providerDetail(provider.owner)} onClick={e => e.stopPropagation()}>
                 {provider.name?.length > 20 ? (
@@ -181,63 +188,86 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
                 </CustomTooltip>
               </div>
             )}
-          </Box>
-        </Box>
+          </div>
+        </div>
       </TableCell>
 
       {gpuModels.length > 0 && (
         <TableCell align="center">
           {gpuModels.map((gpu, i) => (
-            <Chip
+            //   gpuChip: {
+            //     height: "16px",
+            //     fontSize: ".65rem",
+            //     fontWeight: "bold"
+            //   },
+            //   gpuChipLabel: {
+            //     padding: "0 4px"
+            //   }
+            <Badge
               key={`${gpu.vendor}-${gpu.model}`}
-              label={`${gpu.vendor}-${gpu.model}`}
-              className={classes.gpuChip}
-              classes={{ label: classes.gpuChipLabel }}
-              sx={{ marginRight: i < gpuModels.length ? ".2rem" : 0 }}
-              color="secondary"
-              size="small"
-            />
+              className={cn("h-[16px] px-1 py-0 text-xs font-bold", { ["mr-1"]: i < gpuModels.length })}
+              // className={classes.gpuChip}
+              // classes={{ label: classes.gpuChipLabel }}
+              // sx={{ marginRight: i < gpuModels.length ? ".2rem" : 0 }}
+              variant="default"
+            >
+              `${gpu.vendor}-${gpu.model}`
+            </Badge>
           ))}
         </TableCell>
       )}
 
       <TableCell align="center">
         {provider.isAudited ? (
-          <Box>
-            <Typography variant="caption">Yes</Typography>
+          <div>
+            <span className="text-sm text-muted-foreground">Yes</span>
             <AuditorButton provider={provider} />
-          </Box>
+          </div>
         ) : (
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Typography variant="caption">No</Typography>
+          <div className="flex items-center justify-center">
+            <span className="text-sm text-muted-foreground">No</span>
 
             <CustomTooltip title={<>This provider is not audited, which may result in a lesser quality experience.</>}>
-              <WarningIcon color="warning" fontSize="small" sx={{ marginLeft: ".5rem" }} />
+              <WarningTriangle className="ml-2 text-sm text-orange-600" />
             </CustomTooltip>
-          </Box>
+          </div>
         )}
       </TableCell>
 
       <TableCell align="center">
-        <Box sx={{ height: "38px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="flex h-[38px] items-center justify-center">
           {isLoadingStatus && (
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <CircularProgress size="1rem" color="secondary" />
-            </Box>
+            <div className="flex items-center justify-center">
+              <Spinner size="small" />
+            </div>
           )}
           {!isLoadingStatus && error && !isSendingManifest && (
-            <div className={cx(classes.flexCenter, classes.providerOffline)}>
-              <CloudOffIcon className={cx(classes.stateIcon, classes.stateInactive)} sx={{ fontSize: "1rem" }} />
-              <Typography variant="caption">OFFLINE</Typography>
+            //   providerOffline: {
+            //     marginTop: "4px",
+            //     fontSize: ".85rem"
+            //   },
+            <div className="mt-2 flex items-center">
+              <CloudXmark
+                className="mr-2 text-primary"
+                // className={cx(classes.stateIcon, classes.stateInactive)} sx={{ fontSize: "1rem" }}
+              />
+              <span className="text-sm text-muted-foreground">OFFLINE</span>
             </div>
           )}
 
           {!isLoadingStatus && !error && !isSendingManifest && (
             <>
               {bid.state !== "open" || disabled ? (
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Chip label={bid.state} size="medium" color={bid.state === "active" ? "success" : "error"} classes={{ root: classes.chip }} />
-                </Box>
+                <div className="flex items-center justify-center">
+                  {/* //   chip: {
+//     height: "1rem",
+//     fontSize: ".75rem",
+//     lineHeight: ".75rem"
+//   }, */}
+                  <Badge color={bid.state === "active" ? "success" : "error"} className="h-4 text-xs">
+                    {bid.state}
+                  </Badge>
+                </div>
               ) : (
                 <Radio
                   checked={isCurrentBid}
@@ -253,12 +283,12 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
           )}
 
           {isSendingManifest && isCurrentBid && (
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Chip label="Deploying! 🚀" size="small" color="success" />
-            </Box>
+            <div className="flex items-center justify-center">
+              <Badge variant="success">Deploying! 🚀</Badge>
+            </div>
           )}
-        </Box>
+        </div>
       </TableCell>
-    </CustomTableRow>
+    </TableRow>
   );
 };

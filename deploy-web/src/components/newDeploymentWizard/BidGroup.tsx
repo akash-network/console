@@ -1,8 +1,6 @@
-import { ListSubheader, List, Box, Typography, Paper, Alert, ListItem, TableContainer, Table, TableRow, TableCell, TableBody } from "@mui/material";
+"use client";
 import { useEffect, useState } from "react";
 import { BidRow } from "./BidRow";
-import CheckIcon from "@mui/icons-material/Check";
-import { makeStyles } from "tss-react/mui";
 import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploymentDetailUtils";
 import { LabelValueOld } from "../shared/LabelValueOld";
 import { SpecDetail } from "../shared/SpecDetail";
@@ -11,52 +9,56 @@ import { BidDto, DeploymentDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { mainnetId } from "@src/utils/constants";
+import { FormPaper } from "../sdl/FormPaper";
+import { Alert } from "../ui/alert";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "../ui/table";
+import { Check } from "iconoir-react";
 
-const useStyles = makeStyles()(theme => ({
-  root: {
-    marginBottom: "1rem"
-  },
-  subHeader: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: "6px",
-    paddingTop: "6px",
-    zIndex: 100,
-    lineHeight: "2rem",
-    backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100]
-  },
-  secondaryText: {
-    fontSize: ".8rem"
-  },
-  attributesContainer: {
-    flexBasis: "45%",
-    margin: "2px 0",
-    backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : "rgba(0,0,0,0.05)",
-    borderRadius: ".5rem",
-    padding: ".5rem"
-  },
-  attributeTitle: {
-    marginBottom: "2px"
-  },
-  attributeRow: {
-    display: "flex",
-    alignItems: "center",
-    lineHeight: "1rem"
-  },
-  attributeText: {
-    lineHeight: "1rem",
-    letterSpacing: 0
-  },
-  chip: {
-    height: "16px"
-  },
-  priceTooltip: {
-    display: "flex",
-    alignItems: "center",
-    color: theme.palette.grey[600]
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   root: {
+//     marginBottom: "1rem"
+//   },
+//   subHeader: {
+//     display: "flex",
+//     alignItems: "center",
+//     justifyContent: "space-between",
+//     paddingBottom: "6px",
+//     paddingTop: "6px",
+//     zIndex: 100,
+//     lineHeight: "2rem",
+//     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100]
+//   },
+//   secondaryText: {
+//     fontSize: ".8rem"
+//   },
+//   attributesContainer: {
+//     flexBasis: "45%",
+//     margin: "2px 0",
+//     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : "rgba(0,0,0,0.05)",
+//     borderRadius: ".5rem",
+//     padding: ".5rem"
+//   },
+//   attributeTitle: {
+//     marginBottom: "2px"
+//   },
+//   attributeRow: {
+//     display: "flex",
+//     alignItems: "center",
+//     lineHeight: "1rem"
+//   },
+//   attributeText: {
+//     lineHeight: "1rem",
+//     letterSpacing: 0
+//   },
+//   chip: {
+//     height: "16px"
+//   },
+//   priceTooltip: {
+//     display: "flex",
+//     alignItems: "center",
+//     color: theme.palette.grey[600]
+//   }
+// }));
 
 type Props = {
   bids: Array<BidDto>;
@@ -89,8 +91,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
   totalBids,
   isSendingManifest
 }) => {
-  const { classes } = useStyles();
-  const [resources, setResources] = useState(null);
+  const [resources, setResources] = useState<{ cpuAmount: number; gpuAmount: number; memoryAmount: number; storageAmount: number } | null>(null);
   const allBidsClosed = bids.every(b => b.state === "closed");
   const fBids = bids.filter(bid => filteredBids.includes(bid.id));
   const { selectedNetworkId } = useSettings();
@@ -109,17 +110,17 @@ export const BidGroup: React.FunctionComponent<Props> = ({
   }, [deploymentDetail, gseq]);
 
   return (
-    <Paper elevation={4} className={classes.root}>
+    <FormPaper className="mb-4">
       <List
         subheader={
           <ListSubheader component="div" className={classes.subHeader}>
-            <Box display="flex" alignItems="center">
-              <Typography variant="h6">
+            <div className="flex items-center">
+              <h6>
                 <LabelValueOld label="GSEQ:" value={gseq} />
-              </Typography>
+              </h6>
 
               {resources && (
-                <Box marginLeft={2}>
+                <div className="ml-2">
                   <SpecDetail
                     cpuAmount={resources.cpuAmount}
                     memoryAmount={resources.memoryAmount}
@@ -128,89 +129,87 @@ export const BidGroup: React.FunctionComponent<Props> = ({
                     color={allBidsClosed ? "default" : "primary"}
                     size="small"
                   />
-                </Box>
+                </div>
               )}
-            </Box>
+            </div>
 
-            <Box display="flex" alignItems="center">
-              {!!selectedBid && <CheckIcon color="secondary" />}
-              <Box marginLeft="1rem">
+            <div className="flex items-center">
+              {!!selectedBid && <Check className="text-primary" />}
+              <div className="ml-4">
                 {groupIndex + 1} of {totalBids}
-              </Box>
-            </Box>
+              </div>
+            </div>
           </ListSubheader>
         }
       >
         <ListItem>
-          <TableContainer>
-            <Table size="small">
-              <CustomTableHeader>
-                <TableRow>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableCell width="10%" align="center">
+                  Price
+                </TableCell>
+                <TableCell width="10%" align="center">
+                  Region
+                </TableCell>
+                <TableCell width="10%" align="center">
+                  Uptime (7d)
+                </TableCell>
+                <TableCell width="10%" align="center">
+                  Provider
+                </TableCell>
+                {(deploymentDetail?.gpuAmount || 0) > 0 && (
                   <TableCell width="10%" align="center">
-                    Price
+                    GPU
                   </TableCell>
-                  <TableCell width="10%" align="center">
-                    Region
-                  </TableCell>
-                  <TableCell width="10%" align="center">
-                    Uptime (7d)
-                  </TableCell>
-                  <TableCell width="10%" align="center">
-                    Provider
-                  </TableCell>
-                  {deploymentDetail.gpuAmount > 0 && (
-                    <TableCell width="10%" align="center">
-                      GPU
-                    </TableCell>
-                  )}
-                  <TableCell width="10%" align="center">
-                    Audited
-                  </TableCell>
-                  <TableCell width="10%" align="center">
-                    <Box sx={{ fontWeight: "bold" }}>Select</Box>
-                  </TableCell>
-                </TableRow>
-              </CustomTableHeader>
+                )}
+                <TableCell width="10%" align="center">
+                  Audited
+                </TableCell>
+                <TableCell width="10%" align="center">
+                  <strong>Select</strong>
+                </TableCell>
+              </TableRow>
+            </TableHeader>
 
-              <TableBody>
-                {fBids.map(bid => {
-                  const provider = providers && providers.find(x => x.owner === bid.provider);
-                  const showBid = provider?.isValidVersion && (!isSendingManifest || selectedBid?.id === bid.id);
-                  return showBid || selectedNetworkId !== mainnetId ? (
-                    <BidRow
-                      key={bid.id}
-                      bid={bid}
-                      provider={provider}
-                      handleBidSelected={handleBidSelected}
-                      disabled={disabled}
-                      selectedBid={selectedBid}
-                      isSendingManifest={isSendingManifest}
-                    />
-                  ) : null;
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+            <TableBody>
+              {fBids.map(bid => {
+                const provider = providers && providers.find(x => x.owner === bid.provider);
+                const showBid = provider?.isValidVersion && (!isSendingManifest || selectedBid?.id === bid.id);
+                return (showBid || selectedNetworkId !== mainnetId) && provider ? (
+                  <BidRow
+                    key={bid.id}
+                    bid={bid}
+                    provider={provider}
+                    handleBidSelected={handleBidSelected}
+                    disabled={disabled}
+                    selectedBid={selectedBid}
+                    isSendingManifest={isSendingManifest}
+                  />
+                ) : null;
+              })}
+            </TableBody>
+          </Table>
         </ListItem>
 
         {isFilteringFavorites && fBids.length === 0 && (
-          <Box padding=".5rem 1rem">
-            <Alert severity="info" variant="outlined">
-              <Typography variant="caption">There are no favorite providers for this group...</Typography>
+          <div className="px-4 py-2">
+            <Alert>
+              <span className="text-sm text-muted-foreground">There are no favorite providers for this group...</span>
             </Alert>
-          </Box>
+          </div>
         )}
 
         {isFilteringAudited && fBids.length === 0 && (
-          <Box padding=".5rem 1rem">
-            <Alert severity="info" variant="outlined">
-              <Typography variant="caption">
+          <div className="px-4 py-2">
+            <Alert>
+              <span className="text-sm text-muted-foreground">
                 There are no audited providers for this group... Try unchecking the "Audited" flag or clearing the search.
-              </Typography>
+              </span>
             </Alert>
-          </Box>
+          </div>
         )}
       </List>
-    </Paper>
+    </FormPaper>
   );
 };

@@ -37,20 +37,6 @@ import { DeploymentDepositModal } from "../deploymentDetail/DeploymentDepositMod
 
 const yaml = require("js-yaml");
 
-// const useStyles = makeStyles()(theme => ({
-//   tooltip: {
-//     fontSize: "1rem"
-//   },
-//   tooltipIcon: {
-//     fontSize: "1.5rem",
-//     marginRight: "1rem",
-//     color: theme.palette.text.secondary
-//   },
-//   alert: {
-//     marginBottom: "1rem"
-//   }
-// }));
-
 type Props = {
   selectedTemplate: TemplateCreation;
   editedManifest: string;

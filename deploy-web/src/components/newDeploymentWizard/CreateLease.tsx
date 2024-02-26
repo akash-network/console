@@ -1,36 +1,15 @@
+"use client";
 import React, { useState, useEffect } from "react";
-import {
-  Button,
-  CircularProgress,
-  Box,
-  Typography,
-  Menu,
-  MenuItem,
-  IconButton,
-  TextField,
-  InputAdornment,
-  FormControlLabel,
-  Checkbox,
-  Alert
-} from "@mui/material";
 import { BidGroup } from "./BidGroup";
 import { useCertificate } from "../../context/CertificateProvider";
-import { useSnackbar } from "notistack";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
-import CloseIcon from "@mui/icons-material/Close";
-import ArrowForwardIosIcon from "@mui/icons-material/ArrowForward";
-import InfoIcon from "@mui/icons-material/Info";
 import { useLocalNotes } from "../../context/LocalNoteProvider";
-import { makeStyles } from "tss-react/mui";
 import { useRouter } from "next/router";
 import { useWallet } from "@src/context/WalletProvider";
 import { useBidList } from "@src/queries/useBidQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
-import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
-import { Snackbar } from "../shared/Snackbar";
 import { deploymentData } from "@src/utils/deploymentData";
 import { UrlService } from "@src/utils/urlUtils";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
@@ -42,27 +21,26 @@ import { BidDto } from "@src/types/deployment";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { RouteStepKeys } from "@src/utils/constants";
-import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 
 const yaml = require("js-yaml");
 
-const useStyles = makeStyles()(theme => ({
-  tooltip: {
-    fontSize: "1rem",
-    padding: ".5rem"
-  },
-  tooltipIcon: {
-    fontSize: "1.5rem",
-    color: theme.palette.text.secondary
-  },
-  marginLeft: {
-    marginLeft: "1rem"
-  },
-  nowrap: {
-    whiteSpace: "nowrap"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   tooltip: {
+//     fontSize: "1rem",
+//     padding: ".5rem"
+//   },
+//   tooltipIcon: {
+//     fontSize: "1.5rem",
+//     color: theme.palette.text.secondary
+//   },
+//   marginLeft: {
+//     marginLeft: "1rem"
+//   },
+//   nowrap: {
+//     whiteSpace: "nowrap"
+//   }
+// }));
 
 type Props = {
   dseq: string;
@@ -88,7 +66,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const router = useRouter();
   const [anchorEl, setAnchorEl] = useState(null);
-  const { classes } = useStyles();
   const [numberOfRequests, setNumberOfRequests] = useState(0);
   const { data: providers } = useProviderList();
   const warningRequestsReached = numberOfRequests > WARNING_NUM_OF_BID_REQUESTS;
@@ -104,13 +81,13 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   });
   const { data: deploymentDetail, refetch: getDeploymentDetail } = useDeploymentDetail(address, dseq, { refetchOnMount: false, enabled: false });
   const groupedBids = bids
-    .sort((a, b) => parseFloat(a.price.amount) - parseFloat(b.price.amount))
+    ?.sort((a, b) => parseFloat(a.price.amount) - parseFloat(b.price.amount))
     .reduce((a, b) => {
       a[b.gseq] = [...(a[b.gseq] || []), b];
       return a as { [key: number]: BidDto };
     }, {} as any);
   const dseqList = Object.keys(groupedBids).map(g => parseInt(g));
-  const allClosed = bids.length > 0 && bids.every(bid => bid.state === "closed");
+  const allClosed = (bids?.length || 0) > 0 && bids?.every(bid => bid.state === "closed");
 
   useEffect(() => {
     getDeploymentDetail();
@@ -119,7 +96,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
   // Filter bids by search
   useEffect(() => {
-    let fBids = [];
+    let fBids: string[] = [];
     if ((search || isFilteringFavorites || isFilteringAudited) && providers) {
       bids?.forEach(bid => {
         let isAdded = false;

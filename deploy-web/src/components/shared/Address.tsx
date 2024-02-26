@@ -4,7 +4,7 @@ import { Copy } from "iconoir-react";
 import { useToast } from "../ui/use-toast";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { cn } from "@src/utils/styleUtils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { CustomTooltip } from "./CustomTooltip";
 
 type Props = {
   address: string;
@@ -46,12 +46,5 @@ export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, d
     </span>
   );
 
-  return disableTruncate || disableTooltip ? (
-    content
-  ) : (
-    <Tooltip>
-      <TooltipTrigger asChild>{content}</TooltipTrigger>
-      <TooltipContent>{address}</TooltipContent>
-    </Tooltip>
-  );
+  return disableTruncate || disableTooltip ? content : <CustomTooltip title={address}>{content}</CustomTooltip>;
 };

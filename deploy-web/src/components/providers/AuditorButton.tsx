@@ -1,8 +1,9 @@
+"use client";
 import { useState, MouseEvent } from "react";
-import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
-import { IconButton } from "@mui/material";
 import { AuditorsModal } from "./AuditorsModal";
 import { ClientProviderDetailWithStatus, ClientProviderList } from "@src/types/provider";
+import { Button } from "../ui/button";
+import { UserBadgeCheck } from "iconoir-react";
 
 type Props = {
   provider: ClientProviderList | Partial<ClientProviderDetailWithStatus>;
@@ -27,11 +28,11 @@ export const AuditorButton: React.FunctionComponent<Props> = ({ provider }) => {
 
   return (
     <>
-      <IconButton onClick={onAuditorClick} size="small">
-        <VerifiedUserIcon fontSize="small" color="success" />
-      </IconButton>
+      <Button onClick={onAuditorClick} size="icon" className="rounded-full">
+        <UserBadgeCheck className="text-sm text-green-600" fontSize="small" color="success" />
+      </Button>
 
-      {isViewingAuditors && <AuditorsModal attributes={provider.attributes} onClose={onClose} />}
+      {isViewingAuditors && <AuditorsModal attributes={provider.attributes || []} onClose={onClose} />}
     </>
   );
 };
