@@ -164,31 +164,27 @@ async function saveProviderStatus(
           { transaction: t }
         );
 
-        for (const cpuInfo of node.cpus) {
-          await ProviderSnapshotNodeCPU.create(
-            {
-              snapshotNodeId: providerSnapshotNode.id,
-              vendor: cpuInfo.vendor,
-              model: cpuInfo.model,
-              vcores: cpuInfo.vcores
-            },
-            { transaction: t }
-          );
-        }
+        await ProviderSnapshotNodeCPU.bulkCreate(
+          node.cpus.map((cpuInfo) => ({
+            snapshotNodeId: providerSnapshotNode.id,
+            vendor: cpuInfo.vendor,
+            model: cpuInfo.model,
+            vcores: cpuInfo.vcores
+          })),
+          { transaction: t }
+        );
 
-        for (const gpuInfo of node.gpus) {
-          await ProviderSnapshotNodeGPU.create(
-            {
-              snapshotNodeId: providerSnapshotNode.id,
-              vendor: gpuInfo.vendor,
-              name: gpuInfo.name,
-              modelId: gpuInfo.modelId,
-              interface: gpuInfo.interface,
-              memorySize: gpuInfo.memorySize // TODO: Change type to bytes?
-            },
-            { transaction: t }
-          );
-        }
+        await ProviderSnapshotNodeGPU.bulkCreate(
+          node.gpus.map((gpuInfo) => ({
+            snapshotNodeId: providerSnapshotNode.id,
+            vendor: gpuInfo.vendor,
+            name: gpuInfo.name,
+            modelId: gpuInfo.modelId,
+            interface: gpuInfo.interface,
+            memorySize: gpuInfo.memorySize // TODO: Change type to bytes?
+          })),
+          { transaction: t }
+        );
       }
     }
   });
