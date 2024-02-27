@@ -3,7 +3,7 @@ import axios from "axios";
 import https from "https";
 import { ProviderStatusInfo } from "./types";
 
-export async function fetchAndSaveProviderStats(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
+export async function fetchProviderStatusFromREST(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
   const httpsAgent = new https.Agent({
     rejectUnauthorized: false
   });

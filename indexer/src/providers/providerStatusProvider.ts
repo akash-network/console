@@ -4,12 +4,12 @@ import semver from "semver";
 import { Provider, ProviderSnapshotNode, ProviderSnapshotNodeCPU, ProviderSnapshotNodeGPU } from "@shared/dbSchemas/akash";
 import { asyncify, eachLimit } from "async";
 import { ProviderSnapshot } from "@src/../../shared/dbSchemas/akash/providerSnapshot";
-import { fetchAndSaveProviderStats as grpcFetchAndSaveProviderStats } from "./statusEndpointHandlers/grpc";
-import { fetchAndSaveProviderStats as restFetchAndSaveProviderStats } from "./statusEndpointHandlers/rest";
 import { sequelize } from "@src/db/dbConnection";
 import { toUTC } from "@src/shared/utils/date";
 import { ProviderStatusInfo, ProviderVersionEndpointResponseType } from "./statusEndpointHandlers/types";
 import { isSameDay } from "date-fns";
+import { fetchProviderStatusFromGRPC } from "./statusEndpointHandlers/grpc";
+import { fetchProviderStatusFromREST } from "./statusEndpointHandlers/rest";
 
 const ConcurrentStatusCall = 10;
 const StatusCallTimeout = 10_000; // 10 seconds
@@ -49,9 +49,9 @@ export async function syncProvidersInfo() {
         );
 
         if (akashVersion && semver.gte(akashVersion, "0.5.0-0")) {
-          providerStatus = await grpcFetchAndSaveProviderStats(provider, StatusCallTimeout);
+          providerStatus = await fetchProviderStatusFromGRPC(provider, StatusCallTimeout);
         } else {
-          providerStatus = await restFetchAndSaveProviderStats(provider, StatusCallTimeout);
+          providerStatus = await fetchProviderStatusFromREST(provider, StatusCallTimeout);
         }
       } catch (err) {
         errorMessage = err?.message?.toString() ?? err?.toString();

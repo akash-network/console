@@ -7,7 +7,7 @@ import { ResourcesMetric, Status } from "@src/proto/gen/akash/provider/v1/status
 import { NodeResources } from "@src/proto/gen/akash/inventory/v1/resources_pb";
 import { ProviderStatusInfo } from "./types";
 
-export async function fetchAndSaveProviderStats(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
+export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
   const data = await queryStatus(provider.hostUri, timeout);
 
   const activeResources = parseResources(data.cluster.inventory.reservations.active.resources);
