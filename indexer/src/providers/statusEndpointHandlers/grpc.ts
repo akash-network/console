@@ -155,6 +155,7 @@ async function queryStatus(hostUri: string, timeout: number): Promise<Status> {
     baseUrl: url,
     httpVersion: "2",
     nodeOptions: { rejectUnauthorized: false },
+    defaultTimeoutMs: timeout,
     interceptors: []
   });
   const client = createPromiseClient(ProviderRPC, transport);
