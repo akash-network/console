@@ -29,7 +29,7 @@ export async function syncProvidersInfo() {
 
   let doneCount = 0;
   await eachLimit(
-    providers.filter((x) => x.hostUri.includes("europlots")),
+    providers,
     ConcurrentStatusCall,
     asyncify(async (provider: Provider) => {
       let providerStatus: ProviderStatusInfo | null = null;
@@ -49,9 +49,9 @@ export async function syncProvidersInfo() {
         );
 
         if (akashVersion && semver.gte(akashVersion, "0.5.0-0")) {
-          providerStatus = await grpcFetchAndSaveProviderStats(provider, cosmosVersion, akashVersion, StatusCallTimeout);
+          providerStatus = await grpcFetchAndSaveProviderStats(provider, StatusCallTimeout);
         } else {
-          providerStatus = await restFetchAndSaveProviderStats(provider, cosmosVersion, akashVersion, StatusCallTimeout);
+          providerStatus = await restFetchAndSaveProviderStats(provider, StatusCallTimeout);
         }
       } catch (err) {
         errorMessage = err?.message?.toString() ?? err?.toString();
