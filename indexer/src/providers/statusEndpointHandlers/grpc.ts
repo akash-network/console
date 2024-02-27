@@ -119,10 +119,14 @@ function parseNodeResources(resources: NodeResources) {
 
 function getAvailableResources(resources: NodeResources) {
   const parsedResources = parseNodeResources(resources);
+
+  // Setting minimum to 0 to prevent negative values due to overcommit
+  // https://github.com/akash-network/docs/blob/master/operator/provider/README.md#cluster-resources-overcommit
+
   return {
-    cpu: parsedResources.allocatableCPU - parsedResources.allocatedCPU,
-    memory: parsedResources.allocatableMemory - parsedResources.allocatedMemory,
-    storage: parsedResources.allocatableStorage - parsedResources.allocatedStorage,
-    gpu: parsedResources.allocatableGPU - parsedResources.allocatedGPU
+    cpu: Math.max(0, parsedResources.allocatableCPU - parsedResources.allocatedCPU),
+    memory: Math.max(0, parsedResources.allocatableMemory - parsedResources.allocatedMemory),
+    storage: Math.max(0, parsedResources.allocatableStorage - parsedResources.allocatedStorage),
+    gpu: Math.max(0, parsedResources.allocatableGPU - parsedResources.allocatedGPU)
   };
 }
