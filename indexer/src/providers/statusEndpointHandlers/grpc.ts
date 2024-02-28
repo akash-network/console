@@ -1,15 +1,13 @@
-import { Provider, ProviderSnapshot, ProviderSnapshotNode, ProviderSnapshotNodeCPU, ProviderSnapshotNodeGPU } from "@shared/dbSchemas/akash";
-import { sequelize } from "@src/db/dbConnection";
-import { toUTC } from "@src/shared/utils/date";
+import { Provider } from "@shared/dbSchemas/akash";
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
-import { isSameDay } from "date-fns";
 import { createPromiseClient } from "@connectrpc/connect";
 import { createGrpcTransport } from "@connectrpc/connect-node";
 import { ProviderRPC } from "@src/proto/gen/akash/provider/v1/service_connect";
 import { ResourcesMetric, Status } from "@src/proto/gen/akash/provider/v1/status_pb";
 import { NodeResources } from "@src/proto/gen/akash/inventory/v1/resources_pb";
+import { ProviderStatusInfo } from "./types";
 
-export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVersion: string, version: string, timeout: number) {
+export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
   const data = await queryStatus(provider.hostUri, timeout);
 
   const activeResources = parseResources(data.cluster.inventory.reservations.active.resources);
@@ -30,122 +28,55 @@ export async function fetchAndSaveProviderStats(provider: Provider, cosmosSdkVer
         storage: 0
       }
     );
-  const checkDate = toUTC(new Date());
 
-  await sequelize.transaction(async (t) => {
-    const createdSnapshot = await ProviderSnapshot.create(
-      {
-        owner: provider.owner,
-        isOnline: true,
-        checkDate: checkDate,
-        isLastOfDay: true,
-        deploymentCount: data.manifest.deployments,
-        leaseCount: data.cluster.leases.active ?? 0,
-        activeCPU: activeResources.cpu,
-        activeGPU: activeResources.gpu,
-        activeMemory: activeResources.memory,
-        activeStorage: activeResources.storage,
-        pendingCPU: pendingResources.cpu,
-        pendingGPU: pendingResources.gpu,
-        pendingMemory: pendingResources.memory,
-        pendingStorage: pendingResources.storage,
-        availableCPU: availableResources.cpu,
-        availableGPU: availableResources.gpu,
-        availableMemory: availableResources.memory,
-        availableStorage: availableResources.storage
-      },
-      { transaction: t }
-    );
-
-    if (provider.lastSnapshot && isSameDay(provider.lastSnapshot.checkDate, checkDate)) {
-      await ProviderSnapshot.update(
-        {
-          isLastOfDay: false
-        },
-        {
-          where: { id: provider.lastSnapshot.id },
-          transaction: t
-        }
-      );
-    }
-
-    await Provider.update(
-      {
-        lastSnapshotId: createdSnapshot.id,
-        isOnline: true,
-        error: null,
-        lastCheckDate: checkDate,
-        cosmosSdkVersion: cosmosSdkVersion,
-        akashVersion: version,
-        deploymentCount: data.manifest.deployments,
-        leaseCount: data.cluster.leases.active ?? 0,
-        activeCPU: activeResources.cpu,
-        activeGPU: activeResources.gpu,
-        activeMemory: activeResources.memory,
-        activeStorage: activeResources.storage,
-        pendingCPU: pendingResources.cpu,
-        pendingGPU: pendingResources.gpu,
-        pendingMemory: pendingResources.memory,
-        pendingStorage: pendingResources.storage,
-        availableCPU: availableResources.cpu,
-        availableGPU: availableResources.gpu,
-        availableMemory: availableResources.memory,
-        availableStorage: availableResources.storage
-      },
-      {
-        where: { owner: provider.owner },
-        transaction: t
-      }
-    );
-
-    for (const node of data.cluster.inventory.cluster.nodes) {
+  return {
+    resources: {
+      deploymentCount: data.manifest.deployments,
+      leaseCount: data.cluster.leases.active ?? 0,
+      activeCPU: activeResources.cpu,
+      activeGPU: activeResources.gpu,
+      activeMemory: activeResources.memory,
+      activeStorage: activeResources.storage,
+      pendingCPU: pendingResources.cpu,
+      pendingGPU: pendingResources.gpu,
+      pendingMemory: pendingResources.memory,
+      pendingStorage: pendingResources.storage,
+      availableCPU: availableResources.cpu,
+      availableGPU: availableResources.gpu,
+      availableMemory: availableResources.memory,
+      availableStorage: availableResources.storage
+    },
+    nodes: data.cluster.inventory.cluster.nodes.map((node) => {
       const parsedResources = parseNodeResources(node.resources);
-      const providerSnapshotNode = await ProviderSnapshotNode.create(
-        {
-          snapshotId: createdSnapshot.id,
-          name: node.name,
-          cpuAllocatable: parsedResources.allocatableCPU,
-          cpuAllocated: parsedResources.allocatedCPU,
-          memoryAllocatable: parsedResources.allocatableMemory,
-          memoryAllocated: parsedResources.allocatedMemory,
-          ephemeralStorageAllocatable: parsedResources.allocatableStorage,
-          ephemeralStorageAllocated: parsedResources.allocatedStorage,
-          capabilitiesStorageHDD: node.capabilities.storageClasses.includes("beta1"),
-          capabilitiesStorageSSD: node.capabilities.storageClasses.includes("beta2"),
-          capabilitiesStorageNVME: node.capabilities.storageClasses.includes("beta3"),
-          gpuAllocatable: parsedResources.allocatableGPU,
-          gpuAllocated: parsedResources.allocatedGPU
-        },
-        { transaction: t }
-      );
 
-      for (const cpuInfo of node.resources.cpu.info) {
-        await ProviderSnapshotNodeCPU.create(
-          {
-            snapshotNodeId: providerSnapshotNode.id,
-            vendor: cpuInfo.vendor,
-            model: cpuInfo.model,
-            vcores: cpuInfo.vcores
-          },
-          { transaction: t }
-        );
-      }
-
-      for (const gpuInfo of node.resources.gpu.info) {
-        await ProviderSnapshotNodeGPU.create(
-          {
-            snapshotNodeId: providerSnapshotNode.id,
-            vendor: gpuInfo.vendor,
-            name: gpuInfo.name,
-            modelId: gpuInfo.modelid,
-            interface: gpuInfo.interface,
-            memorySize: gpuInfo.memorySize // TODO: Change type to bytes?
-          },
-          { transaction: t }
-        );
-      }
-    }
-  });
+      return {
+        name: node.name,
+        cpuAllocatable: parsedResources.allocatableCPU,
+        cpuAllocated: parsedResources.allocatedCPU,
+        memoryAllocatable: parsedResources.allocatableMemory,
+        memoryAllocated: parsedResources.allocatedMemory,
+        ephemeralStorageAllocatable: parsedResources.allocatableStorage,
+        ephemeralStorageAllocated: parsedResources.allocatedStorage,
+        capabilitiesStorageHDD: node.capabilities.storageClasses.includes("beta1"),
+        capabilitiesStorageSSD: node.capabilities.storageClasses.includes("beta2"),
+        capabilitiesStorageNVME: node.capabilities.storageClasses.includes("beta3"),
+        gpuAllocatable: parsedResources.allocatableGPU,
+        gpuAllocated: parsedResources.allocatedGPU,
+        cpus: node.resources.cpu.info.map((cpuInfo) => ({
+          vendor: cpuInfo.vendor,
+          model: cpuInfo.model,
+          vcores: cpuInfo.vcores
+        })),
+        gpus: node.resources.gpu.info.map((gpuInfo) => ({
+          vendor: gpuInfo.vendor,
+          name: gpuInfo.name,
+          modelId: gpuInfo.modelid,
+          interface: gpuInfo.interface,
+          memorySize: gpuInfo.memorySize // TODO: Change type to bytes?
+        }))
+      };
+    })
+  };
 }
 
 async function queryStatus(hostUri: string, timeout: number): Promise<Status> {
@@ -155,6 +86,7 @@ async function queryStatus(hostUri: string, timeout: number): Promise<Status> {
     baseUrl: url,
     httpVersion: "2",
     nodeOptions: { rejectUnauthorized: false },
+    defaultTimeoutMs: timeout,
     interceptors: []
   });
   const client = createPromiseClient(ProviderRPC, transport);
@@ -187,10 +119,14 @@ function parseNodeResources(resources: NodeResources) {
 
 function getAvailableResources(resources: NodeResources) {
   const parsedResources = parseNodeResources(resources);
+
+  // Setting minimum to 0 to prevent negative values due to overcommit
+  // https://github.com/akash-network/docs/blob/master/operator/provider/README.md#cluster-resources-overcommit
+
   return {
-    cpu: parsedResources.allocatableCPU - parsedResources.allocatedCPU,
-    memory: parsedResources.allocatableMemory - parsedResources.allocatedMemory,
-    storage: parsedResources.allocatableStorage - parsedResources.allocatedStorage,
-    gpu: parsedResources.allocatableGPU - parsedResources.allocatedGPU
+    cpu: Math.max(0, parsedResources.allocatableCPU - parsedResources.allocatedCPU),
+    memory: Math.max(0, parsedResources.allocatableMemory - parsedResources.allocatedMemory),
+    storage: Math.max(0, parsedResources.allocatableStorage - parsedResources.allocatedStorage),
+    gpu: Math.max(0, parsedResources.allocatableGPU - parsedResources.allocatedGPU)
   };
 }
