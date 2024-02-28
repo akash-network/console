@@ -20,7 +20,10 @@ export async function syncProvidersInfo() {
       deletedHeight: null
     },
     include: [{ model: ProviderSnapshot, as: "lastSnapshot" }],
-    order: [["isOnline", "DESC"]]
+    order: [
+      ["isOnline", "DESC"],
+      ["uptime30d", "DESC"]
+    ]
   });
 
   const httpsAgent = new https.Agent({
@@ -181,7 +184,7 @@ async function saveProviderStatus(
             name: gpuInfo.name,
             modelId: gpuInfo.modelId,
             interface: gpuInfo.interface,
-            memorySize: gpuInfo.memorySize // TODO: Change type to bytes?
+            memorySize: gpuInfo.memorySize
           })),
           { transaction: t }
         );
