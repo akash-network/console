@@ -1,0 +1,644 @@
+diff --git a/node_modules/@akashnetwork/akashjs/build/sdl/index.d.ts b/node_modules/@akashnetwork/akashjs/build/sdl/index.d.ts
+index 11ee6db..2e82fcd 100644
+--- a/node_modules/@akashnetwork/akashjs/build/sdl/index.d.ts
++++ b/node_modules/@akashnetwork/akashjs/build/sdl/index.d.ts
+@@ -1,5 +1,5 @@
+-import { v2Manifest, v3Manifest, v2ManifestService, v3ManifestService, v2ServiceExpose, v3ServiceExpose, v2ComputeResources, v2Expose, v2ExposeTo, v2HTTPOptions, v2ProfileCompute, v2ResourceCPU, v3ResourceGPU, v2ResourceMemory, v2ResourceStorage, v2ResourceStorageArray, v2Sdl, v2Service, v2ServiceExposeHttpOptions, v3ServiceExposeHttpOptions, v2ManifestServiceParams, v3GPUAttributes, v3Sdl, v3ProfileCompute, v3ComputeResources, v2ServiceParams, v3DeploymentGroup, v3ManifestServiceParams } from './types';
+-declare type NetworkVersion = 'beta2' | 'beta3';
++import { v2Manifest, v3Manifest, v2ManifestService, v3ManifestService, v2ServiceExpose, v3ServiceExpose, v2ComputeResources, v2Expose, v2ExposeTo, v2HTTPOptions, v2ProfileCompute, v2ResourceCPU, v3ResourceGPU, v2ResourceMemory, v2ResourceStorage, v2ResourceStorageArray, v2Sdl, v2Service, v2ServiceExposeHttpOptions, v3ServiceExposeHttpOptions, v2ManifestServiceParams, v3GPUAttributes, v3Sdl, v3ProfileCompute, v3ComputeResources, v2ServiceParams, v3DeploymentGroup, v3ManifestServiceParams } from "./types";
++declare type NetworkVersion = "beta2" | "beta3";
+ export declare class SDL {
+     data: v2Sdl;
+     version: NetworkVersion;
+diff --git a/node_modules/@akashnetwork/akashjs/build/sdl/index.js b/node_modules/@akashnetwork/akashjs/build/sdl/index.js
+index 4de9657..1f2f50b 100644
+--- a/node_modules/@akashnetwork/akashjs/build/sdl/index.js
++++ b/node_modules/@akashnetwork/akashjs/build/sdl/index.js
+@@ -15,14 +15,14 @@ function isArray(obj) {
+     return obj && obj.map !== undefined;
+ }
+ function isString(str) {
+-    return typeof str === 'string';
++    return typeof str === "string";
+ }
+ class SDL {
+-    constructor(data, version = 'beta2') {
++    constructor(data, version = "beta2") {
+         this.data = data;
+         this.version = version;
+     }
+-    static fromString(yaml, version = 'beta2') {
++    static fromString(yaml, version = "beta2") {
+         const data = SDL.validate(yaml, version);
+         return new SDL(data, version);
+     }
+@@ -31,7 +31,7 @@ class SDL {
+         // to v2 or v3 SDL only after being validated
+         const data = js_yaml_1.default.load(yaml);
+         for (const [name, profile] of Object.entries(data.profiles.compute)) {
+-            if (version === 'beta3') {
++            if (version === "beta3") {
+                 SDL.validateGPU(name, profile.resources.gpu);
+             }
+         }
+@@ -41,7 +41,7 @@ class SDL {
+         if (!gpu) {
+             throw new Error("GPU resource is required for profile " + name);
+         }
+-        if (typeof gpu.units === 'undefined') {
++        if (typeof gpu.units === "undefined") {
+             console.log(JSON.stringify(gpu, null, 2));
+             throw new Error("GPU units must be specified for profile " + name);
+         }
+@@ -82,23 +82,16 @@ class SDL {
+         return placement || {};
+     }
+     serviceNames() {
+-        const names = this.data
+-            ? Object.keys(this.data.services)
+-            : [];
++        const names = this.data ? Object.keys(this.data.services) : [];
+         // TODO: sort these
+         return names;
+     }
+     deploymentsByPlacement(placement) {
+-        const deployments = this.data
+-            ? this.data.deployment
+-            : [];
+-        return Object.entries(deployments)
+-            .filter(([name, deployment]) => deployment.hasOwnProperty(placement));
++        const deployments = this.data ? this.data.deployment : [];
++        return Object.entries(deployments).filter(([name, deployment]) => deployment.hasOwnProperty(placement));
+     }
+     resourceUnit(val, asString) {
+-        return asString
+-            ? { val: `${(0, sizes_1.convertResourceString)(val)}` }
+-            : { val: (0, sizes_1.convertResourceString)(val) };
++        return asString ? { val: `${(0, sizes_1.convertResourceString)(val)}` } : { val: (0, sizes_1.convertResourceString)(val) };
+     }
+     resourceValue(value, asString) {
+         if (value === null) {
+@@ -106,98 +99,98 @@ class SDL {
+         }
+         const strVal = value.toString();
+         const encoder = new TextEncoder();
+-        return asString
+-            ? strVal
+-            : encoder.encode(strVal);
++        return asString ? strVal : encoder.encode(strVal);
+     }
+     serviceResourceCpu(resource) {
+-        const units = isString(resource.units)
+-            ? (0, sizes_1.convertCpuResourceString)(resource.units)
+-            : resource.units * 1000;
+-        return resource.attributes ? {
+-            units: { val: `${units}` },
+-            attributes: this.serviceResourceAttributes(resource.attributes)
+-        } : {
+-            units: { val: `${units}` }
+-        };
++        const units = isString(resource.units) ? (0, sizes_1.convertCpuResourceString)(resource.units) : resource.units * 1000;
++        return resource.attributes
++            ? {
++                units: { val: `${units}` },
++                attributes: this.serviceResourceAttributes(resource.attributes)
++            }
++            : {
++                units: { val: `${units}` }
++            };
+     }
+     serviceResourceMemory(resource, asString) {
+         const key = asString ? "quantity" : "size";
+-        return resource.attributes ? {
+-            [key]: this.resourceUnit(resource.size, asString),
+-            attributes: this.serviceResourceAttributes(resource.attributes)
+-        } : {
+-            [key]: this.resourceUnit(resource.size, asString)
+-        };
++        return resource.attributes
++            ? {
++                [key]: this.resourceUnit(resource.size, asString),
++                attributes: this.serviceResourceAttributes(resource.attributes)
++            }
++            : {
++                [key]: this.resourceUnit(resource.size, asString)
++            };
+     }
+     serviceResourceStorage(resource, asString) {
+         const key = asString ? "quantity" : "size";
+-        const storage = isArray(resource)
+-            ? resource
+-            : [resource];
+-        return storage.map(storage => storage.attributes ? {
+-            name: storage.name || "default",
+-            [key]: this.resourceUnit(storage.size, asString),
+-            attributes: this.serviceResourceAttributes(storage.attributes)
+-        } : {
+-            name: storage.name || "default",
+-            [key]: this.resourceUnit(storage.size, asString)
+-        });
++        const storage = isArray(resource) ? resource : [resource];
++        return storage.map(storage => storage.attributes
++            ? {
++                name: storage.name || "default",
++                [key]: this.resourceUnit(storage.size, asString),
++                attributes: this.serviceResourceAttributes(storage.attributes)
++            }
++            : {
++                name: storage.name || "default",
++                [key]: this.resourceUnit(storage.size, asString)
++            });
+     }
+     serviceResourceAttributes(attributes) {
+-        return attributes && Object.keys(attributes).sort().map((key) => ({ key, value: attributes[key].toString() }));
++        return (attributes &&
++            Object.keys(attributes)
++                .sort()
++                .map(key => ({ key, value: attributes[key].toString() })));
+     }
+     serviceResourceGpu(resource, asString) {
+-        const value = (resource?.units || 0);
+-        const numVal = isString(value)
+-            ? Buffer.from(value, 'ascii')
+-            : value;
+-        const strVal = !isString(value)
+-            ? value.toString()
+-            : value;
+-        return resource?.attributes ? {
+-            units: asString ? { val: strVal } : { val: numVal },
+-            attributes: this.transformGpuAttributes(resource?.attributes)
+-        } : {
+-            units: asString ? { val: strVal } : { val: numVal }
+-        };
++        const value = resource?.units || 0;
++        const numVal = isString(value) ? Buffer.from(value, "ascii") : value;
++        const strVal = !isString(value) ? value.toString() : value;
++        return resource?.attributes
++            ? {
++                units: asString ? { val: strVal } : { val: numVal },
++                attributes: this.transformGpuAttributes(resource?.attributes)
++            }
++            : {
++                units: asString ? { val: strVal } : { val: numVal }
++            };
+     }
+     v2ServiceResourceEndpoints(service) {
+         const endpointSequenceNumbers = this.computeEndpointSequenceNumbers(this.data);
+-        const endpoints = service.expose.flatMap((expose) => (expose.to
++        const endpoints = service.expose.flatMap(expose => expose.to
+             ? expose.to
+-                .filter((to) => to.global && to.ip?.length > 0)
+-                .map((to) => ({
++                .filter(to => to.global && to.ip?.length > 0)
++                .map(to => ({
+                 kind: Endpoint_LEASED_IP,
+                 sequence_number: endpointSequenceNumbers[to.ip] || 0
+             }))
+-            : []));
++            : []);
+         return endpoints.length > 0 ? endpoints : null;
+     }
+     v3ServiceResourceEndpoints(service) {
+         const endpointSequenceNumbers = this.computeEndpointSequenceNumbers(this.data);
+-        const endpoints = service.expose.flatMap((expose) => (expose.to
++        const endpoints = service.expose.flatMap(expose => expose.to
+             ? expose.to
+-                .filter((to) => to.global)
+-                .flatMap((to) => {
++                .filter(to => to.global)
++                .flatMap(to => {
+                 const exposeSpec = {
+                     port: expose.port,
+                     externalPort: expose.as || 0,
+                     proto: this.parseServiceProto(expose.proto),
+-                    global: !!to.global,
++                    global: !!to.global
+                 };
+-                const kind = this.exposeShouldBeIngress(exposeSpec)
+-                    ? Endpoint_SHARED_HTTP
+-                    : Endpoint_RANDOM_PORT;
+-                const defaultEp = kind !== 0
+-                    ? { kind: kind, sequence_number: 0 }
+-                    : { sequence_number: 0 };
++                const kind = this.exposeShouldBeIngress(exposeSpec) ? Endpoint_SHARED_HTTP : Endpoint_RANDOM_PORT;
++                const defaultEp = kind !== 0 ? { kind: kind, sequence_number: 0 } : { sequence_number: 0 };
+                 const leasedEp = to.ip?.length > 0
+-                    ? { kind: Endpoint_LEASED_IP, sequence_number: endpointSequenceNumbers[to.ip] || 0 }
++                    ? {
++                        kind: Endpoint_LEASED_IP,
++                        sequence_number: endpointSequenceNumbers[to.ip] || 0
++                    }
+                     : undefined;
+                 return leasedEp ? [defaultEp, leasedEp] : [defaultEp];
+             })
+-            : []));
++            : []);
+         return endpoints;
+     }
+     serviceResourcesBeta2(profile, service, asString = false) {
+@@ -205,7 +198,7 @@ class SDL {
+             cpu: this.serviceResourceCpu(profile.resources.cpu),
+             memory: this.serviceResourceMemory(profile.resources.memory, asString),
+             storage: this.serviceResourceStorage(profile.resources.storage, asString),
+-            endpoints: this.v2ServiceResourceEndpoints(service),
++            endpoints: this.v2ServiceResourceEndpoints(service)
+         };
+     }
+     serviceResourcesBeta3(id, profile, service, asString = false) {
+@@ -215,7 +208,7 @@ class SDL {
+             memory: this.serviceResourceMemory(profile.resources.memory, asString),
+             storage: this.serviceResourceStorage(profile.resources.storage, asString),
+             endpoints: this.v3ServiceResourceEndpoints(service),
+-            gpu: this.serviceResourceGpu(profile.resources.gpu, asString),
++            gpu: this.serviceResourceGpu(profile.resources.gpu, asString)
+         };
+     }
+     parseServiceProto(proto) {
+@@ -251,10 +244,7 @@ class SDL {
+             SendTimeout: 60000,
+             NextTries: 3,
+             NextTimeout: 0,
+-            NextCases: [
+-                "error",
+-                "timeout",
+-            ],
++            NextCases: ["error", "timeout"]
+         };
+         if (!http_options) {
+             return { ...defaults };
+@@ -265,7 +255,7 @@ class SDL {
+             SendTimeout: http_options.send_timeout || defaults.SendTimeout,
+             NextTries: http_options.next_tries || defaults.NextTries,
+             NextTimeout: http_options.next_timeout || defaults.NextTimeout,
+-            NextCases: http_options.next_cases || defaults.NextCases,
++            NextCases: http_options.next_cases || defaults.NextCases
+         };
+     }
+     v3HttpOptions(http_options) {
+@@ -275,10 +265,7 @@ class SDL {
+             sendTimeout: 60000,
+             nextTries: 3,
+             nextTimeout: 0,
+-            nextCases: [
+-                "error",
+-                "timeout",
+-            ],
++            nextCases: ["error", "timeout"]
+         };
+         if (!http_options) {
+             return { ...defaults };
+@@ -289,7 +276,7 @@ class SDL {
+             sendTimeout: http_options.send_timeout || defaults.sendTimeout,
+             nextTries: http_options.next_tries || defaults.nextTries,
+             nextTimeout: http_options.next_timeout || defaults.nextTimeout,
+-            nextCases: http_options.next_cases || defaults.nextCases,
++            nextCases: http_options.next_cases || defaults.nextCases
+         };
+     }
+     v2ManifestExposeHttpOptions(expose) {
+@@ -300,8 +287,8 @@ class SDL {
+     }
+     v2ManifestExpose(service) {
+         const endpointSequenceNumbers = this.computeEndpointSequenceNumbers(this.data);
+-        return service.expose.flatMap((expose) => expose.to
+-            ? expose.to.map((to) => ({
++        return service.expose.flatMap(expose => expose.to
++            ? expose.to.map(to => ({
+                 Port: expose.port,
+                 ExternalPort: expose.as || 0,
+                 Proto: this.parseServiceProto(expose.proto),
+@@ -310,14 +297,15 @@ class SDL {
+                 Hosts: this.manifestExposeHosts(expose),
+                 HTTPOptions: this.v2ManifestExposeHttpOptions(expose),
+                 IP: to.ip || "",
+-                EndpointSequenceNumber: endpointSequenceNumbers[to.ip] || 0,
++                EndpointSequenceNumber: endpointSequenceNumbers[to.ip] || 0
+             }))
+             : []);
+     }
+     v3ManifestExpose(service) {
+         const endpointSequenceNumbers = this.computeEndpointSequenceNumbers(this.data);
+-        return service.expose.flatMap((expose) => expose.to
+-            ? expose.to.map((to) => ({
++        return service.expose
++            .flatMap(expose => expose.to
++            ? expose.to.map(to => ({
+                 port: expose.port,
+                 externalPort: expose.as || 0,
+                 proto: this.parseServiceProto(expose.proto),
+@@ -326,9 +314,10 @@ class SDL {
+                 hosts: this.manifestExposeHosts(expose),
+                 httpOptions: this.v3ManifestExposeHttpOptions(expose),
+                 ip: to.ip || "",
+-                endpointSequenceNumber: endpointSequenceNumbers[to.ip] || 0,
++                endpointSequenceNumber: endpointSequenceNumbers[to.ip] || 0
+             }))
+-            : []).sort((a, b) => {
++            : [])
++            .sort((a, b) => {
+             if (a.service != b.service)
+                 return a.service.localeCompare(b.service);
+             if (a.port != b.port)
+@@ -381,7 +370,7 @@ class SDL {
+             Env: service.env || null,
+             Resources: this.serviceResourcesBeta2(profile, service, asString),
+             Count: deployment[placement].count,
+-            Expose: this.v2ManifestExpose(service),
++            Expose: this.v2ManifestExpose(service)
+         };
+         if (service.params) {
+             manifestService.params = this.v2ManifestServiceParams(service.params);
+@@ -401,19 +390,18 @@ class SDL {
+             resources: this.serviceResourcesBeta3(id, profile, service, asString),
+             count: deployment[placement].count,
+             expose: this.v3ManifestExpose(service),
+-            params: this.v3ManifestServiceParams(service.params),
++            params: this.v3ManifestServiceParams(service.params)
+         };
+     }
+     v2Manifest(asString = false) {
+         return Object.keys(this.placements()).map(name => ({
+             Name: name,
+-            Services: this.deploymentsByPlacement(name)
+-                .map(([service]) => this.v2ManifestService(name, service, asString))
++            Services: this.deploymentsByPlacement(name).map(([service]) => this.v2ManifestService(name, service, asString))
+         }));
+     }
+     v3Manifest(asString = false) {
+         const groups = this.v3Groups();
+-        const serviceId = (pIdx, sIdx) => (groups[pIdx].resources[sIdx].resource.id);
++        const serviceId = (pIdx, sIdx) => groups[pIdx].resources[sIdx].resource.id;
+         return Object.keys(this.placements()).map((name, pIdx) => ({
+             name: name,
+             services: this.deploymentsByPlacement(name)
+@@ -422,29 +410,25 @@ class SDL {
+         }));
+     }
+     manifest(asString = false) {
+-        return this.version === 'beta2'
+-            ? this.v2Manifest(asString)
+-            : this.v3Manifest(asString);
++        return this.version === "beta2" ? this.v2Manifest(asString) : this.v3Manifest(asString);
+     }
+     computeEndpointSequenceNumbers(sdl) {
+-        return Object.fromEntries(Object.values(sdl.services).flatMap((service) => (service.expose.flatMap((expose) => (expose.to
++        return Object.fromEntries(Object.values(sdl.services).flatMap(service => service.expose.flatMap(expose => expose.to
+             ? expose.to
+-                .filter((to) => to.global && to.ip?.length > 0)
+-                .map((to) => to.ip)
++                .filter(to => to.global && to.ip?.length > 0)
++                .map(to => to.ip)
+                 .sort()
+                 .map((ip, index) => [ip, index + 1])
+-            : [])))));
++            : [])));
+     }
+     resourceUnitCpu(computeResources, asString) {
+         const attributes = computeResources.cpu.attributes;
+-        const cpu = isString(computeResources.cpu.units)
+-            ? (0, sizes_1.convertCpuResourceString)(computeResources.cpu.units)
+-            : (computeResources.cpu.units * 1000);
++        const cpu = isString(computeResources.cpu.units) ? (0, sizes_1.convertCpuResourceString)(computeResources.cpu.units) : computeResources.cpu.units * 1000;
+         return {
+             units: { val: this.resourceValue(cpu, asString) },
+             attributes: attributes &&
+                 Object.entries(attributes)
+-                    .sort(([k0,], [k1,]) => k0.localeCompare(k1))
++                    .sort(([k0], [k1]) => k0.localeCompare(k1))
+                     .map(([key, value]) => ({
+                     key: key,
+                     value: value.toString()
+@@ -454,10 +438,12 @@ class SDL {
+     resourceUnitMemory(computeResources, asString) {
+         const attributes = computeResources.memory.attributes;
+         return {
+-            quantity: { val: this.resourceValue((0, sizes_1.convertResourceString)(computeResources.memory.size), asString) },
++            quantity: {
++                val: this.resourceValue((0, sizes_1.convertResourceString)(computeResources.memory.size), asString)
++            },
+             attributes: attributes &&
+                 Object.entries(attributes)
+-                    .sort(([k0,], [k1,]) => k0.localeCompare(k1))
++                    .sort(([k0], [k1]) => k0.localeCompare(k1))
+                     .map(([key, value]) => ({
+                     key: key,
+                     value: value.toString()
+@@ -465,15 +451,15 @@ class SDL {
+         };
+     }
+     resourceUnitStorage(computeResources, asString) {
+-        const storages = isArray(computeResources.storage)
+-            ? computeResources.storage
+-            : [computeResources.storage];
+-        return storages.map((storage) => ({
++        const storages = isArray(computeResources.storage) ? computeResources.storage : [computeResources.storage];
++        return storages.map(storage => ({
+             name: storage.name || "default",
+-            quantity: { val: this.resourceValue((0, sizes_1.convertResourceString)(storage.size), asString) },
++            quantity: {
++                val: this.resourceValue((0, sizes_1.convertResourceString)(storage.size), asString)
++            },
+             attributes: storage.attributes &&
+                 Object.entries(storage.attributes)
+-                    .sort(([k0,], [k1,]) => k0.localeCompare(k1))
++                    .sort(([k0], [k1]) => k0.localeCompare(k1))
+                     .map(([key, value]) => ({
+                     key: key,
+                     value: value.toString()
+@@ -481,22 +467,22 @@ class SDL {
+         }));
+     }
+     transformGpuAttributes(attributes) {
+-        return Object.entries(attributes.vendor).flatMap(([vendor, models]) => (models
+-            ? models.map((model) => ({
+-                key: `vendor/${vendor}/model/${model.model}`,
++        return Object.entries(attributes.vendor).flatMap(([vendor, models]) => models
++            ? models.map(model => ({
++                key: `vendor/${vendor}/model/${model.model}${model.ram ? `/ram/${model.ram}` : ""}`,
+                 value: "true"
+             }))
+-            : [{
++            : [
++                {
+                     key: `vendor/${vendor}/model/*`,
+                     value: "true"
+-                }]));
++                }
++            ]);
+     }
+     resourceUnitGpu(computeResources, asString) {
+         const attributes = computeResources.gpu?.attributes;
+-        const units = (computeResources.gpu?.units || "0");
+-        const gpu = isString(units)
+-            ? parseInt(units)
+-            : units;
++        const units = computeResources.gpu?.units || "0";
++        const gpu = isString(units) ? parseInt(units) : units;
+         return {
+             units: { val: this.resourceValue(gpu, asString) },
+             attributes: attributes && this.transformGpuAttributes(attributes)
+@@ -517,28 +503,21 @@ class SDL {
+         if (resource.storage) {
+             units.storage = this.resourceUnitStorage(resource, asString);
+         }
+-        if (this.version === 'beta3') {
++        if (this.version === "beta3") {
+             units.gpu = this.resourceUnitGpu(resource, asString);
+         }
+         return units;
+     }
+     exposeShouldBeIngress(expose) {
+-        const externalPort = expose.externalPort === 0
+-            ? expose.port
+-            : expose.externalPort;
+-        return expose.global
+-            && expose.proto === "TCP"
+-            && externalPort === 80;
++        const externalPort = expose.externalPort === 0 ? expose.port : expose.externalPort;
++        return expose.global && expose.proto === "TCP" && externalPort === 80;
+     }
+     groups() {
+-        return this.version === 'beta2'
+-            ? this.v2Groups()
+-            : this.v3Groups();
++        return this.version === "beta2" ? this.v2Groups() : this.v3Groups();
+     }
+     v3Groups() {
+         const groups = new Map();
+-        const services = Object.entries(this.data.services)
+-            .sort(([a], [b]) => a.localeCompare(b));
++        const services = Object.entries(this.data.services).sort(([a], [b]) => a.localeCompare(b));
+         for (const [svcName, service] of services) {
+             for (const [placementName, svcdepl] of Object.entries(this.data.deployment[svcName])) {
+                 // objects below have been ensured to exist
+@@ -552,7 +531,10 @@ class SDL {
+                 let group = groups.get(placementName);
+                 if (!group) {
+                     const attributes = (infra.attributes
+-                        ? Object.entries(infra.attributes).map(([key, value]) => ({ key, value }))
++                        ? Object.entries(infra.attributes).map(([key, value]) => ({
++                            key,
++                            value
++                        }))
+                         : []);
+                     attributes.sort((a, b) => a.key.localeCompare(b.key));
+                     group = {
+@@ -565,7 +547,7 @@ class SDL {
+                                     allOf: infra.signedBy?.allOf || [],
+                                     anyOf: infra.signedBy?.anyOf || []
+                                 }
+-                            },
++                            }
+                         },
+                         boundComputes: {}
+                     };
+@@ -600,18 +582,17 @@ class SDL {
+         }
+         // keep ordering stable
+         const names = [...groups.keys()].sort();
+-        return names.map((name) => groups.get(name))
+-            .map(group => group ? group.dgroup : {});
++        return names.map(name => groups.get(name)).map(group => (group ? group.dgroup : {}));
+     }
+     v2Groups() {
+         const sdl = this;
+         const yamlJson = this.data;
+         const ipEndpointNames = this.computeEndpointSequenceNumbers(yamlJson);
+         let groups = {};
+-        Object.keys(yamlJson.services).forEach((svcName) => {
++        Object.keys(yamlJson.services).forEach(svcName => {
+             const svc = yamlJson.services[svcName];
+             const depl = yamlJson.deployment[svcName];
+-            Object.keys(depl).forEach((placementName) => {
++            Object.keys(depl).forEach(placementName => {
+                 const svcdepl = depl[placementName];
+                 const compute = yamlJson.profiles.compute[svcdepl.profile];
+                 const infra = yamlJson.profiles.placement[placementName];
+@@ -626,7 +607,10 @@ class SDL {
+                         name: placementName,
+                         requirements: {
+                             attributes: infra.attributes
+-                                ? Object.entries(infra.attributes).map(([key, value]) => ({ key, value }))
++                                ? Object.entries(infra.attributes).map(([key, value]) => ({
++                                    key,
++                                    value
++                                }))
+                                 : [],
+                             signedBy: {
+                                 allOf: infra.signedBy?.allOf || [],
+@@ -636,8 +620,7 @@ class SDL {
+                         resources: []
+                     };
+                     if (group.requirements.attributes) {
+-                        group.requirements.attributes = group.requirements.attributes
+-                            .sort((a, b) => a.key < b.key);
++                        group.requirements.attributes = group.requirements.attributes.sort((a, b) => a.key < b.key);
+                     }
+                     groups[group.name] = group;
+                 }
+@@ -647,23 +630,24 @@ class SDL {
+                     count: svcdepl.count
+                 };
+                 let endpoints = [];
+-                svc?.expose?.forEach((expose) => {
++                svc?.expose?.forEach(expose => {
+                     expose?.to
+-                        ?.filter((to) => to.global)
+-                        .forEach((to) => {
++                        ?.filter(to => to.global)
++                        .forEach(to => {
+                         const exposeSpec = {
+                             port: expose.port,
+                             externalPort: expose.as || 0,
+                             proto: sdl.parseServiceProto(expose.proto),
+-                            global: !!to.global,
++                            global: !!to.global
+                         };
+                         if (to.ip?.length > 0) {
+                             const seqNo = ipEndpointNames[to.ip];
+-                            endpoints.push({ kind: Endpoint_LEASED_IP, sequence_number: seqNo });
++                            endpoints.push({
++                                kind: Endpoint_LEASED_IP,
++                                sequence_number: seqNo
++                            });
+                         }
+-                        const kind = sdl.exposeShouldBeIngress(exposeSpec)
+-                            ? Endpoint_SHARED_HTTP
+-                            : Endpoint_RANDOM_PORT;
++                        const kind = sdl.exposeShouldBeIngress(exposeSpec) ? Endpoint_SHARED_HTTP : Endpoint_RANDOM_PORT;
+                         endpoints.push({ kind: kind, sequence_number: 0 });
+                     });
+                 });
+@@ -672,8 +656,8 @@ class SDL {
+             });
+         });
+         return Object.keys(groups)
+-            .sort((a, b) => a < b ? 1 : 0)
+-            .map((name) => groups[name]);
++            .sort((a, b) => (a < b ? 1 : 0))
++            .map(name => groups[name]);
+     }
+     escapeHtml(raw) {
+         return raw.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
+@@ -685,8 +669,7 @@ class SDL {
+         const manifest = this.manifest(true);
+         let jsonStr = JSON.stringify(manifest);
+         if (jsonStr) {
+-            jsonStr = jsonStr
+-                .replaceAll('"quantity":{"val', '"size":{"val');
++            jsonStr = jsonStr.replaceAll('"quantity":{"val', '"size":{"val');
+         }
+         return this.SortJSON(jsonStr);
+     }
+diff --git a/node_modules/@akashnetwork/akashjs/build/sdl/types.d.ts b/node_modules/@akashnetwork/akashjs/build/sdl/types.d.ts
+index 0f68c13..c723088 100644
+--- a/node_modules/@akashnetwork/akashjs/build/sdl/types.d.ts
++++ b/node_modules/@akashnetwork/akashjs/build/sdl/types.d.ts
+@@ -153,6 +153,7 @@ export declare type v3GPUAttributes = {
+     vendor: {
+         [vendor: string]: Array<{
+             model: string;
++            ram?: string;
+         }>;
+     };
+ };
