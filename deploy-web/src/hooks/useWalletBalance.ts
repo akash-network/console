@@ -6,6 +6,7 @@ import { uaktToAKT } from "@src/utils/priceUtils";
 import { useEffect, useState } from "react";
 import { useUsdcDenom } from "./useDenom";
 import { useDepositParams } from "@src/queries/useSettings";
+import { DepositParams } from "@src/types/deployment";
 
 export const useTotalWalletBalance = () => {
   const { isLoaded, price } = usePricing();
@@ -13,7 +14,7 @@ export const useTotalWalletBalance = () => {
   const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
-    if (isLoaded && walletBalances) {
+    if (isLoaded && walletBalances && price) {
       const aktUsdValue = uaktToAKT(walletBalances.uakt, 6) * price;
       const totalUsdValue = udenomToDenom(walletBalances.usdc, 6);
 
@@ -34,7 +35,7 @@ type DenomData = {
 export const useDenomData = (denom: string) => {
   const { isLoaded, price } = usePricing();
   const { walletBalances } = useWallet();
-  const [depositData, setDepositData] = useState<DenomData>(null);
+  const [depositData, setDepositData] = useState<DenomData | null>(null);
   const usdcIbcDenom = useUsdcDenom();
   const { data: depositParams, refetch: getDepositParams } = useDepositParams({ enabled: false });
 
@@ -44,13 +45,13 @@ export const useDenomData = (denom: string) => {
 
   useEffect(() => {
     if (isLoaded && walletBalances && depositParams) {
-      let depositData: DenomData = null,
-        params = null;
+      let depositData: DenomData | null = null,
+        params: DepositParams | undefined;
       switch (denom) {
         case uAktDenom:
           params = depositParams.find(p => p.denom === uAktDenom);
           depositData = {
-            min: uaktToAKT(parseInt(params?.amount || 0)),
+            min: uaktToAKT(parseInt(params?.amount || "0")),
             label: "AKT",
             balance: uaktToAKT(walletBalances.uakt, 6),
             inputMax: uaktToAKT(Math.max(walletBalances.uakt - txFeeBuffer, 0), 6)
@@ -59,7 +60,7 @@ export const useDenomData = (denom: string) => {
         case usdcIbcDenom:
           params = depositParams.find(p => p.denom === usdcIbcDenom);
           depositData = {
-            min: udenomToDenom(parseInt(params?.amount || 0)),
+            min: udenomToDenom(parseInt(params?.amount || "0")),
             label: "USDC",
             balance: udenomToDenom(walletBalances.usdc, 6),
             inputMax: udenomToDenom(Math.max(walletBalances.usdc - txFeeBuffer, 0), 6)
