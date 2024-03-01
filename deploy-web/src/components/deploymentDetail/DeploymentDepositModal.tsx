@@ -128,7 +128,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
 
   const onBalanceClick = () => {
     clearErrors();
-    setValue("amount", depositData?.inputMax);
+    setValue("amount", depositData?.inputMax || 0);
   };
 
   const onDepositClick = event => {
