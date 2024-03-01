@@ -5,6 +5,7 @@ import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { useEffect, useState } from "react";
 import { useUsdcDenom } from "./useDenom";
+import { useDepositParams } from "@src/queries/useSettings";
 
 export const useTotalWalletBalance = () => {
   const { isLoaded, price } = usePricing();
@@ -24,6 +25,7 @@ export const useTotalWalletBalance = () => {
 };
 
 type DenomData = {
+  min: number;
   label: string;
   balance: number;
   inputMax: number;
@@ -34,20 +36,26 @@ export const useDenomData = (denom: string) => {
   const { walletBalances } = useWallet();
   const [depositData, setDepositData] = useState<DenomData>(null);
   const usdcIbcDenom = useUsdcDenom();
+  const { data: depositParams } = useDepositParams();
 
   useEffect(() => {
-    if (isLoaded && walletBalances) {
-      let depositData: DenomData = null;
+    if (isLoaded && walletBalances && depositParams) {
+      let depositData: DenomData = null,
+        params = null;
       switch (denom) {
         case uAktDenom:
+          params = depositParams.find(p => p.denom === uAktDenom);
           depositData = {
+            min: parseInt(params?.amount || 0),
             label: "AKT",
             balance: uaktToAKT(walletBalances.uakt, 6),
             inputMax: uaktToAKT(Math.max(walletBalances.uakt - txFeeBuffer, 0), 6)
           };
           break;
         case usdcIbcDenom:
+          params = depositParams.find(p => p.denom === usdcIbcDenom);
           depositData = {
+            min: parseInt(params?.amount || 0),
             label: "USDC",
             balance: udenomToDenom(walletBalances.usdc, 6),
             inputMax: udenomToDenom(Math.max(walletBalances.usdc - txFeeBuffer, 0), 6)
@@ -59,8 +67,7 @@ export const useDenomData = (denom: string) => {
 
       setDepositData(depositData);
     }
-  }, [denom, isLoaded, price, walletBalances, usdcIbcDenom]);
+  }, [denom, isLoaded, price, walletBalances, usdcIbcDenom, depositParams]);
 
   return depositData;
 };
-
