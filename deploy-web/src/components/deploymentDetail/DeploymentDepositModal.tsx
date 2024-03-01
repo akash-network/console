@@ -20,14 +20,14 @@ import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
 
 type Props = {
   infoText?: string | ReactNode;
-  min?: number;
+  disableMin?: boolean;
   denom: string;
   onDeploymentDeposit: (deposit: number, depositorAddress: string) => void;
   handleCancel: () => void;
   children?: ReactNode;
 };
 
-export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleCancel, onDeploymentDeposit, denom, min = 0, infoText = null }) => {
+export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleCancel, onDeploymentDeposit, disableMin, denom, infoText = null }) => {
   const formRef = useRef(null);
   const { settings } = useSettings();
   const { enqueueSnackbar } = useSnackbar();
@@ -35,6 +35,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   const [isCheckingDepositor, setIsCheckingDepositor] = useState(false);
   const { walletBalances, address } = useWallet();
   const { data: granteeGrants } = useGranteeGrants(address);
+  const depositData = useDenomData(denom);
   const {
     handleSubmit,
     control,
@@ -45,14 +46,19 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
     unregister
   } = useForm({
     defaultValues: {
-      amount: min,
+      amount: 0,
       useDepositor: false,
       depositorAddress: ""
     }
   });
   const { amount, useDepositor, depositorAddress } = watch();
-  const depositData = useDenomData(denom);
   const usdcIbcDenom = useUsdcDenom();
+
+  useEffect(() => {
+    if (depositData && amount === 0 && !disableMin) {
+      setValue("amount", depositData?.min || 0);
+    }
+  }, [depositData]);
 
   useEffect(() => {
     clearErrors();
@@ -127,8 +133,8 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
     clearErrors();
     const deposit = denomToUdenom(amount);
 
-    if (deposit < denomToUdenom(min)) {
-      setError(`Deposit amount must be greater or equal than ${min}.`);
+    if (!disableMin && deposit < depositData?.min) {
+      setError(`Deposit amount must be greater or equal than ${depositData?.min}.`);
       return;
     }
 
@@ -209,7 +215,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
                   autoFocus
                   error={!!fieldState.error}
                   helperText={fieldState.error && helperText}
-                  inputProps={{ min: min, step: 0.000001, max: depositData?.inputMax }}
+                  inputProps={{ min: (!disableMin && depositData?.min) || 0, step: 0.000001, max: depositData?.inputMax }}
                   InputProps={{
                     startAdornment: <InputAdornment position="start">{depositData?.label}</InputAdornment>
                   }}
@@ -265,4 +271,3 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
     </Popup>
   );
 };
-

@@ -321,7 +321,7 @@ export interface BidDto {
 }
 
 export interface RpcDeposiParams {
-  params: {
+  param: {
     subspace: string;
     key: string;
     // Array of { denom: string, amount: string }

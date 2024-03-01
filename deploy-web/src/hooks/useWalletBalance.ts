@@ -36,7 +36,11 @@ export const useDenomData = (denom: string) => {
   const { walletBalances } = useWallet();
   const [depositData, setDepositData] = useState<DenomData>(null);
   const usdcIbcDenom = useUsdcDenom();
-  const { data: depositParams } = useDepositParams();
+  const { data: depositParams, refetch: getDepositParams } = useDepositParams({ enabled: false });
+
+  useEffect(() => {
+    getDepositParams();
+  }, []);
 
   useEffect(() => {
     if (isLoaded && walletBalances && depositParams) {
@@ -46,7 +50,7 @@ export const useDenomData = (denom: string) => {
         case uAktDenom:
           params = depositParams.find(p => p.denom === uAktDenom);
           depositData = {
-            min: parseInt(params?.amount || 0),
+            min: uaktToAKT(parseInt(params?.amount || 0)),
             label: "AKT",
             balance: uaktToAKT(walletBalances.uakt, 6),
             inputMax: uaktToAKT(Math.max(walletBalances.uakt - txFeeBuffer, 0), 6)
@@ -55,7 +59,7 @@ export const useDenomData = (denom: string) => {
         case usdcIbcDenom:
           params = depositParams.find(p => p.denom === usdcIbcDenom);
           depositData = {
-            min: parseInt(params?.amount || 0),
+            min: udenomToDenom(parseInt(params?.amount || 0)),
             label: "USDC",
             balance: udenomToDenom(walletBalances.usdc, 6),
             inputMax: udenomToDenom(Math.max(walletBalances.usdc - txFeeBuffer, 0), 6)

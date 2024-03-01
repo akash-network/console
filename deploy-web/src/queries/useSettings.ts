@@ -27,9 +27,7 @@ export function useSaveSettings() {
 async function getDepositParams(apiEndpoint: string) {
   const depositParamsQuery = await axios.get(ApiUrlService.depositParams(apiEndpoint));
   const depositParams = depositParamsQuery.data as RpcDeposiParams;
-  const params = JSON.parse(depositParams.params.value) as DepositParams[];
-
-  console.log(depositParams, params);
+  const params = JSON.parse(depositParams.param.value) as DepositParams[];
 
   return params;
 }
