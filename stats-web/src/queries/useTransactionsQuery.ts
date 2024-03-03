@@ -5,7 +5,6 @@ import { ApiUrlService } from "@/lib/apiUtils";
 import { PaginatedResults, TransactionDetail } from "@/types";
 import { removeEmptyFilters } from "@/lib/urlUtils";
 import { z } from "zod";
-import { transactionRowSchema } from "@/lib/zod/transactionRow";
 import { DeploymentRowType, deploymentRowSchema } from "@/lib/zod/deploymentRow";
 
 async function getTransactions(limit: number): Promise<TransactionDetail[]> {
