@@ -3,6 +3,9 @@ import axios from "axios";
 import { appendSearchParams } from "./urlUtils";
 
 export class ApiUrlService {
+  static depositParams(apiEndpoint: string) {
+    return `${apiEndpoint}/cosmos/params/v1beta1/params?subspace=deployment&key=MinDeposits`;
+  }
   static deploymentList(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/akash/deployment/${networkVersion}/deployments/list?filters.owner=${address}`;
   }
