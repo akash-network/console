@@ -1,10 +1,12 @@
-import { Provider } from "@shared/dbSchemas/akash";
+import { Block } from "@shared/dbSchemas";
+import { Lease, Provider } from "@shared/dbSchemas/akash";
 import { chainDb } from "@src/db/dbConnection";
 import { isValidBech32Address } from "@src/utils/addresses";
 import { round } from "@src/utils/math";
+import { differenceInSeconds } from "date-fns";
 import { Hono } from "hono";
 import * as semver from "semver";
-import { QueryTypes } from "sequelize";
+import { Op, QueryTypes } from "sequelize";
 
 export const internalRouter = new Hono();
 
@@ -153,4 +155,71 @@ internalRouter.get("/gpu", async (c) => {
   }
 
   return c.json(response);
+});
+
+internalRouter.get("leases-duration/:owner/:dseq?", async (c) => {
+  let dseq: null | number = null;
+  let startTime: null | Date = null;
+  let endTime: null | Date = null;
+
+  if (c.req.param("dseq")) {
+    dseq = parseInt(c.req.param("dseq"));
+
+    if (!isNaN(dseq)) return c.text("Invalid dseq", 400);
+  }
+
+  if (c.req.query("startDate")) { // TODO Check format
+    const startMs = Date.parse(c.req.query("start"));
+
+    if (isNaN(startMs)) return c.text("Invalid start date", 400);
+
+    startTime = new Date(startMs);
+  }
+
+  if (c.req.query("endDate")) { // TODO Check format
+    const endMs = Date.parse(c.req.query("end"));
+
+    if (isNaN(endMs)) return c.text("Invalid end date", 400);
+
+    endTime = new Date(endMs);
+  }
+
+  if (endTime <= startTime) {
+    return c.text("End time must be greater than start time", 400);
+  }
+
+  const closedLeases = await Lease.findAll({
+    where: {
+      owner: c.req.param("owner"),
+      closedHeight: { [Op.not]: null },
+      "$closedBlock.datetime$": { [Op.gte]: startTime, [Op.lte]: endTime }
+    },
+    include: [
+      { model: Block, as: "createdBlock" },
+      { model: Block, as: "closedBlock" }
+    ]
+  });
+
+  const leases = closedLeases.map((x) => ({
+    dseq: x.dseq,
+    oseq: x.oseq,
+    gseq: x.gseq,
+    provider: x.providerAddress,
+    startHeight: x.createdHeight,
+    startDate: x.createdBlock.datetime,
+    closedHeight: x.closedHeight,
+    closedDate: x.closedBlock.datetime,
+    durationInBlocks: x.closedHeight - x.createdHeight,
+    durationInSeconds: differenceInSeconds(x.closedBlock.datetime, x.createdBlock.datetime),
+    durationInHours: differenceInSeconds(x.closedBlock.datetime, x.createdBlock.datetime) / 3600
+  }));
+
+  const totalSeconds = leases.map((x) => x.durationInSeconds).reduce((a, b) => a + b, 0);
+
+  return c.json({
+    leaseCount: leases.length,
+    totalDurationInSeconds: totalSeconds,
+    totalDurationInHours: totalSeconds / 3600,
+    leases
+  });
 });
