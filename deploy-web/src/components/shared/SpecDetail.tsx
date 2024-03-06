@@ -1,62 +1,60 @@
-import MemoryIcon from "@mui/icons-material/Memory";
-import StorageIcon from "@mui/icons-material/Storage";
-import SpeedIcon from "@mui/icons-material/Speed";
-import { makeStyles } from "tss-react/mui";
-import { Box, Chip, useMediaQuery, useTheme } from "@mui/material";
-import { cx } from "@emotion/css";
+"use client";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
+import { useMediaQuery } from "usehooks-ts";
+import { breakpoints } from "@src/utils/responsiveUtils";
+import { cn } from "@src/utils/styleUtils";
 
-const useStyles = makeStyles()(theme => ({
-  defaultColor: {
-    borderColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100]
-  },
-  chipRoot: {
-    padding: "2px 0",
-    height: "auto",
-    backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[700] : theme.palette.grey[100],
-    borderRadius: "2rem"
-  },
-  chipLabel: {
-    display: "flex",
-    alignItems: "center",
-    padding: "2px 0",
-    color: theme.palette.mode === "dark" ? theme.palette.primary.contrastText : theme.palette.primary.main
-  },
-  specIconSmall: {
-    fontSize: ".8rem"
-  },
-  specIconMedium: {
-    fontSize: "1.5rem"
-  },
-  specIconLarge: {
-    fontSize: "2rem"
-  },
-  specDetail: {
-    marginLeft: ".5rem"
-  },
-  specDetailSmall: {
-    fontSize: ".8rem",
-    lineHeight: ".8rem"
-  },
-  specDetailMedium: {
-    fontSize: ".9rem",
-    lineHeight: ".8rem"
-  },
-  specDetailLarge: {
-    fontSize: "1rem",
-    lineHeight: ".8rem"
-  },
-  gutterSmall: {
-    marginLeft: ".5rem"
-  },
-  gutterMedium: {
-    marginLeft: ".75rem"
-  },
-  gutterLarge: {
-    marginLeft: "1rem"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   defaultColor: {
+//     borderColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100]
+//   },
+//   chipRoot: {
+//     padding: "2px 0",
+//     height: "auto",
+//     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[700] : theme.palette.grey[100],
+//     borderRadius: "2rem"
+//   },
+//   chipLabel: {
+//     display: "flex",
+//     alignItems: "center",
+//     padding: "2px 0",
+//     color: theme.palette.mode === "dark" ? theme.palette.primary.contrastText : theme.palette.primary.main
+//   },
+//   specIconSmall: {
+//     fontSize: ".8rem"
+//   },
+//   specIconMedium: {
+//     fontSize: "1.5rem"
+//   },
+//   specIconLarge: {
+//     fontSize: "2rem"
+//   },
+//   specDetail: {
+//     marginLeft: ".5rem"
+//   },
+//   specDetailSmall: {
+//     fontSize: ".8rem",
+//     lineHeight: ".8rem"
+//   },
+//   specDetailMedium: {
+//     fontSize: ".9rem",
+//     lineHeight: ".8rem"
+//   },
+//   specDetailLarge: {
+//     fontSize: "1rem",
+//     lineHeight: ".8rem"
+//   },
+//   gutterSmall: {
+//     marginLeft: ".5rem"
+//   },
+//   gutterMedium: {
+//     marginLeft: ".75rem"
+//   },
+//   gutterLarge: {
+//     marginLeft: "1rem"
+//   }
+// }));
 
 export function SpecDetail({
   cpuAmount,
@@ -67,24 +65,24 @@ export function SpecDetail({
   color = "default",
   size = "large",
   gutterSize = "large"
-}: {
+}: React.PropsWithChildren<{
   cpuAmount: number;
   memoryAmount: number;
   storageAmount: number;
-  gpuAmount?: number;
+  gpuAmount: number;
   gpuModels?: { vendor: string; model: string }[];
-  color?: React.ComponentProps<typeof Chip>["color"];
-  size?: "small" | "medium" | "large";
-  gutterSize?: "small" | "medium" | "large";
-}) {
-  const { classes } = useStyles();
+  color: string;
+  size: "small" | "medium" | "large";
+  gutterSize: "small" | "medium" | "large";
+}>) {
   const memory = bytesToShrink(memoryAmount);
   const storage = bytesToShrink(storageAmount);
-  const theme = useTheme();
-  const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  // TODO
+  const smallScreen = useMediaQuery(breakpoints.md.mediaQuery);
 
   return (
-    <Box
+    <div
+    className={cn("flex", )}
       sx={{
         display: "flex",
         alignItems: { xs: "start", sm: "start", md: "center" },
@@ -105,7 +103,7 @@ export function SpecDetail({
                 [classes.specIconLarge]: size === "large"
               })}
             />
-            <Box
+            <div
               className={cx(classes.specDetail, {
                 [classes.specDetailSmall]: size === "small",
                 [classes.specDetailMedium]: size === "medium",
@@ -113,7 +111,7 @@ export function SpecDetail({
               })}
             >
               {roundDecimal(cpuAmount, 2) + " CPU"}
-            </Box>
+            </div>
           </div>
         }
       />
@@ -139,8 +137,7 @@ export function SpecDetail({
                   [classes.specIconLarge]: size === "large"
                 })}
               />
-              <Box
-                style={{ display: "flex", alignItems: "center" }}
+              <div
                 className={cx(classes.specDetail, {
                   [classes.specDetailSmall]: size === "small",
                   [classes.specDetailMedium]: size === "medium",
@@ -162,7 +159,7 @@ export function SpecDetail({
                     ))}
                   </div>
                 )}
-              </Box>
+              </div>
             </div>
           }
         />
@@ -188,7 +185,7 @@ export function SpecDetail({
                 [classes.specIconLarge]: size === "large"
               })}
             />
-            <Box
+            <div
               className={cx(classes.specDetail, {
                 [classes.specDetailSmall]: size === "small",
                 [classes.specDetailMedium]: size === "medium",
@@ -196,7 +193,7 @@ export function SpecDetail({
               })}
             >
               {`${roundDecimal(memory.value, 2)} ${memory.unit}`}
-            </Box>
+            </div>
           </div>
         }
       />
@@ -220,7 +217,7 @@ export function SpecDetail({
                 [classes.specIconLarge]: size === "large"
               })}
             />
-            <Box
+            <div
               className={cx(classes.specDetail, {
                 [classes.specDetailSmall]: size === "small",
                 [classes.specDetailMedium]: size === "medium",
@@ -228,10 +225,10 @@ export function SpecDetail({
               })}
             >
               {`${roundDecimal(storage.value, 2)} ${storage.unit}`}
-            </Box>
+            </div>
           </div>
         }
       />
-    </Box>
+    </div>
   );
 }

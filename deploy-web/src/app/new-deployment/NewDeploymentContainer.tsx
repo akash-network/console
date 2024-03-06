@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CustomizedSteppers } from "@src/components/newDeploymentWizard/Stepper";
 import { TemplateList } from "@src/components/newDeploymentWizard/TemplateList";
 import { RouteStepKeys } from "@src/utils/constants";
@@ -13,9 +13,7 @@ import { TemplateCreation } from "@src/types";
 import { hardcodedTemplates } from "@src/utils/templates";
 import sdlStore from "@src/store/sdlStore";
 import { useAtomValue } from "jotai";
-import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { PageContainer } from "@src/components/shared/PageContainer";
-import { Button } from "@src/components/ui/button";
 
 export function NewDeploymentContainer() {
   const { isLoading: isLoadingTemplates, templates } = useTemplates();
