@@ -63,26 +63,26 @@ interface DeploymentResource_V2 {
     units: {
       val: string;
     };
-    attributes: {key: string, value: string}[];
+    attributes: { key: string; value: string }[];
   };
   gpu: {
     units: {
       val: string;
     };
-    attributes: {key: string, value: string}[];
+    attributes: { key: string; value: string }[];
   };
   memory: {
     quantity: {
       val: string;
     };
-    attributes: {key: string, value: string}[];
+    attributes: { key: string; value: string }[];
   };
   storage: Array<{
     name: string;
     quantity: {
       val: string;
     };
-    attributes: {key: string, value: string}[];
+    attributes: { key: string; value: string }[];
   }>;
   endpoints: Array<{
     kind: string;
@@ -318,4 +318,18 @@ export interface BidDto {
     resources: DeploymentResource_V3;
     count: number;
   }>;
+}
+
+export interface RpcDepositParams {
+  param: {
+    subspace: string;
+    key: string;
+    // Array of { denom: string, amount: string }
+    value: string;
+  };
+}
+
+export interface DepositParams {
+  denom: string;
+  amount: string;
 }

@@ -43,4 +43,5 @@ export class QueryKeys {
   static getBalancesKey = (address: string) => ["BALANCES", address];
   static getTemplatesKey = () => ["TEMPLATES"];
   static getProviderAttributesSchema = () => ["PROVIDER_ATTRIBUTES_SCHEMA"];
+  static getDepositParamsKey = () => ["DEPOSIT_PARAMS"];
 }

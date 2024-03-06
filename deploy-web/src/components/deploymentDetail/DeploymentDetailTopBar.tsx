@@ -206,6 +206,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
       {isDepositingDeployment && (
         <DeploymentDepositModal
           denom={deployment.escrowAccount.balance.denom}
+          disableMin
           handleCancel={() => setIsDepositingDeployment(false)}
           onDeploymentDeposit={onDeploymentDeposit}
         />

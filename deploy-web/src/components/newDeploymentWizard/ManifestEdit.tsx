@@ -315,7 +315,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
         <DeploymentDepositModal
           handleCancel={() => setIsDepositingDeployment(false)}
           onDeploymentDeposit={onDeploymentDeposit}
-          min={5} // TODO Query from chain params
           denom={sdlDenom}
           infoText={
             <Alert severity="info" className={classes.alert} variant="outlined">
