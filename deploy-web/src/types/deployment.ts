@@ -320,7 +320,7 @@ export interface BidDto {
   }>;
 }
 
-export interface RpcDeposiParams {
+export interface RpcDepositParams {
   param: {
     subspace: string;
     key: string;

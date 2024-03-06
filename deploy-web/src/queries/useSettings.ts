@@ -6,7 +6,7 @@ import axios, { AxiosResponse } from "axios";
 import { useSnackbar } from "notistack";
 import { useMutation, useQuery } from "react-query";
 import { QueryKeys } from "./queryKeys";
-import { DepositParams, RpcDeposiParams } from "@src/types/deployment";
+import { DepositParams, RpcDepositParams } from "@src/types/deployment";
 
 export function useSaveSettings() {
   const { enqueueSnackbar } = useSnackbar();
@@ -26,7 +26,7 @@ export function useSaveSettings() {
 
 async function getDepositParams(apiEndpoint: string) {
   const depositParamsQuery = await axios.get(ApiUrlService.depositParams(apiEndpoint));
-  const depositParams = depositParamsQuery.data as RpcDeposiParams;
+  const depositParams = depositParamsQuery.data as RpcDepositParams;
   const params = JSON.parse(depositParams.param.value) as DepositParams[];
 
   return params;
