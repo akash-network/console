@@ -1,10 +1,30 @@
 import * as v1 from "@src/proto/akash/v1beta1";
 import * as v2 from "@src/proto/akash/v1beta2";
+import * as v3 from "@src/proto/akash/v1beta3";
+import * as v4 from "@src/proto/akash/v1beta4";
 import { decodeMsg } from "@src/utils/protobuf";
 import { Transaction } from "@shared/dbSchemas/base";
 import { Deployment, Lease } from "@shared/dbSchemas/akash";
 import { Op } from "sequelize";
 import { Block, Message } from "@shared/dbSchemas";
+
+export async function getDeploymentWonBids(owner: string, dseq: string) {
+  const deployment = await Deployment.findOne({
+    where: {
+      owner: owner,
+      dseq: dseq
+    },
+    include: [{ model: Lease }, { model: Message, as: "relatedMessages", where: { type: { [Op.like]: "%MsgCreateBid" } } }]
+  });
+
+  const decodedBids = deployment.relatedMessages.map((x) => decodeMsg(x.type, x.data) as v1.MsgCreateBid | v2.MsgCreateBid | v3.MsgCreateBid | v4.MsgCreateBid);
+
+  const fitleredBids = decodedBids.filter((bid) =>
+    deployment.leases.some((l) => l.gseq === bid.order.gseq && l.oseq === bid.order.oseq && l.providerAddress === bid.provider)
+  );
+
+  return fitleredBids;
+}
 
 export async function getDeploymentRelatedMessages(owner: string, dseq: string) {
   const deployment = await Deployment.findOne({
