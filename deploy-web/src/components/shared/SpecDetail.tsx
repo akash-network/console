@@ -4,6 +4,7 @@ import { roundDecimal } from "@src/utils/mathHelpers";
 import { useMediaQuery } from "usehooks-ts";
 import { breakpoints } from "@src/utils/responsiveUtils";
 import { cn } from "@src/utils/styleUtils";
+import { Badge } from "../ui/badge";
 
 // const useStyles = makeStyles()(theme => ({
 //   defaultColor: {
@@ -82,39 +83,39 @@ export function SpecDetail({
 
   return (
     <div
-    className={cn("flex", )}
-      sx={{
-        display: "flex",
-        alignItems: { xs: "start", sm: "start", md: "center" },
-        flexDirection: { xs: "column", sm: "column", md: "row" }
-      }}
+      className={cn("flex", { ["items-start"]: smallScreen, ["items-center"]: !smallScreen }, { ["flex-col"]: smallScreen, ["flex-row"]: !smallScreen })}
+      // sx={{
+      //   display: "flex",
+      //   alignItems: { xs: "start", sm: "start", md: "center" },
+      //   flexDirection: { xs: "column", sm: "column", md: "row" }
+      // }}
     >
-      <Chip
-        variant="outlined"
-        color={color}
-        classes={{ root: classes.chipRoot }}
-        className={cx({ [classes.defaultColor]: color === "default" })}
-        label={
-          <div className={classes.chipLabel}>
-            <SpeedIcon
-              className={cx({
-                [classes.specIconSmall]: size === "small",
-                [classes.specIconMedium]: size === "medium",
-                [classes.specIconLarge]: size === "large"
-              })}
-            />
-            <div
-              className={cx(classes.specDetail, {
-                [classes.specDetailSmall]: size === "small",
-                [classes.specDetailMedium]: size === "medium",
-                [classes.specDetailLarge]: size === "large"
-              })}
-            >
-              {roundDecimal(cpuAmount, 2) + " CPU"}
-            </div>
+      <Badge
+      // variant="outlined"
+      // TODO Type
+      // color={color as any}
+      // classes={{ root: classes.chipRoot }}
+      // className={cx({ [classes.defaultColor]: color === "default" })}
+      >
+        <div className={classes.chipLabel}>
+          <MdSpeed
+            className={cx({
+              [classes.specIconSmall]: size === "small",
+              [classes.specIconMedium]: size === "medium",
+              [classes.specIconLarge]: size === "large"
+            })}
+          />
+          <div
+            className={cx(classes.specDetail, {
+              [classes.specDetailSmall]: size === "small",
+              [classes.specDetailMedium]: size === "medium",
+              [classes.specDetailLarge]: size === "large"
+            })}
+          >
+            {roundDecimal(cpuAmount, 2) + " CPU"}
           </div>
-        }
-      />
+        </div>
+      </Badge>
 
       {gpuAmount > 0 && (
         <Chip
@@ -130,7 +131,7 @@ export function SpecDetail({
           })}
           label={
             <div className={classes.chipLabel}>
-              <SpeedIcon
+              <MdDeveloperBoard
                 className={cx({
                   [classes.specIconSmall]: size === "small",
                   [classes.specIconMedium]: size === "medium",
@@ -178,7 +179,7 @@ export function SpecDetail({
         })}
         label={
           <div className={classes.chipLabel}>
-            <MemoryIcon
+            <MdMemory
               className={cx({
                 [classes.specIconSmall]: size === "small",
                 [classes.specIconMedium]: size === "medium",
@@ -210,7 +211,7 @@ export function SpecDetail({
         })}
         label={
           <div className={classes.chipLabel}>
-            <StorageIcon
+            <MdStorage
               className={cx({
                 [classes.specIconSmall]: size === "small",
                 [classes.specIconMedium]: size === "medium",
