@@ -140,10 +140,17 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
   //   },
 
   return (
-    <TableRow key={bid.id} className={cn({ ["hover: cursor-pointer"]: bid.state === "open", ["border-b"]: isCurrentBid }, "bid-list-row")} onClick={onRowClick}>
+    <TableRow
+      key={bid.id}
+      className={cn("bid-list-row [&>td]:px-2 [&>td]:py-1", {
+        ["cursor-pointer hover:bg-muted-foreground/10"]: bid.state === "open",
+        [`border ${theme === "dark" ? "bg-green-800" : "bg-green-100"}`]: isCurrentBid
+      })}
+      onClick={onRowClick}
+    >
       <TableCell align="center">
-        <div className="flex items-center justify-center">
-          <PricePerMonth denom={bid.price.denom} perBlockValue={udenomToDenom(bid.price.amount, 10)} className="text-2xl" />
+        <div className="flex items-center justify-center whitespace-nowrap">
+          <PricePerMonth denom={bid.price.denom} perBlockValue={udenomToDenom(bid.price.amount, 10)} className="text-xl" />
           <PriceEstimateTooltip denom={bid.price.denom} value={bid.price.amount} />
         </div>
       </TableCell>
@@ -166,7 +173,9 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
         )}
       </TableCell>
 
-      <TableCell align="center">{provider.uptime7d ? <Uptime value={provider.uptime7d} /> : <div>-</div>}</TableCell>
+      <TableCell align="center" className="font-bold">
+        {provider.uptime7d ? <Uptime value={provider.uptime7d} /> : <div>-</div>}
+      </TableCell>
 
       <TableCell align="left">
         <div className="flex items-center">
@@ -220,9 +229,11 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
 
       <TableCell align="center">
         {provider.isAudited ? (
-          <div>
+          <div className="flex items-center justify-center">
             <span className="text-sm text-muted-foreground">Yes</span>
-            <AuditorButton provider={provider} />
+            <div className="ml-1">
+              <AuditorButton provider={provider} />
+            </div>
           </div>
         ) : (
           <div className="flex items-center justify-center">

@@ -108,116 +108,101 @@ export const BidGroup: React.FunctionComponent<Props> = ({
       setResources(resourcesSum);
     }
   }, [deploymentDetail, gseq]);
-
-  //   subHeader: {
-  //     display: "flex",
-  //     alignItems: "center",
-  //     justifyContent: "space-between",
-  //     paddingBottom: "6px",
-  //     paddingTop: "6px",
-  //     zIndex: 100,
-  //     lineHeight: "2rem",
-  //     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100]
-  //   },
   return (
-    <FormPaper className="mb-4" contentClassName="p-0">
-      <ul>
-        <li>
-          <div className="z-[100] flex items-center justify-between bg-background pb-4 pt-4 leading-8">
-            <div className="flex items-center">
-              <h6>
-                <LabelValueOld label="GSEQ:" value={gseq} />
-              </h6>
+    <FormPaper className="mb-4 rounded-none" contentClassName="p-0">
+      <div className="sticky top-0 z-[100] -mt-1 flex items-center justify-between border-b border-t bg-popover px-4 py-2 leading-8">
+        <div className="flex items-center">
+          <h6 className="text-xs">
+            <LabelValueOld label="GSEQ:" value={gseq} />
+          </h6>
 
-              {resources && (
-                <div className="ml-2">
-                  <SpecDetail
-                    cpuAmount={resources.cpuAmount}
-                    memoryAmount={resources.memoryAmount}
-                    storageAmount={resources.storageAmount}
-                    gpuAmount={resources.gpuAmount}
-                    color="secondary"
-                    size="small"
-                  />
-                </div>
-              )}
+          {resources && (
+            <div className="ml-4">
+              <SpecDetail
+                cpuAmount={resources.cpuAmount}
+                memoryAmount={resources.memoryAmount}
+                storageAmount={resources.storageAmount}
+                gpuAmount={resources.gpuAmount}
+                color="secondary"
+                size="small"
+              />
             </div>
+          )}
+        </div>
 
-            <div className="flex items-center">
-              {!!selectedBid && <Check className="text-primary" />}
-              <div className="ml-4">
-                {groupIndex + 1} of {totalBids}
-              </div>
-            </div>
+        <div className="flex items-center">
+          {!!selectedBid && <Check className="text-primary" />}
+          <div className="ml-4">
+            {groupIndex + 1} of {totalBids}
           </div>
+        </div>
+      </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableCell width="10%" align="center">
-                  Price
-                </TableCell>
-                <TableCell width="10%" align="center">
-                  Region
-                </TableCell>
-                <TableCell width="10%" align="center">
-                  Uptime (7d)
-                </TableCell>
-                <TableCell width="10%" align="center">
-                  Provider
-                </TableCell>
-                {(deploymentDetail?.gpuAmount || 0) > 0 && (
-                  <TableCell width="10%" align="center">
-                    GPU
-                  </TableCell>
-                )}
-                <TableCell width="10%" align="center">
-                  Audited
-                </TableCell>
-                <TableCell width="10%" align="center">
-                  <strong>Select</strong>
-                </TableCell>
-              </TableRow>
-            </TableHeader>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableCell width="10%" align="center">
+              Price
+            </TableCell>
+            <TableCell width="10%" align="center">
+              Region
+            </TableCell>
+            <TableCell width="10%" align="center">
+              Uptime (7d)
+            </TableCell>
+            <TableCell width="10%" align="center">
+              Provider
+            </TableCell>
+            {(deploymentDetail?.gpuAmount || 0) > 0 && (
+              <TableCell width="10%" align="center">
+                GPU
+              </TableCell>
+            )}
+            <TableCell width="10%" align="center">
+              Audited
+            </TableCell>
+            <TableCell width="10%" align="center">
+              <strong>Select</strong>
+            </TableCell>
+          </TableRow>
+        </TableHeader>
 
-            <TableBody>
-              {fBids.map(bid => {
-                const provider = providers && providers.find(x => x.owner === bid.provider);
-                const showBid = provider?.isValidVersion && (!isSendingManifest || selectedBid?.id === bid.id);
-                return (showBid || selectedNetworkId !== mainnetId) && provider ? (
-                  <BidRow
-                    key={bid.id}
-                    bid={bid}
-                    provider={provider}
-                    handleBidSelected={handleBidSelected}
-                    disabled={disabled}
-                    selectedBid={selectedBid}
-                    isSendingManifest={isSendingManifest}
-                  />
-                ) : null;
-              })}
-            </TableBody>
-          </Table>
-        </li>
+        <TableBody>
+          {fBids.map(bid => {
+            const provider = providers && providers.find(x => x.owner === bid.provider);
+            const showBid = provider?.isValidVersion && (!isSendingManifest || selectedBid?.id === bid.id);
+            return (showBid || selectedNetworkId !== mainnetId) && provider ? (
+              <BidRow
+                key={bid.id}
+                bid={bid}
+                provider={provider}
+                handleBidSelected={handleBidSelected}
+                disabled={disabled}
+                selectedBid={selectedBid}
+                isSendingManifest={isSendingManifest}
+              />
+            ) : null;
+          })}
+        </TableBody>
+      </Table>
 
-        {isFilteringFavorites && fBids.length === 0 && (
-          <div className="px-4 py-2">
-            <Alert>
-              <span className="text-sm text-muted-foreground">There are no favorite providers for this group...</span>
-            </Alert>
-          </div>
-        )}
+      {isFilteringFavorites && fBids.length === 0 && (
+        <div className="px-4 py-2">
+          <Alert>
+            <span className="text-sm text-muted-foreground">There are no favorite providers for this group...</span>
+          </Alert>
+        </div>
+      )}
 
-        {isFilteringAudited && fBids.length === 0 && (
-          <div className="px-4 py-2">
-            <Alert>
-              <span className="text-sm text-muted-foreground">
-                There are no audited providers for this group... Try unchecking the "Audited" flag or clearing the search.
-              </span>
-            </Alert>
-          </div>
-        )}
-      </ul>
+      {isFilteringAudited && fBids.length === 0 && (
+        <div className="px-4 py-2">
+          <Alert>
+            <span className="text-sm text-muted-foreground">
+              There are no audited providers for this group... Try unchecking the "Audited" flag or clearing the search.
+            </span>
+          </Alert>
+        </div>
+      )}
     </FormPaper>
   );
 };
