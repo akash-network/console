@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { uAktDenom } from "@src/utils/constants";
 import { EncodeObject } from "@cosmjs/proto-signing";
-// import { useSnackbar } from "notistack";
-// import { Snackbar } from "@src/components/shared/Snackbar";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
@@ -48,7 +46,6 @@ export const WalletProvider = ({ children }) => {
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
-  // const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { toast, dismiss } = useToast();
   const sigingClient = useRef<SigningStargateClient | null>(null);
   const router = useRouter();
@@ -174,10 +171,6 @@ export const WalletProvider = ({ children }) => {
 
       setIsWaitingForApproval(false);
       setIsBroadcastingTx(true);
-      // pendingSnackbarKey = toast(<Snackbar title="Broadcasting transaction..." subTitle="Please wait a few seconds" showLoading />, {
-      //   variant: "info",
-      //   autoHideDuration: null
-      // });
 
       const { id } = toast({
         title: "Broadcasting transaction...",
@@ -195,28 +188,15 @@ export const WalletProvider = ({ children }) => {
         throw new Error(txResult.rawLog);
       }
 
-      // showTransactionSnackbar("Transaction success!", "", txResult.transactionHash, "success");
       toast({
         title: "Transaction success!",
         description: (
-          <LinkTo
-            className="flex items-center"
-            // sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
-            // onClick={() => window.open(UrlService.transaction(txResult.transactionHash), "_blank")}
-            onClick={() => window.open(`https://stats.akash.network/transactions/${txResult.transactionHash}`, "_blank")}
-          >
+          <LinkTo className="flex items-center" onClick={() => window.open(`https://stats.akash.network/transactions/${txResult.transactionHash}`, "_blank")}>
             View transaction <OpenInWindow className="ml-2 text-sm" />
           </LinkTo>
         ),
         variant: "success"
       });
-
-      // <LinkTo
-      //     sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
-      //     onClick={() => window.open(txUrl, "_blank")}
-      //   >
-      //     View transaction <OpenInNew sx={{ fontSize: "1rem", marginLeft: ".5rem" }} />
-      //   </LinkTo>
 
       event(AnalyticsEvents.SUCCESSFUL_TX, {
         category: "transactions",
@@ -276,16 +256,10 @@ export const WalletProvider = ({ children }) => {
         });
       }
 
-      // showTransactionSnackbar("Transaction has failed...", errorMsg, transactionHash, "error");
       toast({
         title: "Transaction has failed...",
         description: transactionHash && (
-          <LinkTo
-            className="flex items-center"
-            // sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
-            // onClick={() => window.open(UrlService.transaction(transactionHash), "_blank")}
-            onClick={() => window.open(`https://stats.akash.network/transactions/${transactionHash}`, "_blank")}
-          >
+          <LinkTo className="flex items-center" onClick={() => window.open(`https://stats.akash.network/transactions/${transactionHash}`, "_blank")}>
             View transaction <OpenInWindow className="ml-2 text-xs" />
           </LinkTo>
         ),
@@ -302,25 +276,6 @@ export const WalletProvider = ({ children }) => {
       setIsBroadcastingTx(false);
     }
   }
-
-  // const showTransactionSnackbar = (
-  //   snackTitle: string,
-  //   snackMessage: string,
-  //   transactionHash: string,
-  //   snackVariant: React.ComponentProps<typeof Snackbar>["iconVariant"]
-  // ) => {
-  //   enqueueSnackbar(
-  //     <Snackbar
-  //       title={snackTitle}
-  //       subTitle={<TransactionSnackbarContent snackMessage={snackMessage} transactionHash={transactionHash} />}
-  //       iconVariant={snackVariant}
-  //     />,
-  //     {
-  //       variant: snackVariant,
-  //       autoHideDuration: 10000
-  //     }
-  //   );
-  // };
 
   async function refreshBalances(address?: string): Promise<{ uakt: number; usdc: number }> {
     const _address = address || walletAddress;
@@ -373,23 +328,3 @@ export const WalletProvider = ({ children }) => {
 export function useWallet() {
   return { ...React.useContext(WalletProviderContext) };
 }
-
-// const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
-//   const theme = useTheme();
-//   const txUrl = transactionHash && `https://stats.akash.network/transactions/${transactionHash}`;
-
-//   return (
-//     <>
-//       {snackMessage}
-//       {snackMessage && <br />}
-//       {txUrl && (
-//         <LinkTo
-//           sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
-//           onClick={() => window.open(txUrl, "_blank")}
-//         >
-//           View transaction <OpenInNew sx={{ fontSize: "1rem", marginLeft: ".5rem" }} />
-//         </LinkTo>
-//       )}
-//     </>
-//   );
-// };
