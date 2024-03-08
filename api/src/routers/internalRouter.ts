@@ -157,27 +157,32 @@ internalRouter.get("/gpu", async (c) => {
   return c.json(response);
 });
 
-internalRouter.get("leases-duration/:owner/:dseq?", async (c) => {
-  let dseq: null | number = null;
-  let startTime: null | Date = null;
-  let endTime: null | Date = null;
+internalRouter.get("leases-duration/:owner", async (c) => {
+  const dateFormat = /^\d{4}-\d{2}-\d{2}$/;
 
-  if (c.req.param("dseq")) {
-    dseq = parseInt(c.req.param("dseq"));
+  let startTime: Date = new Date("2000-01-01");
+  let endTime: Date = new Date("2100-01-01");
 
-    if (!isNaN(dseq)) return c.text("Invalid dseq", 400);
+  const { dseq, startDate, endDate } = c.req.query();
+
+  if (dseq && isNaN(parseInt(dseq))) {
+    return c.text("Invalid dseq", 400);
   }
 
-  if (c.req.query("startDate")) { // TODO Check format
-    const startMs = Date.parse(c.req.query("start"));
+  if (startDate) {
+    if (!startDate.match(dateFormat)) return c.text("Invalid start date, must be in the following format: YYYY-MM-DD", 400);
+
+    const startMs = Date.parse(startDate);
 
     if (isNaN(startMs)) return c.text("Invalid start date", 400);
 
     startTime = new Date(startMs);
   }
 
-  if (c.req.query("endDate")) { // TODO Check format
-    const endMs = Date.parse(c.req.query("end"));
+  if (endDate) {
+    if (!endDate.match(dateFormat)) return c.text("Invalid end date, must be in the following format: YYYY-MM-DD", 400);
+
+    const endMs = Date.parse(endDate);
 
     if (isNaN(endMs)) return c.text("Invalid end date", 400);
 
@@ -192,7 +197,8 @@ internalRouter.get("leases-duration/:owner/:dseq?", async (c) => {
     where: {
       owner: c.req.param("owner"),
       closedHeight: { [Op.not]: null },
-      "$closedBlock.datetime$": { [Op.gte]: startTime, [Op.lte]: endTime }
+      "$closedBlock.datetime$": { [Op.gte]: startTime, [Op.lte]: endTime },
+      ...(dseq ? { dseq: dseq } : {})
     },
     include: [
       { model: Block, as: "createdBlock" },
