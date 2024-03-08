@@ -24,7 +24,7 @@ export const TransactionModal: React.FunctionComponent<Props> = ({ state, open, 
     >
       <div className="p-4 text-center">
         <div className="mb-12 mt-8">
-          <Spinner size="large" className="justify-center" />
+          <Spinner size="large" className="flex justify-center" />
         </div>
 
         <div className="text-sm text-muted-foreground">

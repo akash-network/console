@@ -120,10 +120,10 @@ export const BidGroup: React.FunctionComponent<Props> = ({
   //     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100]
   //   },
   return (
-    <FormPaper className="mb-4">
+    <FormPaper className="mb-4" contentClassName="p-0">
       <ul>
         <li>
-          <div className="z-[100] flex items-center justify-between bg-muted-foreground/90 pb-4 pt-4 leading-8">
+          <div className="z-[100] flex items-center justify-between bg-background pb-4 pt-4 leading-8">
             <div className="flex items-center">
               <h6>
                 <LabelValueOld label="GSEQ:" value={gseq} />
@@ -136,7 +136,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
                     memoryAmount={resources.memoryAmount}
                     storageAmount={resources.storageAmount}
                     gpuAmount={resources.gpuAmount}
-                    color={allBidsClosed ? "default" : "primary"}
+                    color="secondary"
                     size="small"
                   />
                 </div>
