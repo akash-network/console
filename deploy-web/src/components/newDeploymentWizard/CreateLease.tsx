@@ -27,30 +27,13 @@ import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderC
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import { Checkbox } from "../ui/checkbox";
-import { ArrowRight, InfoCircle, UserBadgeCheck, Xmark, MoreHoriz } from "iconoir-react";
+import { ArrowRight, InfoCircle, Xmark, MoreHoriz, Bin, BadgeCheck } from "iconoir-react";
 import Spinner from "../shared/Spinner";
 import { InputWithIcon } from "../ui/input";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
 
 const yaml = require("js-yaml");
-
-// const useStyles = makeStyles()(theme => ({
-//   tooltip: {
-//     fontSize: "1rem",
-//     padding: ".5rem"
-//   },
-//   tooltipIcon: {
-//     fontSize: "1.5rem",
-//     color: theme.palette.text.secondary
-//   },
-//   marginLeft: {
-//     marginLeft: "1rem"
-//   },
-//   nowrap: {
-//     whiteSpace: "nowrap"
-//   }
-// }));
 
 type Props = {
   dseq: string;
@@ -90,12 +73,13 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     enabled: !maxRequestsReached && !isSendingManifest
   });
   const { data: deploymentDetail, refetch: getDeploymentDetail } = useDeploymentDetail(address, dseq, { refetchOnMount: false, enabled: false });
-  const groupedBids = bids
-    ?.sort((a, b) => parseFloat(a.price.amount) - parseFloat(b.price.amount))
-    .reduce((a, b) => {
-      a[b.gseq] = [...(a[b.gseq] || []), b];
-      return a as { [key: number]: BidDto };
-    }, {} as any);
+  const groupedBids =
+    bids
+      ?.sort((a, b) => parseFloat(a.price.amount) - parseFloat(b.price.amount))
+      .reduce((a, b) => {
+        a[b.gseq] = [...(a[b.gseq] || []), b];
+        return a as { [key: number]: BidDto };
+      }, {} as any) || {};
   const dseqList = Object.keys(groupedBids).map(g => parseInt(g));
   const allClosed = (bids?.length || 0) > 0 && bids?.every(bid => bid.state === "closed");
 
@@ -165,7 +149,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
       return response;
     } catch (err) {
       toast({ title: "Error", description: `Error while sending manifest to provider. ${err}`, variant: "destructive" });
-      // return <Snackbar title="Error" subTitle={`Error while sending manifest to provider. ${err}`} iconVariant="error" />;
       throw err;
     }
   }
@@ -201,11 +184,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     const localDeploymentData = getDeploymentLocalData(dseq);
     if (localDeploymentData && localDeploymentData.manifest) {
       // Send the manifest
-
-      // const sendManifestKey = enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
-      //   variant: "info",
-      //   autoHideDuration: null
-      // });
       const { id: sendManifestKey } = toast({ title: "Deploying! 🚀", description: "Please wait a few seconds...", loading: true, variant: "default" });
 
       try {
@@ -221,7 +199,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         console.error(err);
       }
       dismiss(sendManifestKey);
-      // closeSnackbar(sendManifestKey);
     }
 
     event(AnalyticsEvents.SEND_MANIFEST, {
@@ -265,16 +242,10 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.createLeases })}`}
       />
 
-      <div>
+      <div className="mt-4">
         {!isLoadingBids && (bids?.length || 0) > 0 && !allClosed && (
-          <div
-            className="flex flex-col items-center justify-between py-2 md:flex-row"
-            // sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexDirection: { xs: "column", sm: "column", md: "row" } }}
-          >
-            <div
-              className="flex w-full items-center md:w-auto"
-              // sx={{ flexGrow: 1, display: "flex", alignItems: "center", width: { xs: "100%", sm: "100%", md: "auto" } }}
-            >
+          <div className="flex flex-col items-end justify-between py-2 md:flex-row">
+            <div className="flex w-full flex-grow items-end md:w-auto">
               <InputWithIcon
                 label="Search provider..."
                 disabled={bids?.length === 0 || isSendingManifest}
@@ -284,65 +255,35 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
                 className="w-full"
                 endIcon={
                   search && (
-                    <Button size="icon" onClick={() => setSearch("")}>
+                    <Button size="icon" variant="ghost" onClick={() => setSearch("")} className="text-muted-foreground hover:bg-transparent hover:text-current">
                       <Xmark />
                     </Button>
                   )
                 }
-                // InputProps={{
-                //   endAdornment: search && <InputAdornment position="end"></InputAdornment>
-                // }}
               />
 
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <div className="mx-2">
                     <Button size="icon" variant="ghost" onClick={handleMenuClick}>
-                      <MoreHoriz />
+                      <MoreHoriz className="text-lg" />
                     </Button>
                   </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <CustomDropdownLinkItem onClick={() => handleCloseDeployment()}>Close Deployment</CustomDropdownLinkItem>
+                  <CustomDropdownLinkItem onClick={() => handleCloseDeployment()} icon={<Bin />}>
+                    Close Deployment
+                  </CustomDropdownLinkItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              {/* <div className="mx-2">
-                <Button aria-haspopup="true" onClick={handleMenuClick} size="small">
-                  <MoreHorizIcon fontSize="large" />
-                </Button>
-              </div>
-              <Menu
-                id="bid-actions-menu"
-                anchorEl={anchorEl}
-                keepMounted
-                open={Boolean(anchorEl)}
-                onClose={handleMenuClose}
-                anchorOrigin={{
-                  vertical: "bottom",
-                  horizontal: "right"
-                }}
-                transformOrigin={{
-                  vertical: "top",
-                  horizontal: "right"
-                }}
-                onClick={handleMenuClose}
-              >
-                <MenuItem onClick={() => handleCloseDeployment()}>Close Deployment</MenuItem>
-              </Menu> */}
             </div>
 
-            <div
-              className="flex w-full items-center py-2 md:w-auto md:py-0"
-              // sx={{ display: "flex", alignItems: "center", width: { xs: "100%", sm: "100%", md: "auto" }, margin: { xs: ".5rem 0", sm: ".4rem 0", md: "0" } }}
-            >
+            <div className="flex w-full items-center py-2 md:w-auto md:py-0">
               <Button
                 variant="default"
                 color="secondary"
                 onClick={handleNext}
                 className="w-full whitespace-nowrap md:w-auto"
-                // classes={{ text: classes.nowrap }}
-                // sx={{ width: { xs: "100%", sm: "100%", md: "auto" } }}
                 disabled={dseqList.some(gseq => !selectedBids[gseq]) || isSendingManifest || isCreatingLeases}
               >
                 {isCreatingLeases ? (
@@ -360,16 +301,14 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
           </div>
         )}
 
-        <div className="flex items-center">
-          {!isLoadingBids && (allClosed || bids?.length === 0) && (
-            <Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm">
-              Close Deployment
-            </Button>
-          )}
-        </div>
+        {!isLoadingBids && (allClosed || bids?.length === 0) && (
+          <Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm">
+            Close Deployment
+          </Button>
+        )}
 
         {(isLoadingBids || (bids?.length || 0) === 0) && !maxRequestsReached && !isSendingManifest && (
-          <div className="pt-4 text-center">
+          <div className="flex flex-col items-center justify-center pt-4 text-center">
             <Spinner size="large" />
             <div className="pt-4">Waiting for bids...</div>
           </div>
@@ -377,9 +316,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
         {warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-4">
-            <Alert
-            // severity="info"
-            >
+            <Alert variant="warning">
               There should be bids by now... You can wait longer in case a bid shows up or close the deployment and try again with a different configuration.
             </Alert>
           </div>
@@ -387,29 +324,15 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
         {maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-4">
-            <Alert
-            // severity="warning"
-            >
+            <Alert variant="warning">
               There's no bid for the current deployment. You can close the deployment and try again with a different configuration.
             </Alert>
           </div>
         )}
 
         {bids && bids.length > 0 && (
-          <div
-            className="mb-1 flex flex-col items-center justify-between md:mb-0 md:flex-row"
-            // sx={{
-            //   display: "flex",
-            //   alignItems: "center",
-            //   justifyContent: "space-between",
-            //   flexDirection: { xs: "column", sm: "column", md: "row" },
-            //   marginBottom: { xs: ".2rem", sm: ".2rem", md: 0 }
-            // }}
-          >
-            <div
-              className="flex w-full items-center md:w-auto"
-              // sx={{ display: "flex", alignItem: "center", width: { xs: "100%", sm: "100%", md: "auto" } }}
-            >
+          <div className="mb-1 flex flex-col items-center justify-between md:mb-0 md:flex-row">
+            <div className="flex w-full items-center md:w-auto">
               <div className="flex items-center space-x-2">
                 <Checkbox checked={isFilteringFavorites} onCheckedChange={value => setIsFilteringFavorites(value as boolean)} id="provider-favorites" />
                 <label
@@ -420,15 +343,14 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
                 </label>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Checkbox checked={isFilteringFavorites} onCheckedChange={value => setIsFilteringFavorites(value as boolean)} />
+              <div className="ml-4 flex items-center space-x-2">
                 <Checkbox checked={isFilteringAudited} onCheckedChange={value => setIsFilteringAudited(value as boolean)} id="provider-audited" />
                 <label
                   htmlFor="provider-audited"
                   className="inline-flex cursor-pointer items-center text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
                   Audited
-                  <UserBadgeCheck className="ml-2 text-sm text-green-600" />
+                  <BadgeCheck className="ml-2 text-sm text-green-600" />
                 </label>
               </div>
 
@@ -436,10 +358,10 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
                 <div className="ml-4 flex items-center">
                   <CustomTooltip
                     title={
-                      <Alert variant="warning">
+                      <div>
                         All bids for this deployment are closed. This can happen if no bids are accepted for more than 5 minutes after the deployment creation.
                         You can close this deployment and create a new one.
-                      </Alert>
+                      </div>
                     }
                   >
                     <InfoCircle className="text-xs text-red-600" />
@@ -449,25 +371,13 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
             </div>
 
             {!isSendingManifest && (
-              <div
-                className="mt-2 flex items-center self-start sm:self-center md:ml-4 md:mt-0"
-                // sx={{
-                //   display: "flex",
-                //   alignItems: "center",
-                //   marginLeft: { xs: 0, sm: 0, md: "1rem" },
-                //   marginTop: { xs: ".2rem", sm: ".2rem", md: 0 },
-                //   alignSelf: { xs: "start", sm: "center" }
-                // }}
-              >
+              <div className="mt-2 flex items-center self-start sm:self-center md:ml-4 md:mt-0">
                 <BidCountdownTimer height={bids && bids?.length > 0 ? bids[0].dseq : null} />
               </div>
             )}
 
             {!maxRequestsReached && !isSendingManifest && (
-              <div
-                className="flex items-center self-start text-xs leading-4 sm:self-center"
-                // sx={{ display: "flex", alignItems: "center", lineHeight: "1rem", fontSize: ".7rem", alignSelf: { xs: "start", sm: "center" } }}
-              >
+              <div className="flex items-center self-start text-xs leading-4 sm:self-center">
                 <p className="text-xs text-muted-foreground">Waiting for more bids...</p>
                 <div className="ml-2">
                   <Spinner size="small" />
@@ -476,10 +386,9 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
             )}
           </div>
         )}
-
-        <LinearLoadingSkeleton isLoading={isSendingManifest} />
       </div>
 
+      <LinearLoadingSkeleton isLoading={isSendingManifest} />
       {dseqList.length > 0 && (
         <ViewPanel stickToBottom style={{ overflow: "auto", paddingBottom: "2rem" }}>
           {dseqList.map((gseq, i) => (

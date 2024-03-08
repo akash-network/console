@@ -279,14 +279,14 @@ export const WalletProvider = ({ children }) => {
       // showTransactionSnackbar("Transaction has failed...", errorMsg, transactionHash, "error");
       toast({
         title: "Transaction has failed...",
-        description: (
+        description: transactionHash && (
           <LinkTo
             className="flex items-center"
             // sx={{ display: "flex", alignItems: "center", color: `${theme.palette.success.contrastText}!important` }}
             // onClick={() => window.open(UrlService.transaction(transactionHash), "_blank")}
             onClick={() => window.open(`https://stats.akash.network/transactions/${transactionHash}`, "_blank")}
           >
-            View transaction <OpenInWindow className="ml-2 text-sm" />
+            View transaction <OpenInWindow className="ml-2 text-xs" />
           </LinkTo>
         ),
         variant: "success"

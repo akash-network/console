@@ -4,8 +4,8 @@ import { useBlock } from "@src/queries/useBlocksQuery";
 import { differenceInSeconds } from "date-fns";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { Badge } from "../ui/badge";
-import { Alert } from "../ui/alert";
 import { InfoCircle } from "iconoir-react";
+import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   height: string | null;
@@ -67,8 +67,8 @@ export const BidCountdownTimer: React.FunctionComponent<Props> = ({ height }) =>
           </>
         )}
 
-        <CustomTooltip title={<Alert>Bids automatically close 5 minutes after the deployment is created if none are selected for a lease.</Alert>}>
-          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+        <CustomTooltip title={<div>Bids automatically close 5 minutes after the deployment is created if none are selected for a lease.</div>}>
+          <InfoCircle className={cn("ml-2 text-xs text-muted-foreground", { ["text-muted-foreground"]: timeLeft !== 0, ["text-white"]: timeLeft === 0 })} />
         </CustomTooltip>
       </span>
     </Badge>

@@ -47,6 +47,7 @@ type CommonProps = {
   fixedTopPosition?: boolean;
   fixedTopPositionHeight?: "10%" | "15%" | "20%" | "25%";
   enableCloseOnBackdropClick?: boolean;
+  hideCloseButton?: boolean;
 };
 
 export type ActionButtonSide = "left" | "right";
@@ -284,6 +285,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
             ["sm:max-w-[750px]"]: props.maxWidth === "lg",
             ["sm:max-w-[900px]"]: props.maxWidth === "xl"
           })}
+          hideCloseButton={props.hideCloseButton}
         >
           {component}
           {/* <ScrollArea className="max-h-screen">{component}</ScrollArea> */}

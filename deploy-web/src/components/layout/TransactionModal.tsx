@@ -16,11 +16,14 @@ export const TransactionModal: React.FunctionComponent<Props> = ({ state, open, 
       fullWidth
       open={open}
       variant="custom"
-      title={state === "waitingForApproval" ? <>Waiting for tx approval</> : <>Transaction Pending</>}
+      title={
+        state === "waitingForApproval" ? <div className="text-center">Waiting for tx approval</div> : <div className="text-center">Transaction Pending</div>
+      }
       actions={[]}
       onClose={onClose}
       maxWidth="xs"
       enableCloseOnBackdropClick={false}
+      hideCloseButton
     >
       <div className="p-4 text-center">
         <div className="mb-12 mt-8">

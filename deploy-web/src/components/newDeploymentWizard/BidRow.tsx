@@ -24,64 +24,6 @@ import { WarningTriangle, CloudXmark } from "iconoir-react";
 import Spinner from "../shared/Spinner";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 
-// const useStyles = makeStyles()(theme => ({
-//   root: {
-//     cursor: "pointer",
-//     transition: "background-color .2s ease",
-//     "&:hover": {
-//       backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[300]
-//     }
-//   },
-//   selectedRow: {
-//     backgroundColor: `${theme.palette.mode === "dark" ? darken(theme.palette.success.main, 0.8) : lighten(theme.palette.success.main, 0.8)} !important`,
-//     border: "1px solid"
-//   },
-//   secondaryText: {
-//     fontSize: ".8rem"
-//   },
-//   chip: {
-//     height: "1rem",
-//     fontSize: ".75rem",
-//     lineHeight: ".75rem"
-//   },
-//   priceTooltip: {
-//     display: "flex",
-//     alignItems: "center",
-//     color: theme.palette.grey[600]
-//   },
-//   pricePerMonth: {
-//     fontSize: "1.25rem"
-//   },
-//   bidState: {
-//     marginBottom: "4px"
-//   },
-//   providerOffline: {
-//     marginTop: "4px",
-//     fontSize: ".85rem"
-//   },
-//   stateIcon: {
-//     marginRight: ".5rem"
-//   },
-//   stateActive: {
-//     color: theme.palette.secondary.main
-//   },
-//   stateInactive: {
-//     color: theme.palette.primary.contrastText
-//   },
-//   flexCenter: {
-//     display: "flex",
-//     alignItems: "center"
-//   },
-//   gpuChip: {
-//     height: "16px",
-//     fontSize: ".65rem",
-//     fontWeight: "bold"
-//   },
-//   gpuChipLabel: {
-//     padding: "0 4px"
-//   }
-// }));
-
 type Props = {
   bid: BidDto;
   selectedBid: BidDto;
@@ -126,18 +68,6 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
       handleBidSelected(bid);
     }
   };
-
-  //   root: {
-  //     cursor: "pointer",
-  //     transition: "background-color .2s ease",
-  //     "&:hover": {
-  //       backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[300]
-  //     }
-  //   },
-  //   selectedRow: {
-  //     backgroundColor: `${theme.palette.mode === "dark" ? darken(theme.palette.success.main, 0.8) : lighten(theme.palette.success.main, 0.8)} !important`,
-  //     border: "1px solid"
-  //   },
 
   return (
     <TableRow

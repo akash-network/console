@@ -4,7 +4,6 @@ import { BidRow } from "./BidRow";
 import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploymentDetailUtils";
 import { LabelValueOld } from "../shared/LabelValueOld";
 import { SpecDetail } from "../shared/SpecDetail";
-import { CustomTableHeader } from "../shared/CustomTable";
 import { BidDto, DeploymentDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { useSettings } from "@src/context/SettingsProvider";
@@ -13,52 +12,6 @@ import { FormPaper } from "../sdl/FormPaper";
 import { Alert } from "../ui/alert";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../ui/table";
 import { Check } from "iconoir-react";
-
-// const useStyles = makeStyles()(theme => ({
-//   root: {
-//     marginBottom: "1rem"
-//   },
-//   subHeader: {
-//     display: "flex",
-//     alignItems: "center",
-//     justifyContent: "space-between",
-//     paddingBottom: "6px",
-//     paddingTop: "6px",
-//     zIndex: 100,
-//     lineHeight: "2rem",
-//     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100]
-//   },
-//   secondaryText: {
-//     fontSize: ".8rem"
-//   },
-//   attributesContainer: {
-//     flexBasis: "45%",
-//     margin: "2px 0",
-//     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : "rgba(0,0,0,0.05)",
-//     borderRadius: ".5rem",
-//     padding: ".5rem"
-//   },
-//   attributeTitle: {
-//     marginBottom: "2px"
-//   },
-//   attributeRow: {
-//     display: "flex",
-//     alignItems: "center",
-//     lineHeight: "1rem"
-//   },
-//   attributeText: {
-//     lineHeight: "1rem",
-//     letterSpacing: 0
-//   },
-//   chip: {
-//     height: "16px"
-//   },
-//   priceTooltip: {
-//     display: "flex",
-//     alignItems: "center",
-//     color: theme.palette.grey[600]
-//   }
-// }));
 
 type Props = {
   bids: Array<BidDto>;
@@ -92,7 +45,6 @@ export const BidGroup: React.FunctionComponent<Props> = ({
   isSendingManifest
 }) => {
   const [resources, setResources] = useState<{ cpuAmount: number; gpuAmount: number; memoryAmount: number; storageAmount: number } | null>(null);
-  const allBidsClosed = bids.every(b => b.state === "closed");
   const fBids = bids.filter(bid => filteredBids.includes(bid.id));
   const { selectedNetworkId } = useSettings();
 
