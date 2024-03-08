@@ -465,6 +465,11 @@
         "value": true
       },
       {
+        "key": "capabilities/gpu/vendor/nvidia/model/p40",
+        "description": "Nvidia tesla-p40",
+        "value": true
+      },
+      {
         "key": "capabilities/gpu/vendor/nvidia/model/p100",
         "description": "Nvidia tesla-p100",
         "value": true
