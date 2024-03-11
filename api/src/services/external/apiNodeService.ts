@@ -472,6 +472,7 @@ export async function getAddressDeployments(owner: string, skip: number, limit: 
       dseq: x.deployment.deployment_id.dseq,
       status: x.deployment.state,
       createdHeight: parseInt(x.deployment.created_at),
+      escrowAccount: x.escrow_account,
       cpuUnits: x.groups
         .map((g) => g.group_spec.resources.map((r) => parseInt(r.resource.cpu.units.val) * r.count).reduce((a, b) => a + b, 0))
         .reduce((a, b) => a + b, 0),

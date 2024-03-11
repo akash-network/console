@@ -11,6 +11,11 @@ const config: Config = {
     "./node_modules/@rewind-ui/core/dist/theme/styles/Drawer.styles.js",
     "./node_modules/@rewind-ui/core/dist/theme/styles/Overlay.styles.js"
   ],
+  // important: "#root",
+  // corePlugins: {
+  //   // Using MUI
+  //   preflight: false
+  // },
   theme: {
     container: {
       center: true,

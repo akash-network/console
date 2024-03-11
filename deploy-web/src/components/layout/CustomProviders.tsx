@@ -13,11 +13,27 @@ import { SettingsProvider } from "@src/context/SettingsProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { WalletProvider } from "@src/context/WalletProvider";
-// import { AddressBookProvider } from "@src/context/AddressBookProvider";
-
 import { CertificateProvider } from "@src/context/CertificateProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { TemplatesProvider } from "@src/context/TemplatesProvider";
+import { StyledEngineProvider, createTheme, ThemeProvider as MuiThemeProvider } from "@mui/material/styles";
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: "hsl(var(--primary))"
+    }
+  },
+  components: {
+    MuiLinearProgress: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "hsl(var(--primary) / 15%)"
+        }
+      }
+    }
+  }
+});
 
 function Providers({ children, version }: React.PropsWithChildren<{ version: string }>) {
   //*              <PricingProvider>
@@ -34,31 +50,35 @@ function Providers({ children, version }: React.PropsWithChildren<{ version: str
     <CustomIntlProvider>
       <QueryClientProvider client={queryClient}>
         <Provider>
-          <ThemeProvider attribute="class" defaultTheme="light" storageKey="theme" enableSystem disableTransitionOnChange>
-            <PricingProvider>
-              <UserProvider>
-                {/* <AddressBookProvider> */}
-                <TooltipProvider>
-                  <SettingsProvider version={version}>
-                    <CustomChainProvider>
-                      <WalletProvider>
-                        <CertificateProvider>
-                          <TemplatesProvider>
-                            <LocalNoteProvider>
-                              <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
+          <StyledEngineProvider injectFirst>
+            <MuiThemeProvider theme={theme}>
+              <ThemeProvider attribute="class" defaultTheme="light" storageKey="theme" enableSystem disableTransitionOnChange>
+                <PricingProvider>
+                  <UserProvider>
+                    {/* <AddressBookProvider> */}
+                    <TooltipProvider>
+                      <SettingsProvider version={version}>
+                        <CustomChainProvider>
+                          <WalletProvider>
+                            <CertificateProvider>
+                              <TemplatesProvider>
+                                <LocalNoteProvider>
+                                  <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
 
-                              {children}
-                            </LocalNoteProvider>
-                          </TemplatesProvider>
-                        </CertificateProvider>
-                      </WalletProvider>
-                    </CustomChainProvider>
-                  </SettingsProvider>
-                </TooltipProvider>
-                {/* </AddressBookProvider> */}
-              </UserProvider>
-            </PricingProvider>
-          </ThemeProvider>
+                                  {children}
+                                </LocalNoteProvider>
+                              </TemplatesProvider>
+                            </CertificateProvider>
+                          </WalletProvider>
+                        </CustomChainProvider>
+                      </SettingsProvider>
+                    </TooltipProvider>
+                    {/* </AddressBookProvider> */}
+                  </UserProvider>
+                </PricingProvider>
+              </ThemeProvider>
+            </MuiThemeProvider>
+          </StyledEngineProvider>
         </Provider>
       </QueryClientProvider>
     </CustomIntlProvider>

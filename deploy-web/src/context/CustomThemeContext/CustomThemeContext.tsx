@@ -12,7 +12,7 @@ type ContextType = {
   mode: string;
 };
 
-const CustomThemeProviderContext = React.createContext<ContextType>({ mode: null });
+const CustomThemeProviderContext = React.createContext<ContextType>({} as ContextType);
 
 const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
   palette: {
@@ -71,65 +71,65 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
   },
   components: {
     MuiCssBaseline: {
-      styleOverrides: {
-        html: {
-          scrollPaddingTop: `${accountBarHeight}px`,
-          WebkitFontSmoothing: "auto",
-          height: "100%",
-          width: "100%"
-        },
-        body: {
-          height: `calc(100% - ${accountBarHeight}px) !important`,
-          width: "100%",
-          overflowY: "scroll !important",
-          padding: "0 !important",
-          "&::-webkit-scrollbar": {
-            width: "10px"
-          },
-          "&::-webkit-scrollbar-track": {
-            background: mode === "dark" ? darken(customColors.dark, 0.2) : customColors.white
-          },
-          "&::-webkit-scrollbar-thumb": {
-            width: "5px",
-            backgroundColor: mode === "dark" ? lighten(customColors.darkLight, 0.2) : grey[500],
-            borderRadius: "5px"
-          }
-        },
-        "*": {
-          transition: "background-color .2s ease"
-        },
-        ul: {
-          paddingLeft: "2rem"
-        },
-        // Nextjs root div
-        "#__next": {
-          height: "100%"
-        },
-        // Page loading styling
-        "#nprogress .bar": {
-          background: `${customColors.main} !important`,
-          zIndex: "10000 !important"
-        },
-        "#nprogress .spinner": {
-          zIndex: `10000 !important`,
-          top: "6px !important",
-          right: "8px !important"
-        },
-        "#nprogress .peg": {
-          boxShadow: `0 0 10px ${customColors.main}, 0 0 5px ${customColors.main}`
-        },
-        "#nprogress .spinner-icon": {
-          borderTopColor: `${customColors.main} !important`,
-          borderLeftColor: `${customColors.main} !important`
-        },
-        a: {
-          textDecoration: "none",
-          color: customColors.main,
-          "&:hover": {
-            textDecoration: "underline"
-          }
-        }
-      }
+      // styleOverrides: {
+      //   html: {
+      //     scrollPaddingTop: `${accountBarHeight}px`,
+      //     WebkitFontSmoothing: "auto",
+      //     height: "100%",
+      //     width: "100%"
+      //   },
+      //   body: {
+      //     height: `calc(100% - ${accountBarHeight}px) !important`,
+      //     width: "100%",
+      //     overflowY: "scroll !important",
+      //     padding: "0 !important",
+      //     "&::-webkit-scrollbar": {
+      //       width: "10px"
+      //     },
+      //     "&::-webkit-scrollbar-track": {
+      //       background: mode === "dark" ? darken(customColors.dark, 0.2) : customColors.white
+      //     },
+      //     "&::-webkit-scrollbar-thumb": {
+      //       width: "5px",
+      //       backgroundColor: mode === "dark" ? lighten(customColors.darkLight, 0.2) : grey[500],
+      //       borderRadius: "5px"
+      //     }
+      //   },
+      //   "*": {
+      //     transition: "background-color .2s ease"
+      //   },
+      //   ul: {
+      //     paddingLeft: "2rem"
+      //   },
+      //   // Nextjs root div
+      //   "#__next": {
+      //     height: "100%"
+      //   },
+      //   // Page loading styling
+      //   "#nprogress .bar": {
+      //     background: `${customColors.main} !important`,
+      //     zIndex: "10000 !important"
+      //   },
+      //   "#nprogress .spinner": {
+      //     zIndex: `10000 !important`,
+      //     top: "6px !important",
+      //     right: "8px !important"
+      //   },
+      //   "#nprogress .peg": {
+      //     boxShadow: `0 0 10px ${customColors.main}, 0 0 5px ${customColors.main}`
+      //   },
+      //   "#nprogress .spinner-icon": {
+      //     borderTopColor: `${customColors.main} !important`,
+      //     borderLeftColor: `${customColors.main} !important`
+      //   },
+      //   a: {
+      //     textDecoration: "none",
+      //     color: customColors.main,
+      //     "&:hover": {
+      //       textDecoration: "underline"
+      //     }
+      //   }
+      // }
     },
     MuiPaper: {
       styleOverrides: {
