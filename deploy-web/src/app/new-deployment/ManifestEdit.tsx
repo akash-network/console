@@ -14,7 +14,7 @@ import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUti
 import { UrlService, handleDocClick } from "@src/utils/urlUtils";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { PrerequisiteList } from "./PrerequisiteList";
+import { PrerequisiteList } from "../../components/shared/PrerequisiteList";
 import { TemplateCreation } from "@src/types";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { generateCertificate } from "@src/utils/certificateUtils";
