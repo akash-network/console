@@ -58,7 +58,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
   const { getDeploymentName } = useLocalNotes();
   const [filteredDeployments, setFilteredDeployments] = useState<NamedDeploymentDto[] | null>(null);
   const [isFilteringActive, setIsFilteringActive] = useState(true);
-  const [selectedDeploymentDseqs, setSelectedDeploymentDseqs] = useState<number[]>([]);
+  const [selectedDeploymentDseqs, setSelectedDeploymentDseqs] = useState<string[]>([]);
   const { apiEndpoint } = settings;
   const [pageSize, setPageSize] = useState<number>(10);
   const orderedDeployments = filteredDeployments
@@ -284,7 +284,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
                     providers={providers}
                     isSelectable
                     onSelectDeployment={onSelectDeployment}
-                    checked={selectedDeploymentDseqs.some(x => x === parseInt(deployment.dseq))}
+                    checked={selectedDeploymentDseqs.some(x => x === deployment.dseq)}
                   />
                 ))}
               </TableBody>
