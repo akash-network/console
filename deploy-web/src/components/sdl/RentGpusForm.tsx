@@ -35,6 +35,7 @@ import { ImageSelect } from "./ImageSelect";
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { useChainParam } from "@src/context/ChainParamProvider";
 
 const yaml = require("js-yaml");
 
@@ -63,6 +64,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const { address, signAndBroadcastTx } = useWallet();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [sdlDenom, setSdlDenom] = useState("uakt");
+  const { minDeposit } = useChainParam();
 
   useEffect(() => {
     if (rentGpuSdl && rentGpuSdl.services) {
@@ -219,7 +221,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           infoText={
             <Alert severity="info" sx={{ marginBottom: "1rem" }} variant="outlined">
               <Typography variant="caption">
-                To create a deployment, you need to have at least <b>5 AKT</b> or <b>5 USDC</b> in an escrow account.{" "}
+                To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
                 <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/glossary/escrow#escrow-accounts")}>
                   <strong>Learn more.</strong>
                 </LinkTo>

@@ -7,6 +7,7 @@ import { migrateLocalStorage } from "@src/utils/localStorage";
 import { initAppTypes } from "@src/utils/init";
 import { NodeStatus } from "@src/types/node";
 import { initiateNetworkData, networks } from "@src/store/networkStore";
+import { DepositParams } from "@src/types/deployment";
 
 type Node = {
   api: string;
@@ -317,4 +318,3 @@ export const SettingsProvider = ({ children }) => {
 export const useSettings = () => {
   return { ...React.useContext(SettingsProviderContext) };
 };
-

@@ -1,5 +1,5 @@
 import { cx } from "@emotion/css";
-import { Box, Button, CircularProgress, Paper, Step, StepContent, StepLabel, Stepper, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Step, StepContent, StepLabel, Stepper, Typography } from "@mui/material";
 import { useWallet } from "@src/context/WalletProvider";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
@@ -19,6 +19,7 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import { RouteStepKeys } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import "@leapwallet/elements/styles.css";
+import { useChainParam } from "@src/context/ChainParamProvider";
 
 const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
   ssr: false,
@@ -53,6 +54,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
   const { classes } = useStyles();
   const [activeStep, setActiveStep] = useState(0);
   const { isWalletConnected, walletBalances, address, refreshBalances } = useWallet();
+  const { minDeposit } = useChainParam();
   const aktBalance = walletBalances ? uaktToAKT(walletBalances.uakt) : null;
   const usdcBalance = walletBalances ? udenomToDenom(walletBalances.usdc) : null;
 
@@ -99,8 +101,8 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
 
         <StepContent>
           <Typography variant="body2" color="textSecondary">
-            You need at least 5 AKT or USDC in your wallet to deploy on Akash. If you don't have 5 AKT or USDC, you can request for some tokens to get started
-            on our <ExternalLink href="https://discord.gg/akash" text="Discord" />.
+            You need at least {minDeposit.akt} AKT or {minDeposit.usdc} USDC in your wallet to deploy on Akash. If you don't have {minDeposit.akt} AKT or{" "}
+            {minDeposit.usdc} USDC, you can request for some tokens to get started on our <ExternalLink href="https://discord.gg/akash" text="Discord" />.
           </Typography>
 
           <Box sx={{ mt: 1, mb: 2, display: "flex", alignItems: "center" }}>
@@ -135,13 +137,13 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
 
           {walletBalances && (
             <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
-              {aktBalance >= 5 || usdcBalance >= 5 ? (
+              {aktBalance >= minDeposit.akt || usdcBalance >= minDeposit.usdc ? (
                 <CheckIcon color="success" sx={{ marginRight: ".5rem" }} />
               ) : (
                 <CustomTooltip
                   title={
                     <>
-                      If you don't have 5 AKT or USDC, you can request authorization for some tokens to get started on our{" "}
+                      If you don't have {minDeposit.akt} AKT or {minDeposit.usdc} USDC, you can request authorization for some tokens to get started on our{" "}
                       <ExternalLink href="https://discord.gg/akash" text="Discord" />.
                     </>
                   }
@@ -224,4 +226,3 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
     </Stepper>
   );
 };
-
