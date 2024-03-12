@@ -28,6 +28,7 @@ import sdlStore from "@src/store/sdlStore";
 import { useAtom } from "jotai";
 import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
+import { useChainParam } from "@src/context/ChainParamProvider";
 
 const yaml = require("js-yaml");
 
@@ -68,6 +69,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const theme = useTheme();
   const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
   const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
+  const { minDeposit } = useChainParam();
 
   useEffect(() => {
     if (selectedTemplate?.name) {
@@ -319,7 +321,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           infoText={
             <Alert severity="info" className={classes.alert} variant="outlined">
               <Typography variant="caption">
-                To create a deployment, you need to have at least <b>.5 AKT</b> or <b>5 USDC</b> in an escrow account.{" "}
+                To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
                 <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/glossary/escrow#escrow-accounts")}>
                   <strong>Learn more.</strong>
                 </LinkTo>

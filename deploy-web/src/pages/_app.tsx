@@ -28,6 +28,7 @@ import { PageHead } from "@src/components/layout/PageHead";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 
 import "@interchain-ui/react/styles";
+import { ChainParamProvider } from "@src/context/ChainParamProvider";
 
 interface Props extends AppProps {
   emotionCache?: EmotionCache;
@@ -76,18 +77,20 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
                     <AddressBookProvider>
                       <SettingsProvider>
                         <CustomChainProvider>
-                          <WalletProvider>
-                            <CertificateProvider>
-                              <TemplatesProvider>
-                                <LocalNoteProvider>
-                                  <BackgroundTaskProvider>
-                                    {isProd && <GoogleAnalytics />}
-                                    <Component {...pageProps} />
-                                  </BackgroundTaskProvider>
-                                </LocalNoteProvider>
-                              </TemplatesProvider>
-                            </CertificateProvider>
-                          </WalletProvider>
+                          <ChainParamProvider>
+                            <WalletProvider>
+                              <CertificateProvider>
+                                <TemplatesProvider>
+                                  <LocalNoteProvider>
+                                    <BackgroundTaskProvider>
+                                      {isProd && <GoogleAnalytics />}
+                                      <Component {...pageProps} />
+                                    </BackgroundTaskProvider>
+                                  </LocalNoteProvider>
+                                </TemplatesProvider>
+                              </CertificateProvider>
+                            </WalletProvider>
+                          </ChainParamProvider>
                         </CustomChainProvider>
                       </SettingsProvider>
                     </AddressBookProvider>
