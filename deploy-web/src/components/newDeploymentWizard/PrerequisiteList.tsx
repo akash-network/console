@@ -7,6 +7,7 @@ import { makeStyles } from "tss-react/mui";
 import { useWallet } from "@src/context/WalletProvider";
 import { ConnectWallet } from "../shared/ConnectWallet";
 import { Popup } from "../shared/Popup";
+import { useChainParam } from "@src/context/ChainParamProvider";
 
 const useStyles = makeStyles()(theme => ({
   list: {
@@ -26,6 +27,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
   const [isLoadingPrerequisites, setIsLoadingPrerequisites] = useState(false);
   const [isBalanceValidated, setIsBalanceValidated] = useState(null);
   const { address, walletBalances, refreshBalances } = useWallet();
+  const { minDeposit } = useChainParam();
 
   useEffect(() => {
     async function loadPrerequisites() {
@@ -86,7 +88,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
               </ListItemIcon>
               <ListItemText
                 primary="Wallet Balance"
-                secondary="The balance of the wallet needs to be of at least 5 AKT or USDC. If you do not have 5 AKT or USDC, you will need to specify an authorized depositor."
+                secondary={`The balance of the wallet needs to be of at least ${minDeposit.akt} AKT or ${minDeposit.usdc} USDC. If you do not have ${minDeposit.akt} AKT or ${minDeposit.usdc} USDC, you will need to specify an authorized depositor.`}
               />
             </ListItem>
           </List>
@@ -99,4 +101,3 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
     </Popup>
   );
 };
-
