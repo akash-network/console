@@ -219,7 +219,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           infoText={
             <Alert severity="info" sx={{ marginBottom: "1rem" }} variant="outlined">
               <Typography variant="caption">
-                To create a deployment, you need to have at least <b>5 AKT</b> or <b>5 USDC</b> in an escrow account.{" "}
+                To create a deployment, you need to have at least <b>.5 AKT</b> or <b>5 USDC</b> in an escrow account.{" "}
                 <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/glossary/escrow#escrow-accounts")}>
                   <strong>Learn more.</strong>
                 </LinkTo>

@@ -319,7 +319,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           infoText={
             <Alert severity="info" className={classes.alert} variant="outlined">
               <Typography variant="caption">
-                To create a deployment, you need to have at least <b>5 AKT</b> or <b>5 USDC</b> in an escrow account.{" "}
+                To create a deployment, you need to have at least <b>.5 AKT</b> or <b>5 USDC</b> in an escrow account.{" "}
                 <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/glossary/escrow#escrow-accounts")}>
                   <strong>Learn more.</strong>
                 </LinkTo>

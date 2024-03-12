@@ -99,7 +99,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
 
         <StepContent>
           <Typography variant="body2" color="textSecondary">
-            You need at least 5 AKT or USDC in your wallet to deploy on Akash. If you don't have 5 AKT or USDC, you can request for some tokens to get started
+            You need at least .5 AKT or 5 USDC in your wallet to deploy on Akash. If you don't have .5 AKT or 5 USDC, you can request for some tokens to get started
             on our <ExternalLink href="https://discord.gg/akash" text="Discord" />.
           </Typography>
 

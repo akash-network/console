@@ -86,7 +86,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
               </ListItemIcon>
               <ListItemText
                 primary="Wallet Balance"
-                secondary="The balance of the wallet needs to be of at least 5 AKT or USDC. If you do not have 5 AKT or USDC, you will need to specify an authorized depositor."
+                secondary="The balance of the wallet needs to be of at least .5 AKT or 5 USDC. If you do not have .5 AKT or 5 USDC, you will need to specify an authorized depositor."
               />
             </ListItem>
           </List>
