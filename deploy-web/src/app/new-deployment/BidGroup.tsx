@@ -2,15 +2,15 @@
 import { useEffect, useState } from "react";
 import { BidRow } from "./BidRow";
 import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploymentDetailUtils";
-import { LabelValueOld } from "../shared/LabelValueOld";
-import { SpecDetail } from "../shared/SpecDetail";
+import { LabelValueOld } from "../../components/shared/LabelValueOld";
+import { SpecDetail } from "../../components/shared/SpecDetail";
 import { BidDto, DeploymentDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { mainnetId } from "@src/utils/constants";
-import { FormPaper } from "../sdl/FormPaper";
-import { Alert } from "../ui/alert";
-import { Table, TableBody, TableCell, TableHeader, TableRow } from "../ui/table";
+import { FormPaper } from "../../components/sdl/FormPaper";
+import { Alert } from "../../components/ui/alert";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "../../components/ui/table";
 import { Check } from "iconoir-react";
 
 type Props = {

@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CustomizedSteppers } from "@src/components/newDeploymentWizard/Stepper";
-import { TemplateList } from "@src/components/newDeploymentWizard/TemplateList";
+import { CustomizedSteppers } from "@src/app/new-deployment/Stepper";
+import { TemplateList } from "@src/app/new-deployment/TemplateList";
 import { RouteStepKeys } from "@src/utils/constants";
-import { ManifestEdit } from "@src/components/newDeploymentWizard/ManifestEdit";
-import { CreateLease } from "@src/components/newDeploymentWizard/CreateLease";
+import { ManifestEdit } from "@src/app/new-deployment/ManifestEdit";
+import { CreateLease } from "@src/app/new-deployment/CreateLease";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { UrlService } from "@src/utils/urlUtils";

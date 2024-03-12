@@ -1,13 +1,13 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useWallet } from "@src/context/WalletProvider";
-import { ConnectWallet } from "../shared/ConnectWallet";
-import { Popup } from "../shared/Popup";
-import { Card, CardContent } from "../ui/card";
-import Spinner from "../shared/Spinner";
+import { ConnectWallet } from "../../components/shared/ConnectWallet";
+import { Popup } from "../../components/shared/Popup";
+import { Card, CardContent } from "../../components/ui/card";
+import Spinner from "../../components/shared/Spinner";
 import { CheckCircle, WarningCircle } from "iconoir-react";
-import { Avatar, AvatarFallback } from "../ui/avatar";
 import { useChainParam } from "@src/context/ChainParamProvider";
+import { Avatar, AvatarFallback } from "../../components/ui/avatar";
 
 type Props = {
   onClose: () => void;

@@ -1,28 +1,28 @@
 "use client";
 import { useEffect } from "react";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { PricePerMonth } from "../shared/PricePerMonth";
-import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
-import { FavoriteButton } from "../shared/FavoriteButton";
-import { AuditorButton } from "../providers/AuditorButton";
+import { PricePerMonth } from "../../components/shared/PricePerMonth";
+import { PriceEstimateTooltip } from "../../components/shared/PriceEstimateTooltip";
+import { FavoriteButton } from "../../components/shared/FavoriteButton";
+import { AuditorButton } from "../../components/providers/AuditorButton";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { getSplitText } from "@src/hooks/useShortText";
 import { BidDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
-import { Uptime } from "../providers/Uptime";
+import { Uptime } from "../../components/providers/Uptime";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
-import { TableCell, TableRow } from "../ui/table";
+import { TableCell, TableRow } from "../../components/ui/table";
 import { cn } from "@src/utils/styleUtils";
 import { useTheme } from "next-themes";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { Badge } from "../ui/badge";
+import { CustomTooltip } from "../../components/shared/CustomTooltip";
+import { Badge } from "../../components/ui/badge";
 import { WarningTriangle, CloudXmark } from "iconoir-react";
-import Spinner from "../shared/Spinner";
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import Spinner from "../../components/shared/Spinner";
+import { RadioGroup, RadioGroupItem } from "../../components/ui/radio-group";
 
 type Props = {
   bid: BidDto;

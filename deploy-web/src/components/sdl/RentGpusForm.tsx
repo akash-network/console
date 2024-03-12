@@ -27,7 +27,7 @@ import { updateWallet } from "@src/utils/walletUtils";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { DeploymentDepositModal } from "../deploymentDetail/DeploymentDepositModal";
 import { LinkTo } from "../shared/LinkTo";
-import { PrerequisiteList } from "../newDeploymentWizard/PrerequisiteList";
+import { PrerequisiteList } from "../../app/new-deployment/PrerequisiteList";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { ImageSelect } from "./ImageSelect";

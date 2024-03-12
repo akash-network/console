@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { useBlock } from "@src/queries/useBlocksQuery";
 import { differenceInSeconds } from "date-fns";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { Badge } from "../ui/badge";
+import { CustomTooltip } from "../../components/shared/CustomTooltip";
+import { Badge } from "../../components/ui/badge";
 import { InfoCircle } from "iconoir-react";
 import { cn } from "@src/utils/styleUtils";
 
