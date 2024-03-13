@@ -151,7 +151,7 @@ export function SpecDetail({
 
                 {gpuModels?.length > 0 && (
                   <div style={{ display: "inline", marginLeft: "5px" }}>
-                    {(gpuModels || []).map((gpu, i) => (
+                    {gpuModels.map((gpu, i) => (
                       <Chip
                         key={`${gpu.vendor}-${gpu.model}`}
                         label={`${gpu.vendor}-${gpu.model}`}
