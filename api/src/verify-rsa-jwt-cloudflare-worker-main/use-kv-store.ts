@@ -3,7 +3,7 @@ export type GeneralKeyValueStore = {
   put: (
     key: string,
     value: string,
-    options: any,
+    options: Record<string, unknown>,
   ) => Promise<void>;
 };
 export type KVNamespaceOrKeyValueStore = /*KVNamespace | */GeneralKeyValueStore;

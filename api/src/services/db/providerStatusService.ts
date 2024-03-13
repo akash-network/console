@@ -1,6 +1,6 @@
 import { Provider, ProviderAttribute, ProviderAttributeSignature } from "@shared/dbSchemas/akash";
 import { ProviderSnapshot } from "@shared/dbSchemas/akash/providerSnapshot";
-import { toUTC } from "@src/utils/date";
+import { toUTC } from "@src/utils";
 import { add } from "date-fns";
 import { Op } from "sequelize";
 import { mapProviderToList } from "@src/utils/map/provider";

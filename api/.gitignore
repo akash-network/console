@@ -36,6 +36,7 @@ node_modules/
 
 #dotenv
 .env
+.env.local
 
 # akash
 /api/data

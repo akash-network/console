@@ -1,6 +1,0 @@
-{
-    "files.exclude": {
-        "**/api/data/": true,
-        "**/node_modules": true
-    }
-}

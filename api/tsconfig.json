@@ -18,10 +18,9 @@
     "baseUrl": "./src",
     "paths": {
       "@src/*": ["*"],
-      "@shared/*": ["../../shared/*"]
+      "@shared/*": ["../../shared/*"],
+      "@test/*": ["../test/*"]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
   "compileOnSave": false
 }

@@ -8,7 +8,7 @@ export const apiRouter = new OpenAPIHono();
 function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRoutes: OpenAPIHono[]) {
   const versionRouter = new OpenAPIHono();
 
-  let servers = [{ url: `https://api.cloudmos.io/${version}`, description: "Production" }];
+  const servers = [{ url: `https://api.cloudmos.io/${version}`, description: "Production" }];
   if (!isProd) {
     servers.unshift({ url: `http://localhost:3080/${version}`, description: "Localhost" });
   }

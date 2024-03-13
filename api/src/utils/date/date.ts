@@ -1,26 +1,8 @@
-import { round } from "./math";
-
-export const getDayStr = (date?: Date) => {
-  return date ? toUTC(date).toISOString().split("T")[0] : getTodayUTC().toISOString().split("T")[0];
-};
+import { round } from "../math";
 
 export function getTodayUTC() {
   const currentDate = toUTC(new Date());
   currentDate.setUTCHours(0, 0, 0, 0);
-
-  return currentDate;
-}
-
-export function startOfDay(date: Date) {
-  const currentDate = toUTC(date);
-  currentDate.setUTCHours(0, 0, 0, 0);
-
-  return currentDate;
-}
-
-export function endOfDay(date: Date) {
-  const currentDate = toUTC(date);
-  currentDate.setUTCHours(23, 59, 59, 999);
 
   return currentDate;
 }

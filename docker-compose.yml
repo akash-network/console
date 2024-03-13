@@ -1,0 +1,17 @@
+version: '3.7'
+
+services:
+  db:
+    build:
+      context: db/postgres
+    restart: always
+    env_file:
+      - .postgres.local.env
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+    driver: local
