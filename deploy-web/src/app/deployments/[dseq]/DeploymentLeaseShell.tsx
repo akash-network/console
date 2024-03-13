@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useCertificate } from "../../context/CertificateProvider";
+import { useCertificate } from "../../../context/CertificateProvider";
 import { LeaseSelect } from "./LeaseSelect";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { Alert, Box, Button, CircularProgress } from "@mui/material";
-import ViewPanel from "../shared/ViewPanel";
+import ViewPanel from "../../../components/shared/ViewPanel";
 import { ServiceSelect } from "./ServiceSelect";
 import { ShellDownloadModal } from "./ShellDownloadModal";
 import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";

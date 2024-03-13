@@ -1,5 +1,5 @@
 import { Dispatch, ReactNode, SetStateAction, useState } from "react";
-import { DeploymentDepositModal } from "./DeploymentDepositModal";
+import { DeploymentDepositModal } from "../../../components/deploymentDetail/DeploymentDepositModal";
 import PublishIcon from "@mui/icons-material/Publish";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
@@ -12,7 +12,7 @@ import { useRouter } from "next/router";
 import { UrlService } from "@src/utils/urlUtils";
 import { Box, Button, IconButton, Menu, Typography } from "@mui/material";
 import { cx } from "@emotion/css";
-import { CustomMenuItem } from "../shared/CustomMenuItem";
+import { CustomMenuItem } from "../../../components/shared/CustomMenuItem";
 import { useWallet } from "@src/context/WalletProvider";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";

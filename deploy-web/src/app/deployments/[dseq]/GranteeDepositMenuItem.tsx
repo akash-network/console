@@ -1,10 +1,10 @@
 "use client";
 import React, { ReactNode } from "react";
-import { Address } from "../shared/Address";
+import { Address } from "../../../components/shared/Address";
 import { FormattedDate } from "react-intl";
 import { coinToUDenom } from "@src/utils/priceUtils";
 import { GrantType } from "@src/types/grant";
-import { AKTAmount } from "../shared/AKTAmount";
+import { AKTAmount } from "../../../components/shared/AKTAmount";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 
 type Props = {

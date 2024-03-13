@@ -14,7 +14,7 @@ import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { Popup } from "../shared/Popup";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useUsdcDenom } from "@src/hooks/useDenom";
-import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
+import { GranteeDepositMenuItem } from "../../app/deployments/[dseq]/GranteeDepositMenuItem";
 import { useToast } from "../ui/use-toast";
 import { Alert } from "../ui/alert";
 import { FormItem } from "../ui/form";
@@ -265,7 +265,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
                   <Label htmlFor="deposit-grantee-address">Address</Label>
                   <Select value={field.value || ""} onValueChange={field.onChange}>
                     <SelectTrigger id="deposit-grantee-address">
-                      <SelectValue placeholder="Select vendor" />
+                      <SelectValue placeholder="Select address" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>

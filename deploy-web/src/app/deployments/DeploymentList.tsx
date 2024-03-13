@@ -5,7 +5,7 @@ import { useAddressDeployments, useDeploymentList } from "@src/queries/useDeploy
 import { useEffect, useState } from "react";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { DeploymentListRow } from "@src/components/deployment/DeploymentListRow";
+import { DeploymentListRow } from "@src/app/deployments/DeploymentListRow";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";

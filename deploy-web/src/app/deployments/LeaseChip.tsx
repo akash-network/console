@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import { StatusPill } from "../shared/StatusPill";
+import { StatusPill } from "../../components/shared/StatusPill";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
-import { Badge } from "../ui/badge";
+import { Badge } from "../../components/ui/badge";
 
 // const useStyles = makeStyles()(theme => ({
 //   leaseChip: {

@@ -1,5 +1,18 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { createRef, useEffect, useState } from "react";
+import { LOGS_MODE } from "./DeploymentLogs";
+import { useWallet } from "@src/context/WalletProvider";
+import { useSettings } from "@src/context/SettingsProvider";
+import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
+import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
+import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
+import { UrlService } from "@src/utils/urlUtils";
+import { RouteStepKeys } from "@src/utils/constants";
+import { useCertificate } from "@src/context/CertificateProvider";
+import { useProviderList } from "@src/queries/useProvidersQuery";
+
 // const useStyles = makeStyles()(theme => ({
 //   tabsRoot: {
 //     minHeight: "36px",
@@ -15,13 +28,14 @@
 // }));
 
 export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: string }>) {
-  const { classes } = useStyles();
+  // const { classes } = useStyles();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
   const [selectedLogsMode, setSelectedLogsMode] = useState<LOGS_MODE>("logs");
   const { address, isWalletLoaded } = useWallet();
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
+  const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
   const {
     data: deployment,
     isFetching: isLoadingDeployment,
@@ -35,7 +49,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
         getProviders();
 
         const deploymentData = getDeploymentLocalData(dseq);
-        setDeploymentManifest(deploymentData?.manifest);
+        setDeploymentManifest(deploymentData?.manifest || "");
       }
     }
   });
@@ -50,7 +64,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
     onSuccess: _leases => {
       if (_leases) {
         // Redirect to select bids if has no lease
-        if (deployment.state === "active" && _leases.length === 0) {
+        if (deployment?.state === "active" && _leases.length === 0) {
           router.replace(UrlService.newDeployment({ dseq, step: RouteStepKeys.createLeases }));
         }
 
@@ -69,7 +83,6 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
   const isDeploymentNotFound = deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found");
   const hasLeases = leases && leases.length > 0;
   const { isLocalCertMatching, localCert, isCreatingCert, createCertificate } = useCertificate();
-  const [deploymentManifest, setDeploymentManifest] = useState(null);
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
   const isActive = deployment?.state === "active" && leases?.some(x => x.state === "active");
 
@@ -115,10 +128,10 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
       router.replace(UrlService.deploymentDetails(dseq));
     }
 
-    event(`${AnalyticsEvents.NAVIGATE_TAB}${value}`, {
-      category: "deployments",
-      label: `Navigate tab ${value} in deployment detail`
-    });
+    // event(`${AnalyticsEvents.NAVIGATE_TAB}${value}`, {
+    //   category: "deployments",
+    //   label: `Navigate tab ${value} in deployment detail`
+    // });
   };
 
   return (
