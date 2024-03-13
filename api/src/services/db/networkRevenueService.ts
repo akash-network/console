@@ -2,7 +2,7 @@ import { Op } from "sequelize";
 import { Day } from "@shared/dbSchemas/base";
 import { AkashBlock as Block } from "@shared/dbSchemas/akash";
 import { add } from "date-fns";
-import { getTodayUTC } from "@src/utils/date";
+import { getTodayUTC } from "@src/utils";
 import { round, uaktToAKT, udenomToDenom } from "@src/utils/math";
 
 type DalyRevenueType = {

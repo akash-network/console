@@ -69,3 +69,5 @@ export async function syncUserSchema() {
   await Template.sync();
   await TemplateFavorite.sync();
 }
+
+export const closeConnections = async () => await Promise.all([chainDb.close(), userDb.close(), ...Object.values(chainDbs).map((db) => db.close())]);

@@ -1,0 +1,66 @@
+name: Validate and Build API
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-n-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Check for changes
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'api/**'
+            shared:
+              - 'shared/**'
+
+      - name: Restore node_modules cache
+        id: deps-cache
+        uses: martijnhols/actions-cache/restore@v3
+        with:
+          path: api/node_modules
+          key: ${{ runner.os }}-build-api-deps-cache-${{ hashFiles('api/package-lock.json') }}
+
+      - name: Install Dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          cd api
+          npm install
+
+      - name: Cache node modules
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: martijnhols/actions-cache/save@v3
+        with:
+          path: api/node_modules
+          key: ${{ runner.os }}-build-api-deps-cache-${{ hashFiles('api/package-lock.json') }}
+
+      - name: Run static code analysis
+        if: steps.filter.outputs.api == 'true' || steps.filter.outputs.shared == 'true'
+        run: |
+          cd api
+          npm run lint
+
+      - name: Run unit tests
+        if: steps.filter.outputs.api == 'true' || steps.filter.outputs.shared == 'true'
+        run: |
+          cd api
+          npm run test:unit
+
+
+      - name: Build the Docker image for API
+        if: steps.filter.outputs.api == 'true' || steps.filter.outputs.shared == 'true'
+        run: docker build . --file ./api/Dockerfile
