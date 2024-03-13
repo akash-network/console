@@ -56,7 +56,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const router = useRouter();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
-  const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  // TODO
+  const smallScreen = useMediaQuery(breakpoints.md.mediaQuery);
   const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
   const { minDeposit } = useChainParam();
 
@@ -300,7 +301,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           infoText={
             <Alert className="mb-4" variant="default">
               <p>
-                To create a deployment, you need to have at least <b>5 AKT</b> or <b>5 USDC</b> in an escrow account.{" "}
+                To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
                 <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/glossary/escrow#escrow-accounts")}>
                   <strong>Learn more.</strong>
                 </LinkTo>

@@ -1,49 +1,20 @@
-import { makeStyles } from "tss-react/mui";
-import Layout from "@src/components/layout/Layout";
-import { NextSeo } from "next-seo";
-import { DeploymentDetailTopBar } from "@src/components/deploymentDetail/DeploymentDetailTopBar";
-import { DeploymentSubHeader } from "@src/components/deploymentDetail/DeploymentSubHeader";
-import { Alert, Box, Button, CircularProgress, Tab, Tabs, Typography } from "@mui/material";
-import { LeaseRow } from "@src/components/deploymentDetail/LeaseRow";
-import { useRouter } from "next/router";
-import { createRef, useEffect, useState } from "react";
-import { useWallet } from "@src/context/WalletProvider";
-import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
-import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
-import { useCertificate } from "@src/context/CertificateProvider";
-import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
-import { ManifestUpdate } from "@src/components/deploymentDetail/ManifestUpdate";
-import { DeploymentLogs, LOGS_MODE } from "@src/components/deploymentDetail/DeploymentLogs";
-import { DeploymentLeaseShell } from "@src/components/deploymentDetail/DeploymentLeaseShell";
-import { UrlService } from "@src/utils/urlUtils";
-import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
-import { RouteStepKeys } from "@src/utils/constants";
-import { useSettings } from "@src/context/SettingsProvider";
-import PageContainer from "@src/components/shared/PageContainer";
-import Link from "next/link";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import { useProviderList } from "@src/queries/useProvidersQuery";
+"use client";
 
-type Props = {
-  dseq: string;
-};
+// const useStyles = makeStyles()(theme => ({
+//   tabsRoot: {
+//     minHeight: "36px",
+//     borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`,
+//     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[200],
+//     "& button": {
+//       minHeight: "36px"
+//     }
+//   },
+//   selectedTab: {
+//     fontWeight: "bold"
+//   }
+// }));
 
-const useStyles = makeStyles()(theme => ({
-  tabsRoot: {
-    minHeight: "36px",
-    borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`,
-    backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[200],
-    "& button": {
-      minHeight: "36px"
-    }
-  },
-  selectedTab: {
-    fontWeight: "bold"
-  }
-}));
-
-const DeploymentDetailPage: React.FunctionComponent<Props> = ({ dseq }) => {
+export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: string }>) {
   const { classes } = useStyles();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
@@ -260,14 +231,4 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ dseq }) => {
       </PageContainer>
     </Layout>
   );
-};
-
-export default DeploymentDetailPage;
-
-export async function getServerSideProps({ params }) {
-  return {
-    props: {
-      dseq: params?.dseq
-    }
-  };
 }

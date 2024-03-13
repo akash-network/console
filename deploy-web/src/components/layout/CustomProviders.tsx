@@ -17,6 +17,7 @@ import { CertificateProvider } from "@src/context/CertificateProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { TemplatesProvider } from "@src/context/TemplatesProvider";
 import { StyledEngineProvider, createTheme, ThemeProvider as MuiThemeProvider } from "@mui/material/styles";
+import { ChainParamProvider } from "@src/context/ChainParamProvider";
 
 const theme = createTheme({
   palette: {
@@ -60,15 +61,17 @@ function Providers({ children, version }: React.PropsWithChildren<{ version: str
                       <SettingsProvider version={version}>
                         <CustomChainProvider>
                           <WalletProvider>
-                            <CertificateProvider>
-                              <TemplatesProvider>
-                                <LocalNoteProvider>
-                                  <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
+                            <ChainParamProvider>
+                              <CertificateProvider>
+                                <TemplatesProvider>
+                                  <LocalNoteProvider>
+                                    <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
 
-                                  {children}
-                                </LocalNoteProvider>
-                              </TemplatesProvider>
-                            </CertificateProvider>
+                                    {children}
+                                  </LocalNoteProvider>
+                                </TemplatesProvider>
+                              </CertificateProvider>
+                            </ChainParamProvider>
                           </WalletProvider>
                         </CustomChainProvider>
                       </SettingsProvider>

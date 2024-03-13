@@ -143,7 +143,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
     const uaktBalance = walletBalances?.uakt || 0;
     const usdcBalance = walletBalances?.usdc || 0;
 
-    if (!disableMin && deposit < depositData?.min) {
+    if (!disableMin && deposit < (depositData?.min || 0)) {
       setError(`Deposit amount must be greater or equal than ${depositData?.min}.`);
       return;
     }
@@ -227,7 +227,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
                   autoFocus
                   error={fieldState.error && helperText}
                   // helperText={fieldState.error && helperText}
-                  min={min}
+                  min={!disableMin ? depositData?.min : 0}
                   step={0.000001}
                   max={depositData?.inputMax}
                   startIcon={depositData?.label}
