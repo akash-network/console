@@ -30,6 +30,7 @@ export class QueryKeys {
   static getLeasesKey = (address: string, dseq: string) => ["LEASE_LIST", address, dseq];
   static getLeaseStatusKey = (dseq: string, gseq: number, oseq: number) => ["LEASE_STATUS", dseq, gseq, oseq];
   static getBidListKey = (address: string, dseq: string) => ["BID_LIST", address, dseq];
+  static getBidInfoKey = (address: string, dseq: string, gseq: number, oseq: number, provider: string) => ["BID_INFO", address, dseq, gseq, oseq, provider];
   static getProvidersKey = () => ["PROVIDERS"];
   static getProviderListKey = () => ["PROVIDER_LIST"];
   static getProviderRegionsKey = () => ["PROVIDER_REGIONS"];

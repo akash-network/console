@@ -29,7 +29,6 @@ import versionMainnet from "./version/mainnet";
 import versionSandbox from "./version/sandbox";
 import versionTestnet from "./version/testnet";
 import deploymentByOwnerDseq from "./deployments/byOwnerDseq";
-import deploymentBids from "./deployments/bids";
 import providerGraphData from "./providerGraphData";
 import graphData from "./graphData";
 import providerActiveLeasesGraphData from "./providerActiveLeasesGraphData";
@@ -66,7 +65,6 @@ export default [
   versionSandbox,
   versionTestnet,
   deploymentByOwnerDseq,
-  deploymentBids,
   providerGraphData,
   graphData,
   providerActiveLeasesGraphData

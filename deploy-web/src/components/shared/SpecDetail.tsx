@@ -58,7 +58,16 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export function SpecDetail({ cpuAmount, memoryAmount, storageAmount, gpuAmount = 0, color = "default", size = "large", gutterSize = "large" }) {
+export function SpecDetail({
+  cpuAmount,
+  memoryAmount,
+  storageAmount,
+  gpuAmount = 0,
+  gpuModels = undefined,
+  color = "default",
+  size = "large",
+  gutterSize = "large"
+}) {
   const { classes } = useStyles();
   const memory = bytesToShrink(memoryAmount);
   const storage = bytesToShrink(storageAmount);
@@ -123,6 +132,7 @@ export function SpecDetail({ cpuAmount, memoryAmount, storageAmount, gpuAmount =
                 })}
               />
               <Box
+                style={{display: "flex", alignItems: "center"}}
                 className={cx(classes.specDetail, {
                   [classes.specDetailSmall]: size === "small",
                   [classes.specDetailMedium]: size === "medium",
@@ -130,6 +140,20 @@ export function SpecDetail({ cpuAmount, memoryAmount, storageAmount, gpuAmount =
                 })}
               >
                 {gpuAmount + " GPU"}
+
+                {gpuModels?.length > 0 && (
+                  <div style={{ display: "inline", marginLeft: "5px" }}>
+                    {(gpuModels || []).map((gpu, i) => (
+                      <Chip
+                        key={`${gpu.vendor}-${gpu.model}`}
+                        label={`${gpu.vendor}-${gpu.model}`}
+                        sx={{ marginRight: i < gpuModels.length ? ".2rem" : 0 }}
+                        color="default"
+                        size="small"
+                      />
+                    ))}
+                  </div>
+                )}
               </Box>
             </div>
           }
