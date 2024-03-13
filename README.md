@@ -82,17 +82,47 @@ Directory: [config](/config/)
 
 See [Example_Queries.md](./doc/Example_Queries.md)
 
-# How to run
+# Running the Application
 
-Indexing akash from block #1 take a long time so it is recommended to start from an existing database backup instead.
+This document provides instructions on how to set up and run the application, including steps for manual database restoration and using Docker Compose for ease of setup.
 
-[cloudmos-akash-20230611.sql](https://mega.nz/file/heEj1YKI#aC--PVLpKCrgmlHBKwoZ0VD1lZ6XEGvSThMP44rH3gk) (18.88Gb)
+## Manual Database Restoration
 
-First create a postgresql database and then restore from the backup using `pg_restore`.
+Due to the extensive time required to index Akash from block #1, it's recommended to initialize your database using an existing backup for efficiency. This approach is particularly beneficial for development purposes.
 
-`pg_restore --host "localhost" --port "5432" --username "postgres" --password "password" --dbname "cloudmos-akash" --verbose "/path/to/cloudmos-akash-20230611.sql"`
+### Available Backups
 
-Once your database is ready, follow the instructions in the README of the project you want to run.
+- **Mainnet Database (~30 GB):** [cloudmos-akash-mainnet.sql.gz](https://storage.googleapis.com/cloudmos-postgresql-backups/cloudmos-akash-mainnet.sql)
+  - Suitable for scenarios requiring complete data.
+- **Sandbox Database (< 300 MB):** [cloudmos-akash-sandbox.sql.gz](https://storage.googleapis.com/cloudmos-postgresql-backups/cloudmos-akash-sandbox.sql.gz)
+  - Ideal for most development needs, although it may lack recent chain updates.
+
+### Restoration Steps
+
+1. Create a PostgreSQL database.
+2. Restore the database using `psql`. Ensure PostgreSQL tools are installed on your system.
+
+For a .sql.gz file:
+```sh
+gunzip -c /path/to/cloudmos-akash-sandbox.sql.gz | psql --host "localhost" --port "5432" --username "postgres" --dbname "cloudmos-akash"
+```
+After restoring the database, you can proceed with the specific project's README instructions for further setup and running the application.
+
+### Using Docker Compose
+For convenience, a Docker Compose configuration is provided to automate the database setup, download, and data import process.
+
+#### Configuration
+1. Ensure environment variables are set in .postgres.local.env. This file configures PostgreSQL and import settings.
+2. The `POSTGRES_DBS_FOR_IMPORT` variable should be updated with the databases you wish to import. This is a comma-separated list with potential values including `cloudmos-akash-sandbox` (default) and `cloudmos-akash-2` (mainnet). Leave this variable empty if no import is desired.
+
+#### Running Docker Compose
+```sh
+docker-compose up
+```
+This command spins up the database service and automatically handles the downloading and importing of the specified data.
+
+
+```bash
 
 # Database Structure
 

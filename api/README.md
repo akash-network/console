@@ -34,6 +34,61 @@ Auth0Issuer|ex: `'https://auth.cloudmos.io/'`
 StripeSecretKey|ex: `sk_test_12aw315wdawd3...293d12d32df8jf`
 WebsiteUrl|`http://localhost:3001`
 
+
+## Testing
+Project is configured to use [Jest](https://jestjs.io/) for testing. It is intended to be covered with unit and functional tests where applicable.
+
+### Running tests
+
+To execute both **unit and functional** tests, run:
+
+```shell
+npm test
+````
+
+To run **unit** tests exclusively, use:
+
+```shell
+npm run test:unit
+```
+
+To run only **functional** tests, use:
+
+```shell
+npm run test:functional
+```
+
+#### Watch Mode
+To automatically re-run tests upon any changes, use the following watch mode commands:
+
+```shell
+npm test:watch
+npm run test:unit:watch
+npm run test:functional:watch
+```
+#### Collecting Coverage
+To collect and view test coverage, use the following commands:
+```shell
+npm test:coverage
+npm run test:unit:coverage
+npm run test:functional:coverage
+```
+
+### Contributing to Tests
+**Unit Tests**: Focus on testing individual functions and components in isolation, without external dependencies.
+
+**Test File Structure**: For consistency, each component tested with unit tests should reside in its own directory, named after the component. Place the test file alongside the component, suffixed with .spec. For example:
+
+**Functional Tests**: Aim to evaluate the system's behavior as a whole, including endpoints, workers, and workflows. Place functional tests in the `test/functional` directory.
+
+```
+src/
+  components/
+    myComponent/
+      myComponent.ts
+      myComponent.spec.ts
+```
+
 ## Changes from **beta** to **v1** (February 2024)
 
 ### Api Versioning

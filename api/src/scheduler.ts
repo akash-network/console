@@ -1,5 +1,5 @@
 import humanInterval from "human-interval";
-import { getPrettyTime } from "./utils/date";
+import { getPrettyTime } from "@src/utils";
 import axios from "axios";
 
 class TaskDef {

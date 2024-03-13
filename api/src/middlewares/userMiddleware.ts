@@ -14,7 +14,7 @@ export const kvStore = {
       return cacheEngine.getFromCache(key);
     }
   },
-  async put(key: string, value: any) {
+  async put(key: string, value: unknown) {
     cacheEngine.storeInCache(key, value);
   }
 };

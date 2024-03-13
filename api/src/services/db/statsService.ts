@@ -1,5 +1,5 @@
 import { Day } from "@shared/dbSchemas/base";
-import { AkashBlock as Block, Provider } from "@shared/dbSchemas/akash";
+import { AkashBlock as Block } from "@shared/dbSchemas/akash";
 import { subHours } from "date-fns";
 import { Op, QueryTypes } from "sequelize";
 import { chainDb } from "@src/db/dbConnection";

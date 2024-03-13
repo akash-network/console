@@ -89,6 +89,7 @@ dist
 
 # IDE files
 .idea
+.vscode
 
 # yarn v2
 .yarn/cache

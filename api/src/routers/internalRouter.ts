@@ -19,7 +19,7 @@ internalRouter.get("/provider-versions", async (c) => {
     group: ["hostUri", "akashVersion"]
   });
 
-  let grouped: { version: string; providers: string[] }[] = [];
+  const grouped: { version: string; providers: string[] }[] = [];
 
   for (const provider of providers) {
     const existing = grouped.find((x) => x.version === provider.akashVersion);
@@ -49,7 +49,7 @@ internalRouter.get("/provider-versions", async (c) => {
     .reduce((acc, x) => {
       acc[x.version] = x;
       return acc;
-    }, {} as any);
+    }, {});
 
   return c.json(sorted);
 });

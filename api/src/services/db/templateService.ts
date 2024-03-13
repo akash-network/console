@@ -1,7 +1,7 @@
 import { Template, TemplateFavorite, UserSetting } from "@shared/dbSchemas/user";
 import * as uuid from "uuid";
 import { Op } from "sequelize";
-import { toUTC } from "@src/utils/date";
+import { toUTC } from "@src/utils";
 
 export async function getTemplateById(id: string, userId: string = "") {
   const template = await Template.findOne({
