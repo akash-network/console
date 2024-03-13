@@ -63,10 +63,19 @@ export function SpecDetail({
   memoryAmount,
   storageAmount,
   gpuAmount = 0,
-  gpuModels = undefined,
+  gpuModels,
   color = "default",
   size = "large",
   gutterSize = "large"
+}: {
+  cpuAmount: number;
+  memoryAmount: number;
+  storageAmount: number;
+  gpuAmount?: number;
+  gpuModels?: { vendor: string; model: string }[];
+  color?: React.ComponentProps<typeof Chip>["color"];
+  size?: "small" | "medium" | "large";
+  gutterSize?: "small" | "medium" | "large";
 }) {
   const { classes } = useStyles();
   const memory = bytesToShrink(memoryAmount);
@@ -84,8 +93,7 @@ export function SpecDetail({
     >
       <Chip
         variant="outlined"
-        // TODO Type
-        color={color as any}
+        color={color}
         classes={{ root: classes.chipRoot }}
         className={cx({ [classes.defaultColor]: color === "default" })}
         label={
@@ -132,7 +140,7 @@ export function SpecDetail({
                 })}
               />
               <Box
-                style={{display: "flex", alignItems: "center"}}
+                style={{ display: "flex", alignItems: "center" }}
                 className={cx(classes.specDetail, {
                   [classes.specDetailSmall]: size === "small",
                   [classes.specDetailMedium]: size === "medium",
