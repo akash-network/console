@@ -20,6 +20,7 @@ import { Uptime } from "../providers/Uptime";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
 import WarningIcon from "@mui/icons-material/Warning";
+import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -101,17 +102,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
     enabled: false,
     retry: false
   });
-  const gpuModels = bid.resourcesOffer
-    .map(x =>
-      x.resources.gpu.attributes
-        .filter(y => y.key.startsWith("vendor/"))
-        .map(y => {
-          const modelKey = y.key.split("/");
-          // vendor/nvidia/model/h100 -> nvidia,h100
-          return { vendor: modelKey[1], model: modelKey[modelKey.length - 1] };
-        })
-    )
-    .flat();
+  const gpuModels = bid.resourcesOffer.flatMap(x => getGpusFromAttributes(x.resources.gpu.attributes));
 
   useEffect(() => {
     if (provider) {
