@@ -27,3 +27,20 @@ export function useBidList(address: string, dseq: string, options) {
   const { settings } = useSettings();
   return useQuery(QueryKeys.getBidListKey(address, dseq), () => getBidList(settings.apiEndpoint, address, dseq), options);
 }
+
+async function getBidInfo(apiEndpoint: string, address: string, dseq: string, gseq: number, oseq: number, provider: string): Promise<RpcBid> {
+  if (!address || !dseq || !gseq || !oseq || !provider) return null;
+
+  const response = await axios.get(ApiUrlService.bidInfo(apiEndpoint, address, dseq, gseq, oseq, provider));
+
+  return response.data;
+}
+
+export function useBidInfo(address: string, dseq: string, gseq: number, oseq: number, provider: string, options = {}) {
+  const { settings } = useSettings();
+  return useQuery(
+    QueryKeys.getBidInfoKey(address, dseq, gseq, oseq, provider),
+    () => getBidInfo(settings.apiEndpoint, address, dseq, gseq, oseq, provider),
+    options
+  );
+}

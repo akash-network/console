@@ -28,7 +28,7 @@ import {
   useTheme
 } from "@mui/material";
 import { deploymentData } from "@src/utils/deploymentData";
-import { sendManifestToProvider } from "@src/utils/deploymentUtils";
+import { getGpusFromAttributes, sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { Snackbar } from "../shared/Snackbar";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import { LabelValueOld } from "../shared/LabelValueOld";
@@ -47,6 +47,7 @@ import { getSplitText } from "@src/hooks/useShortText";
 import { ApiProviderList } from "@src/types/provider";
 import { LeaseDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
+import { useBidInfo } from "@src/queries/useBidQuery";
 
 const yaml = require("js-yaml");
 
@@ -144,6 +145,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
   const { classes } = useStyles();
   const theme = useTheme();
   const [isSendingManifest, setIsSendingManifest] = useState(false);
+  const { data: bid } = useBidInfo(lease.owner, lease.dseq, lease.gseq, lease.oseq, lease.provider);
 
   React.useImperativeHandle(ref, () => ({
     getLeaseStatus: loadLeaseStatus
@@ -210,6 +212,8 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
     updateFavoriteProviders(newFavorites);
   };
 
+  const gpuModels = bid && bid.bid.resources_offer.flatMap(x => getGpusFromAttributes(x.resources.gpu.attributes));
+
   return (
     <Card className={classes.root} elevation={4}>
       <CardHeader
@@ -256,6 +260,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
               <SpecDetail
                 cpuAmount={lease.cpuAmount}
                 gpuAmount={lease.gpuAmount}
+                gpuModels={gpuModels}
                 memoryAmount={lease.memoryAmount}
                 storageAmount={lease.storageAmount}
                 color={isLeaseActive ? "primary" : "default"}

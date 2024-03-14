@@ -69,3 +69,14 @@ export function validateDeploymentData(deploymentData, selectedTemplate?) {
     }
   }
 }
+
+export function getGpusFromAttributes(attributes: { key: string; value: string }[]) {
+  return attributes
+    .filter(attr => attr.key.startsWith("vendor/") && attr.value === "true")
+    .map(attr => {
+      const modelKey = attr.key.split("/");
+
+      // vendor/nvidia/model/h100 -> nvidia,h100
+      return { vendor: modelKey[1], model: modelKey[3] };
+    });
+}

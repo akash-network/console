@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Typography, Box, Paper, useTheme, CircularProgress, Alert } from "@mui/material";
-import { useRouter } from "next/router";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import Layout from "@src/components/layout/Layout";
 import { useWallet } from "@src/context/WalletProvider";
@@ -43,7 +42,6 @@ const useStyles = makeStyles()(theme => ({
 const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }) => {
   const [provider, setProvider] = useState<Partial<ClientProviderDetailWithStatus>>(_provider);
   const { classes } = useStyles();
-  const router = useRouter();
   const theme = useTheme();
   const { address } = useWallet();
   const { isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner, {
@@ -60,7 +58,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
     isLoading: isLoadingStatus,
     refetch: getProviderStatus
   } = useProviderStatus(provider?.hostUri, {
-    enabled: false,
+    enabled: true,
     retry: false,
     onSuccess: _providerStatus => {
       setProvider(provider => (provider ? { ...provider, ..._providerStatus } : _providerStatus));
@@ -73,12 +71,6 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
     getLeases();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (provider && !providerStatus) {
-      getProviderStatus();
-    }
-  }, [provider, providerStatus]);
 
   useEffect(() => {
     if (leases) {
@@ -251,4 +243,3 @@ export async function getServerSideProps({ params, query }) {
     }
   };
 }
-
