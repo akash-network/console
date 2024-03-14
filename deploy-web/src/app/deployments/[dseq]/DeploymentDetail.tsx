@@ -12,6 +12,8 @@ import { UrlService } from "@src/utils/urlUtils";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { PageContainer } from "@src/components/shared/PageContainer";
+import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
 
 // const useStyles = makeStyles()(theme => ({
 //   tabsRoot: {
@@ -135,113 +137,113 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
   };
 
   return (
-    <Layout isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders} isUsingSettings isUsingWallet>
-      <NextSeo title={`Deployment detail #${dseq}`} />
+    <PageContainer isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders} isUsingSettings isUsingWallet>
+      {/* <Layout isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders} isUsingSettings isUsingWallet> */}
 
-      <PageContainer sx={{ padding: "1rem 0 0" }}>
-        <DeploymentDetailTopBar
-          address={address}
-          loadDeploymentDetail={loadDeploymentDetail}
-          removeLeases={removeLeases}
-          setActiveTab={setActiveTab}
-          deployment={deployment}
-        />
+      {/* <PageContainer sx={{ padding: "1rem 0 0" }}> */}
+      <DeploymentDetailTopBar
+        address={address}
+        loadDeploymentDetail={loadDeploymentDetail}
+        removeLeases={removeLeases}
+        setActiveTab={setActiveTab}
+        deployment={deployment}
+      />
 
-        {isDeploymentNotFound && (
-          <Box sx={{ textAlign: "center", marginTop: 10 }}>
-            <Typography variant="h1">404</Typography>
-            <Typography variant="subtitle1">This deployment does not exist or it was created using another wallet.</Typography>
-            <Box sx={{ paddingTop: "1rem" }}>
-              <Link href={UrlService.home()} passHref>
-                <Button variant="contained" color="secondary" sx={{ display: "inline-flex", alignItems: "center", textTransform: "initial" }}>
-                  Go to homepage&nbsp;
-                  <ArrowForwardIcon fontSize="small" />
-                </Button>
-              </Link>
-            </Box>
+      {isDeploymentNotFound && (
+        <Box sx={{ textAlign: "center", marginTop: 10 }}>
+          <Typography variant="h1">404</Typography>
+          <Typography variant="subtitle1">This deployment does not exist or it was created using another wallet.</Typography>
+          <Box sx={{ paddingTop: "1rem" }}>
+            <Link href={UrlService.home()} passHref>
+              <Button variant="contained" color="secondary" sx={{ display: "inline-flex", alignItems: "center", textTransform: "initial" }}>
+                Go to homepage&nbsp;
+                <ArrowForwardIcon fontSize="small" />
+              </Button>
+            </Link>
           </Box>
-        )}
+        </Box>
+      )}
 
-        {deployment && (
-          <>
-            <DeploymentSubHeader deployment={deployment} leases={leases} />
+      {deployment && (
+        <>
+          <DeploymentSubHeader deployment={deployment} leases={leases} />
 
-            <Tabs
-              value={activeTab}
-              onChange={onChangeTab}
-              indicatorColor="secondary"
-              textColor="secondary"
-              classes={{ root: classes.tabsRoot }}
-              variant="scrollable"
-              scrollButtons="auto"
-            >
-              <Tab value="LEASES" label="Leases" classes={{ selected: classes.selectedTab }} />
-              {isActive && <Tab value="LOGS" label="Logs" classes={{ selected: classes.selectedTab }} />}
-              {isActive && <Tab value="SHELL" label="Shell" classes={{ selected: classes.selectedTab }} />}
-              {isActive && <Tab value="EVENTS" label="Events" classes={{ selected: classes.selectedTab }} />}
+          <Tabs
+            value={activeTab}
+            onChange={onChangeTab}
+            indicatorColor="secondary"
+            textColor="secondary"
+            classes={{ root: classes.tabsRoot }}
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            <Tab value="LEASES" label="Leases" classes={{ selected: classes.selectedTab }} />
+            {isActive && <Tab value="LOGS" label="Logs" classes={{ selected: classes.selectedTab }} />}
+            {isActive && <Tab value="SHELL" label="Shell" classes={{ selected: classes.selectedTab }} />}
+            {isActive && <Tab value="EVENTS" label="Events" classes={{ selected: classes.selectedTab }} />}
 
-              <Tab value="EDIT" label="Update" classes={{ selected: classes.selectedTab }} />
-            </Tabs>
+            <Tab value="EDIT" label="Update" classes={{ selected: classes.selectedTab }} />
+          </Tabs>
 
-            {activeTab === "EDIT" && deployment && leases && (
-              <ManifestUpdate
-                deployment={deployment}
-                leases={leases}
-                closeManifestEditor={() => {
-                  setActiveTab("EVENTS");
-                  setSelectedLogsMode("events");
-                  loadDeploymentDetail();
-                }}
-              />
-            )}
-            {activeTab === "LOGS" && <DeploymentLogs leases={leases} selectedLogsMode="logs" />}
-            {activeTab === "EVENTS" && <DeploymentLogs leases={leases} selectedLogsMode="events" />}
-            {activeTab === "SHELL" && <DeploymentLeaseShell leases={leases} />}
-            {activeTab === "LEASES" && (
-              <Box padding="1rem">
-                {leases && (!localCert || !isLocalCertMatching) && (
-                  <Box marginBottom="1rem">
-                    <Alert severity="warning">You do not have a valid local certificate. You need to create a new one to view lease status and details.</Alert>
+          {activeTab === "EDIT" && deployment && leases && (
+            <ManifestUpdate
+              deployment={deployment}
+              leases={leases}
+              closeManifestEditor={() => {
+                setActiveTab("EVENTS");
+                setSelectedLogsMode("events");
+                loadDeploymentDetail();
+              }}
+            />
+          )}
+          {activeTab === "LOGS" && <DeploymentLogs leases={leases} selectedLogsMode="logs" />}
+          {activeTab === "EVENTS" && <DeploymentLogs leases={leases} selectedLogsMode="events" />}
+          {activeTab === "SHELL" && <DeploymentLeaseShell leases={leases} />}
+          {activeTab === "LEASES" && (
+            <Box padding="1rem">
+              {leases && (!localCert || !isLocalCertMatching) && (
+                <Box marginBottom="1rem">
+                  <Alert severity="warning">You do not have a valid local certificate. You need to create a new one to view lease status and details.</Alert>
 
-                    <Button
-                      variant="contained"
-                      color="secondary"
-                      size="medium"
-                      sx={{ marginTop: "1rem" }}
-                      disabled={isCreatingCert}
-                      onClick={() => createCertificate()}
-                    >
-                      {isCreatingCert ? <CircularProgress size="1.5rem" color="secondary" /> : "Create Certificate"}
-                    </Button>
-                  </Box>
-                )}
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    size="medium"
+                    sx={{ marginTop: "1rem" }}
+                    disabled={isCreatingCert}
+                    onClick={() => createCertificate()}
+                  >
+                    {isCreatingCert ? <CircularProgress size="1.5rem" color="secondary" /> : "Create Certificate"}
+                  </Button>
+                </Box>
+              )}
 
-                {leases &&
-                  leases.map((lease, i) => (
-                    <LeaseRow
-                      key={lease.id}
-                      lease={lease}
-                      setActiveTab={setActiveTab}
-                      ref={leaseRefs[i]}
-                      deploymentManifest={deploymentManifest}
-                      dseq={dseq}
-                      providers={providers}
-                      loadDeploymentDetail={loadDeploymentDetail}
-                    />
-                  ))}
+              {leases &&
+                leases.map((lease, i) => (
+                  <LeaseRow
+                    key={lease.id}
+                    lease={lease}
+                    setActiveTab={setActiveTab}
+                    ref={leaseRefs[i]}
+                    deploymentManifest={deploymentManifest}
+                    dseq={dseq}
+                    providers={providers}
+                    loadDeploymentDetail={loadDeploymentDetail}
+                  />
+                ))}
 
-                {!hasLeases && !isLoadingLeases && !isLoadingDeployment && <>This deployment doesn't have any leases</>}
+              {!hasLeases && !isLoadingLeases && !isLoadingDeployment && <>This deployment doesn't have any leases</>}
 
-                {(isLoadingLeases || isLoadingDeployment) && !hasLeases && (
-                  <Box textAlign="center" padding="2rem">
-                    <CircularProgress color="secondary" />
-                  </Box>
-                )}
-              </Box>
-            )}
-          </>
-        )}
-      </PageContainer>
-    </Layout>
+              {(isLoadingLeases || isLoadingDeployment) && !hasLeases && (
+                <Box textAlign="center" padding="2rem">
+                  <CircularProgress color="secondary" />
+                </Box>
+              )}
+            </Box>
+          )}
+        </>
+      )}
+    </PageContainer>
+    // </Layout>
   );
 }
