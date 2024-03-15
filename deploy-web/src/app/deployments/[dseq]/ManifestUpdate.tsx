@@ -1,29 +1,29 @@
+"use client";
 import { useEffect, useState } from "react";
-import { useSettings } from "../../../context/SettingsProvider";
-import { useSnackbar } from "notistack";
-import InfoIcon from "@mui/icons-material/Info";
-import WarningIcon from "@mui/icons-material/Warning";
-import { makeStyles } from "tss-react/mui";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { getDeploymentLocalData, saveDeploymentManifest } from "@src/utils/deploymentLocalDataUtils";
 import { deploymentData } from "@src/utils/deploymentData";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
-import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
-import { Snackbar } from "../../../components/shared/Snackbar";
-import { Alert, Box, Button, CircularProgress, Typography } from "@mui/material";
-import { LinkTo } from "../../../components/shared/LinkTo";
-import { LinearLoadingSkeleton } from "../../../components/shared/LinearLoadingSkeleton";
-import ViewPanel from "../../../components/shared/ViewPanel";
-import { DynamicMonacoEditor } from "../../../components/shared/DynamicMonacoEditor";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { CustomTooltip } from "../../../components/shared/CustomTooltip";
 import yaml from "js-yaml";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { ApiProviderList } from "@src/types/provider";
+import { useSettings } from "@src/context/SettingsProvider";
+import { useToast } from "@src/components/ui/use-toast";
+import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
+import { Alert } from "@src/components/ui/alert";
+import { Button } from "@src/components/ui/button";
+import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
+import ViewPanel from "@src/components/shared/ViewPanel";
+import { DynamicMonacoEditor } from "@src/components/shared/DynamicMonacoEditor";
+import Spinner from "@src/components/shared/Spinner";
+import { CustomTooltip } from "@src/components/shared/CustomTooltip";
+import { InfoCircle, WarningCircle } from "iconoir-react";
+import { LinkTo } from "@src/components/shared/LinkTo";
 
 type Props = {
   deployment: DeploymentDto;
@@ -31,22 +31,21 @@ type Props = {
   closeManifestEditor: () => void;
 };
 
-export const useStyles = makeStyles()(theme => ({
-  title: {
-    fontSize: "1rem"
-  }
-}));
+// export const useStyles = makeStyles()(theme => ({
+//   title: {
+//     fontSize: "1rem"
+//   }
+// }));
 
 export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, leases, closeManifestEditor }) => {
-  const [parsingError, setParsingError] = useState(null);
+  const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState(null);
   const [editedManifest, setEditedManifest] = useState("");
   const [isSendingManifest, setIsSendingManifest] = useState(false);
   const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
   const { settings } = useSettings();
-  const { classes } = useStyles();
   const { address, signAndBroadcastTx } = useWallet();
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const { toast, dismiss } = useToast();
   const { data: providers } = useProviderList();
   const { localCert, isLocalCertMatching, createCertificate, isCreatingCert } = useCertificate();
 
@@ -117,11 +116,11 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
   async function sendManifest(providerInfo: ApiProviderList, manifest: any) {
     try {
-      const response = await sendManifestToProvider(providerInfo, manifest, deployment.dseq, localCert);
+      const response = await sendManifestToProvider(providerInfo, manifest, deployment.dseq, localCert as LocalCert);
 
       return response;
     } catch (err) {
-      enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
+      toast({ title: "Error", description: `Error while sending manifest to provider. ${err}`, variant: "destructive" });
       throw err;
     }
   }
@@ -153,13 +152,13 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
         saveDeploymentManifest(dd.deploymentId.dseq, editedManifest, dd.version, address);
 
-        sendManifestKey = showSendManifestSnackbar();
+        const { id: sendManifestKey } = toast({ title: "Deploying! 🚀", description: "Please wait a few seconds...", loading: true, variant: "default" });
 
         const leaseProviders = leases.map(lease => lease.provider).filter((v, i, s) => s.indexOf(v) === i);
 
         for (const provider of leaseProviders) {
-          const providerInfo = providers.find(x => x.owner === provider);
-          await sendManifest(providerInfo, mani);
+          const providerInfo = providers?.find(x => x.owner === provider);
+          await sendManifest(providerInfo as ApiProviderList, mani);
         }
 
         event(AnalyticsEvents.UPDATE_DEPLOYMENT, {
@@ -169,105 +168,84 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
         setIsSendingManifest(false);
 
-        closeSnackbar(sendManifestKey);
+        dismiss(sendManifestKey);
 
         closeManifestEditor();
       }
     } catch (error) {
       console.error(error);
       setIsSendingManifest(false);
-      closeSnackbar(sendManifestKey);
+      dismiss(sendManifestKey);
     }
   }
-
-  const showSendManifestSnackbar = () => {
-    return enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
-      variant: "info",
-      autoHideDuration: null
-    });
-  };
 
   return (
     <>
       {showOutsideDeploymentMessage ? (
-        <Box padding=".5rem">
-          <Alert severity="info">
+        <div className="p-2">
+          <Alert>
             It looks like this deployment was created using another deploy tool. We can't show you the configuration file that was used initially, but you can
             still update it. Simply continue and enter the configuration you want to use.
-            <Box mt={1}>
-              <Button variant="contained" color="secondary" onClick={() => setShowOutsideDeploymentMessage(false)} size="small">
+            <div className="mt-1">
+              <Button onClick={() => setShowOutsideDeploymentMessage(false)} size="sm">
                 Continue
               </Button>
-            </Box>
+            </div>
           </Alert>
-        </Box>
+        </div>
       ) : (
         <>
           <div>
-            <Box display="flex" alignItems="center" justifyContent="space-between" padding=".2rem .5rem" height="50px">
-              <Box display="flex" alignItems="center">
-                <Typography variant="h6" className={classes.title}>
-                  Update Deployment
-                </Typography>
+            <div className="flex h-[50px] items-center justify-center px-2 py-1">
+              <div className="flex items-center">
+                <h6 className="text-sm">Update Deployment</h6>
 
                 <CustomTooltip
-                  arrow
                   title={
-                    <Alert severity="info">
+                    <Alert>
                       Akash Groups are translated into Kubernetes Deployments, this means that only a few fields from the Akash SDL are mutable. For example
                       image, command, args, env and exposed ports can be modified, but compute resources and placement criteria cannot. (
                       <LinkTo onClick={handleUpdateDocClick}>View doc</LinkTo>)
                     </Alert>
                   }
                 >
-                  <InfoIcon fontSize="small" color="disabled" sx={{ marginLeft: ".5rem" }} />
+                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                 </CustomTooltip>
 
                 {!!deploymentVersion && deploymentVersion !== deployment.version && (
                   <CustomTooltip
-                    arrow
                     title={
-                      <Alert severity="warning">
+                      <Alert variant="warning">
                         Your local deployment file version doesn't match the one on-chain. If you click update, you will override the deployed version.
                       </Alert>
                     }
                   >
-                    <WarningIcon sx={{ marginLeft: ".5rem" }} fontSize="small" color="warning" />
+                    <WarningCircle className="text-warning ml-2 text-xs" />
                   </CustomTooltip>
                 )}
-              </Box>
+              </div>
 
-              <Box>
+              <div>
                 {!localCert || !isLocalCertMatching ? (
-                  <Box sx={{ padding: "1rem", display: "flex", alignItems: "center" }}>
-                    <Alert severity="warning">You do not have a valid certificate. You need to create a new one to update an existing deployment.</Alert>
+                  <div className="flex items-center p-4">
+                    <Alert variant="warning">You do not have a valid certificate. You need to create a new one to update an existing deployment.</Alert>
 
-                    <Button
-                      variant="contained"
-                      color="secondary"
-                      size="medium"
-                      sx={{ marginLeft: "1rem" }}
-                      disabled={isCreatingCert}
-                      onClick={() => createCertificate()}
-                    >
-                      {isCreatingCert ? <CircularProgress size="1.5rem" color="secondary" /> : "Create Certificate"}
+                    <Button className="ml-4" disabled={isCreatingCert} onClick={() => createCertificate()}>
+                      {isCreatingCert ? <Spinner /> : "Create Certificate"}
                     </Button>
-                  </Box>
+                  </div>
                 ) : (
                   <Button
-                    variant="contained"
-                    color="secondary"
-                    size="small"
                     disabled={!!parsingError || !editedManifest || !providers || isSendingManifest || deployment.state !== "active"}
                     onClick={() => handleUpdateClick()}
                   >
                     Update Deployment
                   </Button>
                 )}
-              </Box>
-            </Box>
+              </div>
+            </div>
 
-            {parsingError && <Alert severity="warning">{parsingError}</Alert>}
+            {parsingError && <Alert variant="warning">{parsingError}</Alert>}
 
             <LinearLoadingSkeleton isLoading={isSendingManifest} />
 
@@ -280,4 +258,3 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
     </>
   );
 };
-

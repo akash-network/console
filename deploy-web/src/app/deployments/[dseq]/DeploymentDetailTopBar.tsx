@@ -1,44 +1,40 @@
+"use client";
 import { Dispatch, ReactNode, SetStateAction, useState } from "react";
 import { DeploymentDepositModal } from "../../../components/deploymentDetail/DeploymentDepositModal";
-import PublishIcon from "@mui/icons-material/Publish";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
-import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import EditIcon from "@mui/icons-material/Edit";
-import { makeStyles } from "tss-react/mui";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useRouter } from "next/router";
 import { UrlService } from "@src/utils/urlUtils";
-import { Box, Button, IconButton, Menu, Typography } from "@mui/material";
-import { cx } from "@emotion/css";
-import { CustomMenuItem } from "../../../components/shared/CustomMenuItem";
 import { useWallet } from "@src/context/WalletProvider";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { DeploymentDto } from "@src/types/deployment";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
+import { Button } from "@src/components/ui/button";
+import { Edit, MoreHoriz, NavArrowLeft, Refresh, Upload, XmarkSquare } from "iconoir-react";
+import { DropdownMenu, DropdownMenuContent } from "@src/components/ui/dropdown-menu";
+import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
+import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 
-const useStyles = makeStyles()(theme => ({
-  title: {
-    fontWeight: "bold",
-    marginLeft: ".5rem",
-    fontSize: "1.5rem"
-  },
-  actionContainer: {
-    marginLeft: ".5rem",
-    display: "flex",
-    alignItems: "center",
-    "& .MuiButtonBase-root:first-of-type": {
-      marginLeft: 0
-    }
-  },
-  actionButton: {
-    marginLeft: ".5rem",
-    whiteSpace: "nowrap"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   title: {
+//     fontWeight: "bold",
+//     marginLeft: ".5rem",
+//     fontSize: "1.5rem"
+//   },
+//   actionContainer: {
+//     marginLeft: ".5rem",
+//     display: "flex",
+//     alignItems: "center",
+//     "& .MuiButtonBase-root:first-of-type": {
+//       marginLeft: 0
+//     }
+//   },
+//   actionButton: {
+//     marginLeft: ".5rem",
+//     whiteSpace: "nowrap"
+//   }
+// }));
 
 type Props = {
   address: string;
@@ -50,7 +46,6 @@ type Props = {
 };
 
 export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address, loadDeploymentDetail, removeLeases, setActiveTab, deployment }) => {
-  const { classes } = useStyles();
   const [anchorEl, setAnchorEl] = useState(null);
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
   const router = useRouter();
@@ -134,37 +129,50 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
 
   return (
     <>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          padding: "0 .5rem .5rem"
-        }}
-      >
-        <IconButton aria-label="back" onClick={handleBackClick} size="small">
-          <ChevronLeftIcon />
-        </IconButton>
+      <div className="flex items-center px-2 pb-2">
+        <Button aria-label="back" onClick={handleBackClick} size="icon" variant="ghost">
+          <NavArrowLeft />
+        </Button>
 
-        <Typography variant="h3" className={cx(classes.title, "text-truncate")}>
-          {deploymentName ? deploymentName : "Deployment detail"}
-        </Typography>
+        <h3 className="ml-2 truncate text-2xl font-bold">{deploymentName ? deploymentName : "Deployment detail"}</h3>
 
-        <Box marginLeft=".5rem">
-          <IconButton aria-label="back" onClick={() => loadDeploymentDetail()} size="small">
-            <RefreshIcon />
-          </IconButton>
-        </Box>
+        <div className="ml-2">
+          <Button aria-label="refresh" onClick={() => loadDeploymentDetail()} size="icon">
+            <Refresh />
+          </Button>
+        </div>
 
         {deployment?.state === "active" && (
-          <Box className={classes.actionContainer}>
-            <IconButton aria-label="settings" aria-haspopup="true" onClick={handleMenuClick} className={classes.actionButton} size="small">
-              <MoreHorizIcon fontSize="medium" />
-            </IconButton>
-            <Button variant="contained" color="secondary" className={classes.actionButton} onClick={() => setIsDepositingDeployment(true)} size="small">
+          <div className="ml-2 flex items-center">
+            {/* <Button aria-label="settings" aria-haspopup="true" onClick={handleMenuClick} size="icon">
+              <MoreHoriz className="text-xl" />
+            </Button> */}
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button onClick={handleMenuClick} size="icon" variant="ghost">
+                  <MoreHoriz />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <CustomDropdownLinkItem onClick={() => onChangeName()} icon={<Edit fontSize="small" />}>
+                  Edit Name
+                </CustomDropdownLinkItem>
+                {storageDeploymentData?.manifest && (
+                  <CustomDropdownLinkItem onClick={() => redeploy()} icon={<Upload fontSize="small" />}>
+                    Redeploy
+                  </CustomDropdownLinkItem>
+                )}
+                <CustomDropdownLinkItem onClick={() => onCloseDeployment()} icon={<XmarkSquare fontSize="small" />}>
+                  Close
+                </CustomDropdownLinkItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button variant="default" className="ml-2 whitespace-nowrap" onClick={() => setIsDepositingDeployment(true)} size="sm">
               Add funds
             </Button>
 
-            <Menu
+            {/* <Menu
               id="long-menu"
               anchorEl={anchorEl}
               keepMounted
@@ -182,26 +190,26 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
               <CustomMenuItem onClick={() => onChangeName()} icon={<EditIcon fontSize="small" />} text="Edit Name" />
               {storageDeploymentData?.manifest && <CustomMenuItem onClick={() => redeploy()} icon={<PublishIcon fontSize="small" />} text="Redeploy" />}
               <CustomMenuItem onClick={() => onCloseDeployment()} icon={<CancelPresentationIcon fontSize="small" />} text="Close" />
-            </Menu>
-          </Box>
+            </Menu> */}
+          </div>
         )}
 
         {deployment?.state === "closed" && (
-          <Box className={classes.actionContainer}>
-            <Button onClick={() => onChangeName()} variant="contained" className={classes.actionButton} color="secondary" size="small">
-              <EditIcon fontSize="small" />
+          <div className="ml-2 flex items-center">
+            <Button onClick={() => onChangeName()} variant="default" className="whitespace-nowrap" color="secondary" size="sm">
+              <Edit fontSize="small" />
               &nbsp;Edit Name
             </Button>
 
             {storageDeploymentData?.manifest && (
-              <Button onClick={() => redeploy()} variant="contained" className={classes.actionButton} color="secondary" size="small">
-                <PublishIcon fontSize="small" />
+              <Button onClick={() => redeploy()} variant="default" className="ml-5 whitespace-nowrap" color="secondary" size="sm">
+                <Upload fontSize="small" />
                 &nbsp;Redeploy
               </Button>
             )}
-          </Box>
+          </div>
         )}
-      </Box>
+      </div>
 
       {isDepositingDeployment && (
         <DeploymentDepositModal
@@ -214,4 +222,3 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
     </>
   );
 };
-

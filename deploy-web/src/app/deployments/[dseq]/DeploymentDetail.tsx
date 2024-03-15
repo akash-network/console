@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { createRef, useEffect, useState } from "react";
 import { LOGS_MODE } from "./DeploymentLogs";
 import { useWallet } from "@src/context/WalletProvider";
@@ -14,6 +14,15 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { PageContainer } from "@src/components/shared/PageContainer";
 import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
+import Link from "next/link";
+import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
+import { DeploymentSubHeader } from "./DeploymentSubHeader";
+import { Alert } from "@src/components/ui/alert";
+import { Button, buttonVariants } from "@src/components/ui/button";
+import Spinner from "@src/components/shared/Spinner";
+import { cn } from "@src/utils/styleUtils";
+import { ArrowRight } from "iconoir-react";
+import { ManifestUpdate } from "./ManifestUpdate";
 
 // const useStyles = makeStyles()(theme => ({
 //   tabsRoot: {
@@ -87,6 +96,9 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
   const { isLocalCertMatching, localCert, isCreatingCert, createCertificate } = useCertificate();
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
   const isActive = deployment?.state === "active" && leases?.some(x => x.state === "active");
+  const searchParams = useSearchParams();
+  const tabQuery = searchParams?.get("tab");
+  const logsModeQuery = searchParams?.get("logsMode");
 
   useEffect(() => {
     if (isWalletLoaded && isSettingsInit) {
@@ -97,9 +109,6 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
 
   useEffect(() => {
     if (leases && leases.some(l => l.state === "active")) {
-      const tabQuery = router.query.tab as string;
-      const logsModeQuery = router.query.logsMode as string;
-
       if (tabQuery) {
         setActiveTab(tabQuery);
       }
@@ -108,7 +117,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
         setSelectedLogsMode(logsModeQuery);
       }
     }
-  }, [router.query, leases]);
+  }, [tabQuery, logsModeQuery, leases]);
 
   function loadDeploymentDetail() {
     if (!isLoadingDeployment) {
@@ -119,11 +128,8 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
     }
   }
 
-  const onChangeTab = async (ev, value) => {
+  const onChangeTab = value => {
     setActiveTab(value);
-
-    const tabQuery = router.query.tab as string;
-    const logsModeQuery = router.query.logsMode as string;
 
     // clear tab mode
     if (value !== "LOGS" && (tabQuery || logsModeQuery)) {
@@ -141,34 +147,34 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
       {/* <Layout isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders} isUsingSettings isUsingWallet> */}
 
       {/* <PageContainer sx={{ padding: "1rem 0 0" }}> */}
-      <DeploymentDetailTopBar
-        address={address}
-        loadDeploymentDetail={loadDeploymentDetail}
-        removeLeases={removeLeases}
-        setActiveTab={setActiveTab}
-        deployment={deployment}
-      />
+      {deployment && (
+        <DeploymentDetailTopBar
+          address={address}
+          loadDeploymentDetail={loadDeploymentDetail}
+          removeLeases={removeLeases}
+          setActiveTab={setActiveTab}
+          deployment={deployment}
+        />
+      )}
 
       {isDeploymentNotFound && (
-        <Box sx={{ textAlign: "center", marginTop: 10 }}>
-          <Typography variant="h1">404</Typography>
-          <Typography variant="subtitle1">This deployment does not exist or it was created using another wallet.</Typography>
-          <Box sx={{ paddingTop: "1rem" }}>
-            <Link href={UrlService.home()} passHref>
-              <Button variant="contained" color="secondary" sx={{ display: "inline-flex", alignItems: "center", textTransform: "initial" }}>
-                Go to homepage&nbsp;
-                <ArrowForwardIcon fontSize="small" />
-              </Button>
+        <div className="mt-8 text-center">
+          <h1>404</h1>
+          <h5>This deployment does not exist or it was created using another wallet.</h5>
+          <div className="pt-4">
+            <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center")}>
+              Go to homepage&nbsp;
+              <ArrowRight fontSize="small" />
             </Link>
-          </Box>
-        </Box>
+          </div>
+        </div>
       )}
 
       {deployment && (
         <>
           <DeploymentSubHeader deployment={deployment} leases={leases} />
 
-          <Tabs
+          {/* <Tabs
             value={activeTab}
             onChange={onChangeTab}
             indicatorColor="secondary"
@@ -183,67 +189,69 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
             {isActive && <Tab value="EVENTS" label="Events" classes={{ selected: classes.selectedTab }} />}
 
             <Tab value="EDIT" label="Update" classes={{ selected: classes.selectedTab }} />
+          </Tabs> */}
+
+          <Tabs value={activeTab} onValueChange={onChangeTab}>
+            <TabsList className="mb-4 grid w-full grid-cols-4">
+              <TabsTrigger value="LEASES">Leases</TabsTrigger>
+              {isActive && <TabsTrigger value="LOGS">Logs</TabsTrigger>}
+              {isActive && <TabsTrigger value="SHELL">Shell</TabsTrigger>}
+              {isActive && <TabsTrigger value="EVENTS">Events</TabsTrigger>}
+              <TabsTrigger value="EDIT">Update</TabsTrigger>
+            </TabsList>
+
+            {activeTab === "EDIT" && deployment && leases && (
+              <ManifestUpdate
+                deployment={deployment}
+                leases={leases}
+                closeManifestEditor={() => {
+                  setActiveTab("EVENTS");
+                  setSelectedLogsMode("events");
+                  loadDeploymentDetail();
+                }}
+              />
+            )}
+            {activeTab === "LOGS" && <DeploymentLogs leases={leases} selectedLogsMode="logs" />}
+            {activeTab === "EVENTS" && <DeploymentLogs leases={leases} selectedLogsMode="events" />}
+            {activeTab === "SHELL" && <DeploymentLeaseShell leases={leases} />}
+            {activeTab === "LEASES" && (
+              <div className="p-4">
+                {leases && (!localCert || !isLocalCertMatching) && (
+                  <div className="mb-4">
+                    <Alert variant="warning">You do not have a valid local certificate. You need to create a new one to view lease status and details.</Alert>
+
+                    <Button className="mt-4" disabled={isCreatingCert} onClick={() => createCertificate()}>
+                      {isCreatingCert ? <Spinner size="medium" /> : "Create Certificate"}
+                    </Button>
+                  </div>
+                )}
+
+                {leases &&
+                  leases.map((lease, i) => (
+                    <LeaseRow
+                      key={lease.id}
+                      lease={lease}
+                      setActiveTab={setActiveTab}
+                      ref={leaseRefs[i]}
+                      deploymentManifest={deploymentManifest}
+                      dseq={dseq}
+                      providers={providers}
+                      loadDeploymentDetail={loadDeploymentDetail}
+                    />
+                  ))}
+
+                {!hasLeases && !isLoadingLeases && !isLoadingDeployment && <>This deployment doesn't have any leases</>}
+
+                {(isLoadingLeases || isLoadingDeployment) && !hasLeases && (
+                  <div className="flex items-center justify-center p-8">
+                    <Spinner size="large" />
+                  </div>
+                )}
+              </div>
+            )}
           </Tabs>
-
-          {activeTab === "EDIT" && deployment && leases && (
-            <ManifestUpdate
-              deployment={deployment}
-              leases={leases}
-              closeManifestEditor={() => {
-                setActiveTab("EVENTS");
-                setSelectedLogsMode("events");
-                loadDeploymentDetail();
-              }}
-            />
-          )}
-          {activeTab === "LOGS" && <DeploymentLogs leases={leases} selectedLogsMode="logs" />}
-          {activeTab === "EVENTS" && <DeploymentLogs leases={leases} selectedLogsMode="events" />}
-          {activeTab === "SHELL" && <DeploymentLeaseShell leases={leases} />}
-          {activeTab === "LEASES" && (
-            <Box padding="1rem">
-              {leases && (!localCert || !isLocalCertMatching) && (
-                <Box marginBottom="1rem">
-                  <Alert severity="warning">You do not have a valid local certificate. You need to create a new one to view lease status and details.</Alert>
-
-                  <Button
-                    variant="contained"
-                    color="secondary"
-                    size="medium"
-                    sx={{ marginTop: "1rem" }}
-                    disabled={isCreatingCert}
-                    onClick={() => createCertificate()}
-                  >
-                    {isCreatingCert ? <CircularProgress size="1.5rem" color="secondary" /> : "Create Certificate"}
-                  </Button>
-                </Box>
-              )}
-
-              {leases &&
-                leases.map((lease, i) => (
-                  <LeaseRow
-                    key={lease.id}
-                    lease={lease}
-                    setActiveTab={setActiveTab}
-                    ref={leaseRefs[i]}
-                    deploymentManifest={deploymentManifest}
-                    dseq={dseq}
-                    providers={providers}
-                    loadDeploymentDetail={loadDeploymentDetail}
-                  />
-                ))}
-
-              {!hasLeases && !isLoadingLeases && !isLoadingDeployment && <>This deployment doesn't have any leases</>}
-
-              {(isLoadingLeases || isLoadingDeployment) && !hasLeases && (
-                <Box textAlign="center" padding="2rem">
-                  <CircularProgress color="secondary" />
-                </Box>
-              )}
-            </Box>
-          )}
         </>
       )}
     </PageContainer>
-    // </Layout>
   );
 }

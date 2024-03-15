@@ -226,10 +226,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     setAnchorEl(ev.currentTarget);
   }
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
   const onSearchChange = event => {
     const value = event.target.value;
     setSearch(value);
