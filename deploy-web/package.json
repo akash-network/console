@@ -42,7 +42,7 @@
     "@stripe/stripe-js": "^1.41.0",
     "@textea/json-viewer": "^3.0.0",
     "auth0": "^4.2.0",
-    "axios": "^1.6.6",
+    "axios": "^1.6.7",
     "chain-registry": "^1.20.0",
     "cosmjs-types": "^0.6.1",
     "date-fns": "^2.29.3",
