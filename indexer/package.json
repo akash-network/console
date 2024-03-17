@@ -27,7 +27,7 @@
     "@cosmjs/stargate": "^0.31.1",
     "@sentry/node": "^7.52.0",
     "async": "^3.2.4",
-    "axios": "^1.6.5",
+    "axios": "^1.6.6",
     "cloudmos-shared": "file:../shared/",
     "cosmjs-types": "^0.8.0",
     "date-fns": "^2.29.2",
