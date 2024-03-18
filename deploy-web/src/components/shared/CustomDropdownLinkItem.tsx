@@ -5,7 +5,7 @@ import { cn } from "@src/utils/styleUtils";
 type Props = {
   icon?: string | React.ReactNode;
   className?: string;
-  onClick: () => any;
+  onClick?: () => any;
 };
 
 export const CustomDropdownLinkItem = React.forwardRef<

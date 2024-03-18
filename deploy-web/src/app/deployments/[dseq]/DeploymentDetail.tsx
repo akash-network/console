@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { createRef, useEffect, useState } from "react";
-import { LOGS_MODE } from "./DeploymentLogs";
+import { DeploymentLogs, LOGS_MODE } from "./DeploymentLogs";
 import { useWallet } from "@src/context/WalletProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
@@ -24,6 +24,7 @@ import { cn } from "@src/utils/styleUtils";
 import { ArrowRight } from "iconoir-react";
 import { ManifestUpdate } from "./ManifestUpdate";
 import { LeaseRow } from "./LeaseRow";
+import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
 
 // const useStyles = makeStyles()(theme => ({
 //   tabsRoot: {

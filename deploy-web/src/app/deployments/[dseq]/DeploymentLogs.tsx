@@ -1,42 +1,50 @@
+"use client";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useThrottledCallback } from "@src/hooks/useThrottle";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useEffect, useRef, useState } from "react";
-import { makeStyles } from "tss-react/mui";
-import { MemoMonaco } from "../../../components/shared/MemoMonaco";
-import { Alert, Box, Button, Checkbox, CircularProgress, FormControlLabel, IconButton, Menu, MenuItem, useMediaQuery, useTheme } from "@mui/material";
 import { LeaseSelect } from "./LeaseSelect";
-import { SelectCheckbox } from "../../../components/shared/SelectCheckbox";
-import { LinearLoadingSkeleton } from "../../../components/shared/LinearLoadingSkeleton";
-import ViewPanel from "../../../components/shared/ViewPanel";
 import useWebSocket from "react-use-websocket";
 import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { LeaseDto } from "@src/types/deployment";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
-import { CustomMenuItem } from "../../../components/shared/CustomMenuItem";
-import DownloadIcon from "@mui/icons-material/Download";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { useMediaQuery } from "usehooks-ts";
+import { breakpoints } from "@src/utils/responsiveUtils";
+import { MemoMonaco } from "@src/components/shared/MemoMonaco";
+import { editor } from "monaco-editor";
+import { Monaco } from "@monaco-editor/react";
+import { SelectCheckbox } from "@src/components/shared/SelectCheckbox";
+import { Button } from "@src/components/ui/button";
+import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
+import ViewPanel from "@src/components/shared/ViewPanel";
+import { Alert } from "@src/components/ui/alert";
+import Spinner from "@src/components/shared/Spinner";
+import { Checkbox } from "@src/components/ui/checkbox";
+import { cn } from "@src/utils/styleUtils";
+import { Download, MoreHoriz } from "iconoir-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@src/components/ui/dropdown-menu";
+import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 
-const useStyles = makeStyles()(theme => ({
-  root: {
-    "& .MuiToggleButton-root": {
-      color: theme.palette.mode === "dark" ? theme.palette.grey[700] : theme.palette.primary.main,
-      "&.Mui-selected": {
-        fontWeight: "bold",
-        color: theme.palette.mode === "dark" ? theme.palette.secondary.main : theme.palette.primary.contrastText,
-        backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.secondary.main
-      }
-    }
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   root: {
+//     "& .MuiToggleButton-root": {
+//       color: theme.palette.mode === "dark" ? theme.palette.grey[700] : theme.palette.primary.main,
+//       "&.Mui-selected": {
+//         fontWeight: "bold",
+//         color: theme.palette.mode === "dark" ? theme.palette.secondary.main : theme.palette.primary.contrastText,
+//         backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.secondary.main
+//       }
+//     }
+//   }
+// }));
 
 export type LOGS_MODE = "logs" | "events";
 
 type Props = {
-  leases: Array<LeaseDto>;
+  leases: Array<LeaseDto> | null | undefined;
   selectedLogsMode: LOGS_MODE;
 };
 
@@ -44,25 +52,25 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [canSetConnection, setCanSetConnection] = useState(false);
   const [isConnectionEstablished, setIsConnectionEstablished] = useState(false);
-  const logs = useRef([]);
+  // TODO Type
+  const logs = useRef<any[]>([]);
   const [logText, setLogText] = useState("");
   const [isDownloadingLogs, setIsDownloadingLogs] = useState(false);
-  const [services, setServices] = useState([]);
-  const [selectedServices, setSelectedServices] = useState([]);
+  const [services, setServices] = useState<string[]>([]);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [stickToBottom, setStickToBottom] = useState(true);
-  const [selectedLease, setSelectedLease] = useState(null);
-  const { classes } = useStyles();
+  const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
   const { data: providers } = useProviderList();
   const { localCert, isLocalCertMatching, isCreatingCert, createCertificate } = useCertificate();
   const { downloadLogs } = useBackgroundTask();
-  const monacoEditorRef = useRef(null);
-  const monacoRef = useRef(null);
+  const monacoEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<Monaco | null>(null);
   const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
   const {
     data: leaseStatus,
     refetch: getLeaseStatus,
     isFetching: isLoadingStatus
-  } = useLeaseStatus(providerInfo?.hostUri, selectedLease || {}, {
+  } = useLeaseStatus(providerInfo?.hostUri || "", selectedLease as LeaseDto, {
     enabled: false
   });
   const { sendJsonMessage } = useWebSocket(PROVIDER_PROXY_URL_WS, {
@@ -77,10 +85,10 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     }
   });
   const [anchorEl, setAnchorEl] = useState(null);
-  const theme = useTheme();
-  const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  // TODO Breakpoints
+  const smallScreen = useMediaQuery(breakpoints.md.mediaQuery);
 
-  function handleEditorDidMount(editor, monaco) {
+  function handleEditorDidMount(editor: editor.IStandaloneCodeEditor, monaco: Monaco) {
     // here is another way to get monaco instance
     // you can also store it in `useRef` for further usage
     monacoEditorRef.current = editor;
@@ -92,7 +100,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       const editor = monacoEditorRef.current;
 
       editor.onDidScrollChange(event => {
-        if (event.scrollTop < event._oldScrollTop) {
+        // TODO Verify
+        if (event.scrollTop < (event as any)._oldScrollTop) {
           setStickToBottom(false);
         }
       });
@@ -138,7 +147,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
 
     logs.current = [];
 
-    let url = null;
+    let url: string | null = null;
     if (selectedLogsMode === "logs") {
       url = `${providerInfo.hostUri}/lease/${selectedLease.dseq}/${selectedLease.gseq}/${selectedLease.oseq}/logs?follow=true&tail=100`;
 
@@ -154,8 +163,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     sendJsonMessage({
       type: "websocket",
       url: url,
-      certPem: localCert.certPem,
-      keyPem: localCert.keyPem
+      certPem: localCert?.certPem,
+      keyPem: localCert?.keyPem
     });
   }, [
     isLocalCertMatching,
@@ -180,7 +189,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       setStickToBottom(true);
     }
 
-    let parsedLog = null;
+    // TODO Type
+    let parsedLog: any = null;
     try {
       parsedLog = JSON.parse(message);
       if (selectedLogsMode === "logs") {
@@ -207,16 +217,16 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       const editor = monacoEditorRef.current;
       const monaco = monacoRef.current;
       // Immediate scroll type, scroll to bottom
-      editor.revealLine(editor.getModel()?.getLineCount(), 1);
+      editor.revealLine(editor.getModel()?.getLineCount() || 0, 1);
       // Clear selection
       editor.setSelection(new monaco.Selection(0, 0, 0, 0));
     }
   }, [logText, stickToBottom]);
 
   function handleLeaseChange(id) {
-    setSelectedLease(leases.find(x => x.id === id));
+    setSelectedLease(leases?.find(x => x.id === id) || null);
 
-    if (id !== selectedLease.id) {
+    if (id !== selectedLease?.id) {
       setLogText("");
       setServices([]);
       setSelectedServices([]);
@@ -235,7 +245,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   };
 
   const onDownloadLogsClick = async () => {
-    if (!isDownloadingLogs) {
+    if (!isDownloadingLogs && providerInfo && selectedLease) {
       setIsDownloadingLogs(true);
       const isLogs = selectedLogsMode === "logs";
       await downloadLogs(providerInfo.hostUri, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, isLogs);
@@ -258,17 +268,17 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   };
 
   return (
-    <div className={classes.root}>
+    <div>
       {isLocalCertMatching ? (
         <>
           {selectedLease && (
             <>
-              <Box display="flex" alignItems="center" padding=".5rem" height="56px">
-                <Box display="flex" alignItems="center">
-                  {leases?.length > 1 && <LeaseSelect leases={leases} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
+              <div className="flex h-[56px] items-center p-2">
+                <div className="flex items-center">
+                  {(leases?.length || 0) > 1 && <LeaseSelect leases={leases} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
 
                   {services?.length > 0 && canSetConnection && (
-                    <Box sx={{ marginLeft: leases?.length > 1 ? ".5rem" : 0 }}>
+                    <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>
                       <SelectCheckbox
                         options={services}
                         onSelectedChange={onSelectedServicesChange}
@@ -276,16 +286,64 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                         disabled={selectedLogsMode !== "logs"}
                         defaultValue={selectedServices}
                       />
-                    </Box>
+                    </div>
                   )}
-                </Box>
+                </div>
 
-                {smallScreen ? (
-                  <Box sx={{ marginLeft: "1rem" }}>
-                    <IconButton aria-label="settings" aria-haspopup="true" onClick={handleMenuClick} size="small">
+                {!smallScreen ? (
+                  <div className="ml-4">
+                    <DropdownMenu modal={false}>
+                      <DropdownMenuTrigger asChild>
+                        <Button onClick={handleMenuClick} size="icon" variant="ghost">
+                          <MoreHoriz />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {/* {isActive && (
+                            <CustomDropdownLinkItem onClick={() => onDepositClicked} icon={<Plus fontSize="small" />}>
+                              Add funds
+                            </CustomDropdownLinkItem>
+                          )}
+                          <CustomDropdownLinkItem onClick={() => changeDeploymentName(deployment.dseq)} icon={<Edit fontSize="small" />}>
+                            Edit name
+                          </CustomDropdownLinkItem>
+                          {storageDeploymentData?.manifest && (
+                            <CustomDropdownLinkItem onClick={() => redeploy()} icon={<Upload fontSize="small" />}>
+                              Redeploy
+                            </CustomDropdownLinkItem>
+                          )}
+                          {isActive && (
+                            <CustomDropdownLinkItem onClick={() => onCloseDeployment()} icon={<XmarkSquare fontSize="small" />}>
+                              Close
+                            </CustomDropdownLinkItem>
+                          )} */}
+                        <CustomDropdownLinkItem>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} id="stick-bottom" />
+                            <label
+                              htmlFor="stick-bottom"
+                              className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                              Stick to bottom
+                            </label>
+                          </div>
+                        </CustomDropdownLinkItem>
+                        {localCert && (
+                          <CustomDropdownLinkItem
+                            onClick={onDownloadLogsClick}
+                            icon={isDownloadingLogs ? <Spinner /> : <Download />}
+                            disabled={isDownloadingLogs}
+                          >
+                            {selectedLogsMode === "logs" ? "Download logs" : "Download events"}
+                          </CustomDropdownLinkItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* <Button aria-label="settings" aria-haspopup="true" onClick={handleMenuClick} size="icon">
                       <MoreHorizIcon fontSize="medium" />
-                    </IconButton>
-
+                    </Button> */}
+                    {/* 
                     <Menu
                       id="long-menu"
                       anchorEl={anchorEl}
@@ -315,36 +373,40 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                           disabled={isDownloadingLogs}
                         />
                       )}
-                    </Menu>
-                  </Box>
+                    </Menu> */}
+                  </div>
                 ) : (
-                  <Box display="flex" alignItems="center" sx={{ marginLeft: "1rem", display: "flex", alignItems: "center" }}>
-                    <FormControlLabel
-                      control={<Checkbox color="secondary" checked={stickToBottom} onChange={ev => setStickToBottom(ev.target.checked)} size="small" />}
+                  <div className="ml-4 flex items-center">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} id="stick-bottom" />
+                      <label
+                        htmlFor="stick-bottom"
+                        className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Stick to bottom
+                      </label>
+                    </div>
+
+                    {/* <FormControlLabel
+                      control={<Checkbox checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} />}
                       label={"Stick to bottom"}
-                    />
+                    /> */}
                     {localCert && (
-                      <Box marginRight="1rem">
-                        <Button onClick={onDownloadLogsClick} variant="contained" size="small" color="secondary" disabled={isDownloadingLogs}>
-                          {isDownloadingLogs ? (
-                            <CircularProgress size="1.5rem" color="secondary" />
-                          ) : selectedLogsMode === "logs" ? (
-                            "Download logs"
-                          ) : (
-                            "Download events"
-                          )}
+                      <div className="ml-4">
+                        <Button onClick={onDownloadLogsClick} variant="default" size="sm" color="secondary" disabled={isDownloadingLogs}>
+                          {isDownloadingLogs ? <Spinner /> : selectedLogsMode === "logs" ? "Download logs" : "Download events"}
                         </Button>
-                      </Box>
+                      </div>
                     )}
-                  </Box>
+                  </div>
                 )}
 
                 {isLoadingStatus && (
-                  <Box marginLeft="1rem">
-                    <CircularProgress size="1rem" color="secondary" />
-                  </Box>
+                  <div className="ml-4">
+                    <Spinner />
+                  </div>
                 )}
-              </Box>
+              </div>
 
               <LinearLoadingSkeleton isLoading={isLoadingLogs} />
 
@@ -361,13 +423,13 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
           )}
         </>
       ) : (
-        <Box sx={{ padding: "1rem" }}>
-          <Alert severity="warning">You need a valid certificate to view deployment logs.</Alert>
+        <div className="p-4">
+          <Alert variant="warning">You need a valid certificate to view deployment logs.</Alert>
 
-          <Button variant="contained" color="secondary" size="medium" sx={{ marginTop: "1rem" }} disabled={isCreatingCert} onClick={() => createCertificate()}>
-            {isCreatingCert ? <CircularProgress size="1.5rem" color="secondary" /> : "Create Certificate"}
+          <Button variant="default" className="mt-4" disabled={isCreatingCert} onClick={() => createCertificate()}>
+            {isCreatingCert ? <Spinner /> : "Create Certificate"}
           </Button>
-        </Box>
+        </div>
       )}
     </div>
   );
