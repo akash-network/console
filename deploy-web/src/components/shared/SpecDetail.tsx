@@ -19,11 +19,11 @@ export function SpecDetail({
   cpuAmount: number;
   memoryAmount: number;
   storageAmount: number;
-  gpuAmount: number;
+  gpuAmount?: number;
   gpuModels?: { vendor: string; model: string }[];
-  color: string;
-  size: "small" | "medium" | "large";
-  gutterSize: "small" | "medium" | "large";
+  color?: string;
+  size?: "small" | "medium" | "large";
+  gutterSize?: "small" | "medium" | "large";
 }>) {
   const memory = bytesToShrink(memoryAmount);
   const storage = bytesToShrink(storageAmount);

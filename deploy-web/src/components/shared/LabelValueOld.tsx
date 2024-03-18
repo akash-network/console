@@ -21,13 +21,14 @@ import { ReactNode } from "react";
 type Props = {
   label: string;
   value?: string | ReactNode;
+  className?: string;
   children?: ReactNode;
 };
 
-export const LabelValueOld: React.FunctionComponent<Props> = ({ label, value, ...rest }) => {
+export const LabelValueOld: React.FunctionComponent<Props> = ({ label, value, className = "" }) => {
   const { theme } = useTheme();
   return (
-    <div className="flex items-center" {...rest}>
+    <div className={cn("flex items-center", className)}>
       <label className={cn("font-bold", { ["text-grey-500"]: theme === "dark" })}>{label}</label>
       {value && <div className="ml-2 flex items-center text-sm">{value}</div>}
     </div>

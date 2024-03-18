@@ -1,44 +1,13 @@
+"use client";
 import React, { SetStateAction, useCallback } from "react";
 import { useEffect, useState } from "react";
-import FileCopyIcon from "@mui/icons-material/FileCopy";
-import LaunchIcon from "@mui/icons-material/Launch";
-import InfoIcon from "@mui/icons-material/Info";
-import CheckIcon from "@mui/icons-material/CheckCircle";
-import { useCertificate } from "../../../context/CertificateProvider";
-import { useSnackbar } from "notistack";
-import { makeStyles } from "tss-react/mui";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  Chip,
-  CircularProgress,
-  IconButton,
-  List,
-  ListItem,
-  ListItemText,
-  Tooltip,
-  Typography,
-  useTheme
-} from "@mui/material";
 import { deploymentData } from "@src/utils/deploymentData";
 import { getGpusFromAttributes, sendManifestToProvider } from "@src/utils/deploymentUtils";
-import { LabelValueOld } from "../../../components/shared/LabelValueOld";
-import { StatusPill } from "../../../components/shared/StatusPill";
-import { LinkTo } from "../../../components/shared/LinkTo";
-import { SpecDetail } from "../../../components/shared/SpecDetail";
-import { PricePerMonth } from "../../../components/shared/PricePerMonth";
-import { PriceEstimateTooltip } from "../../../components/shared/PriceEstimateTooltip";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
-import { FavoriteButton } from "../../../components/shared/FavoriteButton";
-import { AuditorButton } from "../../../components/providers/AuditorButton";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { cx } from "@emotion/css";
 import { getSplitText } from "@src/hooks/useShortText";
@@ -46,54 +15,73 @@ import { ApiProviderList } from "@src/types/provider";
 import { LeaseDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { useBidInfo } from "@src/queries/useBidQuery";
+import { useToast } from "@src/components/ui/use-toast";
+import { useCertificate } from "@src/context/CertificateProvider";
+import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
+import { Card, CardContent } from "@src/components/ui/card";
+import { SpecDetail } from "@src/components/shared/SpecDetail";
+import { LabelValueOld } from "@src/components/shared/LabelValueOld";
+import { PricePerMonth } from "@src/components/shared/PricePerMonth";
+import { PriceEstimateTooltip } from "@src/components/shared/PriceEstimateTooltip";
+import Spinner from "@src/components/shared/Spinner";
+import { FavoriteButton } from "@src/components/shared/FavoriteButton";
+import { AuditorButton } from "@src/components/providers/AuditorButton";
+import { Alert } from "@src/components/ui/alert";
+import { LinkTo } from "@src/components/shared/LinkTo";
+import { Button } from "@src/components/ui/button";
+import { CustomTooltip } from "@src/components/shared/CustomTooltip";
+import { StatusPill } from "@src/components/shared/StatusPill";
+import { cn } from "@src/utils/styleUtils";
+import { Check, Copy, InfoCircle, OpenInWindow } from "iconoir-react";
+import { Badge } from "@src/components/ui/badge";
 
 const yaml = require("js-yaml");
 
-const useStyles = makeStyles()(theme => ({
-  root: {
-    marginBottom: "1rem"
-  },
-  cardHeader: {
-    borderBottom: "1px solid rgba(0,0,0,0.1)",
-    padding: ".5rem 1rem",
-    backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[100]
-  },
-  cardHeaderTitle: {
-    fontSize: "18px"
-  },
-  listItem: {
-    borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`
-  },
-  link: {
-    display: "flex",
-    alignItems: "center"
-  },
-  tooltip: {
-    fontSize: "1rem"
-  },
-  tooltipIcon: {
-    fontSize: "1rem",
-    color: theme.palette.grey[500]
-  },
-  whiteLink: {
-    fontWeight: "bold",
-    color: theme.palette.common.white
-  },
-  marginLeft: {
-    marginLeft: "1rem"
-  },
-  serviceChip: {
-    height: ".875rem",
-    lineHeight: ".875rem",
-    fontSize: ".5rem",
-    fontWeight: "bold"
-  },
-  activeLeaseIcon: {
-    fontSize: "1rem",
-    display: "flex",
-    color: theme.palette.success.dark
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   root: {
+//     marginBottom: "1rem"
+//   },
+//   cardHeader: {
+//     borderBottom: "1px solid rgba(0,0,0,0.1)",
+//     padding: ".5rem 1rem",
+//     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[100]
+//   },
+//   cardHeaderTitle: {
+//     fontSize: "18px"
+//   },
+//   listItem: {
+//     borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`
+//   },
+//   link: {
+//     display: "flex",
+//     alignItems: "center"
+//   },
+//   tooltip: {
+//     fontSize: "1rem"
+//   },
+//   tooltipIcon: {
+//     fontSize: "1rem",
+//     color: theme.palette.grey[500]
+//   },
+//   whiteLink: {
+//     fontWeight: "bold",
+//     color: theme.palette.common.white
+//   },
+//   marginLeft: {
+//     marginLeft: "1rem"
+//   },
+//   serviceChip: {
+//     height: ".875rem",
+//     lineHeight: ".875rem",
+//     fontSize: ".5rem",
+//     fontWeight: "bold"
+//   },
+//   activeLeaseIcon: {
+//     fontSize: "1rem",
+//     display: "flex",
+//     color: theme.palette.success.dark
+//   }
+// }));
 
 type Props = {
   lease: LeaseDto;
@@ -109,7 +97,7 @@ export type AcceptRefType = {
 };
 
 export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActiveTab, deploymentManifest, dseq, providers, loadDeploymentDetail }, ref) => {
-  const { enqueueSnackbar } = useSnackbar();
+  const { toast } = useToast();
   const provider = providers?.find(p => p.owner === lease?.provider);
   const { localCert } = useCertificate();
   const isLeaseActive = lease.state === "active";
@@ -121,7 +109,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
     error,
     refetch: getLeaseStatus,
     isLoading: isLoadingLeaseStatus
-  } = useLeaseStatus(provider?.hostUri, lease, {
+  } = useLeaseStatus(provider?.hostUri || "", lease, {
     enabled: isLeaseActive && !isServicesAvailable && !!provider?.hostUri && !!localCert,
     refetchInterval: 10_000,
     onSuccess: leaseStatus => {
@@ -134,14 +122,12 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
     data: providerStatus,
     isLoading: isLoadingProviderStatus,
     refetch: getProviderStatus
-  } = useProviderStatus(provider?.hostUri, {
+  } = useProviderStatus(provider?.hostUri || "", {
     enabled: false,
     retry: false
   });
   const isLeaseNotFound = error && (error as string).includes && (error as string).includes("lease not found") && isLeaseActive;
   const servicesNames = leaseStatus ? Object.keys(leaseStatus.services) : [];
-  const { classes } = useStyles();
-  const theme = useTheme();
   const [isSendingManifest, setIsSendingManifest] = useState(false);
   const { data: bid } = useBidInfo(lease.owner, lease.dseq, lease.gseq, lease.oseq, lease.provider);
 
@@ -190,13 +176,15 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
       const doc = yaml.load(deploymentManifest);
       const manifest = deploymentData.getManifest(doc, true);
 
-      await sendManifestToProvider(provider, manifest, dseq, localCert);
+      await sendManifestToProvider(provider as ApiProviderList, manifest, dseq, localCert as LocalCert);
 
-      enqueueSnackbar(<Snackbar title="Manifest sent!" iconVariant="success" />, { variant: "success", autoHideDuration: 10_000 });
+      toast({ title: "Manifest sent!", variant: "success" });
+      // enqueueSnackbar(<Snackbar title="Manifest sent!" iconVariant="success" />, { variant: "success", autoHideDuration: 10_000 });
 
       loadDeploymentDetail();
     } catch (err) {
-      enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
+      toast({ title: "Error", description: `Error while sending manifest to provider. ${err}`, variant: "destructive" });
+      // enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
     }
     setIsSendingManifest(false);
   }
@@ -213,48 +201,31 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
   const gpuModels = bid && bid.bid.resources_offer.flatMap(x => getGpusFromAttributes(x.resources.gpu.attributes));
 
   return (
-    <Card className={classes.root} elevation={4}>
-      <CardHeader
-        classes={{ title: classes.cardHeaderTitle, root: classes.cardHeader }}
-        title={
-          <Box display="flex" alignItems="center">
-            <Typography variant="caption" sx={{ display: "inline-flex", alignItems: "center" }}>
-              <span>{lease.state}</span>
-              <StatusPill state={lease.state} size="small" />
+    <Card className="mb-4">
+      <CardContent
+      // classes={{ title: classes.cardHeaderTitle, root: classes.cardHeader }}
+      >
+        <div className="flex items-center">
+          <div className="inline-flex items-center text-sm text-muted-foreground">
+            <span>{lease.state}</span>
+            <StatusPill state={lease.state} size="small" />
 
-              <Box
-                component="span"
-                sx={{
-                  marginLeft: "1rem",
-                  color: theme.palette.mode === "dark" ? theme.palette.grey[500] : theme.palette.primary.main
-                }}
-              >
-                GSEQ:
-              </Box>
-              <Box component="span" sx={{ marginLeft: ".25rem" }}>
-                {lease.gseq}
-              </Box>
+            <span className="ml-4 text-muted-foreground">GSEQ:</span>
+            <span className="ml-1">{lease.gseq}</span>
 
-              <Box component="span" sx={{ marginLeft: "1rem", color: theme.palette.mode === "dark" ? theme.palette.grey[500] : theme.palette.primary.main }}>
-                OSEQ:
-              </Box>
-              <Box component="span" sx={{ marginLeft: ".25rem" }}>
-                {lease.oseq}
-              </Box>
-            </Typography>
+            <span className="ml-4">OSEQ:</span>
+            <span className="ml-1">{lease.oseq}</span>
+          </div>
 
-            {isLeaseActive && (
-              <Box marginLeft="1rem" display="inline-flex">
-                <LinkTo onClick={() => setActiveTab("LOGS")}>View logs</LinkTo>
-              </Box>
-            )}
-          </Box>
-        }
-      />
-      <CardContent>
-        <Box display="flex">
-          <Box>
-            <Box paddingBottom="1rem">
+          {isLeaseActive && (
+            <div className="ml-4 inline-flex">
+              <LinkTo onClick={() => setActiveTab("LOGS")}>View logs</LinkTo>
+            </div>
+          )}
+        </div>
+        <div className="flex">
+          <div>
+            <div className="pb-4">
               <SpecDetail
                 cpuAmount={lease.cpuAmount}
                 gpuAmount={lease.gpuAmount}
@@ -264,67 +235,66 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                 color={isLeaseActive ? "primary" : "default"}
                 size="medium"
               />
-            </Box>
+            </div>
             <LabelValueOld
               label="Price:"
               value={
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <PricePerMonth denom={lease.price.denom} perBlockValue={udenomToDenom(lease.price.amount, 10)} sx={{ fontSize: "1.25rem" }} />
+                <div className="flex items-center">
+                  <PricePerMonth denom={lease.price.denom} perBlockValue={udenomToDenom(lease.price.amount, 10)} className="text-lg" />
                   <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} />
-                </Box>
+                </div>
               }
             />
 
             {isLeaseActive && (
               <LabelValueOld
                 label="Provider:"
+                className="mb-4 mt-1"
                 value={
                   <>
-                    {isLoadingProviderStatus && <CircularProgress size="1rem" color="secondary" />}
+                    {isLoadingProviderStatus && <Spinner />}
                     {providerStatus && (
                       <>
                         <Link href={UrlService.providerDetail(lease.provider)}>
                           {providerStatus.name?.length > 25 ? getSplitText(providerStatus.name, 10, 10) : providerStatus.name}
                         </Link>
 
-                        <Box display="flex" alignItems="center" marginLeft={1}>
+                        <div className="ml-1 flex items-center">
                           <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
 
-                          {provider.isAudited && (
-                            <Box marginLeft=".5rem">
+                          {provider?.isAudited && (
+                            <div className="ml-2">
                               <AuditorButton provider={provider} />
-                            </Box>
+                            </div>
                           )}
-                        </Box>
+                        </div>
                       </>
                     )}
                   </>
                 }
-                marginTop=".25rem"
-                marginBottom="1rem"
               />
             )}
-          </Box>
-        </Box>
+          </div>
+        </div>
 
         {isLeaseNotFound && (
-          <Alert severity="warning">
+          <Alert variant="warning">
             The lease was not found on this provider. This can happen if no manifest was sent to the provider. To send one you can update your deployment in the{" "}
             <LinkTo onClick={handleEditManifestClick}>VIEW / EDIT MANIFEST</LinkTo> tab.
             {deploymentManifest && (
               <>
-                <Box margin="1rem 0">
+                <div className="my-4">
                   <strong>OR</strong>
-                </Box>
-                <Button variant="contained" color="secondary" disabled={isSendingManifest} onClick={sendManifest} size="small">
-                  {isSendingManifest ? <CircularProgress size="1.5rem" color="secondary" /> : <span>Send manifest manually</span>}
+                </div>
+                <Button variant="default" color="secondary" disabled={isSendingManifest} onClick={sendManifest} size="sm">
+                  {isSendingManifest ? <Spinner /> : <span>Send manifest manually</span>}
                 </Button>
               </>
             )}
           </Alert>
         )}
 
-        {!leaseStatus && isLoadingLeaseStatus && <CircularProgress size="1rem" color="secondary" />}
+        {!leaseStatus && isLoadingLeaseStatus && <Spinner />}
 
         {isLeaseActive &&
           leaseStatus &&
@@ -332,186 +302,169 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
           servicesNames
             .map(n => leaseStatus.services[n])
             .map((service, i) => (
-              <Box
-                pb={servicesNames.length === i + 1 ? 0 : 2}
-                mb={servicesNames.length === i + 1 ? 0 : 2}
-                borderBottom={
-                  servicesNames.length === i + 1 ? 0 : `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[700] : theme.palette.grey[300]}`
-                }
+              <div
+                className={cn({ ["mb-2 border-b pb-2"]: servicesNames.length !== i + 1 })}
+                // pb={servicesNames.length === i + 1 ? 0 : 2}
+                // mb={servicesNames.length === i + 1 ? 0 : 2}
+                // borderBottom={
+                //   servicesNames.length === i + 1 ? 0 : `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[700] : theme.palette.grey[300]}`
+                // }
                 key={`${service.name}_${i}`}
               >
-                <Box display="flex" alignItems="center">
-                  <LabelValueOld label="Group:" value={service.name} fontSize="1rem" />
+                <div className="flex items-center">
+                  <LabelValueOld label="Group:" value={service.name} className="text-lg" />
                   {isLoadingLeaseStatus || !isServicesAvailable ? (
-                    <Box display="inline-flex" marginLeft="1rem">
-                      <CircularProgress size="1rem" color="secondary" />
-                    </Box>
+                    <div className="ml-4 inline-flex">
+                      <Spinner />
+                    </div>
                   ) : (
-                    <Box display="inline-flex" marginLeft=".5rem">
-                      <Tooltip
-                        classes={{ tooltip: classes.tooltip }}
-                        arrow
+                    <div className="ml-2 inline-flex">
+                      <CustomTooltip
                         title={
                           <>
                             Workloads can take some time to spin up. If you see an error when browsing the uri, it is recommended to refresh and wait a bit.
                             Check the{" "}
-                            <LinkTo onClick={() => setActiveTab("LOGS")} className={classes.whiteLink}>
+                            <LinkTo onClick={() => setActiveTab("LOGS")} className="text-white">
                               logs
                             </LinkTo>{" "}
                             for more information.
                           </>
                         }
                       >
-                        <InfoIcon className={classes.tooltipIcon} fontSize="small" />
-                      </Tooltip>
-                    </Box>
+                        <InfoCircle className="ml-2 text-xs text-muted-foreground" fontSize="small" />
+                      </CustomTooltip>
+                    </div>
                   )}
 
                   {isServicesAvailable && (
-                    <Box marginLeft=".5rem">
-                      <CheckIcon className={classes.activeLeaseIcon} />
-                    </Box>
+                    <div className="ml-2">
+                      <Check className="text-lg text-green-600" />
+                    </div>
                   )}
-                </Box>
+                </div>
 
-                <Box
-                  display="flex"
-                  alignItems="center"
-                  mb={service.uris?.length > 0 || (leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0) ? "1rem" : 0}
+                <div
+                  className={cn("flex items-center", {
+                    ["mb-4"]: service.uris?.length > 0 || (leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0)
+                  })}
+                  // display="flex"
+                  // alignItems="center"
+                  // mb={service.uris?.length > 0 || (leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0) ? "1rem" : 0}
                 >
-                  <Box display="flex" alignItems="center">
-                    <Typography variant="caption">Available:&nbsp;</Typography>
-                    <Chip label={service.available} size="small" color="default" className={classes.serviceChip} />
-                  </Box>
-                  <Box display="flex" alignItems="center">
-                    <Typography variant="caption" className={classes.marginLeft}>
-                      Ready Replicas:&nbsp;
-                    </Typography>
-                    <Chip label={service.ready_replicas} size="small" color="default" className={classes.serviceChip} />
-                  </Box>
-                  <Box display="flex" alignItems="center">
-                    <Typography variant="caption" className={classes.marginLeft}>
-                      Total:&nbsp;
-                    </Typography>
-                    <Chip label={service.total} size="small" color="default" className={classes.serviceChip} />
-                  </Box>
-                </Box>
+                  <div className="flex items-center">
+                    <span className="text-xs text-muted-foreground">Available:&nbsp;</span>
+                    <Badge color="default" className="text-xs leading-3">
+                      {service.available}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="ml-4 text-xs text-muted-foreground">Ready Replicas:&nbsp;</span>
+                    <Badge className="text-xs leading-3">{service.ready_replicas}</Badge>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="ml-4 text-xs text-muted-foreground">Total:&nbsp;</span>
+                    <Badge className="text-xs leading-3">{service.total}</Badge>
+                  </div>
+                </div>
 
                 {leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0 && (
-                  <Box marginTop=".5rem" mb={service.uris?.length > 0 ? "1rem" : 0}>
+                  <div
+                    className={cn("mt-2", { ["mb-4"]: service.uris?.length > 0 })}
+                    // mb={service.uris?.length > 0 ? "1rem" : 0}
+                  >
                     <LabelValueOld
                       label="Forwarded Ports:"
                       value={leaseStatus.forwarded_ports[service.name].map(p => (
-                        <Box key={"port_" + p.externalPort} display="inline" mr={0.5}>
+                        <div key={"port_" + p.externalPort} className="mr-2 inline">
                           {p.host ? (
-                            <LinkTo label={``} disabled={p.available < 1} onClick={ev => handleExternalUrlClick(ev, `${p.host}:${p.externalPort}`)}>
+                            <LinkTo disabled={p.available < 1} onClick={ev => handleExternalUrlClick(ev, `${p.host}:${p.externalPort}`)}>
                               {p.port}:{p.externalPort}
                             </LinkTo>
                           ) : (
                             <>
-                              <Chip label={`${p.port}:${p.externalPort}`} size="small" />
+                              <Badge>{`${p.port}:${p.externalPort}`}</Badge>
                             </>
                           )}
-                        </Box>
+                        </div>
                       ))}
                     />
-                  </Box>
+                  </div>
                 )}
 
                 {service.uris?.length > 0 && (
                   <>
-                    <Box marginTop=".5rem">
+                    <div className="mt-2">
                       <LabelValueOld label="URI(s):" />
-                      <List dense>
+                      <ul className="space-y-4">
                         {service.uris.map(uri => {
                           return (
-                            <ListItem key={uri} dense sx={{ padding: ".2rem 0" }}>
-                              <ListItemText
-                                primary={
-                                  <Box display="flex" alignItems="center">
-                                    <LinkTo className={cx(classes.link, "text-truncate")} onClick={ev => handleExternalUrlClick(ev, uri)}>
-                                      {uri} <LaunchIcon fontSize="small" />
-                                    </LinkTo>
-                                    &nbsp;&nbsp;
-                                    <IconButton
-                                      edge="end"
-                                      aria-label="uri"
-                                      size="small"
-                                      onClick={ev => {
-                                        copyTextToClipboard(uri);
-                                        enqueueSnackbar(<Snackbar title="Uri copied to clipboard!" iconVariant="success" />, {
-                                          variant: "success",
-                                          autoHideDuration: 2000
-                                        });
-                                      }}
-                                    >
-                                      <FileCopyIcon fontSize="small" />
-                                    </IconButton>
-                                  </Box>
-                                }
-                              />
-                            </ListItem>
+                            <li className="flex items-center py-1" key={uri}>
+                              <LinkTo className="flex items-center truncate" onClick={ev => handleExternalUrlClick(ev, uri)}>
+                                {uri} <OpenInWindow />
+                              </LinkTo>
+                              &nbsp;&nbsp;
+                              <Button
+                                aria-label="uri"
+                                size="icon"
+                                variant="ghost"
+                                onClick={ev => {
+                                  copyTextToClipboard(uri);
+                                  toast({ title: "Uri copied to clipboard!", variant: "success" });
+                                }}
+                              >
+                                <Copy />
+                              </Button>
+                            </li>
                           );
                         })}
-                      </List>
-                    </Box>
+                      </ul>
+                    </div>
                   </>
                 )}
-              </Box>
+              </div>
             ))}
 
         {isLeaseActive && leaseStatus && leaseStatus.ips && (
-          <Box marginTop=".5rem">
+          <div className="mt-2">
             <LabelValueOld label="IP(s):" />
-            <List dense>
+            <ul>
               {servicesNames
                 .map(n => leaseStatus.ips[n])
                 .map((ips, i) => {
                   return ips?.map((ip, ii) => (
-                    <ListItem key={`${ip.IP}${ip.ExternalPort}`}>
-                      <ListItemText
-                        primary={
-                          <Box display="flex" alignItems="center">
-                            <LinkTo className={classes.link} onClick={ev => handleExternalUrlClick(ev, ip.IP)}>
-                              {ip.IP}:{ip.ExternalPort} <LaunchIcon fontSize="small" />
-                            </LinkTo>
-                            &nbsp;&nbsp;
-                            <Tooltip
-                              classes={{ tooltip: classes.tooltip }}
-                              arrow
-                              title={
-                                <>
-                                  <div>IP:&nbsp;{ip.IP}</div>
-                                  <div>External Port:&nbsp;{ip.ExternalPort}</div>
-                                  <div>Port:&nbsp;{ip.Port}</div>
-                                  <div>Protocol:&nbsp;{ip.Protocol}</div>
-                                </>
-                              }
-                            >
-                              <InfoIcon className={classes.tooltipIcon} fontSize="small" />
-                            </Tooltip>
-                            &nbsp;&nbsp;
-                            <IconButton
-                              edge="end"
-                              size="small"
-                              onClick={ev => {
-                                copyTextToClipboard(ip.IP);
-                                enqueueSnackbar(<Snackbar title="Ip copied to clipboard!" iconVariant="success" />, {
-                                  variant: "success",
-                                  autoHideDuration: 2000
-                                });
-                              }}
-                            >
-                              <FileCopyIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
+                    <li key={`${ip.IP}${ip.ExternalPort}`} className="flex items-center">
+                      <LinkTo className="flex items-center" onClick={ev => handleExternalUrlClick(ev, ip.IP)}>
+                        {ip.IP}:{ip.ExternalPort} <OpenInWindow />
+                      </LinkTo>
+                      &nbsp;&nbsp;
+                      <CustomTooltip
+                        title={
+                          <>
+                            <div>IP:&nbsp;{ip.IP}</div>
+                            <div>External Port:&nbsp;{ip.ExternalPort}</div>
+                            <div>Port:&nbsp;{ip.Port}</div>
+                            <div>Protocol:&nbsp;{ip.Protocol}</div>
+                          </>
                         }
-                      />
-                    </ListItem>
+                      >
+                        <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                      </CustomTooltip>
+                      &nbsp;&nbsp;
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={ev => {
+                          copyTextToClipboard(ip.IP);
+                          toast({ title: "IP copied to clipboard!", variant: "success" });
+                        }}
+                      >
+                        <Copy />
+                      </Button>
+                    </li>
                   ));
                 })}
-            </List>
-          </Box>
+            </ul>
+          </div>
         )}
       </CardContent>
     </Card>

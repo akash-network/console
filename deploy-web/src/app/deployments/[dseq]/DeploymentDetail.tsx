@@ -23,6 +23,7 @@ import Spinner from "@src/components/shared/Spinner";
 import { cn } from "@src/utils/styleUtils";
 import { ArrowRight } from "iconoir-react";
 import { ManifestUpdate } from "./ManifestUpdate";
+import { LeaseRow } from "./LeaseRow";
 
 // const useStyles = makeStyles()(theme => ({
 //   tabsRoot: {
@@ -233,9 +234,9 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
                       lease={lease}
                       setActiveTab={setActiveTab}
                       ref={leaseRefs[i]}
-                      deploymentManifest={deploymentManifest}
+                      deploymentManifest={deploymentManifest || ""}
                       dseq={dseq}
-                      providers={providers}
+                      providers={providers || []}
                       loadDeploymentDetail={loadDeploymentDetail}
                     />
                   ))}
