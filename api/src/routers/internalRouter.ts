@@ -1,13 +1,17 @@
-import { Block } from "@shared/dbSchemas";
-import { Lease, Provider } from "@shared/dbSchemas/akash";
+import { MsgCreateBid } from "@akashnetwork/akashjs/build/protobuf/akash/market/v1beta4/bid";
+import { Block, Message } from "@shared/dbSchemas";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
+import { AkashMessage, Bid, Deployment, Lease, Provider } from "@shared/dbSchemas/akash";
+import { Day } from "@shared/dbSchemas/base";
 import { chainDb } from "@src/db/dbConnection";
 import { GpuVendor, ProviderConfigGpusType } from "@src/types/gpu";
 import { isValidBech32Address } from "@src/utils/addresses";
 import { getGpuInterface } from "@src/utils/gpu";
+import { averageBlockCountInAMonth } from "@src/utils/constants";
 import { round } from "@src/utils/math";
 import axios from "axios";
-import { differenceInSeconds } from "date-fns";
+import { decodeMsg, uint8arrayToString } from "@src/utils/protobuf";
+import { addDays, differenceInSeconds } from "date-fns";
 import { Hono } from "hono";
 import * as semver from "semver";
 import { Op, QueryTypes } from "sequelize";
@@ -282,3 +286,100 @@ internalRouter.get("gpu-models", async (c) => {
 
   return c.json(gpuModels);
 });
+
+internalRouter.get("gpu-prices", async (c) => {
+  console.time("gpu prices");
+  const bids = await AkashMessage.findAll({
+    attributes: ["data", "height"],
+    where: {
+      type: "/akash.market.v1beta4.MsgCreateBid"
+    },
+    include: [
+      {
+        model: Block,
+        required: true,
+        attributes: ["height"],
+        where: {
+          datetime: { [Op.gte]: addDays(new Date(), -30) }
+        },
+        include: [{ model: Day, required: true, attributes: ["aktPrice"] }]
+      }
+    ]
+  });
+
+  const decodedBids = bids.map((x) => ({
+    height: x.height,
+    aktPrice: x.block.day.aktPrice,
+    data: decodeMsg("/akash.market.v1beta4.MsgCreateBid", x.data) as MsgCreateBid
+  }));
+
+  const gpuBids = decodedBids.map((x) => ({
+    price: parseFloat(x.data.price.amount), //x.price.amount + x.price.denom, TODO handle usdc
+    provider: x.data.provider,
+    height: x.height,
+    aktPrice: x.aktPrice,
+    gpus: x.data.resourcesOffer
+      .filter((x) => parseInt(uint8arrayToString(x.resources.gpu.units.val)) > 0)
+      .flatMap((r) => getGpusFromAttributes(r.resources.gpu.attributes))
+  }));
+
+  const gpuModels: {
+    vendor: string;
+    model: string;
+    ram?: string;
+    interface?: string;
+    prices: { price: number; provider: string; height: number }[];
+  }[] = [];
+
+  for (const bid of gpuBids.filter((x) => x.gpus.length === 1)) {
+    const gpu = bid.gpus[0];
+    let gpuModel = gpuModels.find((x) => x.vendor === gpu.vendor && x.model === gpu.model);
+
+    if (!gpuModel) {
+      gpuModel = {
+        vendor: gpu.vendor,
+        model: gpu.model,
+        //ram: gpu.ram,
+        //interface: gpu.interface,
+        prices: []
+      };
+      gpuModels.push(gpuModel);
+    }
+
+    gpuModel.prices.push({ price: blockPriceToMonthlyPrice(bid.price, bid.aktPrice), provider: bid.provider, height: bid.height });
+  }
+
+  console.timeEnd("gpu prices");
+
+  return c.json(
+    gpuModels.map((x) => {
+      const sortedPrices = x.prices.map((x) => x.price).sort((a, b) => a - b);
+      return {
+        model: x.model,
+        ram: x.ram,
+        price: {
+          min: Math.min(...x.prices.map((x) => x.price)),
+          max: Math.max(...x.prices.map((x) => x.price)),
+          avg: round(x.prices.map((x) => x.price).reduce((a, b) => a + b, 0) / x.prices.length, 2),
+          med: sortedPrices[Math.floor(x.prices.length / 2)]
+        }
+        //prices: x.prices.filter((x) => x.price === 0)
+      };
+    })
+  );
+});
+
+export function getGpusFromAttributes(attributes: { key: string; value: string }[]) {
+  return attributes
+    .filter((attr) => attr.key.startsWith("vendor/") && attr.value === "true")
+    .map((attr) => {
+      const modelKey = attr.key.split("/");
+
+      // vendor/nvidia/model/h100 -> nvidia,h100
+      return { vendor: modelKey[1], model: modelKey[3] };
+    });
+}
+
+function blockPriceToMonthlyPrice(uaktPerBlock: number, aktPrice: number) {
+  return round((averageBlockCountInAMonth * uaktPerBlock * aktPrice) / 1_000_000, 2);
+}

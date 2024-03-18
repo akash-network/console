@@ -27,7 +27,7 @@ if (!csMap[env.Network]) {
 pgDefaults.parseInt8 = true;
 export const chainDb = new Sequelize(csMap[env.Network], {
   dialect: "postgres",
-  logging: false,
+  logging: true,
   transactionType: DbTransaction.TYPES.IMMEDIATE,
   define: {
     timestamps: false,
