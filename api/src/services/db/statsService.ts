@@ -75,12 +75,34 @@ export const getDashboardData = async () => {
   };
 };
 
-export async function getGraphData(dataName: string): Promise<GraphData> {
+export const AuthorizedGraphDataNames = [
+  "dailyUAktSpent",
+  "dailyUUsdcSpent",
+  "dailyUUsdSpent",
+  "dailyLeaseCount",
+  "totalUAktSpent",
+  "totalUUsdcSpent",
+  "totalUUsdSpent",
+  "activeLeaseCount",
+  "totalLeaseCount",
+  "activeCPU",
+  "activeGPU",
+  "activeMemory",
+  "activeStorage"
+] as const;
+
+type AuthorizedGraphDataName = (typeof AuthorizedGraphDataNames)[number];
+
+export function isValidGraphDataName(x: any): x is AuthorizedGraphDataName {
+  return AuthorizedGraphDataNames.includes(x);
+}
+
+export async function getGraphData(dataName: AuthorizedGraphDataName): Promise<GraphData> {
   console.log("getGraphData: " + dataName);
 
-  let attributes = [dataName];
+  let attributes: (keyof Block)[] = [];
   let isRelative = false;
-  let getter = (block: Block) => block[dataName] as number;
+  let getter: (block: Block) => number = null;
 
   switch (dataName) {
     case "dailyUAktSpent":
@@ -107,6 +129,9 @@ export async function getGraphData(dataName: string): Promise<GraphData> {
       attributes = ["activeEphemeralStorage", "activePersistentStorage"];
       getter = (block: Block) => block.activeEphemeralStorage + block.activePersistentStorage;
       break;
+    default:
+      attributes = [dataName];
+      getter = (block: Block) => block[dataName];
   }
 
   const result = await Day.findAll({
@@ -158,7 +183,7 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
     60 * 5, // 5 minutes
     cacheKeys.getProviderGraphData,
     async () => {
-      return (await chainDb.query(
+      return await chainDb.query<ProviderStats>(
         `SELECT d."date", (SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU")) AS "cpu", (SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU")) AS "gpu", (SUM("activeMemory") + SUM("pendingMemory") + SUM("availableMemory")) AS memory, (SUM("activeStorage") + SUM("pendingStorage") + SUM("availableStorage")) as storage, COUNT(*) as count
          FROM "day" d
          INNER JOIN (
@@ -174,7 +199,7 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
         {
           type: QueryTypes.SELECT
         }
-      )) as ProviderStats[];
+      );
     },
     true
   );
@@ -183,12 +208,15 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
     return {
       currentValue: 0,
       compareValue: 0,
-      snapshots: []
+      snapshots: [] as {
+        date: string;
+        value: number;
+      }[]
     };
   }
 
-  const currentValue = result[result.length - 1] as ProviderStats;
-  const compareValue = result[result.length - 2] as ProviderStats;
+  const currentValue = result[result.length - 1];
+  const compareValue = result[result.length - 2];
 
   const stats = result.map((day) => ({
     date: day.date,

@@ -104,7 +104,7 @@ export async function saveTemplateDesc(id: string, userId: string, description: 
   });
 
   if (!id || !template) {
-    return null;
+    return;
   }
 
   template.description = description;
@@ -140,7 +140,7 @@ export async function addTemplateFavorite(userId: string, templateId: string) {
   });
 
   if (template) {
-    return null;
+    return;
   }
 
   await TemplateFavorite.create({

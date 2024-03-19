@@ -6,7 +6,7 @@ import { chainModels, getChainModels, userModels } from "@shared/dbSchemas";
 import { Template, TemplateFavorite, UserAddressName, UserSetting } from "@shared/dbSchemas/user";
 import { chainDefinitions } from "@shared/chainDefinitions";
 
-const csMap = {
+const csMap: { [key: string]: string } = {
   mainnet: env.AkashDatabaseCS,
   testnet: env.AkashTestnetDatabaseCS,
   sandbox: env.AkashSandboxDatabaseCS

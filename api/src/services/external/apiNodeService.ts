@@ -23,8 +23,14 @@ import {
   RestCosmosStakingDelegatorsRedelegationsResponse
 } from "@src/types/rest";
 import { Block } from "@shared/dbSchemas";
+import { CosmosDistributionCommunityPoolResponse } from "@src/types/rest/cosmosDistributionCommunityPoolResponse";
+import { CosmosStakingPoolResponse } from "@src/types/rest/cosmosStakingPoolResponse";
+import { CosmosBankSupplyResponse } from "@src/types/rest/cosmosBankSupplyResponse";
+import { CosmosMintInflationResponse } from "@src/types/rest/cosmosMintInflationResponse";
+import { CosmosDistributionParamsResponse } from "@src/types/rest/cosmosDistributionParamsResponse";
+import { CosmosDistributionValidatorsCommissionResponse } from "@src/types/rest/cosmosDistributionValidatorsCommissionResponse";
 
-const defaultNodeUrlMapping = {
+const defaultNodeUrlMapping: { [key: string]: string } = {
   mainnet: "https://rest.cosmos.directory/akash",
   sandbox: "https://api.sandbox-01.aksh.pw",
   testnet: "https://api.testnet-02.aksh.pw"
@@ -39,11 +45,11 @@ export async function getChainStats() {
     60 * 5, // 5 minutes
     cacheKeys.getChainStats,
     async () => {
-      const bondedTokensQuery = axios.get(`${apiNodeUrl}/cosmos/staking/v1beta1/pool`);
-      const supplyQuery = axios.get(`${apiNodeUrl}/cosmos/bank/v1beta1/supply`);
-      const communityPoolQuery = axios.get(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
-      const inflationQuery = axios.get(`${apiNodeUrl}/cosmos/mint/v1beta1/inflation`);
-      const distributionQuery = axios.get(`${apiNodeUrl}/cosmos/distribution/v1beta1/params`);
+      const bondedTokensQuery = axios.get<CosmosStakingPoolResponse>(`${apiNodeUrl}/cosmos/staking/v1beta1/pool`);
+      const supplyQuery = axios.get<CosmosBankSupplyResponse>(`${apiNodeUrl}/cosmos/bank/v1beta1/supply`);
+      const communityPoolQuery = axios.get<CosmosDistributionCommunityPoolResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
+      const inflationQuery = axios.get<CosmosMintInflationResponse>(`${apiNodeUrl}/cosmos/mint/v1beta1/inflation`);
+      const distributionQuery = axios.get<CosmosDistributionParamsResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/params`);
 
       const [bondedTokensResponse, supplyResponse, communityPoolResponse, inflationResponse, distributionResponse] = await Promise.all([
         bondedTokensQuery,
@@ -95,9 +101,10 @@ export async function getAddressBalance(address: string) {
   let commission = 0;
 
   if (validatorFromDb?.operatorAddress) {
-    const commissionQuery = await fetch(`${apiNodeUrl}/cosmos/distribution/v1beta1/validators/${validatorFromDb?.operatorAddress}/commission`);
-    const commissionData = await commissionQuery.json();
-    const coin = commissionData.commission.commission.find((x) => x.denom === "uakt");
+    const commissionData = await axios.get<CosmosDistributionValidatorsCommissionResponse>(
+      `${apiNodeUrl}/cosmos/distribution/v1beta1/validators/${validatorFromDb.operatorAddress}/commission`
+    );
+    const coin = commissionData.data.commission.commission.find((x) => x.denom === "uakt");
     commission = coin ? parseFloat(coin.amount) : 0;
   }
 
@@ -272,18 +279,18 @@ export async function getProposal(id: number) {
   try {
     const { data } = await axios.get<CosmosGovProposalResponse>(`${apiNodeUrl}/cosmos/gov/v1beta1/proposals/${id}`);
 
-    const proposer = null; // TODO: Fix
-    if (id > 3) {
-      // const proposerResponse = await fetch(`${apiNodeUrl}/gov/proposals/${id}/proposer`);
-      // const proposerData = await proposerResponse.json();
-      // const validatorFromDb = await Validator.findOne({ where: { accountAddress: proposerData.result.proposer } });
-      // proposer = {
-      //   address: proposer,
-      //   moniker: validatorFromDb?.moniker,
-      //   operatorAddress: validatorFromDb?.operatorAddress,
-      //   avatarUrl: validatorFromDb?.keybaseAvatarUrl
-      // };
-    }
+    // const proposer = null; // TODO: Fix
+    // if (id > 3) {
+    //   const proposerResponse = await fetch(`${apiNodeUrl}/gov/proposals/${id}/proposer`);
+    //   const proposerData = await proposerResponse.json();
+    //   const validatorFromDb = await Validator.findOne({ where: { accountAddress: proposerData.result.proposer } });
+    //   proposer = {
+    //     address: proposer,
+    //     moniker: validatorFromDb?.moniker,
+    //     operatorAddress: validatorFromDb?.operatorAddress,
+    //     avatarUrl: validatorFromDb?.keybaseAvatarUrl
+    //   };
+    // }
 
     let tally = null;
 
@@ -314,7 +321,7 @@ export async function getProposal(id: number) {
       votingStartTime: data.proposal.voting_start_time,
       votingEndTime: data.proposal.voting_end_time,
       totalDeposit: parseInt(data.proposal.total_deposit[0].amount),
-      proposer: proposer,
+      //proposer: proposer,
       tally: { ...tally, total: tally.yes + tally.abstain + tally.no + tally.noWithVeto },
       paramChanges: (data.proposal.content.changes || []).map((change) => ({
         subspace: change.subspace,
