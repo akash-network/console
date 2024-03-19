@@ -19,23 +19,16 @@ interface MemoizeOptions {
 export const Memoize = (options?: MemoizeOptions) => (target: object, propertyName: string, descriptor: PropertyDescriptor) => {
   const originalMethod = descriptor.value;
 
-  const cacheKeySymbol = options?.key || `${target.constructor.name}#${propertyName}`;
+  const cacheKey = options?.key || `${target.constructor.name}#${propertyName}`;
 
   descriptor.value = async function memoizedFunction(...args: unknown[]) {
-    return await cacheResponse(
-      options?.ttlInSeconds || 60 * 2,
-      cacheKeySymbol,
-      originalMethod.bind(this, ...args),
-      options?.keepData
-    );
-  }
-}
-
+    return await cacheResponse(options?.ttlInSeconds || 60 * 2, cacheKey, originalMethod.bind(this, ...args), options?.keepData);
+  };
+};
 
 export async function cacheResponse<T>(seconds: number, key: string, refreshRequest: () => Promise<T>, keepData?: boolean): Promise<T> {
   const duration = seconds * 1000;
   const cachedObject = cacheEngine.getFromCache(key) as CachedObject<T> | undefined;
-
   console.log(`Cache key: ${key}`);
 
   // If first time or expired, must refresh data if not already refreshing
@@ -83,5 +76,5 @@ export const cacheKeys = {
   getMainnetVersion: "getMainnetVersion",
   getTestnetVersion: "getTestnetVersion",
   getSandboxVersion: "getSandboxVersion",
-  getGpuModels: "getGpuModels",
+  getGpuModels: "getGpuModels"
 };
