@@ -75,7 +75,22 @@ export const getDashboardData = async () => {
   };
 };
 
-export const AuthorizedGraphDataNames = [
+type AuthorizedGraphDataName =
+  | "dailyUAktSpent"
+  | "dailyUUsdcSpent"
+  | "dailyUUsdSpent"
+  | "dailyLeaseCount"
+  | "totalUAktSpent"
+  | "totalUUsdcSpent"
+  | "totalUUsdSpent"
+  | "activeLeaseCount"
+  | "totalLeaseCount"
+  | "activeCPU"
+  | "activeGPU"
+  | "activeMemory"
+  | "activeStorage";
+
+export const AuthorizedGraphDataNames: AuthorizedGraphDataName[] = [
   "dailyUAktSpent",
   "dailyUUsdcSpent",
   "dailyUUsdSpent",
@@ -89,9 +104,7 @@ export const AuthorizedGraphDataNames = [
   "activeGPU",
   "activeMemory",
   "activeStorage"
-] as const;
-
-type AuthorizedGraphDataName = (typeof AuthorizedGraphDataNames)[number];
+];
 
 export function isValidGraphDataName(x: string): x is AuthorizedGraphDataName {
   return AuthorizedGraphDataNames.includes(x as AuthorizedGraphDataName);

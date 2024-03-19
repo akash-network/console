@@ -7,7 +7,7 @@ const route = createRoute({
   tags: ["Analytics"],
   request: {
     params: z.object({
-      dataName: z.string().openapi({ example: "dailyUAktSpent", enum: Array.from(AuthorizedGraphDataNames) })
+      dataName: z.string().openapi({ example: "dailyUAktSpent", enum: AuthorizedGraphDataNames })
     })
   },
   responses: {

@@ -23,8 +23,7 @@ import {
   ProviderSnapshotNodeGPU
 } from "@shared/dbSchemas/akash";
 import { AkashBlock as Block, AkashMessage as Message } from "@shared/dbSchemas/akash";
-import { Op, Transaction as DbTransaction, QueryTypes } from "sequelize";
-import { sequelize } from "@src/db/dbConnection";
+import { Op, Transaction as DbTransaction } from "sequelize";
 
 class ITotalResources {
   count: number;
