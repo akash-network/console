@@ -1,9 +1,7 @@
+"use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useCertificate } from "../../../context/CertificateProvider";
 import { LeaseSelect } from "./LeaseSelect";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
-import { Alert, Box, Button, CircularProgress } from "@mui/material";
-import ViewPanel from "../../../components/shared/ViewPanel";
 import { ServiceSelect } from "./ServiceSelect";
 import { ShellDownloadModal } from "./ShellDownloadModal";
 import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
@@ -14,11 +12,11 @@ import { useCustomWebSocket } from "@src/hooks/useCustomWebSocket";
 import { LeaseDto } from "@src/types/deployment";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import Link from "next/link";
-import LaunchIcon from "@mui/icons-material/Launch";
 import { UrlService } from "@src/utils/urlUtils";
+import { useCertificate } from "@src/context/CertificateProvider";
 
 type Props = {
-  leases: LeaseDto[];
+  leases: LeaseDto[] | null | undefined;
 };
 
 export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases }) => {
@@ -26,9 +24,9 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const [isConnectionEstablished, setIsConnectionEstablished] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isConnectionClosed, setIsConnectionClosed] = useState(false);
-  const [services, setServices] = useState([]);
-  const [selectedService, setSelectedService] = useState(null);
-  const [selectedLease, setSelectedLease] = useState<LeaseDto>(null);
+  const [services, setServices] = useState<string[]>([]);
+  const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
   const [isShowingDownloadModal, setIsShowingDownloadModal] = useState(false);
   const [isChangingSocket, setIsChangingSocket] = useState(false);
   const [showArrowAndTabWarning, setShowArrowAndTabWarning] = useState(false);
@@ -39,10 +37,10 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
     data: leaseStatus,
     refetch: getLeaseStatus,
     isFetching: isLoadingStatus
-  } = useLeaseStatus(providerInfo?.hostUri, selectedLease, {
+  } = useLeaseStatus(providerInfo?.hostUri || "", selectedLease as LeaseDto, {
     enabled: false
   });
-  const currentUrl = useRef(null);
+  const currentUrl = useRef<string | null>(null);
   const terminalRef = useRef<XTermRefType>(null);
   const { sendJsonMessage } = useCustomWebSocket(PROVIDER_PROXY_URL_WS, {
     onOpen: () => {
