@@ -10,6 +10,28 @@ interface CachedObject<T> {
   data: T;
 }
 
+interface MemoizeOptions {
+  keepData?: boolean;
+  ttlInSeconds?: number;
+  key?: string;
+}
+
+export const Memoize = (options?: MemoizeOptions) => (target: object, propertyName: string, descriptor: PropertyDescriptor) => {
+  const originalMethod = descriptor.value;
+
+  const cacheKeySymbol = options?.key || `${target.constructor.name}#${propertyName}`;
+
+  descriptor.value = async function memoizedFunction(...args: unknown[]) {
+    return await cacheResponse(
+      options?.ttlInSeconds || 60 * 2,
+      cacheKeySymbol,
+      originalMethod.bind(this, ...args),
+      options?.keepData
+    );
+  }
+}
+
+
 export async function cacheResponse<T>(seconds: number, key: string, refreshRequest: () => Promise<T>, keepData?: boolean): Promise<T> {
   const duration = seconds * 1000;
   const cachedObject = cacheEngine.getFromCache(key) as CachedObject<T> | undefined;
