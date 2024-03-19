@@ -5,13 +5,13 @@ export default class MemoryCacheEngine {
    * Used to retrieve data from memcache
    * @param {*} key
    */
-  getFromCache = (key: string) => {
+  getFromCache(key: string) {
     const cachedBody = mcache.get(key);
     if (cachedBody) {
       return cachedBody;
     }
     return false;
-  };
+  }
 
   /**
    * Used to store data in a memcache
@@ -19,20 +19,20 @@ export default class MemoryCacheEngine {
    * @param {*} data
    * @param {*} duration
    */
-  storeInCache = (key: string, data: any, duration?: number) => {
+  storeInCache<T>(key: string, data: T, duration?: number) {
     mcache.put(key, data, duration);
-  };
+  }
   /**
    * Used to delete all keys in a memcache
    */
-  clearAllKeyInCache = () => {
+  clearAllKeyInCache() {
     mcache.clear();
-  };
+  }
   /**
    * Used to  delete specific key from memcache
    * @param {*} key
    */
-  clearKeyInCache = (key: string) => {
+  clearKeyInCache(key: string) {
     mcache.del(key);
-  };
+  }
 }

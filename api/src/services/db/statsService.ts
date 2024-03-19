@@ -93,8 +93,8 @@ export const AuthorizedGraphDataNames = [
 
 type AuthorizedGraphDataName = (typeof AuthorizedGraphDataNames)[number];
 
-export function isValidGraphDataName(x: any): x is AuthorizedGraphDataName {
-  return AuthorizedGraphDataNames.includes(x);
+export function isValidGraphDataName(x: string): x is AuthorizedGraphDataName {
+  return AuthorizedGraphDataNames.includes(x as AuthorizedGraphDataName);
 }
 
 export async function getGraphData(dataName: AuthorizedGraphDataName): Promise<GraphData> {
