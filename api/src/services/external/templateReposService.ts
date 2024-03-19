@@ -50,7 +50,6 @@ type TemplateSource = {
   logoUrl?: string;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getTemplatesFromRepo(
   octokit: Octokit,
   repoOwner: string,
