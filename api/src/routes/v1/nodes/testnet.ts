@@ -1,6 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { cacheKeys, cacheResponse } from "@src/caching/helpers";
-import axios from "axios";
+import { nodeClient } from '@src/routes/v1/nodes/node-client';
 
 const route = createRoute({
   method: "get",
@@ -26,11 +25,5 @@ const route = createRoute({
 });
 
 export default new OpenAPIHono().openapi(route, async (c) => {
-  const response = await cacheResponse(60 * 2, cacheKeys.getTestnetNodes, async () => {
-    const res = await axios.get<{ id: string; api: string; rpc: string }[]>(
-      "https://raw.githubusercontent.com/akash-network/cloudmos/main/config/testnet-nodes.json"
-    );
-    return res.data;
-  });
-  return c.json(response);
+  return c.json(await nodeClient.getTestnetNodes());
 });
