@@ -98,7 +98,7 @@ export async function getTransactionByAddress(address: string, skip: number, lim
     where: { address: address }
   });
 
-  const txIdsQuery = chainDb.query(
+  const txIdsQuery = chainDb.query<{ transactionId: string }>(
     `SELECT "transactionId" FROM (
           SELECT DISTINCT ON(af."transactionId") *
           FROM "addressReference" af
@@ -117,7 +117,7 @@ export async function getTransactionByAddress(address: string, skip: number, lim
 
   const txs = await Transaction.findAll({
     include: [{ model: Block, required: true }, { model: Message }, { model: AddressReference, required: true, where: { address: address } }],
-    where: { id: txIds.map((x) => x["transactionId"]) },
+    where: { id: txIds.map((x) => x.transactionId) },
     order: [
       ["height", "DESC"],
       ["index", "DESC"]

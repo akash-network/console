@@ -94,18 +94,18 @@ export const getProviderAttributeValue = (
 
   switch (providerAttributeSchema[key].type) {
     case "string":
-      values =
+      return (
         provider.providerAttributes
           .filter((x) => x.key === _key)
           .map((x) => x.value)
-          .join(",") || null;
-      return values;
+          .join(",") || null
+      );
     case "number":
       values =
         provider.providerAttributes
           .filter((x) => x.key === _key)
           .map((x) => x.value)
-          .join(",") || 0;
+          .join(",") || "0";
       return parseFloat(values);
     case "boolean":
       values =

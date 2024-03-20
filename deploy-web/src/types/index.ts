@@ -4,7 +4,6 @@ export * from "./transaction";
 export * from "./coin";
 export * from "./address";
 export * from "./snapshots";
-export * from "./proposal";
 export * from "./sdlBuilder";
 export * from "./billing";
 export * from "./templates";

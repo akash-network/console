@@ -1,6 +1,6 @@
 import { Octokit } from "@octokit/rest";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
-import { ProviderAttributesSchema } from "@src/types/provider";
+import { Auditor, ProviderAttributesSchema } from "@src/types/provider";
 import { env } from "@src/utils/env";
 import axios from "axios";
 
@@ -23,7 +23,7 @@ export const getProviderAttributesSchema = async (): Promise<ProviderAttributesS
   const response = await cacheResponse(
     30,
     cacheKeys.getProviderAttributesSchema,
-    async () => await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/provider-attributes.json")
+    async () => await axios.get<ProviderAttributesSchema>("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/provider-attributes.json")
   );
 
   return response.data;
@@ -31,7 +31,7 @@ export const getProviderAttributesSchema = async (): Promise<ProviderAttributesS
 
 export async function getAuditors() {
   const response = await cacheResponse(60 * 5, cacheKeys.getAuditors, async () => {
-    const res = await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/auditors.json");
+    const res = await axios.get<Auditor[]>("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/auditors.json");
     return res.data;
   });
 

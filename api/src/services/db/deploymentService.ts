@@ -3,7 +3,7 @@ import * as v2 from "@src/proto/akash/v1beta2";
 import { decodeMsg } from "@src/utils/protobuf";
 import { Transaction } from "@shared/dbSchemas/base";
 import { Deployment, Lease } from "@shared/dbSchemas/akash";
-import { Op } from "sequelize";
+import { Op, WhereOptions } from "sequelize";
 import { Block, Message } from "@shared/dbSchemas";
 
 export async function getDeploymentRelatedMessages(owner: string, dseq: string) {
@@ -71,9 +71,9 @@ export async function getDeploymentRelatedMessages(owner: string, dseq: string) 
 }
 
 export async function getProviderDeploymentsCount(provider: string, status?: "active" | "closed") {
-  const leaseFilter = { providerAddress: provider };
+  const leaseFilter: WhereOptions<Lease> = { providerAddress: provider };
   if (status) {
-    leaseFilter["closedHeight"] = status === "active" ? null : { [Op.ne]: null };
+    leaseFilter.closedHeight = status === "active" ? null : { [Op.ne]: null };
   }
 
   const result = await Deployment.count({
@@ -84,10 +84,10 @@ export async function getProviderDeploymentsCount(provider: string, status?: "ac
 }
 
 export async function getProviderDeployments(provider: string, skip: number, limit: number, status?: "active" | "closed") {
-  const leaseFilter = { providerAddress: provider };
+  const leaseFilter: WhereOptions<Lease> = { providerAddress: provider };
 
   if (status) {
-    leaseFilter["closedHeight"] = status === "active" ? null : { [Op.ne]: null };
+    leaseFilter.closedHeight = status === "active" ? null : { [Op.ne]: null };
   }
 
   const deploymentDseqs = await Deployment.findAll({

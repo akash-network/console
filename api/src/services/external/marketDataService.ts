@@ -1,3 +1,4 @@
+import { CoinGeckoCoinsResponse } from "@src/types/coingeckoCoinsResponse";
 import axios from "axios";
 
 interface AktMarketData {
@@ -13,14 +14,14 @@ export async function getMarketData(): Promise<AktMarketData> {
   const endpointUrl = "https://api.coingecko.com/api/v3/coins/akash-network";
   // TODO USDC https://api.coingecko.com/api/v3/coins/usd-coin
   console.log("Fetching latest market data from " + endpointUrl);
-  const response = await axios.get(endpointUrl);
+  const response = await axios.get<CoinGeckoCoinsResponse>(endpointUrl);
 
   return {
-    price: parseFloat(response.data.market_data.current_price.usd),
-    volume: parseInt(response.data.market_data.total_volume.usd),
-    marketCap: parseInt(response.data.market_data.market_cap.usd),
+    price: response.data.market_data.current_price.usd,
+    volume: response.data.market_data.total_volume.usd,
+    marketCap: response.data.market_data.market_cap.usd,
     marketCapRank: response.data.market_cap_rank,
-    priceChange24h: parseFloat(response.data.market_data.price_change_24h),
-    priceChangePercentage24: parseFloat(response.data.market_data.price_change_percentage_24h)
+    priceChange24h: response.data.market_data.price_change_24h,
+    priceChangePercentage24: response.data.market_data.price_change_percentage_24h
   };
 }

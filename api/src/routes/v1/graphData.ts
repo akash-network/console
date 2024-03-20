@@ -1,21 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { getGraphData } from "@src/services/db/statsService";
-
-const authorizedDataNames = [
-  "dailyUAktSpent",
-  "dailyUUsdcSpent",
-  "dailyUUsdSpent",
-  "dailyLeaseCount",
-  "totalUAktSpent",
-  "totalUUsdcSpent",
-  "totalUUsdSpent",
-  "activeLeaseCount",
-  "totalLeaseCount",
-  "activeCPU",
-  "activeGPU",
-  "activeMemory",
-  "activeStorage"
-];
+import { AuthorizedGraphDataNames, getGraphData, isValidGraphDataName } from "@src/services/db/statsService";
 
 const route = createRoute({
   method: "get",
@@ -23,7 +7,7 @@ const route = createRoute({
   tags: ["Analytics"],
   request: {
     params: z.object({
-      dataName: z.string().openapi({ example: "dailyUAktSpent", enum: authorizedDataNames })
+      dataName: z.string().openapi({ example: "dailyUAktSpent", enum: AuthorizedGraphDataNames })
     })
   },
   responses: {
@@ -53,9 +37,9 @@ const route = createRoute({
 export default new OpenAPIHono().openapi(route, async (c) => {
   const dataName = c.req.valid("param").dataName;
 
-  if (!authorizedDataNames.includes(dataName)) {
+  if (!isValidGraphDataName(dataName)) {
     console.log("Rejected graph request: " + dataName);
-    return c.text("Graph not found", 404);
+    return c.text("Graph not found: " + dataName, 404);
   }
 
   const graphData = await getGraphData(dataName);
