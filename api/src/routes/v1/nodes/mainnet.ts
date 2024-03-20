@@ -27,7 +27,9 @@ const route = createRoute({
 
 export default new OpenAPIHono().openapi(route, async (c) => {
   const response = await cacheResponse(60 * 2, cacheKeys.getMainnetNodes, async () => {
-    const res = await axios.get("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/mainnet-nodes.json"); //TODO: Add typing
+    const res = await axios.get<{ id: string; api: string; rpc: string }[]>(
+      "https://raw.githubusercontent.com/akash-network/cloudmos/main/config/mainnet-nodes.json"
+    );
     return res.data;
   });
   return c.json(response);

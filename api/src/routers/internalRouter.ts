@@ -46,10 +46,13 @@ internalRouter.get("/provider-versions", async (c) => {
     .filter((x) => x.version !== nullVersionName) // Remove <UNKNOWN> version for sorting
     .sort((a, b) => semver.compare(b.version, a.version))
     .concat(results.filter((x) => x.version === nullVersionName)) // Add back <UNKNOWN> version at the end
-    .reduce((acc, x) => {
-      acc[x.version] = x;
-      return acc;
-    }, {});
+    .reduce(
+      (acc, x) => {
+        acc[x.version] = x;
+        return acc;
+      },
+      {} as { [key: string]: (typeof results)[number] }
+    );
 
   return c.json(sorted);
 });

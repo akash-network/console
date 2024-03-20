@@ -18,7 +18,7 @@ const route = createRoute({
 
 export default new OpenAPIHono().openapi(route, async (c) => {
   const response = await cacheResponse(60 * 5, cacheKeys.getTestnetVersion, async () => {
-    const res = await axios.get("https://raw.githubusercontent.com/akash-network/net/master/testnet-02/version.txt");
+    const res = await axios.get<string>("https://raw.githubusercontent.com/akash-network/net/master/testnet-02/version.txt");
     return res.data;
   });
   return c.text(response);

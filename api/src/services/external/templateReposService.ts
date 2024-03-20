@@ -1,18 +1,18 @@
 import fetch from "node-fetch";
-import { markdownToTxt } from "markdown-to-txt";
 import path from "path";
+import { markdownToTxt } from "markdown-to-txt";
 import { getOctokit } from "./githubService";
 import { isUrlAbsolute } from "@src/utils/urls";
-import * as fs from "fs";
 import { Octokit } from "@octokit/rest";
 import { dataFolderPath } from "@src/utils/constants";
 import { GithubChainRegistryChainResponse } from "@src/types";
 import { GithubDirectoryItem } from "@src/types/github";
 import { getLogoFromPath } from "@src/utils/templateReposLogos";
+import * as fs from "fs";
 
-const generatingTasks = {};
-let lastServedData = null;
-let githubRequestsRemaining = null;
+const generatingTasks: { [key: string]: Promise<Category[]> } = {};
+let lastServedData: FinalCategory[] | null = null;
+let githubRequestsRemaining: string | null = null;
 
 if (!fs.existsSync(dataFolderPath)) {
   fs.mkdirSync(dataFolderPath);
@@ -21,16 +21,16 @@ if (!fs.existsSync(dataFolderPath)) {
 type Category = {
   title: string;
   description?: string;
+  templateSources: TemplateSource[];
   templates: Template[];
 };
+
+type FinalCategory = Omit<Category, "templateSources">;
 
 type Template = {
   id?: string;
   name: string;
   path: string;
-  repoOwner?: string;
-  repoName?: string;
-  repoVersion?: string;
   readme?: string;
   summary: string;
   logoUrl: string;
@@ -40,8 +40,22 @@ type Template = {
   persistentStorageEnabled?: boolean;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getTemplatesFromRepo(octokit: Octokit, repoOwner: string, repoName: string, fetcher: (ocktokit: Octokit, version: string) => Promise<any>) {
+type TemplateSource = {
+  name: string;
+  path: string;
+  repoOwner: string;
+  repoName: string;
+  repoVersion: string;
+  summary?: string;
+  logoUrl?: string;
+};
+
+async function getTemplatesFromRepo(
+  octokit: Octokit,
+  repoOwner: string,
+  repoName: string,
+  fetcher: (ocktokit: Octokit, version: string) => Promise<Category[]>
+) {
   const repoVersion = await fetchRepoVersion(octokit, repoOwner, repoName);
   const cacheFilePath = `${dataFolderPath}/templates/${repoOwner}-${repoName}-${repoVersion}.json`;
 
@@ -93,7 +107,9 @@ export const getTemplateGallery = async () => {
       linuxServerTemplatesTask
     ]);
 
-    const templateGallery = mergeTemplateCategories(omnibusTemplates, awesomeAkashTemplates, linuxServerTemplates);
+    const templateGallery = mergeTemplateCategories(omnibusTemplates, awesomeAkashTemplates, linuxServerTemplates).map(
+      ({ templateSources, ...category }) => category
+    );
 
     lastServedData = templateGallery;
 
@@ -145,7 +161,7 @@ async function fetchOmnibusTemplates(octokit: Octokit, repoVersion: string) {
   if (!Array.isArray(response.data)) throw "Could not fetch list of files from akash-network/cosmos-omnibus";
 
   const folders = response.data.filter((f) => f.type === "dir" && !f.name.startsWith(".") && !f.name.startsWith("_"));
-  const templates = folders.map((x) => ({
+  const templateSources: TemplateSource[] = folders.map((x) => ({
     name: x.name,
     path: x.path,
     logoUrl: null,
@@ -156,18 +172,18 @@ async function fetchOmnibusTemplates(octokit: Octokit, repoVersion: string) {
     repoVersion: repoVersion
   }));
 
-  for (const template of templates) {
+  for (const templateSource of templateSources) {
     try {
-      const chainResponse = await fetch(`https://raw.githubusercontent.com/cosmos/chain-registry/master/${template.path}/chain.json`);
+      const chainResponse = await fetch(`https://raw.githubusercontent.com/cosmos/chain-registry/master/${templateSource.path}/chain.json`);
 
-      if (chainResponse.status !== 200) throw "Could not fetch chain.json for " + template.path;
+      if (chainResponse.status !== 200) throw "Could not fetch chain.json for " + templateSource.path;
 
       const chainData = (await chainResponse.json()) as GithubChainRegistryChainResponse;
-      template.name = chainData.pretty_name;
-      template.summary = chainData.description ?? template.summary;
-      template.logoUrl = Object.values(chainData.logo_URIs ?? {})[0];
+      templateSource.name = chainData.pretty_name;
+      templateSource.summary = chainData.description ?? templateSource.summary;
+      templateSource.logoUrl = Object.values(chainData.logo_URIs ?? {})[0];
     } catch (err) {
-      console.log("Could not fetch chain for", template.path);
+      console.log("Could not fetch chain for", templateSource.path);
       console.error(err);
     }
   }
@@ -175,7 +191,8 @@ async function fetchOmnibusTemplates(octokit: Octokit, repoVersion: string) {
   const categories: Category[] = [
     {
       title: "Blockchain",
-      templates: templates
+      templateSources: templateSources,
+      templates: []
     }
   ];
 
@@ -204,7 +221,7 @@ async function fetchAwesomeAkashTemplates(octokit: Octokit, repoVersion: string)
   const categoryRegex = /### (.+)\n*([\w ]+)?\n*((?:- \[(?:.+)]\((?:.+)\)\n?)*)/gm;
   const templateRegex = /(- \[(.+)]\((.+)\)\n?)/gm;
 
-  const categories = [];
+  const categories: Category[] = [];
 
   // Looping through categories
   const matches = data.matchAll(categoryRegex);
@@ -219,11 +236,11 @@ async function fetchAwesomeAkashTemplates(octokit: Octokit, repoVersion: string)
     }
 
     // Extracting templates
-    const templates = [];
+    const templateSources: TemplateSource[] = [];
     if (templatesStr) {
       const templateMatches = templatesStr.matchAll(templateRegex);
       for (const templateMatch of templateMatches) {
-        templates.push({
+        templateSources.push({
           name: templateMatch[2],
           path: templateMatch[3],
           repoOwner: "akash-network",
@@ -236,7 +253,8 @@ async function fetchAwesomeAkashTemplates(octokit: Octokit, repoVersion: string)
     categories.push({
       title: title,
       description: description,
-      templates: templates
+      templateSources: templateSources,
+      templates: []
     });
   }
 
@@ -265,7 +283,7 @@ async function fetchLinuxServerTemplates(octokit: Octokit, repoVersion: string) 
   const categoryRegex = /### (.+)\n*([\w ]+)?\n*((?:- \[(?:.+)]\((?:.+)\)\n?)*)/gm;
   const templateRegex = /(- \[(.+)]\((.+)\)\n?)/gm;
 
-  const categories = [];
+  const categories: Category[] = [];
 
   // Looping through categories
   const matches = data.matchAll(categoryRegex);
@@ -280,11 +298,11 @@ async function fetchLinuxServerTemplates(octokit: Octokit, repoVersion: string) 
     }
 
     // Extracting templates
-    const templates = [];
+    const templatesSources: TemplateSource[] = [];
     if (templatesStr) {
       const templateMatches = templatesStr.matchAll(templateRegex);
       for (const templateMatch of templateMatches) {
-        templates.push({
+        templatesSources.push({
           name: templateMatch[2],
           path: templateMatch[3],
           repoOwner: "cryptoandcoffee",
@@ -297,7 +315,8 @@ async function fetchLinuxServerTemplates(octokit: Octokit, repoVersion: string) 
     categories.push({
       title: title,
       description: description,
-      templates: templates
+      templateSources: templatesSources,
+      templates: []
     });
   }
 
@@ -306,19 +325,19 @@ async function fetchLinuxServerTemplates(octokit: Octokit, repoVersion: string) 
 
 export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories: Category[]) {
   for (const category of categories) {
-    for (const template of category.templates) {
+    for (const templateSource of category.templateSources) {
       try {
         // Ignoring templates that are not in the awesome-akash repo
-        if (template.path.startsWith("http:") || template.path.startsWith("https:")) {
+        if (templateSource.path.startsWith("http:") || templateSource.path.startsWith("https:")) {
           throw "Absolute URL";
         }
 
         // Fetching file list in template folder
         const response = await octokit.rest.repos.getContent({
-          repo: template.repoName,
-          owner: template.repoOwner,
-          ref: template.repoVersion,
-          path: template.path,
+          repo: templateSource.repoName,
+          owner: templateSource.repoOwner,
+          ref: templateSource.repoVersion,
+          path: templateSource.path,
           mediaType: {
             format: "raw"
           }
@@ -337,6 +356,7 @@ export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories
           "container is not meant for public consumption",
           "Not for public consumption"
         ];
+
         if (ignoreList.map((x) => x.toLowerCase()).some((x) => readme.toLowerCase().includes(x))) {
           continue;
         }
@@ -344,7 +364,14 @@ export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories
         const deploy = await findFileContentAsync(["deploy.yaml", "deploy.yml"], response.data);
         const guide = await findFileContentAsync("GUIDE.md", response.data);
 
-        template.readme = removeComments(replaceLinks(readme, template.repoOwner, template.repoName, template.repoVersion, template.path));
+        const template: Template = {
+          name: templateSource.name,
+          path: templateSource.path,
+          logoUrl: templateSource.logoUrl,
+          summary: templateSource.summary
+        };
+
+        template.readme = removeComments(replaceLinks(readme, templateSource.repoOwner, templateSource.repoName, templateSource.repoVersion, template.path));
 
         if (template.readme.startsWith("undefined")) {
           template.readme = template.readme.substring("undefined".length);
@@ -353,7 +380,7 @@ export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories
         template.deploy = deploy;
         template.persistentStorageEnabled = deploy && (deploy.includes("persistent: true") || deploy.includes("persistent:true"));
         template.guide = guide;
-        template.githubUrl = `https://github.com/${template.repoOwner}/${template.repoName}/blob/${template.repoVersion}/${template.path}`;
+        template.githubUrl = `https://github.com/${templateSource.repoOwner}/${templateSource.repoName}/blob/${templateSource.repoVersion}/${templateSource.path}`;
 
         if (!template.logoUrl) {
           template.logoUrl = getLogoFromPath(template.path);
@@ -363,16 +390,14 @@ export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories
           template.summary = getLinuxServerTemplateSummary(readme);
         }
 
-        template.id = `${template.repoOwner}-${template.repoName}-${template.path}`;
+        template.id = `${templateSource.repoOwner}-${templateSource.repoName}-${templateSource.path}`;
         template.path = template.id; // For compatibility with old deploy tool versions (TODO: remove in future)
 
-        delete template.repoOwner;
-        delete template.repoName;
-        delete template.repoVersion;
+        category.templates.push(template);
 
         console.log(category.title + " - " + template.name);
       } catch (err) {
-        console.warn(`Skipped ${template.name} because of error: ${err.message || err}`);
+        console.warn(`Skipped ${templateSource.name} because of error: ${err.message || err}`);
       }
     }
   }
@@ -390,19 +415,19 @@ export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories
 
 export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[]) {
   for (const category of categories) {
-    for (const template of category.templates) {
+    for (const templateSource of category.templateSources) {
       try {
         // Ignoring templates that are not in the awesome-akash repo
-        if (template.path.startsWith("http:") || template.path.startsWith("https:")) {
+        if (templateSource.path.startsWith("http:") || templateSource.path.startsWith("https:")) {
           throw "Absolute URL";
         }
 
         // Fetching file list in template folder
         const response = await octokit.rest.repos.getContent({
-          repo: template.repoName,
-          owner: template.repoOwner,
-          ref: template.repoVersion,
-          path: template.path,
+          repo: templateSource.repoName,
+          owner: templateSource.repoOwner,
+          ref: templateSource.repoVersion,
+          path: templateSource.path,
           mediaType: {
             format: "raw"
           }
@@ -416,11 +441,18 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
         const deploy = await findFileContentAsync(["deploy.yaml", "deploy.yml"], response.data);
         const guide = await findFileContentAsync("GUIDE.md", response.data);
 
-        template.readme = readme && replaceLinks(readme, template.repoOwner, template.repoName, template.repoVersion, template.path);
+        const template: Template = {
+          name: templateSource.name,
+          path: templateSource.path,
+          logoUrl: templateSource.logoUrl,
+          summary: templateSource.summary
+        };
+
+        template.readme = readme && replaceLinks(readme, templateSource.repoOwner, templateSource.repoName, templateSource.repoVersion, templateSource.path);
         template.deploy = deploy;
         template.persistentStorageEnabled = deploy && (deploy.includes("persistent: true") || deploy.includes("persistent:true"));
         template.guide = guide;
-        template.githubUrl = `https://github.com/${template.repoOwner}/${template.repoName}/blob/${template.repoVersion}/${template.path}`;
+        template.githubUrl = `https://github.com/${templateSource.repoOwner}/${templateSource.repoName}/blob/${templateSource.repoVersion}/${templateSource.path}`;
 
         if (!template.logoUrl) {
           template.logoUrl = getLogoFromPath(template.path);
@@ -430,16 +462,14 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
           template.summary = getTemplateSummary(readme);
         }
 
-        template.id = `${template.repoOwner}-${template.repoName}-${template.path}`;
+        template.id = `${templateSource.repoOwner}-${templateSource.repoName}-${templateSource.path}`;
         template.path = template.id; // For compatibility with old deploy tool versions (TODO: remove in future)
 
-        delete template.repoOwner;
-        delete template.repoName;
-        delete template.repoVersion;
+        category.templates.push(template);
 
         console.log(category.title + " - " + template.name);
       } catch (err) {
-        console.warn(`Skipped ${template.name} because of error: ${err.message || err}`);
+        console.warn(`Skipped ${templateSource.name} because of error: ${err.message || err}`);
       }
     }
   }

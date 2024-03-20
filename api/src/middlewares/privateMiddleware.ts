@@ -1,7 +1,7 @@
 import { env } from "@src/utils/env";
-import { Context } from "hono";
+import { Context, Next } from "hono";
 
-export async function privateMiddleware(c: Context, next) {
+export async function privateMiddleware(c: Context, next: Next) {
   if (!env.SecretToken) {
     await next();
   } else if (c.req.query("token") === env.SecretToken) {
