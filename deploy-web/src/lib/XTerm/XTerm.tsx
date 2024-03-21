@@ -1,10 +1,12 @@
+"use client";
 import "xterm/css/xterm.css";
 import { Terminal, ITerminalOptions, ITerminalAddon } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import { Ref, useEffect, useRef } from "react";
 import React from "react";
-import { Box, useTheme } from "@mui/material";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
+import { useTheme } from "next-themes";
+import { cn } from "@src/utils/styleUtils";
 
 export interface IProps {
   /**
@@ -120,22 +122,22 @@ export type XTermRefType = {
 };
 
 const XTerm: React.FunctionComponent<IProps> = props => {
-  const theme = useTheme();
+  const { theme } = useTheme();
   /**
    * The ref for the containing element.
    */
-  const terminalEleRef = useRef<HTMLDivElement>(null);
+  const terminalEleRef = useRef<HTMLDivElement | null>(null);
   /**
    * XTerm.js Terminal object.
    */
-  const terminalRef = useRef<Terminal>(null);
+  const terminalRef = useRef<Terminal | null>(null);
 
   React.useImperativeHandle(props.customRef, () => ({
-    write: (data: string | Uint8Array, callback?: () => void) => terminalRef.current.write(data, callback),
-    loadAddon: (addon: ITerminalAddon) => terminalRef.current.loadAddon(addon),
-    clear: () => terminalRef.current.clear(),
-    reset: () => terminalRef.current.reset(),
-    focus: () => terminalRef.current.focus()
+    write: (data: string | Uint8Array, callback?: () => void) => terminalRef.current?.write(data, callback),
+    loadAddon: (addon: ITerminalAddon) => terminalRef.current?.loadAddon(addon),
+    clear: () => terminalRef.current?.clear(),
+    reset: () => terminalRef.current?.reset(),
+    focus: () => terminalRef.current?.focus()
     // TODO more commands
   }));
 
@@ -144,13 +146,13 @@ const XTerm: React.FunctionComponent<IProps> = props => {
     terminalRef.current = new Terminal({
       ...props.options,
       theme: {
-        background: theme.palette.mode === "dark" ? "#1e1e1e" : "white",
-        foreground: theme.palette.mode === "dark" ? "white" : "black",
-        cursor: theme.palette.mode === "dark" ? "white" : "black",
-        cursorAccent: theme.palette.mode === "dark" ? "#1e1e1e" : "white",
-        selectionBackground: theme.palette.mode === "dark" ? "white" : "black",
-        selectionForeground: theme.palette.mode === "dark" ? "black" : "white",
-        selectionInactiveBackground: theme.palette.mode === "dark" ? "white" : "black"
+        background: theme === "dark" ? "#1e1e1e" : "white",
+        foreground: theme === "dark" ? "white" : "black",
+        cursor: theme === "dark" ? "white" : "black",
+        cursorAccent: theme === "dark" ? "#1e1e1e" : "white",
+        selectionBackground: theme === "dark" ? "white" : "black",
+        selectionForeground: theme === "dark" ? "black" : "white",
+        selectionInactiveBackground: theme === "dark" ? "white" : "black"
       },
       cursorBlink: true
     });
@@ -160,9 +162,7 @@ const XTerm: React.FunctionComponent<IProps> = props => {
       if ((keyEvent.ctrlKey || keyEvent.metaKey) && keyEvent.code === "KeyV" && keyEvent.type === "keydown") {
         if (props.onTerminalPaste) {
           navigator.clipboard.readText().then(
-            value => {
-              props.onTerminalPaste(value);
-            },
+            value => props.onTerminalPaste && props.onTerminalPaste(value),
             err => {
               console.error("Async: Could not read text from clipboard: ", err);
             }
@@ -172,7 +172,7 @@ const XTerm: React.FunctionComponent<IProps> = props => {
 
       // Handle pasting with ctrl or cmd + c
       if ((keyEvent.ctrlKey || keyEvent.metaKey) && keyEvent.code === "KeyC" && keyEvent.type === "keydown") {
-        const selection = terminalRef.current.getSelection();
+        const selection = terminalRef.current?.getSelection();
         if (selection) {
           copyTextToClipboard(selection);
           return false;
@@ -187,7 +187,7 @@ const XTerm: React.FunctionComponent<IProps> = props => {
     // Load addons if the prop exists.
     if (props.addons) {
       props.addons.forEach(addon => {
-        terminalRef.current.loadAddon(addon);
+        terminalRef.current?.loadAddon(addon);
       });
     }
 
@@ -209,13 +209,13 @@ const XTerm: React.FunctionComponent<IProps> = props => {
     }
 
     // Open terminal
-    terminalRef.current.open(terminalEleRef.current);
+    terminalRef.current.open(terminalEleRef.current as HTMLDivElement);
 
     fitAddon.fit();
 
     return () => {
       // When the component unmounts dispose of the terminal and all of its listeners.
-      terminalRef.current.dispose();
+      terminalRef.current?.dispose();
     };
   }, []);
 
@@ -259,7 +259,13 @@ const XTerm: React.FunctionComponent<IProps> = props => {
     if (props.onTitleChange) props.onTitleChange(newTitle);
   };
 
-  return <Box sx={{ height: "100%", "& .terminal": { height: "100%" } }} className={props.className} ref={terminalEleRef} />;
+  return (
+    <div
+      // sx={{ height: "100%", "& .terminal": { height: "100%" } }}
+      className={cn(props.className, "h-full [&>.terminal]:h-full")}
+      ref={terminalEleRef}
+    />
+  );
 };
 
 export default XTerm;

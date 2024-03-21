@@ -14,6 +14,12 @@ import { useProviderList } from "@src/queries/useProvidersQuery";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { useCertificate } from "@src/context/CertificateProvider";
+import ViewPanel from "@src/components/shared/ViewPanel";
+import { Alert } from "@src/components/ui/alert";
+import { Button } from "@src/components/ui/button";
+import Spinner from "@src/components/shared/Spinner";
+import { OpenInWindow, OpenNewWindow } from "iconoir-react";
+import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   leases: LeaseDto[] | null | undefined;
@@ -90,11 +96,11 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
     sendJsonMessage({
       type: "websocket",
       url: url,
-      certPem: localCert.certPem,
-      keyPem: localCert.keyPem
+      certPem: localCert?.certPem,
+      keyPem: localCert?.keyPem
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providerInfo, isLocalCertMatching, selectedLease, selectedService, localCert.certPem, localCert.keyPem, isConnectionEstablished]);
+  }, [providerInfo, isLocalCertMatching, selectedLease, selectedService, localCert?.certPem, localCert?.keyPem, isConnectionEstablished]);
 
   function onCommandResponseReceived(event: MessageEvent<any>) {
     const jsonData = JSON.parse(event.data);
@@ -120,16 +126,16 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
       if (exitCode === undefined) {
         if (!isConnectionEstablished) {
           // Welcome message
-          terminalRef.current.reset();
-          terminalRef.current.write("Welcome to Cloudmos Shell! ☁️");
-          terminalRef.current.write("\n\r");
-          terminalRef.current.write("You're now connected just as ssh to your docker instance.");
-          terminalRef.current.write("\n\r");
-          terminalRef.current.write("\n\r");
-          terminalRef.current.focus();
+          terminalRef.current?.reset();
+          terminalRef.current?.write("Welcome to Cloudmos Shell! ☁️");
+          terminalRef.current?.write("\n\r");
+          terminalRef.current?.write("You're now connected just as ssh to your docker instance.");
+          terminalRef.current?.write("\n\r");
+          terminalRef.current?.write("\n\r");
+          terminalRef.current?.focus();
         }
 
-        terminalRef.current.write(parsedData);
+        terminalRef.current?.write(parsedData);
 
         // Reset state
         setIsConnectionEstablished(true);
@@ -141,7 +147,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
 
     if (error) {
       console.log(error);
-      terminalRef.current.write(error);
+      terminalRef.current?.write(error);
       setIsLoadingData(false);
     }
 
@@ -196,11 +202,11 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   );
 
   function handleLeaseChange(id: string) {
-    setSelectedLease(leases.find(x => x.id === id));
+    setSelectedLease(leases?.find(x => x.id === id) || null);
 
-    if (id !== selectedLease.id) {
+    if (id !== selectedLease?.id) {
       // Clear terminal
-      terminalRef.current.reset();
+      terminalRef.current?.reset();
 
       setIsChangingSocket(true);
       setServices([]);
@@ -215,7 +221,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
 
     if (value !== selectedService) {
       // Clear terminal
-      terminalRef.current.reset();
+      terminalRef.current?.reset();
 
       setIsChangingSocket(true);
       setIsConnectionEstablished(false);
@@ -241,57 +247,50 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
         <>
           {selectedLease && (
             <>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  padding: ".5rem",
-                  height: "56px"
-                }}
-              >
-                <Box display="flex" alignItems="center">
-                  {leases?.length > 1 && <LeaseSelect leases={leases} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
+              <div className="flex h-[56px] items-center p-2">
+                <div className="flex items-center">
+                  {(leases?.length || 0) > 1 && <LeaseSelect leases={leases} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
 
                   {services?.length > 0 && selectedService && (
-                    <Box marginLeft={leases?.length > 1 ? ".5rem" : 0}>
+                    <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>
                       <ServiceSelect services={services} defaultValue={selectedService} onSelectedChange={onSelectedServiceChange} />
-                    </Box>
+                    </div>
                   )}
-                </Box>
+                </div>
 
                 {localCert && (
-                  <Box sx={{ display: "flex", alignItems: "center", marginLeft: "1rem" }}>
+                  <div className="ml-4 flex items-center">
                     <div>
-                      <Button onClick={onDownloadFileClick} variant="contained" size="small" color="secondary" disabled={!isConnectionEstablished}>
+                      <Button onClick={onDownloadFileClick} variant="default" size="sm" disabled={!isConnectionEstablished}>
                         Download file
                       </Button>
                     </div>
-                  </Box>
+                  </div>
                 )}
 
                 {(isLoadingStatus || isLoadingData) && (
-                  <Box marginLeft="1rem">
-                    <CircularProgress size="1rem" color="secondary" />
-                  </Box>
+                  <div className="ml-4">
+                    <Spinner />
+                  </div>
                 )}
-              </Box>
+              </div>
 
               {showArrowAndTabWarning && (
-                <Alert variant="standard" severity="warning" sx={{ borderRadius: 0, marginBottom: 1 }}>
+                <Alert variant="warning" className="mb-1 rounded-none">
                   <Link href={UrlService.faq("shell-arrows-and-completion")} target="_blank" style={{ display: "inline-flex", alignItems: "center" }}>
                     Why is my UP arrow and TAB autocompletion not working?
-                    <LaunchIcon fontSize={"small"} alignmentBaseline="middle" />
+                    <OpenInWindow className="text-sm" />
                   </Link>
                 </Alert>
               )}
 
               <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
                 {isConnectionClosed && (
-                  <Alert variant="standard" severity="warning" sx={{ borderRadius: 0 }}>
+                  <Alert variant="warning" className="rounded-none">
                     The connection to your Cloudmos Shell was lost. (
                     <Link href={UrlService.faq("shell-lost")} target="_blank" style={{ display: "inline-flex", alignItems: "center" }}>
                       More Info
-                      <LaunchIcon fontSize={"small"} alignmentBaseline="middle" />
+                      <OpenNewWindow fontSize={"small"} alignmentBaseline="middle" />
                     </Link>
                     )
                   </Alert>
@@ -302,13 +301,13 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
           )}
         </>
       ) : (
-        <Box sx={{ padding: "1rem" }}>
-          <Alert severity="warning">You need a valid certificate to access the lease shell.</Alert>
+        <div className="p-4">
+          <Alert variant="warning">You need a valid certificate to access the lease shell.</Alert>
 
-          <Button variant="contained" color="secondary" size="medium" sx={{ marginTop: "1rem" }} disabled={isCreatingCert} onClick={() => createCertificate()}>
-            {isCreatingCert ? <CircularProgress size="1.5rem" color="secondary" /> : "Create Certificate"}
+          <Button variant="default" className="mt-4" disabled={isCreatingCert} onClick={() => createCertificate()}>
+            {isCreatingCert ? <Spinner /> : "Create Certificate"}
           </Button>
-        </Box>
+        </div>
       )}
     </div>
   );

@@ -1,27 +1,29 @@
+"use client";
 import { useRef } from "react";
-import { Dialog, DialogContent, DialogActions, Button, CircularProgress, TextField, FormControl, DialogTitle, Typography, Alert } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
-import { makeStyles } from "tss-react/mui";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
+import { Popup } from "@src/components/shared/Popup";
+import { Alert } from "@src/components/ui/alert";
+import { InputWithIcon } from "@src/components/ui/input";
 
-const useStyles = makeStyles()(theme => ({
-  dialogTitle: {
-    paddingBottom: 0
-  },
-  dialogActions: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-  formControl: {
-    marginBottom: "1rem"
-  },
-  alert: {
-    marginBottom: "1rem"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   dialogTitle: {
+//     paddingBottom: 0
+//   },
+//   dialogActions: {
+//     display: "flex",
+//     alignItems: "center",
+//     justifyContent: "space-between"
+//   },
+//   formControl: {
+//     marginBottom: "1rem"
+//   },
+//   alert: {
+//     marginBottom: "1rem"
+//   }
+// }));
 
 // const osList = [
 //   { id: "linux", title: "Linux" },
@@ -31,8 +33,7 @@ const useStyles = makeStyles()(theme => ({
 
 export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedService, providerInfo }) => {
   //const [selectedOs] = useState("linux");
-  const formRef = useRef(null);
-  const { classes } = useStyles();
+  const formRef = useRef<HTMLFormElement | null>(null);
   const { downloadFileFromShell } = useBackgroundTask();
   const {
     handleSubmit,
@@ -57,7 +58,7 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
 
   const onDownloadClick = event => {
     event.preventDefault();
-    formRef.current.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
   // const handleOsChange = (event) => {
@@ -65,16 +66,37 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
   // };
 
   return (
-    <Dialog open={true} maxWidth="xs" fullWidth onClose={onCloseClick}>
-      <DialogTitle className={classes.dialogTitle}>Download file</DialogTitle>
-      <DialogContent>
-        <Typography variant="caption">Enter the path of a file on the server to be downloaded to your computer. Example: /app/logs.txt</Typography>
-        <Alert severity="warning" className={classes.alert}>
-          <Typography variant="caption">This is an experimental feature and may not work reliably.</Typography>
-        </Alert>
+    <Popup
+      fullWidth
+      variant="custom"
+      title="Download file"
+      actions={[
+        {
+          label: "Cancel",
+          color: "primary",
+          variant: "text",
+          side: "left",
+          onClick: onCloseClick
+        },
+        {
+          label: "Download",
+          color: "secondary",
+          variant: "default",
+          side: "right",
+          disabled: !!errors.filePath,
+          onClick: onDownloadClick
+        }
+      ]}
+      onClose={onCloseClick}
+      maxWidth="xs"
+    >
+      <p className="text-sm text-muted-foreground">Enter the path of a file on the server to be downloaded to your computer. Example: /app/logs.txt</p>
+      <Alert variant="warning" className="mb-4">
+        <p className="text-sm text-muted-foreground">This is an experimental feature and may not work reliably.</p>
+      </Alert>
 
-        <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-          {/* <FormControl className={classes.formControl}>
+      <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+        {/* <FormControl className={classes.formControl}>
             <InputLabel id="os-label">Os</InputLabel>
             <Select labelId="os-label" id="os-select" value={selectedOs} onChange={handleOsChange}>
               {osList.map((os) => (
@@ -85,42 +107,32 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
             </Select>
           </FormControl> */}
 
-          <FormControl fullWidth>
-            <Controller
-              control={control}
-              name="filePath"
-              rules={{
-                required: "File path is required.",
-                pattern: {
-                  value: /^(?!https?:).*/i,
-                  message: "Should be a valid path on the server, not a URL."
-                }
-              }}
-              render={({ field, fieldState }) => {
-                return (
-                  <TextField
-                    {...field}
-                    type="text"
-                    label="File path"
-                    error={!!fieldState.error}
-                    helperText={fieldState.error?.message}
-                    variant="outlined"
-                    autoFocus
-                    placeholder="Type a valid file path"
-                    fullWidth
-                  />
-                );
-              }}
-            />
-          </FormControl>
-        </form>
-      </DialogContent>
-      <DialogActions className={classes.dialogActions}>
-        <Button onClick={onCloseClick}>Cancel</Button>
-        <Button variant="contained" onClick={onDownloadClick} type="button" color="secondary" disabled={!!errors.filePath}>
-          Download
-        </Button>
-      </DialogActions>
-    </Dialog>
+        <Controller
+          control={control}
+          name="filePath"
+          rules={{
+            required: "File path is required.",
+            pattern: {
+              value: /^(?!https?:).*/i,
+              message: "Should be a valid path on the server, not a URL."
+            }
+          }}
+          render={({ field, fieldState }) => {
+            return (
+              <InputWithIcon
+                {...field}
+                type="text"
+                label="File path"
+                // error={!!fieldState.error}
+                error={fieldState.error?.message}
+                // helperText={fieldState.error?.message}
+                autoFocus
+                placeholder="Type a valid file path"
+              />
+            );
+          }}
+        />
+      </form>
+    </Popup>
   );
 };
