@@ -2,7 +2,7 @@
 import { Dispatch, ReactNode, SetStateAction, useState } from "react";
 import { DeploymentDepositModal } from "../../../components/deploymentDetail/DeploymentDepositModal";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { UrlService } from "@src/utils/urlUtils";
 import { useWallet } from "@src/context/WalletProvider";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
