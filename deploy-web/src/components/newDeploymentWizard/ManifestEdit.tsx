@@ -30,8 +30,6 @@ import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { useChainParam } from "@src/context/ChainParamProvider";
 
-const yaml = require("js-yaml");
-
 const useStyles = makeStyles()(theme => ({
   tooltip: {
     fontSize: "1rem"
@@ -98,12 +96,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     setEditedManifest(value);
   }
 
-  async function createAndValidateDeploymentData(yamlStr, dseq = null, deposit = defaultInitialDeposit, depositorAddress = null) {
+  async function createAndValidateDeploymentData(yamlStr: string, dseq = null, deposit = defaultInitialDeposit, depositorAddress = null) {
     try {
       if (!yamlStr) return null;
 
-      const doc = yaml.load(yamlStr);
-      const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, doc, dseq, address, deposit, depositorAddress);
+      const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, yamlStr, dseq, address, deposit, depositorAddress);
       validateDeploymentData(dd, selectedTemplate);
 
       setSdlDenom(dd.deposit.denom);

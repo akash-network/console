@@ -73,13 +73,11 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
    * Validate the manifest periodically
    */
   useEffect(() => {
-    async function createAndValidateDeploymentData(yamlStr, dseq) {
+    async function createAndValidateDeploymentData(yamlStr: string, dseq: string) {
       try {
         if (!editedManifest) return null;
 
-        const yamlJson = yaml.load(yamlStr);
-
-        await deploymentData.NewDeploymentData(settings.apiEndpoint, yamlJson, dseq, address);
+        await deploymentData.NewDeploymentData(settings.apiEndpoint, yamlStr, dseq, address);
 
         setParsingError(null);
       } catch (err) {
@@ -134,7 +132,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
     try {
       const doc = yaml.load(editedManifest);
 
-      const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, doc, parseInt(deployment.dseq), address); // TODO Flags
+      const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, editedManifest, deployment.dseq, address); // TODO Flags
       const mani = deploymentData.getManifest(doc, true);
 
       // const sdl = getSdl(doc as any, "beta3");

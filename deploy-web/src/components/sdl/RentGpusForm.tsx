@@ -37,8 +37,6 @@ import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { useChainParam } from "@src/context/ChainParamProvider";
 
-const yaml = require("js-yaml");
-
 type Props = {};
 
 export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
@@ -82,12 +80,11 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function createAndValidateDeploymentData(yamlStr, dseq = null, deposit = defaultInitialDeposit, depositorAddress = null) {
+  async function createAndValidateDeploymentData(yamlStr: string, dseq = null, deposit = defaultInitialDeposit, depositorAddress = null) {
     try {
       if (!yamlStr) return null;
 
-      const doc = yaml.load(yamlStr);
-      const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, doc, dseq, address, deposit, depositorAddress);
+      const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, yamlStr, dseq, address, deposit, depositorAddress);
       validateDeploymentData(dd);
 
       setSdlDenom(dd.deposit.denom);

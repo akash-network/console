@@ -2,11 +2,19 @@ import { CustomValidationError, ManifestVersion, getCurrentHeight, Manifest, Dep
 import { defaultInitialDeposit } from "../constants";
 import { stringToBoolean } from "../stringUtils";
 import path from "path";
+import yaml from "js-yaml";
+import { SDL } from "@akashnetwork/akashjs/build/sdl";
 
 const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
 const endpointKindIP = "ip";
 
-function validate(yamlJson) {
+function validate(yamlStr: string, yamlJson) {
+  try {
+    SDL.validate(yamlStr, "beta2");
+  } catch (e) {
+    throw new CustomValidationError(e.message);
+  }
+
   const sdl = getSdl(yamlJson, "beta2");
 
   // ENDPOINT VALIDATION
@@ -185,9 +193,18 @@ export async function getManifestVersion(yamlJson, asString = false) {
   }
 }
 
-export async function NewDeploymentData(apiEndpoint, yamlJson, dseq, fromAddress, deposit = defaultInitialDeposit, depositorAddress = null) {
+export async function NewDeploymentData(
+  apiEndpoint: string,
+  yamlStr: string,
+  dseq: string,
+  fromAddress: string,
+  deposit = defaultInitialDeposit,
+  depositorAddress = null
+) {
+  const yamlJson = yaml.load(yamlStr) as any;
+
   // Validate the integrity of the yaml
-  validate(yamlJson);
+  validate(yamlStr, yamlJson);
 
   const groups = DeploymentGroups(yamlJson, "beta2");
   const mani = Manifest(yamlJson, "beta2");
@@ -202,7 +219,7 @@ export async function NewDeploymentData(apiEndpoint, yamlJson, dseq, fromAddress
   };
 
   if (!id.dseq) {
-    id.dseq = await getCurrentHeight(apiEndpoint);
+    id.dseq = (await getCurrentHeight(apiEndpoint)).toString();
   }
 
   return {
