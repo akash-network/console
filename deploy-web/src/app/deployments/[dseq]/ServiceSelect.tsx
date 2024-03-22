@@ -1,5 +1,4 @@
 "use client";
-import { Checkbox } from "@src/components/ui/checkbox";
 import { FormItem } from "@src/components/ui/form";
 import { Label } from "@src/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";

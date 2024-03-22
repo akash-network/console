@@ -1,27 +1,28 @@
-import { FormControl, InputLabel, MenuItem, Select, Typography } from "@mui/material";
+"use client";
+import { FormItem } from "@src/components/ui/form";
+import { Label } from "@src/components/ui/label";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
 import { useState } from "react";
-import { makeStyles } from "tss-react/mui";
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    minWidth: "150px",
-    width: "auto"
-  },
-  menuRoot: {
-    paddingTop: "17px",
-    paddingBottom: "2px"
-  },
-  selectLabel: {
-    top: "2px",
-    left: "4px"
-  },
-  selectItem: {
-    lineHeight: "1rem"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   formControl: {
+//     minWidth: "150px",
+//     width: "auto"
+//   },
+//   menuRoot: {
+//     paddingTop: "17px",
+//     paddingBottom: "2px"
+//   },
+//   selectLabel: {
+//     top: "2px",
+//     left: "4px"
+//   },
+//   selectItem: {
+//     lineHeight: "1rem"
+//   }
+// }));
 
 export const LeaseSelect = ({ defaultValue, leases, onSelectedChange }) => {
-  const { classes } = useStyles();
   const [selected, setSelected] = useState(defaultValue);
 
   const handleChange = event => {
@@ -32,27 +33,32 @@ export const LeaseSelect = ({ defaultValue, leases, onSelectedChange }) => {
   };
 
   return (
-    <FormControl className={classes.formControl}>
-      <InputLabel id="lease-select-label" className={classes.selectLabel}>
-        Lease
-      </InputLabel>
+    <FormItem>
+      <Label id="lease-select-label">Lease</Label>
       <Select
-        labelId="lease-select-label"
+        // labelId="service-select-label"
         value={selected}
-        onChange={handleChange}
-        variant="outlined"
-        classes={{
-          select: classes.menuRoot
-        }}
+        onValueChange={handleChange}
+        // variant="outlined"
+        // size="small"
+        // label="Services"
+        // classes={{
+        //   select: classes.select
+        // }}
       >
-        {leases.map(l => (
-          <MenuItem key={l.id} value={l.id} dense>
-            <Typography variant="caption" className={classes.selectItem}>
-              GSEQ: {l.gseq}
-            </Typography>
-          </MenuItem>
-        ))}
+        <SelectTrigger>
+          <SelectValue placeholder="Select lease" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {leases.map(l => (
+              <SelectItem key={l.id} value={l.id}>
+                GSEQ: {l.gseq}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
       </Select>
-    </FormControl>
+    </FormItem>
   );
 };

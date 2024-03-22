@@ -15,9 +15,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { PageContainer } from "@src/components/shared/PageContainer";
 import Spinner from "@src/components/shared/Spinner";
 import { Button } from "@src/components/ui/button";
-import { OpenNewWindow, Refresh } from "iconoir-react";
+import { OpenNewWindow, Refresh, Xmark } from "iconoir-react";
 import { Checkbox, CheckboxWithLabel } from "@src/components/ui/checkbox";
 import { CustomPagination } from "@src/components/shared/CustomPagination";
+import { InputWithIcon } from "@src/components/ui/input";
+import { FormItem } from "@src/components/ui/form";
+import { Label } from "@src/components/ui/label";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
 
 const NetworkCapacity = dynamic(() => import("../../components/providers/NetworkCapacity"), {
   ssr: false
@@ -61,7 +65,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
   const [isFilteringAudited, setIsFilteringAudited] = useState(false);
   const [filteredProviders, setFilteredProviders] = useState<Array<ClientProviderList>>([]);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [pageSize, setPageSize] = useState(10);
   const [sort, setSort] = useState<SortId>("active-leases-desc");
   const [search, setSearch] = useState("");
   const { settings } = useSettings();
@@ -70,10 +74,10 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
   const { data: networkCapacity, isFetching: isLoadingNetworkCapacity } = useNetworkCapacity();
-  const start = (page - 1) * rowsPerPage;
-  const end = start + rowsPerPage;
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
   const currentPageProviders = filteredProviders.slice(start, end);
-  const pageCount = Math.ceil(filteredProviders.length / rowsPerPage);
+  const pageCount = Math.ceil(filteredProviders.length / pageSize);
   const selectedNetwork = useSelectedNetwork();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -87,7 +91,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
 
   useEffect(() => {
     if (sortQuery && sortOptions.some(x => x.id === sortQuery)) {
-      setSort(sortQuery);
+      setSort(sortQuery as SortId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortQuery]);
@@ -181,7 +185,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
   const handleRowsPerPageChange = event => {
     const value = event.target.value;
 
-    setRowsPerPage(value);
+    setPageSize(value);
   };
 
   return (
@@ -248,68 +252,40 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
 
               <div className="flex items-center md:ml-8">
                 <div>
-                  <CheckboxWithLabel checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} label="Active" color="secondary" />
+                  <CheckboxWithLabel checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} label="Active" />
                 </div>
-                <div marginLeft="1rem">
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={isFilteringFavorites}
-                        onChange={onIsFilteringFavoritesClick}
-                        color="secondary"
-                        size="small"
-                        classes={{ root: classes.checkbox }}
-                      />
-                    }
-                    label="Favorites"
-                  />
+                <div className="ml-4">
+                  <CheckboxWithLabel checked={isFilteringFavorites} onCheckedChange={onIsFilteringFavoritesClick} label="Favorites" />
                 </div>
-                <div marginLeft="1rem">
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={isFilteringAudited}
-                        onChange={onIsFilteringAuditedClick}
-                        color="secondary"
-                        size="small"
-                        classes={{ root: classes.checkbox }}
-                      />
-                    }
-                    label="Audited"
-                  />
+                <div className="ml-4">
+                  <CheckboxWithLabel checked={isFilteringAudited} onCheckedChange={onIsFilteringAuditedClick} label="Audited" />
                 </div>
               </div>
             </div>
 
-            <div sx={{ padding: "1rem 0", display: "flex", alignItems: "center", flexDirection: { xs: "column", sm: "column", md: "row" } }}>
-              <TextField
+            <div className="flex flex-col items-center px-4 md:flex-row">
+              <InputWithIcon
                 label="Search Providers"
                 value={search}
                 onChange={onSearchChange}
                 type="text"
-                variant="outlined"
-                fullWidth
-                size="small"
-                InputProps={{
-                  endAdornment: search && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setSearch("")}>
-                        <CloseIcon />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
+                endIcon={
+                  <Button size="icon" variant="ghost" onClick={() => setSearch("")}>
+                    <Xmark />
+                  </Button>
+                }
               />
 
               <div
-                sx={{
-                  display: "flex",
-                  width: { xs: "100%", sm: "100%", md: "auto" },
-                  alignItems: { xs: "start", sm: "start", md: "center" },
-                  marginTop: { xs: "1rem", sm: "1rem", md: 0 }
-                }}
+                className="mt-4 flex w-full items-start md:mt-0 md:w-auto md:items-center"
+                // sx={{
+                //   display: "flex",
+                //   width: { xs: "100%", sm: "100%", md: "auto" },
+                //   alignItems: { xs: "start", sm: "start", md: "center" },
+                //   marginTop: { xs: "1rem", sm: "1rem", md: 0 }
+                // }}
               >
-                <FormControl sx={{ flexBasis: "100px", marginLeft: { xs: 0, sm: 0, md: "1rem" } }}>
+                {/* <FormControl sx={{ flexBasis: "100px", marginLeft: { xs: 0, sm: 0, md: "1rem" } }}>
                   <InputLabel id="sort-select-label">Rows per page</InputLabel>
                   <Select
                     labelId="sort-select-label"
@@ -329,8 +305,8 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
                       <Typography variant="caption">50</Typography>
                     </MenuItem>
                   </Select>
-                </FormControl>
-
+                </FormControl> */}
+                {/* 
                 <FormControl className={classes.selectFormControl}>
                   <InputLabel id="sort-select-label">Sort by</InputLabel>
                   <Select labelId="sort-select-label" label="Sort by" value={sort} onChange={handleSortChange} variant="outlined" size="small">
@@ -340,21 +316,47 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
                       </MenuItem>
                     ))}
                   </Select>
-                </FormControl>
+                </FormControl> */}
+
+                <FormItem>
+                  <Label>Sort by</Label>
+                  <Select value={sort} onValueChange={handleSortChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select lease" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {sortOptions.map(l => (
+                          <SelectItem key={l.id} value={l.id}>
+                            <span className="text-sm text-muted-foreground">{l.title}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
               </div>
             </div>
 
             <ProviderTable providers={currentPageProviders} sortOption={sort} />
 
             {search && currentPageProviders.length === 0 && (
-              <div padding="1rem">
-                <Typography>No provider found.</Typography>
+              <div className="p-4">
+                <p>No provider found.</p>
               </div>
             )}
 
-            {providers?.length > 0 && (
-              <div padding="1rem 1rem 2rem">
-                <CustomPagination pageSize={pageCount} setPageIndex={handleChangePage} pageIndex={page} size="medium" />
+            {(providers?.length || 0) > 0 && (
+              <div className="px-4 pb-8 pt-4">
+                <CustomPagination
+                  pageSize={pageSize}
+                  setPageIndex={handleChangePage}
+                  pageIndex={page}
+                  totalPageCount={pageCount}
+                  setPageSize={function (pageSize: number): void {
+                    throw new Error("Function not implemented.");
+                  }}
+                />
               </div>
             )}
           </div>
