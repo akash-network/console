@@ -1,14 +1,14 @@
 import { Table, TableBody, TableCell, TableContainer, TableRow, useTheme } from "@mui/material";
 import { ClientProviderList } from "@src/types/provider";
-import { CustomTableHeader } from "../shared/CustomTable";
-import { ProviderListRow } from "./ProviderListRow";
+import { CustomTableHeader } from "../../components/shared/CustomTable";
+import { ProviderListRow } from "./ProviderTableRow";
 
 type Props = {
   providers: Array<ClientProviderList>;
   sortOption: string;
 };
 
-export const ProviderList: React.FunctionComponent<Props> = ({ providers, sortOption }) => {
+export const ProviderTable: React.FunctionComponent<Props> = ({ providers, sortOption }) => {
   const isSortingLeases =
     sortOption === "active-leases-desc" || sortOption === "active-leases-asc" || sortOption === "my-leases-desc" || sortOption === "my-active-leases-desc";
 

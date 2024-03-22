@@ -3,7 +3,7 @@ import { ApiProviderList } from "@src/types/provider";
 import { ComposableMap, Geographies, Geography, Marker, Point, ZoomableGroup } from "react-simple-maps";
 import { useState } from "react";
 import { Box, IconButton, useTheme } from "@mui/material";
-import { CustomTooltip } from "../shared/CustomTooltip";
+import { CustomTooltip } from "../../components/shared/CustomTooltip";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";

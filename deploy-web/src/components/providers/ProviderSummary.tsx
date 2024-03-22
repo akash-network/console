@@ -7,7 +7,7 @@ import { Address } from "../shared/Address";
 import { StatusPill } from "../shared/StatusPill";
 import { FavoriteButton } from "../shared/FavoriteButton";
 import { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
-import { ProviderMap } from "./ProviderMap";
+import { ProviderMap } from "../../app/providers/ProviderMap";
 import { LabelValue } from "../shared/LabelValue";
 import { Uptime } from "./Uptime";
 
