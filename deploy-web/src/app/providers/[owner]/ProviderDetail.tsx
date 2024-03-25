@@ -5,7 +5,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { ApiProviderDetail, ClientProviderDetailWithStatus } from "@src/types/provider";
 import { useProviderAttributesSchema, useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
 import { LabelValue } from "@src/components/shared/LabelValue";
-import { CustomTooltip } from "@src/components/shared/CustomTooltip";
+import { CustomNoDivTooltip, CustomTooltip } from "@src/components/shared/CustomTooltip";
 import { FormattedDate } from "react-intl";
 import dynamic from "next/dynamic";
 import { PageContainer } from "@src/components/shared/PageContainer";
@@ -124,12 +124,12 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                 // sort by date
                 .sort((a, b) => new Date(a.checkDate).getTime() - new Date(b.checkDate).getTime())
                 .map((x, i) => (
-                  <CustomTooltip
+                  <CustomNoDivTooltip
                     key={x.id}
                     title={<FormattedDate value={x.checkDate} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />}
                   >
                     <div
-                      className={cn("h-[24px] w-[2%] rounded-sm", { ["ml-1"]: i > 0, ["bg-green-500"]: x.isOnline, ["bg-red-500"]: !x.isOnline })}
+                      className={cn("h-[24px] w-[2%] rounded-sm max-w-[8px]", { ["ml-1"]: i > 0, ["bg-green-500"]: x.isOnline, ["bg-red-500"]: !x.isOnline })}
                       // sx={{
                       //   width: "2%",
                       //   height: "24px",
@@ -138,7 +138,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                       //   borderRadius: "2px"
                       // }}
                     />
-                  </CustomTooltip>
+                  </CustomNoDivTooltip>
                 ))}
             </div>
 
