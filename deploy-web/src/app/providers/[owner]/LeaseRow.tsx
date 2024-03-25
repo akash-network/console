@@ -2,13 +2,13 @@ import React from "react";
 import { TableCell, Box } from "@mui/material";
 import isEqual from "lodash/isEqual";
 import { makeStyles } from "tss-react/mui";
-import { StatusPill } from "../shared/StatusPill";
+import { StatusPill } from "../../../components/shared/StatusPill";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
-import { PricePerMonth } from "../shared/PricePerMonth";
+import { PricePerMonth } from "../../../components/shared/PricePerMonth";
 import { uaktToAKT } from "@src/utils/priceUtils";
-import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
-import { CustomTableRow } from "../shared/CustomTable";
+import { PriceEstimateTooltip } from "../../../components/shared/PriceEstimateTooltip";
+import { CustomTableRow } from "../../../components/shared/CustomTable";
 import { LeaseDto } from "@src/types/deployment";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 

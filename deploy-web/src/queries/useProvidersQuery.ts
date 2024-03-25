@@ -4,10 +4,10 @@ import axios, { AxiosResponse } from "axios";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { getNetworkCapacityDto, providerStatusToDto } from "@src/utils/providerUtils";
 import { PROVIDER_PROXY_URL } from "@src/utils/constants";
-import { ApiProviderDetail, ApiProviderList, ApiProviderRegion, Auditor } from "@src/types/provider";
+import { ApiProviderDetail, ApiProviderList, ApiProviderRegion, Auditor, ProviderStatusDto } from "@src/types/provider";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 
-async function getProviderDetail(owner: string): Promise<ApiProviderDetail> {
+async function getProviderDetail(owner: string): Promise<ApiProviderDetail | null> {
   if (!owner) return null;
 
   const response = await axios.get(ApiUrlService.providerDetail(owner));
@@ -22,18 +22,14 @@ export function useProviderDetail(owner: string, options) {
 async function getProviderStatus(providerUri: string) {
   if (!providerUri) return null;
 
-  const statusResponse = await axios.post(PROVIDER_PROXY_URL, { url: `${providerUri}/status`, method: "GET" });
-  let versionResponse: AxiosResponse<any, any>;
-
   try {
-    versionResponse = await axios.post(PROVIDER_PROXY_URL, { url: `${providerUri}/version`, method: "GET" });
+    const statusResponse = await axios.post(PROVIDER_PROXY_URL, { url: `${providerUri}/status`, method: "GET" });
+    const versionResponse = await axios.post(PROVIDER_PROXY_URL, { url: `${providerUri}/version`, method: "GET" });
+    return providerStatusToDto(statusResponse.data, versionResponse?.data || {});
   } catch (error) {
     console.log(error);
+    return null;
   }
-
-  const result = providerStatusToDto(statusResponse.data, versionResponse?.data || {});
-
-  return result;
 }
 
 export function useProviderStatus(providerUri: string, options = {}) {

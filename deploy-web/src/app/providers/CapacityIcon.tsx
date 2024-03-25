@@ -1,3 +1,4 @@
+"use client";
 import Battery0BarIcon from "@mui/icons-material/Battery0Bar";
 import Battery1BarIcon from "@mui/icons-material/Battery1Bar";
 import Battery2BarIcon from "@mui/icons-material/Battery2Bar";
@@ -20,7 +21,7 @@ export const CapacityIcon: React.FunctionComponent<Props> = ({ value, fontSize =
   else if (value < 0.32) return <Battery2BarIcon fontSize={fontSize} />;
   else if (value < 0.48) return <Battery3BarIcon fontSize={fontSize} />;
   else if (value < 0.64) return <Battery4BarIcon fontSize={fontSize} />;
-  else if (value < 0.80) return <Battery5BarIcon color="secondary" fontSize={fontSize} />;
+  else if (value < 0.8) return <Battery5BarIcon color="secondary" fontSize={fontSize} />;
   else if (value < 1) return <Battery6BarIcon color="secondary" fontSize={fontSize} />;
   else if (value === 1) return <BatteryFullIcon color="secondary" fontSize={fontSize} />;
 

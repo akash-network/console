@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import Layout from "@src/components/layout/Layout";
-import { LeaseList } from "@src/components/providers/LeaseList";
+import { LeaseList } from "@src/app/providers/[owner]/LeaseList";
 import { useWallet } from "@src/context/WalletProvider";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
-import ProviderDetailLayout, { ProviderDetailTabs } from "@src/components/providers/ProviderDetailLayout";
+import ProviderDetailLayout, { ProviderDetailTabs } from "@src/app/providers/[owner]/ProviderDetailLayout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { UrlService } from "@src/utils/urlUtils";
 

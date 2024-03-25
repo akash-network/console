@@ -4,7 +4,7 @@ import Layout from "@src/components/layout/Layout";
 import { useWallet } from "@src/context/WalletProvider";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
-import ProviderDetailLayout, { ProviderDetailTabs } from "@src/components/providers/ProviderDetailLayout";
+import ProviderDetailLayout, { ProviderDetailTabs } from "@src/app/providers/[owner]/ProviderDetailLayout";
 import { DynamicReactJson } from "@src/components/shared/DynamicJsonView";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { UrlService } from "@src/utils/urlUtils";

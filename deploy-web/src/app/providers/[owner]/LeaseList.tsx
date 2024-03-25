@@ -17,7 +17,7 @@ import {
 import isEqual from "lodash/isEqual";
 import { LeaseRow } from "./LeaseRow";
 import { makeStyles } from "tss-react/mui";
-import { CustomTableHeader } from "../shared/CustomTable";
+import { CustomTableHeader } from "../../../components/shared/CustomTable";
 import { LeaseDto } from "@src/types/deployment";
 
 const useStyles = makeStyles()(theme => ({

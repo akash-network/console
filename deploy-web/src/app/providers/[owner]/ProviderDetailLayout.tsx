@@ -1,24 +1,23 @@
+"use client";
 import React, { ReactNode } from "react";
-import Box from "@mui/material/Box";
 import { ErrorBoundary } from "react-error-boundary";
-import { ErrorFallback } from "../shared/ErrorFallback";
-import { Button, IconButton, Tab, Tabs, Typography, useTheme } from "@mui/material";
-import { makeStyles } from "tss-react/mui";
 import { UrlService } from "@src/utils/urlUtils";
-import { useRouter } from "next/router";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import PageContainer from "../shared/PageContainer";
+import { useRouter } from "next/navigation";
 import { ProviderSummary } from "./ProviderSummary";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import Link from "next/link";
 import { useWallet } from "@src/context/WalletProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
+import { Button, buttonVariants } from "@src/components/ui/button";
+import { NavArrowLeft, Refresh } from "iconoir-react";
+import { cn } from "@src/utils/styleUtils";
+import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
+import { ErrorFallback } from "@src/components/shared/ErrorFallback";
 
 export enum ProviderDetailTabs {
-  DETAIL = 1,
-  LEASES = 2,
-  RAW = 3
+  DETAIL = "1",
+  LEASES = "2",
+  RAW = "3"
 }
 
 type Props = {
@@ -29,30 +28,28 @@ type Props = {
   children?: ReactNode;
 };
 
-const useStyles = makeStyles()(theme => ({
-  tabsRoot: {
-    minHeight: "36px",
-    borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`,
-    "& button": {
-      minHeight: "36px"
-    }
-  },
-  selectedTab: {
-    fontWeight: "bold"
-  },
-  tabsContainer: {
-    justifyContent: "center"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   tabsRoot: {
+//     minHeight: "36px",
+//     borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`,
+//     "& button": {
+//       minHeight: "36px"
+//     }
+//   },
+//   selectedTab: {
+//     fontWeight: "bold"
+//   },
+//   tabsContainer: {
+//     justifyContent: "center"
+//   }
+// }));
 
 const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, address, provider, refresh }) => {
-  const theme = useTheme();
-  const { classes } = useStyles();
   const router = useRouter();
   const { address: walletAddress } = useWallet();
   const previousRoute = usePreviousRoute();
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: ProviderDetailTabs) => {
+  const handleTabChange = (newValue: ProviderDetailTabs) => {
     switch (newValue) {
       case ProviderDetailTabs.LEASES:
         router.push(UrlService.providerDetailLeases(address));
@@ -76,42 +73,44 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
   }
 
   return (
-    <PageContainer>
-      <Box sx={{ display: "flex", alignItems: "center", marginBottom: ".5rem" }}>
-        <IconButton aria-label="back" onClick={handleBackClick} size="small">
-          <ChevronLeftIcon />
-        </IconButton>
-        <Typography
-          variant="h1"
-          sx={{
-            fontSize: "1.5rem",
-            fontWeight: "bold",
-            marginLeft: ".5rem"
-          }}
-        >
-          Provider detail
-        </Typography>
+    <div>
+      <div className="mb-2 flex items-center">
+        <Button aria-label="back" onClick={handleBackClick} size="sm">
+          <NavArrowLeft />
+        </Button>
+        <h1 className="ml-2 text-2xl font-bold">Provider detail</h1>
 
-        <Box marginLeft="1rem">
-          <IconButton aria-label="back" onClick={() => refresh()} size="small">
-            <RefreshIcon />
-          </IconButton>
-        </Box>
+        <div className="ml-4">
+          <Button aria-label="back" onClick={() => refresh()} size="sm">
+            <Refresh />
+          </Button>
+        </div>
 
         {provider && walletAddress === address && (
-          <Box sx={{ marginLeft: "1rem" }}>
-            <Button href={UrlService.providerDetailEdit(provider.owner)} component={Link} size="small" variant="contained" color="secondary">
+          <div className="ml-4">
+            <Link href={UrlService.providerDetailEdit(provider.owner as string)} className={cn(buttonVariants({ variant: "default", size: "sm" }))}>
               Edit
-            </Button>
-          </Box>
+            </Link>
+          </div>
         )}
-      </Box>
+      </div>
 
       {provider && (
         <>
-          <ProviderSummary provider={provider} />
+          <ProviderSummary provider={provider as ClientProviderDetailWithStatus} />
 
-          <Tabs
+          <Tabs value={page} onValueChange={handleTabChange}>
+            <TabsList className="mb-4 grid w-full grid-cols-4">
+              <TabsTrigger value={ProviderDetailTabs.DETAIL}>Detail</TabsTrigger>
+              <TabsTrigger value={ProviderDetailTabs.LEASES}>My Leases</TabsTrigger>
+              <TabsTrigger value={ProviderDetailTabs.RAW}>Raw Data</TabsTrigger>
+            </TabsList>
+
+            <ErrorBoundary FallbackComponent={ErrorFallback}>
+              <div className="pt-8">{children}</div>
+            </ErrorBoundary>
+          </Tabs>
+          {/* <Tabs
             value={page}
             onChange={handleTabChange}
             classes={{ root: classes.tabsRoot, flexContainer: classes.tabsContainer }}
@@ -123,16 +122,11 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
             <Tab value={ProviderDetailTabs.DETAIL} label="Detail" classes={{ selected: classes.selectedTab }} />
             <Tab value={ProviderDetailTabs.LEASES} label="My Leases" classes={{ selected: classes.selectedTab }} />
             <Tab value={ProviderDetailTabs.RAW} label="Raw Data" classes={{ selected: classes.selectedTab }} />
-          </Tabs>
+          </Tabs> */}
         </>
       )}
-
-      <ErrorBoundary FallbackComponent={ErrorFallback}>
-        <Box sx={{ paddingTop: "2rem" }}>{children}</Box>
-      </ErrorBoundary>
-    </PageContainer>
+    </div>
   );
 };
 
 export default ProviderDetailLayout;
-
