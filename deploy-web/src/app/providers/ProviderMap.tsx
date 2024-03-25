@@ -2,7 +2,7 @@
 import { ApiProviderList } from "@src/types/provider";
 import { ComposableMap, Geographies, Geography, Marker, Point, ZoomableGroup } from "react-simple-maps";
 import { useState } from "react";
-import { CustomTooltip } from "../../components/shared/CustomTooltip";
+import { CustomNoDivTooltip, CustomTooltip } from "../../components/shared/CustomTooltip";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { useTheme } from "next-themes";
@@ -108,8 +108,7 @@ export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initial
                 <Geography
                   key={geo.rsmKey}
                   geography={geo}
-                  // fill={bgColor}
-                  className="fill-primary"
+                  className="fill-muted-foreground"
                   style={{
                     default: { outline: "none" },
                     hover: { outline: "none" },
@@ -123,18 +122,18 @@ export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initial
             return (
               <Link key={owner} href={UrlService.providerDetail(owner)}>
                 <Marker coordinates={[parseFloat(ipLon), parseFloat(ipLat)]}>
-                  <CustomTooltip
+                  <CustomNoDivTooltip
                     title={
                       <div>
-                        <div>{name}</div>
-                        <div>
+                        <div className="text-lg">{name}</div>
+                        <strong>
                           {ipRegion}, {ipCountryCode}
-                        </div>
+                        </strong>
                       </div>
                     }
                   >
                     <circle className="cursor-pointer fill-primary" stroke="#FFF" strokeWidth={dotSize.w} r={dotSize.r} />
-                  </CustomTooltip>
+                  </CustomNoDivTooltip>
                 </Marker>
               </Link>
             );
