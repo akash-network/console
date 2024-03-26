@@ -1,20 +1,19 @@
+"use client";
 import { useState, useEffect } from "react";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
-import Layout from "@src/components/layout/Layout";
 import { useWallet } from "@src/context/WalletProvider";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
-import ProviderDetailLayout, { ProviderDetailTabs } from "@src/app/providers/[owner]/ProviderDetailLayout";
 import { DynamicReactJson } from "@src/components/shared/DynamicJsonView";
-import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
-import { UrlService } from "@src/utils/urlUtils";
+import { PageContainer } from "@src/components/shared/PageContainer";
+import ProviderDetailLayout, { ProviderDetailTabs } from "../ProviderDetailLayout";
 
 type Props = {
   owner: string;
 };
 
-const ProviderRawPage: React.FunctionComponent<Props> = ({ owner }) => {
-  const [provider, setProvider] = useState<Partial<ClientProviderDetailWithStatus>>(null);
+export const ProviderRawData: React.FunctionComponent<Props> = ({ owner }) => {
+  const [provider, setProvider] = useState<Partial<ClientProviderDetailWithStatus> | null>(null);
   const { isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner, {
     enabled: false,
     retry: false,
@@ -28,11 +27,11 @@ const ProviderRawPage: React.FunctionComponent<Props> = ({ owner }) => {
     data: providerStatus,
     isLoading: isLoadingStatus,
     refetch: getProviderStatus
-  } = useProviderStatus(provider?.hostUri, {
+  } = useProviderStatus(provider?.hostUri || "", {
     enabled: false,
     retry: false,
     onSuccess: _providerStatus => {
-      setProvider(provider => (provider ? { ...provider, ...providerStatus } : providerStatus));
+      setProvider(provider => (provider ? { ...provider, ...providerStatus } : (providerStatus as ClientProviderDetailWithStatus)));
     }
   });
 
@@ -57,23 +56,12 @@ const ProviderRawPage: React.FunctionComponent<Props> = ({ owner }) => {
   };
 
   return (
-    <Layout isLoading={isLoadingLeases || isLoadingProvider || isLoadingStatus}>
-      <CustomNextSeo title={`Provider raw data for ${owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetailRaw(owner)}`} />
+    <PageContainer isLoading={isLoadingLeases || isLoadingProvider || isLoadingStatus}>
+      {/* <CustomNextSeo title={`Provider raw data for ${owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetailRaw(owner)}`} /> */}
 
-      <ProviderDetailLayout address={owner} page={ProviderDetailTabs.RAW} refresh={refresh} provider={provider}>
+      <ProviderDetailLayout address={owner} page={ProviderDetailTabs.RAW} refresh={refresh} provider={provider as ClientProviderDetailWithStatus}>
         {provider && <DynamicReactJson src={JSON.parse(JSON.stringify(provider))} collapsed={1} />}
       </ProviderDetailLayout>
-    </Layout>
+    </PageContainer>
   );
 };
-
-export default ProviderRawPage;
-
-export async function getServerSideProps({ params }) {
-  return {
-    props: {
-      owner: params?.owner
-    }
-  };
-}
-
