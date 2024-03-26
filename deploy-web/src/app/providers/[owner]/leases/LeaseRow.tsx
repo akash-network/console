@@ -1,56 +1,42 @@
+"use client";
 import React from "react";
-import { TableCell, Box } from "@mui/material";
 import isEqual from "lodash/isEqual";
-import { makeStyles } from "tss-react/mui";
-import { StatusPill } from "../../../components/shared/StatusPill";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
-import { PricePerMonth } from "../../../components/shared/PricePerMonth";
 import { uaktToAKT } from "@src/utils/priceUtils";
-import { PriceEstimateTooltip } from "../../../components/shared/PriceEstimateTooltip";
-import { CustomTableRow } from "../../../components/shared/CustomTable";
 import { LeaseDto } from "@src/types/deployment";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
-
-const useStyles = makeStyles()(() => ({
-  flexCenter: {
-    display: "flex",
-    alignItems: "center"
-  }
-}));
+import { TableCell, TableRow } from "@src/components/ui/table";
+import { StatusPill } from "@src/components/shared/StatusPill";
+import { PricePerMonth } from "@src/components/shared/PricePerMonth";
+import { PriceEstimateTooltip } from "@src/components/shared/PriceEstimateTooltip";
 
 type Props = {
   lease: LeaseDto;
 };
 
 const MemoLeaseRow: React.FunctionComponent<Props> = ({ lease }) => {
-  const { classes } = useStyles();
   const { getDeploymentName } = useLocalNotes();
   const deploymentName = getDeploymentName(lease.dseq);
 
   return (
-    <CustomTableRow>
+    <TableRow>
       <TableCell>
         <StatusPill state={lease.state} size="small" />
       </TableCell>
       <TableCell>
         <Link href={UrlService.deploymentDetails(lease.dseq)} passHref>
           {lease.dseq}
-          {deploymentName && (
-            <Box component="span" fontWeight="normal">
-              {" "}
-              - {deploymentName}
-            </Box>
-          )}
+          {deploymentName && <span className="font-normal"> - {deploymentName}</span>}
         </Link>
       </TableCell>
       <TableCell>
-        <div className={classes.flexCenter}>
+        <div className="flex items-center">
           <PricePerMonth denom={lease.price.denom} perBlockValue={uaktToAKT(parseFloat(lease.price.amount), 10)} />
           <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} />
         </div>
       </TableCell>
-    </CustomTableRow>
+    </TableRow>
   );
 };
 

@@ -4,7 +4,7 @@ import { NextSeo } from "next-seo";
 import { useProviderAttributesSchema, useProviderDetail } from "@src/queries/useProvidersQuery";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import PageContainer from "@src/components/shared/PageContainer";
-import { EditProviderForm } from "@src/app/providers/[owner]/EditProviderForm";
+import { EditProviderForm } from "@src/app/providers/[owner]/edit/EditProviderForm";
 import { getProviderNameFromUri } from "@src/utils/providerUtils";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import Link from "next/link";

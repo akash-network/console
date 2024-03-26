@@ -1,23 +1,22 @@
+"use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
-import Layout from "@src/components/layout/Layout";
-import { LeaseList } from "@src/app/providers/[owner]/LeaseList";
 import { useWallet } from "@src/context/WalletProvider";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
-import ProviderDetailLayout, { ProviderDetailTabs } from "@src/app/providers/[owner]/ProviderDetailLayout";
-import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
-import { UrlService } from "@src/utils/urlUtils";
+import { LeaseList } from "./LeaseList";
+import { PageContainer } from "@src/components/shared/PageContainer";
+import { LeaseDto } from "@src/types/deployment";
+import ProviderDetailLayout, { ProviderDetailTabs } from "../ProviderDetailLayout";
 
 type Props = {
   owner: string;
 };
 
-const ProviderLeasesPage: React.FunctionComponent<Props> = ({ owner }) => {
-  const [provider, setProvider] = useState<Partial<ClientProviderDetailWithStatus>>(null);
-  const [filteredLeases, setFilteredLeases] = useState(null);
-  const router = useRouter();
+export const LeaseListContainer: React.FunctionComponent<Props> = ({ owner }) => {
+  const [provider, setProvider] = useState<Partial<ClientProviderDetailWithStatus> | null>(null);
+  const [filteredLeases, setFilteredLeases] = useState<Array<LeaseDto> | null>(null);
   const { isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner, {
     enabled: false,
     retry: false,
@@ -31,11 +30,11 @@ const ProviderLeasesPage: React.FunctionComponent<Props> = ({ owner }) => {
     data: providerStatus,
     isLoading: isLoadingStatus,
     refetch: getProviderStatus
-  } = useProviderStatus(provider?.hostUri, {
+  } = useProviderStatus(provider?.hostUri || "", {
     enabled: false,
     retry: false,
     onSuccess: _providerStatus => {
-      setProvider(provider => (provider ? { ...provider, ...providerStatus } : providerStatus));
+      setProvider(provider => (provider ? { ...provider, ...providerStatus } : (providerStatus as ClientProviderDetailWithStatus)));
     }
   });
 
@@ -67,23 +66,19 @@ const ProviderLeasesPage: React.FunctionComponent<Props> = ({ owner }) => {
   }, [leases, provider]);
 
   return (
-    <Layout isLoading={isLoadingLeases || isLoadingProvider || isLoadingStatus}>
-      <CustomNextSeo title={`Provider leases for ${owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetailLeases(owner)}`} />
-
-      <ProviderDetailLayout address={owner} page={ProviderDetailTabs.LEASES} refresh={refresh} provider={provider}>
+    <PageContainer isLoading={isLoadingLeases || isLoadingProvider || isLoadingStatus}>
+      <ProviderDetailLayout address={owner} page={ProviderDetailTabs.LEASES} refresh={refresh} provider={provider as ClientProviderDetailWithStatus}>
         <LeaseList isLoadingLeases={isLoadingLeases} leases={filteredLeases} />
       </ProviderDetailLayout>
-    </Layout>
+    </PageContainer>
   );
+  // return (
+  //   <Layout isLoading={isLoadingLeases || isLoadingProvider || isLoadingStatus}>
+  //     <CustomNextSeo title={`Provider leases for ${owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetailLeases(owner)}`} />
+
+  //     <ProviderDetailLayout address={owner} page={ProviderDetailTabs.LEASES} refresh={refresh} provider={provider}>
+  //       <LeaseList isLoadingLeases={isLoadingLeases} leases={filteredLeases} />
+  //     </ProviderDetailLayout>
+  //   </Layout>
+  // );
 };
-
-export default ProviderLeasesPage;
-
-export async function getServerSideProps({ params }) {
-  return {
-    props: {
-      owner: params?.owner
-    }
-  };
-}
-

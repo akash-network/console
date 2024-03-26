@@ -16,7 +16,7 @@ import { PageContainer } from "@src/components/shared/PageContainer";
 import Spinner from "@src/components/shared/Spinner";
 import { Button } from "@src/components/ui/button";
 import { OpenNewWindow, Refresh, Xmark } from "iconoir-react";
-import { Checkbox, CheckboxWithLabel } from "@src/components/ui/checkbox";
+import { CheckboxWithLabel } from "@src/components/ui/checkbox";
 import { CustomPagination } from "@src/components/shared/CustomPagination";
 import { InputWithIcon } from "@src/components/ui/input";
 import { FormItem } from "@src/components/ui/form";
@@ -28,25 +28,6 @@ const NetworkCapacity = dynamic(() => import("../../components/providers/Network
 });
 
 type Props = {};
-
-// const useStyles = makeStyles()(theme => ({
-//   root: {
-//     "& .MuiPagination-ul": {
-//       justifyContent: "center"
-//     }
-//   },
-//   title: {
-//     fontSize: "1.5rem",
-//     fontWeight: "bold"
-//   },
-//   checkbox: {
-//     padding: "4px"
-//   },
-//   selectFormControl: {
-//     flexBasis: "250px",
-//     marginLeft: "1rem"
-//   }
-// }));
 
 type SortId = "active-leases-desc" | "active-leases-asc" | "my-leases-desc" | "my-active-leases-desc" | "gpu-available-desc";
 
@@ -353,9 +334,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
                   setPageIndex={handleChangePage}
                   pageIndex={page}
                   totalPageCount={pageCount}
-                  setPageSize={function (pageSize: number): void {
-                    throw new Error("Function not implemented.");
-                  }}
+                  setPageSize={setPageSize}
                 />
               </div>
             )}

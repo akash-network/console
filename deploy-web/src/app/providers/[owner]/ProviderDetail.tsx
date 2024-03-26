@@ -129,14 +129,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                     title={<FormattedDate value={x.checkDate} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />}
                   >
                     <div
-                      className={cn("h-[24px] w-[2%] rounded-sm max-w-[8px]", { ["ml-1"]: i > 0, ["bg-green-500"]: x.isOnline, ["bg-red-500"]: !x.isOnline })}
-                      // sx={{
-                      //   width: "2%",
-                      //   height: "24px",
-                      //   marginLeft: i > 0 ? ".25rem" : 0,
-                      //   backgroundColor: x.isOnline ? theme.palette.success.main : theme.palette.error.main,
-                      //   borderRadius: "2px"
-                      // }}
+                      className={cn("h-[24px] w-[2%] max-w-[8px] rounded-sm", { ["ml-1"]: i > 0, ["bg-green-500"]: x.isOnline, ["bg-red-500"]: !x.isOnline })}
                     />
                   </CustomNoDivTooltip>
                 ))}

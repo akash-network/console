@@ -4,13 +4,13 @@ import { getNetworkBaseApiUrl } from "@src/utils/constants";
 import { ApiProviderDetail } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 
-interface IDeploymentDetailPageProps {
+interface IProviderDetailPageProps {
   params: { owner: string };
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
 export async function generateMetadata(
-  { params: { owner }, searchParams: { network } }: IDeploymentDetailPageProps,
+  { params: { owner }, searchParams: { network } }: IProviderDetailPageProps,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   const response = await fetchProviderData(owner, network as string);
@@ -39,7 +39,7 @@ async function fetchProviderData(owner: string, network: string): Promise<ApiPro
   return response.json();
 }
 
-export async function ProviderDetailPage({ params: { owner }, searchParams: { network } }) {
+export async function ProviderDetailPage({ params: { owner }, searchParams: { network } }: IProviderDetailPageProps) {
   const provider = await fetchProviderData(owner, network as string);
 
   return <ProviderDetail owner={owner} _provider={provider} />;
