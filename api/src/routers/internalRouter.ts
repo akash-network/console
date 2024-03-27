@@ -4,6 +4,7 @@ import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
 import { GpuVendor } from "@src/types/gpu";
 import { isValidBech32Address } from "@src/utils/addresses";
+import { getGpuInterface } from "@src/utils/gpu";
 import { round } from "@src/utils/math";
 import axios from "axios";
 import { differenceInSeconds } from "date-fns";
@@ -264,10 +265,14 @@ internalRouter.get("gpu-models", async (c) => {
         if (!existingModel.memory.includes(_modelValue.memory_size)) {
           existingModel.memory.push(_modelValue.memory_size);
         }
+        if (!existingModel.interface.includes(getGpuInterface(_modelValue.interface))) {
+          existingModel.interface.push(getGpuInterface(_modelValue.interface));
+        }
       } else {
         vendor.models.push({
           name: _modelValue.name,
-          memory: [_modelValue.memory_size]
+          memory: [_modelValue.memory_size],
+          interface: [getGpuInterface(_modelValue.interface)]
         });
       }
     }

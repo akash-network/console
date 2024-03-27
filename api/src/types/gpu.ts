@@ -6,4 +6,5 @@ export interface GpuVendor {
 export interface GpuModel {
   name: string;
   memory: string[];
+  interface: string[];
 }
