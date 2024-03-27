@@ -56,7 +56,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
 
   return (
     <FormPaper elevation={1} sx={{ padding: "1rem" }}>
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+      <Box sx={{ display: "flex", alignItems: "center" }}>
         <Controller
           control={control}
           name={`services.${serviceIndex}.profile.gpu`}
@@ -154,6 +154,12 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
             </FormControl>
           )}
         />
+      </Box>
+
+      <Box sx={{ mb: 3, mt: 1 }}>
+        <Typography variant="caption" color="textSecondary">
+          Picking specific GPU models below, filters out providers that don't have those GPUs and may reduce the number of bids you receive.
+        </Typography>
       </Box>
 
       {formGpuModels.map((formGpu, formGpuIndex) => {

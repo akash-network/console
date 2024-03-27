@@ -99,8 +99,8 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           unit: 1,
           vendor: vendorQuery,
           name: gpuModel.name,
-          memory: gpuModel.memory.find(x => x === memoryQuery) || gpuModel.memory[0],
-          interface: gpuModel.interface.find(x => x === interfaceQuery) || gpuModel.interface[0]
+          memory: gpuModel.memory.find(x => x === memoryQuery) || "",
+          interface: gpuModel.interface.find(x => x === interfaceQuery) || ""
         };
         setValue("services.0.profile.gpuModels", [model]);
       } else {
