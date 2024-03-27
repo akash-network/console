@@ -5,6 +5,8 @@ interface IProviderDetailPageProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
+// TODO SEO
+
 export default async function ProviderDetailPage({ params: { owner }, searchParams: { network } }: IProviderDetailPageProps) {
   return <LeaseListContainer owner={owner} />;
 }

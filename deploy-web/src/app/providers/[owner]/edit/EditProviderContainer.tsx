@@ -1,20 +1,17 @@
+"use client";
 import { useEffect } from "react";
 import Layout from "@src/components/layout/Layout";
-import { NextSeo } from "next-seo";
 import { useProviderAttributesSchema, useProviderDetail } from "@src/queries/useProvidersQuery";
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
-import PageContainer from "@src/components/shared/PageContainer";
-import { EditProviderForm } from "@src/app/providers/[owner]/edit/EditProviderForm";
 import { getProviderNameFromUri } from "@src/utils/providerUtils";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
+import { PageContainer } from "@src/components/shared/PageContainer";
 
 type Props = {
   owner: string;
 };
 
-const ProviderEditPage: React.FunctionComponent<Props> = ({ owner }) => {
+export const EditProviderContainer: React.FunctionComponent<Props> = ({ owner }) => {
   const { data: provider, isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner, { enabled: false });
   const { data: providerAttributesSchema, isFetching: isLoadingSchema } = useProviderAttributesSchema();
 
@@ -29,8 +26,6 @@ const ProviderEditPage: React.FunctionComponent<Props> = ({ owner }) => {
 
   return (
     <Layout isLoading={isLoadingSchema || isLoadingProvider}>
-      <NextSeo title={`Edit Provider ${owner}`} />
-
       <PageContainer>
         {provider && providerAttributesSchema && (
           <>
@@ -68,13 +63,3 @@ const ProviderEditPage: React.FunctionComponent<Props> = ({ owner }) => {
     </Layout>
   );
 };
-
-export default ProviderEditPage;
-
-export async function getServerSideProps({ params }) {
-  return {
-    props: {
-      owner: params?.owner
-    }
-  };
-}
