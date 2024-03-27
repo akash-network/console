@@ -1,3 +1,4 @@
+import { GpuModel } from "./gpu";
 import { ProviderAttributeSchemaDetailValue, ProviderRegionValue } from "./providerAttributes";
 
 export type Service = {
@@ -29,7 +30,7 @@ export type Profile = {
   hasGpu?: boolean;
   gpu?: number;
   gpuVendor?: string;
-  gpuModels?: ProviderAttributeSchemaDetailValue[];
+  gpuModels?: GpuModel[];
   ram: number;
   ramUnit: string;
   storage: number;

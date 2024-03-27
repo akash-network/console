@@ -260,8 +260,10 @@ internalRouter.get("gpu-models", async (c) => {
       };
       const existingModel = vendor.models.find((x) => x.name === _modelValue.name);
 
-      if (existingModel && !existingModel.memory.includes(_modelValue.memory_size)) {
-        existingModel.memory.push(_modelValue.memory_size);
+      if (existingModel) {
+        if (!existingModel.memory.includes(_modelValue.memory_size)) {
+          existingModel.memory.push(_modelValue.memory_size);
+        }
       } else {
         vendor.models.push({
           name: _modelValue.name,

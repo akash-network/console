@@ -36,6 +36,7 @@ import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { useChainParam } from "@src/context/ChainParamProvider";
+import { useGpuModels } from "@src/queries/useGpuQuery";
 
 type Props = {};
 
@@ -50,6 +51,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [rentGpuSdl, setRentGpuSdl] = useAtom(sdlStore.rentGpuSdl);
   const { data: providerAttributesSchema } = useProviderAttributesSchema();
+  const { data: gpuModels } = useGpuModels();
   const { handleSubmit, control, watch, setValue, trigger } = useForm<RentGpusFormValues>({
     defaultValues: {
       services: [{ ...defaultRentGpuService }],
@@ -82,13 +84,12 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   }, []);
 
   useEffect(() => {
-    if (router.query.gpu && providerAttributesSchema && !isQueryInit) {
+    if (router.query.vendor && router.query.gpu && gpuModels && !isQueryInit) {
+      const vendorQuery = router.query.vendor as string;
       const gpuQuery = router.query.gpu as string;
-      const gpuModel = providerAttributesSchema["hardware-gpu-model"]?.values.find(x => {
-        const key = x.key.split("/");
+      const gpuModel = gpuModels.find(x => x.name === vendorQuery)?.models.find(x => x.name === gpuQuery);
 
-        return key[key.indexOf("model") + 1] === gpuQuery;
-      });
+      console.log("GPU model", gpuModel);
 
       if (gpuModel) {
         setValue("services.0.profile.gpuModels", [gpuModel]);
@@ -98,7 +99,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
       setIsQuertInit(true);
     }
-  }, [router.query, providerAttributesSchema, isQueryInit]);
+  }, [router.query, gpuModels, isQueryInit]);
 
   async function createAndValidateDeploymentData(yamlStr: string, dseq = null, deposit = defaultInitialDeposit, depositorAddress = null) {
     try {
@@ -254,14 +255,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           <ImageSelect control={control as any} currentService={currentService} onSelectTemplate={onSelectTemplate} />
 
           <Box sx={{ marginTop: "1rem" }}>
-            <GpuFormControl
-              control={control as any}
-              providerAttributesSchema={providerAttributesSchema}
-              serviceIndex={0}
-              hasGpu
-              currentService={currentService}
-              hideHasGpu
-            />
+            <GpuFormControl control={control as any} gpuModels={gpuModels} serviceIndex={0} hasGpu currentService={currentService} hideHasGpu />
           </Box>
 
           <Box sx={{ marginTop: "1rem" }}>

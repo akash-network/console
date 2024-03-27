@@ -1,6 +1,20 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { makeStyles } from "tss-react/mui";
-import { Box, Checkbox, CircularProgress, FormControl, FormHelperText, MenuItem, Select, Slider, TextField, Typography, useTheme } from "@mui/material";
+import {
+  Autocomplete,
+  Box,
+  Checkbox,
+  CircularProgress,
+  ClickAwayListener,
+  FormControl,
+  FormHelperText,
+  MenuItem,
+  Select,
+  Slider,
+  TextField,
+  Typography,
+  useTheme
+} from "@mui/material";
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
@@ -12,6 +26,7 @@ import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { gpuVendors } from "../shared/akash/gpu";
 import { FormSelect } from "./FormSelect";
 import { validationConfig } from "../shared/akash/units";
+import { GpuModel, GpuVendor } from "@src/types/gpu";
 
 type Props = {
   serviceIndex: number;
@@ -19,7 +34,7 @@ type Props = {
   hideHasGpu?: boolean;
   children?: ReactNode;
   control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
-  providerAttributesSchema: ProviderAttributesSchema;
+  gpuModels: GpuVendor[];
   currentService: Service;
 };
 
@@ -32,9 +47,11 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const GpuFormControl: React.FunctionComponent<Props> = ({ providerAttributesSchema, control, serviceIndex, hasGpu, currentService, hideHasGpu }) => {
+export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, control, serviceIndex, hasGpu, currentService, hideHasGpu }) => {
   const { classes } = useStyles();
   const theme = useTheme();
+  const vendor = currentService.profile.gpuVendor;
+  const models = gpuModels ? gpuModels.find(u => u.name === vendor)?.models : [];
 
   return (
     <FormPaper elevation={1} sx={{ padding: hasGpu ? ".5rem 1rem 1rem" : ".5rem 1rem" }}>
@@ -162,16 +179,8 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ providerAttribu
           </Box>
 
           <Box sx={{ marginTop: "1rem" }}>
-            {providerAttributesSchema ? (
-              <FormSelect
-                control={control}
-                label="GPU models (any if empty)"
-                optionName="hardware-gpu-model"
-                name={`services.${serviceIndex}.profile.gpuModels`}
-                providerAttributesSchema={providerAttributesSchema}
-                required={false}
-                multiple
-              />
+            {gpuModels ? (
+              <GpuModelSelect control={control} serviceIndex={serviceIndex} gpuModels={models} />
             ) : (
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 <CircularProgress size="1rem" color="secondary" />
@@ -184,5 +193,79 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ providerAttribu
         </div>
       )}
     </FormPaper>
+  );
+};
+
+type GpuModelSelectProps = {
+  control: Control<any, any>;
+  serviceIndex: number;
+  gpuModels: GpuModel[];
+};
+
+export const GpuModelSelect: React.FunctionComponent<GpuModelSelectProps> = ({ control, serviceIndex, gpuModels }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <Controller
+      control={control}
+      name={`services.${serviceIndex}.profile.gpuModels`}
+      render={({ field, fieldState }) => (
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          {/* <FormSelect
+                control={control}
+                label="GPU models (any if empty)"
+                optionName="hardware-gpu-model"
+                name={`services.${serviceIndex}.profile.gpuModels`}
+                providerAttributesSchema={providerAttributesSchema}
+                required={false}
+                multiple
+              /> */}
+
+          <Autocomplete
+            disableClearable
+            open={isOpen}
+            options={gpuModels}
+            value={field.value || ([] as any)}
+            getOptionLabel={option => option.name || ""}
+            defaultValue={[]}
+            isOptionEqualToValue={(option, value) => option.name === value.name}
+            filterSelectedOptions
+            fullWidth
+            multiple
+            ChipProps={{ size: "small" }}
+            onChange={(event, newValue: GpuModel[]) => {
+              field.onChange(newValue);
+            }}
+            renderInput={params => (
+              <ClickAwayListener onClickAway={() => setIsOpen(false)}>
+                <TextField
+                  {...params}
+                  label="GPU models (any if empty)"
+                  variant="outlined"
+                  color="secondary"
+                  size="small"
+                  error={!!fieldState.error}
+                  helperText={fieldState.error?.message}
+                  onClick={() => setIsOpen(prev => !prev)}
+                  sx={{ minHeight: "42px" }}
+                />
+              </ClickAwayListener>
+            )}
+            renderOption={(props, option) => {
+              return (
+                <Box
+                  component="li"
+                  sx={{ display: "flex", alignItems: "center", justifyContent: "space-between !important", width: "100%", padding: ".2rem .5rem" }}
+                  {...props}
+                  key={option.name}
+                >
+                  <div>{option.name}</div>
+                </Box>
+              );
+            }}
+          />
+        </Box>
+      )}
+    />
   );
 };
