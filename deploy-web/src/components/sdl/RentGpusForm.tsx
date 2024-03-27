@@ -1,7 +1,7 @@
 import { Alert, Box, Button, CircularProgress, Grid, Paper, Typography } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { useEffect, useRef, useState } from "react";
-import { ApiTemplate, RentGpusFormValues, Service } from "@src/types";
+import { ApiTemplate, ProfileGpuModel, RentGpusFormValues, Service } from "@src/types";
 import { defaultAnyRegion, defaultRentGpuService } from "@src/utils/sdl/data";
 import { useRouter } from "next/router";
 import sdlStore from "@src/store/sdlStore";
@@ -92,7 +92,17 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
       console.log("GPU model", gpuModel);
 
       if (gpuModel) {
-        setValue("services.0.profile.gpuModels", [gpuModel]);
+        const memoryQuery = router.query.memory as string;
+        const interfaceQuery = router.query.interface as string;
+
+        const model: ProfileGpuModel = {
+          unit: 1,
+          vendor: vendorQuery,
+          name: gpuModel.name,
+          memory: gpuModel.memory.find(x => x === memoryQuery) || gpuModel.memory[0],
+          interface: gpuModel.interface.find(x => x === interfaceQuery) || gpuModel.interface[0]
+        };
+        setValue("services.0.profile.gpuModels", [model]);
       } else {
         console.log("GPU model not found", gpuQuery);
       }

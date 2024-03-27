@@ -1,5 +1,4 @@
-import { GpuModel } from "./gpu";
-import { ProviderAttributeSchemaDetailValue, ProviderRegionValue } from "./providerAttributes";
+import { ProviderRegionValue } from "./providerAttributes";
 
 export type Service = {
   id: string;
@@ -28,9 +27,9 @@ export type ImportService = {
 export type Profile = {
   cpu: number;
   hasGpu?: boolean;
-  gpu?: number;
-  gpuVendor?: string;
-  gpuModels?: GpuModel[];
+  // gpu?: number;
+  // gpuVendor?: string;
+  gpuModels?: ProfileGpuModel[];
   ram: number;
   ramUnit: string;
   storage: number;
@@ -39,6 +38,14 @@ export type Profile = {
   persistentStorage?: number;
   persistentStorageUnit?: string;
   persistentStorageParam?: ServicePersistentStorage;
+};
+
+export type ProfileGpuModel = {
+  unit: number;
+  vendor: string;
+  name: string;
+  memory: string;
+  interface: string;
 };
 
 export type ServicePersistentStorage = {
