@@ -57,12 +57,12 @@ export function parseSizeStr(str: string) {
 
 type NetworkType = "beta2" | "beta3";
 
-function isString(value: unknown): value is string {
-  return typeof value === "object" && value !== null && value.constructor === String;
+function isValidString(value: unknown): value is string {
+  return typeof value === "string" && !!value;
 }
 
 export function getSdl(yamlJson: string | v2Sdl, networkType: NetworkType) {
-  return isString(yamlJson) ? SDL.fromString(yamlJson, networkType) : new SDL(yamlJson, networkType);
+  return isValidString(yamlJson) ? SDL.fromString(yamlJson, networkType) : new SDL(yamlJson, networkType);
 }
 
 export function DeploymentGroups(yamlJson: string | v2Sdl, networkType: NetworkType) {
