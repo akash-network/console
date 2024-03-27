@@ -10,7 +10,7 @@ export async function getProviderRegions() {
     include: [{ model: ProviderAttribute, attributes: ["value"], where: { key: "location-region" } }]
   });
 
-  console.log(JSON.stringify(providers, null, 2));
+  // console.log(JSON.stringify(providers, null, 2));
   const result = regions.map((region) => {
     const filteredProviders = providers.filter((p) => p.providerAttributes.some((attr) => attr.value === region.key)).map((x) => x.owner);
     return { ...region, providers: filteredProviders };

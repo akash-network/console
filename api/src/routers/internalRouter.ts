@@ -1,8 +1,11 @@
 import { Block } from "@shared/dbSchemas";
 import { Lease, Provider } from "@shared/dbSchemas/akash";
+import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
+import { GpuVendor } from "@src/types/gpu";
 import { isValidBech32Address } from "@src/utils/addresses";
 import { round } from "@src/utils/math";
+import axios from "axios";
 import { differenceInSeconds } from "date-fns";
 import { Hono } from "hono";
 import * as semver from "semver";
@@ -231,4 +234,44 @@ internalRouter.get("leases-duration/:owner", async (c) => {
     totalDurationInHours: totalSeconds / 3600,
     leases
   });
+});
+
+internalRouter.get("gpu-models", async (c) => {
+  const response = await cacheResponse(60 * 2, cacheKeys.getGpuModels, async () => {
+    const res = await axios.get<object>("https://raw.githubusercontent.com/akash-network/provider-configs/main/devices/pcie/gpus.json");
+    return res.data;
+  });
+
+  const gpuModels: GpuVendor[] = [];
+
+  // Loop over vendors
+  for (const [vendorKey, vendorValue] of Object.entries(response)) {
+    const vendor: GpuVendor = {
+      name: vendorValue.name,
+      models: []
+    };
+
+    // Loop over models
+    for (const [modelKey, modelValue] of Object.entries(vendorValue.devices)) {
+      const _modelValue = modelValue as {
+        name: string;
+        memory_size: string;
+        interface: string;
+      };
+      const existingModel = vendor.models.find((x) => x.name === _modelValue.name);
+
+      if (existingModel && !existingModel.memory.includes(_modelValue.memory_size)) {
+        existingModel.memory.push(_modelValue.memory_size);
+      } else {
+        vendor.models.push({
+          name: _modelValue.name,
+          memory: [_modelValue.memory_size]
+        });
+      }
+    }
+
+    gpuModels.push(vendor);
+  }
+
+  return c.json(gpuModels);
 });
