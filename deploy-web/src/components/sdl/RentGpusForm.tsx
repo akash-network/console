@@ -42,6 +42,7 @@ type Props = {};
 export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const [error, setError] = useState(null);
   // const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
+  const [isQueryInit, setIsQuertInit] = useState(false);
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
@@ -79,6 +80,25 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (router.query.gpu && providerAttributesSchema && !isQueryInit) {
+      const gpuQuery = router.query.gpu as string;
+      const gpuModel = providerAttributesSchema["hardware-gpu-model"]?.values.find(x => {
+        const key = x.key.split("/");
+
+        return key[key.indexOf("model") + 1] === gpuQuery;
+      });
+
+      if (gpuModel) {
+        setValue("services.0.profile.gpuModels", [gpuModel]);
+      } else {
+        console.log("GPU model not found", gpuQuery);
+      }
+
+      setIsQuertInit(true);
+    }
+  }, [router.query, providerAttributesSchema, isQueryInit]);
 
   async function createAndValidateDeploymentData(yamlStr: string, dseq = null, deposit = defaultInitialDeposit, depositorAddress = null) {
     try {
