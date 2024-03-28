@@ -13,7 +13,6 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 import { HttpOptionsFormControl } from "./HttpOptionsFormControl";
-import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 
 type Props = {
   serviceIndex: number;
@@ -22,10 +21,9 @@ type Props = {
   children?: ReactNode;
   services: Service[];
   expose: Expose[];
-  providerAttributesSchema: ProviderAttributesSchema;
 };
 
-export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, onClose, expose: _expose, services, providerAttributesSchema }) => {
+export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, onClose, expose: _expose, services }) => {
   const acceptRef = useRef<AcceptRefType>();
   const toRef = useRef<ToRefType>();
   const {
@@ -308,13 +306,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
               </Box>
 
               <Box sx={{ marginTop: "1rem" }}>
-                <HttpOptionsFormControl
-                  control={control}
-                  serviceIndex={serviceIndex}
-                  exposeIndex={expIndex}
-                  services={services}
-                  providerAttributesSchema={providerAttributesSchema}
-                />
+                <HttpOptionsFormControl control={control} serviceIndex={serviceIndex} exposeIndex={expIndex} services={services} />
               </Box>
             </Box>
 

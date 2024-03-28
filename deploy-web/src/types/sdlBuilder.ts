@@ -28,7 +28,6 @@ export type Profile = {
   cpu: number;
   hasGpu?: boolean;
   gpu?: number;
-  // gpuVendor?: string;
   gpuModels?: ProfileGpuModel[];
   ram: number;
   ramUnit: string;
@@ -41,7 +40,6 @@ export type Profile = {
 };
 
 export type ProfileGpuModel = {
-  unit: number;
   vendor: string;
   name: string;
   memory: string;

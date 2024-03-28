@@ -6,7 +6,6 @@ import { defaultAnyRegion, defaultRentGpuService } from "@src/utils/sdl/data";
 import { useRouter } from "next/router";
 import sdlStore from "@src/store/sdlStore";
 import { useAtom } from "jotai";
-import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
 import { RegionSelect } from "./RegionSelect";
 import { AdvancedConfig } from "./AdvancedConfig";
 import { GpuFormControl } from "./GpuFormControl";
@@ -50,7 +49,6 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const formRef = useRef<HTMLFormElement>();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [rentGpuSdl, setRentGpuSdl] = useAtom(sdlStore.rentGpuSdl);
-  const { data: providerAttributesSchema } = useProviderAttributesSchema();
   const { data: gpuModels } = useGpuModels();
   const { handleSubmit, control, watch, setValue, trigger } = useForm<RentGpusFormValues>({
     defaultValues: {
@@ -96,7 +94,6 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
         const interfaceQuery = router.query.interface as string;
 
         const model: ProfileGpuModel = {
-          unit: 1,
           vendor: vendorQuery,
           name: gpuModel.name,
           memory: gpuModel.memory.find(x => x === memoryQuery) || "",
@@ -130,7 +127,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     try {
       if (!yamlStr) return null;
 
-      const services = importSimpleSdl(yamlStr, providerAttributesSchema);
+      const services = importSimpleSdl(yamlStr);
 
       setError(null);
 
@@ -290,7 +287,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           </Grid>
         </Paper>
 
-        <AdvancedConfig control={control} currentService={currentService} providerAttributesSchema={providerAttributesSchema} />
+        <AdvancedConfig control={control} currentService={currentService} />
 
         {error && (
           <Alert severity="error" variant="outlined" sx={{ marginTop: "1rem" }}>

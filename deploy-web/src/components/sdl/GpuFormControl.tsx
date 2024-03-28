@@ -51,7 +51,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
   const theme = useTheme();
 
   const onAddGpuModel = () => {
-    appendFormGpuModel({ unit: 1, vendor: "nvidia", name: "", memory: "", interface: "" });
+    appendFormGpuModel({ vendor: "nvidia", name: "", memory: "", interface: "" });
   };
 
   return (
@@ -238,7 +238,6 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                       <Controller
                         control={control}
                         name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.memory`}
-                        disabled={!currentGpu.name}
                         render={({ field }) => (
                           <FormControl fullWidth>
                             <InputLabel id="gpu-memory-select-label" size="small">
@@ -250,6 +249,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                               onChange={field.onChange}
                               variant="outlined"
                               size="small"
+                              disabled={!currentGpu.name}
                               label="Memory"
                               fullWidth
                               MenuProps={{ disableScrollLock: true }}
@@ -268,7 +268,6 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                       <Controller
                         control={control}
                         name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.interface`}
-                        disabled={!currentGpu.name}
                         render={({ field }) => (
                           <FormControl fullWidth>
                             <InputLabel id="gpu-interface-select-label" size="small">
@@ -280,6 +279,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                               onChange={field.onChange}
                               variant="outlined"
                               size="small"
+                              disabled={!currentGpu.name}
                               label="Interface"
                               fullWidth
                               MenuProps={{ disableScrollLock: true }}
