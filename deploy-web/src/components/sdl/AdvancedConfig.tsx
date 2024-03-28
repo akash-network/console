@@ -13,13 +13,12 @@ import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { PersistentStorage } from "./PersistentStorage";
 
 type Props = {
-  providerAttributesSchema: ProviderAttributesSchema;
   currentService: Service;
   control: Control<RentGpusFormValues, any>;
   children?: ReactNode;
 };
 
-export const AdvancedConfig: React.FunctionComponent<Props> = ({ control, currentService, providerAttributesSchema }) => {
+export const AdvancedConfig: React.FunctionComponent<Props> = ({ control, currentService }) => {
   const theme = useTheme();
   const [expanded, setIsAdvancedOpen] = useState(false);
   const [isEditingCommands, setIsEditingCommands] = useState(false);
@@ -42,7 +41,6 @@ export const AdvancedConfig: React.FunctionComponent<Props> = ({ control, curren
           serviceIndex={0}
           expose={currentService.expose}
           services={[currentService]}
-          providerAttributesSchema={providerAttributesSchema}
         />
       )}
 

@@ -60,5 +60,6 @@ export const cacheKeys = {
   getSandboxNodes: "getSandboxNodes",
   getMainnetVersion: "getMainnetVersion",
   getTestnetVersion: "getTestnetVersion",
-  getSandboxVersion: "getSandboxVersion"
+  getSandboxVersion: "getSandboxVersion",
+  getGpuModels: "getGpuModels",
 };

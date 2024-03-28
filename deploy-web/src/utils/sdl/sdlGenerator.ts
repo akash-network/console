@@ -1,4 +1,4 @@
-import { Expose, Service } from "@src/types";
+import { Expose, ProfileGpuModel, Service } from "@src/types";
 import yaml from "js-yaml";
 import { defaultHttpOptions } from "./data";
 
@@ -90,18 +90,43 @@ export const generateSdl = (services: Service[], region?: string) => {
       sdl.profiles.compute[service.title].resources.gpu = {
         units: service.profile.gpu,
         attributes: {
-          vendor: {
-            [service.profile.gpuVendor]:
-              service.profile.gpuModels.length > 0
-                ? service.profile.gpuModels.map(x => {
-                    const modelKey = x.key.split("/");
-                    // capabilities/gpu/vendor/nvidia/model/h100 -> h100
-                    return { model: modelKey[modelKey.length - 1] };
-                  })
-                : null
-          }
+          vendor: {}
         }
       };
+
+      // Group models by vendor
+      const vendors = service.profile.gpuModels.reduce((group, model) => {
+        const { vendor } = model;
+        group[vendor] = group[vendor] ?? [];
+        group[vendor].push(model);
+        return group;
+      }, {}) as { [key: string]: ProfileGpuModel[] };
+
+      for (const [vendor, models] of Object.entries(vendors)) {
+        const mappedModels = models
+          .map(x => {
+            let model: { model?: string; ram?: string; interface?: string } = null;
+
+            if (x.name) {
+              model = {
+                model: x.name
+              };
+            }
+
+            if (x.memory) {
+              model.ram = x.memory;
+            }
+
+            if (x.interface) {
+              model.interface = x.interface;
+            }
+
+            return model;
+          })
+          .filter(x => x);
+
+        sdl.profiles.compute[service.title].resources.gpu.attributes.vendor[vendor] = mappedModels.length > 0 ? mappedModels : null;
+      }
     }
 
     // Persistent Storage

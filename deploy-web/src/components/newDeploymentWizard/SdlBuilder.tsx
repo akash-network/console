@@ -6,8 +6,8 @@ import { nanoid } from "nanoid";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { Alert, Box, Button, CircularProgress } from "@mui/material";
 import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
-import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
+import { useGpuModels } from "@src/queries/useGpuQuery";
 
 interface Props {
   sdlString: string;
@@ -38,7 +38,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
     keyName: "id"
   });
   const { services: _services } = watch();
-  const { data: providerAttributesSchema } = useProviderAttributesSchema();
+  const { data: gpuModels } = useGpuModels();
   const [serviceCollapsed, setServiceCollapsed] = useState([]);
 
   React.useImperativeHandle(ref, () => ({
@@ -78,7 +78,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
     try {
       if (!yamlStr) return [];
 
-      const services = importSimpleSdl(yamlStr, providerAttributesSchema);
+      const services = importSimpleSdl(yamlStr);
 
       setError(null);
 
@@ -117,7 +117,8 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
               key={service.id}
               serviceIndex={serviceIndex}
               _services={_services}
-              providerAttributesSchema={providerAttributesSchema}
+              gpuModels={gpuModels}
+              setValue={setValue}
               control={control}
               trigger={trigger}
               onRemoveService={onRemoveService}

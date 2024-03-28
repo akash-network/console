@@ -22,8 +22,8 @@ import { memoryUnits, storageUnits } from "../shared/akash/units";
 import sdlStore from "@src/store/sdlStore";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useAtom } from "jotai";
-import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
 import { PreviewSdl } from "./PreviewSdl";
+import { useGpuModels } from "@src/queries/useGpuQuery";
 
 type Props = {};
 
@@ -39,7 +39,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
   const formRef = useRef<HTMLFormElement>();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [sdlBuilderSdl, setSdlBuilderSdl] = useAtom(sdlStore.sdlBuilderSdl);
-  const { data: providerAttributesSchema } = useProviderAttributesSchema();
+  const { data: gpuModels } = useGpuModels();
   const { enqueueSnackbar } = useSnackbar();
   const {
     handleSubmit,
@@ -95,7 +95,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
       const response = await axios.get(`/api/proxy/user/template/${id}`);
       const template: ITemplate = response.data;
 
-      const services = importSimpleSdl(template.sdl, providerAttributesSchema);
+      const services = importSimpleSdl(template.sdl);
 
       setIsLoadingTemplate(false);
 
@@ -296,12 +296,13 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
             key={service.id}
             serviceIndex={serviceIndex}
             _services={_services}
-            providerAttributesSchema={providerAttributesSchema}
+            setValue={setValue}
             control={control}
             trigger={trigger}
             onRemoveService={onRemoveService}
             serviceCollapsed={serviceCollapsed}
             setServiceCollapsed={setServiceCollapsed}
+            gpuModels={gpuModels}
           />
         ))}
 

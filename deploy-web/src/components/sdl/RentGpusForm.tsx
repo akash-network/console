@@ -1,12 +1,11 @@
 import { Alert, Box, Button, CircularProgress, Grid, Paper, Typography } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { useEffect, useRef, useState } from "react";
-import { ApiTemplate, RentGpusFormValues, Service } from "@src/types";
+import { ApiTemplate, ProfileGpuModel, RentGpusFormValues, Service } from "@src/types";
 import { defaultAnyRegion, defaultRentGpuService } from "@src/utils/sdl/data";
 import { useRouter } from "next/router";
 import sdlStore from "@src/store/sdlStore";
 import { useAtom } from "jotai";
-import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
 import { RegionSelect } from "./RegionSelect";
 import { AdvancedConfig } from "./AdvancedConfig";
 import { GpuFormControl } from "./GpuFormControl";
@@ -36,19 +35,21 @@ import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { useChainParam } from "@src/context/ChainParamProvider";
+import { useGpuModels } from "@src/queries/useGpuQuery";
 
 type Props = {};
 
 export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   const [error, setError] = useState(null);
   // const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
+  const [isQueryInit, setIsQuertInit] = useState(false);
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
   const formRef = useRef<HTMLFormElement>();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [rentGpuSdl, setRentGpuSdl] = useAtom(sdlStore.rentGpuSdl);
-  const { data: providerAttributesSchema } = useProviderAttributesSchema();
+  const { data: gpuModels } = useGpuModels();
   const { handleSubmit, control, watch, setValue, trigger } = useForm<RentGpusFormValues>({
     defaultValues: {
       services: [{ ...defaultRentGpuService }],
@@ -80,6 +81,32 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (router.query.vendor && router.query.gpu && gpuModels && !isQueryInit) {
+      // Example query: ?vendor=nvidia&gpu=h100&vram=80Gi&interface=sxm
+      const vendorQuery = router.query.vendor as string;
+      const gpuQuery = router.query.gpu as string;
+      const gpuModel = gpuModels.find(x => x.name === vendorQuery)?.models.find(x => x.name === gpuQuery);
+
+      if (gpuModel) {
+        const memoryQuery = router.query.vram as string;
+        const interfaceQuery = router.query.interface as string;
+
+        const model: ProfileGpuModel = {
+          vendor: vendorQuery,
+          name: gpuModel.name,
+          memory: gpuModel.memory.find(x => x === memoryQuery) || "",
+          interface: gpuModel.interface.find(x => x === interfaceQuery) || ""
+        };
+        setValue("services.0.profile.gpuModels", [model]);
+      } else {
+        console.log("GPU model not found", gpuQuery);
+      }
+
+      setIsQuertInit(true);
+    }
+  }, [router.query, gpuModels, isQueryInit]);
+
   async function createAndValidateDeploymentData(yamlStr: string, dseq = null, deposit = defaultInitialDeposit, depositorAddress = null) {
     try {
       if (!yamlStr) return null;
@@ -99,7 +126,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     try {
       if (!yamlStr) return null;
 
-      const services = importSimpleSdl(yamlStr, providerAttributesSchema);
+      const services = importSimpleSdl(yamlStr);
 
       setError(null);
 
@@ -122,7 +149,19 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
     if (!result) return;
 
+    // Filter out invalid gpu models
+    const _gpuModels = (result[0].profile.gpuModels || []).map(templateModel => {
+      const isValid = gpuModels?.find(x => x.name === templateModel.vendor)?.models.some(x => x.name === templateModel.name);
+      return {
+        vendor: isValid ? templateModel.vendor : "nvidia",
+        name: isValid ? templateModel.name : "",
+        memory: isValid ? templateModel.memory : "",
+        interface: isValid ? templateModel.interface : ""
+      };
+    });
+
     setValue("services", result as Service[]);
+    setValue("services.0.profile.gpuModels", _gpuModels);
     trigger();
   };
 
@@ -236,10 +275,11 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           <Box sx={{ marginTop: "1rem" }}>
             <GpuFormControl
               control={control as any}
-              providerAttributesSchema={providerAttributesSchema}
+              gpuModels={gpuModels}
               serviceIndex={0}
               hasGpu
               currentService={currentService}
+              setValue={setValue}
               hideHasGpu
             />
           </Box>
@@ -266,7 +306,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           </Grid>
         </Paper>
 
-        <AdvancedConfig control={control} currentService={currentService} providerAttributesSchema={providerAttributesSchema} />
+        <AdvancedConfig control={control} currentService={currentService} />
 
         {error && (
           <Alert severity="error" variant="outlined" sx={{ marginTop: "1rem" }}>

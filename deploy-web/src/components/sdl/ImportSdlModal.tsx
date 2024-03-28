@@ -11,7 +11,6 @@ import { Snackbar } from "../shared/Snackbar";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { useProviderAttributesSchema } from "@src/queries/useProvidersQuery";
 
 type Props = {
   setValue: UseFormSetValue<SdlBuilderFormValues>;
@@ -24,7 +23,6 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
   const [sdl, setSdl] = useState("");
   const [parsingError, setParsingError] = useState(null);
   const { enqueueSnackbar } = useSnackbar();
-  const { data: providerAttributesSchema } = useProviderAttributesSchema();
 
   useEffect(() => {
     const timer = Timer(500);
@@ -45,7 +43,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
     try {
       if (!yamlStr) return null;
 
-      const services = importSimpleSdl(yamlStr, providerAttributesSchema);
+      const services = importSimpleSdl(yamlStr);
 
       setParsingError(null);
 

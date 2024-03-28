@@ -1,4 +1,4 @@
-import { ProviderAttributeSchemaDetailValue, ProviderRegionValue } from "./providerAttributes";
+import { ProviderRegionValue } from "./providerAttributes";
 
 export type Service = {
   id: string;
@@ -28,8 +28,7 @@ export type Profile = {
   cpu: number;
   hasGpu?: boolean;
   gpu?: number;
-  gpuVendor?: string;
-  gpuModels?: ProviderAttributeSchemaDetailValue[];
+  gpuModels?: ProfileGpuModel[];
   ram: number;
   ramUnit: string;
   storage: number;
@@ -38,6 +37,13 @@ export type Profile = {
   persistentStorage?: number;
   persistentStorageUnit?: string;
   persistentStorageParam?: ServicePersistentStorage;
+};
+
+export type ProfileGpuModel = {
+  vendor: string;
+  name?: string;
+  memory?: string;
+  interface?: string;
 };
 
 export type ServicePersistentStorage = {
@@ -145,5 +151,5 @@ export type SdlSaveTemplateFormValues = {
 
 export type RentGpusFormValues = {
   services: Service[];
-  region: Partial<ProviderRegionValue>;
+  region?: Partial<ProviderRegionValue>;
 };

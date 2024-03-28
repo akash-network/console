@@ -23,8 +23,7 @@ export const defaultService: Service = {
   profile: {
     cpu: 0.1,
     gpu: 1,
-    gpuVendor: "nvidia",
-    gpuModels: [],
+    gpuModels: [{ vendor: "nvidia" }],
     hasGpu: false,
     ram: 512,
     ramUnit: "Mi",
@@ -83,8 +82,7 @@ export const defaultRentGpuService: Service = {
   profile: {
     cpu: 0.1,
     gpu: 1,
-    gpuVendor: "nvidia",
-    gpuModels: [],
+    gpuModels: [{ vendor: "nvidia" }],
     hasGpu: true,
     ram: 512,
     ramUnit: "Mi",
@@ -140,7 +138,7 @@ export const defaultAnyRegion = {
   key: "any",
   value: "any",
   description: "Any region"
-}
+};
 
 export const nextCases = [
   { id: 1, value: "error" },
