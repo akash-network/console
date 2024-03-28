@@ -1,6 +1,6 @@
 import { useTheme } from "@mui/material/styles";
 import { Box, Collapse, Grid, IconButton, InputAdornment, Paper, TextField, Typography, useMediaQuery } from "@mui/material";
-import { Controller, Control, UseFormTrigger } from "react-hook-form";
+import { Controller, Control, UseFormTrigger, UseFormSetValue } from "react-hook-form";
 import { makeStyles } from "tss-react/mui";
 import { Dispatch, SetStateAction, useState } from "react";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -22,7 +22,6 @@ import { PriceValue } from "../shared/PriceValue";
 import { getAvgCostPerMonth, toReadableDenom } from "@src/utils/priceUtils";
 import Image from "next/legacy/image";
 import { uAktDenom } from "@src/utils/constants";
-import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { EnvVarList } from "./EnvVarList";
 import { CommandList } from "./CommandList";
 import { ExposeList } from "./ExposeList";
@@ -32,16 +31,18 @@ import { CpuFormControl } from "./CpuFormControl";
 import { MemoryFormControl } from "./MemoryFormControl";
 import { StorageFormControl } from "./StorageFormControl";
 import { TokenFormControl } from "./TokenFormControl";
+import { GpuVendor } from "@src/types/gpu";
 
 type Props = {
   _services: Service[];
   serviceIndex: number;
   control: Control<SdlBuilderFormValues, any>;
-  providerAttributesSchema: ProviderAttributesSchema;
   trigger: UseFormTrigger<SdlBuilderFormValues>;
   onRemoveService: (index: number) => void;
   serviceCollapsed: number[];
   setServiceCollapsed: Dispatch<SetStateAction<number[]>>;
+  setValue: UseFormSetValue<SdlBuilderFormValues>;
+  gpuModels: GpuVendor[];
 };
 
 const useStyles = makeStyles()(theme => ({
@@ -72,11 +73,12 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   serviceIndex,
   control,
   _services,
-  providerAttributesSchema,
   onRemoveService,
   trigger,
   serviceCollapsed,
-  setServiceCollapsed
+  setServiceCollapsed,
+  setValue,
+  gpuModels
 }) => {
   const { classes } = useStyles();
   const theme = useTheme();
@@ -116,7 +118,6 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
           serviceIndex={serviceIndex}
           expose={currentService.expose}
           services={_services}
-          providerAttributesSchema={providerAttributesSchema}
         />
       )}
       {/** Edit Placement */}
@@ -298,10 +299,11 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                 <Grid item xs={12}>
                   <GpuFormControl
                     control={control as any}
-                    providerAttributesSchema={providerAttributesSchema}
                     serviceIndex={serviceIndex}
                     hasGpu={currentService.profile.hasGpu}
                     currentService={currentService}
+                    setValue={setValue}
+                    gpuModels={gpuModels}
                   />
                 </Grid>
 

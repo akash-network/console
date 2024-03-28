@@ -37,7 +37,7 @@ type Props = {
   control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
   gpuModels: GpuVendor[];
   currentService: Service;
-  setValue: UseFormSetValue<RentGpusFormValues>;
+  setValue: UseFormSetValue<RentGpusFormValues | SdlBuilderFormValues>;
 };
 
 export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, control, serviceIndex, hasGpu, currentService, setValue, hideHasGpu }) => {
@@ -158,216 +158,218 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
         />
       </Box>
 
-      <Box sx={{ mb: 3, mt: 1 }}>
-        <Typography variant="caption" color="textSecondary">
-          Picking specific GPU models below, filters out providers that don't have those GPUs and may reduce the number of bids you receive.
-        </Typography>
-      </Box>
-
-      {formGpuModels.map((formGpu, formGpuIndex) => {
-        const currentGpu = currentService.profile.gpuModels[formGpuIndex];
-        const models = gpuModels?.find(u => u.name === currentGpu.vendor)?.models || [];
-        const interfaces = models.find(m => m.name === currentGpu.name)?.interface || [];
-        const memorySizes = models.find(m => m.name === currentGpu.name)?.memory || [];
-
-        return (
-          <Box sx={{ marginBottom: 2 }} key={`${formGpuIndex}${formGpu.vendor}${formGpu.name}${formGpu.memory}${formGpu.interface}`}>
-            {hasGpu && (
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={3}>
-                  <Controller
-                    control={control}
-                    name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.vendor`}
-                    rules={{ required: "GPU vendor is required." }}
-                    defaultValue=""
-                    render={({ field }) => (
-                      <FormControl fullWidth>
-                        <InputLabel id="gpu-vendor-select-label" size="small">
-                          Vendor
-                        </InputLabel>
-                        <Select
-                          labelId="gpu-vendor-select-label"
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                          variant="outlined"
-                          label="Vendor"
-                          fullWidth
-                          size="small"
-                          MenuProps={{ disableScrollLock: true }}
-                        >
-                          {gpuVendors.map(u => (
-                            <MenuItem key={u.id} value={u.value}>
-                              {u.value}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    )}
-                  />
-                </Grid>
-                {gpuModels ? (
-                  <>
-                    <Grid item xs={12} sm={3}>
-                      <Controller
-                        control={control}
-                        name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.name`}
-                        render={({ field }) => (
-                          <FormControl fullWidth>
-                            <InputLabel id="gpu-model-select-label" size="small">
-                              Model
-                            </InputLabel>
-                            <Select
-                              labelId="gpu-model-select-label"
-                              value={field.value || ""}
-                              onChange={event => {
-                                field.onChange(event);
-                                setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.memory`, "");
-                                setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.interface`, "");
-                              }}
-                              variant="outlined"
-                              size="small"
-                              label="Model"
-                              fullWidth
-                              IconComponent={
-                                field.value?.length > 0
-                                  ? () => (
-                                      <IconButton
-                                        size="small"
-                                        onClick={e => {
-                                          field.onChange("");
-                                          setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.memory`, "");
-                                          setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.interface`, "");
-                                        }}
-                                      >
-                                        <ClearIcon fontSize="small" />
-                                      </IconButton>
-                                    )
-                                  : undefined
-                              }
-                              MenuProps={{ disableScrollLock: true }}
-                            >
-                              {models.map(gpu => (
-                                <MenuItem key={gpu.name} value={gpu.name}>
-                                  {gpu.name}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
-                        )}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Controller
-                        control={control}
-                        name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.memory`}
-                        render={({ field }) => (
-                          <FormControl fullWidth>
-                            <InputLabel id="gpu-memory-select-label" size="small">
-                              Memory
-                            </InputLabel>
-                            <Select
-                              labelId="gpu-memory-select-label"
-                              value={field.value || ""}
-                              onChange={field.onChange}
-                              variant="outlined"
-                              size="small"
-                              disabled={!currentGpu.name}
-                              label="Memory"
-                              fullWidth
-                              IconComponent={
-                                field.value?.length > 0
-                                  ? () => (
-                                      <IconButton
-                                        size="small"
-                                        onClick={e => {
-                                          field.onChange("");
-                                        }}
-                                      >
-                                        <ClearIcon fontSize="small" />
-                                      </IconButton>
-                                    )
-                                  : undefined
-                              }
-                              MenuProps={{ disableScrollLock: true }}
-                            >
-                              {memorySizes.map(x => (
-                                <MenuItem key={x} value={x}>
-                                  {x}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
-                        )}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={2}>
-                      <Controller
-                        control={control}
-                        name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.interface`}
-                        render={({ field }) => (
-                          <FormControl fullWidth>
-                            <InputLabel id="gpu-interface-select-label" size="small">
-                              Interface
-                            </InputLabel>
-                            <Select
-                              labelId="gpu-interface-select-label"
-                              value={field.value || ""}
-                              onChange={field.onChange}
-                              variant="outlined"
-                              size="small"
-                              disabled={!currentGpu.name}
-                              label="Interface"
-                              fullWidth
-                              IconComponent={
-                                field.value?.length > 0
-                                  ? () => (
-                                      <IconButton
-                                        size="small"
-                                        onClick={e => {
-                                          field.onChange("");
-                                        }}
-                                      >
-                                        <ClearIcon fontSize="small" />
-                                      </IconButton>
-                                    )
-                                  : undefined
-                              }
-                              MenuProps={{ disableScrollLock: true }}
-                            >
-                              {interfaces.map(x => (
-                                <MenuItem key={x} value={x}>
-                                  {x}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
-                        )}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12} sm={1} sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {formGpuIndex !== 0 && (
-                        <IconButton onClick={() => removeFormGpuModel(formGpuIndex)} size="small">
-                          <DeleteIcon />
-                        </IconButton>
-                      )}
-                    </Grid>
-                  </>
-                ) : (
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <CircularProgress size="1rem" color="secondary" />
-                    <Typography color="textSecondary" variant="caption" sx={{ marginLeft: ".5rem" }}>
-                      Loading GPU models...
-                    </Typography>
-                  </Box>
-                )}
-              </Grid>
-            )}
+      {hasGpu && (
+        <>
+          <Box sx={{ mb: 3, mt: 1 }}>
+            <Typography variant="caption" color="textSecondary">
+              Picking specific GPU models below, filters out providers that don't have those GPUs and may reduce the number of bids you receive.
+            </Typography>
           </Box>
-        );
-      })}
 
-      {gpuModels && (
+          {formGpuModels.map((formGpu, formGpuIndex) => {
+            const currentGpu = currentService.profile.gpuModels[formGpuIndex];
+            const models = gpuModels?.find(u => u.name === currentGpu.vendor)?.models || [];
+            const interfaces = models.find(m => m.name === currentGpu.name)?.interface || [];
+            const memorySizes = models.find(m => m.name === currentGpu.name)?.memory || [];
+
+            return (
+              <Box sx={{ marginBottom: 2 }} key={`${formGpuIndex}${formGpu.vendor}${formGpu.name}${formGpu.memory}${formGpu.interface}`}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={3}>
+                    <Controller
+                      control={control}
+                      name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.vendor`}
+                      rules={{ required: "GPU vendor is required." }}
+                      defaultValue=""
+                      render={({ field }) => (
+                        <FormControl fullWidth>
+                          <InputLabel id="gpu-vendor-select-label" size="small">
+                            Vendor
+                          </InputLabel>
+                          <Select
+                            labelId="gpu-vendor-select-label"
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            variant="outlined"
+                            label="Vendor"
+                            fullWidth
+                            size="small"
+                            MenuProps={{ disableScrollLock: true }}
+                          >
+                            {gpuVendors.map(u => (
+                              <MenuItem key={u.id} value={u.value}>
+                                {u.value}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
+                    />
+                  </Grid>
+                  {gpuModels ? (
+                    <>
+                      <Grid item xs={12} sm={3}>
+                        <Controller
+                          control={control}
+                          name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.name`}
+                          render={({ field }) => (
+                            <FormControl fullWidth>
+                              <InputLabel id="gpu-model-select-label" size="small">
+                                Model
+                              </InputLabel>
+                              <Select
+                                labelId="gpu-model-select-label"
+                                value={field.value || ""}
+                                onChange={event => {
+                                  field.onChange(event);
+                                  setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.memory`, "");
+                                  setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.interface`, "");
+                                }}
+                                variant="outlined"
+                                size="small"
+                                label="Model"
+                                fullWidth
+                                IconComponent={
+                                  field.value?.length > 0
+                                    ? () => (
+                                        <IconButton
+                                          size="small"
+                                          onClick={e => {
+                                            field.onChange("");
+                                            setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.memory`, "");
+                                            setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.interface`, "");
+                                          }}
+                                        >
+                                          <ClearIcon fontSize="small" />
+                                        </IconButton>
+                                      )
+                                    : undefined
+                                }
+                                MenuProps={{ disableScrollLock: true }}
+                              >
+                                {models.map(gpu => (
+                                  <MenuItem key={gpu.name} value={gpu.name}>
+                                    {gpu.name}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          )}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={3}>
+                        <Controller
+                          control={control}
+                          name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.memory`}
+                          render={({ field }) => (
+                            <FormControl fullWidth>
+                              <InputLabel id="gpu-memory-select-label" size="small">
+                                Memory
+                              </InputLabel>
+                              <Select
+                                labelId="gpu-memory-select-label"
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                variant="outlined"
+                                size="small"
+                                disabled={!currentGpu.name}
+                                label="Memory"
+                                fullWidth
+                                IconComponent={
+                                  field.value?.length > 0
+                                    ? () => (
+                                        <IconButton
+                                          size="small"
+                                          onClick={e => {
+                                            field.onChange("");
+                                          }}
+                                        >
+                                          <ClearIcon fontSize="small" />
+                                        </IconButton>
+                                      )
+                                    : undefined
+                                }
+                                MenuProps={{ disableScrollLock: true }}
+                              >
+                                {memorySizes.map(x => (
+                                  <MenuItem key={x} value={x}>
+                                    {x}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          )}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={2}>
+                        <Controller
+                          control={control}
+                          name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.interface`}
+                          render={({ field }) => (
+                            <FormControl fullWidth>
+                              <InputLabel id="gpu-interface-select-label" size="small">
+                                Interface
+                              </InputLabel>
+                              <Select
+                                labelId="gpu-interface-select-label"
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                variant="outlined"
+                                size="small"
+                                disabled={!currentGpu.name}
+                                label="Interface"
+                                fullWidth
+                                IconComponent={
+                                  field.value?.length > 0
+                                    ? () => (
+                                        <IconButton
+                                          size="small"
+                                          onClick={e => {
+                                            field.onChange("");
+                                          }}
+                                        >
+                                          <ClearIcon fontSize="small" />
+                                        </IconButton>
+                                      )
+                                    : undefined
+                                }
+                                MenuProps={{ disableScrollLock: true }}
+                              >
+                                {interfaces.map(x => (
+                                  <MenuItem key={x} value={x}>
+                                    {x}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          )}
+                        />
+                      </Grid>
+
+                      <Grid item xs={12} sm={1} sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {formGpuIndex !== 0 && (
+                          <IconButton onClick={() => removeFormGpuModel(formGpuIndex)} size="small">
+                            <DeleteIcon />
+                          </IconButton>
+                        )}
+                      </Grid>
+                    </>
+                  ) : (
+                    <Box sx={{ display: "flex", alignItems: "center", ml: 4 }}>
+                      <CircularProgress size="1rem" color="secondary" />
+                      <Typography color="textSecondary" variant="caption" sx={{ marginLeft: ".5rem" }}>
+                        Loading GPU models...
+                      </Typography>
+                    </Box>
+                  )}
+                </Grid>
+              </Box>
+            );
+          })}
+        </>
+      )}
+
+      {gpuModels && hasGpu && (
         <Box sx={{ mt: 2, display: "flex", alignItems: "center", justifyContent: "end" }}>
           <Button color="secondary" variant="contained" size="small" onClick={onAddGpuModel}>
             Add GPU

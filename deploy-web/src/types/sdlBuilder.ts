@@ -151,5 +151,5 @@ export type SdlSaveTemplateFormValues = {
 
 export type RentGpusFormValues = {
   services: Service[];
-  region: Partial<ProviderRegionValue>;
+  region?: Partial<ProviderRegionValue>;
 };
