@@ -1,6 +1,6 @@
 {
   "name": "cloudmos-api",
-  "version": "2.16.0",
+  "version": "2.17.0",
   "description": "Api providing data to the deploy tool",
   "author": "Cloudmos",
   "license": "Apache-2.0",
