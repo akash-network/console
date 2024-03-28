@@ -5,7 +5,6 @@ import { Box, Checkbox, FormControlLabel, InputAdornment, MenuItem, Paper, Selec
 import { SdlBuilderFormValues, Service } from "@src/types";
 import InfoIcon from "@mui/icons-material/Info";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { nextCases } from "@src/utils/sdl/data";
 
 type Props = {
@@ -13,7 +12,6 @@ type Props = {
   exposeIndex: number;
   services: Service[];
   control: Control<SdlBuilderFormValues, any>;
-  providerAttributesSchema: ProviderAttributesSchema;
   children?: ReactNode;
 };
 
@@ -35,7 +33,7 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, exposeIndex, services, providerAttributesSchema }) => {
+export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, exposeIndex, services }) => {
   const { classes } = useStyles();
   const theme = useTheme();
   const currentService = services[serviceIndex];

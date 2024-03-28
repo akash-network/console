@@ -108,6 +108,9 @@ export class ApiUrlService {
   static networkCapacity() {
     return `${BASE_API_URL}/v1/network-capacity`;
   }
+  static gpuModels() {
+    return `${BASE_API_URL}/internal/gpu-models`;
+  }
   // Github
   static auditors() {
     return `${BASE_API_URL}/v1/auditors`;

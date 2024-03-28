@@ -1,12 +1,11 @@
-import { Expose, ImportService } from "@src/types";
+import { Expose, ImportService, ProfileGpuModel } from "@src/types";
 import { nanoid } from "nanoid";
 import { capitalizeFirstLetter } from "../stringUtils";
 import yaml from "js-yaml";
 import { CustomValidationError } from "../deploymentData";
-import { ProviderAttributeSchemaDetailValue, ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { defaultHttpOptions } from "./data";
 
-export const importSimpleSdl = (yamlStr: string, providerAttributesSchema: ProviderAttributesSchema) => {
+export const importSimpleSdl = (yamlStr: string) => {
   try {
     const yamlJson = yaml.load(yamlStr) as any;
     const services: ImportService[] = [];
@@ -33,13 +32,12 @@ export const importSimpleSdl = (yamlStr: string, providerAttributesSchema: Provi
       service.profile = {
         cpu: compute.resources.cpu.units,
         gpu: compute.resources.gpu ? compute.resources.gpu.units : 1,
-        gpuVendor: compute.resources.gpu ? getGpuVendor(compute.resources.gpu.attributes.vendor) : "nvidia",
-        gpuModels: compute.resources.gpu ? getGpuModels(compute.resources.gpu.attributes.vendor, providerAttributesSchema) : [],
+        gpuModels: compute.resources.gpu ? getGpuModels(compute.resources.gpu.attributes.vendor) : [],
         hasGpu: !!compute.resources.gpu,
         ram: getResourceDigit(compute.resources.memory.size),
         ramUnit: getResourceUnit(compute.resources.memory.size),
-        storage: getResourceDigit(ephStorage.size),
-        storageUnit: getResourceUnit(ephStorage.size),
+        storage: getResourceDigit(ephStorage?.size || "1Gi"),
+        storageUnit: getResourceUnit(ephStorage?.size || "1Gi"),
         hasPersistentStorage,
         persistentStorage: hasPersistentStorage ? getResourceDigit(persistentStorage?.size) : 10,
         persistentStorageUnit: hasPersistentStorage ? getResourceUnit(persistentStorage?.size) : "Gi",
@@ -145,29 +143,28 @@ const getResourceUnit = (size: string): string => {
   return capitalizeFirstLetter(size.match(/[a-zA-Z]+/g)[0]);
 };
 
-const getGpuVendor = (vendorKey: { [key: string]: any }): string => {
-  const vendor = Object.keys(vendorKey)[0];
+const getGpuModels = (vendor: { [key: string]: { model: string; ram: string; interface: string }[] }): ProfileGpuModel[] => {
+  const models: ProfileGpuModel[] = [];
 
-  // For now only nvidia is supported
-  return vendor || "nvidia";
-};
-
-const getGpuModels = (
-  vendor: { [key: string]: { model: string }[] },
-  providerAttributesSchema: ProviderAttributesSchema
-): ProviderAttributeSchemaDetailValue[] => {
-  const models = vendor.nvidia
-    ? vendor.nvidia
-        .map(m => {
-          const model = providerAttributesSchema["hardware-gpu-model"].values.find(v => {
-            const modelKey = v.key.split("/");
-            // capabilities/gpu/vendor/nvidia/model/h100 -> h100
-            return m.model === modelKey[modelKey.length - 1];
-          }) as ProviderAttributeSchemaDetailValue;
-          return model;
-        })
-        .filter(m => m)
-    : [];
+  for (const [vendorName, vendorModels] of Object.entries(vendor)) {
+    if (vendorModels) {
+      vendorModels.forEach(m => {
+        models.push({
+          vendor: vendorName,
+          name: m.model,
+          memory: m.ram || "",
+          interface: m.interface || ""
+        });
+      });
+    } else {
+      models.push({
+        vendor: vendorName,
+        name: "",
+        memory: "",
+        interface: ""
+      });
+    }
+  }
 
   return models;
 };
