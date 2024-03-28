@@ -145,13 +145,6 @@ const getResourceUnit = (size: string): string => {
   return capitalizeFirstLetter(size.match(/[a-zA-Z]+/g)[0]);
 };
 
-const getGpuVendor = (vendorKey: { [key: string]: any }): string => {
-  const vendor = Object.keys(vendorKey)[0];
-
-  // For now only nvidia is supported
-  return vendor || "nvidia";
-};
-
 const getGpuModels = (vendor: { [key: string]: { model: string; ram: string; interface: string }[] }): ProfileGpuModel[] => {
   const models: ProfileGpuModel[] = [];
 

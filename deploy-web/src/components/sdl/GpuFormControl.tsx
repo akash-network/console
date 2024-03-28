@@ -21,12 +21,13 @@ import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import { FormPaper } from "./FormPaper";
-import { Control, Controller, useFieldArray } from "react-hook-form";
+import { Control, Controller, UseFormSetValue, useFieldArray } from "react-hook-form";
 import SpeedIcon from "@mui/icons-material/Speed";
 import { gpuVendors } from "../shared/akash/gpu";
 import { validationConfig } from "../shared/akash/units";
 import { GpuVendor } from "@src/types/gpu";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ClearIcon from "@mui/icons-material/Clear";
 
 type Props = {
   serviceIndex: number;
@@ -36,9 +37,10 @@ type Props = {
   control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
   gpuModels: GpuVendor[];
   currentService: Service;
+  setValue: UseFormSetValue<RentGpusFormValues>;
 };
 
-export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, control, serviceIndex, hasGpu, currentService, hideHasGpu }) => {
+export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, control, serviceIndex, hasGpu, currentService, setValue, hideHasGpu }) => {
   const {
     fields: formGpuModels,
     remove: removeFormGpuModel,
@@ -169,7 +171,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
         const memorySizes = models.find(m => m.name === currentGpu.name)?.memory || [];
 
         return (
-          <Box sx={{ marginBottom: 2 }} key={`${formGpu.vendor}${formGpu.name}${formGpu.name}`}>
+          <Box sx={{ marginBottom: 2 }} key={`${formGpuIndex}${formGpu.vendor}${formGpu.name}${formGpu.memory}${formGpu.interface}`}>
             {hasGpu && (
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={3}>
@@ -217,11 +219,31 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                             <Select
                               labelId="gpu-model-select-label"
                               value={field.value || ""}
-                              onChange={field.onChange}
+                              onChange={event => {
+                                field.onChange(event);
+                                setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.memory`, "");
+                                setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.interface`, "");
+                              }}
                               variant="outlined"
                               size="small"
                               label="Model"
                               fullWidth
+                              IconComponent={
+                                field.value?.length > 0
+                                  ? () => (
+                                      <IconButton
+                                        size="small"
+                                        onClick={e => {
+                                          field.onChange("");
+                                          setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.memory`, "");
+                                          setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.interface`, "");
+                                        }}
+                                      >
+                                        <ClearIcon fontSize="small" />
+                                      </IconButton>
+                                    )
+                                  : undefined
+                              }
                               MenuProps={{ disableScrollLock: true }}
                             >
                               {models.map(gpu => (
@@ -252,6 +274,20 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                               disabled={!currentGpu.name}
                               label="Memory"
                               fullWidth
+                              IconComponent={
+                                field.value?.length > 0
+                                  ? () => (
+                                      <IconButton
+                                        size="small"
+                                        onClick={e => {
+                                          field.onChange("");
+                                        }}
+                                      >
+                                        <ClearIcon fontSize="small" />
+                                      </IconButton>
+                                    )
+                                  : undefined
+                              }
                               MenuProps={{ disableScrollLock: true }}
                             >
                               {memorySizes.map(x => (
@@ -282,6 +318,20 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                               disabled={!currentGpu.name}
                               label="Interface"
                               fullWidth
+                              IconComponent={
+                                field.value?.length > 0
+                                  ? () => (
+                                      <IconButton
+                                        size="small"
+                                        onClick={e => {
+                                          field.onChange("");
+                                        }}
+                                      >
+                                        <ClearIcon fontSize="small" />
+                                      </IconButton>
+                                    )
+                                  : undefined
+                              }
                               MenuProps={{ disableScrollLock: true }}
                             >
                               {interfaces.map(x => (

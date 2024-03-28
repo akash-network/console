@@ -1,5 +1,4 @@
 import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { makeStyles } from "tss-react/mui";
 import { Box, ClickAwayListener, IconButton, InputAdornment, Paper, Popper, TextField, useTheme } from "@mui/material";
 import { ApiTemplate, RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
@@ -16,15 +15,6 @@ type Props = {
   currentService: Service;
   onSelectTemplate: (template: ApiTemplate) => void;
 };
-
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  }
-}));
 
 export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentService, onSelectTemplate }) => {
   const theme = useTheme();

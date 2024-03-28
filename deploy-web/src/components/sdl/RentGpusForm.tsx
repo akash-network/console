@@ -83,6 +83,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
   useEffect(() => {
     if (router.query.vendor && router.query.gpu && gpuModels && !isQueryInit) {
+      // Example query: ?vendor=nvidia&gpu=h100&vram=80Gi&interface=sxm
       const vendorQuery = router.query.vendor as string;
       const gpuQuery = router.query.gpu as string;
       const gpuModel = gpuModels.find(x => x.name === vendorQuery)?.models.find(x => x.name === gpuQuery);
@@ -90,7 +91,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
       console.log("GPU model", gpuModel);
 
       if (gpuModel) {
-        const memoryQuery = router.query.memory as string;
+        const memoryQuery = router.query.vram as string;
         const interfaceQuery = router.query.interface as string;
 
         const model: ProfileGpuModel = {
@@ -150,7 +151,19 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
     if (!result) return;
 
+    // Filter out invalid gpu models
+    const _gpuModels = (result[0].profile.gpuModels || []).map(templateModel => {
+      const isValid = gpuModels?.find(x => x.name === templateModel.vendor)?.models.some(x => x.name === templateModel.name);
+      return {
+        vendor: isValid ? templateModel.vendor : "nvidia",
+        name: isValid ? templateModel.name : "",
+        memory: isValid ? templateModel.memory : "",
+        interface: isValid ? templateModel.interface : ""
+      };
+    });
+
     setValue("services", result as Service[]);
+    setValue("services.0.profile.gpuModels", _gpuModels);
     trigger();
   };
 
@@ -262,7 +275,15 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           <ImageSelect control={control as any} currentService={currentService} onSelectTemplate={onSelectTemplate} />
 
           <Box sx={{ marginTop: "1rem" }}>
-            <GpuFormControl control={control as any} gpuModels={gpuModels} serviceIndex={0} hasGpu currentService={currentService} hideHasGpu />
+            <GpuFormControl
+              control={control as any}
+              gpuModels={gpuModels}
+              serviceIndex={0}
+              hasGpu
+              currentService={currentService}
+              setValue={setValue}
+              hideHasGpu
+            />
           </Box>
 
           <Box sx={{ marginTop: "1rem" }}>

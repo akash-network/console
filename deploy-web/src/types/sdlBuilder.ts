@@ -41,9 +41,9 @@ export type Profile = {
 
 export type ProfileGpuModel = {
   vendor: string;
-  name: string;
-  memory: string;
-  interface: string;
+  name?: string;
+  memory?: string;
+  interface?: string;
 };
 
 export type ServicePersistentStorage = {
