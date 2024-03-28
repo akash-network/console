@@ -2,7 +2,7 @@ import { Block } from "@shared/dbSchemas";
 import { Lease, Provider } from "@shared/dbSchemas/akash";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
-import { GpuVendor } from "@src/types/gpu";
+import { GpuVendor, ProviderConfigGpusType } from "@src/types/gpu";
 import { isValidBech32Address } from "@src/utils/addresses";
 import { getGpuInterface } from "@src/utils/gpu";
 import { round } from "@src/utils/math";
@@ -239,21 +239,21 @@ internalRouter.get("leases-duration/:owner", async (c) => {
 
 internalRouter.get("gpu-models", async (c) => {
   const response = await cacheResponse(60 * 2, cacheKeys.getGpuModels, async () => {
-    const res = await axios.get<object>("https://raw.githubusercontent.com/akash-network/provider-configs/main/devices/pcie/gpus.json");
+    const res = await axios.get<ProviderConfigGpusType>("https://raw.githubusercontent.com/akash-network/provider-configs/main/devices/pcie/gpus.json");
     return res.data;
   });
 
   const gpuModels: GpuVendor[] = [];
 
   // Loop over vendors
-  for (const [vendorKey, vendorValue] of Object.entries(response)) {
+  for (const [, vendorValue] of Object.entries(response)) {
     const vendor: GpuVendor = {
       name: vendorValue.name,
       models: []
     };
 
     // Loop over models
-    for (const [modelKey, modelValue] of Object.entries(vendorValue.devices)) {
+    for (const [, modelValue] of Object.entries(vendorValue.devices)) {
       const _modelValue = modelValue as {
         name: string;
         memory_size: string;

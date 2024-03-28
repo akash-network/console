@@ -88,8 +88,6 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
       const gpuQuery = router.query.gpu as string;
       const gpuModel = gpuModels.find(x => x.name === vendorQuery)?.models.find(x => x.name === gpuQuery);
 
-      console.log("GPU model", gpuModel);
-
       if (gpuModel) {
         const memoryQuery = router.query.vram as string;
         const interfaceQuery = router.query.interface as string;

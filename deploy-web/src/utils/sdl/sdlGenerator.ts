@@ -213,8 +213,6 @@ export const generateSdl = (services: Service[], region?: string) => {
     }
   });
 
-  console.log(result);
-
   return `---
 ${result}`;
 };
