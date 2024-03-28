@@ -1,10 +1,10 @@
-FROM node:18-alpine3.18 AS base
+FROM node:18 AS base
 # Pinned to 3.18 to avoid this issue: https://github.com/nodejs/docker-node/issues/2009
 
 # Install dependencies only when needed
 FROM base AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
+#RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
