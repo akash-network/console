@@ -1,11 +1,9 @@
-import { Expose, ImportService, Profile, ProfileGpuModel } from "@src/types";
+import { Expose, ImportService, ProfileGpuModel } from "@src/types";
 import { nanoid } from "nanoid";
 import { capitalizeFirstLetter } from "../stringUtils";
 import yaml from "js-yaml";
 import { CustomValidationError } from "../deploymentData";
-import { ProviderAttributeSchemaDetailValue, ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { defaultHttpOptions } from "./data";
-import { GpuVendor } from "@src/types/gpu";
 
 export const importSimpleSdl = (yamlStr: string) => {
   try {
@@ -38,8 +36,8 @@ export const importSimpleSdl = (yamlStr: string) => {
         hasGpu: !!compute.resources.gpu,
         ram: getResourceDigit(compute.resources.memory.size),
         ramUnit: getResourceUnit(compute.resources.memory.size),
-        storage: getResourceDigit(ephStorage.size),
-        storageUnit: getResourceUnit(ephStorage.size),
+        storage: getResourceDigit(ephStorage?.size || "1Gi"),
+        storageUnit: getResourceUnit(ephStorage?.size || "1Gi"),
         hasPersistentStorage,
         persistentStorage: hasPersistentStorage ? getResourceDigit(persistentStorage?.size) : 10,
         persistentStorageUnit: hasPersistentStorage ? getResourceUnit(persistentStorage?.size) : "Gi",

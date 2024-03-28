@@ -116,7 +116,18 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                       control={control}
                       name={`services.${serviceIndex}.profile.hasGpu`}
                       render={({ field }) => (
-                        <Checkbox checked={field.value} onChange={field.onChange} color="secondary" size="small" sx={{ marginLeft: ".5rem" }} />
+                        <Checkbox
+                          checked={field.value}
+                          onChange={event => {
+                            field.onChange(event);
+                            if (event.target.checked && formGpuModels.length === 0) {
+                              onAddGpuModel();
+                            }
+                          }}
+                          color="secondary"
+                          size="small"
+                          sx={{ marginLeft: ".5rem" }}
+                        />
                       )}
                     />
                   )}
