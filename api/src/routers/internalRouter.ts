@@ -290,7 +290,7 @@ internalRouter.get("gpu-models", async (c) => {
 internalRouter.get("gpu-prices", async (c) => {
   const debug = c.req.query("debug") === "true";
   console.time("gpu prices");
-  const gpuPrices = await cacheResponse(30 * 60, debug ? "gpu-prices-debug" : "gpu-prices", () => getGpuPrices(debug), true);
+  const gpuPrices = await cacheResponse(15 * 60, debug ? "gpu-prices-debug" : "gpu-prices", () => getGpuPrices(debug), true);
   //const gpuPrices = await getGpuPrices(debug);
   console.timeEnd("gpu prices");
 
@@ -334,6 +334,8 @@ async function getGpuPrices(debug: boolean) {
       d.relatedMessages.map((x) => {
         const day = days.find((d) => d.id === x.block.dayId);
         const decodedBid = decodeMsg("/akash.market.v1beta4.MsgCreateBid", x.data) as MsgCreateBid;
+
+        if (!day.aktPrice) return null;
 
         if (decodedBid.price.denom !== "uakt") return null; // TODO handle usdc
 
