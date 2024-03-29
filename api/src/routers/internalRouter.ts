@@ -346,6 +346,7 @@ async function getGpuPrices(debug: boolean) {
           provider: decodedBid.provider,
           aktTokenPrice: day?.aktPrice, // TODO Handle no price,
           hourlyPrice: blockPriceToHourlyPrice(parseFloat(decodedBid.price.amount), day?.aktPrice),
+          monthlyPrice: blockPriceToMonthlyPrice(parseFloat(decodedBid.price.amount), day?.aktPrice),
           deployment: {
             owner: d.owner,
             cpuUnits: decodedBid.resourcesOffer.flatMap((r) => parseInt(uint8arrayToString(r.resources.cpu.units.val))).reduce((a, b) => a + b, 0),
