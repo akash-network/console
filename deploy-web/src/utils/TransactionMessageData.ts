@@ -1,8 +1,9 @@
 import { networkVersion, networkVersionMarket } from "./constants";
 import { BidDto } from "@src/types/deployment";
-import { BasicAllowance, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "./proto/grant";
+import { BasicAllowance, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "./proto/grant";
 import { longify } from "@cosmjs/stargate/build/queryclient";
 import { protoTypes } from "./proto";
+import Long from "long";
 
 export function setMessageTypes() {
   TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT = `/akash.deployment.${networkVersion}.MsgCloseDeployment`;
@@ -73,7 +74,7 @@ export class TransactionMessageData {
       value: {
         bidId: {
           owner: bid.owner,
-          dseq: parseInt(bid.dseq),
+          dseq: Long.fromString(bid.dseq, true),
           gseq: bid.gseq,
           oseq: bid.oseq,
           provider: bid.provider
@@ -117,7 +118,7 @@ export class TransactionMessageData {
       value: {
         id: {
           owner: address,
-          dseq: parseInt(dseq)
+          dseq: Long.fromString(dseq, true)
         },
         amount: {
           denom,
@@ -136,7 +137,7 @@ export class TransactionMessageData {
       value: {
         id: {
           owner: address,
-          dseq: parseInt(dseq)
+          dseq: Long.fromString(dseq, true)
         }
       }
     };

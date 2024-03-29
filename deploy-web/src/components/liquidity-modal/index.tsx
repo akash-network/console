@@ -158,7 +158,7 @@ const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBal
         isNanoLedger: walletKey.isNanoLedger
       };
     },
-    // @ts-expect-error Due to some issue with the `Long` type for accountNumber in the signed object
+
     getSigner: async (chainId: string) => {
       if (!walletExt) throw "Wallet extension not found";
       const offlineSigner = walletExt.getOfflineSigner(chainId);
@@ -233,4 +233,3 @@ const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBal
 };
 
 export default LiquidityModal;
-
