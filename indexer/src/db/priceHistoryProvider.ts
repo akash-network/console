@@ -15,7 +15,7 @@ export const syncPriceHistory = async () => {
     return;
   }
 
-  const endpointUrl = `https://api.coingecko.com/api/v3/coins/${activeChain.coinGeckoId}/market_chart?vs_currency=usd&days=365`;
+  const endpointUrl = `https://api.coingecko.com/api/v3/coins/${activeChain.coinGeckoId}/market_chart?vs_currency=usd&days=360`;
 
   console.log("Fetching latest market data from " + endpointUrl);
 
