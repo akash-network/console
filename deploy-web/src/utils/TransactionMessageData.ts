@@ -73,7 +73,7 @@ export class TransactionMessageData {
       value: {
         bidId: {
           owner: bid.owner,
-          dseq: parseInt(bid.dseq),
+          dseq: bid.dseq,
           gseq: bid.gseq,
           oseq: bid.oseq,
           provider: bid.provider
@@ -117,7 +117,7 @@ export class TransactionMessageData {
       value: {
         id: {
           owner: address,
-          dseq: parseInt(dseq)
+          dseq: dseq
         },
         amount: {
           denom,
@@ -136,7 +136,7 @@ export class TransactionMessageData {
       value: {
         id: {
           owner: address,
-          dseq: parseInt(dseq)
+          dseq: dseq
         }
       }
     };
