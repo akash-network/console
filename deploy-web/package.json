@@ -55,6 +55,7 @@
     "json2csv": "^5.0.7",
     "jsrsasign": "^10.6.1",
     "lodash": "^4.17.21",
+    "long": "^5.2.3",
     "material-ui-popup-state": "^4.0.2",
     "nanoid": "^3.3.4",
     "next": "^13.4.19",
