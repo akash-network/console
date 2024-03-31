@@ -41,6 +41,7 @@ const route = createRoute({
                   available: z.number()
                 }),
                 price: z.object({
+                  currency: z.string().openapi({ example: "USD" }),
                   min: z.number(),
                   max: z.number(),
                   avg: z.number(),
@@ -217,6 +218,7 @@ async function getGpuPrices(debug: boolean) {
             providers: debug ? x.providers : undefined
           },
           price: {
+            currency: "USD",
             min: Math.min(...sortedPrices),
             max: Math.max(...sortedPrices),
             avg: round(sortedPrices.reduce((a, b) => a + b, 0) / sortedPrices.length, 2),
