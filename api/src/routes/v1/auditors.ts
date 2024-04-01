@@ -26,6 +26,6 @@ const route = createRoute({
 });
 
 export default new OpenAPIHono().openapi(route, async (c) => {
-  const response = await getAuditors(); // TODO: Add typing
+  const response = await getAuditors();
   return c.json(response);
 });
