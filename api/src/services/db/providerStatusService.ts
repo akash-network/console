@@ -66,8 +66,9 @@ export const getProviderList = async () => {
     },
     include: [
       {
-        attributes: ["id"],
         model: ProviderSnapshot,
+        attributes: ["id"],
+        required: true,
         as: "lastSnapshot",
         include: [
           {
