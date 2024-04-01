@@ -257,10 +257,10 @@ export function getGpusFromAttributes(attributes: { key: string; value: string }
   return attributes
     .filter((attr) => attr.key.startsWith("vendor/") && attr.value === "true")
     .map((attr) => {
-      const vendor = /vendor\/([^\/]+)/.exec(attr.key)?.[1];
-      const model = /model\/([^\/]+)/.exec(attr.key)?.[1];
-      const ram = /ram\/([^\/]+)/.exec(attr.key)?.[1];
-      const int = /interface\/([^\/]+)/.exec(attr.key)?.[1];
+      const vendor = /vendor\/([^/]+)/.exec(attr.key)?.[1];
+      const model = /model\/([^/]+)/.exec(attr.key)?.[1];
+      const ram = /ram\/([^/]+)/.exec(attr.key)?.[1];
+      const int = /interface\/([^/]+)/.exec(attr.key)?.[1];
 
       // vendor/nvidia/model/h100/ram/80Gi/interface/pcie -> nvidia,h100,80Gi,pcie
       return { vendor: vendor, model: model, ram: ram, interface: int };
