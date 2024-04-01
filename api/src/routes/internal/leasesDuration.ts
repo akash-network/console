@@ -8,7 +8,7 @@ import { Op } from "sequelize";
 const route = createRoute({
   method: "get",
   path: "/leases-duration/{owner}",
-  summary: "Get a list of gpu models and their availability.",
+  summary: "Get leases durations.",
   request: {
     params: z.object({
       owner: z.string().openapi({ example: openApiExampleAddress })
@@ -21,7 +21,7 @@ const route = createRoute({
   },
   responses: {
     200: {
-      description: "List of gpu models and their availability.",
+      description: "List of leases durations and total duration.",
       content: {
         "application/json": {
           schema: z.object({

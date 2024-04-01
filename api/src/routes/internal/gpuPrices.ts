@@ -14,11 +14,10 @@ import { Op, QueryTypes } from "sequelize";
 const route = createRoute({
   method: "get",
   path: "/gpu-prices",
-  summary:
-    "Get a list of gpu models per vendor. Based on the content from https://raw.githubusercontent.com/akash-network/provider-configs/main/devices/pcie/gpus.json.",
+  summary: "Get a list of gpu models with their availability and pricing.",
   responses: {
     200: {
-      description: "List of gpu models per.",
+      description: "List of gpu models with their availability and pricing.",
       content: {
         "application/json": {
           schema: z.object({
@@ -73,6 +72,11 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   return c.json(gpuPrices);
 });
 
+/**
+ * Get a list of gpu models with their availability and pricing.
+ * The prices are derived from recent bids made on the network.
+ * This is a temporary solution and should be replaced with a more accurate pricing mechanism once provider pricing becomes queryable.
+ */
 async function getGpuPrices(debug: boolean) {
   // Get list of GPUs (model,vendor, ram, interface) and their availability
   const gpus = await getGpus();
