@@ -1,10 +1,19 @@
-import { Provider } from "@shared/dbSchemas/akash";
+import { Provider, ProviderSnapshotNode } from "@shared/dbSchemas/akash";
 import { Auditor, ProviderAttributesSchema, ProviderList } from "@src/types/provider";
 import semver from "semver";
 
-export const mapProviderToList = (provider: Provider, providerAttributeSchema: ProviderAttributesSchema, auditors: Array<Auditor>): ProviderList => {
+export const mapProviderToList = (
+  provider: Provider,
+  providerAttributeSchema: ProviderAttributesSchema,
+  auditors: Array<Auditor>,
+  nodes?: ProviderSnapshotNode[]
+): ProviderList => {
   const isValidVersion = provider.cosmosSdkVersion ? semver.gte(provider.cosmosSdkVersion, "v0.45.9") : false;
   const name = provider.isOnline ? new URL(provider.hostUri).hostname : null;
+  const gpuModels = (nodes || [])
+    .flatMap((x) => x.gpus)
+    .map((x) => ({ vendor: x.vendor, model: x.name, ram: x.memorySize, interface: x.interface }))
+    .filter((x, i, arr) => arr.findIndex((o) => x.vendor === o.vendor && x.model === o.model && x.ram === o.ram && x.interface === o.interface) === i);
 
   return {
     owner: provider.owner,
@@ -42,6 +51,7 @@ export const mapProviderToList = (provider: Provider, providerAttributeSchema: P
       memory: isValidVersion ? provider.availableMemory : 0,
       storage: isValidVersion ? provider.availableStorage : 0
     },
+    gpuModels: gpuModels,
     uptime1d: provider.uptime1d,
     uptime7d: provider.uptime7d,
     uptime30d: provider.uptime30d,
