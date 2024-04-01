@@ -1,9 +1,12 @@
-import { Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
+import { Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
 import { Required } from "../decorators/requiredDecorator";
+import { ProviderSnapshotNodeGPU } from "./providerSnapshotNodeGPU";
+import { ProviderSnapshotNodeCPU } from "./providerSnapshotNodeCPU";
 
 @Table({
-  modelName: "providerSnapshotNode"
+  modelName: "providerSnapshotNode",
+  indexes: [{ unique: false, fields: ["snapshotId"] }]
 })
 export class ProviderSnapshotNode extends Model {
   @Required @PrimaryKey @Default(DataTypes.UUIDV4) @Column(DataTypes.UUID) id: string;
@@ -26,4 +29,7 @@ export class ProviderSnapshotNode extends Model {
 
   @Column(DataTypes.BIGINT) gpuAllocatable: number;
   @Column(DataTypes.BIGINT) gpuAllocated: number;
+
+  @HasMany(() => ProviderSnapshotNodeGPU, "snapshotNodeId") gpus: ProviderSnapshotNodeGPU[];
+  @HasMany(() => ProviderSnapshotNodeCPU, "snapshotNodeId") cpus: ProviderSnapshotNodeCPU[];
 }
