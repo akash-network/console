@@ -10,7 +10,6 @@ import { protoTypes } from "@src/utils/sdl/data";
 import { FormPaper } from "./FormPaper";
 import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 import { HttpOptionsFormControl } from "./HttpOptionsFormControl";
-import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { Button } from "../ui/button";
 import { Bin, InfoCircle } from "iconoir-react";

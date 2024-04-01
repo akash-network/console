@@ -95,7 +95,7 @@ export const generateSdl = (services: Service[], region?: string) => {
       };
 
       // Group models by vendor
-      const vendors = service.profile.gpuModels.reduce((group, model) => {
+      const vendors = service.profile.gpuModels?.reduce((group, model) => {
         const { vendor } = model;
         group[vendor] = group[vendor] ?? [];
         group[vendor].push(model);
@@ -105,7 +105,7 @@ export const generateSdl = (services: Service[], region?: string) => {
       for (const [vendor, models] of Object.entries(vendors)) {
         const mappedModels = models
           .map(x => {
-            let model: { model?: string; ram?: string; interface?: string } = null;
+            let model: { model?: string; ram?: string; interface?: string } | null = null;
 
             if (x.name) {
               model = {
@@ -113,11 +113,11 @@ export const generateSdl = (services: Service[], region?: string) => {
               };
             }
 
-            if (x.memory) {
+            if (model && x.memory) {
               model.ram = x.memory;
             }
 
-            if (x.interface) {
+            if (model && x.interface) {
               model.interface = x.interface;
             }
 

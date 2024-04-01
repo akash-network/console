@@ -3,19 +3,23 @@ import { ReactNode } from "react";
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { FormPaper } from "./FormPaper";
-import { Control, Controller, useFieldArray } from "react-hook-form";
+import { Control, Controller, UseFormSetValue, useFieldArray } from "react-hook-form";
 import { gpuVendors } from "../shared/akash/gpu";
 import { validationConfig } from "../shared/akash/units";
-import { cn } from "@src/utils/styleUtils";
 import { FormDescription, FormItem } from "../ui/form";
 import { Slider } from "../ui/slider";
 import Spinner from "../shared/Spinner";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
-import { InfoCircle } from "iconoir-react";
+import { Bin, InfoCircle, Xmark } from "iconoir-react";
 import { MdSpeed } from "react-icons/md";
-import { Label } from "../ui/label";
+import { GpuVendor } from "@src/types/gpu";
+import { Button } from "../ui/button";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import { default as MuiSelect } from "@mui/material/Select/Select";
+import IconButton from "@mui/material/IconButton";
+import MenuItem from "@mui/material/MenuItem";
 
 type Props = {
   serviceIndex: number;
@@ -23,7 +27,7 @@ type Props = {
   hideHasGpu?: boolean;
   children?: ReactNode;
   control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
-  gpuModels: GpuVendor[];
+  gpuModels: GpuVendor[] | undefined;
   currentService: Service;
   setValue: UseFormSetValue<RentGpusFormValues | SdlBuilderFormValues>;
 };
@@ -38,15 +42,14 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
     name: `services.${serviceIndex}.profile.gpuModels`,
     keyName: "id"
   });
-  const theme = useTheme();
 
   const onAddGpuModel = () => {
     appendFormGpuModel({ vendor: "nvidia", name: "", memory: "", interface: "" });
   };
 
   return (
-    <FormPaper elevation={1} sx={{ padding: "1rem" }}>
-      <Box sx={{ display: "flex", alignItems: "center" }}>
+    <FormPaper className="p-4">
+      <div className="flex items-center">
         <Controller
           control={control}
           name={`services.${serviceIndex}.profile.gpu`}
@@ -66,20 +69,17 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
             }
           }}
           render={({ field, fieldState }) => (
-            <FormControl variant="standard" error={!!fieldState.error} fullWidth>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center"
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <Typography variant="body2" sx={{ display: "flex", alignItems: "center" }}>
-                    <SpeedIcon sx={{ color: theme.palette.grey[600], marginRight: ".5rem" }} fontSize="medium" />
+            <FormItem
+              className="w-full"
+              // variant="standard" error={!!fieldState.error} fullWidth
+            >
+              <div className="flex items-center">
+                <div className="flex items-center">
+                  <div className="flex items-center">
+                    <MdSpeed className="mr-2 text-muted-foreground" />
                     <strong>GPU</strong>
 
                     <CustomTooltip
-                      arrow
                       title={
                         <>
                           The amount of GPUs required for this workload.
@@ -95,9 +95,9 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                         </>
                       }
                     >
-                      <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+                      <InfoCircle className="ml-4 text-sm text-muted-foreground" />
                     </CustomTooltip>
-                  </Typography>
+                  </div>
 
                   {!hideHasGpu && (
                     <Controller
@@ -106,75 +106,72 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                       render={({ field }) => (
                         <Checkbox
                           checked={field.value}
-                          onChange={event => {
-                            field.onChange(event);
-                            if (event.target.checked && formGpuModels.length === 0) {
+                          onCheckedChange={checked => {
+                            field.onChange(checked);
+                            if (checked && formGpuModels.length === 0) {
                               onAddGpuModel();
                             }
                           }}
-                          color="secondary"
-                          size="small"
-                          sx={{ marginLeft: ".5rem" }}
+                          className="ml-2"
                         />
                       )}
                     />
                   )}
-                </Box>
+                </div>
 
                 {hasGpu && (
-                  <Box sx={{ marginLeft: "1rem" }}>
-                    <TextField
+                  <div className="ml-4">
+                    <Input
                       type="number"
-                      variant="outlined"
                       color="secondary"
                       value={field.value || ""}
-                      error={!!fieldState.error}
+                      // error={!!fieldState.error}
                       onChange={event => field.onChange(parseFloat(event.target.value))}
-                      inputProps={{ min: 1, step: 1, max: validationConfig.maxGpuAmount }}
-                      size="small"
-                      sx={{ width: "100px" }}
+                      min={1}
+                      step={1}
+                      max={validationConfig.maxGpuAmount}
+                      className="w-[100px]"
                     />
-                  </Box>
+                  </div>
                 )}
               </div>
 
               {hasGpu && (
                 <Slider
-                  value={field.value || 0}
+                  value={[field.value || 0]}
                   min={1}
                   max={validationConfig.maxGpuAmount}
                   step={1}
                   color="secondary"
                   aria-label="GPUs"
-                  valueLabelDisplay="auto"
-                  onChange={(event, newValue) => field.onChange(newValue)}
+                  onValueChange={newValue => field.onChange(newValue)}
                 />
               )}
 
-              {!!fieldState.error && <FormHelperText>{fieldState.error.message}</FormHelperText>}
-            </FormControl>
+              {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}
+            </FormItem>
           )}
         />
-      </Box>
+      </div>
 
       {hasGpu && (
         <>
-          <Box sx={{ mb: 3, mt: 1 }}>
-            <Typography variant="caption" color="textSecondary">
+          <div className="my-4">
+            <p className="text-xs text-muted-foreground">
               Picking specific GPU models below, filters out providers that don't have those GPUs and may reduce the number of bids you receive.
-            </Typography>
-          </Box>
+            </p>
+          </div>
 
           {formGpuModels.map((formGpu, formGpuIndex) => {
-            const currentGpu = currentService.profile.gpuModels[formGpuIndex];
-            const models = gpuModels?.find(u => u.name === currentGpu.vendor)?.models || [];
-            const interfaces = models.find(m => m.name === currentGpu.name)?.interface || [];
-            const memorySizes = models.find(m => m.name === currentGpu.name)?.memory || [];
+            const currentGpu = currentService.profile.gpuModels && currentService.profile.gpuModels[formGpuIndex];
+            const models = gpuModels?.find(u => u.name === currentGpu?.vendor)?.models || [];
+            const interfaces = models.find(m => m.name === currentGpu?.name)?.interface || [];
+            const memorySizes = models.find(m => m.name === currentGpu?.name)?.memory || [];
 
             return (
-              <Box sx={{ marginBottom: 2 }} key={`${formGpuIndex}${formGpu.vendor}${formGpu.name}${formGpu.memory}${formGpu.interface}`}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={3}>
+              <div className="mb-2" key={`${formGpuIndex}${formGpu.vendor}${formGpu.name}${formGpu.memory}${formGpu.interface}`}>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
+                  <div className="col-span-2">
                     <Controller
                       control={control}
                       name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.vendor`}
@@ -185,7 +182,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                           <InputLabel id="gpu-vendor-select-label" size="small">
                             Vendor
                           </InputLabel>
-                          <Select
+                          <MuiSelect
                             labelId="gpu-vendor-select-label"
                             value={field.value || ""}
                             onChange={field.onChange}
@@ -200,14 +197,14 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                 {u.value}
                               </MenuItem>
                             ))}
-                          </Select>
+                          </MuiSelect>
                         </FormControl>
                       )}
                     />
-                  </Grid>
+                  </div>
                   {gpuModels ? (
                     <>
-                      <Grid item xs={12} sm={3}>
+                      <div className="col-span-3">
                         <Controller
                           control={control}
                           name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.name`}
@@ -216,7 +213,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                               <InputLabel id="gpu-model-select-label" size="small">
                                 Model
                               </InputLabel>
-                              <Select
+                              <MuiSelect
                                 labelId="gpu-model-select-label"
                                 value={field.value || ""}
                                 onChange={event => {
@@ -229,7 +226,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                 label="Model"
                                 fullWidth
                                 IconComponent={
-                                  field.value?.length > 0
+                                  (field.value?.length || 0) > 0
                                     ? () => (
                                         <IconButton
                                           size="small"
@@ -239,7 +236,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                             setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.interface`, "");
                                           }}
                                         >
-                                          <ClearIcon fontSize="small" />
+                                          <Xmark className="text-xs" />
                                         </IconButton>
                                       )
                                     : undefined
@@ -251,12 +248,12 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                     {gpu.name}
                                   </MenuItem>
                                 ))}
-                              </Select>
+                              </MuiSelect>
                             </FormControl>
                           )}
                         />
-                      </Grid>
-                      <Grid item xs={12} sm={3}>
+                      </div>
+                      <div className="col-span-3">
                         <Controller
                           control={control}
                           name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.memory`}
@@ -265,17 +262,17 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                               <InputLabel id="gpu-memory-select-label" size="small">
                                 Memory
                               </InputLabel>
-                              <Select
+                              <MuiSelect
                                 labelId="gpu-memory-select-label"
                                 value={field.value || ""}
                                 onChange={field.onChange}
                                 variant="outlined"
                                 size="small"
-                                disabled={!currentGpu.name}
+                                disabled={!currentGpu?.name}
                                 label="Memory"
                                 fullWidth
                                 IconComponent={
-                                  field.value?.length > 0
+                                  (field.value?.length || 0) > 0
                                     ? () => (
                                         <IconButton
                                           size="small"
@@ -283,7 +280,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                             field.onChange("");
                                           }}
                                         >
-                                          <ClearIcon fontSize="small" />
+                                          <Xmark fontSize="small" />
                                         </IconButton>
                                       )
                                     : undefined
@@ -295,12 +292,12 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                     {x}
                                   </MenuItem>
                                 ))}
-                              </Select>
+                              </MuiSelect>
                             </FormControl>
                           )}
                         />
-                      </Grid>
-                      <Grid item xs={12} sm={2}>
+                      </div>
+                      <div className="col-span-3">
                         <Controller
                           control={control}
                           name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.interface`}
@@ -309,17 +306,17 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                               <InputLabel id="gpu-interface-select-label" size="small">
                                 Interface
                               </InputLabel>
-                              <Select
+                              <MuiSelect
                                 labelId="gpu-interface-select-label"
                                 value={field.value || ""}
                                 onChange={field.onChange}
                                 variant="outlined"
                                 size="small"
-                                disabled={!currentGpu.name}
+                                disabled={!currentGpu?.name}
                                 label="Interface"
                                 fullWidth
                                 IconComponent={
-                                  field.value?.length > 0
+                                  (field.value?.length || 0) > 0
                                     ? () => (
                                         <IconButton
                                           size="small"
@@ -327,7 +324,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                             field.onChange("");
                                           }}
                                         >
-                                          <ClearIcon fontSize="small" />
+                                          <Xmark fontSize="small" />
                                         </IconButton>
                                       )
                                     : undefined
@@ -339,41 +336,72 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                     {x}
                                   </MenuItem>
                                 ))}
-                              </Select>
+                              </MuiSelect>
                             </FormControl>
+
+                            // <FormItem>
+                            //   <Label>Interface</Label>
+                            //   <Select value={(field.value as string) || ""} onValueChange={field.onChange}>
+                            //     <SelectTrigger className="flex items-center">
+                            //       <SelectValue placeholder="Select Interface" />
+
+                            //       {(field.value?.length || 0) > 0
+                            //         ? () => (
+                            //             <Button
+                            //               size="icon"
+                            //               onClick={e => {
+                            //                 field.onChange("");
+                            //               }}
+                            //             >
+                            //               <Xmark className="text-sm" />
+                            //             </Button>
+                            //           )
+                            //         : undefined}
+                            //     </SelectTrigger>
+                            //     <SelectContent>
+                            //       <SelectGroup>
+                            //         {interfaces.map(option => {
+                            //           return (
+                            //             <SelectItem key={option} value={option} className="px-2 py-1">
+                            //               {option}
+                            //             </SelectItem>
+                            //           );
+                            //         })}
+                            //       </SelectGroup>
+                            //     </SelectContent>
+                            //   </Select>
+                            // </FormItem>
                           )}
                         />
-                      </Grid>
+                      </div>
 
-                      <Grid item xs={12} sm={1} sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <div className="col-span-1 flex items-center justify-center">
                         {formGpuIndex !== 0 && (
-                          <IconButton onClick={() => removeFormGpuModel(formGpuIndex)} size="small">
-                            <DeleteIcon />
-                          </IconButton>
+                          <Button onClick={() => removeFormGpuModel(formGpuIndex)} size="icon" type="button" variant="ghost">
+                            <Bin />
+                          </Button>
                         )}
-                      </Grid>
+                      </div>
                     </>
                   ) : (
-                    <Box sx={{ display: "flex", alignItems: "center", ml: 4 }}>
-                      <CircularProgress size="1rem" color="secondary" />
-                      <Typography color="textSecondary" variant="caption" sx={{ marginLeft: ".5rem" }}>
-                        Loading GPU models...
-                      </Typography>
-                    </Box>
+                    <div className="ml-4 flex items-center">
+                      <Spinner />
+                      <span className="ml-2 text-sm text-muted-foreground">Loading GPU models...</span>
+                    </div>
                   )}
-                </Grid>
-              </Box>
+                </div>
+              </div>
             );
           })}
         </>
       )}
 
       {gpuModels && hasGpu && (
-        <Box sx={{ mt: 2, display: "flex", alignItems: "center", justifyContent: "end" }}>
-          <Button color="secondary" variant="contained" size="small" onClick={onAddGpuModel}>
+        <div className="mt-2 flex items-center justify-end">
+          <Button size="sm" onClick={onAddGpuModel} type="button">
             Add GPU
           </Button>
-        </Box>
+        </div>
       )}
     </FormPaper>
   );

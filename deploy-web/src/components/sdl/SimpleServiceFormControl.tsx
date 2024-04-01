@@ -11,7 +11,7 @@ import { PlacementFormModal } from "./PlacementFormModal";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import Link from "next/link";
 import { PriceValue } from "../shared/PriceValue";
-import { getAvgCostPerMonth, toReadableDenom } from "@src/utils/priceUtils";
+import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import Image from "next/legacy/image";
 import { uAktDenom } from "@src/utils/constants";
 import { EnvVarList } from "./EnvVarList";
@@ -43,7 +43,7 @@ type Props = {
   serviceCollapsed: number[];
   setServiceCollapsed: Dispatch<SetStateAction<number[]>>;
   setValue: UseFormSetValue<SdlBuilderFormValues>;
-  gpuModels: GpuVendor[];
+  gpuModels: GpuVendor[] | undefined;
   hasSecretOption?: boolean;
 };
 
