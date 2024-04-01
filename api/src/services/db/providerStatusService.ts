@@ -88,9 +88,10 @@ export const getProviderList = async () => {
 
   const [auditors, providerAttributeSchema] = await Promise.all([auditorsQuery, providerAttributeSchemaQuery]);
 
-  return filteredProviders.map((x) =>
-    mapProviderToList(x, providerAttributeSchema, auditors, providerNodes.find((p) => p.owner === x.owner)?.lastSnapshot?.nodes)
-  );
+  return filteredProviders.map((x) => {
+    const nodes = providerNodes.find((p) => p.owner === x.owner)?.lastSnapshot?.nodes;
+    return mapProviderToList(x, providerAttributeSchema, auditors, nodes);
+  });
 };
 
 export const getProviderDetail = async (address: string): Promise<ProviderDetail> => {
@@ -122,7 +123,7 @@ export const getProviderDetail = async (address: string): Promise<ProviderDetail
     }
   });
 
-  const lastOnlineSnapshot = await ProviderSnapshot.findOne({
+  const lastSnapshot = await ProviderSnapshot.findOne({
     where: {
       id: provider.lastSnapshotId
     },
@@ -141,7 +142,7 @@ export const getProviderDetail = async (address: string): Promise<ProviderDetail
   const [auditors, providerAttributeSchema] = await Promise.all([auditorsQuery, providerAttributeSchemaQuery]);
 
   return {
-    ...mapProviderToList(provider, providerAttributeSchema, auditors, lastOnlineSnapshot?.nodes),
+    ...mapProviderToList(provider, providerAttributeSchema, auditors, lastSnapshot?.nodes),
     uptime: uptimeSnapshots.map((ps) => ({
       id: ps.id,
       isOnline: ps.isOnline,
