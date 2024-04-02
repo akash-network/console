@@ -91,10 +91,11 @@ export const mapProviderToList = (
 };
 
 function getDistinctGpuModelsFromNodes(nodes: ProviderSnapshotNode[]) {
-  return nodes
-    .flatMap((x) => x.gpus)
-    .map((x) => ({ vendor: x.vendor, model: x.name, ram: x.memorySize, interface: x.interface }))
-    .filter((x, i, arr) => arr.findIndex((o) => x.vendor === o.vendor && x.model === o.model && x.ram === o.ram && x.interface === o.interface) === i);
+  const gpuModels = nodes.flatMap((x) => x.gpus).map((x) => ({ vendor: x.vendor, model: x.name, ram: x.memorySize, interface: x.interface }));
+  const distinctGpuModels = gpuModels.filter(
+    (x, i, arr) => arr.findIndex((o) => x.vendor === o.vendor && x.model === o.model && x.ram === o.ram && x.interface === o.interface) === i
+  );
+  return distinctGpuModels;
 }
 
 export const getProviderAttributeValue = (
