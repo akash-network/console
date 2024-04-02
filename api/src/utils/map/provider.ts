@@ -1,5 +1,6 @@
 import { Provider, ProviderSnapshotNode } from "@shared/dbSchemas/akash";
 import { Auditor, ProviderAttributesSchema, ProviderList } from "@src/types/provider";
+import { createFilterUnique } from "../array/array";
 import semver from "semver";
 
 export const mapProviderToList = (
@@ -93,8 +94,9 @@ export const mapProviderToList = (
 function getDistinctGpuModelsFromNodes(nodes: ProviderSnapshotNode[]) {
   const gpuModels = nodes.flatMap((x) => x.gpus).map((x) => ({ vendor: x.vendor, model: x.name, ram: x.memorySize, interface: x.interface }));
   const distinctGpuModels = gpuModels.filter(
-    (x, i, arr) => arr.findIndex((o) => x.vendor === o.vendor && x.model === o.model && x.ram === o.ram && x.interface === o.interface) === i
+    createFilterUnique((a, b) => a.vendor === b.vendor && a.model === b.model && a.ram === b.ram && a.interface === b.interface)
   );
+
   return distinctGpuModels;
 }
 
