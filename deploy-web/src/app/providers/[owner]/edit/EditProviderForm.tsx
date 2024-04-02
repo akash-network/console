@@ -13,7 +13,7 @@ import { nanoid } from "nanoid";
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { Alert } from "@src/components/ui/alert";
 import { Button } from "@src/components/ui/button";
-import { InputWithIcon } from "@src/components/ui/input";
+import { Input, InputWithIcon } from "@src/components/ui/input";
 import { Bin, InfoCircle } from "iconoir-react";
 import { CheckboxWithLabel } from "@src/components/ui/checkbox";
 import { cn } from "@src/utils/styleUtils";
@@ -173,28 +173,24 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
             required: "Host URI is required"
           }}
           render={({ field, fieldState }) => (
-            <TextField
+            <InputWithIcon
               type="text"
-              variant="outlined"
+              // variant="outlined"
               label="Host URI"
               color="secondary"
               tabIndex={0}
-              error={!!fieldState.error}
-              helperText={fieldState.error?.message}
-              fullWidth
+              error={fieldState.error?.message}
+              // helperText={fieldState.error?.message}
+              // fullWidth
               value={field.value}
               className="mb-4"
-              size="small"
+              // size="small"
               onChange={event => field.onChange(event.target.value || "")}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <CustomTooltip arrow title="Host URI is the URI of the host that is running the provider. It is used to identify the provider.">
-                      <InfoIcon color="disabled" fontSize="small" />
-                    </CustomTooltip>
-                  </InputAdornment>
-                )
-              }}
+              endIcon={
+                <CustomTooltip title="Host URI is the URI of the host that is running the provider. It is used to identify the provider.">
+                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                </CustomTooltip>
+              }
             />
           )}
         />
@@ -326,7 +322,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
       <FormPaper>
         <p className="mb-8 text-lg text-primary">Hardware specifications</p>
 
-        <div className={classes.grid}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/** LEFT COLUMN */}
           <div>
             <ProviderSelect
@@ -385,14 +381,13 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
 
           {/** RIGHT COLUMN */}
           <div>
-            <ProviderSelect
+            <ProviderMultiSelect
               control={control}
               className="mb-4"
               label="GPU models"
               name="hardware-gpu-model"
               providerAttributesSchema={providerAttributesSchema}
               requiredMessage="GPU models is required."
-              multiple
             />
 
             <ProviderSelect
@@ -404,22 +399,20 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               requiredMessage="CPU architecture is required."
             />
 
-            <ProviderSelect
+            <ProviderMultiSelect
               control={control}
               className="mb-4"
               label="Disk Storage"
               name="hardware-disk"
-              multiple
               providerAttributesSchema={providerAttributesSchema}
               requiredMessage="At least one disk storage is required."
             />
 
-            <ProviderSelect
+            <ProviderMultiSelect
               control={control}
               className="mb-4"
               label="Persistent Disk Storage"
               name="feat-persistent-storage-type"
-              multiple
               providerAttributesSchema={providerAttributesSchema}
               requiredMessage="At least one persistent disk storage is required."
               required={!!featPersistentStorage}
@@ -441,7 +434,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
       <FormPaper>
         <p className="mb-8 text-lg text-primary">Features</p>
 
-        <div className={classes.grid}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/** LEFT COLUMN */}
           <div>
             <ProviderCheckbox
@@ -471,12 +464,11 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               name="feat-endpoint-custom-domain"
             />
 
-            <ProviderSelect
+            <ProviderMultiSelect
               control={control}
               className="mb-4"
               label="Chia capabilities"
               name="workload-support-chia-capabilities"
-              multiple
               providerAttributesSchema={providerAttributesSchema}
               requiredMessage="At least one chia capability is required."
               required={!!workloadSupportChia}
@@ -498,47 +490,46 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
           {unknownAttributes.length > 0 ? (
             unknownAttributes.map((att, attIndex) => {
               return (
-                <div key={att.id} sx={{ marginBottom: attIndex + 1 === _unknownAttributes.length ? 0 : "1rem" }}>
-                  <div sx={{ display: "flex" }}>
-                    <div sx={{ flexGrow: 1, display: "flex", alignItems: "center" }}>
-                      <div sx={{ flexBasis: "50%" }}>
+                <div key={att.id} className={cn({ ["mb-4"]: attIndex + 1 !== _unknownAttributes?.length })}>
+                  <div className="flex">
+                    <div className="flex flex-grow items-center">
+                      <div className="basis-1/2">
                         <Controller
                           control={control}
                           name={`unknown-attributes.${attIndex}.key`}
                           rules={{ required: "Key is required." }}
                           render={({ field, fieldState }) => (
-                            <TextField
+                            <InputWithIcon
                               type="text"
-                              variant="outlined"
+                              // variant="outlined"
                               label="Key"
                               color="secondary"
-                              fullWidth
+                              className="w-full"
                               value={field.value}
-                              error={!!fieldState.error}
-                              helperText={fieldState.error?.message}
-                              size="small"
+                              error={fieldState.error?.message}
+                              // helperText={fieldState.error?.message}
                               onChange={event => field.onChange(event.target.value)}
                             />
                           )}
                         />
                       </div>
 
-                      <div sx={{ marginLeft: ".5rem", flexBasis: "50%" }}>
+                      <div className="ml-2 basis-1/2">
                         <Controller
                           control={control}
                           name={`unknown-attributes.${attIndex}.value`}
                           rules={{ required: "Key is required." }}
                           render={({ field, fieldState }) => (
-                            <TextField
+                            <InputWithIcon
                               type="text"
-                              variant="outlined"
+                              // variant="outlined"
                               label="Value"
                               color="secondary"
-                              fullWidth
+                              className="w-full"
                               value={field.value}
-                              error={!!fieldState.error}
-                              helperText={fieldState.error?.message}
-                              size="small"
+                              error={fieldState.error?.message}
+                              // helperText={fieldState.error?.message}
+                              // size="small"
                               onChange={event => field.onChange(event.target.value)}
                             />
                           )}
