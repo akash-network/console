@@ -1,11 +1,15 @@
 "use client";
 import { useEffect } from "react";
-import Layout from "@src/components/layout/Layout";
 import { useProviderAttributesSchema, useProviderDetail } from "@src/queries/useProvidersQuery";
 import { getProviderNameFromUri } from "@src/utils/providerUtils";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { PageContainer } from "@src/components/shared/PageContainer";
+import { EditProviderForm } from "./EditProviderForm";
+import { buttonVariants } from "@src/components/ui/button";
+import { NavArrowLeft } from "iconoir-react";
+import { cn } from "@src/utils/styleUtils";
+import Spinner from "@src/components/shared/Spinner";
 
 type Props = {
   owner: string;
@@ -25,41 +29,40 @@ export const EditProviderContainer: React.FunctionComponent<Props> = ({ owner })
   };
 
   return (
-    <Layout isLoading={isLoadingSchema || isLoadingProvider}>
-      <PageContainer>
-        {provider && providerAttributesSchema && (
-          <>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Button component={Link} href={UrlService.providerDetail(provider.owner)} replace startIcon={<ChevronLeftIcon />}>
-                Back
-              </Button>
+    <PageContainer isLoading={isLoadingSchema || isLoadingProvider}>
+      {provider && providerAttributesSchema && (
+        <>
+          <div className="flex items-center">
+            <Link className={cn(buttonVariants({ variant: "ghost" }), "flex items-center")} href={UrlService.providerDetail(provider.owner)} replace>
+              <NavArrowLeft />
+              Back
+            </Link>
 
-              <Typography variant="h1" sx={{ fontSize: "1.5rem", marginLeft: "1.5rem" }}>
-                Edit Provider <strong>{getProviderNameFromUri(provider.hostUri)}</strong>
-              </Typography>
-            </Box>
+            <h1 className="ml-6 text-2xl">
+              Edit Provider <strong>{getProviderNameFromUri(provider.hostUri)}</strong>
+            </h1>
+          </div>
 
-            <Box>
-              <Typography variant="caption">
-                This form is based on the provider attribute schema established here&nbsp;
-                <a target="_blank" href="https://github.com/akash-network/cloudmos/blob/main/config/provider-attributes.json" rel="noreferrer noopener">
-                  on github.
-                </a>
-              </Typography>
-            </Box>
+          <div>
+            <p className="text-sm text-muted-foreground">
+              This form is based on the provider attribute schema established here&nbsp;
+              <a target="_blank" href="https://github.com/akash-network/cloudmos/blob/main/config/provider-attributes.json" rel="noreferrer noopener">
+                on github.
+              </a>
+            </p>
+          </div>
 
-            <Box sx={{ padding: "1rem 0" }}>
-              <EditProviderForm provider={provider} providerAttributesSchema={providerAttributesSchema} />
-            </Box>
-          </>
-        )}
+          <div className="py-4">
+            <EditProviderForm provider={provider} providerAttributesSchema={providerAttributesSchema} />
+          </div>
+        </>
+      )}
 
-        {(isLoadingSchema || isLoadingProvider) && (
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem" }}>
-            <CircularProgress size="4rem" color="secondary" />
-          </Box>
-        )}
-      </PageContainer>
-    </Layout>
+      {(isLoadingSchema || isLoadingProvider) && (
+        <div className="flex items-center justify-center p-8">
+          <Spinner size="large" />
+        </div>
+      )}
+    </PageContainer>
   );
 };
