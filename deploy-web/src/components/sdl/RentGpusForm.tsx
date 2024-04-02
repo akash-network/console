@@ -1,4 +1,4 @@
-import { Alert, Box, Button, CircularProgress, Grid, Paper, Typography } from "@mui/material";
+"use client";
 import { useForm } from "react-hook-form";
 import { useEffect, useRef, useState } from "react";
 import { ApiTemplate, ProfileGpuModel, RentGpusFormValues, Service } from "@src/types";
@@ -31,22 +31,27 @@ import { PrerequisiteList } from "../shared/PrerequisiteList";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { ImageSelect } from "./ImageSelect";
-import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
+import { EncodeObject } from "@cosmjs/proto-signing";
+import { Alert } from "../ui/alert";
+import { FormPaper } from "./FormPaper";
+import { Button } from "../ui/button";
+import { Rocket } from "iconoir-react";
+import Spinner from "../shared/Spinner";
 
 type Props = {};
 
 export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   // const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
   const [isQueryInit, setIsQuertInit] = useState(false);
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
-  const formRef = useRef<HTMLFormElement>();
+  const formRef = useRef<HTMLFormElement>(null);
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [rentGpuSdl, setRentGpuSdl] = useAtom(sdlStore.rentGpuSdl);
   const { data: gpuModels } = useGpuModels();
@@ -58,7 +63,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   });
   const { services: _services } = watch();
   const router = useRouter();
-  const currentService: Service = _services[0] || ({} as any);
+  const currentService: Service = (_services && _services[0]) || ({} as any);
   const { settings } = useSettings();
   const { address, signAndBroadcastTx } = useWallet();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
@@ -107,7 +112,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     }
   }, [router.query, gpuModels, isQueryInit]);
 
-  async function createAndValidateDeploymentData(yamlStr: string, dseq = null, deposit = defaultInitialDeposit, depositorAddress = null) {
+  async function createAndValidateDeploymentData(yamlStr: string, dseq = null, deposit = defaultInitialDeposit, depositorAddress: string | null = null) {
     try {
       if (!yamlStr) return null;
 
@@ -122,7 +127,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     }
   }
 
-  const createAndValidateSdl = (yamlStr: string) => {
+  const createAndValidateSdl = (yamlStr: string | undefined) => {
     try {
       if (!yamlStr) return null;
 
@@ -150,7 +155,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     if (!result) return;
 
     // Filter out invalid gpu models
-    const _gpuModels = (result[0].profile.gpuModels || []).map(templateModel => {
+    const _gpuModels = ((result && result[0].profile?.gpuModels) || []).map(templateModel => {
       const isValid = gpuModels?.find(x => x.name === templateModel.vendor)?.models.some(x => x.name === templateModel.name);
       return {
         vendor: isValid ? templateModel.vendor : "nvidia",
@@ -184,7 +189,9 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     setError(null);
 
     try {
-      const sdl = generateSdl(rentGpuSdl.services, rentGpuSdl.region.key);
+      if (!rentGpuSdl) return;
+
+      const sdl = generateSdl(rentGpuSdl.services, rentGpuSdl.region?.key);
 
       setIsCreatingDeployment(true);
 
@@ -196,7 +203,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
       if (!dd) return;
 
-      const messages = [];
+      const messages: EncodeObject[] = [];
       const hasValidCert = isCertificateValidated && isLocalCertificateValidated;
       let _crtpem: string;
       let _encryptedKey: string;
@@ -255,13 +262,13 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           onDeploymentDeposit={onDeploymentDeposit}
           denom={currentService?.placement?.pricing?.denom || sdlDenom}
           infoText={
-            <Alert severity="info" sx={{ marginBottom: "1rem" }} variant="outlined">
-              <Typography variant="caption">
+            <Alert className="mb-4" variant="default">
+              <p className="text-sm text-muted-foreground">
                 To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
                 <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/glossary/escrow#escrow-accounts")}>
                   <strong>Learn more.</strong>
                 </LinkTo>
-              </Typography>
+              </p>
             </Alert>
           }
         />
@@ -269,10 +276,10 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
       {isCheckingPrerequisites && <PrerequisiteList onClose={() => setIsCheckingPrerequisites(false)} onContinue={onPrerequisiteContinue} />}
 
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
-        <Paper sx={{ marginTop: "1rem", padding: "1rem" }} elevation={2}>
+        <FormPaper className="mt-4 p-4">
           <ImageSelect control={control as any} currentService={currentService} onSelectTemplate={onSelectTemplate} />
 
-          <Box sx={{ marginTop: "1rem" }}>
+          <div className="mt-4">
             <GpuFormControl
               control={control as any}
               gpuModels={gpuModels}
@@ -282,60 +289,60 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
               setValue={setValue}
               hideHasGpu
             />
-          </Box>
+          </div>
 
-          <Box sx={{ marginTop: "1rem" }}>
+          <div className="mt-4">
             <CpuFormControl control={control as any} currentService={currentService} serviceIndex={0} />
-          </Box>
+          </div>
 
-          <Box sx={{ marginTop: "1rem" }}>
+          <div className="mt-4">
             <MemoryFormControl control={control as any} currentService={currentService} serviceIndex={0} />
-          </Box>
+          </div>
 
-          <Box sx={{ marginTop: "1rem" }}>
+          <div className="mt-4">
             <StorageFormControl control={control as any} currentService={currentService} serviceIndex={0} />
-          </Box>
+          </div>
 
-          <Grid container spacing={2} sx={{ marginTop: "1rem" }}>
-            <Grid item xs={6}>
+          <div className="grid-col-2 mt-4 grid gap-2">
+            <div>
               <RegionSelect control={control} />
-            </Grid>
-            <Grid item xs={6}>
+            </div>
+            <div>
               <TokenFormControl control={control} name="services.0.placement.pricing.denom" />
-            </Grid>
-          </Grid>
-        </Paper>
+            </div>
+          </div>
+        </FormPaper>
 
         <AdvancedConfig control={control} currentService={currentService} />
 
         {error && (
-          <Alert severity="error" variant="outlined" sx={{ marginTop: "1rem" }}>
+          <Alert variant="destructive" className="mt-4">
             {error}
           </Alert>
         )}
 
         {currentService?.env?.some(x => !!x.key && !x.value) && (
-          <Alert severity="warning" variant="outlined" sx={{ marginTop: "1rem" }}>
+          <Alert variant="warning" className="mt-4">
             Some of the environment variables are empty. Please fill them in the advanced configuration before deploying.
           </Alert>
         )}
 
-        <Box sx={{ paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Button size="large" color="secondary" variant="contained" type="submit" disabled={isCreatingDeployment || !!error}>
+        <div className="flex items-center justify-center pt-4">
+          <div className="flex items-center">
+            <Button size="lg" color="secondary" variant="default" type="submit" disabled={isCreatingDeployment || !!error}>
               {isCreatingDeployment ? (
-                <CircularProgress size="24px" color="secondary" />
+                <Spinner />
               ) : (
                 <>
                   Deploy{" "}
-                  <Box component="span" marginLeft=".5rem" display="flex" alignItems="center">
-                    <RocketLaunchIcon fontSize="small" />
-                  </Box>
+                  <span className="ml-2 inline-flex items-center">
+                    <Rocket className="rotate-45 text-sm" />
+                  </span>
                 </>
               )}
             </Button>
-          </Box>
-        </Box>
+          </div>
+        </div>
       </form>
     </>
   );

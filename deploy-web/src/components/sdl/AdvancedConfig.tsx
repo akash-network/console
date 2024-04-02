@@ -1,6 +1,5 @@
 import { ReactNode, useState } from "react";
 import { Control } from "react-hook-form";
-import { Box, Button, Collapse, Paper, Typography, useTheme } from "@mui/material";
 import { RentGpusFormValues, Service } from "@src/types";
 import { ExpandMore } from "../shared/ExpandMore";
 import { EnvFormModal } from "./EnvFormModal";
@@ -9,7 +8,6 @@ import { ExposeFormModal } from "./ExposeFormModal";
 import { EnvVarList } from "./EnvVarList";
 import { CommandList } from "./CommandList";
 import { ExposeList } from "./ExposeList";
-import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { PersistentStorage } from "./PersistentStorage";
 
 type Props = {
