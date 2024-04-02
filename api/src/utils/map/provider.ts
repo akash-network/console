@@ -10,10 +10,7 @@ export const mapProviderToList = (
 ): ProviderList => {
   const isValidVersion = provider.cosmosSdkVersion ? semver.gte(provider.cosmosSdkVersion, "v0.45.9") : false;
   const name = provider.isOnline ? new URL(provider.hostUri).hostname : null;
-  const gpuModels = (nodes || [])
-    .flatMap((x) => x.gpus)
-    .map((x) => ({ vendor: x.vendor, model: x.name, ram: x.memorySize, interface: x.interface }))
-    .filter((x, i, arr) => arr.findIndex((o) => x.vendor === o.vendor && x.model === o.model && x.ram === o.ram && x.interface === o.interface) === i);
+  const gpuModels = getDistinctGpuModelsFromNodes(nodes || []);
 
   return {
     owner: provider.owner,
@@ -92,6 +89,13 @@ export const mapProviderToList = (
     featEndpointIp: getProviderAttributeValue("feat-endpoint-ip", provider, providerAttributeSchema)
   } as ProviderList;
 };
+
+function getDistinctGpuModelsFromNodes(nodes: ProviderSnapshotNode[]) {
+  return nodes
+    .flatMap((x) => x.gpus)
+    .map((x) => ({ vendor: x.vendor, model: x.name, ram: x.memorySize, interface: x.interface }))
+    .filter((x, i, arr) => arr.findIndex((o) => x.vendor === o.vendor && x.model === o.model && x.ram === o.ram && x.interface === o.interface) === i);
+}
 
 export const getProviderAttributeValue = (
   key: keyof ProviderAttributesSchema,

@@ -42,8 +42,7 @@ export async function getNetworkCapacity() {
 }
 
 export const getProviderList = async () => {
-  // Fetch provider list with their attributes & auditors
-  const providers = await Provider.findAll({
+  const providersWithAttributesAndAuditors = await Provider.findAll({
     where: {
       deletedHeight: null
     },
@@ -58,8 +57,7 @@ export const getProviderList = async () => {
     ]
   });
 
-  // Fetch latest snapshot nodes for each provider
-  const providerNodes = await Provider.findAll({
+  const providerWithNodes = await Provider.findAll({
     attributes: ["owner"],
     where: {
       deletedHeight: null
@@ -82,14 +80,14 @@ export const getProviderList = async () => {
     ]
   });
 
-  const filteredProviders = providers.filter((value, index, self) => self.map((x) => x.hostUri).lastIndexOf(value.hostUri) === index);
+  const distinctProviders = providersWithAttributesAndAuditors.filter((value, index, self) => self.map((x) => x.hostUri).lastIndexOf(value.hostUri) === index);
   const providerAttributeSchemaQuery = getProviderAttributesSchema();
   const auditorsQuery = getAuditors();
 
   const [auditors, providerAttributeSchema] = await Promise.all([auditorsQuery, providerAttributeSchemaQuery]);
 
-  return filteredProviders.map((x) => {
-    const nodes = providerNodes.find((p) => p.owner === x.owner)?.lastSnapshot?.nodes;
+  return distinctProviders.map((x) => {
+    const nodes = providerWithNodes.find((p) => p.owner === x.owner)?.lastSnapshot?.nodes;
     return mapProviderToList(x, providerAttributeSchema, auditors, nodes);
   });
 };
