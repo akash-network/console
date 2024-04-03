@@ -38,7 +38,7 @@ export const MsgEditValidator: React.FunctionComponent<TxMessageProps> = ({ mess
           <>
             {typeof message?.data?.minSelfDelegation === "number" && (
               <>
-                {message?.data?.minSelfDelegation}&nbsp;
+                {message?.data?.minSelfDelegation}
                 <AKTLabel />
               </>
             )}

@@ -1,16 +1,16 @@
+"use client";
 import React, { useState, useCallback, useEffect } from "react";
 import axios from "axios";
-import { useSnackbar } from "notistack";
 import { useSettings } from "../SettingsProvider";
 import { networkVersion } from "@src/utils/constants";
 import { generateCertificate, getCertPem, openCert } from "@src/utils/certificateUtils";
-import { Snackbar } from "@src/components/shared/Snackbar";
 import { getSelectedStorageWallet, getStorageWallets, updateWallet } from "@src/utils/walletUtils";
 import { useWallet } from "../WalletProvider";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { RestApiCertificatesResponseType } from "@src/types/certificate";
+import { useToast } from "@src/components/ui/use-toast";
 
 export type LocalCert = {
   certPem: string;
@@ -39,16 +39,16 @@ type ChainCertificate = {
 
 type ContextType = {
   loadValidCertificates: (showSnackbar?: boolean) => Promise<any>;
-  selectedCertificate: ChainCertificate;
+  selectedCertificate: ChainCertificate | null;
   setSelectedCertificate: React.Dispatch<ChainCertificate>;
   isLoadingCertificates: boolean;
   loadLocalCert: () => Promise<void>;
-  localCert: LocalCert;
+  localCert: LocalCert | null;
   setLocalCert: React.Dispatch<LocalCert>;
   isLocalCertMatching: boolean;
   validCertificates: Array<ChainCertificate>;
   setValidCertificates: React.Dispatch<React.SetStateAction<ChainCertificate[]>>;
-  localCerts: Array<LocalCert>;
+  localCerts: Array<LocalCert> | null;
   setLocalCerts: React.Dispatch<React.SetStateAction<LocalCert[]>>;
   createCertificate: () => Promise<void>;
   isCreatingCert: boolean;
@@ -57,18 +57,18 @@ type ContextType = {
   revokeAllCertificates: () => Promise<void>;
 };
 
-const CertificateProviderContext = React.createContext<Partial<ContextType>>({});
+const CertificateProviderContext = React.createContext<ContextType>({} as ContextType);
 
 export const CertificateProvider = ({ children }) => {
   const [isCreatingCert, setIsCreatingCert] = useState(false);
   const [validCertificates, setValidCertificates] = useState<Array<ChainCertificate>>([]);
-  const [selectedCertificate, setSelectedCertificate] = useState<ChainCertificate>(null);
+  const [selectedCertificate, setSelectedCertificate] = useState<ChainCertificate | null>(null);
   const [isLoadingCertificates, setIsLoadingCertificates] = useState(false);
-  const [localCerts, setLocalCerts] = useState<Array<LocalCert>>(null);
-  const [localCert, setLocalCert] = useState<LocalCert>(null);
+  const [localCerts, setLocalCerts] = useState<Array<LocalCert> | null>(null);
+  const [localCert, setLocalCert] = useState<LocalCert | null>(null);
   const [isLocalCertMatching, setIsLocalCertMatching] = useState(false);
   const { settings, isSettingsInit } = useSettings();
-  const { enqueueSnackbar } = useSnackbar();
+  const { toast } = useToast();
   const { address, signAndBroadcastTx } = useWallet();
   const { apiEndpoint } = settings;
 
@@ -95,7 +95,11 @@ export const CertificateProvider = ({ children }) => {
         setIsLoadingCertificates(false);
 
         if (showSnackbar) {
-          enqueueSnackbar(<Snackbar title="Certificate refreshed!" iconVariant="success" />, { variant: "success" });
+          toast({
+            title: "Certificate refreshed!",
+            variant: "success"
+          });
+          // enqueueSnackbar(<Snackbar title="Certificate refreshed!" iconVariant="success" />, { variant: "success" });
         }
 
         return certs;
@@ -104,7 +108,11 @@ export const CertificateProvider = ({ children }) => {
 
         setIsLoadingCertificates(false);
         if (showSnackbar) {
-          enqueueSnackbar(<Snackbar title="Error fetching certificate." iconVariant="error" />, { variant: "error" });
+          toast({
+            title: "Error fetching certificate.",
+            variant: "destructive"
+          });
+          // enqueueSnackbar(<Snackbar title="Error fetching certificate." iconVariant="error" />, { variant: "error" });
         }
 
         return [];
@@ -153,18 +161,18 @@ export const CertificateProvider = ({ children }) => {
     // open certs for all the wallets
     const wallets = getStorageWallets();
     const currentWallet = getSelectedStorageWallet();
-    const certs = [];
+    const certs: LocalCert[] = [];
 
     for (let i = 0; i < wallets.length; i++) {
       const _wallet = wallets[i];
 
-      const cert = await openCert(_wallet.cert, _wallet.certKey);
+      const cert = await openCert(_wallet.cert as string, _wallet.certKey as string);
       const _cert = { ...cert, address: _wallet.address };
 
-      certs.push(_cert);
+      certs.push(_cert as LocalCert);
 
       if (_wallet.address === currentWallet?.address) {
-        setLocalCert(_cert);
+        setLocalCert(_cert as LocalCert);
       }
     }
 
@@ -193,7 +201,7 @@ export const CertificateProvider = ({ children }) => {
         const validCerts = await loadValidCertificates();
         loadLocalCert();
         const currentCert = validCerts.find(x => x.parsed === crtpem);
-        setSelectedCertificate(currentCert);
+        setSelectedCertificate(currentCert as ChainCertificate);
 
         event(AnalyticsEvents.CREATE_CERTIFICATE, {
           category: "certificates",
@@ -217,7 +225,7 @@ export const CertificateProvider = ({ children }) => {
     const { crtpem, pubpem, encryptedKey } = generateCertificate(address);
 
     try {
-      const revokeCertMsg = TransactionMessageData.getRevokeCertificateMsg(address, selectedCertificate.serial);
+      const revokeCertMsg = TransactionMessageData.getRevokeCertificateMsg(address, selectedCertificate?.serial as string);
       const createCertMsg = TransactionMessageData.getCreateCertificateMsg(address, crtpem, pubpem);
       const response = await signAndBroadcastTx([revokeCertMsg, createCertMsg]);
       if (response) {
@@ -231,7 +239,7 @@ export const CertificateProvider = ({ children }) => {
         const validCerts = await loadValidCertificates();
         loadLocalCert();
         const currentCert = validCerts.find(x => x.parsed === crtpem);
-        setSelectedCertificate(currentCert);
+        setSelectedCertificate(currentCert as ChainCertificate);
 
         event(AnalyticsEvents.REGENERATE_CERTIFICATE, {
           category: "certificates",

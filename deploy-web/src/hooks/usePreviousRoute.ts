@@ -1,23 +1,39 @@
 import routeStore from "@src/store/routeStore";
 import { useAtom } from "jotai";
-import { useRouter } from "next/router";
-import { useEffectOnce } from "usehooks-ts";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 export const usePreviousRoute = () => {
-  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [previousRoute, setPreviousRoute] = useAtom(routeStore.previousRoute);
 
-  useEffectOnce(() => {
-    const handleRouteChange = (url: string) => {
-      setPreviousRoute(url);
-    };
+  useEffect(() => {
+    // const handleRouteChange = (url: string) => {
+    //   setPreviousRoute(url);
+    // };
 
-    router.events?.on("routeChangeStart", handleRouteChange);
+    if (pathname) {
+      const url = pathname + searchParams?.toString();
 
-    return () => {
-      router.events?.off("routeChangeStart", handleRouteChange);
-    };
-  });
+      if (url !== previousRoute) {
+        setPreviousRoute(url);
+      }
+    }
+
+    // router.events?.on("routeChangeStart", handleRouteChange);
+
+    // return () => {
+    //   router.events?.off("routeChangeStart", handleRouteChange);
+    // };
+  }, [pathname, searchParams]);
 
   return previousRoute;
 };
+
+// function useNavigationEvent() {
+//   useEffect(() => {
+//     const url = pathname + searchParams.toString();
+//     sendSomewhere(url);
+//   }, [pathname, searchParams]);
+// }

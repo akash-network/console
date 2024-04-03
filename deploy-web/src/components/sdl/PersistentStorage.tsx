@@ -1,15 +1,18 @@
+"use client";
 import { ReactNode } from "react";
-import { makeStyles } from "tss-react/mui";
-import { Box, Checkbox, FormControl, FormHelperText, InputAdornment, InputLabel, MenuItem, Select, Slider, TextField, Typography, useTheme } from "@mui/material";
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import InfoIcon from "@mui/icons-material/Info";
 import { FormPaper } from "./FormPaper";
 import { Control, Controller } from "react-hook-form";
-import { cx } from "@emotion/css";
-import StorageIcon from "@mui/icons-material/Storage";
 import { persistentStorageTypes, storageUnits } from "../shared/akash/units";
-
+import { FormDescription, FormItem } from "../ui/form";
+import { InfoCircle } from "iconoir-react";
+import { MdStorage } from "react-icons/md";
+import { Checkbox } from "../ui/checkbox";
+import { Input, InputWithIcon } from "../ui/input";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Slider } from "../ui/slider";
+import { Label } from "../ui/label";
 
 type Props = {
   currentService: Service;
@@ -18,21 +21,18 @@ type Props = {
   control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
 };
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   formControl: {
+//     marginBottom: theme.spacing(1.5)
+//   },
+//   textField: {
+//     width: "100%"
+//   }
+// }));
 
 export const PersistentStorage: React.FunctionComponent<Props> = ({ currentService, serviceIndex, control }) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
-
   return (
-    <FormPaper elevation={1} sx={{ padding: currentService.profile.hasPersistentStorage ? ".5rem 1rem 1rem" : ".5rem 1rem" }}>
+    <FormPaper>
       <Controller
         control={control}
         name={`services.${serviceIndex}.profile.persistentStorage`}
@@ -44,27 +44,19 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
           }
         }}
         render={({ field, fieldState }) => (
-          <FormControl
-            className={cx(classes.formControl, classes.textField)}
-            variant="standard"
-            sx={{ marginBottom: "0 !important" }}
-            error={!!fieldState.error}
+          <FormItem
+          // className={cx(classes.formControl, classes.textField)}
+          // variant="standard"
+          // sx={{ marginBottom: "0 !important" }}
+          // error={!!fieldState.error}
           >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: { xs: "flex-start", sm: "center" },
-                justifyContent: "space-between",
-                flexDirection: { xs: "column", sm: "row" }
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <Typography variant="body2" sx={{ display: "flex", alignItems: "center" }}>
-                  <StorageIcon sx={{ color: theme.palette.grey[600], marginRight: ".5rem" }} fontSize="medium" />
-                  <strong>Persistent Storage</strong>
+            <div className="flex items-start justify-between sm:flex-row sm:items-center">
+              <div className="flex items-center">
+                <div className="flex items-center">
+                  <MdStorage className="mr-2 text-2xl text-muted-foreground" />
+                  <strong className="text-sm">Persistent Storage</strong>
 
                   <CustomTooltip
-                    arrow
                     title={
                       <>
                         The amount of persistent storage required for this workload.
@@ -79,31 +71,28 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                       </>
                     }
                   >
-                    <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+                    <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                   </CustomTooltip>
-                </Typography>
+                </div>
 
                 <Controller
                   control={control}
                   name={`services.${serviceIndex}.profile.hasPersistentStorage`}
-                  render={({ field }) => (
-                    <Checkbox checked={field.value} onChange={field.onChange} color="secondary" size="small" sx={{ marginLeft: ".5rem" }} />
-                  )}
+                  render={({ field }) => <Checkbox checked={field.value} onCheckedChange={field.onChange} className="ml-4" />}
                 />
-              </Box>
+              </div>
 
               {currentService.profile.hasPersistentStorage && (
-                <Box sx={{ marginTop: { xs: ".5rem", sm: 0 } }}>
-                  <TextField
+                <div className="mt-2 flex items-center sm:mt-0">
+                  <Input
                     type="number"
-                    variant="outlined"
                     color="secondary"
                     value={field.value || ""}
-                    error={!!fieldState.error}
+                    // error={!!fieldState.error}
                     onChange={event => field.onChange(parseFloat(event.target.value))}
-                    inputProps={{ min: 1, step: 1 }}
-                    size="small"
-                    sx={{ width: "100px" }}
+                    min={1}
+                    step={1}
+                    className="w-[100px]"
                   />
 
                   <Controller
@@ -112,47 +101,48 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                     rules={{ required: "Storage unit is required." }}
                     defaultValue=""
                     render={({ field }) => (
-                      <Select
-                        value={field.value || ""}
-                        onChange={field.onChange}
-                        variant="outlined"
-                        size="small"
-                        sx={{ width: "75px", marginLeft: ".25rem" }}
-                        MenuProps={{ disableScrollLock: true }}
-                      >
-                        {storageUnits.map(u => (
-                          <MenuItem key={u.id} value={u.suffix}>
-                            {u.suffix}
-                          </MenuItem>
-                        ))}
+                      <Select value={field.value || ""} onValueChange={field.onChange}>
+                        <SelectTrigger className="ml-1">
+                          <SelectValue placeholder="Select unit" className="w-[75px]" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {storageUnits.map(t => {
+                              return (
+                                <SelectItem key={t.id} value={t.suffix}>
+                                  {t.suffix}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectGroup>
+                        </SelectContent>
                       </Select>
                     )}
                   />
-                </Box>
+                </div>
               )}
-            </Box>
+            </div>
 
             {currentService.profile.hasPersistentStorage && (
               <Slider
-                value={field.value || 0}
+                value={[field.value || 0]}
                 min={1}
                 max={512}
                 step={1}
-                color="secondary"
-                aria-label="Persistent Storage"
-                valueLabelDisplay="auto"
-                onChange={(event, newValue) => field.onChange(newValue)}
+                // valueLabelDisplay="auto"
+                onValueChange={newValue => field.onChange(newValue)}
+                className="pt-2"
               />
             )}
 
-            {!!fieldState.error && <FormHelperText>{fieldState.error.message}</FormHelperText>}
-          </FormControl>
+            {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}
+          </FormItem>
         )}
       />
 
       {currentService.profile.hasPersistentStorage && (
         <div>
-          <Box sx={{ display: "flex", alignItems: "flex-start", marginTop: "1rem" }}>
+          <div className="mt-4 flex items-start">
             <Controller
               control={control}
               name={`services.${serviceIndex}.profile.persistentStorageParam.name`}
@@ -175,75 +165,68 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                 }
               }}
               render={({ field, fieldState }) => (
-                <TextField
+                <InputWithIcon
                   type="text"
-                  variant="outlined"
                   color="secondary"
-                  label="Name"
+                  label={
+                    <div className="inline-flex items-center">
+                      Name
+                      <CustomTooltip
+                        title={
+                          <>
+                            The name of the persistent volume.
+                            <br />
+                            <br />
+                            Multiple services can gain access to the same volume by name.
+                          </>
+                        }
+                      >
+                        <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                      </CustomTooltip>
+                    </div>
+                  }
                   value={field.value}
-                  error={!!fieldState.error}
+                  // error={!!fieldState.error}
+                  error={fieldState.error?.message}
                   onChange={event => field.onChange(event.target.value)}
-                  size="small"
-                  sx={{ width: "100%" }}
-                  helperText={!!fieldState.error && fieldState.error.message}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <CustomTooltip
-                          arrow
-                          title={
-                            <>
-                              The name of the persistent volume.
-                              <br />
-                              <br />
-                              Multiple services can gain access to the same volume by name.
-                            </>
-                          }
-                        >
-                          <InfoIcon color="disabled" fontSize="small" />
-                        </CustomTooltip>
-                      </InputAdornment>
-                    )
-                  }}
+                  className="flex-grow"
                 />
               )}
             />
-            <Box sx={{ display: "flex", alignItems: "center", marginLeft: "1rem" }}>
-              <Typography variant="body2" sx={{ whiteSpace: "nowrap" }}>
-                <strong>Read only</strong>
-              </Typography>
+            <div className="ml-4 flex items-center">
+              <Label className="whitespace-nowrap">Read only</Label>
 
               <Controller
                 control={control}
                 name={`services.${serviceIndex}.profile.persistentStorageParam.readOnly`}
-                render={({ field }) => <Checkbox checked={field.value} onChange={field.onChange} color="secondary" size="small" sx={{ marginLeft: ".5rem" }} />}
+                render={({ field }) => <Checkbox checked={field.value} onCheckedChange={field.onChange} className="ml-2" />}
               />
-            </Box>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "flex-start", marginTop: "1rem" }}>
+            </div>
+          </div>
+          <div className="mt-4 flex items-start">
             <Controller
               control={control}
               name={`services.${serviceIndex}.profile.persistentStorageParam.type`}
               render={({ field }) => (
-                <FormControl fullWidth sx={{ flexBasis: "40%" }}>
-                  <InputLabel id={`persistent-storage-type-${currentService.id}`}>Type</InputLabel>
-                  <Select
-                    labelId={`persistent-storage-type-${currentService.id}`}
-                    value={field.value || ""}
-                    onChange={field.onChange}
-                    variant="outlined"
-                    size="small"
-                    sx={{ width: "100%" }}
-                    label="Type"
-                    MenuProps={{ disableScrollLock: true }}
-                  >
-                    {persistentStorageTypes.map(u => (
-                      <MenuItem key={u.id} value={u.className}>
-                        {u.name}
-                      </MenuItem>
-                    ))}
+                <FormItem className="w-full basis-[40%]">
+                  <Label htmlFor={`persistent-storage-type-${currentService.id}`}>Type</Label>
+                  <Select value={field.value || ""} onValueChange={field.onChange}>
+                    <SelectTrigger id={`persistent-storage-type-${currentService.id}`}>
+                      <SelectValue placeholder="Select token" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {persistentStorageTypes.map(t => {
+                          return (
+                            <SelectItem key={t.id} value={t.className}>
+                              {t.name}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectGroup>
+                    </SelectContent>
                   </Select>
-                </FormControl>
+                </FormItem>
               )}
             />
 
@@ -252,41 +235,36 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
               name={`services.${serviceIndex}.profile.persistentStorageParam.mount`}
               rules={{ required: "Mount is required.", pattern: { value: /^\/.*$/, message: "Mount must be an absolute path." } }}
               render={({ field, fieldState }) => (
-                <TextField
+                <InputWithIcon
                   type="text"
-                  variant="outlined"
                   color="secondary"
-                  label="Mount"
+                  label={
+                    <div className="inline-flex items-center">
+                      Mount
+                      <CustomTooltip
+                        title={
+                          <>
+                            The path to mount the persistent volume to.
+                            <br />
+                            <br />
+                            Example: /mnt/data
+                          </>
+                        }
+                      >
+                        <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                      </CustomTooltip>
+                    </div>
+                  }
                   placeholder="Example: /mnt/data"
                   value={field.value}
-                  error={!!fieldState.error}
+                  error={fieldState.error?.message}
                   onChange={event => field.onChange(event.target.value)}
-                  size="small"
-                  sx={{ width: "100%", marginLeft: ".5rem" }}
-                  helperText={!!fieldState.error && fieldState.error.message}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <CustomTooltip
-                          arrow
-                          title={
-                            <>
-                              The path to mount the persistent volume to.
-                              <br />
-                              <br />
-                              Example: /mnt/data
-                            </>
-                          }
-                        >
-                          <InfoIcon color="disabled" fontSize="small" />
-                        </CustomTooltip>
-                      </InputAdornment>
-                    )
-                  }}
+                  className="ml-2 w-full"
+                  // helperText={!!fieldState.error && fieldState.error.message}
                 />
               )}
             />
-          </Box>
+          </div>
         </div>
       )}
     </FormPaper>

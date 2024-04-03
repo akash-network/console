@@ -1,62 +1,10 @@
-import MemoryIcon from "@mui/icons-material/Memory";
-import StorageIcon from "@mui/icons-material/Storage";
-import SpeedIcon from "@mui/icons-material/Speed";
-import { makeStyles } from "tss-react/mui";
-import { Box, Chip, useMediaQuery, useTheme } from "@mui/material";
-import { cx } from "@emotion/css";
+"use client";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
-
-const useStyles = makeStyles()(theme => ({
-  defaultColor: {
-    borderColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100]
-  },
-  chipRoot: {
-    padding: "2px 0",
-    height: "auto",
-    backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[700] : theme.palette.grey[100],
-    borderRadius: "2rem"
-  },
-  chipLabel: {
-    display: "flex",
-    alignItems: "center",
-    padding: "2px 0",
-    color: theme.palette.mode === "dark" ? theme.palette.primary.contrastText : theme.palette.primary.main
-  },
-  specIconSmall: {
-    fontSize: ".8rem"
-  },
-  specIconMedium: {
-    fontSize: "1.5rem"
-  },
-  specIconLarge: {
-    fontSize: "2rem"
-  },
-  specDetail: {
-    marginLeft: ".5rem"
-  },
-  specDetailSmall: {
-    fontSize: ".8rem",
-    lineHeight: ".8rem"
-  },
-  specDetailMedium: {
-    fontSize: ".9rem",
-    lineHeight: ".8rem"
-  },
-  specDetailLarge: {
-    fontSize: "1rem",
-    lineHeight: ".8rem"
-  },
-  gutterSmall: {
-    marginLeft: ".5rem"
-  },
-  gutterMedium: {
-    marginLeft: ".75rem"
-  },
-  gutterLarge: {
-    marginLeft: "1rem"
-  }
-}));
+import { cn } from "@src/utils/styleUtils";
+import { Badge } from "../ui/badge";
+import { MdDeveloperBoard, MdMemory, MdSpeed, MdStorage } from "react-icons/md";
+import { useTheme } from "next-themes";
 
 export function SpecDetail({
   cpuAmount,
@@ -67,171 +15,92 @@ export function SpecDetail({
   color = "default",
   size = "large",
   gutterSize = "large"
-}: {
+}: React.PropsWithChildren<{
   cpuAmount: number;
   memoryAmount: number;
   storageAmount: number;
   gpuAmount?: number;
   gpuModels?: { vendor: string; model: string }[];
-  color?: React.ComponentProps<typeof Chip>["color"];
+  color?: string;
   size?: "small" | "medium" | "large";
   gutterSize?: "small" | "medium" | "large";
-}) {
-  const { classes } = useStyles();
+}>) {
   const memory = bytesToShrink(memoryAmount);
   const storage = bytesToShrink(storageAmount);
-  const theme = useTheme();
-  const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  const { theme } = useTheme();
+  const badgeClasses = cn("h-auto rounded-3xl py-0 px-1", {
+    ["bg-gray-700"]: theme === "dark",
+    ["bg-gray-100"]: theme === "light",
+    ["bg-primary text-white"]: color === "primary",
+    ["bg-secondary text-initial"]: color === "secondary"
+  });
+  const specDetailIconClasses = cn({ ["text-2xl"]: size === "large", ["text-xl"]: size === "medium", ["text-sm"]: size === "small" });
+  const specDetailClasses = cn("ml-2", { ["text-lg"]: size === "large", ["text-sm"]: size === "medium", ["text-xs"]: size === "small" });
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: { xs: "start", sm: "start", md: "center" },
-        flexDirection: { xs: "column", sm: "column", md: "row" }
-      }}
+    <div
+      className={cn("grid grid-cols-1 sm:grid-cols-3", {
+        ["gap-1"]: gutterSize === "small",
+        ["gap-2"]: gutterSize === "medium",
+        ["gap-3"]: gutterSize === "large"
+      })}
+      // sx={{
+      //   display: "flex",
+      //   alignItems: { xs: "start", sm: "start", md: "center" },
+      //   flexDirection: { xs: "column", sm: "column", md: "row" }
+      // }}
     >
-      <Chip
-        variant="outlined"
-        color={color}
-        classes={{ root: classes.chipRoot }}
-        className={cx({ [classes.defaultColor]: color === "default" })}
-        label={
-          <div className={classes.chipLabel}>
-            <SpeedIcon
-              className={cx({
-                [classes.specIconSmall]: size === "small",
-                [classes.specIconMedium]: size === "medium",
-                [classes.specIconLarge]: size === "large"
-              })}
-            />
-            <Box
-              className={cx(classes.specDetail, {
-                [classes.specDetailSmall]: size === "small",
-                [classes.specDetailMedium]: size === "medium",
-                [classes.specDetailLarge]: size === "large"
-              })}
-            >
-              {roundDecimal(cpuAmount, 2) + " CPU"}
-            </Box>
-          </div>
-        }
-      />
+      <Badge className={badgeClasses} variant="outline">
+        <div className="flex items-center py-1">
+          <MdSpeed className={specDetailIconClasses} />
+          <div className={specDetailClasses}>{roundDecimal(cpuAmount, 2) + " CPU"}</div>
+        </div>
+      </Badge>
 
       {gpuAmount > 0 && (
-        <Chip
-          variant="outlined"
-          // TODO Type
-          color={color as any}
-          classes={{ root: classes.chipRoot }}
-          className={cx({
-            [classes.defaultColor]: color === "default",
-            [classes.gutterSmall]: !smallScreen && gutterSize === "small",
-            [classes.gutterMedium]: !smallScreen && gutterSize === "medium",
-            [classes.gutterLarge]: !smallScreen && gutterSize === "large"
-          })}
-          label={
-            <div className={classes.chipLabel}>
-              <SpeedIcon
-                className={cx({
-                  [classes.specIconSmall]: size === "small",
-                  [classes.specIconMedium]: size === "medium",
-                  [classes.specIconLarge]: size === "large"
-                })}
-              />
-              <Box
-                style={{ display: "flex", alignItems: "center" }}
-                className={cx(classes.specDetail, {
-                  [classes.specDetailSmall]: size === "small",
-                  [classes.specDetailMedium]: size === "medium",
-                  [classes.specDetailLarge]: size === "large"
-                })}
-              >
-                {gpuAmount + " GPU"}
-
-                {gpuModels?.length > 0 && (
-                  <div style={{ display: "inline", marginLeft: "5px" }}>
-                    {gpuModels.map((gpu, i) => (
-                      <Chip
-                        key={`${gpu.vendor}-${gpu.model}`}
-                        label={`${gpu.vendor}-${gpu.model}`}
-                        sx={{ marginRight: i < gpuModels.length ? ".2rem" : 0 }}
-                        color="default"
-                        size="small"
-                      />
-                    ))}
-                  </div>
-                )}
-              </Box>
-            </div>
-          }
-        />
+        <Badge
+          variant="outline"
+          // variant="outlined"
+          // // TODO Type
+          // color={color as any}
+          // classes={{ root: classes.chipRoot }}
+          // className={cx({
+          //   [classes.defaultColor]: color === "default",
+          //   [classes.gutterSmall]: !smallScreen && gutterSize === "small",
+          //   [classes.gutterMedium]: !smallScreen && gutterSize === "medium",
+          //   [classes.gutterLarge]: !smallScreen && gutterSize === "large"
+          // })}
+          className={badgeClasses}
+        >
+          <div className="flex items-center py-1">
+            <MdDeveloperBoard className={specDetailIconClasses} />
+            <div className={specDetailClasses}>{gpuAmount + " GPU"}</div>
+            {gpuModels && gpuModels?.length > 0 && (
+              <div style={{ display: "inline", marginLeft: "5px" }}>
+                {gpuModels.map((gpu, i) => (
+                  <Badge key={`${gpu.vendor}-${gpu.model}`} className={cn({ ["mr-1"]: i < gpuModels.length })} color="default">
+                    {`${gpu.vendor}-${gpu.model}`}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        </Badge>
       )}
 
-      <Chip
-        variant="outlined"
-        // TODO Type
-        color={color as any}
-        classes={{ root: classes.chipRoot }}
-        className={cx({
-          [classes.defaultColor]: color === "default",
-          [classes.gutterSmall]: !smallScreen && gutterSize === "small",
-          [classes.gutterMedium]: !smallScreen && gutterSize === "medium",
-          [classes.gutterLarge]: !smallScreen && gutterSize === "large"
-        })}
-        label={
-          <div className={classes.chipLabel}>
-            <MemoryIcon
-              className={cx({
-                [classes.specIconSmall]: size === "small",
-                [classes.specIconMedium]: size === "medium",
-                [classes.specIconLarge]: size === "large"
-              })}
-            />
-            <Box
-              className={cx(classes.specDetail, {
-                [classes.specDetailSmall]: size === "small",
-                [classes.specDetailMedium]: size === "medium",
-                [classes.specDetailLarge]: size === "large"
-              })}
-            >
-              {`${roundDecimal(memory.value, 2)} ${memory.unit}`}
-            </Box>
-          </div>
-        }
-      />
-      <Chip
-        variant="outlined"
-        // TODO Type
-        color={color as any}
-        classes={{ root: classes.chipRoot }}
-        className={cx({
-          [classes.defaultColor]: color === "default",
-          [classes.gutterSmall]: !smallScreen && gutterSize === "small",
-          [classes.gutterMedium]: !smallScreen && gutterSize === "medium",
-          [classes.gutterLarge]: !smallScreen && gutterSize === "large"
-        })}
-        label={
-          <div className={classes.chipLabel}>
-            <StorageIcon
-              className={cx({
-                [classes.specIconSmall]: size === "small",
-                [classes.specIconMedium]: size === "medium",
-                [classes.specIconLarge]: size === "large"
-              })}
-            />
-            <Box
-              className={cx(classes.specDetail, {
-                [classes.specDetailSmall]: size === "small",
-                [classes.specDetailMedium]: size === "medium",
-                [classes.specDetailLarge]: size === "large"
-              })}
-            >
-              {`${roundDecimal(storage.value, 2)} ${storage.unit}`}
-            </Box>
-          </div>
-        }
-      />
-    </Box>
+      <Badge variant="outline" className={badgeClasses}>
+        <div className="flex items-center py-1">
+          <MdMemory className={specDetailIconClasses} />
+          <div className={specDetailClasses}>{`${roundDecimal(memory.value, 2)} ${memory.unit}`}</div>
+        </div>
+      </Badge>
+
+      <Badge variant="outline" className={badgeClasses}>
+        <div className="flex items-center py-1">
+          <MdStorage className={specDetailIconClasses} />
+          <div className={specDetailClasses}>{`${roundDecimal(storage.value, 2)} ${storage.unit}`}</div>
+        </div>
+      </Badge>
+    </div>
   );
 }

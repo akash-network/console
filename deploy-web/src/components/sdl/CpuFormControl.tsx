@@ -1,14 +1,16 @@
+"use client";
 import { ReactNode } from "react";
-import { makeStyles } from "tss-react/mui";
-import { Box, FormControl, FormHelperText, Slider, TextField, Typography, useTheme } from "@mui/material";
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import InfoIcon from "@mui/icons-material/Info";
 import { FormPaper } from "./FormPaper";
 import { Control, Controller } from "react-hook-form";
-import SpeedIcon from "@mui/icons-material/Speed";
-import { cx } from "@emotion/css";
 import { validationConfig } from "../shared/akash/units";
+import { cn } from "@src/utils/styleUtils";
+import { FormDescription, FormItem } from "../ui/form";
+import { Slider } from "../ui/slider";
+import { Input } from "../ui/input";
+import { InfoCircle } from "iconoir-react";
+import { MdSpeed } from "react-icons/md";
 
 type Props = {
   serviceIndex: number;
@@ -17,19 +19,7 @@ type Props = {
   currentService: Service;
 };
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  }
-}));
-
 export const CpuFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, currentService }) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
-
   return (
     <Controller
       control={control}
@@ -52,25 +42,19 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
         }
       }}
       render={({ field, fieldState }) => (
-        <FormPaper elevation={1} sx={{ padding: ".5rem 1rem", borderBottom: !!fieldState.error && `1px solid ${theme.palette.error.main}` }}>
-          <FormControl
-            className={cx(classes.formControl, classes.textField)}
-            variant="standard"
-            sx={{ marginBottom: "0 !important" }}
-            error={!!fieldState.error}
+        <FormPaper className={cn({ ["border-b border-red-500"]: !!fieldState.error })}>
+          <FormItem
+          // className={cx(classes.formControl, classes.textField)}
+          // variant="standard"
+          // sx={{ marginBottom: "0 !important" }}
+          // error={!!fieldState.error}
           >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center"
-              }}
-            >
-              <Typography variant="body2" sx={{ display: "flex", alignItems: "center" }}>
-                <SpeedIcon sx={{ color: theme.palette.grey[600], marginRight: ".5rem" }} fontSize="medium" />
-                <strong>CPU</strong>
+            <div className="flex items-center">
+              <div className="flex items-center">
+                <MdSpeed className="mr-2 text-2xl text-muted-foreground" />
+                <strong className="text-sm">CPU</strong>
 
                 <CustomTooltip
-                  arrow
                   title={
                     <>
                       The amount of vCPU's required for this workload.
@@ -83,36 +67,38 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
                     </>
                   }
                 >
-                  <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                 </CustomTooltip>
-              </Typography>
+              </div>
 
-              <TextField
+              <Input
                 type="number"
-                variant="outlined"
                 color="secondary"
-                error={!!fieldState.error}
+                // error={!!fieldState.error}
                 value={field.value || ""}
                 onChange={event => field.onChange(parseFloat(event.target.value))}
-                inputProps={{ min: 0.1, max: validationConfig.maxCpuAmount, step: 0.1 }}
-                size="small"
-                sx={{ width: "100px", marginLeft: "1rem" }}
+                min={0.1}
+                step={0.1}
+                max={validationConfig.maxCpuAmount}
+                className="ml-4 w-[100px]"
               />
-            </Box>
+            </div>
 
-            <Slider
-              value={field.value || 0}
-              min={0.1}
-              max={validationConfig.maxCpuAmount}
-              step={1}
-              color="secondary"
-              aria-label="CPU"
-              valueLabelDisplay="auto"
-              onChange={(event, newValue) => field.onChange(newValue)}
-            />
+            <div className="pt-2">
+              <Slider
+                value={[field.value || 0]}
+                min={0.1}
+                max={validationConfig.maxCpuAmount}
+                step={1}
+                color="secondary"
+                aria-label="CPU"
+                // valueLabelDisplay="auto"
+                onValueChange={newValue => field.onChange(newValue)}
+              />
+            </div>
 
-            {!!fieldState.error && <FormHelperText>{fieldState.error.message}</FormHelperText>}
-          </FormControl>
+            {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}
+          </FormItem>
         </FormPaper>
       )}
     />

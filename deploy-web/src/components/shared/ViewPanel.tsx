@@ -1,3 +1,4 @@
+"use client";
 import { useState, useRef, ReactNode, useEffect, CSSProperties } from "react";
 import { useWindowSize } from "@src/hooks/useWindowSize";
 
@@ -27,20 +28,20 @@ export const ViewPanel: React.FunctionComponent<Props> = ({
 }) => {
   const windowSize = useWindowSize();
   const [height, setHeight] = useState<any>(null);
-  const ref = useRef<HTMLDivElement>();
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (windowSize.height) {
       try {
-        const boundingRect = ref.current.getBoundingClientRect();
+        const boundingRect = ref.current?.getBoundingClientRect() as DOMRect;
         let height: number | string;
 
         if (bottomElementId) {
-          const bottomElementRect = document.getElementById(bottomElementId).getBoundingClientRect();
+          const bottomElementRect = document.getElementById(bottomElementId)?.getBoundingClientRect() as DOMRect;
           height = Math.abs(boundingRect.top - bottomElementRect.top);
         } else if (isSameAsParent) {
-          const computedStyle = getComputedStyle(ref.current.parentElement);
-          const parentRect = ref.current.parentElement.getBoundingClientRect();
+          const computedStyle = getComputedStyle(ref.current?.parentElement as HTMLElement);
+          const parentRect = ref.current?.parentElement?.getBoundingClientRect() as DOMRect;
           height = parentRect.height - parseFloat(computedStyle.paddingBottom) - Math.abs(boundingRect.top - parentRect.top);
         } else if (stickToBottom) {
           height = Math.abs(boundingRect.top - window.innerHeight);

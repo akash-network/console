@@ -1,45 +1,46 @@
-import { SelectedRange } from "@src/utils/constants";
+"use client";
 import { ReactNode } from "react";
-import { makeStyles } from "tss-react/mui";
-import Button from "@mui/material/Button";
-import ButtonGroup from "@mui/material/ButtonGroup";
+import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
+import { selectedRangeValues } from "@src/utils/constants";
+import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   children?: ReactNode;
-  selectedRange: SelectedRange;
-  onRangeChange: (selectedRange: SelectedRange) => void;
+  selectedRange: number;
+  onRangeChange: (selectedRange: number) => void;
 };
 
-const useStyles = makeStyles()(theme => ({
-  graphRangeSelect: {
-    [theme.breakpoints.down("sm")]: {
-      margin: "0 auto"
-    }
-  }
-}));
-
 export const TimeRange: React.FunctionComponent<Props> = ({ selectedRange, onRangeChange }) => {
-  const { classes } = useStyles();
-
-  const _onRangeChange = (selectedRange: SelectedRange) => {
+  const _onRangeChange = (selectedRange: number) => {
     onRangeChange(selectedRange);
   };
 
   return (
-    <ButtonGroup size="small" aria-label="Graph range select" color="secondary" className={classes.graphRangeSelect}>
-      <Button variant={selectedRange === SelectedRange["7D"] ? "contained" : "outlined"} onClick={() => _onRangeChange(SelectedRange["7D"])} color="secondary">
+    <ToggleGroup type="single" aria-label="Graph range select" color="secondary" size="sm" className="mx-auto my-0 sm:mx-0">
+      <ToggleGroupItem
+        value="7D"
+        className={cn({ ["!bg-primary font-bold !text-white"]: selectedRange === selectedRangeValues["7D"] })}
+        onClick={() => _onRangeChange(selectedRangeValues["7D"])}
+        size="sm"
+      >
         7D
-      </Button>
-      <Button variant={selectedRange === SelectedRange["1M"] ? "contained" : "outlined"} onClick={() => _onRangeChange(SelectedRange["1M"])} color="secondary">
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        value="1M"
+        className={cn({ ["!bg-primary font-bold !text-white"]: selectedRange === selectedRangeValues["1M"] })}
+        onClick={() => _onRangeChange(selectedRangeValues["1M"])}
+        size="sm"
+      >
         1M
-      </Button>
-      <Button
-        variant={selectedRange === SelectedRange["ALL"] ? "contained" : "outlined"}
-        onClick={() => _onRangeChange(SelectedRange["ALL"])}
-        color="secondary"
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        value="ALL"
+        className={cn({ ["!bg-primary font-bold !text-white"]: selectedRange === selectedRangeValues["ALL"] })}
+        onClick={() => _onRangeChange(selectedRangeValues["ALL"])}
+        size="sm"
       >
         ALL
-      </Button>
-    </ButtonGroup>
+      </ToggleGroupItem>
+    </ToggleGroup>
   );
 };

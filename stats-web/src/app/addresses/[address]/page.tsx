@@ -30,7 +30,7 @@ export async function generateMetadata({ params: { address } }: IProps, parent: 
 
 async function fetchAddressData(address: string, network: string): Promise<AddressDetail> {
   const apiUrl = getNetworkBaseApiUrl(network);
-  const response = await fetch(`${apiUrl}/addresses/${address}`);
+  const response = await fetch(`${apiUrl}/v1/addresses/${address}`);
 
   if (!response.ok) {
     // This will activate the closest `error.js` Error Boundary

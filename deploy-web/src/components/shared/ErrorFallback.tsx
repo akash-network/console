@@ -1,52 +1,24 @@
-import Alert from "@mui/material/Alert";
-import AlertTitle from "@mui/material/AlertTitle";
-import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
-import { makeStyles } from "tss-react/mui";
+"use client";
 import { ReactNode } from "react";
 import { FallbackProps } from "react-error-boundary";
+import { Alert, AlertTitle } from "../ui/alert";
+import { Button } from "../ui/button";
 
 interface Props extends FallbackProps {
   children?: ReactNode;
 }
 
-const useStyles = makeStyles()(theme => ({
-  root: {
-    width: "100%",
-    height: "100%",
-    display: "flex",
-    padding: "2rem 0",
-    flexDirection: "column",
-    textAlign: "center",
-    maxWidth: 300,
-    margin: "0 auto"
-  },
-  heading: {
-    marginBottom: "1.5rem",
-    fontSize: "1.5rem",
-    fontWeight: "bold"
-  },
-  alert: {
-    marginBottom: "2rem",
-    textAlign: "left"
-  }
-}));
-
 export const ErrorFallback: React.FunctionComponent<Props> = ({ error, resetErrorBoundary }) => {
-  const { classes } = useStyles();
-
   return (
-    <div className={classes.root} role="alert">
-      <Typography variant="h1" className={classes.heading}>
-        Something went wrong
-      </Typography>
+    <div className="flex h-full max-w-[300px] mx-auto flex-col py-8" role="alert">
+      <h1 className="mb-6 text-2xl font-bold">Something went wrong</h1>
 
-      <Alert severity="error" variant="outlined" className={classes.alert}>
+      <Alert variant="destructive" className="mb-8 text-left">
         <AlertTitle>Error</AlertTitle>
         {error.message}
       </Alert>
 
-      <Button variant="contained" color="secondary" onClick={resetErrorBoundary}>
+      <Button variant="default" type="button" onClick={resetErrorBoundary}>
         Try again
       </Button>
     </div>
