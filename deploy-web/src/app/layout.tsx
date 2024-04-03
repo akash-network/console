@@ -1,18 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import "../styles/index.css";
 import { cookies } from "next/headers";
-// import { customColors } from "@/lib/colors";
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import localFont from "next/font/local";
 import { customColors } from "@src/utils/colors";
 import { cn } from "@src/utils/styleUtils";
 import Providers from "@src/components/layout/CustomProviders";
 import { Toaster } from "@src/components/ui/toaster";
-import { Nav } from "@src/components/layout/Nav";
-import { ErrorBoundary } from "react-error-boundary";
-import { ErrorFallback } from "@src/components/shared/ErrorFallback";
 import { AppLayoutContainer } from "@src/components/layout/AppLayoutContainer";
 import getConfig from "next/config";
 
@@ -45,21 +40,22 @@ const satoshi = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Akash Network Stats",
-  description: "Akash Network Stats",
-  metadataBase: new URL("https://stats.akash.network"),
+  title: "Akash Console",
+  description: "Akash Console",
+  metadataBase: new URL("https://console.akash.network"),
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://stats.akash.network/",
-    siteName: "Akash Stats",
-    description: "Akash Network Analytics. The #1 decentralized supercloud.",
+    url: "https://console.akash.network/",
+    siteName: "Akash Console",
+    description:
+      "Akash Console is the #1 platform to deploy docker containers on the Akash Network, a decentralized super cloud compute marketplace. Explore, deploy and track all in one place!",
     images: [
       {
-        url: "https://stats.akash.network/akash-stats.png",
+        url: "https://console.akash.network/akash-console.png",
         width: 1200,
         height: 630,
-        alt: "Akash Stats Cover Image"
+        alt: "Akash Console Cover Image"
       }
     ]
   },
