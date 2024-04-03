@@ -1,8 +1,10 @@
+"use client";
 import { ResponsivePie } from "@nivo/pie";
-import { Box, Typography, useTheme } from "@mui/material";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import useTailwind from "@src/hooks/useTailwind";
 
 type Props = {
   activeCPU: number;
@@ -33,7 +35,8 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
   pendingStorage,
   totalStorage
 }) => {
-  const theme = useTheme();
+  const { theme } = useTheme();
+  const tw = useTailwind();
   const router = useRouter();
   const activeMemoryBytes = activeMemory + pendingMemory;
   const availableMemoryBytes = totalMemory - (activeMemory + pendingMemory);
@@ -55,8 +58,8 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
   const _getColor = bar => getColor(bar.id);
 
   const colors = {
-    active: theme.palette.secondary.main,
-    available: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[500]
+    active: tw.theme.colors["primary"].DEFAULT,
+    available: theme === "dark" ? tw.theme.colors.gray[800] : tw.theme.colors.gray[500]
   };
 
   const getColor = (id: string) => {
@@ -64,15 +67,13 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
   };
 
   return (
-    <Box sx={{ display: "flex", alignItems: { xs: "start", sm: "start", md: "center" }, flexDirection: { xs: "column", sm: "column", md: "row" } }}>
-      <Box sx={{ flexBasis: flexBasis }}>
-        <Typography variant="body1" sx={{ lineHeight: "1rem" }}>
-          CPU
-        </Typography>
-        <Typography variant="caption" color="textSecondary">
+    <div className="flex flex-col items-start md:flex-row md:items-center">
+      <div className="basis-1/4">
+        <p className="leading-4">CPU</p>
+        <p className="text-sm text-muted-foreground">
           {Math.round(activeCPU + pendingCPU)}&nbsp;CPU&nbsp;/&nbsp;{Math.round(totalCPU)}&nbsp;CPU
-        </Typography>
-        <Box sx={{ height: "200px", width: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        </p>
+        <div className="flex h-[200px] w-[200px] items-center justify-center">
           <ResponsivePie
             data={cpuData}
             margin={{ top: 15, right: 15, bottom: 15, left: 0 }}
@@ -91,17 +92,15 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
             arcLabelsSkipAngle={10}
             theme={pieTheme}
           />
-        </Box>
-      </Box>
+        </div>
+      </div>
 
-      <Box sx={{ flexBasis: flexBasis }}>
-        <Typography variant="body1" sx={{ lineHeight: "1rem" }}>
-          GPU
-        </Typography>
-        <Typography variant="caption" color="textSecondary">
+      <div className="basis-1/4">
+        <p className="leading-4">GPU</p>
+        <p className="text-sm text-muted-foreground">
           {Math.round(activeGPU + pendingGPU)}&nbsp;GPU&nbsp;/&nbsp;{Math.round(totalGPU)}&nbsp;GPU
-        </Typography>
-        <Box sx={{ height: "200px", width: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        </p>
+        <div className="flex h-[200px] w-[200px] items-center justify-center">
           <ResponsivePie
             data={gpuData}
             margin={{ top: 15, right: 15, bottom: 15, left: 0 }}
@@ -120,17 +119,15 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
             arcLabelsSkipAngle={10}
             theme={pieTheme}
           />
-        </Box>
-      </Box>
+        </div>
+      </div>
 
-      <Box sx={{ flexBasis: flexBasis }}>
-        <Typography variant="body1" sx={{ lineHeight: "1rem" }}>
-          Memory
-        </Typography>
-        <Typography variant="caption" color="textSecondary">
+      <div className="basis-1/4">
+        <p className="leading-4">Memory</p>
+        <p className="text-sm text-muted-foreground">
           {`${roundDecimal(_activeMemory.value, 2)} ${_activeMemory.unit}`}&nbsp;/&nbsp;{`${roundDecimal(_totalMemory.value, 2)} ${_totalMemory.unit}`}
-        </Typography>
-        <Box sx={{ height: "200px", width: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        </p>
+        <div className="flex h-[200px] w-[200px] items-center justify-center">
           <ResponsivePie
             data={memoryData}
             margin={{ top: 15, right: 15, bottom: 15, left: 15 }}
@@ -153,17 +150,15 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
             arcLabelsSkipAngle={10}
             theme={pieTheme}
           />
-        </Box>
-      </Box>
+        </div>
+      </div>
 
-      <Box sx={{ flexBasis: flexBasis }}>
-        <Typography variant="body1" sx={{ lineHeight: "1rem" }}>
-          Storage
-        </Typography>
-        <Typography variant="caption" color="textSecondary">
+      <div className="basis-1/4">
+        <p className="leading-4">Storage</p>
+        <p className="text-sm text-muted-foreground">
           {`${roundDecimal(_activeStorage.value, 2)} ${_activeStorage.unit}`}&nbsp;/&nbsp;{`${roundDecimal(_totalStorage.value, 2)} ${_totalStorage.unit}`}
-        </Typography>
-        <Box sx={{ height: "200px", width: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        </p>
+        <div className="flex h-[200px] w-[200px] items-center justify-center">
           <ResponsivePie
             data={storageData}
             margin={{ top: 15, right: 15, bottom: 15, left: 15 }}
@@ -186,67 +181,49 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
             arcLabelsSkipAngle={10}
             theme={pieTheme}
           />
-        </Box>
-      </Box>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 };
 
 const useData = (active: number, available: number) => {
-  const theme = useTheme();
+  const tw = useTailwind();
 
   return [
     {
       id: "active",
       label: "Active",
       value: active,
-      color: theme.palette.secondary.main
+      color: tw.theme.colors["primary"].DEFAULT
     },
     {
       id: "available",
       label: "Available",
       value: available,
-      color: theme.palette.success.main
+      // TODO
+      // color: tw.theme.colors["success"].DEFAULT
+      color: tw.theme.colors.green[600]
     }
-    // {
-    //   id: "rewards",
-    //   label: "Rewards",
-    //   value: balances.rewards,
-    //   color: colors.rewards
-    // },
-    // {
-    //   id: "delegations",
-    //   label: "Staked",
-    //   value: balances.delegations,
-    //   color: colors.delegations
-    // },
-    // {
-    //   id: "redelegations",
-    //   label: "Redelegations",
-    //   value: balances.redelegations,
-    //   color: colors.redelegations
-    // },
-    // {
-    //   id: "unbondings",
-    //   label: "Unbondings",
-    //   value: balances.unbondings,
-    //   color: colors.unbondings
-    // }
   ];
 };
 
 const usePieTheme = () => {
-  const theme = useTheme();
+  const { theme } = useTheme();
+  const tw = useTailwind();
   return {
-    background: theme.palette.mode === "dark" ? theme.palette.background.default : theme.palette.background.default,
+    background: theme === "dark" ? tw.theme.colors["background"] : tw.theme.colors["background"],
+    // background: theme === "dark" ? theme.palette.background.default : theme.palette.background.default,
     textColor: "#fff",
     fontSize: 12,
     tooltip: {
       basic: {
-        color: theme.palette.mode === "dark" ? theme.palette.primary.contrastText : theme.palette.primary.main
+        color: theme === "dark" ? tw.theme.colors.white : tw.theme.colors.current
+        // color: theme === "dark" ? theme.palette.primary.contrastText : theme.palette.primary.main
       },
       container: {
-        backgroundColor: theme.palette.mode === "dark" ? theme.palette.primary.main : theme.palette.primary.contrastText
+        backgroundColor: theme === "dark" ? tw.theme.colors.current : tw.theme.colors.white
+        // backgroundColor: theme === "dark" ? theme.palette.primary.main : theme.palette.primary.contrastText
       }
     }
   };

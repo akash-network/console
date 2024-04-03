@@ -11,7 +11,6 @@ import { Sidebar } from "./Sidebar";
 import { useSettings } from "@src/context/SettingsProvider";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Header } from "./Header";
-import { NewsletterModal } from "../shared/NewsletterModal";
 import { useWallet } from "@src/context/WalletProvider";
 
 type Props = {
@@ -115,7 +114,6 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   return (
     <>
       <WelcomeModal open={isShowingWelcome} onClose={onWelcomeClose} />
-      <NewsletterModal />
 
       <Box sx={{ height: "100%" }}>
         <Box className={classes.root} sx={{ marginTop: `${accountBarHeight}px`, height: "100%" }}>
@@ -173,4 +171,3 @@ const Loading: React.FunctionComponent<{ text: string }> = ({ text }) => {
 };
 
 export default Layout;
-

@@ -112,7 +112,7 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getDepositDeploymentMsg(address: string, dseq: string, depositAmount: number, denom: string, depositorAddress: string = null) {
+  static getDepositDeploymentMsg(address: string, dseq: string, depositAmount: number, denom: string, depositorAddress: string | null = null) {
     let message = {
       typeUrl: TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT,
       value: {

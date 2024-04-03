@@ -23,7 +23,7 @@ export async function generateMetadata({ params: { hash } }: IProps, parent: Res
 
 async function fetchTransactionData(hash: string, network: string): Promise<TransactionDetail> {
   const apiUrl = getNetworkBaseApiUrl(network);
-  const response = await fetch(`${apiUrl}/transactions/${hash}`);
+  const response = await fetch(`${apiUrl}/v1/transactions/${hash}`);
 
   if (!response.ok) {
     // This will activate the closest `error.js` Error Boundary

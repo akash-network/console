@@ -1,13 +1,12 @@
+"use client";
 import { PriceValue } from "./PriceValue";
-import InfoIcon from "@mui/icons-material/Info";
 import { averageBlockTime, getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { averageDaysInMonth } from "@src/utils/dateUtils";
-import { Box, Typography } from "@mui/material";
 import { CustomTooltip } from "./CustomTooltip";
-import { makeStyles } from "tss-react/mui";
 import { ReactNode } from "react";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { useDenomData } from "@src/hooks/useWalletBalance";
+import { InfoCircle } from "iconoir-react";
 
 type Props = {
   value: number | string;
@@ -15,16 +14,7 @@ type Props = {
   children?: ReactNode;
 };
 
-const useStyles = makeStyles()(theme => ({
-  tooltipIcon: {
-    marginLeft: ".5rem",
-    fontSize: "1rem",
-    color: theme.palette.text.secondary
-  }
-}));
-
 export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, denom }) => {
-  const { classes } = useStyles();
   const _value = udenomToDenom(typeof value === "string" ? parseFloat(value) : value, 10);
   const perDayValue = _value * (60 / averageBlockTime) * 60 * 24;
   const perMonthValue = _value * (60 / averageBlockTime) * 60 * 24 * averageDaysInMonth;
@@ -32,10 +22,9 @@ export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, de
 
   return (
     <CustomTooltip
-      arrow
       title={
-        <Box>
-          <Typography variant="caption">Price estimation:</Typography>
+        <div>
+          <span className="text-sm text-muted-foreground">Price estimation:</span>
           <div>
             <strong>
               <PriceValue value={_value} denom={denom} />
@@ -57,11 +46,11 @@ export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, de
             &nbsp; per month
           </div>
 
-          <Box sx={{ fontSize: ".7rem", marginTop: ".5rem" }}>({`~${udenomToDenom(getAvgCostPerMonth(value as number))} ${denomData?.label}/month`})</Box>
-        </Box>
+          <div className="mt-2 text-xs">({`~${udenomToDenom(getAvgCostPerMonth(value as number))} ${denomData?.label}/month`})</div>
+        </div>
       }
     >
-      <InfoIcon className={classes.tooltipIcon} fontSize="small" />
+      <InfoCircle className="ml-2 text-xs text-muted-foreground" />
     </CustomTooltip>
   );
 };

@@ -1,3 +1,4 @@
+"use client";
 import React, { useState } from "react";
 import { useAddressNames } from "@src/queries/useAddressNames";
 import { EditAddressBookmarkModal } from "@src/context/AddressBookProvider/EditAddressBookmarkModal";
@@ -8,14 +9,10 @@ type ContextType = {
   editAddressName: (address: string) => void;
 };
 
-const AddressBookProviderContext = React.createContext<ContextType>({
-  isLoading: false,
-  addressNames: {},
-  editAddressName: null
-});
+const AddressBookProviderContext = React.createContext<ContextType>({} as ContextType);
 
 export const AddressBookProvider = ({ children }) => {
-  const [editingAddress, setEditingAddress] = useState(null);
+  const [editingAddress, setEditingAddress] = useState<string | null>(null);
   const { data: addressNames, isLoading } = useAddressNames();
 
   function editAddressName(address: string) {
@@ -24,8 +21,8 @@ export const AddressBookProvider = ({ children }) => {
 
   return (
     <AddressBookProviderContext.Provider value={{ addressNames: addressNames || {}, isLoading, editAddressName }}>
-      {!isLoading && (
-        <EditAddressBookmarkModal address={editingAddress} addressNames={addressNames || {}} open={!!editingAddress} onClose={() => setEditingAddress(null)} />
+      {!isLoading && !!editingAddress && (
+        <EditAddressBookmarkModal address={editingAddress as string} addressNames={addressNames || {}} open onClose={() => setEditingAddress(null)} />
       )}
       {children}
     </AddressBookProviderContext.Provider>

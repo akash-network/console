@@ -1,15 +1,40 @@
-import { Box, LinearProgress } from "@mui/material";
-import { makeStyles } from "tss-react/mui";
+"use client";
+import LinearProgress from "@mui/material/LinearProgress/LinearProgress";
+import { Progress } from "@src/components/ui/progress";
+import { useEffect, useState } from "react";
 
-const useStyles = makeStyles()(theme => ({
-  loadingSkeleton: {
-    height: "4px",
-    width: "100%"
-  }
-}));
+interface IProps {
+  isLoading: boolean;
+}
 
-export function LinearLoadingSkeleton({ isLoading }) {
-  const { classes } = useStyles();
+export function LinearLoadingSkeleton({ isLoading }: IProps) {
+  const [progress, setProgress] = useState(13);
 
-  return <>{isLoading ? <LinearProgress color="secondary" /> : <Box className={classes.loadingSkeleton} />}</>;
+  // useEffect(() => {
+  //   let timer;
+
+  //   if (!isLoading) {
+  //     setProgress(0);
+  //     clearInterval(timer);
+  //   } else {
+  //     timer = setInterval(() => {
+  //       setProgress(prev => {
+  //         const rest = 100 - prev;
+  //         const maxPercent = prev > 75 ? 10 : 35;
+  //         const randomPercent = randomIntFromInterval(1, maxPercent);
+  //         const increment = (randomPercent / 100) * rest;
+  //         const newProgress = Math.min(prev + increment, 100);
+  //         return newProgress;
+  //       });
+  //     }, 500);
+  //   }
+
+  //   return () => clearInterval(timer);
+  // }, [isLoading]);
+
+  // function randomIntFromInterval(min: number, max: number) {
+  //   return Math.floor(Math.random() * (max - min + 1) + min);
+  // }
+
+  return <>{isLoading ? <LinearProgress color="primary" /> : <div className="h-[4px] w-full min-w-0" />}</>;
 }

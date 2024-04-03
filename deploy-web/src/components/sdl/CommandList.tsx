@@ -1,10 +1,9 @@
+"use client";
 import { Dispatch, ReactNode, SetStateAction } from "react";
-import { makeStyles } from "tss-react/mui";
-import { Box, Typography } from "@mui/material";
 import { Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import InfoIcon from "@mui/icons-material/Info";
 import { FormPaper } from "./FormPaper";
+import { InfoCircle } from "iconoir-react";
 
 type Props = {
   currentService: Service;
@@ -13,31 +12,13 @@ type Props = {
   setIsEditingCommands: Dispatch<SetStateAction<boolean | number>>;
 };
 
-const useStyles = makeStyles()(theme => ({
-  editLink: {
-    color: theme.palette.secondary.light,
-    textDecoration: "underline",
-    cursor: "pointer",
-    fontWeight: "normal",
-    fontSize: ".8rem"
-  },
-  formValue: {
-    color: theme.palette.grey[500]
-  }
-}));
-
 export const CommandList: React.FunctionComponent<Props> = ({ currentService, setIsEditingCommands, serviceIndex }) => {
-  const { classes } = useStyles();
-
   return (
-    <FormPaper elevation={1} sx={{ padding: ".5rem 1rem" }}>
-      <Box sx={{ display: "flex", alignItems: "center", marginBottom: ".5rem" }}>
-        <Typography variant="body1">
-          <strong>Commands</strong>
-        </Typography>
+    <FormPaper>
+      <div className="mb-2 flex items-center">
+        <strong className="text-sm">Commands</strong>
 
         <CustomTooltip
-          arrow
           title={
             <>
               Custom command use when executing container.
@@ -47,23 +28,24 @@ export const CommandList: React.FunctionComponent<Props> = ({ currentService, se
             </>
           }
         >
-          <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
         </CustomTooltip>
 
-        <Box component="span" sx={{ marginLeft: "1rem" }} className={classes.editLink} onClick={() => setIsEditingCommands(serviceIndex !== undefined ? serviceIndex : true)}>
+        <span
+          className="ml-4 cursor-pointer text-sm font-normal text-primary underline"
+          onClick={() => setIsEditingCommands(serviceIndex !== undefined ? serviceIndex : true)}
+        >
           Edit
-        </Box>
-      </Box>
+        </span>
+      </div>
 
-      {currentService.command.command.length > 0 ? (
-        <Box sx={{ fontSize: ".75rem", whiteSpace: "pre-wrap" }}>
-          <div>{currentService.command.command}</div>
-          <Box className={classes.formValue}>{currentService.command.arg}</Box>
-        </Box>
+      {(currentService.command?.command.length || 0) > 0 ? (
+        <div className="whitespace-pre-wrap text-xs">
+          <div>{currentService.command?.command}</div>
+          <div className="text-muted-foreground">{currentService.command?.arg}</div>
+        </div>
       ) : (
-        <Typography variant="caption" color="darkgray">
-          None
-        </Typography>
+        <p className="text-xs text-muted-foreground">None</p>
       )}
     </FormPaper>
   );

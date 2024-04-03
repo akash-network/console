@@ -4,17 +4,17 @@ export const mainnetId = "mainnet";
 export const testnetId = "testnet";
 export const sandboxId = "sandbox";
 
-export enum SelectedRange {
-  "7D" = 7,
-  "1M" = 30,
-  "ALL" = Number.MAX_SAFE_INTEGER
-}
+export const selectedRangeValues: { [key: string]: number } = {
+  "7D": 7,
+  "1M": 30,
+  ALL: Number.MAX_SAFE_INTEGER
+};
 
 // UI
 export const statusBarHeight = 30;
 export const drawerWidth = 240;
-export const closedDrawerWidth = 58;
-export const accountBarHeight = 58;
+export const closedDrawerWidth = 57;
+export const accountBarHeight = 57;
 
 // Deployment creation
 export enum RouteStepKeys {
@@ -101,7 +101,7 @@ function getApiUrl() {
   if (window.location?.hostname === "deploy.cloudmos.io") {
     try {
       const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
-      return getNetworkBaseApiUrl(_selectedNetworkId);
+      return getNetworkBaseApiUrl(_selectedNetworkId || mainnetId);
     } catch (e) {
       console.error(e);
       return productionMainnetApiUrl;

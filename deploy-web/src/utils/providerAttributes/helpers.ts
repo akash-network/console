@@ -27,14 +27,16 @@ export const mapFormValuesToAttributes = (data: ProviderAttributesFormValues, pr
           break;
         case "option":
           const attributeValue = attribute.values?.find(v => v.key === value.key);
-          attributes.push({ key: attribute.key, value: `${attributeValue.key}` });
+          attributes.push({ key: attribute.key, value: `${attributeValue?.key}` });
           break;
         case "multiple-option":
           const values = value as ProviderAttributeSchemaDetailValue[];
           values.forEach(_val => {
             const attributeValue = attribute.values?.find(v => v.key === _val.key);
 
-            attributes.push({ key: attributeValue.key, value: `${attributeValue?.value}` });
+            if (attributeValue?.key) {
+              attributes.push({ key: attributeValue.key, value: `${attributeValue?.value}` });
+            }
           });
           break;
         default:
