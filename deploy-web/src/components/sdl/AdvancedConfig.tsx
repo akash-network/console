@@ -1,3 +1,4 @@
+"use client";
 import { ReactNode, useState } from "react";
 import { Control } from "react-hook-form";
 import { RentGpusFormValues, Service } from "@src/types";
@@ -9,6 +10,10 @@ import { EnvVarList } from "./EnvVarList";
 import { CommandList } from "./CommandList";
 import { ExposeList } from "./ExposeList";
 import { PersistentStorage } from "./PersistentStorage";
+import { Card, CardContent } from "../ui/card";
+import { Button } from "../ui/button";
+import { cn } from "@src/utils/styleUtils";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 
 type Props = {
   currentService: Service;
@@ -17,66 +22,71 @@ type Props = {
 };
 
 export const AdvancedConfig: React.FunctionComponent<Props> = ({ control, currentService }) => {
-  const theme = useTheme();
   const [expanded, setIsAdvancedOpen] = useState(false);
   const [isEditingCommands, setIsEditingCommands] = useState(false);
   const [isEditingEnv, setIsEditingEnv] = useState(false);
   const [isEditingExpose, setIsEditingExpose] = useState(false);
 
   return (
-    <Paper elevation={2} sx={{ marginTop: "1rem" }}>
-      {/** Edit Environment Variables */}
-      {isEditingEnv && (
-        <EnvFormModal control={control as any} onClose={() => setIsEditingEnv(null)} serviceIndex={0} envs={currentService.env} hasSecretOption={false} />
-      )}
-      {/** Edit Commands */}
-      {isEditingCommands && <CommandFormModal control={control as any} onClose={() => setIsEditingCommands(null)} serviceIndex={0} />}
-      {/** Edit Expose */}
-      {isEditingExpose && (
-        <ExposeFormModal
-          control={control as any}
-          onClose={() => setIsEditingExpose(null)}
-          serviceIndex={0}
-          expose={currentService.expose}
-          services={[currentService]}
-        />
-      )}
+    <Card className="mt-4">
+      <CardContent className="p-0">
+        {/** Edit Environment Variables */}
+        {isEditingEnv && (
+          <EnvFormModal
+            control={control as any}
+            onClose={() => setIsEditingEnv(false)}
+            serviceIndex={0}
+            envs={currentService.env || []}
+            hasSecretOption={false}
+          />
+        )}
+        {/** Edit Commands */}
+        {isEditingCommands && <CommandFormModal control={control as any} onClose={() => setIsEditingCommands(false)} serviceIndex={0} />}
+        {/** Edit Expose */}
+        {isEditingExpose && (
+          <ExposeFormModal
+            control={control as any}
+            onClose={() => setIsEditingExpose(false)}
+            serviceIndex={0}
+            expose={currentService.expose}
+            services={[currentService]}
+          />
+        )}
 
-      <Button
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "1rem",
-          borderBottom: expanded ? `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200]}` : "none",
-          textTransform: "none"
-        }}
-        fullWidth
-        onClick={() => setIsAdvancedOpen(prev => !prev)}
-      >
-        <Box>
-          <Typography variant="body2">Advanced Configuration</Typography>
-        </Box>
+        <Collapsible open={expanded} onOpenChange={setIsAdvancedOpen}>
+          <CollapsibleTrigger asChild>
+            <Button
+              size="lg"
+              variant="ghost"
+              className={cn("flex w-full items-center justify-between p-4 normal-case", { "border-b border-muted": expanded })}
+              type="button"
+            >
+              <div>
+                <p>Advanced Configuration</p>
+              </div>
 
-        <ExpandMore expand={expanded} aria-expanded={expanded} aria-label="show more" sx={{ marginLeft: ".5rem" }} />
-      </Button>
-      <Collapse in={expanded}>
-        <Box sx={{ padding: "1rem" }}>
-          <Box sx={{ marginBottom: "1rem" }}>
-            <PersistentStorage control={control as any} currentService={currentService} serviceIndex={0} />
-          </Box>
+              <ExpandMore expand={expanded} aria-expanded={expanded} aria-label="show more" className="ml-2" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="p-4">
+              <div className="mb-4">
+                <PersistentStorage control={control as any} currentService={currentService} serviceIndex={0} />
+              </div>
 
-          <Box sx={{ marginBottom: "1rem" }}>
-            <ExposeList currentService={currentService} setIsEditingExpose={setIsEditingExpose} />
-          </Box>
-          <Box sx={{ marginBottom: "1rem" }}>
-            <EnvVarList currentService={currentService} setIsEditingEnv={setIsEditingEnv} />
-          </Box>
-          <Box sx={{ marginBottom: "1rem" }}>
-            <CommandList currentService={currentService} setIsEditingCommands={setIsEditingCommands} />
-          </Box>
-        </Box>
-      </Collapse>
-    </Paper>
+              <div className="mb-4">
+                <ExposeList currentService={currentService} setIsEditingExpose={setIsEditingExpose} />
+              </div>
+              <div className="mb-4">
+                <EnvVarList currentService={currentService} setIsEditingEnv={setIsEditingEnv} />
+              </div>
+              <div className="mb-4">
+                <CommandList currentService={currentService} setIsEditingCommands={setIsEditingCommands} />
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </CardContent>
+    </Card>
   );
 };

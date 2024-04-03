@@ -11,12 +11,12 @@ import { cn } from "@src/utils/styleUtils";
 
 export interface Option {
   value: string;
-  label: string;
+  label: string | React.ReactNode;
   disable?: boolean;
   /** fixed option that can't be removed. */
   fixed?: boolean;
   /** Group the options by providing key. */
-  [key: string]: string | boolean | undefined;
+  [key: string]: string | boolean | undefined | React.ReactNode;
 }
 interface GroupOption {
   [key: string]: Option[];

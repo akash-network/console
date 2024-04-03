@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { useEffect, useRef, useState } from "react";
 import { ApiTemplate, ProfileGpuModel, RentGpusFormValues, Service } from "@src/types";
 import { defaultAnyRegion, defaultRentGpuService } from "@src/utils/sdl/data";
-import { useRouter } from "next/router";
+import { useRouter, useSearchParams } from "next/navigation";
 import sdlStore from "@src/store/sdlStore";
 import { useAtom } from "jotai";
 import { RegionSelect } from "./RegionSelect";
@@ -62,13 +62,14 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
     }
   });
   const { services: _services } = watch();
-  const router = useRouter();
+  const searchParams = useSearchParams();
   const currentService: Service = (_services && _services[0]) || ({} as any);
   const { settings } = useSettings();
   const { address, signAndBroadcastTx } = useWallet();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const { minDeposit } = useChainParam();
+  const router = useRouter();
 
   useEffect(() => {
     if (rentGpuSdl && rentGpuSdl.services) {
@@ -87,20 +88,20 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
   }, []);
 
   useEffect(() => {
-    if (router.query.vendor && router.query.gpu && gpuModels && !isQueryInit) {
+    const vendorQuery = searchParams?.get("vendor");
+    const gpuQuery = searchParams?.get("gpu");
+    if (vendorQuery && gpuQuery && gpuModels && !isQueryInit) {
       // Example query: ?vendor=nvidia&gpu=h100&vram=80Gi&interface=sxm
-      const vendorQuery = router.query.vendor as string;
-      const gpuQuery = router.query.gpu as string;
       const gpuModel = gpuModels.find(x => x.name === vendorQuery)?.models.find(x => x.name === gpuQuery);
 
       if (gpuModel) {
-        const memoryQuery = router.query.vram as string;
-        const interfaceQuery = router.query.interface as string;
+        const vramQuery = searchParams?.get("vram");
+        const interfaceQuery = searchParams?.get("interface");
 
         const model: ProfileGpuModel = {
           vendor: vendorQuery,
           name: gpuModel.name,
-          memory: gpuModel.memory.find(x => x === memoryQuery) || "",
+          memory: gpuModel.memory.find(x => x === vramQuery) || "",
           interface: gpuModel.interface.find(x => x === interfaceQuery) || ""
         };
         setValue("services.0.profile.gpuModels", [model]);
@@ -110,7 +111,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
       setIsQuertInit(true);
     }
-  }, [router.query, gpuModels, isQueryInit]);
+  }, [searchParams, gpuModels, isQueryInit]);
 
   async function createAndValidateDeploymentData(yamlStr: string, dseq = null, deposit = defaultInitialDeposit, depositorAddress: string | null = null) {
     try {

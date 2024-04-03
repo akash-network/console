@@ -386,7 +386,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                   ) : (
                     <div className="ml-4 flex items-center">
                       <Spinner />
-                      <span className="ml-2 text-sm text-muted-foreground">Loading GPU models...</span>
+                      <span className="ml-2 text-sm text-muted-foreground whitespace-nowrap">Loading GPU models...</span>
                     </div>
                   )}
                 </div>
