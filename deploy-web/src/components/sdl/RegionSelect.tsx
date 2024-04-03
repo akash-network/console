@@ -9,7 +9,7 @@ import { cn } from "@src/utils/styleUtils";
 import Autocomplete from "@mui/material/Autocomplete";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import { InfoCircle } from "iconoir-react";
-import { InputWithIcon } from "../ui/input";
+import TextField from "@mui/material/TextField";
 
 type RegionSelectProps = {
   control: Control<RentGpusFormValues, any>;
@@ -59,13 +59,16 @@ export const RegionSelect: React.FunctionComponent<RegionSelectProps> = ({ contr
             }}
             renderInput={params => (
               <ClickAwayListener onClickAway={() => setIsOpen(false)}>
-                <InputWithIcon
-                  {...params.InputProps}
+                <TextField
+                  {...params}
                   label="Region"
-                  // variant="outlined"
-                  error={fieldState.error?.message}
-                  // helperText={fieldState.error?.message}
+                  variant="outlined"
+                  color="secondary"
+                  size="small"
+                  error={!!fieldState.error}
+                  helperText={fieldState.error?.message}
                   onClick={() => setIsOpen(prev => !prev)}
+                  sx={{ minHeight: "42px" }}
                 />
               </ClickAwayListener>
             )}
@@ -78,7 +81,6 @@ export const RegionSelect: React.FunctionComponent<RegionSelectProps> = ({ contr
                     { ["pointer-events-none cursor-default text-muted"]: option.key !== "any" && option.providers?.length === 0 },
                     props.className
                   )}
-                  key={option.key}
                 >
                   <span>{option.key}</span>
                   {option.key !== "any" && (
