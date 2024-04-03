@@ -1,39 +1,36 @@
-import { cx } from "@emotion/css";
-import { Box, FormLabel } from "@mui/material";
+"use client";
+import { cn } from "@src/utils/styleUtils";
+import { useTheme } from "next-themes";
 import { ReactNode } from "react";
-import { makeStyles } from "tss-react/mui";
 
-const useStyles = makeStyles()(theme => ({
-  root: { display: "flex", alignItems: "center" },
-  label: {
-    fontWeight: "bold",
-    color: theme.palette.mode === "dark" ? theme.palette.grey[500] : theme.palette.primary.main,
-    fontSize: ".9rem"
-  },
-  value: {
-    display: "flex",
-    alignItems: "center",
-    marginLeft: ".5rem",
-    fontSize: ".9rem"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   root: { display: "flex", alignItems: "center" },
+//   label: {
+//     fontWeight: "bold",
+//     color: theme.palette.mode === "dark" ? theme.palette.grey[500] : theme.palette.primary.main,
+//     fontSize: ".9rem"
+//   },
+//   value: {
+//     display: "flex",
+//     alignItems: "center",
+//     marginLeft: ".5rem",
+//     fontSize: ".9rem"
+//   }
+// }));
 
 type Props = {
   label: string;
   value?: string | ReactNode;
+  className?: string;
   children?: ReactNode;
-
-  // All other props
-  [x: string]: any;
 };
 
-export const LabelValueOld: React.FunctionComponent<Props> = ({ label, value, ...rest }) => {
-  const { classes } = useStyles();
-
+export const LabelValueOld: React.FunctionComponent<Props> = ({ label, value, className = "" }) => {
+  const { theme } = useTheme();
   return (
-    <Box className={cx(classes.root)} {...rest}>
-      <FormLabel className={classes.label}>{label}</FormLabel>
-      {value && <div className={classes.value}>{value}</div>}
-    </Box>
+    <div className={cn("flex items-center", className)}>
+      <label className={cn("font-bold", { ["text-grey-500"]: theme === "dark" })}>{label}</label>
+      {value && <div className="ml-2 flex items-center text-sm">{value}</div>}
+    </div>
   );
 };

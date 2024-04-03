@@ -1,5 +1,5 @@
+"use client";
 import * as React from "react";
-
 import { cn } from "@/lib/utils";
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(({ className, ...props }, ref) => (
@@ -25,7 +25,11 @@ const TableFooter = React.forwardRef<HTMLTableSectionElement, React.HTMLAttribut
 TableFooter.displayName = "TableFooter";
 
 const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTMLTableRowElement>>(({ className, ...props }, ref) => (
-  <tr ref={ref} className={cn("border-b border-b-muted-foreground/20 transition-colors hover:bg-muted/100 data-[state=selected]:bg-muted", className)} {...props} />
+  <tr
+    ref={ref}
+    className={cn("border-b border-b-muted-foreground/20 transition-colors hover:bg-muted/100 data-[state=selected]:bg-muted", className)}
+    {...props}
+  />
 ));
 TableRow.displayName = "TableRow";
 
@@ -45,4 +49,3 @@ const TableCaption = React.forwardRef<HTMLTableCaptionElement, React.HTMLAttribu
 TableCaption.displayName = "TableCaption";
 
 export { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption };
-

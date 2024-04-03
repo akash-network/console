@@ -6,7 +6,7 @@ export let deploymentData;
 export let selectedNetworkId: string;
 
 export function initDeploymentData() {
-  selectedNetworkId = localStorage.getItem("selectedNetworkId");
+  selectedNetworkId = localStorage.getItem("selectedNetworkId") || mainnetId;
 
   switch (selectedNetworkId) {
     case mainnetId:

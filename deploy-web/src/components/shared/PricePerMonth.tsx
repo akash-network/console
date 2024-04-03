@@ -1,24 +1,24 @@
-import { Typography, TypographyVariant, TypographyProps } from "@mui/material";
+"use client";
 import { averageDaysInMonth } from "@src/utils/dateUtils";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { PriceValue } from "./PriceValue";
 import { ReactNode } from "react";
 
-interface IProps extends TypographyProps {
+interface IProps {
   perBlockValue: number;
   denom: string;
-  typoVariant?: TypographyVariant;
+  className?: string;
   children?: ReactNode;
 }
 
-export const PricePerMonth: React.FunctionComponent<IProps> = ({ perBlockValue, denom, typoVariant = "body1", ...rest }) => {
+export const PricePerMonth: React.FunctionComponent<IProps> = ({ perBlockValue, denom, className, ...rest }) => {
   const value = perBlockValue * (60 / averageBlockTime) * 60 * 24 * averageDaysInMonth;
   return (
-    <Typography variant={typoVariant} {...rest}>
+    <span className={className} {...rest}>
       <strong>
         <PriceValue value={value} denom={denom} />
       </strong>{" "}
       / month
-    </Typography>
+    </span>
   );
 };

@@ -1,9 +1,11 @@
+"use client";
 import { ReactNode } from "react";
-import { makeStyles } from "tss-react/mui";
 import { Popup } from "../shared/Popup";
 import { Control, Controller } from "react-hook-form";
-import { Box, InputLabel, Paper, TextareaAutosize, TextField, useTheme } from "@mui/material";
 import { SdlBuilderFormValues } from "@src/types";
+import { FormInput, Textarea } from "../ui/input";
+import { FormPaper } from "./FormPaper";
+import { Label } from "../ui/label";
 
 type Props = {
   serviceIndex: number;
@@ -12,19 +14,7 @@ type Props = {
   children?: ReactNode;
 };
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  }
-}));
-
 export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, onClose }) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
-
   return (
     <Popup
       fullWidth
@@ -35,7 +25,7 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
         {
           label: "Close",
           color: "primary",
-          variant: "text",
+          variant: "ghost",
           side: "right",
           onClick: onClose
         }
@@ -44,46 +34,34 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
       maxWidth="sm"
       enableCloseOnBackdropClick
     >
-      <Paper elevation={2} sx={{ display: "flex", padding: "1rem" }}>
-        <Box sx={{ flexGrow: 1 }}>
-          <Controller
-            control={control}
-            name={`services.${serviceIndex}.command.command`}
-            render={({ field }) => (
-              <TextField
-                type="text"
-                variant="outlined"
-                label="Command"
-                color="secondary"
-                fullWidth
-                value={field.value}
-                placeholder="Example: bash -c"
-                size="small"
-                onChange={event => field.onChange(event.target.value)}
-              />
-            )}
-          />
+      <FormPaper className="!bg-popover">
+        <Controller
+          control={control}
+          name={`services.${serviceIndex}.command.command`}
+          render={({ field }) => (
+            <FormInput type="text" label="Command" value={field.value} placeholder="Example: bash -c" onChange={event => field.onChange(event.target.value)} />
+          )}
+        />
 
-          <Controller
-            control={control}
-            name={`services.${serviceIndex}.command.arg`}
-            render={({ field }) => (
-              <Box sx={{ marginTop: ".5rem" }}>
-                <InputLabel sx={{ marginBottom: ".2rem", fontSize: ".8rem" }}>Arguments</InputLabel>
-                <TextareaAutosize
-                  aria-label="Args"
-                  minRows={4}
-                  placeholder="Example: apt-get update; apt-get install -y --no-install-recommends -- ssh;"
-                  style={{ width: "100%", padding: ".5rem 1rem", fontFamily: "inherit", fontSize: ".8rem" }}
-                  value={field.value}
-                  spellCheck={false}
-                  onChange={field.onChange}
-                />
-              </Box>
-            )}
-          />
-        </Box>
-      </Paper>
+        <Controller
+          control={control}
+          name={`services.${serviceIndex}.command.arg`}
+          render={({ field }) => (
+            <div className="mt-2">
+              <Label>Arguments</Label>
+              <Textarea
+                aria-label="Args"
+                placeholder="Example: apt-get update; apt-get install -y --no-install-recommends -- ssh;"
+                className="mt-2 w-full px-4 py-2 text-sm"
+                value={field.value}
+                rows={4}
+                spellCheck={false}
+                onChange={field.onChange}
+              />
+            </div>
+          )}
+        />
+      </FormPaper>
     </Popup>
   );
 };

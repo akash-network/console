@@ -59,7 +59,6 @@ export const columns: AccessorColumnDef<ValidatorRowType>[] = [
     cell: ({ row }) => (
       <div className="inline-flex items-center">
         <FormattedNumber value={udenomToDenom(row.getValue("votingPower"))} maximumFractionDigits={0} />
-        &nbsp;
         <AKTLabel />
         &nbsp;(
         <FormattedNumber style="percent" value={row.original.votingPowerRatio} minimumFractionDigits={2} />)

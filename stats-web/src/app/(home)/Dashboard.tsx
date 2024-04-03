@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { TransactionRow } from "../../components/blockchain/TransactionRow";
 import SearchBar from "@/components/SearchBar";
+import { AKTAmount } from "@/components/AKTAmount";
+import { AKTLabel } from "@/components/AKTLabel";
 
 interface IDashboardProps {
   dashboardData: DashboardData;
@@ -125,7 +127,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <StatsCard
-          number={<FormattedNumber value={dashboardData.now.activeLeaseCount} notation="compact" compactDisplay="short" />}
+          number={<FormattedNumber value={dashboardData.now.activeLeaseCount} notation="compact" compactDisplay="short" maximumFractionDigits={2} />}
           text="Active leases"
           tooltip={
             <>
@@ -205,7 +207,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
         <StatsCard
           number={
             <>
-              <FormattedNumber value={dashboardData.networkCapacity.totalCPU / 1000} maximumFractionDigits={0} notation="compact" compactDisplay="short" />{" "}
+              <FormattedNumber value={dashboardData.networkCapacity.totalCPU / 1000} maximumFractionDigits={2} notation="compact" compactDisplay="short" />{" "}
               <span className="text-sm">CPU</span>
             </>
           }
@@ -217,7 +219,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
         <StatsCard
           number={
             <>
-              <FormattedNumber value={dashboardData.networkCapacity.totalGPU} maximumFractionDigits={0} notation="compact" compactDisplay="short" />{" "}
+              <FormattedNumber value={dashboardData.networkCapacity.totalGPU} maximumFractionDigits={2} notation="compact" compactDisplay="short" />{" "}
               <span className="text-sm">GPU</span>
             </>
           }
@@ -255,9 +257,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
         <StatsCard
           number={
             <>
-              <span>
-                <FormattedNumber value={udenomToDenom(dashboardData.now.dailyUAktSpent)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
-              </span>
+              <FormattedNumber value={udenomToDenom(dashboardData.now.dailyUAktSpent)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <AKTLabel />
             </>
           }
@@ -270,7 +270,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
         <StatsCard
           number={
             <>
-              <FormattedNumber value={udenomToDenom(dashboardData.now.totalUAktSpent)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />{" "}
+              <FormattedNumber value={udenomToDenom(dashboardData.now.totalUAktSpent)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <AKTLabel />
             </>
           }
@@ -284,9 +284,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
         <StatsCard
           number={
             <>
-              <span>
-                <FormattedNumber value={udenomToDenom(dashboardData.now.dailyUUsdcSpent)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
-              </span>
+              <FormattedNumber value={udenomToDenom(dashboardData.now.dailyUUsdcSpent)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <USDCLabel />
             </>
           }
@@ -322,20 +320,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
 
         <StatsCard number={<FormattedNumber value={dashboardData.chainStats.transactionCount} />} text="Transactions" />
 
-        <StatsCard
-          number={
-            <>
-              <FormattedNumber
-                value={udenomToDenom(dashboardData.chainStats.communityPool, 6)}
-                notation="compact"
-                minimumFractionDigits={2}
-                maximumFractionDigits={2}
-              />
-              <AKTLabel />
-            </>
-          }
-          text="Community pool"
-        />
+        <StatsCard number={<AKTAmount uakt={dashboardData.chainStats.communityPool} digits={0} showAKTLabel showUSD />} text="Community pool" />
 
         <StatsCard
           number={
@@ -434,8 +419,4 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
       </div>
     </>
   );
-};
-
-const AKTLabel = () => {
-  return <span className="ml-1 text-sm font-semibold">AKT</span>;
 };

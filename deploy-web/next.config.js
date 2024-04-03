@@ -44,6 +44,7 @@ const moduleExports = {
     config.externals.push({
       "node:crypto": "crypto"
     });
+    config.externals.push("pino-pretty");
     return config;
   },
   redirects: async () => {

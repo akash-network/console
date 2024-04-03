@@ -22,7 +22,7 @@ export async function generateMetadata({ params: { height } }: IProps, parent: R
 
 async function fetchBlockData(height: string, network: string): Promise<BlockDetail> {
   const apiUrl = getNetworkBaseApiUrl(network);
-  const response = await fetch(`${apiUrl}/blocks/${height}`);
+  const response = await fetch(`${apiUrl}/v1/blocks/${height}`);
 
   if (!response.ok) {
     // This will activate the closest `error.js` Error Boundary
