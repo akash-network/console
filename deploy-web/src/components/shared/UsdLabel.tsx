@@ -1,17 +1,9 @@
-import { Box } from "@mui/material";
+"use client";
 
 export const USDLabel = () => {
-  return (
-    <Box component="span" sx={{ marginLeft: ".5rem", fontSize: ".75rem", fontWeight: 300 }}>
-      $USD
-    </Box>
-  );
+  return <span className="ml-2 text-sm font-semibold">$USD</span>;
 };
 
 export const USDCLabel = () => {
-  return (
-    <Box component="span" sx={{ marginLeft: ".5rem", fontSize: ".75rem", fontWeight: 300 }}>
-      USDC
-    </Box>
-  );
+  return <span className="ml-2 text-sm font-semibold">USDC</span>;
 };

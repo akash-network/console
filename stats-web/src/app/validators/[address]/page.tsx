@@ -14,7 +14,7 @@ interface IProps {
 export async function generateMetadata({ params: { address }, searchParams: { network } }: IProps, parent: ResolvingMetadata): Promise<Metadata> {
   const url = `https://stats.akash.network${UrlService.validator(address)}`;
   const apiUrl = getNetworkBaseApiUrl(network as string);
-  const response = await fetch(`${apiUrl}/validators/${address}`);
+  const response = await fetch(`${apiUrl}/v1/validators/${address}`);
   const data = (await response.json()) as ValidatorDetail;
 
   return {
@@ -30,7 +30,7 @@ export async function generateMetadata({ params: { address }, searchParams: { ne
 
 async function fetchValidatorData(address: string, network: string): Promise<ValidatorDetail> {
   const apiUrl = getNetworkBaseApiUrl(network);
-  const response = await fetch(`${apiUrl}/validators/${address}`);
+  const response = await fetch(`${apiUrl}/v1/validators/${address}`);
 
   if (!response.ok) {
     // This will activate the closest `error.js` Error Boundary

@@ -1,3 +1,4 @@
+"use client"
 import dynamic from "next/dynamic";
 import { forwardRef } from "react";
 import { IProps, XTermRefType } from "./XTerm";

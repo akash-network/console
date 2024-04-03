@@ -141,14 +141,14 @@ export const defaultAnyRegion = {
 };
 
 export const nextCases = [
-  { id: 1, value: "error" },
-  { id: 2, value: "timeout" },
-  { id: 3, value: "403" },
-  { id: 4, value: "404" },
-  { id: 5, value: "429" },
-  { id: 6, value: "500" },
-  { id: 7, value: "502" },
-  { id: 8, value: "503" },
-  { id: 9, value: "504" },
-  { id: 10, value: "off" }
+  { value: "error", label: "error" },
+  { value: "timeout", label: "timeout" },
+  { value: "403", label: "403" },
+  { value: "404", label: "404" },
+  { value: "429", label: "429" },
+  { value: "500", label: "500" },
+  { value: "502", label: "502" },
+  { value: "503", label: "503" },
+  { value: "504", label: "504" },
+  { value: "off", label: "off" }
 ];

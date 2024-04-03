@@ -1,3 +1,4 @@
+"use client";
 import { ChainProvider, useManager } from "@cosmos-kit/react";
 import { wallets as keplr } from "@cosmos-kit/keplr";
 import { wallets as leap } from "@cosmos-kit/leap-extension";
@@ -7,6 +8,8 @@ import { GasPrice } from "@cosmjs/stargate";
 import { akash, akashAssetList, akashSandbox, akashSandboxAssetList, akashTestnet, akashTestnetAssetList } from "@src/chains";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { useChain } from "@cosmos-kit/react";
+import "@interchain-ui/react/styles";
+import "@interchain-ui/react/globalStyles";
 
 type Props = {
   children: React.ReactNode;
@@ -28,7 +31,7 @@ export function CustomChainProvider({ children }: Props) {
       }}
       walletConnectOptions={{
         signClient: {
-          projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID
+          projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID as string
         }
       }}
       endpointOptions={{

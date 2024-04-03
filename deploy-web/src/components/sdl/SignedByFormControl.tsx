@@ -1,12 +1,15 @@
+"use client";
 import { ReactNode, useImperativeHandle, forwardRef } from "react";
-import { makeStyles } from "tss-react/mui";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Box, Button, IconButton, Paper, TextField, Typography, useTheme } from "@mui/material";
 import { SdlBuilderFormValues, SignedBy } from "@src/types";
-import DeleteIcon from "@mui/icons-material/Delete";
 import { nanoid } from "nanoid";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import InfoIcon from "@mui/icons-material/Info";
+import { Card, CardContent } from "../ui/card";
+import { Bin, InfoCircle } from "iconoir-react";
+import { cn } from "@src/utils/styleUtils";
+import { Button } from "../ui/button";
+import { FormInput } from "../ui/input";
+import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;
@@ -21,34 +24,8 @@ export type SignedByRefType = {
   _removeSignedByAllOf: (index: number | number[]) => void;
 };
 
-const useStyles = makeStyles()(theme => ({
-  root: {
-    marginTop: "1rem",
-    padding: "1rem",
-    paddingBottom: 0,
-    height: "100%",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    backgroundColor: theme.palette.mode === "dark" ? theme.palette.primary.dark : theme.palette.grey[300]
-  },
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  },
-  none: {
-    fontSize: ".7rem",
-    color: theme.palette.grey[500],
-    marginBottom: ".5rem"
-  }
-}));
-
 export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
   ({ control, serviceIndex, signedByAnyOf: _signedByAnyOf = [], signedByAllOf: _signedByAllOf = [] }, ref) => {
-    const { classes } = useStyles();
-    const theme = useTheme();
     const {
       fields: signedByAnyOf,
       remove: removeAnyOf,
@@ -86,140 +63,131 @@ export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
     }));
 
     return (
-      <Paper elevation={1} className={classes.root}>
-        <div>
-          <Box sx={{ marginBottom: "1rem", display: "flex", alignItems: "center" }}>
-            <Typography variant="body2">
-              <strong>Signed By</strong>
-            </Typography>
+      <FormPaper className="h-full">
+        <div className="mb-4 flex items-center">
+          <strong className="text-sm">Signed By</strong>
 
-            <CustomTooltip
-              arrow
-              title={
-                <>
-                  This will filter bids based on which address (auditor) audited the provider.
-                  <br />
-                  <br />
-                  This allows for requiring a third-party certification of any provider that you deploy to.
-                  <br />
-                  <br />
-                  <a href="https://docs.akash.network/readme/stack-definition-language#profiles.placement.signedby" target="_blank" rel="noopener">
-                    View official documentation.
-                  </a>
-                </>
-              }
-            >
-              <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
+          <CustomTooltip
+            title={
+              <>
+                This will filter bids based on which address (auditor) audited the provider.
+                <br />
+                <br />
+                This allows for requiring a third-party certification of any provider that you deploy to.
+                <br />
+                <br />
+                <a href="https://docs.akash.network/readme/stack-definition-language#profiles.placement.signedby" target="_blank" rel="noopener">
+                  View official documentation.
+                </a>
+              </>
+            }
+          >
+            <InfoCircle className="ml-2 text-sm text-muted-foreground" />
+          </CustomTooltip>
+        </div>
+
+        <div
+          className={cn("flex items-start justify-between", { ["mb-4"]: !!_signedByAnyOf.length })}
+          // sx={{ marginBottom: _signedByAnyOf.length ? "1rem" : 0, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}
+        >
+          <div className="flex items-center">
+            <strong className="text-sm">Any of</strong>
+            <CustomTooltip title={<>Filter providers that have been audited by ANY of these accounts.</>}>
+              <InfoCircle className="ml-2 text-sm text-muted-foreground" />
             </CustomTooltip>
-          </Box>
+          </div>
 
-          <Box sx={{ marginBottom: _signedByAnyOf.length ? "1rem" : 0, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Typography variant="caption">
-                <strong>Any of</strong>
-              </Typography>
-              <CustomTooltip arrow title={<>Filter providers that have been audited by ANY of these accounts.</>}>
-                <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
-              </CustomTooltip>
-            </Box>
+          <Button variant="default" size="sm" onClick={onAddSignedAnyOf}>
+            Add Any Of
+          </Button>
+        </div>
 
-            <Button color="secondary" variant="contained" size="small" onClick={onAddSignedAnyOf}>
-              Add Any Of
-            </Button>
-          </Box>
-
+        <div className="mb-4">
           {signedByAnyOf.length > 0 ? (
             signedByAnyOf.map((anyOf, anyOfIndex) => {
               return (
-                <Box key={anyOf.id} sx={{ marginBottom: anyOfIndex + 1 === _signedByAnyOf.length ? "1rem" : ".5rem" }}>
-                  <Box sx={{ display: "flex" }}>
-                    <Box sx={{ flexGrow: 1 }}>
+                <div
+                  key={anyOf.id}
+                  className={cn({ ["mb-4"]: anyOfIndex + 1 === _signedByAnyOf.length, ["mb-2"]: anyOfIndex + 1 !== _signedByAnyOf.length })}
+                  // sx={{ marginBottom: anyOfIndex + 1 === _signedByAnyOf.length ? "1rem" : ".5rem" }}
+                >
+                  <div className="flex items-end">
+                    <div className="flex-grow">
                       {/** TODO Add list of auditors */}
                       <Controller
                         control={control}
                         name={`services.${serviceIndex}.placement.signedBy.anyOf.${anyOfIndex}.value`}
                         render={({ field }) => (
-                          <TextField
+                          <FormInput
                             type="text"
-                            variant="outlined"
+                            // variant="outlined"
                             label="Value"
                             color="secondary"
-                            fullWidth
+                            // fullWidth
                             value={field.value}
-                            size="small"
+                            // size="small"
                             onChange={event => field.onChange(event.target.value)}
                           />
                         )}
                       />
-                    </Box>
+                    </div>
 
-                    <Box sx={{ paddingLeft: ".5rem" }}>
-                      <IconButton onClick={() => removeAnyOf(anyOfIndex)} size="small">
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  </Box>
-                </Box>
+                    <div className="pl-2">
+                      <Button onClick={() => removeAnyOf(anyOfIndex)} size="icon" variant="ghost">
+                        <Bin />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               );
             })
           ) : (
-            <div className={classes.none}>None</div>
-          )}
-
-          <Box sx={{ marginBottom: _signedByAllOf.length ? "1rem" : 0, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Typography variant="caption">
-                <strong>All of</strong>
-              </Typography>
-              <CustomTooltip arrow title={<>Filter providers that have been audited by ALL of these accounts.</>}>
-                <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
-              </CustomTooltip>
-            </Box>
-
-            <Button color="secondary" variant="contained" size="small" onClick={onAddSignedAllOf}>
-              Add All Of
-            </Button>
-          </Box>
-
-          {signedByAllOf.length > 0 ? (
-            signedByAllOf.map((allOf, allOfIndex) => {
-              return (
-                <Box key={allOf.id} sx={{ marginBottom: allOfIndex + 1 === _signedByAllOf.length ? 0 : ".5rem" }}>
-                  <Box sx={{ display: "flex" }}>
-                    <Box sx={{ flexGrow: 1 }}>
-                      {/** TODO Add list of auditors */}
-                      <Controller
-                        control={control}
-                        name={`services.${serviceIndex}.placement.signedBy.allOf.${allOfIndex}.value`}
-                        render={({ field }) => (
-                          <TextField
-                            type="text"
-                            variant="outlined"
-                            label="Value"
-                            color="secondary"
-                            fullWidth
-                            value={field.value}
-                            size="small"
-                            onChange={event => field.onChange(event.target.value)}
-                          />
-                        )}
-                      />
-                    </Box>
-
-                    <Box sx={{ paddingLeft: ".5rem" }}>
-                      <IconButton onClick={() => removeAllOf(allOfIndex)} size="small">
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  </Box>
-                </Box>
-              );
-            })
-          ) : (
-            <div className={classes.none}>None</div>
+            <div className="text-xs text-muted-foreground">None</div>
           )}
         </div>
-      </Paper>
+
+        <div className={cn("flex items-start justify-between", { ["mb-4"]: !!_signedByAllOf.length })}>
+          <div className="flex items-center">
+            <strong className="text-sm">All of</strong>
+            <CustomTooltip title={<>Filter providers that have been audited by ALL of these accounts.</>}>
+              <InfoCircle className="ml-2 text-sm text-muted-foreground" />
+            </CustomTooltip>
+          </div>
+
+          <Button color="primary" variant="default" size="sm" onClick={onAddSignedAllOf}>
+            Add All Of
+          </Button>
+        </div>
+
+        {signedByAllOf.length > 0 ? (
+          signedByAllOf.map((allOf, allOfIndex) => {
+            return (
+              <div key={allOf.id} className={cn({ ["mb-2"]: allOfIndex + 1 !== _signedByAllOf.length })}>
+                <div className="flex items-end">
+                  <div className="flex-grow">
+                    {/** TODO Add list of auditors */}
+                    <Controller
+                      control={control}
+                      name={`services.${serviceIndex}.placement.signedBy.allOf.${allOfIndex}.value`}
+                      render={({ field }) => (
+                        <FormInput type="text" label="Value" color="secondary" value={field.value} onChange={event => field.onChange(event.target.value)} />
+                      )}
+                    />
+                  </div>
+
+                  <div className="pl-2">
+                    <Button onClick={() => removeAllOf(allOfIndex)} size="icon" variant="ghost">
+                      <Bin />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="text-xs text-muted-foreground">None</div>
+        )}
+      </FormPaper>
     );
   }
 );

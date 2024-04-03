@@ -1,33 +1,18 @@
-import { cx } from "@emotion/css";
-import { Box } from "@mui/material";
+"use client";
+import { cn } from "@src/utils/styleUtils";
 import React from "react";
-import { makeStyles } from "tss-react/mui";
 
-const useStyles = makeStyles()(theme => ({
-  root: {
-    backgroundColor: "transparent",
-    border: "none",
-    cursor: "pointer",
-    textDecoration: "underline",
-    display: "inline-flex",
-    margin: 0,
-    padding: 0,
-    color: theme.palette.secondary.main,
-    "&:visited": {
-      color: theme.palette.secondary.dark
-    },
-    "&:disabled": {
-      color: theme.palette.grey[500],
-      cursor: "initial"
-    }
-  }
-}));
-
-export const LinkTo = ({ children, ...rest }) => {
-  const { classes } = useStyles();
+export function LinkTo({ children, className = "", ...rest }: React.PropsWithChildren<{ className?: string } & React.ButtonHTMLAttributes<{}>>) {
   return (
-    <Box component="button" type="button" {...rest} className={cx(rest?.className, classes.root)}>
+    <button
+      type="button"
+      {...rest}
+      className={cn(
+        className,
+        "m-0 inline-flex cursor-pointer border-0 bg-transparent p-0 text-primary underline visited:text-primary-visited disabled:cursor-default disabled:text-gray-500"
+      )}
+    >
       {children}
-    </Box>
+    </button>
   );
-};
+}

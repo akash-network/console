@@ -1,10 +1,13 @@
+"use client";
 import { ReactElement } from "react";
-import { FormControl, InputLabel, MenuItem, Select } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
 import { Control, Controller, FieldValues, FieldPathValue, Path } from "react-hook-form";
 
 import { Service } from "@src/types";
 import { useSdlDenoms } from "@src/hooks/useDenom";
+import { FormItem } from "../ui/form";
+import { Label } from "../ui/label";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 interface ServicesFieldValues extends FieldValues {
   services: Service[];
@@ -16,38 +19,43 @@ interface Props<TFieldValues extends ServicesFieldValues, TName extends Path<TFi
   control: Control<TFieldValues>;
 }
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  }
-}));
-
 export const TokenFormControl = <F extends ServicesFieldValues>({ control, name, defaultValue }: Props<F>): ReactElement<Props<F>> => {
-  const { classes } = useStyles();
   const supportedSdlDenoms = useSdlDenoms();
 
   return (
-    <FormControl className={classes.formControl} fullWidth sx={{ display: "flex", alignItems: "center", flexDirection: "row" }}>
-      <InputLabel id="grant-token">Token</InputLabel>
-      <Controller
-        control={control}
-        name={name}
-        defaultValue={defaultValue}
-        rules={{
-          required: true
-        }}
-        render={({ fieldState, field }) => {
-          return (
-            <Select {...field} labelId="sdl-token" label="Token" size="small" error={!!fieldState.error} fullWidth MenuProps={{ disableScrollLock: true }}>
-              {supportedSdlDenoms.map(token => (
-                <MenuItem key={token.id} value={token.value}>
-                  {token.tokenLabel}
-                </MenuItem>
-              ))}
+    <Controller
+      control={control}
+      name={name}
+      defaultValue={defaultValue}
+      rules={{
+        required: true
+      }}
+      render={({ fieldState, field }) => {
+        return (
+          <FormItem
+          // TODO
+          // error={!!fieldState.error}
+          >
+            <Label>Token</Label>
+            <Select value={field.value || ""} onValueChange={field.onChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select token" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {supportedSdlDenoms.map(t => {
+                    return (
+                      <SelectItem key={t.id} value={t.value}>
+                        {t.tokenLabel}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectGroup>
+              </SelectContent>
             </Select>
-          );
-        }}
-      />
-    </FormControl>
+          </FormItem>
+        );
+      }}
+    />
   );
 };

@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import { useTemplates as useTemplatesQuery } from "@src/queries/useTemplateQuery";
 import { ApiTemplate } from "@src/types";
@@ -9,7 +10,7 @@ type ContextType = {
   getTemplateById: (id: string) => ApiTemplate;
 };
 
-const TemplatesProviderContext = React.createContext<Partial<ContextType>>({});
+const TemplatesProviderContext = React.createContext<ContextType>({} as ContextType);
 
 export const TemplatesProvider = ({ children }) => {
   const { data, isFetching: isLoading } = useTemplatesQuery();
@@ -26,4 +27,3 @@ export const TemplatesProvider = ({ children }) => {
 export const useTemplates = () => {
   return { ...React.useContext(TemplatesProviderContext) };
 };
-
