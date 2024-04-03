@@ -20,8 +20,8 @@ export const generateSdl = (services: Service[], region?: string) => {
         }
 
         // Accept
-        const accept = e.accept.map(a => a.value);
-        if (accept?.length > 0) {
+        const accept = e.accept?.map(a => a.value);
+        if ((accept?.length || 0) > 0) {
           _expose["accept"] = accept;
         }
 
@@ -32,7 +32,7 @@ export const generateSdl = (services: Service[], region?: string) => {
         }
 
         // To
-        const to = e.to.map(to => ({ ["service"]: to.value }));
+        const to = e.to?.map(to => ({ ["service"]: to.value }));
         _expose["to"] = [
           {
             global: !!e.global,
@@ -58,14 +58,14 @@ export const generateSdl = (services: Service[], region?: string) => {
 
     // Command
     const trimmedCommand = service.command?.command?.trim();
-    if (trimmedCommand.length > 0) {
-      sdl.services[service.title].command = trimmedCommand.split(" ").filter(x => x);
+    if ((trimmedCommand?.length || 0) > 0) {
+      sdl.services[service.title].command = trimmedCommand?.split(" ").filter(x => x);
       sdl.services[service.title].args = [service.command?.arg?.trim()];
     }
 
     // Env
-    if (service.env?.length > 0) {
-      sdl.services[service.title].env = service.env.map(e => `${e.key.trim()}=${e.isSecret ? "" : e.value?.trim()}`);
+    if ((service.env?.length || 0) > 0) {
+      sdl.services[service.title].env = service.env?.map(e => `${e.key.trim()}=${e.isSecret ? "" : e.value?.trim()}`);
     }
 
     // Compute
@@ -95,7 +95,7 @@ export const generateSdl = (services: Service[], region?: string) => {
       };
 
       // Group models by vendor
-      const vendors = service.profile.gpuModels.reduce((group, model) => {
+      const vendors = service.profile.gpuModels?.reduce((group, model) => {
         const { vendor } = model;
         group[vendor] = group[vendor] ?? [];
         group[vendor].push(model);
@@ -105,7 +105,7 @@ export const generateSdl = (services: Service[], region?: string) => {
       for (const [vendor, models] of Object.entries(vendors)) {
         const mappedModels = models
           .map(x => {
-            let model: { model?: string; ram?: string; interface?: string } = null;
+            let model: { model?: string; ram?: string; interface?: string } | null = null;
 
             if (x.name) {
               model = {
@@ -113,11 +113,11 @@ export const generateSdl = (services: Service[], region?: string) => {
               };
             }
 
-            if (x.memory) {
+            if (model && x.memory) {
               model.ram = x.memory;
             }
 
-            if (x.interface) {
+            if (model && x.interface) {
               model.interface = x.interface;
             }
 
@@ -133,19 +133,19 @@ export const generateSdl = (services: Service[], region?: string) => {
     if (service.profile.hasPersistentStorage) {
       sdl.services[service.title].params = {
         storage: {
-          [service.profile.persistentStorageParam.name]: {
-            mount: service.profile.persistentStorageParam.mount,
-            readOnly: !!service.profile.persistentStorageParam.readOnly
+          [service.profile.persistentStorageParam?.name as string]: {
+            mount: service.profile.persistentStorageParam?.mount,
+            readOnly: !!service.profile.persistentStorageParam?.readOnly
           }
         }
       };
 
       sdl.profiles.compute[service.title].resources.storage.push({
-        name: service.profile.persistentStorageParam.name,
+        name: service.profile.persistentStorageParam?.name,
         size: `${service.profile.persistentStorage}${service.profile.persistentStorageUnit}`,
         attributes: {
           persistent: true,
-          class: service.profile.persistentStorageParam.type
+          class: service.profile.persistentStorageParam?.type
         }
       });
     }
@@ -158,21 +158,21 @@ export const generateSdl = (services: Service[], region?: string) => {
     };
 
     // Signed by
-    if (service.placement.signedBy?.anyOf?.length > 0 || service.placement.signedBy?.anyOf?.length > 0) {
-      if (service.placement.signedBy?.anyOf?.length > 0) {
+    if ((service.placement.signedBy?.anyOf?.length || 0) > 0 || (service.placement.signedBy?.anyOf?.length || 0) > 0) {
+      if ((service.placement.signedBy?.anyOf?.length || 0) > 0) {
         sdl.profiles.placement[service.placement.name].signedBy = {
-          anyOf: service.placement.signedBy.anyOf.map(x => x.value)
+          anyOf: service.placement.signedBy?.anyOf.map(x => x.value)
         };
       }
 
-      if (service.placement.signedBy?.allOf?.length > 0) {
-        sdl.profiles.placement[service.placement.name].signedBy.allOf = service.placement.signedBy.allOf.map(x => x.value);
+      if ((service.placement.signedBy?.allOf?.length || 0) > 0) {
+        sdl.profiles.placement[service.placement.name].signedBy.allOf = service.placement.signedBy?.allOf.map(x => x.value);
       }
     }
 
     // Attributes
-    if (service.placement.attributes?.length > 0) {
-      sdl.profiles.placement[service.placement.name].attributes = service.placement.attributes.reduce((acc, curr) => ((acc[curr.key] = curr.value), acc), {});
+    if ((service.placement.attributes?.length || 0) > 0) {
+      sdl.profiles.placement[service.placement.name].attributes = service.placement.attributes?.reduce((acc, curr) => ((acc[curr.key] = curr.value), acc), {});
     }
 
     // Regions

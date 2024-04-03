@@ -18,6 +18,7 @@ function getSelectedNetworkQueryParam() {
   return undefined;
 }
 
+// TODO Refactor the explorer routes to stats.akash.network
 export class UrlService {
   static home = () => "/";
   static getStarted = () => "/get-started";
@@ -76,11 +77,12 @@ export class UrlService {
   };
 }
 
-export function appendSearchParams(params: { [key: string]: string | number | boolean }) {
+export function appendSearchParams(params: { [key: string]: string | number | boolean | null | undefined } = {}) {
   const urlParams = new URLSearchParams("");
   Object.keys(params).forEach(p => {
-    if (params[p]) {
-      urlParams.set(p, params[p].toString());
+    const value = params[p];
+    if (value) {
+      urlParams.set(p, value.toString());
     }
   });
 

@@ -1,25 +1,25 @@
-import { makeStyles } from "tss-react/mui";
-import { udenomToDenom } from "@src/utils/mathHelpers";
+"use client";
 import { FormattedNumber, FormattedNumberParts } from "react-intl";
-import { Box, useTheme } from "@mui/material";
 import React from "react";
-import { usePricing } from "@src/context/PricingProvider";
 import { AKTLabel } from "./AKTLabel";
+import { udenomToDenom } from "@src/utils/mathHelpers";
+import { usePricing } from "@src/context/PricingProvider";
 
 type Props = {
   uakt: number;
   showAKTLabel?: boolean;
   showUSD?: boolean;
+  digits?: number;
+  notation?: "standard" | "scientific" | "engineering" | "compact" | undefined;
 };
 
-export const AKTAmount: React.FunctionComponent<Props> = ({ uakt, showUSD, showAKTLabel }) => {
-  const theme = useTheme();
+export const AKTAmount: React.FunctionComponent<Props> = ({ uakt, showUSD, showAKTLabel, digits = 6, notation }) => {
   const { isLoaded: isPriceLoaded, aktToUSD } = usePricing();
   const aktAmount = udenomToDenom(uakt, 6);
 
   return (
     <>
-      <FormattedNumberParts value={aktAmount} maximumFractionDigits={6} minimumFractionDigits={6}>
+      <FormattedNumberParts value={aktAmount} maximumFractionDigits={digits} minimumFractionDigits={digits} notation={notation}>
         {parts => (
           <>
             {parts.map((part, i) => {
@@ -31,9 +31,9 @@ export const AKTAmount: React.FunctionComponent<Props> = ({ uakt, showUSD, showA
                 case "decimal":
                 case "fraction":
                   return (
-                    <Box key={i} component="small" sx={{ color: theme.palette.mode === "dark" ? theme.palette.grey[400] : theme.palette.grey[800] }}>
+                    <small key={i} className="text-secondary-foreground">
                       {part.value}
-                    </Box>
+                    </small>
                   );
 
                 default:
@@ -43,17 +43,12 @@ export const AKTAmount: React.FunctionComponent<Props> = ({ uakt, showUSD, showA
           </>
         )}
       </FormattedNumberParts>
-      {showAKTLabel && (
-        <>
-          &nbsp;
-          <AKTLabel />
-        </>
-      )}
+      {showAKTLabel && <AKTLabel />}
       {isPriceLoaded && showUSD && aktAmount > 0 && (
-        <Box component="small" sx={{ color: theme.palette.mode === "dark" ? theme.palette.grey[400] : theme.palette.grey[800] }}>
+        <small className="text-secondary-foreground">
           &nbsp;(
-          <FormattedNumber style="currency" currency="USD" value={aktToUSD(aktAmount)} />)
-        </Box>
+          <FormattedNumber style="currency" currency="USD" value={aktToUSD(aktAmount) || 0} notation="compact" />)
+        </small>
       )}
     </>
   );

@@ -27,7 +27,7 @@ export async function generateMetadata({ params: { address, dseq } }: IProps, pa
 
 async function fetchDeploymentData(address: string, dseq: string, network: string): Promise<DeploymentDetail> {
   const apiUrl = getNetworkBaseApiUrl(network);
-  const response = await fetch(`${apiUrl}/deployment/${address}/${dseq}`);
+  const response = await fetch(`${apiUrl}/v1/deployment/${address}/${dseq}`);
 
   if (!response.ok) {
     // This will activate the closest `error.js` Error Boundary

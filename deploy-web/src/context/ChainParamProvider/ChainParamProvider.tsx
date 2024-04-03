@@ -22,8 +22,8 @@ export const ChainParamProvider = ({ children }) => {
   const { isSettingsInit } = useSettings();
   const { data: depositParams, refetch: getDepositParams } = useDepositParams({ enabled: false });
   const usdcDenom = useUsdcDenom();
-  const aktMinDeposit = depositParams ? uaktToAKT(parseFloat(depositParams.find(x => x.denom === uAktDenom)?.amount) || 0) : null;
-  const usdcMinDeposit = depositParams ? udenomToDenom(parseFloat(depositParams.find(x => x.denom === usdcDenom)?.amount) || 0) : null;
+  const aktMinDeposit = depositParams ? uaktToAKT(parseFloat(depositParams.find(x => x.denom === uAktDenom)?.amount || "") || 0) : 0;
+  const usdcMinDeposit = depositParams ? udenomToDenom(parseFloat(depositParams.find(x => x.denom === usdcDenom)?.amount || "") || 0) : 0;
   const minDeposit = { akt: aktMinDeposit, usdc: usdcMinDeposit };
 
   useEffect(() => {

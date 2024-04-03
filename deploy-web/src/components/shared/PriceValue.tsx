@@ -1,8 +1,9 @@
+"use client";
 import { FormattedNumber } from "react-intl";
-import { ceilDecimal } from "@src/utils/mathHelpers";
-import CircularProgress from "@mui/material/CircularProgress";
 import { ReactNode } from "react";
+import Spinner from "./Spinner";
 import { usePricing } from "@src/context/PricingProvider";
+import { ceilDecimal } from "@src/utils/mathHelpers";
 
 type Props = {
   denom: string;
@@ -18,10 +19,10 @@ export const PriceValue: React.FunctionComponent<Props> = ({ denom, value, showL
   const computedValue = _value > 0 ? ceilDecimal(_value) : 0;
 
   return (
-    <>
-      {!isLoaded && <CircularProgress size=".8rem" color="secondary" />}
-      {showLt && price && _value !== computedValue && "< "}
-      {price && (
+    <span className="inline-flex items-center">
+      {!isLoaded && <Spinner size="small" />}
+      {showLt && !!price && _value !== computedValue && "< "}
+      {!!price && (
         <FormattedNumber
           value={computedValue}
           // eslint-disable-next-line react/style-prop-object
@@ -29,6 +30,6 @@ export const PriceValue: React.FunctionComponent<Props> = ({ denom, value, showL
           currency="USD"
         />
       )}
-    </>
+    </span>
   );
 };

@@ -3,7 +3,7 @@ import { useSnackbar } from "notistack";
 import { makeStyles } from "tss-react/mui";
 import { Box, Chip, Grid, Typography } from "@mui/material";
 import { DiscordIcon } from "../shared/icons";
-import getConfig from "next/config";
+import CloseIcon from "@mui/icons-material/Close";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
 import CopyrightIcon from "@mui/icons-material/Copyright";
 import YouTubeIcon from "@mui/icons-material/YouTube";
@@ -11,8 +11,6 @@ import TwitterIcon from "@mui/icons-material/Twitter";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
-
-const { publicRuntimeConfig } = getConfig();
 
 export interface IFooterProps {}
 
@@ -91,7 +89,7 @@ export const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const Footer: React.FunctionComponent<IFooterProps> = ({}) => {
+export const Footer: React.FunctionComponent<IFooterProps> = () => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { classes } = useStyles();
 
