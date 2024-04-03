@@ -1,3 +1,4 @@
+"use client";
 import { SnackbarKey, SnackbarProvider } from "notistack";
 import React, { useRef } from "react";
 import CloseIcon from "@mui/icons-material/Close";

@@ -1,7 +1,7 @@
 import React from "react";
 import { makeStyles } from "tss-react/mui";
 import Layout from "@src/components/layout/Layout";
-import PageContainer from "@src/components/shared/PageContainer";
+import { PageContainer } from "@src/components/shared/PageContainer";
 import { Card, CardContent, CardHeader, useTheme } from "@mui/material";
 import { GetStartedStepper } from "@src/components/get-started/GetStartedStepper";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
@@ -40,4 +40,3 @@ const GetStarted: React.FunctionComponent<Props> = ({}) => {
 };
 
 export default GetStarted;
-

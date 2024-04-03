@@ -1,4 +1,5 @@
 import { assets } from "chain-registry";
+import { AssetList } from "@chain-registry/types";
 
 // Obtained from https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/chain.json
 export const akash = {
@@ -374,4 +375,4 @@ export const akash = {
   ]
 };
 
-export const akashAssetList = assets.find(x => x.chain_name === "akash");
+export const akashAssetList = assets.find(x => x.chain_name === "akash") as AssetList;

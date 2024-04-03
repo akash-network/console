@@ -45,7 +45,7 @@ export function useAllLeases(address: string, options = {}) {
   return useQuery(QueryKeys.getAllLeasesKey(address), () => getAllLeases(settings.apiEndpoint, address), options);
 }
 
-async function getLeaseStatus(providerUri: string, lease: LeaseDto, localCert: LocalCert) {
+async function getLeaseStatus(providerUri: string, lease: LeaseDto, localCert: LocalCert | null) {
   if (!providerUri) return null;
 
   const leaseStatusPath = `${providerUri}/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`;

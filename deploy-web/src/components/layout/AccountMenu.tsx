@@ -1,143 +1,100 @@
-import React from "react";
-import { Avatar, Box, CircularProgress, Divider, IconButton, ListItemIcon, MenuItem, useTheme } from "@mui/material";
-import CollectionsIcon from "@mui/icons-material/Collections";
-import Settings from "@mui/icons-material/Settings";
-import Logout from "@mui/icons-material/Logout";
-import PersonIcon from "@mui/icons-material/Person";
-import MenuBookIcon from "@mui/icons-material/MenuBook";
-import HoverMenu from "material-ui-popup-state/HoverMenu";
-import { usePopupState } from "material-ui-popup-state/hooks";
-import { bindHover, bindMenu } from "material-ui-popup-state";
-import { useRouter } from "next/router";
+"use client";
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { UrlService } from "@src/utils/urlUtils";
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import StarIcon from "@mui/icons-material/Star";
-import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
+import Spinner from "../shared/Spinner";
+import { Button } from "../ui/button";
+import { Avatar, AvatarFallback } from "../ui/avatar";
+import { User } from "iconoir-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator } from "../ui/dropdown-menu";
+import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
+import { Settings, MultiplePages, Star, Bell, Book, LogOut } from "iconoir-react";
+import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
+import ClickAwayListener from "react-click-away-listener";
 
-type Props = {};
-
-export const AccountMenu: React.FunctionComponent<Props> = () => {
-  const theme = useTheme();
-  const popupState = usePopupState({
-    variant: "popover",
-    popupId: "userPopup"
-  });
+export function AccountMenu({}: React.PropsWithChildren<{}>) {
+  const [open, setOpen] = useState(false);
   const { user, error, isLoading } = useCustomUser();
   const username = user?.username;
   const router = useRouter();
 
   return (
     <React.Fragment>
-      <Box sx={{ display: "flex", alignItems: "center", textAlign: "center" }}>
+      <div className="flex items-center text-center">
         {isLoading ? (
-          <Box sx={{ padding: "0 .5rem" }}>
-            <CircularProgress size="1.5rem" color="secondary" />
-          </Box>
-        ) : (
-          <Box sx={{ padding: "0 .5rem" }} {...bindHover(popupState)}>
-            <IconButton size="small" onClick={() => (username ? router.push(UrlService.userProfile(username)) : null)}>
-              <Avatar sx={{ width: 32, height: 32 }}>{username ? username[0].toUpperCase() : <PersonIcon />}</Avatar>
-            </IconButton>
-          </Box>
-        )}
-      </Box>
-
-      <HoverMenu
-        {...bindMenu(popupState)}
-        disableScrollLock
-        PaperProps={{
-          elevation: 0,
-          sx: {
-            overflow: "visible",
-            filter: "drop-shadow(0px 2px 8px rgba(0,0,0,0.32))",
-            minWidth: "200px",
-            "& .MuiAvatar-root": {
-              width: 32,
-              height: 32,
-              ml: -0.5,
-              mr: 1
-            },
-            "&:before": {
-              content: '""',
-              display: "block",
-              position: "absolute",
-              top: 0,
-              right: 24,
-              width: 10,
-              height: 10,
-              bgcolor: "background.paper",
-              transform: "translateY(-50%) rotate(45deg)",
-              zIndex: 0
-            }
-          }
-        }}
-        transformOrigin={{ horizontal: "right", vertical: "top" }}
-        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-      >
-        {!isLoading && user ? (
-          <div>
-            <MenuItem onClick={() => router.push(UrlService.userProfile(username))}>
-              <Avatar>{username && username[0].toUpperCase()}</Avatar> {username}
-            </MenuItem>
-            <Divider />
-            <MenuItem onClick={() => router.push(UrlService.userSettings())}>
-              <ListItemIcon>
-                <Settings fontSize="small" />
-              </ListItemIcon>
-              Settings
-            </MenuItem>
-            <MenuItem onClick={() => router.push(UrlService.userProfile(username))}>
-              <ListItemIcon>
-                <CollectionsIcon fontSize="small" />
-              </ListItemIcon>
-              Templates
-            </MenuItem>
-            <MenuItem onClick={() => router.push(UrlService.userFavorites())}>
-              <ListItemIcon>
-                <StarIcon fontSize="small" />
-              </ListItemIcon>
-              Favorites
-            </MenuItem>
-            <MenuItem component="a" target="_blank" href={"https://blockspy.io"}>
-              <ListItemIcon>
-                <NotificationsActiveIcon fontSize="small" />
-              </ListItemIcon>
-              My Alerts
-            </MenuItem>
-            <MenuItem onClick={() => router.push(UrlService.userAddressBook())}>
-              <ListItemIcon>
-                <MenuBookIcon fontSize="small" />
-              </ListItemIcon>
-              Addresses
-            </MenuItem>
-            <MenuItem component="a" href={UrlService.logout()}>
-              <ListItemIcon>
-                <Logout fontSize="small" />
-              </ListItemIcon>
-              Logout
-            </MenuItem>
+          <div className="pl-2 pr-2">
+            <Spinner size="small" />
           </div>
         ) : (
-          <div>
-            <MenuItem
-              component="a"
-              href={UrlService.signup()}
-              sx={{
-                justifyContent: "center",
-                backgroundColor: theme.palette.secondary.main,
-                "&:hover": {
-                  backgroundColor: theme.palette.secondary.dark
-                }
-              }}
-            >
-              Sign up
-            </MenuItem>
-            <MenuItem component="a" href={UrlService.login()} sx={{ justifyContent: "center" }}>
-              Sign in
-            </MenuItem>
+          <div className="pl-2 pr-2">
+            <DropdownMenu modal={false} open={open}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => (username ? router.push(UrlService.userProfile(username)) : null)}
+                  onMouseOver={() => setOpen(true)}
+                >
+                  <Avatar className="h-[2rem] w-[2rem]">
+                    <AvatarFallback>{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onMouseLeave={() => setOpen(false)}>
+                <ClickAwayListener onClickAway={() => setOpen(false)}>
+                  <div>
+                    {!isLoading && user ? (
+                      <div>
+                        <CustomDropdownLinkItem
+                          onClick={() => router.push(UrlService.userProfile(username))}
+                          icon={
+                            <Avatar className="h-4 w-4">
+                              <AvatarFallback className="text-xs">{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
+                            </Avatar>
+                          }
+                        >
+                          {username}
+                        </CustomDropdownLinkItem>
+                        <DropdownMenuSeparator />
+                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.userSettings())} icon={<Settings />}>
+                          Settings
+                        </CustomDropdownLinkItem>
+                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.userProfile(username))} icon={<MultiplePages />}>
+                          Templates
+                        </CustomDropdownLinkItem>
+                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.userFavorites())} icon={<Star />}>
+                          Favorites
+                        </CustomDropdownLinkItem>
+                        <CustomDropdownLinkItem onClick={() => window.open("https://blockspy.io", "_blank")?.focus()} icon={<Bell />}>
+                          My Alerts
+                        </CustomDropdownLinkItem>
+                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.userAddressBook())} icon={<Book />}>
+                          Addresses
+                        </CustomDropdownLinkItem>
+                        <DropdownMenuSeparator />
+                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.logout())} icon={<LogOut />}>
+                          Logout
+                        </CustomDropdownLinkItem>
+                      </div>
+                    ) : (
+                      <div>
+                        <CustomDropdownLinkItem
+                          className="hover:bg-primary-dark bg-primary !text-white hover:text-white"
+                          onClick={() => router.push(UrlService.signup())}
+                        >
+                          Sign up
+                        </CustomDropdownLinkItem>
+                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.login())}>Sign in</CustomDropdownLinkItem>
+                      </div>
+                    )}
+                  </div>
+                </ClickAwayListener>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
-      </HoverMenu>
+      </div>
     </React.Fragment>
   );
-};
+}

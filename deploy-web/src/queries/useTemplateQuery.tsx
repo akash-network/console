@@ -27,7 +27,7 @@ async function getUserFavoriteTemplates(): Promise<Partial<ITemplate>[]> {
 
 export function useUserFavoriteTemplates(options?: Omit<UseQueryOptions<Partial<ITemplate>[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
   const { user } = useCustomUser();
-  return useQuery<Partial<ITemplate>[], Error>(QueryKeys.getUserFavoriteTemplatesKey(user?.sub), () => getUserFavoriteTemplates(), options);
+  return useQuery<Partial<ITemplate>[], Error>(QueryKeys.getUserFavoriteTemplatesKey(user?.sub || ""), () => getUserFavoriteTemplates(), options);
 }
 
 async function getTemplate(id: string): Promise<ITemplate> {

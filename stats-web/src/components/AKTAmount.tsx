@@ -9,15 +9,17 @@ type Props = {
   uakt: number;
   showAKTLabel?: boolean;
   showUSD?: boolean;
+  digits?: number;
+  notation?: "standard" | "scientific" | "engineering" | "compact" | undefined;
 };
 
-export const AKTAmount: React.FunctionComponent<Props> = ({ uakt, showUSD, showAKTLabel }) => {
+export const AKTAmount: React.FunctionComponent<Props> = ({ uakt, showUSD, showAKTLabel, digits = 6, notation }) => {
   const { isLoaded: isPriceLoaded, aktToUSD } = usePricing();
   const aktAmount = udenomToDenom(uakt, 6);
 
   return (
     <>
-      <FormattedNumberParts value={aktAmount} maximumFractionDigits={6} minimumFractionDigits={6}>
+      <FormattedNumberParts value={aktAmount} maximumFractionDigits={digits} minimumFractionDigits={digits} notation={notation}>
         {parts => (
           <>
             {parts.map((part, i) => {
@@ -41,16 +43,11 @@ export const AKTAmount: React.FunctionComponent<Props> = ({ uakt, showUSD, showA
           </>
         )}
       </FormattedNumberParts>
-      {showAKTLabel && (
-        <>
-          &nbsp;
-          <AKTLabel />
-        </>
-      )}
+      {showAKTLabel && <AKTLabel />}
       {isPriceLoaded && showUSD && aktAmount > 0 && (
         <small className="text-secondary-foreground">
           &nbsp;(
-          <FormattedNumber style="currency" currency="USD" value={aktToUSD(aktAmount)} />)
+          <FormattedNumber style="currency" currency="USD" value={aktToUSD(aktAmount)} notation="compact" />)
         </small>
       )}
     </>

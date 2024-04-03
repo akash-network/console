@@ -1,21 +1,23 @@
+"use client";
 import { ReactNode, useRef } from "react";
-import { makeStyles } from "tss-react/mui";
 import { Popup } from "../shared/Popup";
 import { Control, Controller } from "react-hook-form";
-import { Box, FormControl, Grid, InputAdornment, InputLabel, MenuItem, Select, TextField } from "@mui/material";
 import { Placement, SdlBuilderFormValues, Service } from "@src/types";
 import { FormPaper } from "./FormPaper";
 import { SignedByFormControl, SignedByRefType } from "./SignedByFormControl";
 import { AttributesFormControl, AttributesRefType } from "./AttributesFormControl";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import InfoIcon from "@mui/icons-material/Info";
 import { PriceValue } from "../shared/PriceValue";
-import { getAvgCostPerMonth, toReadableDenom } from "@src/utils/priceUtils";
+import { getAvgCostPerMonth, toReadableDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { uAktDenom } from "@src/utils/constants";
 import { useSdlDenoms } from "@src/hooks/useDenom";
 import { FormattedNumber } from "react-intl";
 import { USDLabel } from "../shared/UsdLabel";
 import { udenomToDenom } from "@src/utils/mathHelpers";
+import { InfoCircle } from "iconoir-react";
+import { FormControl, FormItem } from "../ui/form";
+import { FormInput, InputWithIcon } from "../ui/input";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 type Props = {
   serviceIndex: number;
@@ -26,41 +28,40 @@ type Props = {
   placement: Placement;
 };
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   formControl: {
+//     marginBottom: theme.spacing(1.5)
+//   },
+//   textField: {
+//     width: "100%"
+//   }
+// }));
 
 export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, services, serviceIndex, onClose, placement: _placement }) => {
-  const { classes } = useStyles();
-  const signedByRef = useRef<SignedByRefType>();
-  const attritubesRef = useRef<AttributesRefType>();
+  const signedByRef = useRef<SignedByRefType>(null);
+  const attritubesRef = useRef<AttributesRefType>(null);
   const supportedSdlDenoms = useSdlDenoms();
   const currentService = services[serviceIndex];
   const selectedDenom = supportedSdlDenoms.find(x => x.value === currentService.placement.pricing.denom);
 
   const _onClose = () => {
-    const attributesToRemove = [];
-    const signedByAnyToRemove = [];
-    const signedByAllToRemove = [];
+    const attributesToRemove: number[] = [];
+    const signedByAnyToRemove: number[] = [];
+    const signedByAllToRemove: number[] = [];
 
-    _placement.attributes.forEach((e, i) => {
+    _placement.attributes?.forEach((e, i) => {
       if (!e.key.trim() || !e.value.trim()) {
         attributesToRemove.push(i);
       }
     });
 
-    _placement.signedBy.anyOf.forEach((e, i) => {
+    _placement.signedBy?.anyOf.forEach((e, i) => {
       if (!e.value.trim()) {
         signedByAnyToRemove.push(i);
       }
     });
 
-    _placement.signedBy.allOf.forEach((e, i) => {
+    _placement.signedBy?.allOf.forEach((e, i) => {
       if (!e.value.trim()) {
         signedByAllToRemove.push(i);
       }
@@ -82,27 +83,20 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
       actions={[
         {
           label: "Done",
-          color: "primary",
-          variant: "text",
+          color: "secondary",
+          variant: "ghost",
           side: "right",
           onClick: _onClose
         }
       ]}
       onClose={_onClose}
-      maxWidth="md"
+      maxWidth="xl"
       enableCloseOnBackdropClick
     >
-      <FormPaper
-        elevation={2}
-        sx={{
-          display: "flex",
-          padding: "1rem",
-          paddingBottom: "2rem"
-        }}
-      >
-        <Box sx={{ flexGrow: 1 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+      <FormPaper contentClassName="flex">
+        <div className="flex-grow">
+          <div className="mb-4 grid gap-4 sm:grid-cols-2">
+            <div>
               <Controller
                 control={control}
                 name={`services.${serviceIndex}.placement.name`}
@@ -125,99 +119,95 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                   }
                 }}
                 render={({ field, fieldState }) => (
-                  <TextField
+                  <InputWithIcon
                     type="text"
-                    variant="outlined"
-                    label="Name"
-                    fullWidth
+                    label={
+                      <div className="flex items-center">
+                        Name
+                        <CustomTooltip title={<>The name of the placement.</>}>
+                          <InfoCircle className="ml-2 text-sm text-muted-foreground" />
+                        </CustomTooltip>
+                      </div>
+                    }
                     value={field.value}
-                    error={!!fieldState.error}
-                    size="small"
+                    error={fieldState.error?.message}
                     onChange={event => field.onChange(event.target.value)}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <CustomTooltip arrow title={<>The name of the placement.</>}>
-                            <InfoIcon color="disabled" fontSize="small" />
-                          </CustomTooltip>
-                        </InputAdornment>
-                      )
-                    }}
                   />
                 )}
               />
-            </Grid>
+            </div>
 
-            <Grid item xs={12} sm={6}>
-              <FormControl className={classes.formControl} fullWidth sx={{ display: "flex", alignItems: "center", flexDirection: "row" }}>
-                <Box sx={{ display: "flex", alignItems: "center", flexGrow: 1, marginLeft: ".5rem" }}>
-                  <Controller
-                    control={control}
-                    name={`services.${serviceIndex}.placement.pricing.amount`}
-                    rules={{ required: "Pricing is required" }}
-                    render={({ field, fieldState }) => (
-                      <TextField
-                        type="number"
-                        variant="outlined"
-                        label={`Pricing, ${toReadableDenom(currentService.placement.pricing.denom)}`}
-                        fullWidth
-                        value={field.value}
-                        error={!!fieldState.error}
-                        size="small"
-                        inputProps={{ min: 1, step: 1, max: 10000000 }}
-                        onChange={event => field.onChange(parseFloat(event.target.value))}
-                      />
-                    )}
-                  />
-                  <CustomTooltip
-                    arrow
-                    title={
-                      <>
-                        The maximum amount of {selectedDenom?.label} you're willing to pay per block (~6 seconds).
-                        <br />
-                        <br />
-                        Akash will only show providers costing <strong>less</strong> than{" "}
-                        <strong>
-                          {selectedDenom?.value === uAktDenom ? (
-                            <>
-                              ~<PriceValue denom={uAktDenom} value={getAvgCostPerMonth(_placement.pricing.amount)} />
-                            </>
-                          ) : (
-                            <>
-                              <span>
-                                <FormattedNumber value={udenomToDenom(getAvgCostPerMonth(_placement.pricing.amount))} maximumFractionDigits={2} />
-                              </span>
-                              <USDLabel />
-                            </>
-                          )}
-                        </strong>
-                        &nbsp;per month
-                      </>
-                    }
-                  >
-                    <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: "1rem" }} />
-                  </CustomTooltip>
-                </Box>
-              </FormControl>
-            </Grid>
-          </Grid>
+            <div>
+              <FormItem>
+                <Controller
+                  control={control}
+                  name={`services.${serviceIndex}.placement.pricing.amount`}
+                  rules={{ required: "Pricing is required" }}
+                  render={({ field, fieldState }) => (
+                    <InputWithIcon
+                      type="number"
+                      label={
+                        <div className="flex items-center">
+                          Pricing, ${toReadableDenom(currentService.placement.pricing.denom)}
+                          <CustomTooltip
+                            title={
+                              <>
+                                The maximum amount of {selectedDenom?.label} you're willing to pay per block (~6 seconds).
+                                <br />
+                                <br />
+                                Akash will only show providers costing <strong>less</strong> than{" "}
+                                <strong>
+                                  {selectedDenom?.value === uAktDenom ? (
+                                    <>
+                                      ~<PriceValue denom={uAktDenom} value={getAvgCostPerMonth(uaktToAKT(_placement.pricing.amount))} />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>
+                                        <FormattedNumber value={getAvgCostPerMonth(udenomToDenom(_placement.pricing.amount))} maximumFractionDigits={2} />
+                                      </span>
+                                      <USDLabel />
+                                    </>
+                                  )}
+                                </strong>
+                                &nbsp;per month
+                              </>
+                            }
+                          >
+                            <InfoCircle className="ml-2 text-sm text-muted-foreground" />
+                          </CustomTooltip>
+                        </div>
+                      }
+                      value={field.value}
+                      error={fieldState.error?.message}
+                      // description={fieldState.error?.message}
+                      min={1}
+                      step={1}
+                      max={10000000}
+                      onChange={event => field.onChange(parseFloat(event.target.value))}
+                    />
+                  )}
+                />
+              </FormItem>
+            </div>
+          </div>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
               <SignedByFormControl
                 control={control}
                 serviceIndex={serviceIndex}
-                signedByAnyOf={_placement.signedBy?.anyOf}
-                signedByAllOf={_placement.signedBy?.allOf}
+                signedByAnyOf={_placement.signedBy?.anyOf || []}
+                signedByAllOf={_placement.signedBy?.allOf || []}
                 ref={signedByRef}
               />
-            </Grid>
+            </div>
 
-            <Grid item xs={12} sm={6}>
-              <AttributesFormControl control={control} serviceIndex={serviceIndex} attributes={_placement.attributes} ref={attritubesRef} />
-            </Grid>
-          </Grid>
-        </Box>
+            <div>
+              <AttributesFormControl control={control} serviceIndex={serviceIndex} attributes={_placement.attributes || []} ref={attritubesRef} />
+            </div>
+          </div>
+        </div>
       </FormPaper>
     </Popup>
   );

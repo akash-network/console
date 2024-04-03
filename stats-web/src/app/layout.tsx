@@ -10,6 +10,9 @@ import { customColors } from "@/lib/colors";
 import GoogleAnalytics from "@/components/layout/CustomGoogleAnalytics";
 import localFont from "next/font/local";
 import { Footer } from "@/components/layout/Footer";
+import getConfig from "next/config";
+
+const { publicRuntimeConfig } = getConfig();
 
 // const inter = Inter({
 //   subsets: ["latin"],
@@ -114,6 +117,7 @@ function getTheme() {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const theme = getTheme() as string;
+  const version = publicRuntimeConfig?.version;
 
   return (
     <html lang="en" className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
@@ -124,7 +128,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Nav />
           <div className="flex min-h-[calc(100vh-60px)] flex-col justify-between">
             {children}
-            <Footer />
+            <Footer version={version} />
           </div>
           <Toaster />
         </Providers>

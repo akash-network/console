@@ -10,6 +10,12 @@
 }
 
 [data-floating-ui-portal] > div {
+  z-index: 2000 !important;
+  pointer-events: auto !important;
+}
+
+/* Hack to make the Select component show in Dialog */
+[data-radix-popper-content-wrapper] {
   z-index: 1500 !important;
 }
 
@@ -61,4 +67,3 @@
   background-color: rgba(175, 184, 193, 0.2);
   border-radius: 6px;
 }
-

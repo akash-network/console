@@ -32,13 +32,13 @@ export function selectText(node: HTMLElement) {
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(node);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
   } else {
     console.warn("Could not select text in node: Unsupported browser.");
   }
 }
 
-export const getShortText = (text: string, length: number) => {
+export const getShortText = (text: string = "", length: number) => {
   return text.length < length ? text : `${text.substring(0, length - 3)}...`;
 };
