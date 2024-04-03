@@ -16,8 +16,8 @@ import { Uptime } from "./Uptime";
 import React from "react";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
 import { cx } from "@emotion/css";
-import CheckIcon from "@mui/icons-material/Check";
 import WarningIcon from "@mui/icons-material/Warning";
+import { createFilterUnique } from "@src/utils/array";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -62,7 +62,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
   const _totalStorage = provider.isOnline
     ? bytesToShrink(provider.availableStats.storage + provider.pendingStats.storage + provider.activeStats.storage)
     : null;
-  const gpuModels = provider.gpuModels.map(x => x.model).filter((x, i, arr) => arr.indexOf(x) === i);
+  const gpuModels = provider.gpuModels.map(x => x.model).filter(createFilterUnique());
 
   const onStarClick = event => {
     event.preventDefault();

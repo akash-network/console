@@ -3,6 +3,7 @@ import { makeStyles } from "tss-react/mui";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { LabelValue } from "../shared/LabelValue";
 import CheckIcon from "@mui/icons-material/Check";
+import { createFilterUnique } from "@src/utils/array";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -26,7 +27,7 @@ export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider }) => {
   const gpuModels =
     provider?.gpuModels
       ?.map(x => x.model + " " + x.ram)
-      .filter((x, i, arr) => arr.indexOf(x) === i)
+      .filter(createFilterUnique())
       .sort((a, b) => a.localeCompare(b)) || [];
 
   return (
