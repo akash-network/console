@@ -8,10 +8,13 @@ import { TemplateBox } from "@src/app/templates/TemplateBox";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { MobileTemplatesFilter } from "@src/app/templates/MobileTemplatesFilter";
 import { ApiTemplate } from "@src/types";
-import { Button } from "@src/components/ui/button";
-import { FilterList } from "iconoir-react";
+import { Button, buttonVariants } from "@src/components/ui/button";
+import { FilterList, Xmark } from "iconoir-react";
 import { MdSearchOff } from "react-icons/md";
 import Spinner from "@src/components/shared/Spinner";
+import { cn } from "@src/utils/styleUtils";
+import TextField from "@mui/material/TextField";
+import IconButton from "@mui/material/IconButton";
 
 type Props = {};
 
@@ -127,7 +130,7 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
       InputProps={{
         endAdornment: searchTerms && (
           <IconButton onClick={onClearSearch} size="small">
-            <CloseIcon fontSize="small" />
+            <Xmark className="text-sm" />
           </IconButton>
         )
       }}
@@ -161,54 +164,58 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
         {selectedCategoryTitle && !searchTerms && <p className="mt-4 font-bold">{selectedCategoryTitle}</p>}
       </div>
 
-      <div sx={{ display: "flex" }}>
+      <div className="flex">
         {templates.length > 0 && (
-          <div sx={{ width: "222px", marginRight: "3rem", display: { xs: "none", sm: "none", md: "block" } }}>
-            <Typography variant="body1" sx={{ marginBottom: "1rem", fontWeight: "bold" }}>
-              Filter Templates
-            </Typography>
+          <div className="mr-12 hidden w-[222px] md:block">
+            <p className="mb-4 font-bold">Filter Templates</p>
 
             {searchBar}
 
-            <List>
+            <ul className="flex flex-col items-start">
               {templates && (
-                <ListItemButton onClick={() => onCategoryClick(null)} selected={!selectedCategoryTitle} sx={{ padding: "0 1rem" }} dense>
-                  <ListItemText primary={`All (${templates.length - 1})`} />
-                </ListItemButton>
+                <li
+                  className={cn({ ["bg-muted-foreground/10"]: !selectedCategoryTitle }, buttonVariants({ variant: "ghost" }), "h-8 w-full justify-start px-4 py-0")}
+                  onClick={() => onCategoryClick(null)}
+                >
+                  All <small className="ml-2">({templates.length - 1})</small>
+                </li>
               )}
 
               {categories
                 .sort((a, b) => (a.title < b.title ? -1 : 1))
                 .map(category => (
-                  <ListItemButton
+                  <li
                     key={category.title}
+                    className={cn(
+                      { ["bg-muted-foreground/10"]: category.title === selectedCategoryTitle },
+                      buttonVariants({ variant: "ghost" }),
+                      "h-8 w-full justify-start px-4 py-0"
+                    )}
                     onClick={() => onCategoryClick(category.title)}
-                    selected={category.title === selectedCategoryTitle}
-                    sx={{ padding: "0 1rem" }}
-                    dense
                   >
-                    <ListItemText primary={`${category.title} (${category.templates.length})`} />
-                  </ListItemButton>
+                    {category.title} <small className="ml-2">({category.templates.length})</small>
+                  </li>
                 ))}
-            </List>
+            </ul>
           </div>
         )}
 
-        <div sx={{ flex: "1 1" }}>
+        <div className="flex-1">
           {searchTerms && (
-            <div sx={{ paddingBottom: "1rem", display: "flex", alignItems: "center" }}>
-              <Typography variant="body2" color="textSecondary">
+            <div className="flex items-center pb-4">
+              <p className="text-muted-foreground">
                 Searching for: "{searchTerms}" - {shownTemplates.length} results
-              </Typography>
+              </p>
 
-              <div sx={{ marginLeft: "1rem", display: "inline-flex" }}>
+              <div className="ml-4 inline-flex">
                 <LinkTo onClick={onClearSearch}>Clear</LinkTo>
               </div>
             </div>
           )}
 
           <div
-            sx={{ gridTemplateColumns: { xs: "repeat(1,1fr)", sm: "repeat(2,1fr)", md: "repeat(2,1fr)", lg: "repeat(3,1fr)" }, display: "grid", gap: "1rem" }}
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3"
+            // sx={{ gridTemplateColumns: { xs: "repeat(1,1fr)", sm: "repeat(2,1fr)", md: "repeat(2,1fr)", lg: "repeat(3,1fr)" }, display: "grid", gap: "1rem" }}
           >
             {shownTemplates.map((template, id) => (
               <TemplateBox key={`${template.id}_${id}`} template={template} />
@@ -222,16 +229,7 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
           )}
 
           {!isLoadingTemplates && categories.length > 0 && shownTemplates.length === 0 && (!!searchTerms || !!selectedCategoryTitle) && (
-            <div
-              sx={{
-                height: "200px",
-                border: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[500]}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "column"
-              }}
-            >
+            <div className="flex h-[200px] flex-col items-center justify-center border border-muted-foreground">
               <MdSearchOff className="mb-4 text-6xl" />
               <p>No search result found. Try adjusting your filters.</p>
             </div>
