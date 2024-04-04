@@ -62,6 +62,14 @@ const route = createRoute({
               memory: z.number(),
               storage: z.number()
             }),
+            gpuModels: z.array(
+              z.object({
+                vendor: z.string(),
+                model: z.string(),
+                ram: z.string(),
+                interface: z.string()
+              })
+            ),
             attributes: z.array(
               z.object({
                 key: z.string(),

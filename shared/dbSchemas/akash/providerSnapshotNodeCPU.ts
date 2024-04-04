@@ -3,7 +3,8 @@ import { DataTypes } from "sequelize";
 import { Required } from "../decorators/requiredDecorator";
 
 @Table({
-  modelName: "providerSnapshotNodeCPU"
+  modelName: "providerSnapshotNodeCPU",
+  indexes: [{ unique: false, fields: ["snapshotNodeId"] }]
 })
 export class ProviderSnapshotNodeCPU extends Model {
   @Required @PrimaryKey @Default(DataTypes.UUIDV4) @Column(DataTypes.UUID) id: string;
