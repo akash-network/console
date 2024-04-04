@@ -22,3 +22,20 @@ export type TemplateCreation = {
   valuesToChange?: any[];
   content: string;
 };
+
+type TemplateSource = {
+  name: string;
+  path: string;
+  repoOwner: string;
+  repoName: string;
+  repoVersion: string;
+  summary?: string;
+  logoUrl?: string;
+};
+
+export type ApiTemplateCategory = {
+  title: string;
+  description?: string;
+  templateSources: TemplateSource[];
+  templates: ApiTemplate[];
+};

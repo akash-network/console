@@ -29,7 +29,7 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
             </AvatarFallback>
           </Avatar>
 
-          <div className="ml-4 font-bold">{template.name}</div>
+          <div className="ml-4 break-all font-bold">{template.name}</div>
         </div>
       </CardHeader>
       <CardContent className="pb-4 pt-0">
