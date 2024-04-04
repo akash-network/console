@@ -186,7 +186,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
               <Typography variant="body2" sx={{ marginBottom: "1rem" }}>
                 Specs
               </Typography>
-              <ProviderSpecs provider={provider} providerAttributesSchema={providerAttributesSchema} />
+              <ProviderSpecs provider={provider} />
 
               <Typography variant="body2" sx={{ marginBottom: "1rem", marginTop: "1rem" }}>
                 Features

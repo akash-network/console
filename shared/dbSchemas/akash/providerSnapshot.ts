@@ -1,6 +1,7 @@
-import { Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
+import { Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
 import { Required } from "../decorators/requiredDecorator";
+import { ProviderSnapshotNode } from "./providerSnapshotNode";
 
 @Table({
   modelName: "providerSnapshot",
@@ -33,4 +34,6 @@ export class ProviderSnapshot extends Model {
   @Column(DataTypes.BIGINT) availableGPU?: number;
   @Column(DataTypes.BIGINT) availableMemory?: number;
   @Column(DataTypes.BIGINT) availableStorage?: number;
+
+  @HasMany(() => ProviderSnapshotNode, "snapshotId") nodes: ProviderSnapshotNode[];
 }

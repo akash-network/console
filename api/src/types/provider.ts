@@ -22,6 +22,7 @@ export interface ProviderList {
   isValidVersion: boolean;
   isOnline: boolean;
   isAudited: boolean;
+  gpuModels: { vendor: string; model: string; ram: string; interface: string }[];
   activeStats: {
     cpu: number;
     gpu: number;

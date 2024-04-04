@@ -1,10 +1,9 @@
 import { Box, Chip, Paper } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
-import { useRouter } from "next/router";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { LabelValue } from "../shared/LabelValue";
 import CheckIcon from "@mui/icons-material/Check";
-import { ProviderAttributesSchema } from "@src/types/providerAttributes";
+import { createFilterUnique } from "@src/utils/array";
 
 const useStyles = makeStyles()(theme => ({
   root: {
@@ -20,12 +19,16 @@ const useStyles = makeStyles()(theme => ({
 
 type Props = {
   provider: Partial<ClientProviderDetailWithStatus>;
-  providerAttributesSchema: ProviderAttributesSchema;
 };
 
-export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider, providerAttributesSchema }) => {
+export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider }) => {
   const { classes } = useStyles();
-  const router = useRouter();
+
+  const gpuModels =
+    provider?.gpuModels
+      ?.map(x => x.model + " " + x.ram)
+      .filter(createFilterUnique())
+      .sort((a, b) => a.localeCompare(b)) || [];
 
   return (
     <Paper className={classes.root}>
@@ -41,7 +44,7 @@ export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider, provid
       <Box>
         <LabelValue
           label="GPU Models"
-          value={provider.hardwareGpuModels.map(x => (
+          value={gpuModels.map(x => (
             <Chip key={x} label={x} size="small" sx={{ marginRight: ".5rem" }} />
           ))}
         />
