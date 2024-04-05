@@ -18,32 +18,6 @@ import { Button, buttonVariants } from "@src/components/ui/button";
 import { cn } from "@src/utils/styleUtils";
 import GitHubIcon from "@mui/icons-material/GitHub";
 
-// const useStyles = makeStyles()(theme => ({
-//   root: {
-//     "& img": {
-//       maxWidth: "100%"
-//     }
-//   },
-//   titleContainer: {
-//     display: "flex",
-//     padding: "0.5rem 1rem"
-//   },
-//   tabsRoot: {
-//     minHeight: "36px",
-//     borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`,
-//     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[200],
-//     "& button": {
-//       minHeight: "36px"
-//     }
-//   },
-//   selectedTab: {
-//     fontWeight: "bold"
-//   },
-//   tabsContainer: {
-//     justifyContent: "center"
-//   }
-// }));
-
 type Props = {
   templateId: string;
   template: ApiTemplate;
@@ -72,23 +46,18 @@ export const TemplateDetail: React.FunctionComponent<Props> = ({ templateId, tem
     <div className="[&>img]:max-w-full">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full">
-          <TabsTrigger value="README">README</TabsTrigger>
-          <TabsTrigger value="SDL">View SDL</TabsTrigger>
-          {_template?.guide && <TabsTrigger value="GUIDE">Guide</TabsTrigger>}
+          <TabsTrigger value="README" className={cn({ ["font-bold"]: activeTab === "README" })}>
+            README
+          </TabsTrigger>
+          <TabsTrigger value="SDL" className={cn({ ["font-bold"]: activeTab === "SDL" })}>
+            View SDL
+          </TabsTrigger>
+          {_template?.guide && (
+            <TabsTrigger value="GUIDE" className={cn({ ["font-bold"]: activeTab === "GUIDE" })}>
+              Guide
+            </TabsTrigger>
+          )}
         </TabsList>
-        {/* <Tabs
-        value={activeTab}
-        onChange={(ev, value) => setActiveTab(value)}
-        classes={{ root: classes.tabsRoot, flexContainer: classes.tabsContainer }}
-        indicatorColor="secondary"
-        textColor="secondary"
-        variant="scrollable"
-        scrollButtons="auto"
-      >
-        <Tab value="README" label="README" classes={{ selected: classes.selectedTab }} />
-        <Tab value="SDL" label="View SDL" classes={{ selected: classes.selectedTab }} />
-        {_template?.guide && <Tab value="GUIDE" label="GUIDE" />}
-      </Tabs> */}
         <LinearLoadingSkeleton isLoading={isLoading} />
 
         <div className="container flex h-full px-4 py-2 sm:pt-8">

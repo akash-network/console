@@ -35,10 +35,7 @@ async function fetchTemplateDetail(templateId: string): Promise<ApiTemplate> {
   }
 
   const data = (await response.json()) as ApiTemplateCategory[];
-  let categories = data.filter(x => (x.templates || []).length > 0);
-  // categories.forEach(c => {
-  //   c.templates.forEach(t => (t.category = c.title));
-  // });
+  const categories = data.filter(x => (x.templates || []).length > 0);
   const templates = categories.flatMap(x => x.templates);
   const template = templates.find(x => x.id === templateId);
 
