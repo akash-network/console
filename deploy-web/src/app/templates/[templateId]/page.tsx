@@ -1,28 +1,22 @@
 import { UrlService } from "@src/utils/urlUtils";
-import { Metadata } from "next";
+import { Metadata, ResolvingMetadata } from "next";
 import { TemplateDetail } from "./TemplateDetail";
 import { ApiTemplate, ApiTemplateCategory } from "@src/types";
 import { BASE_API_MAINNET_URL } from "@src/utils/constants";
-
-{
-  /* <CustomNextSeo
-        title={`Template detail${_template ? " " + _template?.name : ""}`}
-        url={`https://deploy.cloudmos.io${UrlService.templateDetails(templateId)}`}
-        description={getShortText(_template.summary || "", 140)}
-      /> */
-}
+import { getShortText } from "@src/hooks/useShortText";
 
 interface ITemplateDetailPageProps {
   params: { templateId: string };
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params: { templateId } }: ITemplateDetailPageProps, parent: ResolvingMetadata): Promise<Metadata> {
   const url = `https://deploy.cloudmos.io${UrlService.templates()}`;
+  const template = await fetchTemplateDetail(templateId);
 
   return {
-    title: "Template Gallery",
-    description: "Explore all the templates made by the community to easily deploy any docker container on the Akash Network.",
+    title: `Template detail${template ? " " + template?.name : ""}`,
+    description: getShortText(template.summary || "", 140),
     alternates: {
       canonical: url
     },
@@ -32,17 +26,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// export async function generateMetadata({ params: { dseq } }: IDeploymentDetailPageProps, parent: ResolvingMetadata): Promise<Metadata> {
-//   return {
-//     title: `Deployment detail #${dseq}`
-//   };
-// }
 async function fetchTemplateDetail(templateId: string): Promise<ApiTemplate> {
   const response = await fetch(`${BASE_API_MAINNET_URL}/templates`);
 
   if (!response.ok) {
     // This will activate the closest `error.js` Error Boundary
-    throw new Error("Error fetching block data");
+    throw new Error("Error fetching template detail data");
   }
 
   const data = (await response.json()) as ApiTemplateCategory[];

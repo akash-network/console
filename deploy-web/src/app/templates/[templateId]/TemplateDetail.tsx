@@ -1,10 +1,5 @@
 "use client";
 import { useState } from "react";
-import { Box, Tabs, Button, Tab, Typography, IconButton, useTheme, Container } from "@mui/material";
-import PublishIcon from "@mui/icons-material/Publish";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import GitHubIcon from "@mui/icons-material/GitHub";
-import { makeStyles } from "tss-react/mui";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
@@ -12,40 +7,42 @@ import ViewPanel from "@src/components/shared/ViewPanel";
 import { DynamicMonacoEditor } from "@src/components/shared/DynamicMonacoEditor";
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
 import { PageContainer } from "@src/components/shared/PageContainer";
-import { BASE_API_MAINNET_URL, RouteStepKeys } from "@src/utils/constants";
-import axios from "axios";
+import { RouteStepKeys } from "@src/utils/constants";
 import { ApiTemplate } from "@src/types";
 import Markdown from "@src/components/shared/Markdown";
-import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
-import { getShortText } from "@src/utils/stringUtils";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { useTemplates } from "@src/context/TemplatesProvider";
+import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
+import { NavArrowLeft, Rocket } from "iconoir-react";
+import { Button, buttonVariants } from "@src/components/ui/button";
+import { cn } from "@src/utils/styleUtils";
+import GitHubIcon from "@mui/icons-material/GitHub";
 
-const useStyles = makeStyles()(theme => ({
-  root: {
-    "& img": {
-      maxWidth: "100%"
-    }
-  },
-  titleContainer: {
-    display: "flex",
-    padding: "0.5rem 1rem"
-  },
-  tabsRoot: {
-    minHeight: "36px",
-    borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`,
-    backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[200],
-    "& button": {
-      minHeight: "36px"
-    }
-  },
-  selectedTab: {
-    fontWeight: "bold"
-  },
-  tabsContainer: {
-    justifyContent: "center"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   root: {
+//     "& img": {
+//       maxWidth: "100%"
+//     }
+//   },
+//   titleContainer: {
+//     display: "flex",
+//     padding: "0.5rem 1rem"
+//   },
+//   tabsRoot: {
+//     minHeight: "36px",
+//     borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`,
+//     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[200],
+//     "& button": {
+//       minHeight: "36px"
+//     }
+//   },
+//   selectedTab: {
+//     fontWeight: "bold"
+//   },
+//   tabsContainer: {
+//     justifyContent: "center"
+//   }
+// }));
 
 type Props = {
   templateId: string;
@@ -56,7 +53,6 @@ export const TemplateDetail: React.FunctionComponent<Props> = ({ templateId, tem
   const [activeTab, setActiveTab] = useState("README");
   const { getTemplateById, isLoading } = useTemplates();
   const router = useRouter();
-  const { classes } = useStyles();
   const _template = template || getTemplateById(templateId);
   const previousRoute = usePreviousRoute();
 
@@ -73,8 +69,14 @@ export const TemplateDetail: React.FunctionComponent<Props> = ({ templateId, tem
   }
 
   return (
-    <div className={classes.root}>
-      <Tabs
+    <div className="[&>img]:max-w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full">
+          <TabsTrigger value="README">README</TabsTrigger>
+          <TabsTrigger value="SDL">View SDL</TabsTrigger>
+          {_template?.guide && <TabsTrigger value="GUIDE">Guide</TabsTrigger>}
+        </TabsList>
+        {/* <Tabs
         value={activeTab}
         onChange={(ev, value) => setActiveTab(value)}
         classes={{ root: classes.tabsRoot, flexContainer: classes.tabsContainer }}
@@ -86,70 +88,56 @@ export const TemplateDetail: React.FunctionComponent<Props> = ({ templateId, tem
         <Tab value="README" label="README" classes={{ selected: classes.selectedTab }} />
         <Tab value="SDL" label="View SDL" classes={{ selected: classes.selectedTab }} />
         {_template?.guide && <Tab value="GUIDE" label="GUIDE" />}
-      </Tabs>
-      <LinearLoadingSkeleton isLoading={isLoading} />
+      </Tabs> */}
+        <LinearLoadingSkeleton isLoading={isLoading} />
 
-      <Container className={classes.titleContainer}>
-        <Box display="flex" alignItems="center" className="text-truncate">
-          <IconButton aria-label="back" onClick={handleBackClick}>
-            <ChevronLeftIcon />
-          </IconButton>
-          <div className="text-truncate">
-            <Typography
-              variant="h3"
-              sx={{
-                fontSize: { xs: "1rem", sm: "1.5rem", md: "2rem" },
-                fontWeight: "bold",
-                marginLeft: "1rem"
-              }}
+        <div className="container flex h-full px-4 py-2 sm:pt-8">
+          <div className="flex items-center truncate">
+            <Button aria-label="back" onClick={handleBackClick} size="icon" variant="ghost">
+              <NavArrowLeft />
+            </Button>
+            <div className="text-truncate">
+              <h3 className="ml-4 text-xl font-bold sm:text-2xl md:text-3xl">{_template?.name}</h3>
+            </div>
+
+            <div className="ml-4">
+              <Button aria-label="View on github" title="View on Github" onClick={handleOpenGithub} size="icon" variant="ghost">
+                <GitHubIcon fontSize="medium" />
+              </Button>
+            </div>
+
+            <Link
+              className={cn(buttonVariants({ variant: "default" }), "ml-4 md:ml-8")}
+              href={UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: _template?.id })}
             >
-              {_template?.name}
-            </Typography>
+              Deploy&nbsp;
+              <Rocket className="rotate-45" />
+            </Link>
           </div>
+        </div>
 
-          <Box marginLeft="1rem">
-            <IconButton aria-label="View on github" title="View on Github" onClick={handleOpenGithub} size="medium">
-              <GitHubIcon fontSize="medium" />
-            </IconButton>
-          </Box>
-
-          <Button
-            href={UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: _template?.id })}
-            component={Link}
-            sx={{ marginLeft: { xs: "1rem", sm: "1rem", md: "2rem" } }}
-            variant="contained"
-            size="medium"
-            color="secondary"
-          >
-            <PublishIcon />
-            &nbsp;Deploy
-          </Button>
-        </Box>
-      </Container>
-
-      {activeTab === "README" && (
-        <ViewPanel stickToBottom style={{ overflow: "auto" }}>
-          <PageContainer>
-            <Markdown>{_template?.readme}</Markdown>
-          </PageContainer>
-        </ViewPanel>
-      )}
-      {activeTab === "SDL" && (
-        <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
-          <PageContainer className="h-full">
-            <DynamicMonacoEditor height="100%" language="yaml" value={_template?.deploy || ""} options={{ readOnly: true }} />
-          </PageContainer>
-        </ViewPanel>
-      )}
-      {activeTab === "GUIDE" && (
-        <ViewPanel stickToBottom style={{ overflow: "auto", padding: "1rem" }}>
-          <PageContainer>
-            <Markdown>{_template?.guide}</Markdown>
-          </PageContainer>
-        </ViewPanel>
-      )}
+        {activeTab === "README" && (
+          <ViewPanel stickToBottom style={{ overflow: "auto" }}>
+            <PageContainer>
+              <Markdown>{_template?.readme}</Markdown>
+            </PageContainer>
+          </ViewPanel>
+        )}
+        {activeTab === "SDL" && (
+          <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
+            <PageContainer className="h-full">
+              <DynamicMonacoEditor height="100%" language="yaml" value={_template?.deploy || ""} options={{ readOnly: true }} />
+            </PageContainer>
+          </ViewPanel>
+        )}
+        {activeTab === "GUIDE" && (
+          <ViewPanel stickToBottom style={{ overflow: "auto", padding: "1rem" }}>
+            <PageContainer>
+              <Markdown>{_template?.guide}</Markdown>
+            </PageContainer>
+          </ViewPanel>
+        )}
+      </Tabs>
     </div>
   );
 };
-
-// export default TemplateDetailPage;
