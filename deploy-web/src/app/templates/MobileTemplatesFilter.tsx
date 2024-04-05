@@ -42,21 +42,27 @@ export const MobileTemplatesFilter: React.FunctionComponent<Props> = ({
         }
       }}
     >
-      <div className="flex items-center justify-between">
-        <p className="p-2 text-lg">Filter Templates</p>
+      <div className="flex items-center justify-between py-2">
+        <p className="p-2 text-xl font-bold">Filter Templates</p>
 
-        <Button onClick={handleDrawerToggle} variant="ghost" className="mr-2">
+        <Button onClick={handleDrawerToggle} variant="ghost">
           <Xmark className="text-sm" />
         </Button>
       </div>
 
-      <ul className="overflow-y-scroll">
+      <ul className="flex flex-col items-center overflow-y-scroll">
         {templates && (
           <li
-            className={cn({ ["bg-muted/20"]: !selectedCategoryTitle }, buttonVariants({ variant: "ghost" }), "px-4 py-2")}
+            className={cn(
+              { ["bg-muted-foreground/10"]: !selectedCategoryTitle },
+              buttonVariants({ variant: "ghost" }),
+              "flex w-full items-center justify-start p-4"
+            )}
             onClick={() => onCategoryClick(null)}
           >
-            <p>All (${templates.length - 1})</p>
+            <p>
+              All <small>({templates.length - 1})</small>
+            </p>
           </li>
         )}
 
@@ -66,7 +72,11 @@ export const MobileTemplatesFilter: React.FunctionComponent<Props> = ({
             <li
               key={category.title}
               onClick={() => onCategoryClick(category.title)}
-              className={cn({ ["bg-muted/20"]: category.title === selectedCategoryTitle }, buttonVariants({ variant: "ghost" }), "px-4 py-2")}
+              className={cn(
+                { ["bg-muted-foreground/10"]: category.title === selectedCategoryTitle },
+                buttonVariants({ variant: "ghost" }),
+                "flex w-full items-center justify-start p-4"
+              )}
             >
               <p>
                 {category.title} <small>({category.templates.length})</small>

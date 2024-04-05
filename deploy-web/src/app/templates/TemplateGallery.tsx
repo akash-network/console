@@ -18,28 +18,6 @@ import IconButton from "@mui/material/IconButton";
 
 type Props = {};
 
-// const useStyles = makeStyles()(theme => ({
-//   gallery: {
-//     display: "flex"
-//   },
-//   title: {
-//     fontSize: "1.5rem",
-//     fontWeight: "bold"
-//   },
-//   categoryList: {
-//     overflow: "auto",
-//     flexBasis: "280px"
-//   },
-//   templateList: {
-//     overflow: "auto",
-//     flexBasis: 0,
-//     flexGrow: 999,
-//     "& .MuiAvatar-img": {
-//       objectFit: "contain"
-//     }
-//   }
-// }));
-
 let timeoutId: NodeJS.Timeout | null = null;
 
 export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
@@ -148,9 +126,9 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
       <div className="mb-4 block md:hidden">
         {searchBar}
 
-        <Button onClick={() => setIsMobileSearchOpen(true)} className="flex w-full items-center" color="primary">
+        <Button onClick={() => setIsMobileSearchOpen(true)} className="flex w-full items-center" variant="outline">
           Filter Templates
-          <FilterList className="ml-2" />
+          <FilterList className="ml-2 text-xs" />
         </Button>
         <MobileTemplatesFilter
           handleDrawerToggle={() => setIsMobileSearchOpen(prev => !prev)}
@@ -174,7 +152,11 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
             <ul className="flex flex-col items-start">
               {templates && (
                 <li
-                  className={cn({ ["bg-muted-foreground/10"]: !selectedCategoryTitle }, buttonVariants({ variant: "ghost" }), "h-8 w-full justify-start px-4 py-0")}
+                  className={cn(
+                    { ["bg-muted-foreground/10"]: !selectedCategoryTitle },
+                    buttonVariants({ variant: "ghost" }),
+                    "h-8 w-full justify-start px-4 py-0"
+                  )}
                   onClick={() => onCategoryClick(null)}
                 >
                   All <small className="ml-2">({templates.length - 1})</small>
@@ -213,10 +195,7 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
             </div>
           )}
 
-          <div
-            className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3"
-            // sx={{ gridTemplateColumns: { xs: "repeat(1,1fr)", sm: "repeat(2,1fr)", md: "repeat(2,1fr)", lg: "repeat(3,1fr)" }, display: "grid", gap: "1rem" }}
-          >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
             {shownTemplates.map((template, id) => (
               <TemplateBox key={`${template.id}_${id}`} template={template} />
             ))}
