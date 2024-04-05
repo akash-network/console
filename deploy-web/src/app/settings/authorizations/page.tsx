@@ -1,7 +1,7 @@
 import Layout from "@src/components/layout/Layout";
 import { NextSeo } from "next-seo";
 import PageContainer from "@src/components/shared/PageContainer";
-import SettingsLayout, { SettingsTabs } from "@src/components/settings/SettingsLayout";
+import SettingsLayout, { SettingsTabs } from "@src/app/settings/SettingsLayout";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { Box, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableRow, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
