@@ -1,71 +1,57 @@
 "use client";
 import { useState, useRef } from "react";
-import {
-  Box,
-  Typography,
-  Button,
-  FormLabel,
-  TextField,
-  FormControlLabel,
-  FormControl,
-  Switch,
-  FormGroup,
-  InputAdornment,
-  IconButton,
-  CircularProgress,
-  ClickAwayListener,
-  Autocomplete
-} from "@mui/material";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import { useSettings } from "../../context/SettingsProvider";
 import { Controller, useForm } from "react-hook-form";
-import { makeStyles } from "tss-react/mui";
 import { NodeStatus } from "@src/components/shared/NodeStatus";
 import { isUrl } from "@src/utils/stringUtils";
 import { cx } from "@emotion/css";
+import { BlockchainNode, useSettings } from "@src/context/SettingsProvider/SettingsProviderContext";
+import { Switch, SwitchWithLabel } from "@src/components/ui/switch";
+import { Label } from "@src/components/ui/label";
+import FormControl from "@mui/material/FormControl";
+import { Button } from "@src/components/ui/button";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
+import Autocomplete from "@mui/material/Autocomplete";
 
 type Props = {};
 
-const useStyles = makeStyles()(theme => ({
-  title: {
-    fontSize: "1.5rem",
-    fontWeight: "bold"
-  },
-  form: {
-    padding: "1rem 0 0"
-  },
-  fieldRow: {
-    display: "flex",
-    alignItems: "center",
-    marginBottom: ".5rem"
-  },
-  formLabel: {
-    flexBasis: "20%",
-    minWidth: 150,
-    paddingRight: "1rem"
-  },
-  formControl: {
-    width: "100%"
-  },
-  formValue: {
-    flexGrow: 1
-  },
-  submitButton: {
-    marginLeft: "1rem"
-  },
-  nodeInput: {
-    paddingRight: "1rem !important"
-  },
-  inputClickable: {
-    cursor: "pointer"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   title: {
+//     fontSize: "1.5rem",
+//     fontWeight: "bold"
+//   },
+//   form: {
+//     padding: "1rem 0 0"
+//   },
+//   fieldRow: {
+//     display: "flex",
+//     alignItems: "center",
+//     marginBottom: ".5rem"
+//   },
+//   formLabel: {
+//     flexBasis: "20%",
+//     minWidth: 150,
+//     paddingRight: "1rem"
+//   },
+//   formControl: {
+//     width: "100%"
+//   },
+//   formValue: {
+//     flexGrow: 1
+//   },
+//   submitButton: {
+//     marginLeft: "1rem"
+//   },
+//   nodeInput: {
+//     paddingRight: "1rem !important"
+//   },
+//   inputClickable: {
+//     cursor: "pointer"
+//   }
+// }));
 
 export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isNodesOpen, setIsNodesOpen] = useState(false);
-  const { classes } = useStyles();
   const { settings, setSettings, refreshNodeStatuses, isRefreshingNodeStatus } = useSettings();
   const {
     handleSubmit,
@@ -73,13 +59,13 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
     reset,
     formState: { errors }
   } = useForm();
-  const formRef = useRef(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const { selectedNode, nodes } = settings;
 
   const onIsCustomNodeChange = event => {
     const isChecked = event.target.checked;
-    const apiEndpoint = isChecked ? settings.apiEndpoint : selectedNode.api;
-    const rpcEndpoint = isChecked ? settings.rpcEndpoint : selectedNode.rpc;
+    const apiEndpoint = isChecked ? settings.apiEndpoint : (selectedNode?.api as string);
+    const rpcEndpoint = isChecked ? settings.rpcEndpoint : (selectedNode?.rpc as string);
 
     reset();
 
@@ -90,10 +76,10 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
 
   const onNodeChange = (event, newNodeId) => {
     const newNode = nodes.find(n => n.id === newNodeId);
-    const apiEndpoint = newNode.api;
-    const rpcEndpoint = newNode.rpc;
+    const apiEndpoint = newNode?.api as string;
+    const rpcEndpoint = newNode?.rpc as string;
 
-    setSettings({ ...settings, apiEndpoint, rpcEndpoint, selectedNode: newNode });
+    setSettings({ ...settings, apiEndpoint, rpcEndpoint, selectedNode: newNode as BlockchainNode });
   };
 
   const onRefreshNodeStatus = async () => {
@@ -114,21 +100,18 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
   };
 
   return (
-    <Box>
-      <FormControlLabel
-        control={<Switch checked={!!settings.isCustomNode} onChange={onIsCustomNodeChange} color="secondary" sx={{ marginLeft: ".5rem" }} />}
-        label="Custom node"
-        labelPlacement="start"
-        sx={{ marginLeft: 0 }}
-      />
+    <div>
+      <div className="ml-2">
+        <SwitchWithLabel checked={!!settings.isCustomNode} onCheckedChange={onIsCustomNodeChange} label="Custom Node" />
+      </div>
 
       {settings.isCustomNode && (
-        <form className={classes.form} onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-          <div className={classes.fieldRow}>
-            <FormLabel className={classes.formLabel}>Api Endpoint:</FormLabel>
+        <form className="pt-4" onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+          <div className="mb-2 flex items-center">
+            <Label className="min-w-[150px] basis-[20%] pr-4">Api Endpoint:</Label>
 
             {isEditing ? (
-              <FormControl error={!errors.apiEndpoint} className={classes.formControl}>
+              <FormControl error={!errors.apiEndpoint} className="w-full">
                 <Controller
                   control={control}
                   name="apiEndpoint"
@@ -155,17 +138,15 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
                 />
               </FormControl>
             ) : (
-              <Typography variant="body1" className={classes.formValue}>
-                {settings.apiEndpoint}
-              </Typography>
+              <p className="flex-grow">{settings.apiEndpoint}</p>
             )}
           </div>
 
-          <div className={classes.fieldRow}>
-            <FormLabel className={classes.formLabel}>Rpc Endpoint:</FormLabel>
+          <div className="mb-2 flex items-center">
+            <Label className="min-w-[150px] basis-[20%] pr-4">Rpc Endpoint:</Label>
 
             {isEditing ? (
-              <FormControl error={!errors.apiEndpoint} className={classes.formControl}>
+              <FormControl error={!errors.apiEndpoint} className="w-full">
                 <Controller
                   control={control}
                   name="rpcEndpoint"
@@ -192,15 +173,13 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
                 />
               </FormControl>
             ) : (
-              <Typography variant="body1" className={classes.formValue}>
-                {settings.rpcEndpoint}
-              </Typography>
+              <p className="flex-grow">{settings.rpcEndpoint}</p>
             )}
           </div>
 
-          <Box paddingTop="1rem">
+          <div className="pt-4">
             {!isEditing && (
-              <Button variant="contained" color="secondary" onClick={() => setIsEditing(!isEditing)} size="small">
+              <Button variant="default" onClick={() => setIsEditing(!isEditing)} size="sm">
                 Edit
               </Button>
             )}
@@ -218,25 +197,24 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
                   Cancel
                 </Button>
                 <Button
-                  variant="contained"
-                  color="secondary"
+                  variant="default"
                   type="submit"
                   className={classes.submitButton}
                   onClick={() => formRef.current.dispatchEvent(new Event("submit"))}
-                  size="small"
+                  size="sm"
                 >
                   Submit
                 </Button>
               </>
             )}
-          </Box>
+          </div>
         </form>
       )}
 
       {!settings.isCustomNode && (
-        <Box marginTop="1rem">
+        <div marginTop="1rem">
           <FormGroup>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
+            <div className="flex items-center">
               <FormControl sx={{ flexGrow: 1 }}>
                 <Autocomplete
                   disableClearable
@@ -258,9 +236,9 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
                           classes: { root: cx(classes.nodeInput, classes.inputClickable), input: classes.inputClickable },
                           endAdornment: (
                             <InputAdornment position="end">
-                              <Box marginRight=".5rem" display="inline-flex">
+                              <div marginRight=".5rem" display="inline-flex">
                                 <KeyboardArrowDownIcon fontSize="small" />
-                              </Box>
+                              </div>
                               <NodeStatus latency={Math.floor(selectedNode.latency)} status={selectedNode.status} />
                             </InputAdornment>
                           )
@@ -286,15 +264,15 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
                 />
               </FormControl>
 
-              <Box marginLeft="1rem">
+              <div marginLeft="1rem">
                 <IconButton onClick={() => onRefreshNodeStatus()} aria-label="refresh" disabled={isRefreshingNodeStatus}>
                   {isRefreshingNodeStatus ? <CircularProgress size="1.5rem" color="secondary" /> : <RefreshIcon />}
                 </IconButton>
-              </Box>
-            </Box>
+              </div>
+            </div>
           </FormGroup>
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 };

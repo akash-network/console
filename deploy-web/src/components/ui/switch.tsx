@@ -3,6 +3,7 @@
 import * as React from "react";
 import * as SwitchPrimitives from "@radix-ui/react-switch";
 import { cn } from "@src/utils/styleUtils";
+import { nanoid } from "nanoid";
 
 const Switch = React.forwardRef<React.ElementRef<typeof SwitchPrimitives.Root>, React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>>(
   ({ className, ...props }, ref) => (
@@ -24,4 +25,28 @@ const Switch = React.forwardRef<React.ElementRef<typeof SwitchPrimitives.Root>, 
 );
 Switch.displayName = SwitchPrimitives.Root.displayName;
 
-export { Switch };
+const SwitchWithLabel = React.forwardRef<
+  React.ElementRef<typeof SwitchPrimitives.Root>,
+  React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root> & {
+    label: string;
+    labelPosition?: "left" | "right";
+  }
+>(({ className, label, labelPosition = "right", ...props }, ref) => {
+  const id = nanoid();
+  const _label = (
+    <label htmlFor={id} className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+      {label}
+    </label>
+  );
+
+  return (
+    <div className="flex cursor-pointer items-center space-x-2">
+      {labelPosition === "left" && _label}
+      <Switch {...props} id={id} />
+      {labelPosition === "right" && _label}
+    </div>
+  );
+});
+SwitchWithLabel.displayName = "SwitchWithLabel";
+
+export { Switch, SwitchWithLabel };
