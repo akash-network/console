@@ -67,14 +67,13 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
   const formRef = useRef<HTMLFormElement>(null);
   const { selectedNode, nodes } = settings;
 
-  const onIsCustomNodeChange = event => {
-    const isChecked = event.target.checked;
-    const apiEndpoint = isChecked ? settings.apiEndpoint : (selectedNode?.api as string);
-    const rpcEndpoint = isChecked ? settings.rpcEndpoint : (selectedNode?.rpc as string);
+  const onIsCustomNodeChange = (checked: boolean) => {
+    const apiEndpoint = checked ? settings.apiEndpoint : (selectedNode?.api as string);
+    const rpcEndpoint = checked ? settings.rpcEndpoint : (selectedNode?.rpc as string);
 
     reset();
 
-    const newSettings = { ...settings, isCustomNode: isChecked, apiEndpoint, rpcEndpoint };
+    const newSettings = { ...settings, isCustomNode: checked, apiEndpoint, rpcEndpoint };
     setSettings(newSettings);
     refreshNodeStatuses(newSettings);
   };
@@ -105,8 +104,8 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
   };
 
   return (
-    <div>
-      <div className="ml-2">
+    <div className="pt-6">
+      <div className="pb-2">
         <SwitchWithLabel checked={!!settings.isCustomNode} onCheckedChange={onIsCustomNodeChange} label="Custom Node" />
       </div>
 
@@ -222,6 +221,7 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
                   value={settings.selectedNode?.id}
                   defaultValue={settings.selectedNode?.id}
                   fullWidth
+                  size="small"
                   onChange={onNodeChange}
                   renderInput={params => (
                     <ClickAwayListener onClickAway={() => setIsNodesOpen(false)}>
@@ -232,7 +232,7 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
                         onClick={() => setIsNodesOpen(prev => !prev)}
                         InputProps={{
                           ...params.InputProps,
-                          classes: { root: cn("pr-4 cursor-pointer"), input: "cursor-pointer" },
+                          classes: { root: cn("!pr-3 cursor-pointer"), input: "cursor-pointer" },
                           endAdornment: (
                             <InputAdornment position="end">
                               <div className="mr-2 inline-flex">
@@ -260,8 +260,8 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
               </FormControl>
 
               <div className="ml-4">
-                <Button onClick={() => onRefreshNodeStatus()} aria-label="refresh" disabled={isRefreshingNodeStatus} size="icon">
-                  {isRefreshingNodeStatus ? <Spinner /> : <Refresh />}
+                <Button onClick={() => onRefreshNodeStatus()} aria-label="refresh" disabled={isRefreshingNodeStatus} size="icon" variant="outline">
+                  {isRefreshingNodeStatus ? <Spinner size="small" /> : <Refresh />}
                 </Button>
               </div>
             </div>

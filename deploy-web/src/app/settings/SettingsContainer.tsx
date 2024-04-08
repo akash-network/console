@@ -1,15 +1,15 @@
 "use client";
 import { SettingsForm } from "@src/app/settings/SettingsForm";
-import { Box, FormControlLabel, IconButton } from "@mui/material";
 import { ColorModeSelect } from "@src/components/layout/ColorModeSelect";
 import { PageContainer } from "@src/components/shared/PageContainer";
 import { SettingsLayout, SettingsTabs } from "@src/app/settings/SettingsLayout";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { useState } from "react";
-import { SelectNetworkModal } from "@src/components/shared/SelectNetworkModal";
-import EditIcon from "@mui/icons-material/Edit";
 import { CertificateList } from "@src/components/certificates/CertificateList";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { LabelValue } from "@src/components/shared/LabelValue";
+import { Button } from "@src/components/ui/button";
+import { Edit } from "iconoir-react";
 
 type Props = {};
 
@@ -25,24 +25,20 @@ export const SettingsContainer: React.FunctionComponent<Props> = ({}) => {
     <PageContainer className="pt-6" isUsingSettings>
       <SettingsLayout page={SettingsTabs.GENERAL} title="Settings">
         {/* {isSelectingNetwork && <SelectNetworkModal onClose={onSelectNetworkModalClose} />} */}
-        <Box sx={{ gridTemplateColumns: { xs: "repeat(1,1fr)", sm: "repeat(1,1fr)", md: "repeat(2,1fr)" }, display: "grid", gap: "1rem" }}>
+        <div className="grid-col-1 grid gap-4 md:grid-cols-2">
           <Fieldset label="Network">
-            <FormControlLabel
-              control={
-                <IconButton onClick={() => setIsSelectingNetwork(true)} sx={{ marginLeft: ".5rem" }} disableRipple>
-                  <EditIcon fontSize="small" />
-                </IconButton>
+            <LabelValue
+              // label="Edit Network"
+              labelWidth="0"
+              value={
+                <div className="inline-flex items-center">
+                  <strong>{selectedNetwork?.title}</strong>
+
+                  <Button onClick={() => setIsSelectingNetwork(true)} size="icon" className="ml-4" variant="outline">
+                    <Edit className="text-sm" />
+                  </Button>
+                </div>
               }
-              label={
-                <Box component="span">
-                  Network
-                  <Box component="strong" sx={{ marginLeft: "1rem" }}>
-                    {selectedNetwork?.title}
-                  </Box>
-                </Box>
-              }
-              labelPlacement="start"
-              sx={{ marginLeft: 0, marginBottom: "1rem" }}
             />
 
             <SettingsForm />
@@ -51,7 +47,7 @@ export const SettingsContainer: React.FunctionComponent<Props> = ({}) => {
           <Fieldset label="General">
             <ColorModeSelect />
           </Fieldset>
-        </Box>
+        </div>
 
         <Fieldset label="Certificates">
           <CertificateList />
