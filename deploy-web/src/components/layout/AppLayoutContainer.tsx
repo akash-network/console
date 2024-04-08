@@ -5,7 +5,7 @@ import { useMediaQuery } from "usehooks-ts";
 import { useSettings } from "@src/context/SettingsProvider";
 // import { WelcomeModal } from "./WelcomeModal";
 import { breakpoints } from "@src/utils/responsiveUtils";
-import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
+import { accountBarHeight, closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { Sidebar } from "./Sidebar";
 
 export function AppLayoutContainer({ children, version }: React.PropsWithChildren<{ version: string }>) {
@@ -72,6 +72,7 @@ export function AppLayoutContainer({ children, version }: React.PropsWithChildre
       >
         <div
           className="h-full w-full"
+          style={{ marginTop: `${accountBarHeight}px` }}
           // className={classes.root} sx={{ marginTop: `${accountBarHeight}px`, height: "100%" }}
         >
           <div
