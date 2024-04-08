@@ -10,7 +10,7 @@ type Props = {
 export const Fieldset: React.FunctionComponent<Props> = ({ label, children }) => {
   return (
     <Card>
-      <CardContent className="relative mb-4 rounded-sm">
+      <CardContent className="relative rounded-sm">
         <div className="p-2 text-muted-foreground">
           <p>{label}</p>
         </div>

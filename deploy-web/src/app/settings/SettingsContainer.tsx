@@ -25,11 +25,9 @@ export const SettingsContainer: React.FunctionComponent<Props> = ({}) => {
     <PageContainer className="pt-6" isUsingSettings>
       <SettingsLayout page={SettingsTabs.GENERAL} title="Settings">
         {/* {isSelectingNetwork && <SelectNetworkModal onClose={onSelectNetworkModalClose} />} */}
-        <div className="grid-col-1 grid gap-4 md:grid-cols-2">
+        <div className="grid-col-1 grid gap-4 md:grid-cols-2 mb-4">
           <Fieldset label="Network">
             <LabelValue
-              // label="Edit Network"
-              labelWidth="0"
               value={
                 <div className="inline-flex items-center">
                   <strong>{selectedNetwork?.title}</strong>

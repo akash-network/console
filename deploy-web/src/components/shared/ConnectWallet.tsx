@@ -9,16 +9,8 @@ type Props = {
 
 export const ConnectWallet: React.FunctionComponent<Props> = ({ text }) => {
   return (
-    <div
-      className="mx-auto max-w-[350px] text-center"
-      // sx={{ maxWidth: "350px", margin: "0 auto", textAlign: "center" }}
-    >
-      <h1
-        className="mb-4 text-2xl font-bold"
-        // sx={{ fontSize: "1.2rem", marginBottom: "1rem", textAlign: "center" }}
-      >
-        {text}
-      </h1>
+    <div className="mx-auto max-w-[350px] text-center">
+      <h1 className="mb-4 text-center text-2xl font-bold">{text}</h1>
       <WalletStatus />
     </div>
   );

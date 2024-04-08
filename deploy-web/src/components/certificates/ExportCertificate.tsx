@@ -1,3 +1,4 @@
+"use client";
 import { useEffect } from "react";
 import { Button, Dialog, DialogTitle, DialogContent, DialogActions, Typography, Alert } from "@mui/material";
 import { makeStyles } from "tss-react/mui";

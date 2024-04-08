@@ -1,27 +1,17 @@
+"use client";
 import { useState } from "react";
-import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
-import WarningIcon from "@mui/icons-material/Warning";
-import AutorenewIcon from "@mui/icons-material/Autorenew";
-import CreateIcon from "@mui/icons-material/Create";
-import GetAppIcon from "@mui/icons-material/GetApp";
 import { useCertificate } from "../../context/CertificateProvider";
 import { ExportCertificate } from "./ExportCertificate";
-import { makeStyles } from "tss-react/mui";
-import { Box, Button, CircularProgress, IconButton, Menu, Paper, Tooltip, Typography, useTheme } from "@mui/material";
 import { CustomMenuItem } from "../shared/CustomMenuItem";
 import { useWallet } from "@src/context/WalletProvider";
-import CheckIcon from "@mui/icons-material/Check";
-
-const useStyles = makeStyles()({
-  warningIcon: {
-    marginLeft: ".5rem"
-  },
-  tooltip: {
-    fontSize: "1rem"
-  }
-});
+import { FormPaper } from "../sdl/FormPaper";
+import { BinMinusIn, Check, MoreHoriz, PlusCircle, Refresh, WarningTriangle } from "iconoir-react";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { Button } from "../ui/button";
+import Spinner from "../shared/Spinner";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { MdAutorenew, MdGetApp } from "react-icons/md";
+import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 
 export function CertificateDisplay() {
   const [isExportingCert, setIsExportingCert] = useState(false);
@@ -36,97 +26,94 @@ export function CertificateDisplay() {
     regenerateCertificate,
     revokeCertificate
   } = useCertificate();
-  const { classes } = useStyles();
   const { address } = useWallet();
-  const [anchorEl, setAnchorEl] = useState(null);
-  const theme = useTheme();
-
-  function handleMenuClick(ev) {
-    setAnchorEl(ev.currentTarget);
-  }
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
 
   const onRegenerateCert = () => {
-    handleClose();
-
     regenerateCertificate();
   };
 
   const onRevokeCert = () => {
-    handleClose();
-
-    revokeCertificate(selectedCertificate);
+    if (selectedCertificate) revokeCertificate(selectedCertificate);
   };
 
   return (
     <>
       {address && (
-        <Paper
-          sx={{
-            marginBottom: "1rem",
-            display: "flex",
-            alignItems: "center",
-            padding: ".2rem 1rem",
-            backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100]
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Typography variant="body2" color="textSecondary">
+        <FormPaper className="mb-4" contentClassName="flex items-center">
+          <div className="flex items-center">
+            <p className="text-muted-foreground">
               {selectedCertificate ? (
                 <span>
                   Current certificate:{" "}
-                  <Box component="span" sx={{ color: theme.palette.secondary.main, display: "inline-flex", alignItems: "center" }}>
-                    {selectedCertificate.serial} <CheckIcon color="secondary" sx={{ marginLeft: ".5rem" }} fontSize="small" />
-                  </Box>
+                  <div className="inline-flex items-center text-xs font-bold text-primary">
+                    {selectedCertificate.serial} <Check color="secondary" className="ml-2" />
+                  </div>
                 </span>
               ) : (
                 "No local certificate."
               )}
-            </Typography>
+            </p>
 
             {selectedCertificate && !isLocalCertMatching && (
-              <Tooltip
-                classes={{ tooltip: classes.tooltip }}
-                arrow
-                title="The local certificate doesn't match the one on the blockchain. You can revoke it and create a new one."
-              >
-                <WarningIcon fontSize="small" color="error" className={classes.warningIcon} />
-              </Tooltip>
+              <CustomTooltip title="The local certificate doesn't match the one on the blockchain. You can revoke it and create a new one.">
+                <WarningTriangle className="ml-2 text-sm text-destructive" />
+              </CustomTooltip>
             )}
-          </Box>
+          </div>
 
-          {!isLoadingCertificates && !selectedCertificate && (
-            <Box marginLeft="1rem">
-              <Button variant="contained" color="secondary" size="small" disabled={isCreatingCert} onClick={() => createCertificate()}>
-                {isCreatingCert ? <CircularProgress size="1.5rem" color="secondary" /> : "Create Certificate"}
+          {!selectedCertificate && (
+            <div className="ml-4">
+              <Button variant="default" color="secondary" size="sm" disabled={isCreatingCert || isLoadingCertificates} onClick={() => createCertificate()}>
+                {isCreatingCert ? <Spinner size="small" /> : "Create Certificate"}
               </Button>
-            </Box>
+            </div>
           )}
 
-          <IconButton
+          <Button
             onClick={() => loadValidCertificates(true)}
             aria-label="refresh"
             disabled={isLoadingCertificates}
-            size="small"
-            sx={{ marginLeft: "1rem" }}
+            size="icon"
+            variant="outline"
+            className="ml-4"
           >
-            {isLoadingCertificates ? <CircularProgress size="1.5rem" color="secondary" /> : <RefreshIcon />}
-          </IconButton>
+            {isLoadingCertificates ? <Spinner size="small" /> : <Refresh />}
+          </Button>
 
           {selectedCertificate && (
-            <Box marginLeft=".5rem">
-              <IconButton aria-label="settings" aria-haspopup="true" onClick={handleMenuClick} size="small">
-                <MoreHorizIcon />
-              </IconButton>
-            </Box>
+            <div className="ml-2">
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button size="icon" variant="ghost">
+                    <MoreHoriz />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {/** If local, regenerate else create */}
+                  {selectedCertificate.parsed === localCert?.certPem ? (
+                    <CustomDropdownLinkItem onClick={() => onRegenerateCert()} icon={<MdAutorenew />}>
+                      Regenerate
+                    </CustomDropdownLinkItem>
+                  ) : (
+                    <CustomDropdownLinkItem onClick={() => createCertificate()} icon={<PlusCircle />}>
+                      Create
+                    </CustomDropdownLinkItem>
+                  )}
+
+                  <CustomDropdownLinkItem onClick={() => onRevokeCert()} icon={<BinMinusIn />}>
+                    Revoke
+                  </CustomDropdownLinkItem>
+                  <CustomDropdownLinkItem onClick={() => setIsExportingCert(true)} icon={<MdGetApp />}>
+                    Export
+                  </CustomDropdownLinkItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
-        </Paper>
+        </FormPaper>
       )}
 
-      {selectedCertificate && (
+      {/* {selectedCertificate && (
         <Menu
           id="cert-menu"
           anchorEl={anchorEl}
@@ -143,20 +130,11 @@ export function CertificateDisplay() {
           }}
           onClick={handleClose}
         >
-          {/** If local, regenerate else create */}
-          {selectedCertificate.parsed === localCert?.certPem ? (
-            <CustomMenuItem onClick={() => onRegenerateCert()} icon={<AutorenewIcon fontSize="small" />} text="Regenerate" />
-          ) : (
-            <CustomMenuItem onClick={() => createCertificate()} icon={<CreateIcon fontSize="small" />} text="Create" />
-          )}
-
-          <CustomMenuItem onClick={() => onRevokeCert()} icon={<DeleteForeverIcon fontSize="small" />} text="Revoke" />
-          <CustomMenuItem onClick={() => setIsExportingCert(true)} icon={<GetAppIcon fontSize="small" />} text="Export" />
+          
         </Menu>
-      )}
+      )} */}
 
       {isExportingCert && <ExportCertificate isOpen={isExportingCert} onClose={() => setIsExportingCert(false)} />}
     </>
   );
 }
-

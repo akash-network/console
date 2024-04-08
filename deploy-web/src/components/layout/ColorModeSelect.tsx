@@ -1,45 +1,43 @@
 import React, { useEffect, useState } from "react";
-import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent } from "@mui/material";
-import { useDarkMode } from "next-dark-mode";
+import { Label } from "../ui/label";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { FormItem } from "../ui/form";
+import { useTheme } from "next-themes";
 
 type Props = {};
 
 export const ColorModeSelect: React.FunctionComponent<Props> = () => {
-  const { darkModeActive, autoModeActive, switchToDarkMode, switchToLightMode, switchToAutoMode } = useDarkMode();
-  const [mode, setMode] = useState("auto");
+  const { setTheme, theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const _mode = autoModeActive ? "auto" : darkModeActive ? "dark" : "light";
-    setMode(_mode);
+    setMounted(true);
   }, []);
 
-  const onModeChange = (event: SelectChangeEvent<string>) => {
-    const newMode = event.target.value;
-    setMode(newMode);
+  if (!mounted) {
+    return null;
+  }
 
-    switch (newMode) {
-      case "dark":
-        switchToDarkMode();
-        break;
-      case "light":
-        switchToLightMode();
-        break;
-
-      case "auto":
-      default:
-        switchToAutoMode();
-        break;
-    }
+  const onThemeClick = (theme: string) => {
+    setTheme(theme);
+    document.cookie = `theme=${theme}; path=/`;
   };
 
   return (
-    <FormControl>
-      <InputLabel id="theme-select">Theme</InputLabel>
-      <Select labelId="theme-select" value={mode} label="Theme" onChange={onModeChange} size="small">
-        <MenuItem value="auto">Auto</MenuItem>
-        <MenuItem value="dark">Dark 🌑</MenuItem>
-        <MenuItem value="light">Light ☀️</MenuItem>
+    <FormItem>
+      <Label>Theme</Label>
+      <Select value={theme} onValueChange={onThemeClick}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select theme" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectItem value="system">System</SelectItem>
+            <SelectItem value="dark">Dark 🌑</SelectItem>
+            <SelectItem value="light">Light ☀️</SelectItem>
+          </SelectGroup>
+        </SelectContent>
       </Select>
-    </FormControl>
+    </FormItem>
   );
 };

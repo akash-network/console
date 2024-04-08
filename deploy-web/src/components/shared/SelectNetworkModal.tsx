@@ -1,26 +1,24 @@
 "use client";
-import { Alert, Box, Chip, List, ListItemButton, ListItemIcon, ListItemText, Radio, Typography } from "@mui/material";
 import { mainnetId } from "@src/utils/constants";
 import { useState } from "react";
-import { makeStyles } from "tss-react/mui";
 import { useSettings } from "../../context/SettingsProvider";
 import { Popup } from "./Popup";
 import { networks } from "@src/store/networkStore";
 
-const useStyles = makeStyles()(theme => ({
-  experimentalChip: {
-    height: "16px",
-    marginLeft: "1rem",
-    fontSize: ".7rem",
-    fontWeight: "bold"
-  },
-  version: {
-    fontWeight: "bold"
-  },
-  alert: {
-    marginBottom: "1rem"
-  }
-}));
+// const useStyles = makeStyles()(theme => ({
+//   experimentalChip: {
+//     height: "16px",
+//     marginLeft: "1rem",
+//     fontSize: ".7rem",
+//     fontWeight: "bold"
+//   },
+//   version: {
+//     fontWeight: "bold"
+//   },
+//   alert: {
+//     marginBottom: "1rem"
+//   }
+// }));
 
 export const SelectNetworkModal = ({ onClose }) => {
   const { classes } = useStyles();
