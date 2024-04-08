@@ -221,7 +221,7 @@ async function getGpuPrices(debug: boolean) {
 
           const pricingBotAddress = "akash1pas6v0905jgyznpvnjhg7tsthuyqek60gkz7uf";
           const bidsFromPricingBot = providerBids.filter((x) => x.deployment.owner === pricingBotAddress && x.deployment.cpuUnits === 100);
-
+          
           if (bidsFromPricingBot.length > 0) return bidsFromPricingBot.sort((a, b) => b.height - a.height)[0];
 
           return findBestProviderBid(providerBidsLast14d, x) ?? findBestProviderBid(providerBids, x);
@@ -326,6 +326,7 @@ async function getGpus() {
         FROM provider p
         INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSnapshotId"
         WHERE p."isOnline" IS TRUE
+        ORDER BY p."hostUri", p."createdHeight" DESC
       )
       SELECT s."hostUri", s."owner", n."name", n."gpuAllocatable" AS allocatable, n."gpuAllocated" AS allocated, gpu."modelId", gpu.vendor, gpu.name AS "modelName", gpu.interface, gpu."memorySize"
       FROM snapshots s
