@@ -3,10 +3,10 @@ import { ApiTemplate } from "@src/types";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { getShortText } from "@src/utils/stringUtils";
-import { CardContent, CardHeader, cardClasses } from "../ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { MediaImage } from "iconoir-react";
 import { cn } from "@src/utils/styleUtils";
+import { CardContent, CardHeader, cardClasses } from "@src/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@src/components/ui/avatar";
 
 type Props = {
   template: ApiTemplate;
@@ -29,7 +29,7 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
             </AvatarFallback>
           </Avatar>
 
-          <div className="ml-4 font-bold">{template.name}</div>
+          <div className="ml-4 break-all font-bold">{template.name}</div>
         </div>
       </CardHeader>
       <CardContent className="pb-4 pt-0">

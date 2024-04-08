@@ -90,7 +90,7 @@ const config: Config = {
       }
     }
   },
-  plugins: [require("tailwindcss-animate"), require("tailwind-scrollbar")({ nocompatible: true })]
+  plugins: [require("tailwindcss-animate"), require("tailwind-scrollbar")({ nocompatible: true }), require("@tailwindcss/typography")]
 };
 
 export default config;

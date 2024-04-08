@@ -67,3 +67,26 @@
   background-color: rgba(175, 184, 193, 0.2);
   border-radius: 6px;
 }
+
+.markdownContainerRoot {
+  word-break: break-word;
+}
+
+.markdownContainerRoot pre {
+  overflow: auto;
+  border-radius: 0.2rem;
+  padding: 0.5rem;
+}
+
+.markdownContainerRoot table {
+  overflow: auto;
+  word-break: break-all;
+}
+
+.markdownContainerRoot h3 code {
+  color: inherit;
+}
+
+.markdownContainerRoot span.linenumber {
+  display: none !important;
+}
