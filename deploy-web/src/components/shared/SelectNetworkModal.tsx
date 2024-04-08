@@ -1,3 +1,4 @@
+"use client";
 import { Alert, Box, Chip, List, ListItemButton, ListItemIcon, ListItemText, Radio, Typography } from "@mui/material";
 import { mainnetId } from "@src/utils/constants";
 import { useState } from "react";

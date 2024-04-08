@@ -3,14 +3,19 @@ import { useState, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { NodeStatus } from "@src/components/shared/NodeStatus";
 import { isUrl } from "@src/utils/stringUtils";
-import { cx } from "@emotion/css";
 import { BlockchainNode, useSettings } from "@src/context/SettingsProvider/SettingsProviderContext";
-import { Switch, SwitchWithLabel } from "@src/components/ui/switch";
+import { SwitchWithLabel } from "@src/components/ui/switch";
 import { Label } from "@src/components/ui/label";
 import FormControl from "@mui/material/FormControl";
 import { Button } from "@src/components/ui/button";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
+import FormGroup from "@mui/material/FormGroup";
+import Spinner from "@src/components/shared/Spinner";
+import { NavArrowDown, Refresh } from "iconoir-react";
+import { cn } from "@src/utils/styleUtils";
+import InputAdornment from "@mui/material/InputAdornment";
 
 type Props = {};
 
@@ -130,7 +135,7 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
                         variant="outlined"
                         error={!!fieldState.error}
                         helperText={fieldState.error && helperText}
-                        className={classes.formValue}
+                        className="flex-1"
                         size="small"
                       />
                     );
@@ -165,7 +170,7 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
                         variant="outlined"
                         error={!!fieldState.error}
                         helperText={fieldState.error && helperText}
-                        className={classes.formValue}
+                        className="flex-1"
                         size="small"
                       />
                     );
@@ -189,20 +194,14 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
                 <Button
                   variant="text"
                   onClick={() => {
-                    reset(null, { keepDefaultValues: true });
+                    reset({}, { keepDefaultValues: true });
                     setIsEditing(false);
                   }}
-                  size="small"
+                  size="sm"
                 >
                   Cancel
                 </Button>
-                <Button
-                  variant="default"
-                  type="submit"
-                  className={classes.submitButton}
-                  onClick={() => formRef.current.dispatchEvent(new Event("submit"))}
-                  size="sm"
-                >
+                <Button variant="default" type="submit" className="ml-4" onClick={() => formRef.current?.dispatchEvent(new Event("submit"))} size="sm">
                   Submit
                 </Button>
               </>
@@ -212,16 +211,16 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
       )}
 
       {!settings.isCustomNode && (
-        <div marginTop="1rem">
+        <div className="mt-4">
           <FormGroup>
             <div className="flex items-center">
-              <FormControl sx={{ flexGrow: 1 }}>
+              <FormControl className="flex-1">
                 <Autocomplete
                   disableClearable
                   open={isNodesOpen}
                   options={nodes.map(n => n.id)}
-                  value={settings.selectedNode.id}
-                  defaultValue={settings.selectedNode.id}
+                  value={settings.selectedNode?.id}
+                  defaultValue={settings.selectedNode?.id}
                   fullWidth
                   onChange={onNodeChange}
                   renderInput={params => (
@@ -233,13 +232,13 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
                         onClick={() => setIsNodesOpen(prev => !prev)}
                         InputProps={{
                           ...params.InputProps,
-                          classes: { root: cx(classes.nodeInput, classes.inputClickable), input: classes.inputClickable },
+                          classes: { root: cn("pr-4 cursor-pointer"), input: "cursor-pointer" },
                           endAdornment: (
                             <InputAdornment position="end">
-                              <div marginRight=".5rem" display="inline-flex">
-                                <KeyboardArrowDownIcon fontSize="small" />
+                              <div className="mr-2 inline-flex">
+                                <NavArrowDown className="text-sm" />
                               </div>
-                              <NodeStatus latency={Math.floor(selectedNode.latency)} status={selectedNode.status} />
+                              <NodeStatus latency={Math.floor(selectedNode?.latency || 0)} status={selectedNode?.status || ""} />
                             </InputAdornment>
                           )
                         }}
@@ -250,24 +249,20 @@ export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
                     const node = nodes.find(n => n.id === option);
 
                     return (
-                      <Box
-                        component="li"
-                        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between !important", width: "100%", padding: ".2rem .5rem" }}
-                        {...props}
-                      >
+                      <li className="flex w-full items-center justify-between px-2 py-1" {...props}>
                         <div>{option}</div>
-                        <NodeStatus latency={Math.floor(node.latency)} status={node.status} />
-                      </Box>
+                        <NodeStatus latency={Math.floor(node?.latency || 0)} status={node?.status || ""} />
+                      </li>
                     );
                   }}
                   disabled={settings.isCustomNode}
                 />
               </FormControl>
 
-              <div marginLeft="1rem">
-                <IconButton onClick={() => onRefreshNodeStatus()} aria-label="refresh" disabled={isRefreshingNodeStatus}>
-                  {isRefreshingNodeStatus ? <CircularProgress size="1.5rem" color="secondary" /> : <RefreshIcon />}
-                </IconButton>
+              <div className="ml-4">
+                <Button onClick={() => onRefreshNodeStatus()} aria-label="refresh" disabled={isRefreshingNodeStatus} size="icon">
+                  {isRefreshingNodeStatus ? <Spinner /> : <Refresh />}
+                </Button>
               </div>
             </div>
           </FormGroup>

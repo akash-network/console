@@ -2,9 +2,9 @@
 import React, { ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { UrlService } from "@src/utils/urlUtils";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { ErrorFallback } from "@src/components/shared/ErrorFallback";
-import { Tabs, TabsTrigger } from "@src/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
 import { cn } from "@src/utils/styleUtils";
 
 export enum SettingsTabs {
@@ -58,14 +58,16 @@ export const SettingsLayout: React.FunctionComponent<Props> = ({ children, page,
 
   return (
     <Tabs value={page} onValueChange={handleTabChange}>
-      <TabsTrigger value={SettingsTabs.GENERAL} className={cn({ ["font-bold"]: page === SettingsTabs.GENERAL })}>
-        General
-      </TabsTrigger>
-      <TabsTrigger value={SettingsTabs.AUTHORIZATIONS} className={cn({ ["font-bold"]: page === SettingsTabs.AUTHORIZATIONS })}>
-        Authorizations
-      </TabsTrigger>
+      <TabsList className="grid w-full grid-cols-6">
+        <TabsTrigger value={SettingsTabs.GENERAL} className={cn({ ["font-bold"]: page === SettingsTabs.GENERAL })}>
+          General
+        </TabsTrigger>
+        <TabsTrigger value={SettingsTabs.AUTHORIZATIONS} className={cn({ ["font-bold"]: page === SettingsTabs.AUTHORIZATIONS })}>
+          Authorizations
+        </TabsTrigger>
+      </TabsList>
 
-      <div className="flex flex-wrap items-center pb-2 pt-8">
+      <div className="flex flex-wrap items-center pb-2 pt-8 mb-4">
         <h1 className="text-3xl font-bold">{title}</h1>
         {headerActions}
       </div>

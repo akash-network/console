@@ -24,7 +24,7 @@ export const SettingsContainer: React.FunctionComponent<Props> = ({}) => {
   return (
     <PageContainer className="pt-6" isUsingSettings>
       <SettingsLayout page={SettingsTabs.GENERAL} title="Settings">
-        {isSelectingNetwork && <SelectNetworkModal onClose={onSelectNetworkModalClose} />}
+        {/* {isSelectingNetwork && <SelectNetworkModal onClose={onSelectNetworkModalClose} />} */}
         <Box sx={{ gridTemplateColumns: { xs: "repeat(1,1fr)", sm: "repeat(1,1fr)", md: "repeat(2,1fr)" }, display: "grid", gap: "1rem" }}>
           <Fieldset label="Network">
             <FormControlLabel
