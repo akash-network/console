@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { UrlService } from "@src/utils/urlUtils";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useTemplates } from "@src/context/TemplatesProvider";
-import { TemplateBox } from "../../components/templates/TemplateBox";
+import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";
 import Link from "next/link";
 import { ApiTemplate, TemplateCreation } from "@src/types";
