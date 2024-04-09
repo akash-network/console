@@ -10,6 +10,7 @@ import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { Button } from "@src/components/ui/button";
 import { Edit } from "iconoir-react";
+import { SelectNetworkModal } from "@src/components/shared/SelectNetworkModal";
 
 type Props = {};
 
@@ -24,8 +25,8 @@ export const SettingsContainer: React.FunctionComponent<Props> = ({}) => {
   return (
     <PageContainer className="pt-6" isUsingSettings>
       <SettingsLayout page={SettingsTabs.GENERAL} title="Settings">
-        {/* {isSelectingNetwork && <SelectNetworkModal onClose={onSelectNetworkModalClose} />} */}
-        <div className="grid-col-1 grid gap-4 md:grid-cols-2 mb-4">
+        {isSelectingNetwork && <SelectNetworkModal onClose={onSelectNetworkModalClose} />}
+        <div className="grid-col-1 mb-4 grid gap-4 md:grid-cols-2">
           <Fieldset label="Network">
             <LabelValue
               value={

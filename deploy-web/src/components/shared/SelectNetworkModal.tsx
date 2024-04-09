@@ -4,24 +4,13 @@ import { useState } from "react";
 import { useSettings } from "../../context/SettingsProvider";
 import { Popup } from "./Popup";
 import { networks } from "@src/store/networkStore";
-
-// const useStyles = makeStyles()(theme => ({
-//   experimentalChip: {
-//     height: "16px",
-//     marginLeft: "1rem",
-//     fontSize: ".7rem",
-//     fontWeight: "bold"
-//   },
-//   version: {
-//     fontWeight: "bold"
-//   },
-//   alert: {
-//     marginBottom: "1rem"
-//   }
-// }));
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { buttonVariants } from "../ui/button";
+import { cn } from "@src/utils/styleUtils";
+import { Badge } from "../ui/badge";
 
 export const SelectNetworkModal = ({ onClose }) => {
-  const { classes } = useStyles();
   const { selectedNetworkId } = useSettings();
   const [localSelectedNetworkId, setLocalSelectedNetworkId] = useState(selectedNetworkId);
 
@@ -50,57 +39,61 @@ export const SelectNetworkModal = ({ onClose }) => {
       actions={[
         {
           label: "Close",
-          color: "primary",
           variant: "text",
           side: "left",
           onClick: onClose
         },
         {
           label: "Save",
-          color: "secondary",
-          variant: "contained",
+          variant: "default",
           side: "right",
           onClick: handleSaveChanges
         }
       ]}
       onClose={onClose}
-      maxWidth="xs"
+      maxWidth="sm"
       enableCloseOnBackdropClick
     >
-      <List>
-        {networks.map(network => {
-          return (
-            <ListItemButton key={network.id} dense onClick={() => handleSelectNetwork(network)} disabled={!network.enabled}>
-              <ListItemIcon>
-                <Radio checked={localSelectedNetworkId === network.id} value={network.id} color="secondary" />
-              </ListItemIcon>
-              <ListItemText
-                primary={
-                  <Box display="flex" alignItems="center" justifyContent="space-between" fontSize="1rem">
+      <RadioGroup>
+        <ul>
+          {networks.map(network => {
+            return (
+              <li
+                key={network.id}
+                onClick={() => handleSelectNetwork(network)}
+                className={cn(
+                  buttonVariants({ variant: "text" }),
+                  { ["pointer-events-none text-muted-foreground"]: !network.enabled },
+                  "flex h-auto cursor-pointer items-center justify-start"
+                )}
+              >
+                <div className="basis-[40px]">
+                  <RadioGroupItem value={network.id} id={network.id} checked={localSelectedNetworkId === network.id} disabled={!network.enabled} />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between text-lg">
                     <span>
-                      {network.title}
+                      <strong>{network.title}</strong>
                       {" - "}
-                      <Typography variant="caption" className={classes.version}>
-                        {network.version}
-                      </Typography>
+                      <span className="text-xs text-muted-foreground">{network.version}</span>
                     </span>
-                    {network.id !== mainnetId && <Chip label="Experimental" size="small" color="secondary" className={classes.experimentalChip} />}
-                  </Box>
-                }
-                secondary={network.description}
-              />
-            </ListItemButton>
-          );
-        })}
-      </List>
+                    {network.id !== mainnetId && (
+                      <Badge className={cn("ml-4 h-4 text-xs font-bold", { ["bg-primary/30"]: !network.enabled })}>Experimental</Badge>
+                    )}
+                  </div>
+                  <div>{network.description}</div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </RadioGroup>
 
       {localSelectedNetworkId !== mainnetId && (
-        <Alert variant="outlined" severity="warning" className={classes.alert}>
-          <Typography variant="body1">
-            <strong>Warning</strong>
-          </Typography>
+        <Alert variant="warning" className="mb-2 mt-4">
+          <AlertTitle className="font-bold">Warning</AlertTitle>
 
-          <Typography variant="body2">Changing networks will restart the app and some features are experimental.</Typography>
+          <AlertDescription>Some features are experimental and may not work as intented on the testnet or sandbox.</AlertDescription>
         </Alert>
       )}
     </Popup>
