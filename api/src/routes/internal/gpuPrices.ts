@@ -72,6 +72,33 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   return c.json(gpuPrices);
 });
 
+type GpuBidType = {
+  height: number;
+  txHash: string;
+  datetime: Date;
+  provider: string;
+  aktTokenPrice: number;
+  hourlyPrice: number;
+  monthlyPrice: number;
+  deployment: {
+    owner: string;
+    cpuUnits: number;
+    memoryUnits: number;
+    storageUnits: number;
+    gpus: {
+      vendor: string;
+      model: string;
+      ram: string;
+      interface: string;
+    }[];
+  };
+  data: MsgCreateBid;
+};
+
+type GpuWithPricesType = GpuType & {
+  prices: GpuBidType[];
+};
+
 /**
  * Get a list of gpu models with their availability and pricing.
  * The prices are derived from recent bids made on the network.
@@ -81,7 +108,7 @@ async function getGpuPrices(debug: boolean) {
   // Get list of GPUs (model,vendor, ram, interface) and their availability
   const gpus = await getGpus();
 
-  const daysToInclude = 14;
+  const daysToInclude = 31;
 
   // Get the height corresponding to the oldest time we want to include
   const minHeight = (await Block.findOne({ where: { datetime: { [Op.gte]: addDays(new Date(), -daysToInclude) } }, order: ["datetime"] })).height;
@@ -114,7 +141,7 @@ async function getGpuPrices(debug: boolean) {
   const days = await Day.findAll({ where: { date: { [Op.gte]: addDays(new Date(), -(daysToInclude + 2)) } } });
 
   // Decode the MsgCreateBid messages and calculate the hourly and monthly price for each bid
-  const gpuBids = deployments
+  const gpuBids: GpuBidType[] = deployments
     .flatMap((d) =>
       d.relatedMessages.map((x) => {
         const day = days.find((d) => d.id === x.block.dayId);
@@ -151,10 +178,6 @@ async function getGpuPrices(debug: boolean) {
     .filter((x) => x)
     .filter((x) => x.deployment.gpus.length === 1); // Ignore bids for deployments with more than 1 GPU
 
-  type GpuWithPricesType = GpuType & {
-    prices: (typeof gpuBids)[number][];
-  };
-
   const gpuModels: GpuWithPricesType[] = gpus.map((x) => ({ ...x, prices: [] }));
 
   // Add bids to their corresponding GPU models
@@ -189,27 +212,19 @@ async function getGpuPrices(debug: boolean) {
             2- Cheapest bid with matching ram and interface
             3- Cheapest bid with matching ram
             4- Cheapest remaining bid
+            5- If no bids are found, increase search range from 14 to 31 days and repeat steps 2-4
       */
       const bestProviderBids = x.providers
         .map((p) => {
           const providerBids = x.prices.filter((b) => b.provider === p.owner);
+          const providerBidsLast14d = providerBids.filter((x) => x.datetime > addDays(new Date(), -14));
 
           const pricingBotAddress = "akash1pas6v0905jgyznpvnjhg7tsthuyqek60gkz7uf";
           const bidsFromPricingBot = providerBids.filter((x) => x.deployment.owner === pricingBotAddress && x.deployment.cpuUnits === 100);
-
+          
           if (bidsFromPricingBot.length > 0) return bidsFromPricingBot.sort((a, b) => b.height - a.height)[0];
 
-          const providerBidsWithRamAndInterface = providerBids.filter(
-            (b) => b.deployment.gpus[0].ram === x.ram && isInterfaceMatching(x.interface, b.deployment.gpus[0].interface)
-          );
-
-          if (providerBidsWithRamAndInterface.length > 0) return providerBidsWithRamAndInterface.sort((a, b) => a.hourlyPrice - b.hourlyPrice)[0];
-
-          const providerBidsWithRam = providerBids.filter((b) => b.deployment.gpus[0].ram === x.ram);
-
-          if (providerBidsWithRam.length > 0) return providerBidsWithRam.sort((a, b) => a.hourlyPrice - b.hourlyPrice)[0];
-
-          if (providerBids.length > 0) return providerBids.sort((a, b) => a.hourlyPrice - b.hourlyPrice)[0];
+          return findBestProviderBid(providerBidsLast14d, x) ?? findBestProviderBid(providerBids, x);
         })
         .filter((x) => x)
         .sort((a, b) => a.hourlyPrice - b.hourlyPrice);
@@ -244,6 +259,20 @@ async function getGpuPrices(debug: boolean) {
       };
     })
   };
+}
+
+function findBestProviderBid(providerBids: GpuBidType[], gpuModel: GpuWithPricesType) {
+  const providerBidsWithRamAndInterface = providerBids.filter(
+    (b) => b.deployment.gpus[0].ram === gpuModel.ram && isInterfaceMatching(gpuModel.interface, b.deployment.gpus[0].interface)
+  );
+
+  if (providerBidsWithRamAndInterface.length > 0) return providerBidsWithRamAndInterface.sort((a, b) => a.hourlyPrice - b.hourlyPrice)[0];
+
+  const providerBidsWithRam = providerBids.filter((b) => b.deployment.gpus[0].ram === gpuModel.ram);
+
+  if (providerBidsWithRam.length > 0) return providerBidsWithRam.sort((a, b) => a.hourlyPrice - b.hourlyPrice)[0];
+
+  if (providerBids.length > 0) return providerBids.sort((a, b) => a.hourlyPrice - b.hourlyPrice)[0];
 }
 
 export function isInterfaceMatching(gpuInterface: string, bidInterface: string) {
@@ -297,6 +326,7 @@ async function getGpus() {
         FROM provider p
         INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSnapshotId"
         WHERE p."isOnline" IS TRUE
+        ORDER BY p."hostUri", p."createdHeight" DESC
       )
       SELECT s."hostUri", s."owner", n."name", n."gpuAllocatable" AS allocatable, n."gpuAllocated" AS allocated, gpu."modelId", gpu.vendor, gpu.name AS "modelName", gpu.interface, gpu."memorySize"
       FROM snapshots s
