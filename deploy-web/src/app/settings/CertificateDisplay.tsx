@@ -2,16 +2,15 @@
 import { useState } from "react";
 import { useCertificate } from "../../context/CertificateProvider";
 import { ExportCertificate } from "./ExportCertificate";
-import { CustomMenuItem } from "../shared/CustomMenuItem";
 import { useWallet } from "@src/context/WalletProvider";
-import { FormPaper } from "../sdl/FormPaper";
 import { BinMinusIn, Check, MoreHoriz, PlusCircle, Refresh, WarningTriangle } from "iconoir-react";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { Button } from "../ui/button";
-import Spinner from "../shared/Spinner";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { MdAutorenew, MdGetApp } from "react-icons/md";
-import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
+import { FormPaper } from "@src/components/sdl/FormPaper";
+import { CustomTooltip } from "@src/components/shared/CustomTooltip";
+import { Button } from "@src/components/ui/button";
+import Spinner from "@src/components/shared/Spinner";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@src/components/ui/dropdown-menu";
+import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 
 export function CertificateDisplay() {
   const [isExportingCert, setIsExportingCert] = useState(false);
@@ -112,27 +111,6 @@ export function CertificateDisplay() {
           )}
         </FormPaper>
       )}
-
-      {/* {selectedCertificate && (
-        <Menu
-          id="cert-menu"
-          anchorEl={anchorEl}
-          keepMounted
-          open={Boolean(anchorEl)}
-          onClose={handleClose}
-          anchorOrigin={{
-            vertical: "bottom",
-            horizontal: "right"
-          }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "right"
-          }}
-          onClick={handleClose}
-        >
-          
-        </Menu>
-      )} */}
 
       {isExportingCert && <ExportCertificate isOpen={isExportingCert} onClose={() => setIsExportingCert(false)} />}
     </>

@@ -19,28 +19,6 @@ type Props = {
   headerActions?: ReactNode;
 };
 
-// const useStyles = makeStyles()(theme => ({
-//   tabsRoot: {
-//     minHeight: "36px",
-//     borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`,
-//     "& button": {
-//       minHeight: "36px"
-//     }
-//   },
-//   selectedTab: {
-//     fontWeight: "bold"
-//   },
-//   tabsContainer: {
-//     justifyContent: "center"
-//   },
-//   titleContainer: {
-//     paddingBottom: "0.5rem",
-//     display: "flex",
-//     alignItems: "center",
-//     flexWrap: "wrap"
-//   }
-// }));
-
 export const SettingsLayout: React.FunctionComponent<Props> = ({ children, page, title, headerActions }) => {
   const router = useRouter();
 

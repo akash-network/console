@@ -1,12 +1,12 @@
 "use client";
-import { useCertificate } from "../../context/CertificateProvider";
 import { FormattedDate } from "react-intl";
 import { CertificateDisplay } from "./CertificateDisplay";
 import { useWallet } from "@src/context/WalletProvider";
-import { ConnectWallet } from "../shared/ConnectWallet";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { Button } from "../ui/button";
 import { Check } from "iconoir-react";
+import { useCertificate } from "@src/context/CertificateProvider";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+import { ConnectWallet } from "@src/components/shared/ConnectWallet";
+import { Button } from "@src/components/ui/button";
 
 type Props = {};
 

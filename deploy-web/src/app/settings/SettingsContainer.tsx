@@ -1,16 +1,16 @@
 "use client";
 import { SettingsForm } from "@src/app/settings/SettingsForm";
-import { ColorModeSelect } from "@src/components/layout/ColorModeSelect";
+import { ColorModeSelect } from "@src/app/settings/ColorModeSelect";
 import { PageContainer } from "@src/components/shared/PageContainer";
 import { SettingsLayout, SettingsTabs } from "@src/app/settings/SettingsLayout";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { useState } from "react";
-import { CertificateList } from "@src/components/certificates/CertificateList";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { Button } from "@src/components/ui/button";
 import { Edit } from "iconoir-react";
-import { SelectNetworkModal } from "@src/components/shared/SelectNetworkModal";
+import { SelectNetworkModal } from "@src/app/settings/SelectNetworkModal";
+import { CertificateList } from "./CertificateList";
 
 type Props = {};
 

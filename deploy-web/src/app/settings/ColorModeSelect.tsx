@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Label } from "../ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { FormItem } from "../ui/form";
 import { useTheme } from "next-themes";
+import { FormItem } from "@src/components/ui/form";
+import { Label } from "@src/components/ui/label";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
 
 type Props = {};
 
