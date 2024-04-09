@@ -328,7 +328,7 @@ async function getGpus() {
         WHERE p."isOnline" IS TRUE
         ORDER BY p."hostUri", p."createdHeight" DESC
       )
-      SELECT s."hostUri", s."owner", n."name", n."gpuAllocatable" AS allocatable, n."gpuAllocated" AS allocated, gpu."modelId", gpu.vendor, gpu.name AS "modelName", gpu.interface, gpu."memorySize"
+      SELECT s."hostUri", s."owner", n."name", n."gpuAllocatable" AS allocatable, LEAST(n."gpuAllocated", n."gpuAllocatable") AS allocated, gpu."modelId", gpu.vendor, gpu.name AS "modelName", gpu.interface, gpu."memorySize"
       FROM snapshots s
       INNER JOIN "providerSnapshotNode" n ON n."snapshotId"=s.id AND n."gpuAllocatable" > 0
       LEFT JOIN (
