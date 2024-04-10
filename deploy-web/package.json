@@ -89,7 +89,6 @@
     "material-ui-popup-state": "^4.0.2",
     "nanoid": "^3.3.4",
     "next": "^14.1.0",
-    "next-dark-mode": "^3.0.0",
     "next-nprogress-bar": "^2.1.2",
     "next-pwa": "^5.6.0",
     "next-qrcode": "^2.1.0",
