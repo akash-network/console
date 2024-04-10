@@ -1,12 +1,12 @@
+"use client";
 import React, { ReactNode } from "react";
-import { TableCell } from "@mui/material";
-import { CustomTableRow } from "../shared/CustomTable";
-import { Address } from "../shared/Address";
 import { FormattedTime } from "react-intl";
 import { coinToUDenom } from "@src/utils/priceUtils";
 import { GrantType } from "@src/types/grant";
-import { AKTAmount } from "../shared/AKTAmount";
 import { useDenomData } from "@src/hooks/useWalletBalance";
+import { TableCell, TableRow } from "@src/components/ui/table";
+import { Address } from "@src/components/shared/Address";
+import { AKTAmount } from "@src/components/shared/AKTAmount";
 
 type Props = {
   grant: GrantType;
@@ -17,7 +17,7 @@ export const GranteeRow: React.FunctionComponent<Props> = ({ grant }) => {
   const denomData = useDenomData(grant.authorization.spend_limit.denom);
 
   return (
-    <CustomTableRow>
+    <TableRow>
       <TableCell>
         <Address address={grant.granter} isCopyable />
       </TableCell>
@@ -27,6 +27,6 @@ export const GranteeRow: React.FunctionComponent<Props> = ({ grant }) => {
       <TableCell align="right">
         <FormattedTime year="numeric" month={"numeric"} day={"numeric"} value={grant.expiration} />
       </TableCell>
-    </CustomTableRow>
+    </TableRow>
   );
 };
