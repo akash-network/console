@@ -1,12 +1,12 @@
+"use client";
 import React, { ReactNode } from "react";
-import { TableCell } from "@mui/material";
-import { CustomTableRow } from "../shared/CustomTable";
-import { Address } from "../shared/Address";
 import { FormattedTime } from "react-intl";
 import { AllowanceType } from "@src/types/grant";
-import { AKTAmount } from "../shared/AKTAmount";
 import { coinToUDenom } from "@src/utils/priceUtils";
 import { getAllowanceTitleByType } from "@src/utils/grants";
+import { TableCell, TableRow } from "@src/components/ui/table";
+import { Address } from "@src/components/shared/Address";
+import { AKTAmount } from "@src/components/shared/AKTAmount";
 
 type Props = {
   allowance: AllowanceType;
@@ -14,10 +14,8 @@ type Props = {
 };
 
 export const AllowanceGrantedRow: React.FunctionComponent<Props> = ({ allowance }) => {
-  // const denomData = useDenomData(grant.authorization.spend_limit.denom);
-
   return (
-    <CustomTableRow>
+    <TableRow>
       <TableCell>{getAllowanceTitleByType(allowance)}</TableCell>
       <TableCell>
         <Address address={allowance.granter} isCopyable />
@@ -28,6 +26,6 @@ export const AllowanceGrantedRow: React.FunctionComponent<Props> = ({ allowance 
       <TableCell align="right">
         <FormattedTime year="numeric" month={"numeric"} day={"numeric"} value={allowance.allowance.expiration} />
       </TableCell>
-    </CustomTableRow>
+    </TableRow>
   );
 };

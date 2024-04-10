@@ -1,32 +1,38 @@
+"use client";
 import { useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { FormControl, TextField, Typography, Box, Alert, Select, MenuItem, InputLabel } from "@mui/material";
 import { addYears, format } from "date-fns";
-import { makeStyles } from "tss-react/mui";
 import { useWallet } from "@src/context/WalletProvider";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { LinkTo } from "../shared/LinkTo";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { GrantType } from "@src/types/grant";
-import { Popup } from "../shared/Popup";
 import { getUsdcDenom, useUsdcDenom } from "@src/hooks/useDenom";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { uAktDenom } from "@src/utils/constants";
 import { FormattedDate } from "react-intl";
 import { handleDocClick } from "@src/utils/urlUtils";
-
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: "1rem"
-  }
-}));
+import { Popup } from "@src/components/shared/Popup";
+import { Alert } from "@src/components/ui/alert";
+import { LinkTo } from "@src/components/shared/LinkTo";
+import FormControl from "@mui/material/FormControl/FormControl";
+import InputLabel from "@mui/material/InputLabel/InputLabel";
+import Select from "@mui/material/Select/Select";
+import MenuItem from "@mui/material/MenuItem/MenuItem";
+import TextField from "@mui/material/TextField/TextField";
+type GrantFormValues = {
+  token: string;
+  amount: number;
+  expiration: string;
+  useDepositor: boolean;
+  granteeAddress: string;
+};
 
 type Props = {
   address: string;
-  editingGrant?: GrantType;
+  editingGrant?: GrantType | null;
   onClose: () => void;
 };
 
@@ -36,19 +42,11 @@ const supportedTokens = [
 ];
 
 export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, address, onClose }) => {
-  const formRef = useRef(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState("");
-  const { classes } = useStyles();
   const { signAndBroadcastTx } = useWallet();
   const usdcDenom = useUsdcDenom();
-  const {
-    handleSubmit,
-    control,
-    formState: { errors },
-    watch,
-    clearErrors,
-    setValue
-  } = useForm({
+  const { handleSubmit, control, watch, clearErrors, setValue } = useForm<GrantFormValues>({
     defaultValues: {
       token: editingGrant ? (editingGrant.authorization.spend_limit.denom === usdcDenom ? "usdc" : "akt") : "akt",
       amount: editingGrant ? coinToDenom(editingGrant.authorization.spend_limit) : 0,
@@ -64,10 +62,10 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
 
   const onDepositClick = event => {
     event.preventDefault();
-    formRef.current.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  const onSubmit = async ({ amount }) => {
+  const onSubmit = async ({ amount, expiration, granteeAddress }: GrantFormValues) => {
     setError("");
     clearErrors();
     const spendLimit = token === "akt" ? aktToUakt(amount) : denomToUdenom(amount);
@@ -90,7 +88,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
 
   const onBalanceClick = () => {
     clearErrors();
-    setValue("amount", denomData?.inputMax);
+    setValue("amount", denomData?.inputMax || 0);
   };
 
   return (
@@ -109,7 +107,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
         {
           label: "Grant",
           color: "secondary",
-          variant: "contained",
+          variant: "default",
           side: "right",
           disabled: !amount,
           onClick: onDepositClick
@@ -121,8 +119,11 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
       title="Authorize Spending"
     >
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-        <Alert severity="info" sx={{ marginBottom: "1rem" }}>
-          <Typography variant="caption">
+        <Alert
+          className="mb-4"
+          // severity="info"
+        >
+          <p className="text-sm text-muted-foreground">
             <LinkTo
               onClick={ev =>
                 handleDocClick(
@@ -135,16 +136,16 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
             </LinkTo>{" "}
             allows users to authorize spend of a set number of tokens from a source wallet to a destination, funded wallet. The authorized spend is restricted
             to Akash deployment activities and the recipient of the tokens would not have access to those tokens for other operations.
-          </Typography>
+          </p>
         </Alert>
 
-        <Box marginBottom=".5rem" marginTop=".5rem" textAlign="right">
+        <div className="mb-2 mt-2 text-right">
           <LinkTo onClick={() => onBalanceClick()}>
             Balance: {denomData?.balance} {denomData?.label}
           </LinkTo>
-        </Box>
+        </div>
 
-        <FormControl className={classes.formControl} fullWidth sx={{ display: "flex", alignItems: "center", flexDirection: "row" }}>
+        <FormControl className="mb-4 flex flex-row items-center" fullWidth>
           <InputLabel id="grant-token">Token</InputLabel>
           <Controller
             control={control}
@@ -192,7 +193,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
           />
         </FormControl>
 
-        <FormControl className={classes.formControl} fullWidth>
+        <FormControl className="mb-4" fullWidth>
           <Controller
             control={control}
             name="granteeAddress"
@@ -216,7 +217,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
           />
         </FormControl>
 
-        <FormControl className={classes.formControl} fullWidth>
+        <FormControl className="mb-4" fullWidth>
           <Controller
             control={control}
             name="expiration"
@@ -239,15 +240,17 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
         </FormControl>
 
         {!!amount && granteeAddress && (
-          <Alert severity="info" variant="outlined">
-            <Typography variant="caption">
-              This address will be able to spend up to {amount} {selectedToken.label} on your behalf ending on{" "}
+          <Alert
+          // severity="info"
+          >
+            <p className="text-sm text-muted-foreground">
+              This address will be able to spend up to {amount} {selectedToken?.label} on your behalf ending on{" "}
               <FormattedDate value={expiration} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />.
-            </Typography>
+            </p>
           </Alert>
         )}
 
-        {error && <Alert severity="warning">{error}</Alert>}
+        {error && <Alert variant="warning">{error}</Alert>}
       </form>
     </Popup>
   );

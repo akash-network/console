@@ -1,55 +1,23 @@
-import { Box } from "@mui/material";
-import { makeStyles } from "tss-react/mui";
+"use client";
 
-const useStyles = makeStyles()(theme => ({
-  infoRow: {
-    display: "flex",
-    marginBottom: "1rem",
-    "&:last-child": {
-      marginBottom: 0
-    },
-    [theme.breakpoints.down("sm")]: {
-      flexDirection: "column",
-      alignItems: "flex-start"
-    }
-  },
-  label: {
-    fontWeight: "bold",
-    flexShrink: 0,
-    wordBreak: "break-all",
-    color: theme.palette.grey[600],
-    display: "flex",
-    alignItems: "center",
-    paddingRight: ".5rem"
-  },
-  value: {
-    wordBreak: "break-all",
-    overflowWrap: "anywhere",
-    flexGrow: 1,
-    [theme.breakpoints.down("sm")]: {
-      width: "100%"
-    }
-  }
-}));
+import { cn } from "@src/utils/styleUtils";
 
 type LabelValueProps = {
-  label: any;
-  value?: any;
+  label?: string | React.ReactNode;
+  value?: string | React.ReactNode;
   labelWidth?: string | number;
-
-  // All other props
-  [x: string]: any;
+  className?: string;
 };
 
-export const LabelValue: React.FunctionComponent<LabelValueProps> = ({ label, value, labelWidth = "15rem", ...rest }) => {
-  const { classes } = useStyles();
-
+export const LabelValue: React.FunctionComponent<LabelValueProps> = ({ label, value, labelWidth = "15rem", className = "" }) => {
   return (
-    <Box className={classes.infoRow} {...rest}>
-      <Box className={classes.label} sx={{ width: labelWidth }}>
-        {label}
-      </Box>
-      {!!value && <div className={classes.value}>{value}</div>}
-    </Box>
+    <div className={cn(className, "mb-4 flex flex-col items-start last:mb-0 sm:flex-row sm:items-center")}>
+      {label && (
+        <div className="flex shrink-0 items-center break-all pr-2 font-bold text-muted-foreground" style={{ width: labelWidth }}>
+          {label}
+        </div>
+      )}
+      {value !== undefined && <div className="w-full flex-grow break-all [overflow-wrap:anywhere] sm:w-auto">{value}</div>}
+    </div>
   );
 };
