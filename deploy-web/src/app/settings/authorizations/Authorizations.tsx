@@ -149,9 +149,9 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Grantee</TableHead>
-                      <TableHead align="right">Spending Limit</TableHead>
-                      <TableHead align="right">Expiration</TableHead>
-                      <TableHead align="right"></TableHead>
+                      <TableHead className="text-right">Spending Limit</TableHead>
+                      <TableHead className="text-right">Expiration</TableHead>
+                      <TableHead className="text-right"></TableHead>
                     </TableRow>
                   </TableHeader>
 
@@ -180,8 +180,8 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Granter</TableHead>
-                      <TableHead align="right">Spending Limit</TableHead>
-                      <TableHead align="right">Expiration</TableHead>
+                      <TableHead className="text-right">Spending Limit</TableHead>
+                      <TableHead className="text-right">Expiration</TableHead>
                     </TableRow>
                   </TableHeader>
 
@@ -224,9 +224,9 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
                     <TableRow>
                       <TableHead>Type</TableHead>
                       <TableHead>Grantee</TableHead>
-                      <TableHead align="right">Spending Limit</TableHead>
-                      <TableHead align="right">Expiration</TableHead>
-                      <TableHead align="right"></TableHead>
+                      <TableHead className="text-right">Spending Limit</TableHead>
+                      <TableHead className="text-right">Expiration</TableHead>
+                      <TableHead className="text-right"></TableHead>
                     </TableRow>
                   </CustomTableHeader>
 
@@ -262,7 +262,7 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
                       <TableHead>Type</TableHead>
                       <TableHead>Grantee</TableHead>
                       <TableHead>Spending Limit</TableHead>
-                      <TableHead align="right">Expiration</TableHead>
+                      <TableHead className="text-right">Expiration</TableHead>
                     </TableRow>
                   </CustomTableHeader>
 
