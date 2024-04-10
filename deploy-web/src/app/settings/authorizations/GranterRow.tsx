@@ -1,14 +1,14 @@
+"use client";
 import React, { ReactNode } from "react";
-import { IconButton, TableCell } from "@mui/material";
-import { CustomTableRow } from "../shared/CustomTable";
-import { Address } from "../shared/Address";
 import { FormattedTime } from "react-intl";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
 import { coinToUDenom } from "@src/utils/priceUtils";
 import { GrantType } from "@src/types/grant";
-import { AKTAmount } from "../shared/AKTAmount";
 import { useDenomData } from "@src/hooks/useWalletBalance";
+import { TableCell, TableRow } from "@src/components/ui/table";
+import { Address } from "@src/components/shared/Address";
+import { AKTAmount } from "@src/components/shared/AKTAmount";
+import { Button } from "@src/components/ui/button";
+import { Bin, Edit } from "iconoir-react";
 
 type Props = {
   grant: GrantType;
@@ -21,7 +21,7 @@ export const GranterRow: React.FunctionComponent<Props> = ({ children, grant, on
   const denomData = useDenomData(grant.authorization.spend_limit.denom);
 
   return (
-    <CustomTableRow>
+    <TableRow>
       <TableCell>
         <Address address={grant.grantee} isCopyable />
       </TableCell>
@@ -32,13 +32,13 @@ export const GranterRow: React.FunctionComponent<Props> = ({ children, grant, on
         <FormattedTime year="numeric" month={"numeric"} day={"numeric"} value={grant.expiration} />
       </TableCell>
       <TableCell align="right">
-        <IconButton onClick={() => onEditGrant(grant)}>
-          <EditIcon />
-        </IconButton>
-        <IconButton onClick={() => setDeletingGrant(grant)}>
-          <DeleteIcon />
-        </IconButton>
+        <Button variant="ghost" size="icon" onClick={() => onEditGrant(grant)}>
+          <Edit />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => setDeletingGrant(grant)} className="ml-2">
+          <Bin />
+        </Button>
       </TableCell>
-    </CustomTableRow>
+    </TableRow>
   );
 };

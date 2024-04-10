@@ -1,45 +1,42 @@
+"use client";
 import { useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { FormControl, TextField, Typography, Box, Alert, InputAdornment } from "@mui/material";
 import { addYears, format } from "date-fns";
-import { makeStyles } from "tss-react/mui";
 import { useWallet } from "@src/context/WalletProvider";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { LinkTo } from "../shared/LinkTo";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { AllowanceType } from "@src/types/grant";
-import { Popup } from "../shared/Popup";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { uAktDenom } from "@src/utils/constants";
 import { FormattedDate } from "react-intl";
+import { Popup } from "@src/components/shared/Popup";
+import { Alert } from "@src/components/ui/alert";
+import { LinkTo } from "@src/components/shared/LinkTo";
+import FormControl from "@mui/material/FormControl/FormControl";
+import TextField from "@mui/material/TextField/TextField";
+import InputAdornment from "@mui/material/InputAdornment/InputAdornment";
+import { EncodeObject } from "@cosmjs/proto-signing";
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: "1rem"
-  }
-}));
+type AllowanceFormValues = {
+  amount: number;
+  expiration: string;
+  useDepositor: boolean;
+  granteeAddress: string;
+};
 
 type Props = {
   address: string;
-  editingAllowance?: AllowanceType;
+  editingAllowance?: AllowanceType | null;
   onClose: () => void;
 };
 
 export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowance, address, onClose }) => {
-  const formRef = useRef(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState("");
-  const { classes } = useStyles();
   const { signAndBroadcastTx } = useWallet();
-  const {
-    handleSubmit,
-    control,
-    formState: { errors },
-    watch,
-    clearErrors,
-    setValue
-  } = useForm({
+  const { handleSubmit, control, watch, clearErrors, setValue } = useForm<AllowanceFormValues>({
     defaultValues: {
       amount: editingAllowance ? coinToDenom(editingAllowance.allowance.spend_limit[0]) : 0,
       expiration: format(addYears(new Date(), 1), "yyyy-MM-dd'T'HH:mm"),
@@ -52,14 +49,14 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
 
   const onDepositClick = event => {
     event.preventDefault();
-    formRef.current.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  const onSubmit = async ({ amount }) => {
+  const onSubmit = async ({ amount, expiration, granteeAddress }: AllowanceFormValues) => {
     setError("");
     clearErrors();
 
-    const messages = [];
+    const messages: EncodeObject[] = [];
     const spendLimit = aktToUakt(amount);
     const expirationDate = new Date(expiration);
 
@@ -87,7 +84,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
 
   const onBalanceClick = () => {
     clearErrors();
-    setValue("amount", denomData?.inputMax);
+    setValue("amount", denomData?.inputMax || 0);
   };
 
   return (
@@ -106,7 +103,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
         {
           label: "Grant",
           color: "secondary",
-          variant: "contained",
+          variant: "default",
           side: "right",
           disabled: !amount,
           onClick: onDepositClick
@@ -118,20 +115,20 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
       title="Authorize Fee Spending"
     >
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-        <Alert severity="info" sx={{ marginBottom: "1rem" }}>
-          <Typography variant="caption">
+        <Alert className="mb-4">
+          <p className="text-sm text-muted-foreground">
             <LinkTo onClick={ev => handleDocClick(ev, "https://docs.cosmos.network/v0.46/modules/feegrant/")}>Authorized Fee Spend</LinkTo> allows users to
             authorize spend of a set number of tokens on fees from a source wallet to a destination, funded wallet.
-          </Typography>
+          </p>
         </Alert>
 
-        <Box marginBottom=".5rem" marginTop=".5rem" textAlign="right">
+        <div className="mb-2 mt-2 text-right">
           <LinkTo onClick={() => onBalanceClick()}>
             Balance: {denomData?.balance} {denomData?.label}
           </LinkTo>
-        </Box>
+        </div>
 
-        <FormControl className={classes.formControl} fullWidth>
+        <FormControl className="mb-4" fullWidth>
           <Controller
             control={control}
             name="amount"
@@ -160,7 +157,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
           />
         </FormControl>
 
-        <FormControl className={classes.formControl} fullWidth>
+        <FormControl className="mb-4" fullWidth>
           <Controller
             control={control}
             name="granteeAddress"
@@ -184,7 +181,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
           />
         </FormControl>
 
-        <FormControl className={classes.formControl} fullWidth>
+        <FormControl className="mb-4" fullWidth>
           <Controller
             control={control}
             name="expiration"
@@ -207,17 +204,16 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
         </FormControl>
 
         {!!amount && granteeAddress && (
-          <Alert severity="info" variant="outlined">
-            <Typography variant="caption">
+          <Alert>
+            <p className="text-sm text-muted-foreground">
               This address will be able to spend up to {amount} AKT on <b>transaction fees</b> on your behalf ending on{" "}
               <FormattedDate value={expiration} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />.
-            </Typography>
+            </p>
           </Alert>
         )}
 
-        {error && <Alert severity="warning">{error}</Alert>}
+        {error && <Alert variant="warning">{error}</Alert>}
       </form>
     </Popup>
   );
 };
-

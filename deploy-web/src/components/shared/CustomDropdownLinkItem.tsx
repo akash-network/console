@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import { DropdownMenuIconItem } from "../ui/dropdown-menu";
 import { cn } from "@src/utils/styleUtils";

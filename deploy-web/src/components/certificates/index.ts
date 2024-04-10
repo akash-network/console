@@ -1,1 +1,0 @@
-export { CertificateDisplay } from "./CertificateDisplay";
