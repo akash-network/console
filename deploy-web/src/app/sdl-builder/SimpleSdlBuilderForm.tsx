@@ -1,55 +1,49 @@
-import { Alert, Box, Button, CircularProgress, Typography } from "@mui/material";
+"use client";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { ITemplate, SdlBuilderFormValues, Service } from "@src/types";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { defaultService } from "@src/utils/sdl/data";
-import { SimpleServiceFormControl } from "./SimpleServiceFormControl";
-import { ImportSdlModal } from "./ImportSdlModal";
-import { useRouter } from "next/router";
+import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
-import { SaveTemplateModal } from "./SaveTemplateModal";
-import { useSnackbar } from "notistack";
-import { Snackbar } from "../shared/Snackbar";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { memoryUnits, storageUnits } from "../shared/akash/units";
 import sdlStore from "@src/store/sdlStore";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useAtom } from "jotai";
-import { PreviewSdl } from "./PreviewSdl";
 import { useGpuModels } from "@src/queries/useGpuQuery";
+import { useToast } from "@src/components/ui/use-toast";
+import { memoryUnits, storageUnits } from "@src/components/shared/akash/units";
+import { SimpleServiceFormControl } from "@src/components/sdl/SimpleServiceFormControl";
+import { Button } from "@src/components/ui/button";
+import { Alert } from "@src/components/ui/alert";
+import Spinner from "@src/components/shared/Spinner";
+import { NavArrowRight } from "iconoir-react";
+import { ImportSdlModal } from "./ImportSdlModal";
+import { PreviewSdl } from "./PreviewSdl";
+import { SaveTemplateModal } from "./SaveTemplateModal";
 
 type Props = {};
 
 export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
   const [error, setError] = useState(null);
-  const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
-  const [serviceCollapsed, setServiceCollapsed] = useState([]);
+  const [templateMetadata, setTemplateMetadata] = useState<ITemplate | null>(null);
+  const [serviceCollapsed, setServiceCollapsed] = useState<number[]>([]);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [isImportingSdl, setIsImportingSdl] = useState(false);
   const [isPreviewingSdl, setIsPreviewingSdl] = useState(false);
-  const [sdlResult, setSdlResult] = useState<string>(null);
-  const formRef = useRef<HTMLFormElement>();
+  const [sdlResult, setSdlResult] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [sdlBuilderSdl, setSdlBuilderSdl] = useAtom(sdlStore.sdlBuilderSdl);
   const { data: gpuModels } = useGpuModels();
-  const { enqueueSnackbar } = useSnackbar();
-  const {
-    handleSubmit,
-    reset,
-    control,
-    formState: { isValid },
-    trigger,
-    watch,
-    setValue
-  } = useForm<SdlBuilderFormValues>({
+  const { toast } = useToast();
+  const { handleSubmit, reset, control, trigger, watch, setValue } = useForm<SdlBuilderFormValues>({
     defaultValues: {
       services: [{ ...defaultService }]
     }
@@ -65,6 +59,8 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
   });
   const { services: _services } = watch();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const templateQueryId = searchParams?.get("id");
 
   useEffect(() => {
     if (sdlBuilderSdl && sdlBuilderSdl.services) {
@@ -74,18 +70,18 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
 
   // Load the template from query string on mount
   useEffect(() => {
-    if ((router.query.id && !templateMetadata) || (router.query.id && templateMetadata?.id !== router.query.id)) {
+    if ((templateQueryId && !templateMetadata) || (templateQueryId && templateMetadata?.id !== templateQueryId)) {
       // Load user template
-      loadTemplate(router.query.id as string);
-    } else if (!router.query.id && templateMetadata) {
+      loadTemplate(templateQueryId as string);
+    } else if (!templateQueryId && templateMetadata) {
       setTemplateMetadata(null);
       reset();
     }
-  }, [router.query.id, templateMetadata]);
+  }, [templateQueryId, templateMetadata]);
 
   useEffect(() => {
     if (_services) {
-      setSdlBuilderSdl({ services: _services });
+      setSdlBuilderSdl({ services: _services as Service[] });
     }
   }, [_services]);
 
@@ -104,9 +100,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
       setServiceCollapsed(services.map((x, i) => i));
       setTemplateMetadata(template);
     } catch (error) {
-      enqueueSnackbar(<Snackbar title="Error fetching template." iconVariant="error" />, {
-        variant: "error"
-      });
+      toast({ title: "Error fetching template.", variant: "destructive" });
 
       setIsLoadingTemplate(false);
     }
@@ -157,7 +151,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
     setError(null);
 
     try {
-      const sdl = generateSdl(_services);
+      const sdl = generateSdl(_services as Service[]);
       setSdlResult(sdl);
       setIsPreviewingSdl(true);
 
@@ -171,24 +165,24 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
   };
 
   const getTemplateData = () => {
-    const sdl = generateSdl(_services);
+    const sdl = generateSdl(_services as Service[]);
     const template: Partial<ITemplate> = {
-      id: templateMetadata?.id || null,
+      id: templateMetadata?.id || undefined,
       sdl,
-      cpu: _services.map(s => s.profile.cpu * 1000).reduce((a, b) => a + b, 0),
+      cpu: _services?.map(s => (s.profile?.cpu || 0) * 1000).reduce((a, b) => a + b, 0),
       ram: _services
-        .map(s => {
-          const ramUnit = memoryUnits.find(x => x.suffix === s.profile.ramUnit);
+        ?.map(s => {
+          const ramUnit = memoryUnits.find(x => x.suffix === s.profile?.ramUnit);
 
-          return s.profile.ram * ramUnit.value;
+          return (s.profile?.ram || 0) * (ramUnit?.value || 0);
         })
         .reduce((a, b) => a + b, 0),
       storage: _services
-        .map(s => {
-          const ephemeralStorageUnit = storageUnits.find(x => x.suffix === s.profile.ramUnit);
-          const peristentStorageUnit = storageUnits.find(x => x.suffix === s.profile.persistentStorageUnit);
-          const ephemeralStorage = s.profile.storage + ephemeralStorageUnit.value;
-          const persistentStorage = s.profile.hasPersistentStorage ? s.profile.persistentStorage + peristentStorageUnit.value : 0;
+        ?.map(s => {
+          const ephemeralStorageUnit = storageUnits.find(x => x.suffix === s.profile?.ramUnit);
+          const peristentStorageUnit = storageUnits.find(x => x.suffix === s.profile?.persistentStorageUnit);
+          const ephemeralStorage = (s.profile?.storage || 0) + (ephemeralStorageUnit?.value || 0);
+          const persistentStorage = s.profile?.hasPersistentStorage ? (s.profile?.persistentStorage || 0) + (peristentStorageUnit?.value || 0) : 0;
 
           return ephemeralStorage + persistentStorage;
         })
@@ -200,21 +194,21 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
   return (
     <>
       {isImportingSdl && <ImportSdlModal onClose={() => setIsImportingSdl(false)} setValue={setValue} />}
-      {isPreviewingSdl && <PreviewSdl onClose={() => setIsPreviewingSdl(false)} sdl={sdlResult} />}
+      {isPreviewingSdl && <PreviewSdl onClose={() => setIsPreviewingSdl(false)} sdl={sdlResult || ""} />}
       {isSavingTemplate && (
         <SaveTemplateModal
           onClose={() => setIsSavingTemplate(false)}
           getTemplateData={getTemplateData}
-          templateMetadata={templateMetadata}
+          templateMetadata={templateMetadata as ITemplate}
           setTemplateMetadata={setTemplateMetadata}
-          services={_services}
+          services={_services as Service[]}
         />
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
         {templateMetadata && (
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Typography variant="body1">
+          <div className="flex items-center">
+            <p>
               {templateMetadata.title}&nbsp;by&nbsp;
               {templateMetadata.username && (
                 <span
@@ -228,13 +222,12 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
                   <Link href={UrlService.userProfile(templateMetadata.username)}>{templateMetadata.username}</Link>
                 </span>
               )}
-            </Typography>
+            </p>
 
-            <Box sx={{ marginLeft: "1.5rem" }}>
-              <Box
-                href={UrlService.template(router.query.id as string)}
-                component={Link}
-                sx={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}
+            <div className="ml-6">
+              <Link
+                href={UrlService.template(templateQueryId as string)}
+                className="inline-flex items-center cursor-pointer"
                 onClick={() => {
                   event(AnalyticsEvents.CLICK_VIEW_TEMPLATE, {
                     category: "sdl_builder",
@@ -242,29 +235,30 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
                   });
                 }}
               >
-                View template <ArrowForwardIcon sx={{ marginLeft: ".5rem" }} fontSize="small" />
-              </Box>
-            </Box>
-          </Box>
+                View template <NavArrowRight className="text-sm ml-2" />
+              </Link>
+            </div>
+          </div>
         )}
 
-        <Box sx={{ paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Button color="secondary" variant="contained" type="submit">
+        <div className="flex items-center pt-4 justify-between">
+          <div className="flex items-center">
+            <Button color="secondary" variant="default" type="submit">
               Deploy
             </Button>
 
-            <Button color="secondary" variant="text" onClick={onPreviewSdlClick} sx={{ marginLeft: "1rem" }}>
+            <Button color="secondary" variant="text" onClick={onPreviewSdlClick} className="ml-4" type="button">
               Preview
             </Button>
 
-            <Button color="secondary" variant="text" onClick={() => setIsImportingSdl(true)} sx={{ marginLeft: "1rem" }}>
+            <Button color="secondary" variant="text" onClick={() => setIsImportingSdl(true)} className="ml-4" type="button">
               Import
             </Button>
 
             <Button
               variant="text"
-              sx={{ marginLeft: "1rem" }}
+              className="ml-4"
+              type="button"
               onClick={() => {
                 event(AnalyticsEvents.RESET_SDL, {
                   category: "sdl_builder",
@@ -278,24 +272,24 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
             </Button>
 
             {isLoadingTemplate && (
-              <Box sx={{ marginLeft: "1rem" }}>
-                <CircularProgress color="secondary" size="1.2rem" />
-              </Box>
+              <div className="ml-4">
+                <Spinner />
+              </div>
             )}
-          </Box>
+          </div>
 
           <div>
-            <Button color="secondary" variant="contained" onClick={() => onSaveClick()}>
+            <Button color="secondary" variant="default" type="button" onClick={() => onSaveClick()}>
               Save
             </Button>
           </div>
-        </Box>
+        </div>
 
         {services.map((service, serviceIndex) => (
           <SimpleServiceFormControl
             key={service.id}
             serviceIndex={serviceIndex}
-            _services={_services}
+            _services={_services as Service[]}
             setValue={setValue}
             control={control}
             trigger={trigger}
@@ -307,18 +301,18 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
         ))}
 
         {error && (
-          <Alert severity="error" variant="outlined" sx={{ marginTop: "1rem" }}>
+          <Alert variant="destructive" className="mt-4">
             {error}
           </Alert>
         )}
 
-        <Box sx={{ paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+        <div className="flex items-center justify-end pt-4">
           <div>
-            <Button color="secondary" variant="contained" onClick={onAddService}>
+            <Button color="secondary" variant="default" onClick={onAddService} type="button">
               Add Service
             </Button>
           </div>
-        </Box>
+        </div>
       </form>
     </>
   );
