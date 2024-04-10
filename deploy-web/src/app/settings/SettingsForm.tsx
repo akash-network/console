@@ -19,41 +19,6 @@ import InputAdornment from "@mui/material/InputAdornment";
 
 type Props = {};
 
-// const useStyles = makeStyles()(theme => ({
-//   title: {
-//     fontSize: "1.5rem",
-//     fontWeight: "bold"
-//   },
-//   form: {
-//     padding: "1rem 0 0"
-//   },
-//   fieldRow: {
-//     display: "flex",
-//     alignItems: "center",
-//     marginBottom: ".5rem"
-//   },
-//   formLabel: {
-//     flexBasis: "20%",
-//     minWidth: 150,
-//     paddingRight: "1rem"
-//   },
-//   formControl: {
-//     width: "100%"
-//   },
-//   formValue: {
-//     flexGrow: 1
-//   },
-//   submitButton: {
-//     marginLeft: "1rem"
-//   },
-//   nodeInput: {
-//     paddingRight: "1rem !important"
-//   },
-//   inputClickable: {
-//     cursor: "pointer"
-//   }
-// }));
-
 export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isNodesOpen, setIsNodesOpen] = useState(false);
