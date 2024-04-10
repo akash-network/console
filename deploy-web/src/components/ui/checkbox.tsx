@@ -38,11 +38,11 @@ const CheckboxWithLabel = React.forwardRef<
   );
 
   return (
-    <label className="flex cursor-pointer items-center space-x-2">
+    <div className="flex cursor-pointer items-center space-x-2">
       {labelPosition === "left" && _label}
       <Checkbox {...props} id={id} />
       {labelPosition === "right" && _label}
-    </label>
+    </div>
   );
 });
 CheckboxWithLabel.displayName = "CheckboxWithLabel";

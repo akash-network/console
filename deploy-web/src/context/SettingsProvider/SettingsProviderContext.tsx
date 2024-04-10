@@ -9,7 +9,7 @@ import { NodeStatus } from "@src/types/node";
 import { initiateNetworkData, networks } from "@src/store/networkStore";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 
-type Node = {
+export type BlockchainNode = {
   api: string;
   rpc: string;
   status: string;
@@ -22,9 +22,9 @@ export type Settings = {
   apiEndpoint: string;
   rpcEndpoint: string;
   isCustomNode: boolean;
-  nodes: Array<Node>;
-  selectedNode: Node | null;
-  customNode: Node | null;
+  nodes: Array<BlockchainNode>;
+  selectedNode: BlockchainNode | null;
+  customNode: BlockchainNode | null;
 };
 
 type ContextType = {
