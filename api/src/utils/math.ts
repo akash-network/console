@@ -19,11 +19,11 @@ export function median(values: number[]): number {
     throw new Error("Input array is empty");
   }
 
-  values = [...values].sort((a, b) => a - b);
+  const sortedValues = [...values].sort((a, b) => a - b);
 
-  const half = Math.floor(values.length / 2);
+  const half = Math.floor(sortedValues.length / 2);
 
-  return values.length % 2 === 0 ? (values[half - 1] + values[half]) / 2 : values[half];
+  return sortedValues.length % 2 === 0 ? (sortedValues[half - 1] + sortedValues[half]) / 2 : sortedValues[half];
 }
 
 export function average(values: number[]): number {
