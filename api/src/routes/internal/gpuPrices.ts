@@ -6,7 +6,7 @@ import { cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
 import { MsgCreateBid } from "@src/proto/akash/v1beta4";
 import { averageBlockCountInAMonth, averageBlockCountInAnHour } from "@src/utils/constants";
-import { round } from "@src/utils/math";
+import { average, median, round, weightedAverage } from "@src/utils/math";
 import { decodeMsg, uint8arrayToString } from "@src/utils/protobuf";
 import { addDays } from "date-fns";
 import { Op, QueryTypes } from "sequelize";
@@ -44,6 +44,7 @@ const route = createRoute({
                   min: z.number(),
                   max: z.number(),
                   avg: z.number(),
+                  weightedAverage: z.number(),
                   med: z.number()
                 })
               })
@@ -204,8 +205,6 @@ async function getGpuPrices(debug: boolean) {
       available: totalAllocatable - totalAllocated
     },
     models: gpuModels.map((x) => {
-      x.prices.sort((a, b) => a.hourlyPrice - b.hourlyPrice);
-
       /* 
         For each providers get their most relevent bid based on this order of priority:
             1- Most recent bid from the pricing bot (those deployment have tiny cpu/ram/storage specs to improve gpu price accuracy)
@@ -214,23 +213,27 @@ async function getGpuPrices(debug: boolean) {
             4- Cheapest remaining bid
             5- If no bids are found, increase search range from 14 to 31 days and repeat steps 2-4
       */
-      const bestProviderBids = x.providers
+      const providersWithBestBid = x.providers
         .map((p) => {
           const providerBids = x.prices.filter((b) => b.provider === p.owner);
           const providerBidsLast14d = providerBids.filter((x) => x.datetime > addDays(new Date(), -14));
 
           const pricingBotAddress = "akash1pas6v0905jgyznpvnjhg7tsthuyqek60gkz7uf";
           const bidsFromPricingBot = providerBids.filter((x) => x.deployment.owner === pricingBotAddress && x.deployment.cpuUnits === 100);
-          
-          if (bidsFromPricingBot.length > 0) return bidsFromPricingBot.sort((a, b) => b.height - a.height)[0];
 
-          return findBestProviderBid(providerBidsLast14d, x) ?? findBestProviderBid(providerBids, x);
+          let bestBid = null;
+          if (bidsFromPricingBot.length > 0) {
+            bestBid = bidsFromPricingBot.sort((a, b) => b.height - a.height)[0];
+          } else {
+            bestBid = findBestProviderBid(providerBidsLast14d, x) ?? findBestProviderBid(providerBids, x);
+          }
+
+          return {
+            provider: p,
+            bestBid: bestBid
+          };
         })
-        .filter((x) => x)
-        .sort((a, b) => a.hourlyPrice - b.hourlyPrice);
-
-      // Sort provider bids by price for the median calculation
-      const sortedPrices = bestProviderBids.map((x) => x.hourlyPrice);
+        .filter((x) => x.bestBid);
 
       return {
         vendor: x.vendor,
@@ -246,19 +249,37 @@ async function getGpuPrices(debug: boolean) {
           available: x.availableProviders.length,
           providers: debug ? x.providers : undefined
         },
-        price: {
-          currency: "USD",
-          min: Math.min(...sortedPrices),
-          max: Math.max(...sortedPrices),
-          avg: round(sortedPrices.reduce((a, b) => a + b, 0) / sortedPrices.length, 2),
-          med: sortedPrices[Math.floor(sortedPrices.length / 2)]
-        },
+        price: getPricing(providersWithBestBid),
         bidCount: debug ? x.prices.length : undefined,
-        bids: debug ? x.prices : undefined,
-        bestProviderBids: debug ? bestProviderBids : undefined
+        providersWithBestBid: debug ? providersWithBestBid : undefined
       };
     })
   };
+}
+
+function getPricing(
+  providersWithBestBid: {
+    provider: GpuProviderType;
+    bestBid: GpuBidType;
+  }[]
+) {
+  try {
+    if (!providersWithBestBid || providersWithBestBid.length === 0) return null;
+
+    const prices = providersWithBestBid.map((x) => x.bestBid.hourlyPrice);
+
+    return {
+      currency: "USD",
+      min: Math.min(...prices),
+      max: Math.max(...prices),
+      avg: round(average(prices), 2),
+      weightedAverage: round(weightedAverage(providersWithBestBid.map((p) => ({ value: p.bestBid.hourlyPrice, weight: p.provider.allocatable }))), 2),
+      med: round(median(prices), 2)
+    };
+  } catch (e) {
+    console.error("Error calculating pricing", e);
+    return null;
+  }
 }
 
 function findBestProviderBid(providerBids: GpuBidType[], gpuModel: GpuWithPricesType) {
@@ -346,20 +367,25 @@ async function getGpus() {
   const gpus: GpuType[] = [];
 
   for (const gpuNode of gpuNodes) {
-    const existing = gpus.find(
+    const nodeInfo = { owner: gpuNode.owner, hostUri: gpuNode.hostUri, allocated: gpuNode.allocated, allocatable: gpuNode.allocatable };
+
+    const existingGpu = gpus.find(
       (x) => x.vendor === gpuNode.vendor && x.model === gpuNode.modelName && x.interface === gpuNode.interface && x.ram === gpuNode.memorySize
     );
 
-    if (existing) {
-      existing.allocatable += gpuNode.allocatable;
-      existing.allocated += gpuNode.allocated;
+    if (existingGpu) {
+      existingGpu.allocatable += gpuNode.allocatable;
+      existingGpu.allocated += gpuNode.allocated;
 
-      if (!existing.providers.some((p) => p.hostUri === gpuNode.hostUri)) {
-        existing.providers.push({ owner: gpuNode.owner, hostUri: gpuNode.hostUri });
+      const existingProvider = existingGpu.providers.find((p) => p.hostUri === gpuNode.hostUri);
+      if (!existingProvider) {
+        existingGpu.providers.push(nodeInfo);
+      } else {
+        existingProvider.allocated += gpuNode.allocated;
+        existingProvider.allocatable += gpuNode.allocatable;
       }
-      if (gpuNode.allocated < gpuNode.allocatable && !existing.availableProviders.some((p) => p.hostUri === gpuNode.hostUri)) {
-        existing.availableProviders.push({ owner: gpuNode.owner, hostUri: gpuNode.hostUri });
-      }
+
+      existingGpu.availableProviders = existingGpu.providers.filter((p) => p.allocated < p.allocatable);
     } else {
       gpus.push({
         vendor: gpuNode.vendor,
@@ -368,8 +394,8 @@ async function getGpus() {
         interface: gpuNode.interface,
         allocatable: gpuNode.allocatable,
         allocated: gpuNode.allocated,
-        providers: [{ owner: gpuNode.owner, hostUri: gpuNode.hostUri }],
-        availableProviders: gpuNode.allocated < gpuNode.allocatable ? [{ owner: gpuNode.owner, hostUri: gpuNode.hostUri }] : []
+        providers: [nodeInfo],
+        availableProviders: gpuNode.allocated < gpuNode.allocatable ? [nodeInfo] : []
       });
     }
   }
@@ -384,6 +410,13 @@ type GpuType = {
   ram: string;
   allocatable: number;
   allocated: number;
-  providers: { owner: string; hostUri: string }[];
-  availableProviders: { owner: string; hostUri: string }[];
+  providers: GpuProviderType[];
+  availableProviders: GpuProviderType[];
+};
+
+type GpuProviderType = {
+  owner: string;
+  hostUri: string;
+  allocated: number;
+  allocatable: number;
 };
