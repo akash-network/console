@@ -7,7 +7,7 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequired";
-import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
+import { UserProfileLayout } from "@src/app/profile/[username]/UserProfileLayout";
 
 type Props = {};
 
