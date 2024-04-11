@@ -1,10 +1,14 @@
+"use client";
 import { ReactNode, useRef, useState } from "react";
-import { makeStyles } from "tss-react/mui";
 import { Controller, useForm } from "react-hook-form";
-import { Box, Button, CircularProgress, InputLabel, Paper, TextareaAutosize, useTheme } from "@mui/material";
 import axios from "axios";
 import { useSnackbar } from "notistack";
 import { Snackbar } from "../shared/Snackbar";
+import { FormPaper } from "./FormPaper";
+import { Button } from "../ui/button";
+import Spinner from "../shared/Spinner";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/input";
 
 type Props = {
   id: string;
@@ -18,23 +22,11 @@ type DescriptionFormValues = {
   description: string;
 };
 
-const useStyles = makeStyles()(theme => ({}));
-
 export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, description, onCancel, onSave }) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
-  const formRef = useRef<HTMLFormElement>();
+  const formRef = useRef<HTMLFormElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
-  const {
-    handleSubmit,
-    reset,
-    control,
-    formState: { errors },
-    trigger,
-    watch,
-    setValue
-  } = useForm<DescriptionFormValues>({
+  const { handleSubmit, control } = useForm<DescriptionFormValues>({
     defaultValues: {
       description: description || ""
     }
@@ -55,34 +47,47 @@ export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, descri
   };
 
   return (
-    <Paper elevation={1} sx={{ padding: "1rem", marginTop: "1rem" }}>
+    <FormPaper className="mt-4">
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
         <Controller
           control={control}
           name={`description`}
           render={({ field }) => (
-            <Box sx={{ marginTop: ".5rem" }}>
-              <InputLabel sx={{ marginBottom: ".5rem" }}>Description</InputLabel>
-              <TextareaAutosize
+            <div className="mt-2 flex items-center space-x-2">
+              <Label>Description</Label>
+              <Textarea
                 aria-label="Description"
-                minRows={10}
+                rows={10}
                 placeholder="Write your guide on how to use this template here!"
-                style={{ width: "100%", padding: ".5rem 1rem", fontFamily: "inherit", fontSize: ".8rem", resize: "vertical" }}
+                className="mt-2 w-full px-4 py-2 text-sm"
+                // style={{ width: "100%", padding: ".5rem 1rem", fontFamily: "inherit", fontSize: ".8rem", resize: "vertical" }}
                 value={field.value}
                 spellCheck={false}
                 onChange={field.onChange}
               />
-            </Box>
+              {/* 
+              <Textarea
+                aria-label="Args"
+                placeholder="Example: apt-get update; apt-get install -y --no-install-recommends -- ssh;"
+                className="mt-2 w-full px-4 py-2 text-sm"
+                value={field.value}
+                rows={4}
+                spellCheck={false}
+                onChange={field.onChange}
+              /> */}
+            </div>
           )}
         />
 
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginTop: ".5rem" }}>
-          <Button onClick={onCancel}>Cancel</Button>
-          <Button color="secondary" variant="contained" type="submit" sx={{ marginLeft: "1rem" }}>
-            {isSaving ? <CircularProgress size="1rem" sx={{ color: theme.palette.secondary.contrastText }} /> : "Save"}
+        <div className="felx mt-2 items-center justify-end space-x-4">
+          <Button onClick={onCancel} variant="ghost">
+            Cancel
           </Button>
-        </Box>
+          <Button color="secondary" variant="default" type="submit">
+            {isSaving ? <Spinner size="small" /> : "Save"}
+          </Button>
+        </div>
       </form>
-    </Paper>
+    </FormPaper>
   );
 };
