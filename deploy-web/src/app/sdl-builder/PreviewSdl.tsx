@@ -46,8 +46,8 @@ export const PreviewSdl: React.FunctionComponent<Props> = ({ sdl, onClose }) => 
       maxWidth="md"
       enableCloseOnBackdropClick
     >
-      <div className="flex items-center mb-2">
-        <Button color="secondary" variant="default" onClick={onCopyClick}>
+      <div className="flex items-center mb-4">
+        <Button color="secondary" variant="default" onClick={onCopyClick} size="sm">
           Copy the SDL
           <Copy className="ml-2 text-sm" />
         </Button>

@@ -1,5 +1,4 @@
-
-"use client"
+"use client";
 import { ReactNode, useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { Timer } from "@src/utils/timer";
@@ -71,7 +70,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
 
     setValue("services", result as Service[]);
 
-    toast({ title: "Import success!", variant: "success" })
+    toast({ title: "Import success!", variant: "success" });
     // enqueueSnackbar(<Snackbar title="Import success!" iconVariant="success" />, {
     //   variant: "success",
     //   autoHideDuration: 4000
@@ -112,18 +111,11 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
       maxWidth="md"
       enableCloseOnBackdropClick
     >
-      <h6        className="mb-2 text-muted-foreground flex items-center"
-      >
-        Paste your sdl here to import <ArrowDown className="ml-4" />
+      <h6 className="mb-4 flex items-center text-muted-foreground">
+        Paste your sdl here to import <ArrowDown className="ml-4 text-sm" />
       </h6>
       <div className="mb-2">
-        <Editor
-          height="500px"
-          defaultLanguage="yaml"
-          value={sdl}
-          onChange={value => setSdl(value)}
-          theme={theme === "dark" ? "vs-dark" : "light"}
-        />
+        <Editor height="500px" defaultLanguage="yaml" value={sdl} onChange={value => setSdl(value)} theme={theme === "dark" ? "vs-dark" : "light"} />
       </div>
       {parsingError && (
         <Alert className="mt-4" variant="destructive">

@@ -280,9 +280,9 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
           // dividers={props.dividers}
           className={cn("m-0 p-4 ", {
             ["sm:max-w-[400px]"]: props.maxWidth === "xs",
-            ["sm:max-w-[425px]"]: props.maxWidth === "sm",
-            ["sm:max-w-[500px]"]: props.maxWidth === "md",
-            ["sm:max-w-[750px]"]: props.maxWidth === "lg",
+            ["sm:max-w-[600px]"]: props.maxWidth === "sm",
+            ["sm:max-w-[750px]"]: props.maxWidth === "md",
+            ["sm:max-w-[950px]"]: props.maxWidth === "lg",
             ["sm:max-w-[900px]"]: props.maxWidth === "xl"
           })}
           hideCloseButton={props.hideCloseButton}

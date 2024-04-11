@@ -2,7 +2,7 @@ import { UseQueryOptions, useQuery, QueryKey, useMutation, useQueryClient, UseMu
 import axios from "axios";
 import { QueryKeys } from "./queryKeys";
 import { ITemplate } from "@src/types";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { UrlService } from "@src/utils/urlUtils";
 import { useSnackbar } from "notistack";
 import { Snackbar } from "@src/components/shared/Snackbar";
