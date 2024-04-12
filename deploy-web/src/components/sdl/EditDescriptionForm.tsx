@@ -2,13 +2,12 @@
 import { ReactNode, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import axios from "axios";
-import { useSnackbar } from "notistack";
-import { Snackbar } from "../shared/Snackbar";
 import { FormPaper } from "./FormPaper";
 import { Button } from "../ui/button";
 import Spinner from "../shared/Spinner";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/input";
+import { useToast } from "../ui/use-toast";
 
 type Props = {
   id: string;
@@ -25,7 +24,7 @@ type DescriptionFormValues = {
 export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, description, onCancel, onSave }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const { enqueueSnackbar } = useSnackbar();
+  const { toast } = useToast();
   const { handleSubmit, control } = useForm<DescriptionFormValues>({
     defaultValues: {
       description: description || ""
@@ -39,9 +38,10 @@ export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, descri
       description: data.description
     });
 
-    enqueueSnackbar(<Snackbar title="Description saved!" iconVariant="success" />, {
-      variant: "success"
-    });
+    toast({ title: "Description saved!", variant: "success" });
+    // enqueueSnackbar(<Snackbar title="Description saved!" iconVariant="success" />, {
+    //   variant: "success"
+    // });
 
     onSave(data.description);
   };

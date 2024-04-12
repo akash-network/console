@@ -30,7 +30,7 @@ const userRequiredRouter = new Hono();
 userRequiredRouter.use("*", requiredUserMiddleware);
 
 const userOptionalRouter = new Hono();
-userRequiredRouter.use("*", optionalUserMiddleware);
+userOptionalRouter.use("*", optionalUserMiddleware);
 
 userRequiredRouter.post("/manage-subscription", async (c) => {
   const userId = getCurrentUserId(c);
@@ -139,9 +139,9 @@ userOptionalRouter.get("/template/:id", async (c) => {
 
   if (!uuid.validate(templateId)) {
     return c.text("Invalid template id", 400);
-    return;
   }
 
+  console.log("getting template", templateId, userId);
   const template = await getTemplateById(templateId, userId);
 
   if (!template) {

@@ -1,3 +1,4 @@
+"use client";
 import React, { ReactNode, useState } from "react";
 import { useAddFavoriteTemplate, useRemoveFavoriteTemplate } from "@src/queries/useTemplateQuery";
 import { useCustomUser } from "@src/hooks/useCustomUser";

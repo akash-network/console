@@ -7,13 +7,13 @@ import { ITemplate } from "@src/types";
 import { UserTemplate } from "./UserTemplate";
 
 interface ITemplateDetailPageProps {
-  params: { templateId: string };
+  params: { id: string };
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export async function generateMetadata({ params: { templateId } }: ITemplateDetailPageProps, parent: ResolvingMetadata): Promise<Metadata> {
-  const url = `https://deploy.cloudmos.io${UrlService.template(templateId)}`;
-  const template = await fetchTemplateDetail(templateId);
+export async function generateMetadata({ params: { id } }: ITemplateDetailPageProps, parent: ResolvingMetadata): Promise<Metadata> {
+  const url = `https://deploy.cloudmos.io${UrlService.template(id)}`;
+  const template = await fetchTemplateDetail(id);
 
   return {
     title: `${template.title}`,
@@ -49,8 +49,8 @@ async function fetchTemplateDetail(templateId: string): Promise<ITemplate> {
   return await response.json();
 }
 
-export default async function TemplateDetailPage({ params: { templateId } }: ITemplateDetailPageProps) {
-  const template = await fetchTemplateDetail(templateId);
+export default async function TemplateDetailPage({ params: { id } }: ITemplateDetailPageProps) {
+  const template = await fetchTemplateDetail(id);
 
-  return <UserTemplate id={templateId} template={template} />;
+  return <UserTemplate id={id} template={template} />;
 }

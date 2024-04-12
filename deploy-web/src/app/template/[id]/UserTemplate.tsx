@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { Popup } from "@src/components/shared/Popup";
 import { useDeleteTemplate } from "@src/queries/useTemplateQuery";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { EditDescriptionForm } from "@src/components/sdl/EditDescriptionForm";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
