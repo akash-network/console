@@ -11,7 +11,7 @@ export const endpointKindIP = "ip";
 
 function validate(yamlStr: string, yamlJson) {
   try {
-    SDL.validate(yamlStr, "beta3");
+    SDL.validate(yamlStr);
   } catch (e) {
     throw new CustomValidationError(e.message);
   }

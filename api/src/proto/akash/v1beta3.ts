@@ -1,14 +1,9 @@
-export { MsgSignProviderAttributes, MsgDeleteProviderAttributes } from "@akashnetwork/akashjs/build/protobuf/akash/audit/v1beta3/audit";
-export { MsgCreateCertificate, MsgRevokeCertificate } from "@akashnetwork/akashjs/build/protobuf/akash/cert/v1beta3/cert";
-export { MsgCloseGroup, MsgPauseGroup, MsgStartGroup } from "@akashnetwork/akashjs/build/protobuf/akash/deployment/v1beta3/groupmsg";
-export { MsgCreateBid, MsgCloseBid } from "@akashnetwork/akashjs/build/protobuf/akash/market/v1beta3/bid";
-export { MsgCreateLease, MsgWithdrawLease, MsgCloseLease } from "@akashnetwork/akashjs/build/protobuf/akash/market/v1beta3/lease";
-export { MsgCreateProvider, MsgUpdateProvider, MsgDeleteProvider } from "@akashnetwork/akashjs/build/protobuf/akash/provider/v1beta3/provider";
-export {
-  MsgCreateDeployment,
-  MsgDepositDeployment,
-  MsgUpdateDeployment,
-  MsgCloseDeployment
-} from "@akashnetwork/akashjs/build/protobuf/akash/deployment/v1beta3/deploymentmsg";
+export { MsgSignProviderAttributes, MsgDeleteProviderAttributes } from "@akashnetwork/akash-api/akash/audit/v1beta3";
+export { MsgCreateCertificate, MsgRevokeCertificate } from "@akashnetwork/akash-api/akash/cert/v1beta3";
+export { MsgCloseGroup, MsgPauseGroup, MsgStartGroup } from "@akashnetwork/akash-api/akash/deployment/v1beta3";
+export { MsgCreateBid, MsgCloseBid } from "@akashnetwork/akash-api/akash/market/v1beta3";
+export { MsgCreateLease, MsgWithdrawLease, MsgCloseLease } from "@akashnetwork/akash-api/akash/market/v1beta3";
+export { MsgCreateProvider, MsgUpdateProvider, MsgDeleteProvider } from "@akashnetwork/akash-api/akash/provider/v1beta3";
+export { MsgCreateDeployment, MsgDepositDeployment, MsgUpdateDeployment, MsgCloseDeployment } from "@akashnetwork/akash-api/akash/deployment/v1beta3";
 
-export { Storage } from "@akashnetwork/akashjs/build/protobuf/akash/base/v1beta3/storage";
+export { Storage } from "@akashnetwork/akash-api/akash/base/v1beta3";
