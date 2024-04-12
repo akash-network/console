@@ -1,6 +1,6 @@
 import { UserAddressName, UserSetting } from "@shared/dbSchemas/user";
-import { Transaction } from "sequelize/types";
 import { getUserPlan } from "../external/stripeService";
+import { Transaction } from "sequelize";
 
 function randomIntFromInterval(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1) + min);

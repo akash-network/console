@@ -1,9 +1,7 @@
 import { ReactElement } from "react";
 import { FormControl, InputLabel, MenuItem, Select } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
-import { Control, Controller, Path } from "react-hook-form";
-import { FieldValues } from "react-hook-form/dist/types/fields";
-import { FieldPathValue } from "react-hook-form/dist/types";
+import { Control, Controller, FieldValues, FieldPathValue, Path } from "react-hook-form";
 
 import { Service } from "@src/types";
 import { useSdlDenoms } from "@src/hooks/useDenom";
