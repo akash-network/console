@@ -102,7 +102,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
         <StepContent>
           <Typography variant="body2" color="textSecondary">
             You need at least {minDeposit.akt} AKT or {minDeposit.usdc} USDC in your wallet to deploy on Akash. If you don't have {minDeposit.akt} AKT or{" "}
-            {minDeposit.usdc} USDC, you can request for some tokens to get started on our <ExternalLink href="https://discord.gg/akash" text="Discord" />.
+            {minDeposit.usdc} USDC, you can switch to the sandbox or ask help in our <ExternalLink href="https://discord.gg/akash" text="Discord" />.
           </Typography>
 
           <Box sx={{ mt: 1, mb: 2, display: "flex", alignItems: "center" }}>

@@ -30,7 +30,7 @@ const userRequiredRouter = new Hono();
 userRequiredRouter.use("*", requiredUserMiddleware);
 
 const userOptionalRouter = new Hono();
-userRequiredRouter.use("*", optionalUserMiddleware);
+userOptionalRouter.use("*", optionalUserMiddleware);
 
 userRequiredRouter.post("/manage-subscription", async (c) => {
   const userId = getCurrentUserId(c);
