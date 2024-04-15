@@ -227,7 +227,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
             <div className="ml-6">
               <Link
                 href={UrlService.template(templateQueryId as string)}
-                className="inline-flex items-center cursor-pointer"
+                className="inline-flex cursor-pointer items-center"
                 onClick={() => {
                   event(AnalyticsEvents.CLICK_VIEW_TEMPLATE, {
                     category: "sdl_builder",
@@ -235,13 +235,13 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
                   });
                 }}
               >
-                View template <NavArrowRight className="text-sm ml-2" />
+                View template <NavArrowRight className="ml-2 text-sm" />
               </Link>
             </div>
           </div>
         )}
 
-        <div className="flex items-center pt-4 justify-between">
+        <div className="flex items-center justify-between pt-4">
           <div className="flex items-center">
             <Button color="secondary" variant="default" type="submit">
               Deploy
@@ -273,7 +273,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
 
             {isLoadingTemplate && (
               <div className="ml-4">
-                <Spinner />
+                <Spinner size="small" />
               </div>
             )}
           </div>

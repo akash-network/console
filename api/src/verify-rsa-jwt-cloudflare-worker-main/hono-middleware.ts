@@ -14,11 +14,12 @@ const PAYLOAD_KEY = "verifyRsaJwtPayload";
 
 export function verifyRsaJwt(config?: VerifyRsaJwtConfig): MiddlewareHandler {
   return async (ctx: Context, next) => {
-    const jwtToken = ctx.req.headers.get("Authorization")?.replace(/Bearer\s+/i, "");
-    if (!jwtToken || jwtToken.length === 0) {
-      return new Response("Bad Request", { status: 400 });
-    }
     try {
+      const jwtToken = ctx.req.headers.get("Authorization")?.replace(/Bearer\s+/i, "");
+      if (!jwtToken || jwtToken.length === 0) {
+        throw new Error("JWT token not found in Authorization header");
+      }
+
       const jwks = await getJwks(
         config?.jwksUri || ctx.env.JWKS_URI,
         useKVStore(config?.kvStore || ctx.env?.VERIFY_RSA_JWT),

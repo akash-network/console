@@ -1,13 +1,12 @@
-import { UseQueryOptions, useQuery, QueryKey, useMutation, useQueryClient, UseMutationOptions } from "react-query";
+import { UseQueryOptions, useQuery, QueryKey, useMutation, useQueryClient } from "react-query";
 import axios from "axios";
 import { QueryKeys } from "./queryKeys";
 import { ITemplate } from "@src/types";
 import { useRouter } from "next/navigation";
 import { UrlService } from "@src/utils/urlUtils";
-import { useSnackbar } from "notistack";
-import { Snackbar } from "@src/components/shared/Snackbar";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { ApiUrlService } from "@src/utils/apiUtils";
+import { useToast } from "@src/components/ui/use-toast";
 
 async function getUserTemplates(username: string): Promise<ITemplate[]> {
   const response = await axios.get(`/api/proxy/user/templates/${username}`);
@@ -84,20 +83,22 @@ export function useDeleteTemplate(id: string) {
 }
 
 export function useAddFavoriteTemplate(id: string) {
-  const { enqueueSnackbar } = useSnackbar();
+  const { toast } = useToast();
   return useMutation(() => axios.post(`/api/proxy/user/addFavoriteTemplate/${id}`), {
     onSuccess: () => {
-      enqueueSnackbar(<Snackbar title="Favorite added!" iconVariant="success" />, { variant: "success" });
+      toast({ title: "Favorite added!", variant: "success" });
+      // enqueueSnackbar(<Snackbar title="Favorite added!" iconVariant="success" />, { variant: "success" });
     }
   });
 }
 
 export function useRemoveFavoriteTemplate(id: string) {
-  const { enqueueSnackbar } = useSnackbar();
+  const { toast } = useToast();
 
   return useMutation(() => axios.delete(`/api/proxy/user/removeFavoriteTemplate/${id}`), {
     onSuccess: () => {
-      enqueueSnackbar(<Snackbar title="Favorite removed" iconVariant="success" />, { variant: "success" });
+      toast({ title: "Favorite removed!", variant: "success" });
+      // enqueueSnackbar(<Snackbar title="Favorite removed" iconVariant="success" />, { variant: "success" });
     }
   });
 }

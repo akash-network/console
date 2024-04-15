@@ -7,6 +7,7 @@ import { Button } from "../ui/button";
 import Spinner from "./Spinner";
 import { MdStar, MdStarOutline } from "react-icons/md";
 import { useToast } from "../ui/use-toast";
+import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   id: string;
@@ -51,7 +52,7 @@ export const UserFavoriteButton: React.FunctionComponent<Props> = ({ id, isFavor
   return (
     <>
       {showMustConnectModal && <MustConnectModal message="To add template favorites" onClose={() => setShowMustConnectModal(false)} />}
-      <Button size="icon" onClick={onFavoriteClick} color={isFavorite ? "secondary" : "default"}>
+      <Button size="icon" onClick={onFavoriteClick} variant="ghost" className={cn({ ["text-primary"]: isFavorite }, "text-xl")}>
         {isSaving ? <Spinner size="small" /> : isFavorite ? <MdStar /> : <MdStarOutline />}
       </Button>
     </>

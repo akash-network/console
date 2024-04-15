@@ -53,33 +53,22 @@ export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, descri
           control={control}
           name={`description`}
           render={({ field }) => (
-            <div className="mt-2 flex items-center space-x-2">
+            <div>
               <Label>Description</Label>
               <Textarea
                 aria-label="Description"
                 rows={10}
                 placeholder="Write your guide on how to use this template here!"
                 className="mt-2 w-full px-4 py-2 text-sm"
-                // style={{ width: "100%", padding: ".5rem 1rem", fontFamily: "inherit", fontSize: ".8rem", resize: "vertical" }}
                 value={field.value}
                 spellCheck={false}
                 onChange={field.onChange}
               />
-              {/* 
-              <Textarea
-                aria-label="Args"
-                placeholder="Example: apt-get update; apt-get install -y --no-install-recommends -- ssh;"
-                className="mt-2 w-full px-4 py-2 text-sm"
-                value={field.value}
-                rows={4}
-                spellCheck={false}
-                onChange={field.onChange}
-              /> */}
             </div>
           )}
         />
 
-        <div className="felx mt-2 items-center justify-end space-x-4">
+        <div className="flex mt-2 items-center justify-end space-x-4">
           <Button onClick={onCancel} variant="ghost">
             Cancel
           </Button>

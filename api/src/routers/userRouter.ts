@@ -141,7 +141,6 @@ userOptionalRouter.get("/template/:id", async (c) => {
     return c.text("Invalid template id", 400);
   }
 
-  console.log("getting template", templateId, userId);
   const template = await getTemplateById(templateId, userId);
 
   if (!template) {

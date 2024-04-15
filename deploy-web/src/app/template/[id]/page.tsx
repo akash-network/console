@@ -5,6 +5,7 @@ import { getShortText } from "@src/hooks/useShortText";
 import { getSession } from "@auth0/nextjs-auth0";
 import { ITemplate } from "@src/types";
 import { UserTemplate } from "./UserTemplate";
+import { notFound } from "next/navigation";
 
 interface ITemplateDetailPageProps {
   params: { id: string };
@@ -42,9 +43,21 @@ async function fetchTemplateDetail(templateId: string): Promise<ITemplate> {
   const response = await fetch(`${BASE_API_MAINNET_URL}/user/template/${templateId}`, config);
 
   if (!response.ok) {
-    // This will activate the closest `error.js` Error Boundary
-    throw new Error("Error fetching template detail data");
+    if (response.status === 404 || response.status === 400) {
+      return notFound();
+    } else {
+      // This will activate the closest `error.js` Error Boundary
+      throw new Error("Error fetching template detail data");
+    }
   }
+
+  // if (error.response?.status === 404 || error.response?.status === 400) {
+  //       return {
+  //         notFound: true
+  //       };
+  //     } else {
+  //       throw error;
+  //     }
 
   return await response.json();
 }

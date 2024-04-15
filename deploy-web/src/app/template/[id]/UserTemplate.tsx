@@ -176,22 +176,10 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
         )}
       </div>
 
-      <div className="mt-4 space-x-2">
-        <LeaseSpecDetail
-          // sx={{ display: "inline-flex", minWidth: "120px", marginRight: 1 }}
-          type="cpu"
-          value={template.cpu / 1_000}
-        />
-        <LeaseSpecDetail
-          // sx={{ display: "inline-flex", minWidth: "145px", marginRight: 1 }}
-          type="ram"
-          value={`${roundDecimal(_ram.value, 1)} ${_ram.unit}`}
-        />
-        <LeaseSpecDetail
-          // sx={{ display: "inline-flex", minWidth: "145px", marginRight: 1 }}
-          type="storage"
-          value={`${roundDecimal(_storage.value, 1)} ${_storage.unit}`}
-        />
+      <div className="mt-4 flex flex-wrap items-center space-x-6">
+        <LeaseSpecDetail type="cpu" value={template.cpu / 1_000} />
+        <LeaseSpecDetail type="ram" value={`${roundDecimal(_ram.value, 1)} ${_ram.unit}`} />
+        <LeaseSpecDetail type="storage" value={`${roundDecimal(_storage.value, 1)} ${_storage.unit}`} />
       </div>
 
       {isEditingDescription ? (
@@ -214,37 +202,3 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
     </PageContainer>
   );
 };
-
-// export default TemplatePage;
-
-// export const getServerSideProps = async function getServerSideProps({ params, req, res }) {
-//   try {
-//     const session = await getSession(req, res);
-//     let config = {};
-
-//     if (session) {
-//       config = {
-//         headers: {
-//           Authorization: session ? `Bearer ${session.accessToken}` : ""
-//         }
-//       };
-//     }
-
-//     const response = await axios.get(`${BASE_API_MAINNET_URL}/user/template/${params?.id}`, config);
-
-//     return {
-//       props: {
-//         id: params?.id,
-//         template: response.data
-//       }
-//     };
-//   } catch (error) {
-//     if (error.response?.status === 404 || error.response?.status === 400) {
-//       return {
-//         notFound: true
-//       };
-//     } else {
-//       throw error;
-//     }
-//   }
-// };
