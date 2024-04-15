@@ -33,7 +33,7 @@ async function fetchUser(username: string): Promise<IUserSetting> {
   return await response.json();
 }
 
-export default async function TemplateDetailPage({ params: { username } }: IUserProfilePageProps) {
+export default async function UserProfilePage({ params: { username } }: IUserProfilePageProps) {
   const user = await fetchUser(username);
 
   return <UserProfile username={username} user={user} />;

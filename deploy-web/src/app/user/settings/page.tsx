@@ -15,7 +15,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequired";
-import { UserProfileLayout } from "@src/app/profile/[username]/UserProfileLayout";
+import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 
 type Props = {
   username: string;

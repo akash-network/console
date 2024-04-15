@@ -3,16 +3,15 @@ import { getShortText } from "@src/hooks/useShortText";
 import { ITemplate } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
-import { CardContent, CardHeader } from "../ui/card";
+import { CardContent, CardHeader, cardClasses } from "../ui/card";
 import { cn } from "@src/utils/styleUtils";
 
 type Props = {
-  cardClasses?: string;
   template: Partial<ITemplate>;
   onClick?: () => void;
 };
 
-export const TemplateGridButton: React.FunctionComponent<Props> = ({ template, onClick, cardClasses = "" }) => {
+export const TemplateGridButton: React.FunctionComponent<Props> = ({ template, onClick }) => {
   return (
     <Link
       className={cn(cardClasses, "min-h-[100px] cursor-pointer !no-underline hover:bg-primary/10")}
@@ -21,7 +20,7 @@ export const TemplateGridButton: React.FunctionComponent<Props> = ({ template, o
     >
       <CardHeader>
         <div className="flex items-center">
-          <div className="ml-4 break-all font-bold">{template.title}</div>
+          <div className="break-all font-bold">{template.title}</div>
         </div>
       </CardHeader>
       <CardContent className="pb-4 pt-0">

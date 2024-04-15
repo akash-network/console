@@ -1,6 +1,7 @@
 import { getSession, PageRoute, withPageAuthRequired, WithPageAuthRequiredPageRouterOptions } from "@auth0/nextjs-auth0";
 import { ParsedUrlQuery } from "querystring";
 import { UrlService } from "./urlUtils";
+import { GetServerSidePropsResult } from "next/types";
 
 export function withCustomPageAuthRequired(opts: WithPageAuthRequiredPageRouterOptions<{}, ParsedUrlQuery>): PageRoute<{}, ParsedUrlQuery> {
   return withPageAuthRequired({
@@ -8,7 +9,7 @@ export function withCustomPageAuthRequired(opts: WithPageAuthRequiredPageRouterO
     getServerSideProps: async params => {
       const session = await getSession(params.req, params.res);
 
-      const accessTokenExpiry = new Date(session.accessTokenExpiresAt * 1_000);
+      const accessTokenExpiry = new Date((session?.accessTokenExpiresAt || 0) * 1_000);
 
       if (accessTokenExpiry <= new Date()) {
         console.log(`Access token expired, redirecting to login... ${params.req.url}`);
@@ -20,7 +21,7 @@ export function withCustomPageAuthRequired(opts: WithPageAuthRequiredPageRouterO
         };
       }
 
-      return opts.getServerSideProps(params);
+      return opts?.getServerSideProps?.(params) as unknown as GetServerSidePropsResult<{}>;
     }
   });
 }

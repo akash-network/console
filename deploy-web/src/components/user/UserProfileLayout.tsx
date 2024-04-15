@@ -16,9 +16,10 @@ type Props = {
   bio: string;
   children?: ReactNode;
   page: UserProfileTab;
+  isLoading?: boolean;
 };
 
-export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, children, username, bio }) => {
+export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, children, username, bio, isLoading = false }) => {
   const router = useRouter();
   const { user } = useCustomUser();
 
@@ -45,7 +46,7 @@ export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, childr
   };
 
   return (
-    <PageContainer>
+    <PageContainer isLoading={isLoading}>
       <div className="py-4">
         <h1 className="mb-2 text-3xl">{username}</h1>
 
@@ -64,9 +65,7 @@ export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, childr
           )}
         </TabsList>
 
-        <ErrorBoundary FallbackComponent={ErrorFallback}>
-          <div className="pt-8">{children}</div>
-        </ErrorBoundary>
+        <ErrorBoundary FallbackComponent={ErrorFallback}>{children}</ErrorBoundary>
       </Tabs>
     </PageContainer>
   );

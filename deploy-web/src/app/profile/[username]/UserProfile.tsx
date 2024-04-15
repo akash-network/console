@@ -7,7 +7,7 @@ import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { UserProfileLayout } from "@src/app/profile/[username]/UserProfileLayout";
+import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import Spinner from "@src/components/shared/Spinner";
 import { buttonVariants } from "@src/components/ui/button";
 import { cn } from "@src/utils/styleUtils";
@@ -23,7 +23,11 @@ export const UserProfile: React.FunctionComponent<Props> = ({ username, user }) 
 
   return (
     <UserProfileLayout page="templates" username={username} bio={user?.bio}>
-      {isLoadingTemplates && <Spinner size="large" />}
+      {isLoadingTemplates && (
+        <div className="flex items-center justify-center p-8">
+          <Spinner size="large" />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         {!isLoadingTemplates && userTemplates?.length === 0 && (
