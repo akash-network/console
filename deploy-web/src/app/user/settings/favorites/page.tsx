@@ -1,10 +1,18 @@
-import { Metadata } from "next";
+import { Metadata, NextPage } from "next";
 import { UserFavorites } from "./UserFavorites";
+import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequired";
 
 export const metadata: Metadata = {
   title: "User Favorites"
 };
 
-export default async function TemplateDetailPage() {
+const UserFavoriteTemplatesPage: NextPage = () => {
   return <UserFavorites />;
-}
+};
+
+// TODO update aoth0
+// const UserFavoriteTemplatesPage: NextPage = withCustomPageAuthRequired(async () => {
+//   return <UserFavorites />;
+// });
+
+export default UserFavoriteTemplatesPage;
