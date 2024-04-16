@@ -10,7 +10,7 @@ const UserFavoriteTemplatesPage: NextPage = () => {
   return <UserFavorites />;
 };
 
-// TODO update aoth0
+// TODO update auth0
 // const UserFavoriteTemplatesPage: NextPage = withCustomPageAuthRequired(async () => {
 //   return <UserFavorites />;
 // });

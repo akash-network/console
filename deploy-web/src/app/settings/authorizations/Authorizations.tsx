@@ -4,7 +4,6 @@ import { SettingsLayout, SettingsTabs } from "@src/app/settings/SettingsLayout";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { useEffect, useState } from "react";
 import { useWallet } from "@src/context/WalletProvider";
-import { CustomTableHeader } from "@src/components/shared/CustomTable";
 import { Address } from "@src/components/shared/Address";
 import { GrantModal } from "@src/app/settings/authorizations/GrantModal";
 import { AllowanceType, GrantType } from "@src/types/grant";
@@ -220,7 +219,7 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
             <>
               {allowancesIssued.length > 0 ? (
                 <Table>
-                  <CustomTableHeader>
+                  <TableHeader>
                     <TableRow>
                       <TableHead>Type</TableHead>
                       <TableHead>Grantee</TableHead>
@@ -228,7 +227,7 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
                       <TableHead className="text-right">Expiration</TableHead>
                       <TableHead className="text-right"></TableHead>
                     </TableRow>
-                  </CustomTableHeader>
+                  </TableHeader>
 
                   <TableBody>
                     {allowancesIssued.map(allowance => (
@@ -257,14 +256,14 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
             <>
               {allowancesGranted.length > 0 ? (
                 <Table>
-                  <CustomTableHeader>
+                  <TableHeader>
                     <TableRow>
                       <TableHead>Type</TableHead>
                       <TableHead>Grantee</TableHead>
                       <TableHead>Spending Limit</TableHead>
                       <TableHead className="text-right">Expiration</TableHead>
                     </TableRow>
-                  </CustomTableHeader>
+                  </TableHeader>
 
                   <TableBody>
                     {allowancesGranted.map(allowance => (

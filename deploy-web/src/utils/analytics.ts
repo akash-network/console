@@ -48,6 +48,7 @@ export enum AnalyticsEvents {
   USER_PROFILE_SETTINGS_TAB = "user_profile_settings_tab",
   EDIT_ADDRESS_BOOK = "edit_address_book",
   ADDRESS_BOOK_SAVE_ADDRESS = "address_book_save_address",
+  ADDRESS_BOOK_ADD_ADDRESS = "address_book_add_address",
   ADDRESS_BOOK_REMOVE_ADDRESS = "address_book_remove_address",
   USER_SETTINGS_MANAGE_BILLING = "user_settings_manage_billing",
   USER_SETTINGS_UPGRADE_PLAN = "user_settings_upgrade_plan",
