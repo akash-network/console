@@ -21,14 +21,12 @@ export const kvStore = {
 
 export const requiredUserMiddleware = verifyRsaJwt({
   jwksUri: env.Auth0JWKSUri,
-  kvStore: kvStore,
-  verbose: true
+  kvStore: kvStore
 });
 
 export const optionalUserMiddleware = verifyRsaJwt({
   jwksUri: env.Auth0JWKSUri,
   kvStore: kvStore,
-  verbose: true,
   optional: true
 });
 

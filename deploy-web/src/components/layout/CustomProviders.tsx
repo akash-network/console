@@ -19,6 +19,7 @@ import { TemplatesProvider } from "@src/context/TemplatesProvider";
 import { StyledEngineProvider, createTheme, ThemeProvider as MuiThemeProvider } from "@mui/material/styles";
 import { ChainParamProvider } from "@src/context/ChainParamProvider";
 import { AddressBookProvider } from "@src/context/AddressBookProvider";
+import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 
 const theme = createTheme({
   palette: {
@@ -38,7 +39,6 @@ const theme = createTheme({
 });
 
 function Providers({ children, version }: React.PropsWithChildren<{ version: string }>) {
-  // <BackgroundTaskProvider></BackgroundTaskProvider>
   return (
     <CustomIntlProvider>
       <QueryClientProvider client={queryClient}>
@@ -55,13 +55,15 @@ function Providers({ children, version }: React.PropsWithChildren<{ version: str
                             <WalletProvider>
                               <ChainParamProvider>
                                 <CertificateProvider>
-                                  <TemplatesProvider>
-                                    <LocalNoteProvider>
-                                      <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
+                                  <BackgroundTaskProvider>
+                                    <TemplatesProvider>
+                                      <LocalNoteProvider>
+                                        <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
 
-                                      {children}
-                                    </LocalNoteProvider>
-                                  </TemplatesProvider>
+                                        {children}
+                                      </LocalNoteProvider>
+                                    </TemplatesProvider>
+                                  </BackgroundTaskProvider>
                                 </CertificateProvider>
                               </ChainParamProvider>
                             </WalletProvider>
