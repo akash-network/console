@@ -29,7 +29,7 @@ import { Button } from "../../components/ui/button";
 import { Checkbox } from "../../components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../../components/ui/dropdown-menu";
 import Spinner from "../../components/shared/Spinner";
-import ClickAwayListener from "react-click-away-listener";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
 
 // const useStyles = makeStyles()(theme => ({
 //   root: {
@@ -98,7 +98,6 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null);
   const { changeDeploymentName, getDeploymentData } = useLocalNotes();
   const { address, signAndBroadcastTx } = useWallet();
   const isActive = deployment.state === "active";
@@ -133,12 +132,12 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
 
   function handleMenuClick(ev) {
     ev.stopPropagation();
-    setAnchorEl(ev.currentTarget);
+    setOpen(true);
   }
 
   const handleMenuClose = (event?) => {
     event?.stopPropagation();
-    setAnchorEl(null);
+    setOpen(false);
   };
 
   const onDeploymentDeposit = async (deposit, depositorAddress) => {

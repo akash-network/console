@@ -10,34 +10,35 @@ import Providers from "@src/components/layout/CustomProviders";
 import { Toaster } from "@src/components/ui/toaster";
 import { AppLayoutContainer } from "@src/components/layout/AppLayoutContainer";
 import getConfig from "next/config";
+import { Inter as FontSans } from "next/font/google";
 
 const { publicRuntimeConfig } = getConfig();
 
-// const inter = Inter({
-//   subsets: ["latin"],
-//   variable: "--font-sans"
-// });
-
-const satoshi = localFont({
-  src: [
-    {
-      path: "./fonts/Satoshi-Variable.woff",
-      weight: "400",
-      style: "normal"
-    },
-    {
-      path: "./fonts/Satoshi-Variable.woff2",
-      weight: "400",
-      style: "normal"
-    },
-    {
-      path: "./fonts/Satoshi-Variable.ttf",
-      weight: "400",
-      style: "normal"
-    }
-  ]
-  // variable: "--font-sans"
+const fontSans = FontSans({
+  subsets: ["latin"],
+  variable: "--font-sans"
 });
+
+// const satoshi = localFont({
+//   src: [
+//     {
+//       path: "./fonts/Satoshi-Variable.woff",
+//       weight: "400",
+//       style: "normal"
+//     },
+//     {
+//       path: "./fonts/Satoshi-Variable.woff2",
+//       weight: "400",
+//       style: "normal"
+//     },
+//     {
+//       path: "./fonts/Satoshi-Variable.ttf",
+//       weight: "400",
+//       style: "normal"
+//     }
+//   ]
+//   // variable: "--font-sans"
+// });
 
 export const metadata: Metadata = {
   title: "Akash Console",
@@ -123,7 +124,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
       <GoogleAnalytics />
 
-      <body className={cn("bg-background tracking-wide antialiased", satoshi.className)}>
+      <body className={cn("bg-background tracking-wide antialiased", fontSans.variable)}>
         <Providers version={version}>
           <Toaster />
 

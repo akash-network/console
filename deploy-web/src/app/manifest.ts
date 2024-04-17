@@ -14,11 +14,6 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/android-chrome-192x192.png",
         sizes: "192x192",
         type: "image/png"
-      },
-      {
-        src: "/android-chrome-384x384.png",
-        sizes: "384x384",
-        type: "image/png"
       }
     ]
   };

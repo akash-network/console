@@ -130,7 +130,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
   const drawer = (
     <div
       style={{ width: _isNavOpen ? drawerWidth : closedDrawerWidth }}
-      className={`flex h-full flex-col items-center justify-between box-border flex-shrink-0 overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 transition-[width] duration-300 ease-in-out`}
+      className={`box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 transition-[width] duration-300 ease-in-out`}
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: _isNavOpen, ["pb-2 pt-2"]: !_isNavOpen })}>
         <Link
@@ -157,25 +157,24 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
             <NodeStatusBar />
 
             <div className="flex items-center justify-center pt-4">
-              <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet_" className="text-foreground">
-                <Button variant="ghost" size="icon">
-                  <TwitterX width="1.2rem" height="1.2rem" />
-                  <span className="sr-only">Twitter</span>
-                </Button>
+              <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet_" className={cn(buttonVariants({ variant: "text", size: "icon" }))}>
+                <TwitterX width="1.2rem" height="1.2rem" />
+                <span className="sr-only">Twitter</span>
               </Link>
 
-              <Link target="_blank" rel="noreferrer" href="https://github.com/akash-network/cloudmos" className="text-foreground">
-                <Button variant="ghost" size="icon">
-                  <Github width="1.2rem" height="1.2rem" />
-                  <span className="sr-only">GitHub</span>
-                </Button>
+              <Link
+                target="_blank"
+                rel="noreferrer"
+                href="https://github.com/akash-network/cloudmos"
+                className={cn(buttonVariants({ variant: "text", size: "icon" }))}
+              >
+                <Github width="1.2rem" height="1.2rem" />
+                <span className="sr-only">GitHub</span>
               </Link>
 
-              <Link target="_blank" rel="noreferrer" href="https://discord.akash.network" className="text-foreground">
-                <Button variant="ghost" size="icon">
-                  <Discord width="1.2rem" height="1.2rem" />
-                  <span className="sr-only">Twitter</span>
-                </Button>
+              <Link target="_blank" rel="noreferrer" href="https://discord.akash.network" className={cn(buttonVariants({ variant: "text", size: "icon" }))}>
+                <Discord width="1.2rem" height="1.2rem" />
+                <span className="sr-only">Twitter</span>
               </Link>
 
               {/** TODO */}
@@ -184,9 +183,9 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
 
             {version && _isNavOpen && (
               <div className="flex flex-col items-center justify-center">
-                <span className="text-xs font-bold text-muted-foreground">
+                <div className="text-xs font-bold text-muted-foreground">
                   <strong>v{version}</strong>
-                </span>
+                </div>
 
                 <Badge color="secondary" className="h-[12px] text-xs font-bold">
                   beta

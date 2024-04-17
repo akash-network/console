@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator } from "../ui/
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { Settings, MultiplePages, Star, Bell, Book, LogOut } from "iconoir-react";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
-import ClickAwayListener from "react-click-away-listener";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
 
 export function AccountMenu({}: React.PropsWithChildren<{}>) {
   const [open, setOpen] = useState(false);
@@ -41,8 +41,17 @@ export function AccountMenu({}: React.PropsWithChildren<{}>) {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" onMouseLeave={() => setOpen(false)}>
-                <ClickAwayListener onClickAway={() => setOpen(false)}>
+              <DropdownMenuContent
+                align="end"
+                onMouseLeave={() => {
+                  setOpen(false);
+                }}
+              >
+                <ClickAwayListener
+                  onClickAway={() => {
+                    setOpen(false);
+                  }}
+                >
                   <div>
                     {!isLoading && user ? (
                       <div>
@@ -80,7 +89,7 @@ export function AccountMenu({}: React.PropsWithChildren<{}>) {
                     ) : (
                       <div>
                         <CustomDropdownLinkItem
-                          className="hover:bg-primary-dark bg-primary !text-white hover:text-white"
+                          className="bg-primary !text-white hover:bg-primary/80 hover:text-white"
                           onClick={() => router.push(UrlService.signup())}
                         >
                           Sign up
