@@ -41,7 +41,7 @@ const sortOptions: { id: SortId; title: string }[] = [
 
 export const ProviderList: React.FunctionComponent<Props> = ({}) => {
   const { address } = useWallet();
-  const [page, setPage] = useState(1);
+  const [pageIndex, setPageIndex] = useState(0);
   const [isFilteringActive, setIsFilteringActive] = useState(true);
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
   const [isFilteringAudited, setIsFilteringAudited] = useState(false);
@@ -55,7 +55,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
   const { data: networkCapacity, isFetching: isLoadingNetworkCapacity } = useNetworkCapacity();
-  const start = (page - 1) * pageSize;
+  const start = pageIndex * pageSize;
   const end = start + pageSize;
   const currentPageProviders = filteredProviders.slice(start, end);
   const pageCount = Math.ceil(filteredProviders.length / pageSize);
@@ -134,21 +134,21 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
   };
 
   const handleChangePage = (newPage: number) => {
-    setPage(newPage);
+    setPageIndex(newPage);
   };
 
   const onIsFilteringActiveClick = (value: boolean) => {
-    setPage(1);
+    setPageIndex(0);
     setIsFilteringActive(value);
   };
 
   const onIsFilteringFavoritesClick = (value: boolean) => {
-    setPage(1);
+    setPageIndex(0);
     setIsFilteringFavorites(value);
   };
 
   const onIsFilteringAuditedClick = (value: boolean) => {
-    setPage(1);
+    setPageIndex(0);
     setIsFilteringAudited(value);
   };
 
@@ -332,7 +332,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
                 <CustomPagination
                   pageSize={pageSize}
                   setPageIndex={handleChangePage}
-                  pageIndex={page}
+                  pageIndex={pageIndex}
                   totalPageCount={pageCount}
                   setPageSize={setPageSize}
                 />
