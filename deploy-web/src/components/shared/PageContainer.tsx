@@ -21,7 +21,7 @@ export const PageContainer: React.FunctionComponent<Props> = ({ children, classN
   const { isWalletLoaded } = useWallet();
 
   return (
-    <div className={cn("overflow-auto", className)}>
+    <div className={cn(className)}>
       {isLoading !== undefined && <LinearLoadingSkeleton isLoading={isLoading} />}
 
       <ErrorBoundary FallbackComponent={ErrorFallback}>
