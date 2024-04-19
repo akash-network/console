@@ -27,7 +27,6 @@ import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { PageHead } from "@src/components/layout/PageHead";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 
-import "@interchain-ui/react/styles";
 import "../styles/globals.css";
 import "../styles/index.css";
 
@@ -35,13 +34,8 @@ import { ChainParamProvider } from "@src/context/ChainParamProvider";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@src/components/ui/tooltip";
-import { Inter as FontSans } from "next/font/google";
 import { cn } from "@src/utils/styleUtils";
-
-const fontSans = FontSans({
-  subsets: ["latin"],
-  variable: "--font-sans"
-});
+import { GeistSans } from "geist/font/sans";
 
 interface Props extends AppProps {
   emotionCache?: EmotionCache;
@@ -63,7 +57,7 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
   usePreviousRoute();
 
   return (
-    <main className={cn("bg-background tracking-wide antialiased", fontSans.variable)}>
+    <main className={cn("bg-background tracking-wide antialiased", GeistSans.className)}>
       <PageHead />
 
       {/* <CacheProvider value={emotionCache}>
