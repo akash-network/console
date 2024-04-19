@@ -75,7 +75,7 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
   const [page, setPage] = useState(1);
   const [isFilteringActive, setIsFilteringActive] = useState(true);
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
-  const [isFilteringAudited, setIsFilteringAudited] = useState(false);
+  const [isFilteringAudited, setIsFilteringAudited] = useState(true);
   const [filteredProviders, setFilteredProviders] = useState<Array<ClientProviderList>>([]);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sort, setSort] = useState<string>("active-leases-desc");
@@ -302,20 +302,6 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
                     <FormControlLabel
                       control={
                         <Checkbox
-                          checked={isFilteringFavorites}
-                          onChange={onIsFilteringFavoritesClick}
-                          color="secondary"
-                          size="small"
-                          classes={{ root: classes.checkbox }}
-                        />
-                      }
-                      label="Favorites"
-                    />
-                  </Box>
-                  <Box marginLeft="1rem">
-                    <FormControlLabel
-                      control={
-                        <Checkbox
                           checked={isFilteringAudited}
                           onChange={onIsFilteringAuditedClick}
                           color="secondary"
@@ -324,6 +310,20 @@ const ProvidersPage: React.FunctionComponent<Props> = ({}) => {
                         />
                       }
                       label="Audited"
+                    />
+                  </Box>
+                  <Box marginLeft="1rem">
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={isFilteringFavorites}
+                          onChange={onIsFilteringFavoritesClick}
+                          color="secondary"
+                          size="small"
+                          classes={{ root: classes.checkbox }}
+                        />
+                      }
+                      label="Favorites"
                     />
                   </Box>
                 </Box>
@@ -420,4 +420,3 @@ export async function getServerSideProps({ params }) {
 }
 
 export default ProvidersPage;
-
