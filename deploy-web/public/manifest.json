@@ -1,6 +1,7 @@
 {
-  "name": "Cloudmos",
-  "short_name": "Cloudmos",
+  "name": "Akash Console",
+  "short_name": "Akash Console",
+  "description": "Akash Console - The Akash Network offical console.",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",

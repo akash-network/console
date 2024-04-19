@@ -1,5 +1,5 @@
 "use client";
-import LinearProgress from "@mui/material/LinearProgress/LinearProgress";
+import LinearProgress from "@mui/material/LinearProgress";
 
 interface IProps {
   isLoading: boolean;

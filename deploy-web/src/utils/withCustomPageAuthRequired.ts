@@ -1,11 +1,10 @@
 import { ParsedUrlQuery } from "querystring";
 import { UrlService } from "./urlUtils";
-import { GetServerSidePropsResult } from "next/types";
-import { PageRoute, WithPageAuthRequired, getSession, withPageAuthRequired } from "@auth0/nextjs-auth0";
+import { PageRoute, WithPageAuthRequiredPageRouterOptions, getSession, withPageAuthRequired } from "@auth0/nextjs-auth0";
 
-export function withCustomPageAuthRequired(...args: Parameters<WithPageAuthRequired>): PageRoute<{}, ParsedUrlQuery> {
+export function withCustomPageAuthRequired(opts: WithPageAuthRequiredPageRouterOptions<{}, ParsedUrlQuery>): PageRoute<{}, ParsedUrlQuery> {
   return withPageAuthRequired({
-    ...args,
+    ...opts,
     getServerSideProps: async params => {
       const session = await getSession(params.req, params.res);
 
@@ -21,7 +20,11 @@ export function withCustomPageAuthRequired(...args: Parameters<WithPageAuthRequi
         };
       }
 
-      return args[0].apply(params) as unknown as GetServerSidePropsResult<{}>;
+      if (opts.getServerSideProps) {
+        return opts.getServerSideProps(params);
+      }
+
+      return { props: {} };
     }
   });
 }

@@ -2,12 +2,13 @@
 import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { queryClient } from "@src/queries";
-import { mainnetId, mainnetNodes } from "@src/utils/constants";
+import { mainnetId } from "@src/utils/constants";
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { initAppTypes } from "@src/utils/init";
 import { NodeStatus } from "@src/types/node";
 import { initiateNetworkData, networks } from "@src/store/networkStore";
 import { migrateLocalStorage } from "@src/utils/localStorage";
+import { mainnetNodes } from "@src/utils/apiUtils";
 
 export type BlockchainNode = {
   api: string;
@@ -49,7 +50,7 @@ const defaultSettings: Settings = {
   customNode: null
 };
 
-export function SettingsProvider ({ children, version }: React.PropsWithChildren<{ version: string }>) {
+export function SettingsProvider({ children }: React.PropsWithChildren<{}>) {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSettingsInit, setIsSettingsInit] = useState(false);
@@ -67,7 +68,7 @@ export function SettingsProvider ({ children, version }: React.PropsWithChildren
       await initiateNetworkData();
 
       // Apply local storage migrations
-      migrateLocalStorage(version);
+      migrateLocalStorage();
 
       // Init app types based on the selected network id
       initAppTypes();
@@ -313,7 +314,7 @@ export function SettingsProvider ({ children, version }: React.PropsWithChildren
       {children}
     </SettingsProviderContext.Provider>
   );
-};
+}
 
 export const useSettings = () => {
   return { ...React.useContext(SettingsProviderContext) };

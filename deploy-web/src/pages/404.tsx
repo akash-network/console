@@ -1,6 +1,6 @@
 import Layout from "../components/layout/Layout";
 import { ReactNode } from "react";
-import PageContainer from "@src/components/shared/PageContainer";
+import { PageContainer } from "@src/components/shared/PageContainer";
 import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Title } from "@src/components/shared/Title";
 import { NextSeo } from "next-seo";
@@ -23,7 +23,7 @@ const FourOhFour: React.FunctionComponent<Props> = ({}) => {
         <Box sx={{ textAlign: "center", marginTop: 10 }}>
           <Typography variant="h1">404</Typography>
 
-          <Title value="Page not found." />
+          <Title>Page not found.</Title>
 
           <Box sx={{ paddingTop: "1rem" }}>
             <Button

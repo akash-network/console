@@ -1,6 +1,5 @@
-"use client";
 import React, { ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 import { UrlService } from "@src/utils/urlUtils";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
@@ -16,10 +15,9 @@ type Props = {
   bio: string;
   children?: ReactNode;
   page: UserProfileTab;
-  isLoading?: boolean;
 };
 
-export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, children, username, bio, isLoading = false }) => {
+export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, children, username, bio }) => {
   const router = useRouter();
   const { user } = useCustomUser();
 
@@ -46,7 +44,7 @@ export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, childr
   };
 
   return (
-    <PageContainer isLoading={isLoading}>
+    <>
       <div className="py-4">
         <h1 className="mb-2 text-3xl">{username}</h1>
 
@@ -67,6 +65,6 @@ export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, childr
 
         <ErrorBoundary FallbackComponent={ErrorFallback}>{children}</ErrorBoundary>
       </Tabs>
-    </PageContainer>
+    </>
   );
 };

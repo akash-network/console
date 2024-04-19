@@ -17,23 +17,27 @@ import { Rocket, Github, X as TwitterX, Discord, Menu, MenuScale } from "iconoir
 import { Drawer } from "@rewind-ui/core";
 import { Home, Cloud, MultiplePages, Tools, Server, OpenInWindow, HelpCircle, Settings } from "iconoir-react";
 import { ISidebarGroupMenu } from "@src/types";
+import getConfig from "next/config";
+import { useTheme } from "@mui/material";
+
+const { publicRuntimeConfig } = getConfig();
 
 type Props = {
   children?: ReactNode;
-  version: string;
   isMobileOpen: boolean;
   handleDrawerToggle: () => void;
   onOpenMenuClick: () => void;
   isNavOpen: boolean;
 };
 
-export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
+export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
   const [isHovering, setIsHovering] = useState(false);
   const _isNavOpen = isNavOpen || isHovering;
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
+  const theme = useTheme();
   // TODO Verify
-  const mdScreen = useMediaQuery(breakpoints.md.mediaQuery);
-  const mobileScreen = useMediaQuery(breakpoints.xs.mediaQuery);
+  const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  // const mobileScreen = useMediaQuery(breakpoints.xs.mediaQuery);
 
   const routeGroups: ISidebarGroupMenu[] = [
     {
@@ -150,7 +154,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
       </div>
 
       <div className="w-full">
-        {!mdScreen && <MobileSidebarUser />}
+        {smallScreen && <MobileSidebarUser />}
 
         {_isNavOpen && (
           <div className="pb-4 pl-4 pr-4">
@@ -181,10 +185,10 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
               {/* <ModeToggle /> */}
             </div>
 
-            {version && _isNavOpen && (
+            {publicRuntimeConfig?.version && _isNavOpen && (
               <div className="flex flex-col items-center justify-center">
                 <div className="text-xs font-bold text-muted-foreground">
-                  <strong>v{version}</strong>
+                  <strong>v{publicRuntimeConfig?.version}</strong>
                 </div>
 
                 <Badge color="secondary" className="h-[12px] text-xs font-bold">
@@ -195,7 +199,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
           </div>
         )}
 
-        {mdScreen && (
+        {!smallScreen && (
           <div className="flex items-center justify-between border-t border-muted-foreground/20 px-3 py-1">
             <Button size="icon" variant="ghost" onClick={onToggleMenuClick}>
               {isNavOpen ? <MenuScale /> : <Menu />}
@@ -208,8 +212,14 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
 
   return (
     <nav
-      style={{ width: !mdScreen ? 0 : _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth, height: `calc(100% - ${accountBarHeight}px)` }}
-      className="ease fixed z-[100] h-full bg-header/95  transition-[width] duration-300 md:flex-shrink-0"
+      style={{
+        // width: !mdScreen ? 0 : _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth,
+        height: `calc(100% - ${accountBarHeight}px)`
+      }}
+      className={cn("ease fixed z-[100] h-full bg-header/95  transition-[width] duration-300 md:flex-shrink-0", {
+        ["md:w-[240px]"]: _isNavOpen || isHovering,
+        ["md:w-[60px]"]: !(_isNavOpen || isHovering)
+      })}
     >
       {/* Mobile Drawer */}
       <Drawer
