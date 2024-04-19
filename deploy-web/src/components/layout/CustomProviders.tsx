@@ -38,7 +38,7 @@ const theme = createTheme({
   }
 });
 
-function Providers({ children, version }: React.PropsWithChildren<{ version: string }>) {
+function Providers({ children }: React.PropsWithChildren<{}>) {
   return (
     <CustomIntlProvider>
       <QueryClientProvider client={queryClient}>
@@ -50,7 +50,7 @@ function Providers({ children, version }: React.PropsWithChildren<{ version: str
                   <UserProvider>
                     <AddressBookProvider>
                       <TooltipProvider>
-                        <SettingsProvider version={version}>
+                        <SettingsProvider>
                           <CustomChainProvider>
                             <WalletProvider>
                               <ChainParamProvider>

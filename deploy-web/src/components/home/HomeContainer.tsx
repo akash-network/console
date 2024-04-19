@@ -12,6 +12,7 @@ import { Footer } from "@src/components/layout/Footer";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { DeploymentDto } from "@src/types/deployment";
 import { WelcomePanel } from "./WelcomePanel";
+import Layout from "../layout/Layout";
 
 export function HomeContainer() {
   const { address, isWalletLoaded } = useWallet();
@@ -43,7 +44,7 @@ export function HomeContainer() {
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
 
   return (
-    <div>
+    <Layout>
       <Box sx={{ marginBottom: "1rem" }}>
         <WelcomePanel />
       </Box>
@@ -54,6 +55,6 @@ export function HomeContainer() {
           <CircularProgress color="secondary" size="4rem" />
         </Box>
       )} */}
-    </div>
+    </Layout>
   );
 }
