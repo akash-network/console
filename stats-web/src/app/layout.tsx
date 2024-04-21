@@ -7,33 +7,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { cookies } from "next/headers";
 import { customColors } from "@/lib/colors";
 import GoogleAnalytics from "@/components/layout/CustomGoogleAnalytics";
-import localFont from "next/font/local";
 import { Footer } from "@/components/layout/Footer";
 import getConfig from "next/config";
 import { GeistSans } from "geist/font/sans";
-import { GeistMono } from 'geist/font/mono'
 
 const { publicRuntimeConfig } = getConfig();
-
-// const satoshi = localFont({
-//   src: [
-//     {
-//       path: "./fonts/Satoshi-Variable.woff",
-//       weight: "400",
-//       style: "normal"
-//     },
-//     {
-//       path: "./fonts/Satoshi-Variable.woff2",
-//       weight: "400",
-//       style: "normal"
-//     },
-//     {
-//       path: "./fonts/Satoshi-Variable.ttf",
-//       weight: "400",
-//       style: "normal"
-//     }
-//   ]
-// });
 
 export const metadata: Metadata = {
   title: "Akash Network Stats",
