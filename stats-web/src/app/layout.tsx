@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Nav } from "@/components/layout/Nav";
@@ -11,34 +10,30 @@ import GoogleAnalytics from "@/components/layout/CustomGoogleAnalytics";
 import localFont from "next/font/local";
 import { Footer } from "@/components/layout/Footer";
 import getConfig from "next/config";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from 'geist/font/mono'
 
 const { publicRuntimeConfig } = getConfig();
 
-// const inter = Inter({
-//   subsets: ["latin"],
-//   variable: "--font-sans"
+// const satoshi = localFont({
+//   src: [
+//     {
+//       path: "./fonts/Satoshi-Variable.woff",
+//       weight: "400",
+//       style: "normal"
+//     },
+//     {
+//       path: "./fonts/Satoshi-Variable.woff2",
+//       weight: "400",
+//       style: "normal"
+//     },
+//     {
+//       path: "./fonts/Satoshi-Variable.ttf",
+//       weight: "400",
+//       style: "normal"
+//     }
+//   ]
 // });
-
-const satoshi = localFont({
-  src: [
-    {
-      path: "./fonts/Satoshi-Variable.woff",
-      weight: "400",
-      style: "normal"
-    },
-    {
-      path: "./fonts/Satoshi-Variable.woff2",
-      weight: "400",
-      style: "normal"
-    },
-    {
-      path: "./fonts/Satoshi-Variable.ttf",
-      weight: "400",
-      style: "normal"
-    }
-  ]
-  // variable: "--font-sans"
-});
 
 export const metadata: Metadata = {
   title: "Akash Network Stats",
@@ -123,7 +118,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
       <GoogleAnalytics />
 
-      <body className={cn("min-h-screen bg-background tracking-wide antialiased", satoshi.className)}>
+      <body className={cn("min-h-screen bg-background tracking-wide antialiased font-sans", GeistSans.variable)}>
         <Providers>
           <Nav />
           <div className="flex min-h-[calc(100vh-60px)] flex-col justify-between">
