@@ -185,7 +185,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
               <div
                 className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300", {
                   ["sm:ml-[240px]"]: isNavOpen,
-                  ["sm:ml-[60px]"]: !isNavOpen
+                  ["sm:ml-[57px]"]: !isNavOpen
                 })}
                 // style={{ marginLeft: !smallScreen ? 0 : isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }}
                 // className={classes.viewContentContainer}

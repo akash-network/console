@@ -57,7 +57,7 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
   usePreviousRoute();
 
   return (
-    <main className={cn("bg-background tracking-wide antialiased", GeistSans.className)}>
+    <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
       <PageHead />
 
       {/* <CacheProvider value={emotionCache}>

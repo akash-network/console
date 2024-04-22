@@ -225,7 +225,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       }}
       className={cn("ease fixed z-[100] h-full bg-header/95  transition-[width] duration-300 md:flex-shrink-0", {
         ["md:w-[240px]"]: _isNavOpen || isHovering,
-        ["md:w-[60px]"]: !(_isNavOpen || isHovering)
+        ["md:w-[57px]"]: !(_isNavOpen || isHovering)
       })}
     >
       {/* Mobile Drawer */}
