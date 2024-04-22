@@ -235,8 +235,8 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
         ));
       component.push(
         <DialogFooter className="flex justify-between space-x-2 sm:justify-between" key="DialogCustomActions">
-          <div>{leftButtons}</div>
-          <div>{rightButtons}</div>
+          <div className="space-x-2">{leftButtons}</div>
+          <div className="space-x-2">{rightButtons}</div>
         </DialogFooter>
       );
       break;

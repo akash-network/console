@@ -18,6 +18,7 @@ type Props = {
   isLoading?: boolean;
   isUsingSettings?: boolean;
   isUsingWallet?: boolean;
+  disableContainer?: boolean;
   children?: ReactNode;
 };
 
@@ -39,7 +40,7 @@ type Props = {
 //   }
 // }));
 
-const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet }) => {
+const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer }) => {
   const [locale, setLocale] = useState("en-US");
 
   useEffect(() => {
@@ -50,14 +51,14 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
 
   return (
     <IntlProvider locale={locale} defaultLocale="en-US">
-      <LayoutApp isLoading={isLoading} isUsingSettings={isUsingSettings} isUsingWallet={isUsingWallet}>
+      <LayoutApp isLoading={isLoading} isUsingSettings={isUsingSettings} isUsingWallet={isUsingWallet} disableContainer={disableContainer}>
         {children}
       </LayoutApp>
     </IntlProvider>
   );
 };
 
-const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet }) => {
+const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer }) => {
   const theme = useTheme();
   const [isShowingWelcome, setIsShowingWelcome] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(true);
@@ -200,7 +201,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
                 <ErrorBoundary FallbackComponent={ErrorFallback}>
                   {!isUsingSettings || isSettingsInit ? (
                     !isUsingWallet || isWalletLoaded ? (
-                      <div className="container h-full pb-8 pt-4 sm:pt-8">{children}</div>
+                      <div className={cn({ ["container h-full pb-8 pt-4 sm:pt-8"]: !disableContainer })}>{children}</div>
                     ) : (
                       <Loading text="Loading wallet..." />
                     )

@@ -17,7 +17,7 @@ import { GpuVendor } from "@src/types/gpu";
 import { Button } from "../ui/button";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
-import { default as MuiSelect } from "@mui/material/Select/Select";
+import { default as MuiSelect } from "@mui/material/Select";
 import IconButton from "@mui/material/IconButton";
 import MenuItem from "@mui/material/MenuItem";
 
