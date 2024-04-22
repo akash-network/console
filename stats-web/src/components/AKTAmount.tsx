@@ -26,7 +26,7 @@ export const AKTAmount: React.FunctionComponent<Props> = ({ uakt, showUSD, showA
               switch (part.type) {
                 case "integer":
                 case "group":
-                  return <b key={i}>{part.value}</b>;
+                  return <span key={i}>{part.value}</span>;
 
                 case "decimal":
                 case "fraction":
@@ -45,7 +45,7 @@ export const AKTAmount: React.FunctionComponent<Props> = ({ uakt, showUSD, showA
       </FormattedNumberParts>
       {showAKTLabel && <AKTLabel />}
       {isPriceLoaded && showUSD && aktAmount > 0 && (
-        <small className="text-secondary-foreground">
+        <small className="text-sm text-muted-foreground">
           &nbsp;(
           <FormattedNumber style="currency" currency="USD" value={aktToUSD(aktAmount)} notation="compact" />)
         </small>

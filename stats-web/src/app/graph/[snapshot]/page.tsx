@@ -39,7 +39,7 @@ export default function GraphPage({ params: { snapshot: snapshotUrlParam } }: IG
         </div>
 
         <div className="mb-2">
-          <h1 className="text-center text-3xl font-normal sm:text-left">{title}</h1>
+          <h1 className="text-center text-3xl font-normal tracking-tight sm:text-left">{title}</h1>
         </div>
 
         <GraphContainer snapshot={snapshot} />
