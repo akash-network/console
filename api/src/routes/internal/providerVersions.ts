@@ -1,7 +1,11 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { Provider } from "@shared/dbSchemas/akash";
+import { chainDb } from "@src/db/dbConnection";
+import { toUTC } from "@src/utils";
+import { env } from "@src/utils/env";
 import { round } from "@src/utils/math";
+import { sub } from "date-fns";
 import * as semver from "semver";
+import { QueryTypes } from "sequelize";
 
 const route = createRoute({
   method: "get",
@@ -28,13 +32,20 @@ const route = createRoute({
 });
 
 export default new OpenAPIHono().openapi(route, async (c) => {
-  const providers = await Provider.findAll({
-    attributes: ["hostUri", "akashVersion"],
-    where: {
-      isOnline: true
-    },
-    group: ["hostUri", "akashVersion"]
-  });
+  const providers = await chainDb.query<{ hostUri: string; akashVersion: string }>(
+    `
+    SELECT DISTINCT ON ("hostUri") "hostUri","akashVersion"
+    FROM provider p
+    INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSuccessfulSnapshotId"
+    WHERE p."isOnline" IS TRUE OR ps."checkDate" >= :grace_date
+  `,
+    {
+      type: QueryTypes.SELECT,
+      replacements: {
+        grace_date: toUTC(sub(new Date(), { minutes: env.ProviderUptimeGracePeriodMinutes }))
+      }
+    }
+  );
 
   const grouped: { version: string; providers: string[] }[] = [];
 

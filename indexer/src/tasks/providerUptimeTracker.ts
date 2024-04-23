@@ -1,66 +1,50 @@
 import { Provider } from "@shared/dbSchemas/akash";
-import { ProviderSnapshot } from "@shared/dbSchemas/akash/providerSnapshot";
 import { sequelize } from "@src/db/dbConnection";
-import { toUTC } from "@src/shared/utils/date";
-import { add } from "date-fns";
-import { Op, QueryTypes } from "sequelize";
+import { secondsInDay } from "date-fns";
+import { QueryTypes } from "sequelize";
 
 export async function updateProviderUptime() {
   console.log("Updating provider uptimes.");
-  console.time("getAllProviders");
+  console.time("updateProviderUptimes");
 
-  const nowUtc = toUTC(new Date());
-  const oneDayAgo = add(nowUtc, { days: -1 });
-  const sevenDaysAgo = add(nowUtc, { days: -7 });
-  const thirtyDaysAgo = add(nowUtc, { days: -30 });
-
-  const providers = await sequelize.query<{
-    owner: string;
-    oldUptime1d: number;
-    oldUptime7d: number;
-    oldUptime30d: number;
-    online1d: number;
-    total1d: number;
-    online7d: number;
-    total7d: number;
-    online30d: number;
-    total30d: number;
-  }>(
-    `
-SELECT 
-	p."owner",
-	p."uptime30d" AS "oldUptime30d",
-	p."uptime7d" AS "oldUptime7d",
-	p."uptime1d" AS "oldUptime1d",
-	COUNT(ps.id) FILTER(WHERE ps."isOnline") AS "online30d",
-	COUNT(ps.id) AS "total30d",
-	COUNT(ps.id) FILTER(WHERE ps."isOnline" AND ps."checkDate" > $sevenDaysAgo) AS "online7d", 
-	COUNT(ps.id) FILTER(WHERE ps."checkDate" > $sevenDaysAgo) AS "total7d",
-	COUNT(ps.id) FILTER(WHERE ps."isOnline" AND ps."checkDate" > $oneDayAgo) AS "online1d", 
-	COUNT(ps.id) FILTER(WHERE ps."checkDate" > $oneDayAgo) AS "total1d"
-FROM "provider" p
-INNER JOIN "providerSnapshot" ps ON p."owner"=ps."owner" AND ps."checkDate" > $thirtyDaysAgo
-GROUP BY p."owner"`,
-    {
-      type: QueryTypes.SELECT,
-      bind: {
-        oneDayAgo: oneDayAgo,
-        sevenDaysAgo: sevenDaysAgo,
-        thirtyDaysAgo: thirtyDaysAgo
-      }
-    }
-  );
-
-  console.timeEnd("getAllProviders");
-
-  console.time("updateProviderUptime");
+  const providers = await Provider.findAll();
 
   for (const provider of providers) {
-    const uptime1d = provider.total1d > 0 ? provider.online1d / provider.total1d : 0;
-    const uptime7d = provider.total7d > 0 ? provider.online7d / provider.total7d : 0;
-    const uptime30d = provider.total30d > 0 ? provider.online30d / provider.total30d : 0;
+    const [{ offline_seconds_30d, offline_seconds_7d, offline_seconds_1d }] = await sequelize.query<{
+      offline_seconds_30d: number;
+      offline_seconds_7d: number;
+      offline_seconds_1d: number;
+    }>(
+      `
+    WITH offline_periods AS (
+      SELECT
+          "checkDate",
+          LEAD("checkDate") OVER (ORDER BY "checkDate") AS "next_checkDate",
+          "isOnline"
+      FROM
+          "providerSnapshot"
+    WHERE "owner"=:owner AND "checkDate" >= NOW() - INTERVAL '30 days'
+  )
+  SELECT
+      SUM(CASE WHEN NOT "isOnline" THEN EXTRACT(EPOCH FROM ("next_checkDate" - "checkDate")) ELSE 0 END) AS offline_seconds_30d,
+      SUM(CASE WHEN NOT "isOnline" AND "checkDate" >= NOW() - INTERVAL '7 days' THEN EXTRACT(EPOCH FROM ("next_checkDate" - "checkDate")) ELSE 0 END) AS offline_seconds_7d,
+      SUM(CASE WHEN NOT "isOnline" AND "checkDate" >= NOW() - INTERVAL '1 day' THEN EXTRACT(EPOCH FROM ("next_checkDate" - "checkDate")) ELSE 0 END) AS offline_seconds_1d
+  FROM
+      offline_periods;
+    `,
+      {
+        type: QueryTypes.SELECT,
+        replacements: {
+          owner: provider.owner
+        }
+      }
+    );
 
-    if (uptime1d !== provider.oldUptime1d || uptime7d !== provider.oldUptime7d || uptime30d !== provider.oldUptime30d) {
+    const uptime1d = Math.max(0, 1 - offline_seconds_1d / secondsInDay);
+    const uptime7d = Math.max(0, 1 - offline_seconds_7d / (7 * secondsInDay));
+    const uptime30d = Math.max(0, 1 - offline_seconds_30d / (30 * secondsInDay));
+
+    if (uptime1d !== provider.uptime1d || uptime7d !== provider.uptime7d || uptime30d !== provider.uptime30d) {
       await Provider.update(
         {
           uptime1d: uptime1d,
@@ -72,5 +56,5 @@ GROUP BY p."owner"`,
     }
   }
 
-  console.timeEnd("updateProviderUptime");
+  console.timeEnd("updateProviderUptimes");
 }

@@ -5,10 +5,12 @@ import { Day, Transaction } from "@shared/dbSchemas/base";
 import { cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
 import { MsgCreateBid } from "@src/proto/akash/v1beta4";
+import { toUTC } from "@src/utils";
 import { averageBlockCountInAMonth, averageBlockCountInAnHour } from "@src/utils/constants";
+import { env } from "@src/utils/env";
 import { average, median, round, weightedAverage } from "@src/utils/math";
 import { decodeMsg, uint8arrayToString } from "@src/utils/protobuf";
-import { addDays } from "date-fns";
+import { addDays, sub } from "date-fns";
 import { Op, QueryTypes } from "sequelize";
 
 const route = createRoute({
@@ -345,8 +347,8 @@ async function getGpus() {
         "hostUri", 
         p."owner"
         FROM provider p
-        INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSnapshotId"
-        WHERE p."isOnline" IS TRUE
+        INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSuccessfulSnapshotId"
+        WHERE p."isOnline" IS TRUE OR ps."checkDate" >= :grace_date
         ORDER BY p."hostUri", p."createdHeight" DESC
       )
       SELECT s."hostUri", s."owner", n."name", n."gpuAllocatable" AS allocatable, LEAST(n."gpuAllocated", n."gpuAllocatable") AS allocated, gpu."modelId", gpu.vendor, gpu.name AS "modelName", gpu.interface, gpu."memorySize"
@@ -360,7 +362,10 @@ async function getGpus() {
         gpu.vendor IS NOT NULL
   `,
     {
-      type: QueryTypes.SELECT
+      type: QueryTypes.SELECT,
+      replacements: {
+        grace_date: toUTC(sub(new Date(), { minutes: env.ProviderUptimeGracePeriodMinutes }))
+      }
     }
   );
 

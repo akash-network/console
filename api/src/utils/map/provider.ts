@@ -1,4 +1,4 @@
-import { Provider, ProviderSnapshotNode } from "@shared/dbSchemas/akash";
+import { Provider, ProviderSnapshot, ProviderSnapshotNode } from "@shared/dbSchemas/akash";
 import { Auditor, ProviderAttributesSchema, ProviderList } from "@src/types/provider";
 import { createFilterUnique } from "../array/array";
 import semver from "semver";
@@ -7,11 +7,11 @@ export const mapProviderToList = (
   provider: Provider,
   providerAttributeSchema: ProviderAttributesSchema,
   auditors: Array<Auditor>,
-  nodes?: ProviderSnapshotNode[]
+  lastSuccessfulSnapshot?: ProviderSnapshot
 ): ProviderList => {
   const isValidVersion = provider.cosmosSdkVersion ? semver.gte(provider.cosmosSdkVersion, "v0.45.9") : false;
   const name = provider.isOnline ? new URL(provider.hostUri).hostname : null;
-  const gpuModels = getDistinctGpuModelsFromNodes(nodes || []);
+  const gpuModels = getDistinctGpuModelsFromNodes(lastSuccessfulSnapshot?.nodes || []);
 
   return {
     owner: provider.owner,
@@ -55,6 +55,7 @@ export const mapProviderToList = (
     uptime30d: provider.uptime30d,
     isValidVersion,
     isOnline: provider.isOnline,
+    lastOnlineDate: lastSuccessfulSnapshot?.checkDate,
     isAudited: provider.providerAttributeSignatures.some((a) => auditors.some((y) => y.address === a.auditor)),
     attributes: provider.providerAttributes.map((attr) => ({
       key: attr.key,

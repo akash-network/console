@@ -36,6 +36,7 @@ const route = createRoute({
               uptime30d: z.number(),
               isValidVersion: z.boolean(),
               isOnline: z.boolean(),
+              lastOnlineDate: z.string().nullable(),
               isAudited: z.boolean(),
               activeStats: z.object({
                 cpu: z.number(),

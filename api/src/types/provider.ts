@@ -76,11 +76,11 @@ export interface ProviderList {
 }
 
 export interface ProviderDetail extends ProviderList {
-  uptime: Array<{
+  uptime: {
     id: string;
     isOnline: boolean;
     checkDate: Date;
-  }>;
+  }[];
 }
 
 export type ProviderAttributesSchema = {

@@ -22,8 +22,12 @@ export class Provider extends Model {
 
   // Stats
   @Column(DataTypes.UUID) lastSnapshotId?: string;
+  @Column(DataTypes.UUID) lastSuccessfulSnapshotId?: string;
+  @Column(DataTypes.UUID) downtimeFirstSnapshotId?: string;
   @Column isOnline?: boolean;
   @Column lastCheckDate?: Date;
+  @Required @Default(DataTypes.NOW) @Column nextCheckDate: Date;
+  @Required @Default(0) @Column failedCheckCount: number;
   @Column(DataTypes.TEXT) error?: string;
   @Column deploymentCount?: number;
   @Column leaseCount?: number;
@@ -55,4 +59,6 @@ export class Provider extends Model {
   @HasMany(() => ProviderAttributeSignature, "provider") providerAttributeSignatures: ProviderAttributeSignature[];
   @HasMany(() => ProviderSnapshot, "owner") providerSnapshots: ProviderSnapshot[];
   @BelongsTo(() => ProviderSnapshot, "lastSnapshotId") lastSnapshot: ProviderSnapshot;
+  @BelongsTo(() => ProviderSnapshot, "lastSuccessfulSnapshotId") lastSuccessfulSnapshot: ProviderSnapshot;
+  @BelongsTo(() => ProviderSnapshot, "downtimeFirstSnapshotId") downtimeFirstSnapshot: ProviderSnapshot;
 }
