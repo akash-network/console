@@ -135,6 +135,11 @@ export class ApiUrlService {
   }
 }
 
+// CLOUDMOS
+export const mainnetNodes = ApiUrlService.mainnetNodes();
+export const testnetNodes = ApiUrlService.testnetNodes();
+export const sandboxNodes = ApiUrlService.sandboxNodes();
+
 export async function loadWithPagination(baseUrl: string, dataKey: string, limit: number) {
   let items = [];
   let nextKey = null;

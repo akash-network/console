@@ -122,7 +122,12 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
                 />
               </div>
 
-              <div className={cn("flex w-[50px] flex-col items-start pl-2", { ["justify-between"]: envIndex > 0, ["justify-end"]: envIndex === 0 || !hasSecretOption })}>
+              <div
+                className={cn("flex w-[50px] flex-col items-start pl-2", {
+                  ["justify-between"]: envIndex > 0,
+                  ["justify-end"]: envIndex === 0 || !hasSecretOption
+                })}
+              >
                 {envIndex > 0 && (
                   <Button onClick={() => removeEnv(envIndex)} size="icon" variant="ghost">
                     <Bin />
@@ -146,7 +151,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
                           </>
                         }
                       >
-                        <Switch checked={field.value || false} onCheckedChange={field.onChange} color="primary" />
+                        <Switch checked={field.value || false} onCheckedChange={field.onChange} />
                       </CustomTooltip>
                     )}
                   />

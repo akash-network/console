@@ -17,7 +17,7 @@ import { GpuVendor } from "@src/types/gpu";
 import { Button } from "../ui/button";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
-import { default as MuiSelect } from "@mui/material/Select/Select";
+import { default as MuiSelect } from "@mui/material/Select";
 import IconButton from "@mui/material/IconButton";
 import MenuItem from "@mui/material/MenuItem";
 
@@ -76,7 +76,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
               <div className="flex items-center">
                 <div className="flex items-center">
                   <div className="flex items-center">
-                    <MdSpeed className="mr-2 text-muted-foreground" />
+                    <MdSpeed className="mr-2 text-2xl text-muted-foreground" />
                     <strong>GPU</strong>
 
                     <CustomTooltip
@@ -386,7 +386,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                   ) : (
                     <div className="ml-4 flex items-center">
                       <Spinner />
-                      <span className="ml-2 text-sm text-muted-foreground whitespace-nowrap">Loading GPU models...</span>
+                      <span className="ml-2 whitespace-nowrap text-sm text-muted-foreground">Loading GPU models...</span>
                     </div>
                   )}
                 </div>

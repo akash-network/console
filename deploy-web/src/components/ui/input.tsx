@@ -50,7 +50,7 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ classNam
 FormInput.displayName = "FormInput";
 
 export interface InputWithIconProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label: string | React.ReactNode;
+  label?: string | React.ReactNode;
   startIcon?: React.ReactNode;
   endIcon?: React.ReactNode;
   error?: string;
@@ -65,7 +65,7 @@ const InputWithIcon = React.forwardRef<HTMLInputElement, InputWithIconProps>(
 
     return (
       <div className={className}>
-        <Label htmlFor={`${id}-input`}>{label}</Label>
+        {label && <Label htmlFor={`${id}-input`}>{label}</Label>}
         <div className="mt-2 flex h-10 w-full items-center rounded-md border border-input bg-popover px-3 py-2 text-sm shadow-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
           {startIcon && <div className="inset-y-0 left-0 flex items-center">{startIcon}</div>}
           <input

@@ -1,6 +1,6 @@
 import { Network } from "@src/types/network";
-import { ApiUrlService } from "@src/utils/apiUtils";
-import { mainnetId, mainnetNodes, sandboxId, sandboxNodes, testnetId, testnetNodes } from "@src/utils/constants";
+import { ApiUrlService, mainnetNodes, sandboxNodes, testnetNodes } from "@src/utils/apiUtils";
+import { mainnetId, sandboxId, testnetId } from "@src/utils/constants";
 import axios from "axios";
 import { atom } from "jotai";
 
@@ -27,7 +27,7 @@ export let networks: Network[] = [
     versionUrl: ApiUrlService.testnetVersion(),
     rpcEndpoint: "https://rpc.testnet-02.aksh.pw:443",
     enabled: false,
-    version: null, // Set asynchronously
+    version: null // Set asynchronously
   },
   {
     id: sandboxId,
