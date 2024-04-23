@@ -1,16 +1,17 @@
+"use client";
 import { ReactNode, useEffect, useState } from "react";
-import { Popup } from "../shared/Popup";
-import { Alert, Box, Typography, useTheme } from "@mui/material";
-import { useSnackbar } from "notistack";
 import Editor from "@monaco-editor/react";
 import { Timer } from "@src/utils/timer";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { UseFormSetValue } from "react-hook-form";
 import { SdlBuilderFormValues, Service } from "@src/types";
-import { Snackbar } from "../shared/Snackbar";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { useToast } from "@src/components/ui/use-toast";
+import { Popup } from "@src/components/shared/Popup";
+import { useTheme } from "next-themes";
+import { ArrowDown } from "iconoir-react";
+import { Alert } from "@src/components/ui/alert";
 
 type Props = {
   setValue: UseFormSetValue<SdlBuilderFormValues>;
@@ -19,16 +20,16 @@ type Props = {
 };
 
 export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setValue }) => {
-  const theme = useTheme();
-  const [sdl, setSdl] = useState("");
-  const [parsingError, setParsingError] = useState(null);
-  const { enqueueSnackbar } = useSnackbar();
+  const [sdl, setSdl] = useState<string | undefined>("");
+  const [parsingError, setParsingError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const { theme } = useTheme();
 
   useEffect(() => {
     const timer = Timer(500);
 
     timer.start().then(() => {
-      createAndValidateSdl(sdl);
+      createAndValidateSdl(sdl || "");
     });
 
     return () => {
@@ -62,17 +63,18 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
   };
 
   const onImport = () => {
-    const result = createAndValidateSdl(sdl);
+    const result = createAndValidateSdl(sdl || "");
     console.log(result);
 
     if (!result) return;
 
     setValue("services", result as Service[]);
 
-    enqueueSnackbar(<Snackbar title="Import success!" iconVariant="success" />, {
-      variant: "success",
-      autoHideDuration: 4000
-    });
+    toast({ title: "Import success!", variant: "success" });
+    // enqueueSnackbar(<Snackbar title="Import success!" iconVariant="success" />, {
+    //   variant: "success",
+    //   autoHideDuration: 4000
+    // });
 
     event(AnalyticsEvents.IMPORT_SDL, {
       category: "sdl_builder",
@@ -99,7 +101,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
         {
           label: "Import",
           color: "secondary",
-          variant: "contained",
+          variant: "default",
           side: "right",
           disabled: !sdl || !!parsingError,
           onClick: onImport
@@ -109,28 +111,14 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
       maxWidth="md"
       enableCloseOnBackdropClick
     >
-      <Typography
-        variant="h6"
-        sx={{
-          marginBottom: ".5rem",
-          color: theme.palette.mode === "dark" ? theme.palette.grey[400] : theme.palette.grey[600],
-          display: "flex",
-          alignItems: "center"
-        }}
-      >
-        Paste your sdl here to import <ArrowDownwardIcon sx={{ marginLeft: "1rem" }} />
-      </Typography>
-      <Box sx={{ marginBottom: ".5rem" }}>
-        <Editor
-          height="500px"
-          defaultLanguage="yaml"
-          value={sdl}
-          onChange={value => setSdl(value)}
-          theme={theme.palette.mode === "dark" ? "vs-dark" : "light"}
-        />
-      </Box>
+      <h6 className="mb-4 flex items-center text-muted-foreground">
+        Paste your sdl here to import <ArrowDown className="ml-4 text-sm" />
+      </h6>
+      <div className="mb-2">
+        <Editor height="500px" defaultLanguage="yaml" value={sdl} onChange={value => setSdl(value)} theme={theme === "dark" ? "vs-dark" : "light"} />
+      </div>
       {parsingError && (
-        <Alert severity="error" variant="outlined">
+        <Alert className="mt-4" variant="destructive">
           {parsingError}
         </Alert>
       )}

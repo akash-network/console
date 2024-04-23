@@ -1,17 +1,19 @@
+"use client";
 import { Dispatch, ReactNode, SetStateAction, useEffect, useRef, useState } from "react";
-import { makeStyles } from "tss-react/mui";
-import { Popup } from "../shared/Popup";
-import { Alert, Box, FormControlLabel, Radio, RadioGroup, TextField, useTheme } from "@mui/material";
-import { useSnackbar } from "notistack";
 import { Controller, useForm } from "react-hook-form";
-import { ITemplate, SdlSaveTemplateFormValues, Service } from "@src/types";
+import { EnvironmentVariable, ITemplate, SdlSaveTemplateFormValues, Service } from "@src/types";
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
-import { Snackbar } from "../shared/Snackbar";
-import { MustConnect } from "../shared/MustConnect";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { useToast } from "@src/components/ui/use-toast";
+import { Popup } from "@src/components/shared/Popup";
+import { Alert } from "@src/components/ui/alert";
+import { MustConnect } from "@src/components/shared/MustConnect";
+import TextField from "@mui/material/TextField";
+import { RadioGroup, RadioGroupItem } from "@src/components/ui/radio-group";
+import { Label } from "@src/components/ui/label";
 
 type Props = {
   services: Service[];
@@ -22,20 +24,10 @@ type Props = {
   children?: ReactNode;
 };
 
-const useStyles = makeStyles()(theme => ({
-  formControl: {
-    marginBottom: theme.spacing(1.5)
-  },
-  textField: {
-    width: "100%"
-  }
-}));
-
 export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, getTemplateData, templateMetadata, setTemplateMetadata, services }) => {
-  const { classes } = useStyles();
-  const [publicEnvs, setPublicEnvs] = useState([]);
-  const { enqueueSnackbar } = useSnackbar();
-  const formRef = useRef<HTMLFormElement>();
+  const [publicEnvs, setPublicEnvs] = useState<EnvironmentVariable[]>([]);
+  const { toast } = useToast();
+  const formRef = useRef<HTMLFormElement>(null);
   const { user, isLoading: isLoadingUser } = useCustomUser();
   const isRestricted = !isLoadingUser && !user;
   const isCurrentUserTemplate = !isRestricted && user?.sub === templateMetadata?.userId;
@@ -48,8 +40,9 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
   });
 
   useEffect(() => {
-    const envs = services.some(s => s.env.some(e => !e.isSecret)) ? services.reduce((cur, prev) => cur.concat([...prev.env.filter(e => !e.isSecret)]), []) : [];
-    console.log(envs);
+    const envs = services.some(s => s.env?.some(e => !e.isSecret))
+      ? services.reduce((cur: EnvironmentVariable[], prev) => cur.concat([...(prev.env?.filter(e => !e.isSecret) as EnvironmentVariable[])]), [])
+      : [];
     setPublicEnvs(envs);
 
     if (templateMetadata && isCurrentUserTemplate) {
@@ -66,13 +59,11 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
     const newTemplateMetadata = { ...templateMetadata, title: data.title, isPublic: data.visibility !== "private" };
     if (!isCurrentUserTemplate) {
       newTemplateMetadata.username = user.username;
-      newTemplateMetadata.userId = user.sub;
+      newTemplateMetadata.userId = user.sub || "";
     }
     setTemplateMetadata(newTemplateMetadata);
 
-    enqueueSnackbar(<Snackbar title="Template saved!" iconVariant="success" />, {
-      variant: "success"
-    });
+    toast({ title: "Template saved!", variant: "success" });
 
     if (newTemplateMetadata.id) {
       event(AnalyticsEvents.UPDATE_SDL_TEMPLATE, {
@@ -90,7 +81,7 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
   };
 
   const onSave = () => {
-    formRef.current.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
   return (
@@ -110,7 +101,7 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
         {
           label: isCurrentUserTemplate ? "Save" : "Save As",
           color: "secondary",
-          variant: "contained",
+          variant: "default",
           side: "right",
           disabled: isRestricted,
           onClick: onSave
@@ -120,7 +111,7 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
       maxWidth="xs"
       enableCloseOnBackdropClick
     >
-      <Box sx={{ paddingTop: ".5rem" }}>
+      <div className="pt-2">
         {isRestricted ? (
           <MustConnect message="To save a template" />
         ) : (
@@ -136,9 +127,8 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
                   label="Title"
                   error={!!fieldState.error}
                   helperText={fieldState.error?.message}
-                  className={classes.formControl}
+                  className="mb-4"
                   fullWidth
-                  color="secondary"
                   size="small"
                   value={field.value || ""}
                   onChange={event => field.onChange(event.target.value)}
@@ -150,28 +140,34 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
               control={control}
               name={`visibility`}
               render={({ field }) => (
-                <RadioGroup defaultValue="private" value={field.value} onChange={field.onChange}>
-                  <FormControlLabel value="private" control={<Radio color="secondary" />} label="Private" />
-                  <FormControlLabel value="public" control={<Radio color="secondary" />} label="Public" />
+                <RadioGroup defaultValue="private" value={field.value} onValueChange={field.onChange} className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="private" id="private" />
+                    <Label htmlFor="private">Private</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="public" id="public" />
+                    <Label htmlFor="public">Public</Label>
+                  </div>
                 </RadioGroup>
               )}
             />
 
             {publicEnvs.length > 0 && (
-              <Alert severity="warning" sx={{ marginTop: "1rem", maxHeight: "150px", overflowY: "auto" }}>
+              <Alert variant="warning" className="mt-4 max-h-[150px] overflow-y-auto">
                 You have {publicEnvs.length} public environment variables. Are you sure you don't need to hide them as secret?
-                <Box component="ul" sx={{ padding: 0, wordBreak: "break-all" }}>
+                <ul className="break-all p-0">
                   {publicEnvs.map((e, i) => (
                     <li key={i}>
                       {e.key}={getShortText(e.value, 30)}
                     </li>
                   ))}
-                </Box>
+                </ul>
               </Alert>
             )}
           </form>
         )}
-      </Box>
+      </div>
     </Popup>
   );
 };

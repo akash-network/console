@@ -9,6 +9,6 @@ export type Network = {
   chainRegistryName: string;
   versionUrl: string;
   rpcEndpoint?: string;
-  version: string;
+  version: string | null;
   enabled: boolean;
 };

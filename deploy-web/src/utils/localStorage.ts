@@ -2,6 +2,8 @@
 
 import { gt, neq } from "semver";
 import { mainnetId } from "./constants";
+import getConfig from "next/config";
+const { publicRuntimeConfig } = getConfig();
 
 const migrations = {
   // TODO
@@ -11,8 +13,8 @@ const migrations = {
 // Store latestUpdatedVersion in localStorage
 // Check if latestUpdatedVersion is < currentVersion
 // If so run all the version > until current is reached.
-export const migrateLocalStorage = (version: string) => {
-  const currentVersion = version;
+export const migrateLocalStorage = () => {
+  const currentVersion = publicRuntimeConfig?.version;
   let latestUpdatedVersion = localStorage.getItem("latestUpdatedVersion");
 
   if (!latestUpdatedVersion) {

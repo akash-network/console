@@ -5,7 +5,7 @@ import { plans } from "@src/utils/plans";
 type UseCustomUser = {
   user: CustomUserProfile;
   isLoading: boolean;
-  error: Error;
+  error: Error | undefined;
   checkSession: () => Promise<void>;
 };
 

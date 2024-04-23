@@ -1,11 +1,12 @@
+"use client"
 import { ReactNode } from "react";
-import { Popup } from "../shared/Popup";
-import { Box, Button, IconButton, Typography, useTheme } from "@mui/material";
-import { useSnackbar } from "notistack";
 import Editor from "@monaco-editor/react";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
-import FileCopy from "@mui/icons-material/FileCopy";
-import { Snackbar } from "../shared/Snackbar";
+import { useToast } from "@src/components/ui/use-toast";
+import { Popup } from "@src/components/shared/Popup";
+import { Button } from "@src/components/ui/button";
+import { Copy } from "iconoir-react";
+import { useTheme } from "next-themes";
 
 type Props = {
   sdl: string;
@@ -14,15 +15,16 @@ type Props = {
 };
 
 export const PreviewSdl: React.FunctionComponent<Props> = ({ sdl, onClose }) => {
-  const theme = useTheme();
-  const { enqueueSnackbar } = useSnackbar();
+  const { toast } = useToast();
+  const { theme } = useTheme();
 
   const onCopyClick = () => {
     copyTextToClipboard(sdl);
-    enqueueSnackbar(<Snackbar title="SDL copied to clipboard!" iconVariant="success" />, {
-      variant: "success",
-      autoHideDuration: 3000
-    });
+    toast({title: "SDL copied to clipboard!", variant: "success"});
+    // enqueueSnackbar(<Snackbar title="SDL copied to clipboard!" iconVariant="success" />, {
+    //   variant: "success",
+    //   autoHideDuration: 3000
+    // });
   };
 
   return (
@@ -44,14 +46,15 @@ export const PreviewSdl: React.FunctionComponent<Props> = ({ sdl, onClose }) => 
       maxWidth="md"
       enableCloseOnBackdropClick
     >
-      <Box sx={{ display: "flex", alignItems: "center", marginBottom: ".5rem" }}>
-        <Button color="secondary" variant="contained" endIcon={<FileCopy fontSize="small" />} onClick={onCopyClick}>
+      <div className="flex items-center mb-4">
+        <Button color="secondary" variant="default" onClick={onCopyClick} size="sm">
           Copy the SDL
+          <Copy className="ml-2 text-sm" />
         </Button>
-      </Box>
-      <Box sx={{ marginBottom: ".5rem" }}>
-        <Editor height="500px" defaultLanguage="yaml" value={sdl} theme={theme.palette.mode === "dark" ? "vs-dark" : "light"} />
-      </Box>
+      </div>
+      <div className="mb-2">
+        <Editor height="500px" defaultLanguage="yaml" value={sdl} theme={theme === "dark" ? "vs-dark" : "light"} />
+      </div>
     </Popup>
   );
 };
