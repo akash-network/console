@@ -27,7 +27,13 @@ export default (req, res) => {
       autoRewrite: false
     });
 
-    proxy.once("proxyRes", resolve).once("error", reject).web(req, res);
+    proxy
+      .once("proxyRes", () => resolve(undefined))
+      .once("error", error => {
+        console.log("proxy error:", error);
+        reject();
+      })
+      .web(req, res);
   });
 };
 

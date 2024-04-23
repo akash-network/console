@@ -25,7 +25,7 @@ import { generateCertificate } from "@src/utils/certificateUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { updateWallet } from "@src/utils/walletUtils";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
-import { DeploymentDepositModal } from "../deploymentDetail/DeploymentDepositModal";
+import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";

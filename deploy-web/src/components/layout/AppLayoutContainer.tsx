@@ -7,6 +7,7 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { breakpoints } from "@src/utils/responsiveUtils";
 import { accountBarHeight, closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { Sidebar } from "./Sidebar";
+import { cn } from "@src/utils/styleUtils";
 
 export function AppLayoutContainer({ children, version }: React.PropsWithChildren<{ version: string }>) {
   const [isShowingWelcome, setIsShowingWelcome] = useState(false);
@@ -101,8 +102,11 @@ export function AppLayoutContainer({ children, version }: React.PropsWithChildre
               />
 
               <div
-                className="ease ml-0 h-full flex-grow transition-[margin-left] duration-300 md:ml-[240px]"
-                style={{ marginLeft: !smallScreen ? 0 : isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }}
+                className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300", {
+                  ["sm:ml-[240px]"]: isNavOpen,
+                  ["sm:ml-[60px]"]: !isNavOpen
+                })}
+                // style={{ marginLeft: !smallScreen ? 0 : isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }}
                 // className={classes.viewContentContainer}
                 // sx={{ marginLeft: { xs: 0, sm: 0, md: isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }, minWidth: 0 }}
                 // viewContentContainer: {

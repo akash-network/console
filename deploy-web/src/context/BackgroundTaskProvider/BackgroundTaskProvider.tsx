@@ -1,11 +1,10 @@
 "use client";
-import { Button } from "@mui/material";
-import { Snackbar } from "@src/components/shared/Snackbar";
 import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
-import { useSnackbar } from "notistack";
 import React from "react";
 import { useCertificate } from "../CertificateProvider";
 import FileSaver from "file-saver";
+import { useToast } from "@src/components/ui/use-toast";
+import { Button } from "@src/components/ui/button";
 
 const getPrintCommand = os => {
   switch (os) {
@@ -30,32 +29,31 @@ const BackgroundTaskContext = React.createContext<ContextType>({} as ContextType
 
 export const BackgroundTaskProvider = ({ children }) => {
   const { localCert } = useCertificate();
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const { toast, dismiss } = useToast();
 
   const downloadLogs = async (hostUri: string, dseq: string, gseq: number, oseq: number, isLogs: boolean) => {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(PROVIDER_PROXY_URL_WS);
       let isCancelled = false;
       let isFinished = false;
+      let snackbarKey: string;
 
       function onCancel() {
         isCancelled = true;
         ws.close();
 
-        closeSnackbar(snackbarKey);
+        dismiss(snackbarKey);
       }
-      const snackbarKey = enqueueSnackbar(
-        <Snackbar
-          title={isLogs ? "Downloading logs..." : "Downloading events..."}
-          subTitle={
-            <Button onClick={onCancel} variant="text" color="primary" size="small">
-              Cancel
-            </Button>
-          }
-          showLoading
-        />,
-        { variant: "info", persist: true, action: key => null }
-      );
+      const { id } = toast({
+        title: isLogs ? "Downloading logs..." : "Downloading events...",
+        description: (
+          <Button onClick={onCancel} variant="text" size="sm">
+            Cancel
+          </Button>
+        ),
+        loading: true
+      });
+      snackbarKey = id;
 
       const url = isLogs
         ? `${hostUri}/lease/${dseq}/${gseq}/${oseq}/logs?follow=false&tail=10000000`
@@ -88,15 +86,15 @@ export const BackgroundTaskProvider = ({ children }) => {
           console.log("Cancelled");
           resolve(true);
         } else if (isFinished) {
-          closeSnackbar(snackbarKey);
+          dismiss(snackbarKey);
           console.log("Done, downloading file");
           const fileName = `${dseq}-${gseq}-${oseq}-logs-${new Date().toISOString().substring(0, 10)}.txt`;
           FileSaver.saveAs(new Blob([logFileContent]), fileName);
           resolve(true);
         } else {
           console.log("No logs / Failed");
-          closeSnackbar(snackbarKey);
-          enqueueSnackbar("Failed to download logs", { variant: "error" });
+          dismiss(snackbarKey);
+          toast({ title: "Failed to download logs", variant: "destructive" });
           reject("Failed to download logs");
         }
       };
@@ -105,8 +103,8 @@ export const BackgroundTaskProvider = ({ children }) => {
           JSON.stringify({
             type: "websocket",
             url: url,
-            certPem: localCert.certPem,
-            keyPem: localCert.keyPem
+            certPem: localCert?.certPem,
+            keyPem: localCert?.keyPem
           })
         );
       };
@@ -126,25 +124,24 @@ export const BackgroundTaskProvider = ({ children }) => {
     const ws = new WebSocket(PROVIDER_PROXY_URL_WS);
     let isCancelled = false;
     let isFinished = false;
+    let snackbarKey: string;
 
     function onCancel() {
       isCancelled = true;
       ws.close();
 
-      closeSnackbar(snackbarKey);
+      dismiss(snackbarKey);
     }
-    const snackbarKey = enqueueSnackbar(
-      <Snackbar
-        title={`Downloading ${filePath}...`}
-        subTitle={
-          <Button onClick={onCancel} variant="contained" color="primary" size="small">
-            Cancel
-          </Button>
-        }
-        showLoading
-      />,
-      { variant: "info", persist: true, action: key => null }
-    );
+    const { id } = toast({
+      title: `Downloading ${filePath}...`,
+      description: (
+        <Button onClick={onCancel} variant="text" size="sm">
+          Cancel
+        </Button>
+      ),
+      loading: true
+    });
+    snackbarKey = id;
 
     const printCommand = getPrintCommand("linux");
     const command = `${printCommand} ${filePath}`;
@@ -198,15 +195,15 @@ export const BackgroundTaskProvider = ({ children }) => {
     ws.onclose = () => {
       if (isCancelled) {
         console.log("Cancelled");
-      } else if (isFinished) {
-        closeSnackbar(snackbarKey);
+      } else if (isFinished && fileContent) {
+        dismiss(snackbarKey);
         console.log("Done, downloading file");
         const filename = filePath.replace(/^.*[\\\/]/, "");
         FileSaver.saveAs(new Blob([fileContent]), filename);
       } else {
         console.log("No file / Failed");
-        closeSnackbar(snackbarKey);
-        enqueueSnackbar("Failed to download file", { variant: "error" });
+        dismiss(snackbarKey);
+        toast({ title: "Failed to download file", variant: "destructive" });
       }
     };
     ws.onopen = () => {

@@ -51,19 +51,20 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
           label: "Close",
           color: "secondary",
           variant: "ghost",
-          side: "left",
+          side: "right",
           onClick: onClose
         },
         {
           label: "Continue",
           color: "primary",
           variant: "default",
+          disabled: !isBalanceValidated,
           side: "right",
           isLoading: isLoadingPrerequisites,
           onClick: onContinue
         }
       ]}
-      onClose={onClose}
+      hideCloseButton
       maxWidth="sm"
       enableCloseOnBackdropClick={false}
       title="Checking Prerequisites"

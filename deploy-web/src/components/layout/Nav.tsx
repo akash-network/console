@@ -1,5 +1,5 @@
 "use client";
-import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
+import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { Button } from "../ui/button";
@@ -16,7 +16,11 @@ export const Nav = () => {
     <header className="fixed top-0 z-50 w-full border-b border-border bg-popover">
       <div className="flex h-14 items-center justify-between pl-4 pr-4">
         <Link className="flex items-center space-x-2" href="/">
-          {theme === "light" ? <AkashConsoleLightLogo className="h-[25px] max-w-[180px]" /> : <AkashConsoleDarkLogo className="h-[25px] max-w-[180px]" />}
+          {theme === "light" ? (
+            <AkashConsoleBetaLogoLight className="h-[19px] max-w-[200px]" />
+          ) : (
+            <AkashConsoleBetaLogoDark className="h-[19px] max-w-[200px]" />
+          )}
         </Link>
 
         <div style={{ height: `${accountBarHeight}px` }} className={`hidden items-center md:flex `}>
