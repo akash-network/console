@@ -18,6 +18,8 @@ import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { TemplatesProvider } from "@src/context/TemplatesProvider";
 import { StyledEngineProvider, createTheme, ThemeProvider as MuiThemeProvider } from "@mui/material/styles";
 import { ChainParamProvider } from "@src/context/ChainParamProvider";
+import { AddressBookProvider } from "@src/context/AddressBookProvider";
+import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 
 const theme = createTheme({
   palette: {
@@ -36,17 +38,7 @@ const theme = createTheme({
   }
 });
 
-function Providers({ children, version }: React.PropsWithChildren<{ version: string }>) {
-  //*              <PricingProvider>
-  //*                <UserProvider>
-  //                   <AddressBookProvider>
-  //*                    <SettingsProvider>
-  //*                      <CustomChainProvider>
-  //*                        <WalletProvider>
-  //*                          <CertificateProvider>
-  //*                            <TemplatesProvider>
-  //*                              <LocalNoteProvider>
-  //                                 <BackgroundTaskProvider></BackgroundTaskProvider>
+function Providers({ children }: React.PropsWithChildren<{}>) {
   return (
     <CustomIntlProvider>
       <QueryClientProvider client={queryClient}>
@@ -56,27 +48,29 @@ function Providers({ children, version }: React.PropsWithChildren<{ version: str
               <ThemeProvider attribute="class" defaultTheme="light" storageKey="theme" enableSystem disableTransitionOnChange>
                 <PricingProvider>
                   <UserProvider>
-                    {/* <AddressBookProvider> */}
-                    <TooltipProvider>
-                      <SettingsProvider version={version}>
-                        <CustomChainProvider>
-                          <WalletProvider>
-                            <ChainParamProvider>
-                              <CertificateProvider>
-                                <TemplatesProvider>
-                                  <LocalNoteProvider>
-                                    <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
+                    <AddressBookProvider>
+                      <TooltipProvider>
+                        <SettingsProvider>
+                          <CustomChainProvider>
+                            <WalletProvider>
+                              <ChainParamProvider>
+                                <CertificateProvider>
+                                  <BackgroundTaskProvider>
+                                    <TemplatesProvider>
+                                      <LocalNoteProvider>
+                                        <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
 
-                                    {children}
-                                  </LocalNoteProvider>
-                                </TemplatesProvider>
-                              </CertificateProvider>
-                            </ChainParamProvider>
-                          </WalletProvider>
-                        </CustomChainProvider>
-                      </SettingsProvider>
-                    </TooltipProvider>
-                    {/* </AddressBookProvider> */}
+                                        {children}
+                                      </LocalNoteProvider>
+                                    </TemplatesProvider>
+                                  </BackgroundTaskProvider>
+                                </CertificateProvider>
+                              </ChainParamProvider>
+                            </WalletProvider>
+                          </CustomChainProvider>
+                        </SettingsProvider>
+                      </TooltipProvider>
+                    </AddressBookProvider>
                   </UserProvider>
                 </PricingProvider>
               </ThemeProvider>

@@ -39,7 +39,9 @@ export function SpecDetail({
 
   return (
     <div
-      className={cn("grid grid-cols-1 sm:grid-cols-3", {
+      className={cn("grid ", {
+        ["grid-cols-1 sm:grid-cols-3"]: gpuAmount === 0,
+        ["grid-cols-1 sm:grid-cols-4"]: gpuAmount > 0,
         ["gap-1"]: gutterSize === "small",
         ["gap-2"]: gutterSize === "medium",
         ["gap-3"]: gutterSize === "large"

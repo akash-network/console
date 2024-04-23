@@ -1,5 +1,3 @@
-import { ApiUrlService } from "./apiUtils";
-
 export const mainnetId = "mainnet";
 export const testnetId = "testnet";
 export const sandboxId = "sandbox";
@@ -123,11 +121,6 @@ function getProviderProxyWsUrl() {
   if (window.location?.hostname === "deploy.cloudmos.io") return "wss://providerproxy.cloudmos.io";
   return "ws://localhost:3040";
 }
-
-// CLOUDMOS
-export const mainnetNodes = ApiUrlService.mainnetNodes();
-export const testnetNodes = ApiUrlService.testnetNodes();
-export const sandboxNodes = ApiUrlService.sandboxNodes();
 
 // export const cloudmosApi = "https://api.cloudmos.io/api";
 

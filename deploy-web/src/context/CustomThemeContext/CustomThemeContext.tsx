@@ -5,8 +5,8 @@ import { createTheme, ThemeProvider, ThemeOptions } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { customColors } from "@src/utils/colors";
 import { grey } from "@mui/material/colors";
-import { useDarkMode } from "next-dark-mode";
 import { accountBarHeight } from "@src/utils/constants";
+import { useTheme } from "next-themes";
 
 type ContextType = {
   mode: string;
@@ -21,7 +21,7 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
       ? {
           // LIGHT
           primary: {
-            main: customColors.dark
+            main: "hsl(var(--primary))"
           },
           secondary: {
             main: customColors.main
@@ -38,7 +38,7 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
       : {
           // DARK
           primary: {
-            main: customColors.dark
+            main: "hsl(var(--primary))"
           },
           secondary: {
             main: customColors.main
@@ -57,9 +57,6 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
           }
         })
   },
-  typography: {
-    fontFamily: ["Inter", "sans-serif"].join(",")
-  },
   breakpoints: {
     values: {
       xs: 0,
@@ -71,65 +68,73 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
   },
   components: {
     MuiCssBaseline: {
-      // styleOverrides: {
-      //   html: {
-      //     scrollPaddingTop: `${accountBarHeight}px`,
-      //     WebkitFontSmoothing: "auto",
-      //     height: "100%",
-      //     width: "100%"
-      //   },
-      //   body: {
-      //     height: `calc(100% - ${accountBarHeight}px) !important`,
-      //     width: "100%",
-      //     overflowY: "scroll !important",
-      //     padding: "0 !important",
-      //     "&::-webkit-scrollbar": {
-      //       width: "10px"
-      //     },
-      //     "&::-webkit-scrollbar-track": {
-      //       background: mode === "dark" ? darken(customColors.dark, 0.2) : customColors.white
-      //     },
-      //     "&::-webkit-scrollbar-thumb": {
-      //       width: "5px",
-      //       backgroundColor: mode === "dark" ? lighten(customColors.darkLight, 0.2) : grey[500],
-      //       borderRadius: "5px"
-      //     }
-      //   },
-      //   "*": {
-      //     transition: "background-color .2s ease"
-      //   },
-      //   ul: {
-      //     paddingLeft: "2rem"
-      //   },
-      //   // Nextjs root div
-      //   "#__next": {
-      //     height: "100%"
-      //   },
-      //   // Page loading styling
-      //   "#nprogress .bar": {
-      //     background: `${customColors.main} !important`,
-      //     zIndex: "10000 !important"
-      //   },
-      //   "#nprogress .spinner": {
-      //     zIndex: `10000 !important`,
-      //     top: "6px !important",
-      //     right: "8px !important"
-      //   },
-      //   "#nprogress .peg": {
-      //     boxShadow: `0 0 10px ${customColors.main}, 0 0 5px ${customColors.main}`
-      //   },
-      //   "#nprogress .spinner-icon": {
-      //     borderTopColor: `${customColors.main} !important`,
-      //     borderLeftColor: `${customColors.main} !important`
-      //   },
-      //   a: {
-      //     textDecoration: "none",
-      //     color: customColors.main,
-      //     "&:hover": {
-      //       textDecoration: "underline"
-      //     }
-      //   }
-      // }
+      styleOverrides: {
+        // html: {
+        //   scrollPaddingTop: `${accountBarHeight}px`,
+        //   WebkitFontSmoothing: "auto",
+        //   height: "100%",
+        //   width: "100%"
+        // },
+        // body: {
+        //   height: `calc(100% - ${accountBarHeight}px) !important`,
+        //   width: "100%",
+        //   overflowY: "scroll !important",
+        //   padding: "0 !important",
+        //   "&::-webkit-scrollbar": {
+        //     width: "10px"
+        //   },
+        //   "&::-webkit-scrollbar-track": {
+        //     background: mode === "dark" ? darken(customColors.dark, 0.2) : customColors.white
+        //   },
+        //   "&::-webkit-scrollbar-thumb": {
+        //     width: "5px",
+        //     backgroundColor: mode === "dark" ? lighten(customColors.darkLight, 0.2) : grey[500],
+        //     borderRadius: "5px"
+        //   }
+        // },
+        // "*": {
+        //   transition: "background-color .2s ease"
+        // },
+        // ul: {
+        //   paddingLeft: "2rem"
+        // },
+        // Nextjs root div
+        "#__next": {
+          height: "100%"
+        },
+        // Page loading styling
+        "#nprogress .bar": {
+          background: `hsl(var(--primary)) !important`,
+          height: "2px !important",
+          zIndex: "10000 !important"
+        },
+        "#nprogress .spinner": {
+          zIndex: `10000 !important`,
+          top: "6px !important",
+          right: "8px !important"
+        },
+        "#nprogress .peg": {
+          boxShadow: `0 0 10px hsl(var(--primary)), 0 0 5pxhsl(var(--primary))`
+        },
+        "#nprogress .spinner-icon": {
+          borderTopColor: `hsl(var(--primary)) !important`,
+          borderLeftColor: `hsl(var(--primary)) !important`
+        }
+        // a: {
+        //   textDecoration: "none",
+        //   color: customColors.main,
+        //   "&:hover": {
+        //     textDecoration: "underline"
+        //   }
+        // }
+      }
+    },
+    MuiLinearProgress: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "hsl(var(--primary) / 15%)"
+        }
+      }
     },
     MuiPaper: {
       styleOverrides: {
@@ -197,7 +202,9 @@ const lightTheme = createTheme(getDesignTokens("light"));
 
 export const CustomThemeProvider = ({ children }) => {
   const [isMounted, setIsMounted] = useState(false);
-  const { darkModeActive } = useDarkMode();
+  // const { darkModeActive } = useDarkMode();
+  const { theme: nextTheme } = useTheme();
+  const darkModeActive = nextTheme === "dark";
   const mode = darkModeActive ? "dark" : "light";
   // Update the theme only if the mode changes
   const theme = React.useMemo(() => (darkModeActive ? darkTheme : lightTheme), [darkModeActive]);

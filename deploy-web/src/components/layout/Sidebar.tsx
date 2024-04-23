@@ -17,23 +17,27 @@ import { Rocket, Github, X as TwitterX, Discord, Menu, MenuScale } from "iconoir
 import { Drawer } from "@rewind-ui/core";
 import { Home, Cloud, MultiplePages, Tools, Server, OpenInWindow, HelpCircle, Settings } from "iconoir-react";
 import { ISidebarGroupMenu } from "@src/types";
+import getConfig from "next/config";
+import { useTheme } from "@mui/material";
+
+const { publicRuntimeConfig } = getConfig();
 
 type Props = {
   children?: ReactNode;
-  version: string;
   isMobileOpen: boolean;
   handleDrawerToggle: () => void;
   onOpenMenuClick: () => void;
   isNavOpen: boolean;
 };
 
-export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
+export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
   const [isHovering, setIsHovering] = useState(false);
   const _isNavOpen = isNavOpen || isHovering;
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
+  const theme = useTheme();
   // TODO Verify
-  const mdScreen = useMediaQuery(breakpoints.md.mediaQuery);
-  const mobileScreen = useMediaQuery(breakpoints.xs.mediaQuery);
+  const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  // const mobileScreen = useMediaQuery(breakpoints.xs.mediaQuery);
 
   const routeGroups: ISidebarGroupMenu[] = [
     {
@@ -106,6 +110,13 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
           url: "https://akash.network/about/pricing/custom/",
           activeRoutes: [],
           target: "_blank"
+        },
+        {
+          title: "API",
+          icon: props => <OpenInWindow {...props} />,
+          url: "https://api.cloudmos.io/v1/swagger",
+          activeRoutes: [],
+          target: "_blank"
         }
       ]
     }
@@ -130,7 +141,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
   const drawer = (
     <div
       style={{ width: _isNavOpen ? drawerWidth : closedDrawerWidth }}
-      className={`flex h-full flex-col items-center justify-between box-border flex-shrink-0 overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 transition-[width] duration-300 ease-in-out`}
+      className={`box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 transition-[width] duration-300 ease-in-out`}
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: _isNavOpen, ["pb-2 pt-2"]: !_isNavOpen })}>
         <Link
@@ -150,43 +161,42 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
       </div>
 
       <div className="w-full">
-        {!mdScreen && <MobileSidebarUser />}
+        {smallScreen && <MobileSidebarUser />}
 
         {_isNavOpen && (
           <div className="pb-4 pl-4 pr-4">
             <NodeStatusBar />
 
             <div className="flex items-center justify-center pt-4">
-              <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet_" className="text-foreground">
-                <Button variant="ghost" size="icon">
-                  <TwitterX width="1.2rem" height="1.2rem" />
-                  <span className="sr-only">Twitter</span>
-                </Button>
+              <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet_" className={cn(buttonVariants({ variant: "text", size: "icon" }))}>
+                <TwitterX width="1.2rem" height="1.2rem" />
+                <span className="sr-only">Twitter</span>
               </Link>
 
-              <Link target="_blank" rel="noreferrer" href="https://github.com/akash-network/cloudmos" className="text-foreground">
-                <Button variant="ghost" size="icon">
-                  <Github width="1.2rem" height="1.2rem" />
-                  <span className="sr-only">GitHub</span>
-                </Button>
+              <Link
+                target="_blank"
+                rel="noreferrer"
+                href="https://github.com/akash-network/cloudmos"
+                className={cn(buttonVariants({ variant: "text", size: "icon" }))}
+              >
+                <Github width="1.2rem" height="1.2rem" />
+                <span className="sr-only">GitHub</span>
               </Link>
 
-              <Link target="_blank" rel="noreferrer" href="https://discord.akash.network" className="text-foreground">
-                <Button variant="ghost" size="icon">
-                  <Discord width="1.2rem" height="1.2rem" />
-                  <span className="sr-only">Twitter</span>
-                </Button>
+              <Link target="_blank" rel="noreferrer" href="https://discord.akash.network" className={cn(buttonVariants({ variant: "text", size: "icon" }))}>
+                <Discord width="1.2rem" height="1.2rem" />
+                <span className="sr-only">Twitter</span>
               </Link>
 
               {/** TODO */}
               {/* <ModeToggle /> */}
             </div>
 
-            {version && _isNavOpen && (
+            {publicRuntimeConfig?.version && _isNavOpen && (
               <div className="flex flex-col items-center justify-center">
-                <span className="text-xs font-bold text-muted-foreground">
-                  <strong>v{version}</strong>
-                </span>
+                <div className="text-xs font-bold text-muted-foreground">
+                  <strong>v{publicRuntimeConfig?.version}</strong>
+                </div>
 
                 <Badge color="secondary" className="h-[12px] text-xs font-bold">
                   beta
@@ -196,7 +206,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
           </div>
         )}
 
-        {mdScreen && (
+        {!smallScreen && (
           <div className="flex items-center justify-between border-t border-muted-foreground/20 px-3 py-1">
             <Button size="icon" variant="ghost" onClick={onToggleMenuClick}>
               {isNavOpen ? <MenuScale /> : <Menu />}
@@ -209,8 +219,14 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, version,
 
   return (
     <nav
-      style={{ width: !mdScreen ? 0 : _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth, height: `calc(100% - ${accountBarHeight}px)` }}
-      className="ease fixed z-[100] h-full bg-header/95  transition-[width] duration-300 md:flex-shrink-0"
+      style={{
+        // width: !mdScreen ? 0 : _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth,
+        height: `calc(100% - ${accountBarHeight}px)`
+      }}
+      className={cn("ease fixed z-[100] h-full bg-header/95  transition-[width] duration-300 md:flex-shrink-0", {
+        ["md:w-[240px]"]: _isNavOpen || isHovering,
+        ["md:w-[57px]"]: !(_isNavOpen || isHovering)
+      })}
     >
       {/* Mobile Drawer */}
       <Drawer

@@ -25,6 +25,7 @@ const moduleExports = {
   typescript: {
     tsconfigPath: "./tsconfig.json"
   },
+  transpilePackages: ["geist"],
   // experimental: {
   //   // outputStandalone: true,
   //   externalDir: true // to make the import from shared parent folder work https://github.com/vercel/next.js/issues/9474#issuecomment-810212174

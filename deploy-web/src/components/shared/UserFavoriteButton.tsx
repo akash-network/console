@@ -1,12 +1,13 @@
+"use client";
 import React, { ReactNode, useState } from "react";
-import { CircularProgress, IconButton } from "@mui/material";
-import StarIcon from "@mui/icons-material/Star";
-import StarOutlineIcon from "@mui/icons-material/StarOutline";
 import { useAddFavoriteTemplate, useRemoveFavoriteTemplate } from "@src/queries/useTemplateQuery";
-import { Snackbar } from "./Snackbar";
-import { useSnackbar } from "notistack";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { MustConnectModal } from "./MustConnectModal";
+import { Button } from "../ui/button";
+import Spinner from "./Spinner";
+import { MdStar, MdStarOutline } from "react-icons/md";
+import { useToast } from "../ui/use-toast";
+import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   id: string;
@@ -23,7 +24,7 @@ export const UserFavoriteButton: React.FunctionComponent<Props> = ({ id, isFavor
   const { mutate: removeFavorite, isLoading: isRemoving } = useRemoveFavoriteTemplate(id);
   const [showMustConnectModal, setShowMustConnectModal] = useState(false);
   const isSaving = isAdding || isRemoving;
-  const { enqueueSnackbar } = useSnackbar();
+  const { toast } = useToast();
 
   const onFavoriteClick = async () => {
     try {
@@ -44,18 +45,16 @@ export const UserFavoriteButton: React.FunctionComponent<Props> = ({ id, isFavor
       setIsFavorite(prev => !prev);
     } catch (error) {
       console.log(error);
-      enqueueSnackbar(<Snackbar title="An error has occured." iconVariant="error" />, {
-        variant: "error"
-      });
+      toast({ title: "An error has occured.", variant: "destructive" });
     }
   };
 
   return (
     <>
       {showMustConnectModal && <MustConnectModal message="To add template favorites" onClose={() => setShowMustConnectModal(false)} />}
-      <IconButton size="small" onClick={onFavoriteClick} color={isFavorite ? "secondary" : "default"}>
-        {isSaving ? <CircularProgress size="1.5rem" color="secondary" /> : isFavorite ? <StarIcon /> : <StarOutlineIcon />}
-      </IconButton>
+      <Button size="icon" onClick={onFavoriteClick} variant="ghost" className={cn({ ["text-primary"]: isFavorite }, "text-xl")}>
+        {isSaving ? <Spinner size="small" /> : isFavorite ? <MdStar /> : <MdStarOutline />}
+      </Button>
     </>
   );
 };

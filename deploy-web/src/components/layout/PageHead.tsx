@@ -16,27 +16,27 @@ export const PageHead: React.FunctionComponent<Props> = ({}) => {
       </Head>
 
       <DefaultSeo
-        titleTemplate="%s | Cloudmos"
-        defaultTitle="Cloudmos"
-        description="Cloudmos is the #1 platform to deploy docker containers on the Akash Network, a decentralized super cloud compute marketplace. Explore, deploy and track all in one place!"
+        titleTemplate="%s | Akash Console"
+        defaultTitle="Akash Console"
+        description="Akash Console is the #1 platform to deploy docker containers on the Akash Network, a decentralized super cloud compute marketplace. Explore, deploy and track all in one place!"
         openGraph={{
           type: "website",
           locale: "en_US",
-          url: "https://cloudmos.io/",
-          site_name: "Cloudmos",
+          url: "https://console.akash.network/",
+          site_name: "Akash Console",
           description: "Deploy docker containers on the decentralized supercloud Akash Network.",
           images: [
             {
-              url: "https://deploy.cloudmos.io/cloudmos-cover.png",
-              width: 1600,
-              height: 529,
-              alt: "Cloudmos Cover Image"
+              url: "https://console.akash.network/akash-console.png",
+              width: 1200,
+              height: 630,
+              alt: "AkashConsole Cover Image"
             }
           ]
         }}
         twitter={{
-          handle: "@cloudmosio",
-          site: "@cloudmosio",
+          handle: "@akashnet_",
+          site: "@akashnet_",
           cardType: "summary_large_image"
         }}
       />
