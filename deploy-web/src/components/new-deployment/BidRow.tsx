@@ -151,7 +151,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
               // sx={{ marginRight: i < gpuModels.length ? ".2rem" : 0 }}
               variant="default"
             >
-              `${gpu.vendor}-${gpu.model}`
+              {gpu.vendor}-{gpu.model}
             </Badge>
           ))}
         </TableCell>
@@ -188,9 +188,9 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
             //     marginTop: "4px",
             //     fontSize: ".85rem"
             //   },
-            <div className="mt-2 flex items-center">
+            <div className="mt-2 flex items-center space-x-2">
               <CloudXmark
-                className="mr-2 text-primary"
+                className="text-xs text-primary"
                 // className={cx(classes.stateIcon, classes.stateInactive)} sx={{ fontSize: "1rem" }}
               />
               <span className="text-sm text-muted-foreground">OFFLINE</span>

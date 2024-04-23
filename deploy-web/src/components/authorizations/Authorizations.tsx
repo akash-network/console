@@ -1,5 +1,4 @@
 "use client";
-import { PageContainer } from "@src/components/shared/PageContainer";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { useEffect, useState } from "react";
 import { useWallet } from "@src/context/WalletProvider";

@@ -17,11 +17,11 @@ import { handleDocClick } from "@src/utils/urlUtils";
 import { Popup } from "@src/components/shared/Popup";
 import { Alert } from "@src/components/ui/alert";
 import { LinkTo } from "@src/components/shared/LinkTo";
-import FormControl from "@mui/material/FormControl/FormControl";
-import InputLabel from "@mui/material/InputLabel/InputLabel";
-import Select from "@mui/material/Select/Select";
-import MenuItem from "@mui/material/MenuItem/MenuItem";
-import TextField from "@mui/material/TextField/TextField";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
 type GrantFormValues = {
   token: string;
   amount: number;

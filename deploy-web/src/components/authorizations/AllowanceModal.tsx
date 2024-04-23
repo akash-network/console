@@ -14,9 +14,9 @@ import { FormattedDate } from "react-intl";
 import { Popup } from "@src/components/shared/Popup";
 import { Alert } from "@src/components/ui/alert";
 import { LinkTo } from "@src/components/shared/LinkTo";
-import FormControl from "@mui/material/FormControl/FormControl";
-import TextField from "@mui/material/TextField/TextField";
-import InputAdornment from "@mui/material/InputAdornment/InputAdornment";
+import FormControl from "@mui/material/FormControl";
+import TextField from "@mui/material/TextField";
+import InputAdornment from "@mui/material/InputAdornment";
 import { EncodeObject } from "@cosmjs/proto-signing";
 
 type AllowanceFormValues = {

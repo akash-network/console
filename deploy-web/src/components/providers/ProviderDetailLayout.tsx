@@ -73,7 +73,7 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
   }
 
   return (
-    <div>
+    <div className="pb-12">
       <div className="mb-2 flex items-center">
         <Button aria-label="back" onClick={handleBackClick} size="sm">
           <NavArrowLeft />
