@@ -23,6 +23,10 @@ export const env = z
     Auth0Issuer: z.string().optional(),
     WebsiteUrl: z.string().optional(),
     SecretToken: z.string().optional(),
+    ProviderUptimeGracePeriodMinutes: z
+      .number()
+      .optional()
+      .default(3 * 60),
     NODE_API_BASE_PATH: z.string().optional().default("https://raw.githubusercontent.com/akash-network")
   })
   .parse(process.env);

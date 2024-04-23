@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Typography, Box, Paper, useTheme, CircularProgress, Alert } from "@mui/material";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import Layout from "@src/components/layout/Layout";
@@ -18,6 +18,7 @@ import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { UrlService } from "@src/utils/urlUtils";
 import { getNetworkBaseApiUrl } from "@src/utils/constants";
 import axios from "axios";
+import { differenceInMinutes, sub } from "date-fns";
 
 const NetworkCapacity = dynamic(() => import("../../../components/providers/NetworkCapacity"), {
   ssr: false
@@ -87,6 +88,33 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
     getProviderStatus();
   };
 
+  function groupUptimeChecksByPeriod(uptimeChecks: { isOnline: boolean; checkDate: string }[] = []) {
+    const groupedSnapshots: { checkDate: Date; checks: boolean[] }[] = [];
+
+    const sortedUptimeChecks = uptimeChecks.toSorted((a, b) => new Date(a.checkDate).getTime() - new Date(b.checkDate).getTime());
+
+    for (const snapshot of sortedUptimeChecks) {
+      const recentGroup = groupedSnapshots.find(x => differenceInMinutes(new Date(snapshot.checkDate), x.checkDate) < 15);
+
+      if (recentGroup) {
+        recentGroup.checks.push(snapshot.isOnline);
+      } else {
+        groupedSnapshots.push({
+          checkDate: new Date(snapshot.checkDate),
+          checks: [snapshot.isOnline]
+        });
+      }
+    }
+
+    return groupedSnapshots.map(x => ({
+      date: x.checkDate,
+      status: x.checks.every(x => x) ? "online" : x.checks.every(x => !x) ? "offline" : "partial"
+    }));
+  }
+
+  const uptimePeriods = useMemo(() => groupUptimeChecksByPeriod(provider?.uptime || []), [provider?.uptime]);
+  const wasRecentlyOnline = provider && (provider.isOnline || (provider.lastCheckDate && new Date(provider.lastCheckDate) >= sub(new Date(), { hours: 24 })));
+
   return (
     <Layout isLoading={isLoading}>
       <CustomNextSeo title={`Provider detail ${provider?.name || provider?.owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetail(owner)}`} />
@@ -98,7 +126,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
           </Box>
         )}
 
-        {provider && !provider.isOnline && !isLoading && (
+        {provider && !wasRecentlyOnline && !isLoading && (
           <Alert
             variant="outlined"
             severity="warning"
@@ -108,7 +136,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
           </Alert>
         )}
 
-        {provider && provider.isOnline && (
+        {provider && wasRecentlyOnline && (
           <>
             <Box sx={{ marginBottom: "1rem" }}>
               <NetworkCapacity
@@ -131,26 +159,24 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
               Up time (24h)
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", marginBottom: "2rem" }}>
-              {provider?.uptime
-                // sort by date
-                .sort((a, b) => new Date(a.checkDate).getTime() - new Date(b.checkDate).getTime())
-                .map((x, i) => (
-                  <CustomTooltip
-                    key={x.id}
-                    title={<FormattedDate value={x.checkDate} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />}
-                    leaveDelay={0}
-                  >
-                    <Box
-                      sx={{
-                        width: "2%",
-                        height: "24px",
-                        marginLeft: i > 0 ? ".25rem" : 0,
-                        backgroundColor: x.isOnline ? theme.palette.success.main : theme.palette.error.main,
-                        borderRadius: "2px"
-                      }}
-                    ></Box>
-                  </CustomTooltip>
-                ))}
+              {uptimePeriods.map((x, i) => (
+                <CustomTooltip
+                  key={x.date.toISOString()}
+                  title={<FormattedDate value={x.date} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />}
+                  leaveDelay={0}
+                >
+                  <Box
+                    sx={{
+                      width: "2%",
+                      height: "24px",
+                      marginLeft: i > 0 ? ".25rem" : 0,
+                      backgroundColor:
+                        x.status === "online" ? theme.palette.success.main : x.status === "partial" ? theme.palette.warning.main : theme.palette.error.main,
+                      borderRadius: "2px"
+                    }}
+                  ></Box>
+                </CustomTooltip>
+              ))}
             </Box>
 
             <ActiveLeasesGraph provider={provider} />

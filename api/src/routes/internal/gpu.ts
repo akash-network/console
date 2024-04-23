@@ -1,6 +1,9 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { chainDb } from "@src/db/dbConnection";
+import { toUTC } from "@src/utils";
 import { isValidBech32Address } from "@src/utils/addresses";
+import { env } from "@src/utils/env";
+import { sub } from "date-fns";
 import { QueryTypes } from "sequelize";
 
 const route = createRoute({
@@ -86,8 +89,8 @@ export default new OpenAPIHono().openapi(route, async (c) => {
         "hostUri", 
         p."owner"
         FROM provider p
-        INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSnapshotId"
-        WHERE p."isOnline" IS TRUE
+        INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSuccessfulSnapshotId"
+        WHERE p."isOnline" IS TRUE OR ps."checkDate" >= :grace_date
       )
       SELECT s."hostUri", n."name", n."gpuAllocatable" AS allocatable, n."gpuAllocated" AS allocated, gpu."modelId", gpu.vendor, gpu.name AS "modelName", gpu.interface, gpu."memorySize"
       FROM snapshots s
@@ -110,7 +113,8 @@ export default new OpenAPIHono().openapi(route, async (c) => {
         model: model ?? null,
         memory_size: memory_size ?? null,
         provider_address: provider_address ?? null,
-        provider_hosturi: provider_hosturi ?? null
+        provider_hosturi: provider_hosturi ?? null,
+        grace_date: toUTC(sub(new Date(), { minutes: env.ProviderUptimeGracePeriodMinutes }))
       }
     }
   );

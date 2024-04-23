@@ -268,7 +268,7 @@ export interface ApiProviderDetail extends ApiProviderList {
   uptime: Array<{
     id: string;
     isOnline: boolean;
-    checkDate: Date;
+    checkDate: string;
   }>;
 }
 

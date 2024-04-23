@@ -5,6 +5,7 @@ import { Op, QueryTypes } from "sequelize";
 import { chainDb } from "@src/db/dbConnection";
 import { ProviderActiveLeasesStats, ProviderStats, ProviderStatsKey } from "@src/types/graph";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
+import { env } from "@src/utils/env";
 
 type GraphData = {
   currentValue: number;
@@ -203,14 +204,17 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
             SELECT DISTINCT ON("hostUri",DATE("checkDate")) DATE("checkDate") AS date, ps."activeCPU", ps."pendingCPU", ps."availableCPU", ps."activeGPU", ps."pendingGPU", ps."availableGPU", ps."activeMemory", ps."pendingMemory", ps."availableMemory", ps."activeStorage", ps."pendingStorage", ps."availableStorage", ps."isOnline"
             FROM "providerSnapshot" ps
             INNER JOIN "provider" ON "provider"."owner"=ps."owner"
-            WHERE ps."isLastOfDay" = TRUE AND ps."isOnline" = TRUE
+            WHERE ps."isLastSuccessOfDay" = TRUE AND ps."checkDate" >= DATE(ps."checkDate")::timestamp + INTERVAL '1 day' - INTERVAL :grace_duration || ' minutes'
             ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
          ) "dailyProviderStats"
          ON DATE(d."date")="dailyProviderStats"."date"
          GROUP BY d."date"
          ORDER BY d."date" ASC`,
         {
-          type: QueryTypes.SELECT
+          type: QueryTypes.SELECT,
+          replacements: {
+            grace_duration: env.ProviderUptimeGracePeriodMinutes
+          }
         }
       );
     },
