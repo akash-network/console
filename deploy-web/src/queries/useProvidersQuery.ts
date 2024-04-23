@@ -28,7 +28,7 @@ async function getProviderStatus(providerUri: string) {
     return providerStatusToDto(statusResponse.data, versionResponse?.data || {});
   } catch (error) {
     console.log(error);
-    return null;
+    throw error;
   }
 }
 

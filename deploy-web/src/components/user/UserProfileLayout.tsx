@@ -1,13 +1,13 @@
 import React, { ReactNode } from "react";
-import PageContainer from "../shared/PageContainer";
-import { Box, Tab, Tabs, Typography } from "@mui/material";
-import { makeStyles } from "tss-react/mui";
-import { a11yTabProps } from "@src/utils/a11y";
 import { useRouter } from "next/router";
 import { UrlService } from "@src/utils/urlUtils";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
+import { ErrorBoundary } from "react-error-boundary";
+import { ErrorFallback } from "@src/components/shared/ErrorFallback";
+import { PageContainer } from "@src/components/shared/PageContainer";
 
 type UserProfileTab = "templates" | "favorites" | "address-book" | "settings";
 type Props = {
@@ -17,26 +17,16 @@ type Props = {
   page: UserProfileTab;
 };
 
-const useStyles = makeStyles()(theme => ({
-  title: {
-    fontSize: "2rem",
-    fontWeight: "bold",
-    marginBottom: "1rem"
-  },
-  titleSmall: {
-    fontSize: "1.1rem"
-  },
-  selectedTab: {
-    fontWeight: "bold"
-  }
-}));
-
 export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, children, username, bio }) => {
-  const { classes } = useStyles();
   const router = useRouter();
   const { user } = useCustomUser();
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
+  const handleTabChange = (newValue: string) => {
+    event(AnalyticsEvents.USER_PROFILE_TEMPLATE_TAB, {
+      category: "profile",
+      label: `Click on ${newValue} tab`
+    });
+
     switch (newValue) {
       case "templates":
         router.push(UrlService.userProfile(username));
@@ -54,88 +44,27 @@ export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, childr
   };
 
   return (
-    <PageContainer>
-      <Box sx={{ padding: "1rem 0" }}>
-        <Typography variant="h1" sx={{ fontSize: "2rem", marginBottom: ".5rem" }}>
-          {username}
-        </Typography>
+    <>
+      <div className="py-4">
+        <h1 className="mb-2 text-3xl">{username}</h1>
 
-        {bio && (
-          <Typography variant="h3" sx={{ fontSize: "1rem" }}>
-            {bio}
-          </Typography>
-        )}
-      </Box>
+        {bio && <h3 className="text-lg">{bio}</h3>}
+      </div>
 
-      <Box sx={{ borderBottom: 1, borderColor: "divider", marginBottom: "1rem" }}>
-        <Tabs
-          value={page}
-          onChange={handleTabChange}
-          aria-label="user profile tabs"
-          textColor="secondary"
-          indicatorColor="secondary"
-          variant="scrollable"
-          scrollButtons="auto"
-        >
-          <Tab
-            value="templates"
-            label="Templates"
-            {...a11yTabProps("templates-tab", "templates-tab-panel", 0)}
-            classes={{ selected: classes.selectedTab }}
-            onClick={() => {
-              event(AnalyticsEvents.USER_PROFILE_TEMPLATE_TAB, {
-                category: "profile",
-                label: "Click on templates tab"
-              });
-            }}
-          />
+      <Tabs value={page} onValueChange={handleTabChange}>
+        <TabsList className="mb-4 grid w-full grid-cols-4 border-b">
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          {user?.username === username && (
+            <>
+              <TabsTrigger value="favorites">Favorites</TabsTrigger>
+              <TabsTrigger value="address-book">Address Book</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+            </>
+          )}
+        </TabsList>
 
-          {/** Only show favorites/address book/settings for current user */}
-          {user?.username === username && [
-            <Tab
-              key="favorites"
-              value="favorites"
-              label="Favorites"
-              {...a11yTabProps("favorites-tab", "favorites-panel", 1)}
-              classes={{ selected: classes.selectedTab }}
-              onClick={() => {
-                event(AnalyticsEvents.USER_PROFILE_FAVORITES_TAB, {
-                  category: "profile",
-                  label: "Click on favorites tab"
-                });
-              }}
-            />,
-            <Tab
-              key="address-book"
-              value="address-book"
-              label="Address Book"
-              {...a11yTabProps("address-book-tab", "address-book-tab-panel", 1)}
-              classes={{ selected: classes.selectedTab }}
-              onClick={() => {
-                event(AnalyticsEvents.USER_PROFILE_ADDRESS_BOOK_TAB, {
-                  category: "profile",
-                  label: "Click on address book tab"
-                });
-              }}
-            />,
-            <Tab
-              key="settings"
-              value="settings"
-              label="Settings"
-              {...a11yTabProps("settings-tab", "settings-panel", 1)}
-              classes={{ selected: classes.selectedTab }}
-              onClick={() => {
-                event(AnalyticsEvents.USER_PROFILE_SETTINGS_TAB, {
-                  category: "profile",
-                  label: "Click on settings tab"
-                });
-              }}
-            />
-          ]}
-        </Tabs>
-      </Box>
-
-      {children}
-    </PageContainer>
+        <ErrorBoundary FallbackComponent={ErrorFallback}>{children}</ErrorBoundary>
+      </Tabs>
+    </>
   );
 };

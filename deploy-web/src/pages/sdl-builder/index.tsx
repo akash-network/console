@@ -1,17 +1,11 @@
-import { useTheme } from "@mui/material/styles";
-import Layout from "@src/components/layout/Layout";
+import React from "react";
 import { Title } from "@src/components/shared/Title";
-import PageContainer from "@src/components/shared/PageContainer";
-import { Chip } from "@mui/material";
-import { SimpleSDLBuilderForm } from "@src/components/sdl/SimpleSdlBuilderForm";
-import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { UrlService } from "@src/utils/urlUtils";
+import Layout from "@src/components/layout/Layout";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { SimpleSDLBuilderForm } from "@src/components/sdl/SimpleSdlBuilderForm";
 
-type Props = {};
-
-const SDLBuilderPage: React.FunctionComponent<Props> = ({}) => {
-  const theme = useTheme();
-
+function SDLBuilderPage() {
   return (
     <Layout>
       <CustomNextSeo
@@ -20,20 +14,12 @@ const SDLBuilderPage: React.FunctionComponent<Props> = ({}) => {
         description="Build your own SDL configuration to deploy a docker container on the Akash Network, the #1 decentralized supercloud."
       />
 
-      <PageContainer>
-        <Title
-          value={
-            <>
-              SDL Builder <Chip label="Beta" sx={{ marginLeft: ".5rem" }} size="small" />
-            </>
-          }
-        />
+      <Title>SDL Builder</Title>
 
-        <SimpleSDLBuilderForm />
-      </PageContainer>
+      <SimpleSDLBuilderForm />
     </Layout>
   );
-};
+}
 
 export default SDLBuilderPage;
 

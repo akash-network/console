@@ -1,15 +1,15 @@
+"use client";
 import React, { ReactNode } from "react";
 import Link from "next/link";
 import { Address } from "./Address";
 
 type Props = {
   address: string;
-  addressBookMode?: "always" | "never" | "alongside";
   children?: ReactNode;
 };
 
-export const AddressLink: React.FunctionComponent<Props> = ({ address, addressBookMode, ...rest }) => {
-  let href = null;
+export const AddressLink: React.FunctionComponent<Props> = ({ address }) => {
+  let href: string | null = null;
   let target = "_self";
   if (address.startsWith("akashvaloper")) {
     href = `https://stats.akash.network/validators/${address}`;
@@ -22,7 +22,7 @@ export const AddressLink: React.FunctionComponent<Props> = ({ address, addressBo
   if (href) {
     return (
       <Link href={href} target={target}>
-        <Address address={address} addressBookMode={addressBookMode} disableTruncate />
+        <Address address={address} disableTruncate />
       </Link>
     );
   } else {
