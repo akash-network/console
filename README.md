@@ -121,9 +121,6 @@ docker-compose up
 ```
 This command spins up the database service and automatically handles the downloading and importing of the specified data.
 
-
-```bash
-
 # Database Structure
 
 The database schemas is defined using [sequelize-typescript](https://github.com/sequelize/sequelize-typescript) in [/shared/dbSchemas/](./shared/dbSchemas/). Models are separated into the following folders:
@@ -311,12 +308,18 @@ Created for each days (UTC based), simplifies querying for daily stats.
 |owner|varchar|Address of the wallet that owns this provider
 |hostUri|varchar|ex: `https://provider.europlots.com:8443`
 |createdHeight|integer|Height at which the provider is created on-chain. (`MsgCreateProvider`)
+|updatedHeight|integer|Height at which the provider was last updated. (`MsgUpdateProvider`)
 |deletedHeight|integer|Height at which the provider is deleted on-chain. (`MsgDeleteProvider`)
 |email|varchar
 |website|varchar
 |isOnline|boolean|Indicates if the latest uptime check was successful
 |lastCheckDate|timestamp|Date & Time of the latest uptime check
-|error|text|`null` if the latest uptime check was successful, otherwise this wil contain the error message.
+|lastSnapshotId|uuid|ID of the last snapshot taken
+|nextCheckDate|timestamp|Planned Date & Time of the next uptime check
+|failedCheckCount|integer|Amount of consecutive failed checks, `NULL` if currently online.
+|lastSuccessfulSnapshotId|uuid|Snapshot ID of the last successful check
+|downtimeFirstSnapshotId|uuid|Snapshot ID of the first failed check of the current downtime period. `NULL` if currently online.
+|error|text|`NULL` if the latest uptime check was successful, otherwise this wil contain the error message.
 |deploymentCount|integer
 |leaseCount|integer
 |activeCPU|bigint|Thousandth of CPU
@@ -368,6 +371,7 @@ Similar to stats on the [Provider](#provider), but a new row is inserted for eve
 |id|uuid|
 |owner|varchar|Address of the wallet that owns this provider
 |isOnline|boolean|Indicates if this uptime check was successful
+|isLastOfDay|boolean|Indicates if this is the last snapshot of the day for this provider
 |checkDate|timestamp|Date & Time of this uptime check
 |error|text|`null` if the uptime check was successful, otherwise this wil contain the error message.
 |deploymentCount|integer
@@ -381,6 +385,53 @@ Similar to stats on the [Provider](#provider), but a new row is inserted for eve
 |availableCPU|bigint|Thousandth of CPU
 |availableMemory|bigint|Memory in bytes
 |availableStorage|bigint|Storage in bytes
+
+## ProviderSnapshotNodes
+
+Keep track of ressources of individual provider nodes obtained through feature discovery.
+
+|Column|Type|Note|
+|-|-|-
+|id|uuid
+|snapshotId|uuid|Snapshot ID
+|name|varchar|Name of the node
+|cpuAllocatable|bigint|Thousandth of CPU
+|cpuAllocated|bigint|Thousandth of CPU
+|memoryAllocatable|bigint|Memory in bytes
+|memoryAllocated|bigint|Memory in bytes
+|ephemeralStorageAllocatable|bigint|Storage in bytes
+ephemeralStorageAllocated|bigint|Storage in bytes
+|capabilitiesStorageHDD|boolean|Indicates if the node supports HDD storage
+|capabilitiesStorageSSD|boolean|Indicates if the node supports SSD storage
+|capabilitiesStorageNVME|boolean|Indicates if the node supports NVME storage
+|gpuAllocatable|bigint
+|gpuAllocated|bigint
+
+## ProviderSnapshotNodeCPU
+
+Store CPU informations for each [Provider Nodes](#providersnapshotnodes)
+
+|Column|Type|Note
+|-|-|-
+|id|uuid
+|snapshotNodeId|uuid|Snapshot node ID
+|vendor|varchar|ex: `GenuineIntel`
+|model|varchar|ex: `Intel(R) Xeon(R) CPU @ 2.30GHz`
+|vcores|smallint|
+
+## ProviderSnapshotNodeGPU
+
+Store GPU informations for each [Provider Nodes](#providersnapshotnodes)
+
+|Column|Type|Note
+|-|-|-
+|id|uuid
+|snapshotNodeId|uuid|Snapshot node ID
+|vendor|varchar|ex: `nvidia`
+|name|varchar|Model name (ex: `rtx4090`)
+|modelId|varchar|On the provider, this gets mapped to vendor, name, interface and memorySize based on [this file](https://github.com/akash-network/provider-configs/blob/main/devices/pcie/gpus.json).
+|interface|varchar|ex: `PCIe`
+|memorySize|varchar|ex: `24Gi`
 
 ## Template
 
