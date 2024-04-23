@@ -1,43 +1,30 @@
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "../ui/pagination";
 
-
 type PaginatorProps = {
   currentPage: number;
   totalPages: number;
   onPageChange: (pageNumber: number) => void;
   showPreviousNext: boolean;
-}
+};
 
-export default function Paginator({
-  currentPage,
-  totalPages,
-  onPageChange,
-  showPreviousNext,
-}: PaginatorProps) {
-
+export default function Paginator({ currentPage, totalPages, onPageChange, showPreviousNext }: PaginatorProps) {
   return (
     <Pagination>
       <PaginationContent>
         {showPreviousNext && totalPages ? (
           <PaginationItem>
-            <PaginationPrevious
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage - 1 < 1}
-            />
+            <PaginationPrevious onClick={() => onPageChange(currentPage - 1)} disabled={currentPage - 1 < 1} />
           </PaginationItem>
         ) : null}
         {generatePaginationLinks(currentPage, totalPages, onPageChange)}
         {showPreviousNext && totalPages ? (
           <PaginationItem>
-            <PaginationNext
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage > totalPages - 1}
-            />
+            <PaginationNext onClick={() => onPageChange(currentPage + 1)} disabled={currentPage > totalPages - 1} />
           </PaginationItem>
-        ): null}
+        ) : null}
       </PaginationContent>
     </Pagination>
-  )
+  );
 }
 
 const generatePaginationLinks = (currentPage: number, totalPages: number, onPageChange: (page: number) => void) => {
@@ -63,7 +50,7 @@ const generatePaginationLinks = (currentPage: number, totalPages: number, onPage
       );
     }
     if (2 < currentPage && currentPage < totalPages - 1) {
-      pages.push(<PaginationEllipsis />);
+      pages.push(<PaginationEllipsis key="ellipsis-1" />);
       pages.push(
         <PaginationItem key={currentPage}>
           <PaginationLink onClick={() => onPageChange(currentPage)} isActive={true}>
@@ -72,7 +59,7 @@ const generatePaginationLinks = (currentPage: number, totalPages: number, onPage
         </PaginationItem>
       );
     }
-    pages.push(<PaginationEllipsis />);
+    pages.push(<PaginationEllipsis key="ellipsis-2" />);
     for (let i = totalPages - 1; i <= totalPages; i++) {
       pages.push(
         <PaginationItem key={i}>

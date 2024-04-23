@@ -141,7 +141,7 @@ export const WalletProvider = ({ children }) => {
 
   async function loadWallet(): Promise<void> {
     const selectedNetwork = getSelectedNetwork();
-    const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetwork.id}/wallets`) || "") as LocalWalletDataType[];
+    const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetwork.id}/wallets`) || "[]") as LocalWalletDataType[];
 
     let currentWallets = storageWallets ?? [];
 
@@ -155,10 +155,7 @@ export const WalletProvider = ({ children }) => {
 
     await refreshBalances();
 
-    setTimeout(() => {
-      setIsWalletLoaded(true);
-    }, 10000);
-    // setIsWalletLoaded(true);
+    setIsWalletLoaded(true);
   }
 
   async function signAndBroadcastTx(msgs: EncodeObject[]): Promise<boolean> {

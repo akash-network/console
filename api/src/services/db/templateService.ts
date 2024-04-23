@@ -67,7 +67,7 @@ export async function saveTemplate(
 ) {
   let template = await Template.findOne({
     where: {
-      id: id,
+      id: id || null,
       userId: userId
     }
   });

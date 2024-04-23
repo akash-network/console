@@ -121,7 +121,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
         const currentExpose = _expose[expIndex];
 
         return (
-          <FormPaper key={exp.id} className={cn({ ["mb-4"]: expIndex + 1 !== expose.length })} contentClassName="flex bg-popover">
+          <FormPaper key={exp.id} className={cn("bg-popover", { ["mb-4"]: expIndex + 1 !== expose.length })} contentClassName="flex">
             <div className="flex-grow">
               <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-4">
                 <div>
@@ -300,18 +300,13 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
               </div>
 
               <div>
-                <HttpOptionsFormControl
-                  control={control}
-                  serviceIndex={serviceIndex}
-                  exposeIndex={expIndex}
-                  services={services}
-                />
+                <HttpOptionsFormControl control={control} serviceIndex={serviceIndex} exposeIndex={expIndex} services={services} />
               </div>
             </div>
 
             {expIndex !== 0 && (
               <div className="pl-2">
-                <Button onClick={() => removeExpose(expIndex)} size="icon">
+                <Button onClick={() => removeExpose(expIndex)} size="icon" variant="ghost">
                   <Bin />
                 </Button>
               </div>

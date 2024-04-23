@@ -21,7 +21,7 @@ export const AddressBookProvider = ({ children }) => {
 
   return (
     <AddressBookProviderContext.Provider value={{ addressNames: addressNames || {}, isLoading, editAddressName }}>
-      {!isLoading && !!editingAddress && (
+      {!isLoading && editingAddress !== null && (
         <EditAddressBookmarkModal address={editingAddress as string} addressNames={addressNames || {}} open onClose={() => setEditingAddress(null)} />
       )}
       {children}

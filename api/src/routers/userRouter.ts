@@ -139,7 +139,6 @@ userOptionalRouter.get("/template/:id", async (c) => {
 
   if (!uuid.validate(templateId)) {
     return c.text("Invalid template id", 400);
-    return;
   }
 
   const template = await getTemplateById(templateId, userId);

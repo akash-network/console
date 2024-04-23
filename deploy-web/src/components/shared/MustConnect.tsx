@@ -1,10 +1,8 @@
+"use client";
 import React from "react";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
-import { Alert } from "@mui/material";
-import { makeStyles } from "tss-react/mui";
-
-export const useStyles = makeStyles()(theme => ({}));
+import { Alert } from "../ui/alert";
 
 export type Props = {
   message: string;
@@ -12,7 +10,7 @@ export type Props = {
 
 export const MustConnect: React.FunctionComponent<Props> = ({ message }) => {
   return (
-    <Alert severity="info" variant="outlined">
+    <Alert>
       {message}, please{" "}
       <Link href={UrlService.login()} passHref>
         login

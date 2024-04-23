@@ -8,13 +8,14 @@ module.exports = {
   entry: "./src/index.ts",
   mode: NODE_ENV,
   target: "node",
+  devtool: "source-map",
   output: {
     path: path.resolve(__dirname, "dist"),
-    filename: "server.js",
+    filename: "server.js"
   },
   resolve: {
     extensions: [".ts", ".js"],
-    alias: hq.get("webpack"),
+    alias: hq.get("webpack")
   },
   externals: [nodeExternals()],
   module: {
@@ -23,9 +24,9 @@ module.exports = {
         test: /\.(ts|js)x?$/,
         exclude: /node_modules/,
         loader: "ts-loader",
-        options: { configFile: "tsconfig.build.json"}
-      },
-    ],
+        options: { configFile: "tsconfig.build.json" }
+      }
+    ]
   },
-  plugins: [new NodemonPlugin()],
+  plugins: [new NodemonPlugin()]
 };
