@@ -1,25 +1,9 @@
 "use client";
 import React from "react";
-import { useRouter } from "next/router";
 import { ExternalLink } from "../shared/ExternalLink";
 import { Alert } from "../ui/alert";
 
-// const useStyles = makeStyles()(theme => ({
-//   list: {
-//     listStyle: "lower-alpha",
-//     "& li": {
-//       marginBottom: theme.spacing(0.5),
-
-//       "&:last-child": {
-//         marginBottom: 0
-//       }
-//     }
-//   }
-// }));
-
-type Props = {
-  // backUrl: string;
-};
+type Props = {};
 
 export const CreateWalletSection: React.FunctionComponent<Props> = ({}) => {
   return (

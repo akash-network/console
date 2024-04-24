@@ -4,15 +4,16 @@ import type { ThemeDefinition, WalletClient, AssetSelector, AllowedDestinationCh
 import type { StdSignDoc } from "@cosmjs/amino";
 import type { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { useWallet } from "@src/context/WalletProvider";
-import Button from "@mui/material/Button";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
+import { Button } from "../ui/button";
+import { customColors } from "@src/utils/colors";
 
 const theme: ThemeDefinition = {
   colors: {
-    primary: "#E85A39",
-    primaryButton: "#E85A39",
+    primary: customColors.akashRed,
+    primaryButton: customColors.akashRed,
     border: "#282828",
     stepBorder: "#383838",
     backgroundPrimary: "#212121",
@@ -106,7 +107,7 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
     onClick();
   };
   return (
-    <Button variant="contained" color="secondary" onClick={_onClick}>
+    <Button variant="default" size="sm" onClick={_onClick}>
       Get More
     </Button>
   );
@@ -128,13 +129,13 @@ const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBal
 
   const { isWalletConnected } = useWallet();
   const { wallet } = useSelectedChain();
-  const walletExt = getWindowWallet(wallet?.name);
+  const walletExt = getWindowWallet(wallet?.name || "");
 
   const handleConnectWallet = useCallback(
     (chainId?: string) => {
-      if (!isWalletConnected && walletExt) {
+      if (!isWalletConnected && walletExt && chainId) {
         return walletExt.enable(chainId);
-      }
+      } else return new Promise<void>(() => {});
     },
     [isWalletConnected, walletExt]
   );

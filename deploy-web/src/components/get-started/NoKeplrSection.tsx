@@ -10,6 +10,7 @@ import { NavArrowLeft } from "iconoir-react";
 import { cn } from "@src/utils/styleUtils";
 import { buttonVariants } from "../ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+
 type Props = {};
 
 export const NoKeplrSection: React.FunctionComponent<Props> = ({}) => {

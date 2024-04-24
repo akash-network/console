@@ -1,17 +1,9 @@
-import { cx } from "@emotion/css";
-import { Box, Button, CircularProgress, Step, StepContent, StepLabel, Stepper, Typography } from "@mui/material";
-import { useWallet } from "@src/context/WalletProvider";
+"use client";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { makeStyles } from "tss-react/mui";
 import dynamic from "next/dynamic";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
-import CancelIcon from "@mui/icons-material/Cancel";
-import CheckIcon from "@mui/icons-material/Check";
-import WarningIcon from "@mui/icons-material/Warning";
-import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import { ExternalLink } from "../shared/ExternalLink";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { uaktToAKT } from "@src/utils/priceUtils";
@@ -20,43 +12,39 @@ import { RouteStepKeys } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import "@leapwallet/elements/styles.css";
 import { useChainParam } from "@src/context/ChainParamProvider";
+import { Button, buttonVariants } from "../ui/button";
+import Spinner from "../shared/Spinner";
+import Stepper from "@mui/material/Stepper";
+import Step from "@mui/material/Step";
+import StepLabel from "@mui/material/StepLabel";
+import StepContent from "@mui/material/StepContent";
+import { cn } from "@src/utils/styleUtils";
+import { Check, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
+import { useWallet } from "@src/context/WalletProvider";
+import { MdRestartAlt } from "react-icons/md";
 
 const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
   ssr: false,
   loading: props => {
     if (props.isLoading) {
       return (
-        <Button variant="contained" color="secondary" disabled={true}>
+        <Button variant="default" disabled>
           <span>Get More</span>
-          <CircularProgress size="1rem" color="inherit" sx={{ ml: "0.5rem" }} />
+          <Spinner size="small" className="ml-2" />
         </Button>
       );
     } else return null;
   }
 });
 
-const useStyles = makeStyles()(theme => ({
-  stepLabel: {
-    fontSize: "1.5rem",
-    fontWeight: "bold"
-  },
-  activeLabel: {
-    cursor: "pointer",
-    "&:hover": {
-      color: theme.palette.secondary.main
-    }
-  }
-}));
-
 type Props = {};
 
 export const GetStartedStepper: React.FunctionComponent<Props> = () => {
-  const { classes } = useStyles();
   const [activeStep, setActiveStep] = useState(0);
   const { isWalletConnected, walletBalances, address, refreshBalances } = useWallet();
   const { minDeposit } = useChainParam();
-  const aktBalance = walletBalances ? uaktToAKT(walletBalances.uakt) : null;
-  const usdcBalance = walletBalances ? udenomToDenom(walletBalances.usdc) : null;
+  const aktBalance = walletBalances ? uaktToAKT(walletBalances.uakt) : 0;
+  const usdcBalance = walletBalances ? udenomToDenom(walletBalances.usdc) : 0;
 
   useEffect(() => {
     const getStartedStep = localStorage.getItem("getStartedStep");
@@ -94,51 +82,51 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
         <StepLabel
           StepIconComponent={QontoStepIcon}
           onClick={() => (activeStep > 0 ? onStepClick(0) : null)}
-          classes={{ label: cx(classes.stepLabel, { [classes.activeLabel]: activeStep > 0 }) }}
+          classes={{ label: cn("text-xl font-bold", { ["cursor-pointer hover:text-primary"]: activeStep > 0 }) }}
         >
           Wallet
         </StepLabel>
 
         <StepContent>
-          <Typography variant="body2" color="textSecondary">
+          <p className="text-muted-foreground">
             You need at least {minDeposit.akt} AKT or {minDeposit.usdc} USDC in your wallet to deploy on Akash. If you don't have {minDeposit.akt} AKT or{" "}
             {minDeposit.usdc} USDC, you can request for some tokens to get started on our <ExternalLink href="https://discord.gg/akash" text="Discord" />.
-          </Typography>
+          </p>
 
-          <Box sx={{ mt: 1, mb: 2, display: "flex", alignItems: "center" }}>
-            <Button variant="contained" color="secondary" onClick={handleNext} sx={{ mt: 1, mr: 1 }}>
+          <div className="my-2 flex items-center space-x-4">
+            <Button variant="default" onClick={handleNext}>
               Next
             </Button>
-            <Box component={Link} href={UrlService.getStartedWallet()} sx={{ marginLeft: "1rem" }}>
+            <Link className={cn(buttonVariants({ variant: "text" }))} href={UrlService.getStartedWallet()}>
               Learn how
-            </Box>
-          </Box>
+            </Link>
+          </div>
 
-          <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
-            <CheckIcon color="success" sx={{ marginRight: ".5rem" }} />
-            Wallet is installed
-          </Box>
+          <div className="my-4 flex items-center space-x-2">
+            <Check className="text-green-500" />
+            <span>Wallet is installed</span>
+          </div>
 
           {isWalletConnected ? (
-            <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
-              <CheckIcon color="success" sx={{ marginRight: ".5rem" }} />
-              Wallet is connected
-            </Box>
+            <div className="my-4 flex items-center space-x-2">
+              <Check className="text-green-500" />
+              <span>Wallet is connected</span>
+            </div>
           ) : (
-            <Box>
-              <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
-                <CancelIcon color="error" sx={{ marginRight: ".5rem" }} />
-                Wallet is not connected
-              </Box>
+            <div>
+              <div className="my-4 flex items-center space-x-2">
+                <XmarkCircleSolid className="text-destructive" />
+                <span>Wallet is not connected</span>
+              </div>
 
               <ConnectWalletButton />
-            </Box>
+            </div>
           )}
 
           {walletBalances && (
-            <Box sx={{ display: "flex", alignItems: "center", margin: "1rem 0" }}>
+            <div className="my-4 flex items-center space-x-2">
               {aktBalance >= minDeposit.akt || usdcBalance >= minDeposit.usdc ? (
-                <CheckIcon color="success" sx={{ marginRight: ".5rem" }} />
+                <Check className="text-green-500" />
               ) : (
                 <CustomTooltip
                   title={
@@ -148,18 +136,14 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
                     </>
                   }
                 >
-                  <WarningIcon color="warning" sx={{ marginRight: ".5rem" }} />
+                  <WarningCircle className="text-warning" />
                 </CustomTooltip>
               )}
-              <span
-                style={{
-                  marginRight: "0.5rem"
-                }}
-              >
-                You have {aktBalance} AKT and {usdcBalance} USDC
+              <span>
+                You have <strong>{aktBalance}</strong> AKT and <strong>{usdcBalance}</strong> USDC
               </span>
               <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} />
-            </Box>
+            </div>
           )}
         </StepContent>
       </Step>
@@ -168,59 +152,56 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
         <StepLabel
           StepIconComponent={QontoStepIcon}
           onClick={() => onStepClick(1)}
-          classes={{ label: cx(classes.stepLabel, { [classes.activeLabel]: activeStep > 1 }) }}
+          classes={{ label: cn("text-xl font-bold", { ["cursor-pointer hover:text-primary"]: activeStep > 1 }) }}
         >
           Docker container
         </StepLabel>
         <StepContent>
-          <Typography sx={{ mb: 2 }} variant="body2" color="textSecondary">
+          <p className="mb-2 text-muted-foreground">
             To deploy on Akash, you need a docker container image as everything runs within Kubernetes. You can make your own or browse through pre-made
             solutions in the marketplace.
-          </Typography>
+          </p>
 
-          <Typography variant="body2" color="textSecondary">
-            For the sake of getting started, we will deploy a simple Next.js app that you can find in the deploy page.
-          </Typography>
-          <Box sx={{ mt: 1, mb: 2, display: "flex", alignItems: "center", flexWrap: "wrap" }}>
-            <Button variant="contained" color="secondary" onClick={handleNext} sx={{ mt: 1, mr: 1 }}>
+          <p className="text-muted-foreground">For the sake of getting started, we will deploy a simple Next.js app that you can find in the deploy page.</p>
+          <div className="my-2 flex flex-wrap items-center space-x-4">
+            <Button variant="default" onClick={handleNext}>
               Next
             </Button>
 
-            <Box component="span" sx={{ marginLeft: "1rem" }}>
+            <div>
               <ExternalLink href="https://docs.docker.com/get-started/" text="Learn how" />
-            </Box>
+            </div>
 
-            <Box href={UrlService.templates()} component={Link} sx={{ marginLeft: "1rem", padding: "1rem 0" }}>
+            <Link href={UrlService.templates()} className={cn("py-4", buttonVariants({ variant: "text" }))}>
               Explore Marketplace
-            </Box>
-          </Box>
+            </Link>
+          </div>
         </StepContent>
       </Step>
 
       <Step>
-        <StepLabel StepIconComponent={QontoStepIcon} classes={{ label: classes.stepLabel }}>
+        <StepLabel StepIconComponent={QontoStepIcon} classes={{ label: "text-xl font-bold" }}>
           Hello world
         </StepLabel>
         <StepContent>
-          <Typography variant="body2" color="textSecondary">
+          <p className="text-muted-foreground">
             Deploy your first web app on Akash! This is a simple Next.js app and you can see the{" "}
             <ExternalLink href="https://github.com/maxmaxlabs/hello-akash-world" text="source code here" />.
-          </Typography>
-          <Box sx={{ mb: 2, mt: 2 }}>
-            <Button
-              component={Link}
+          </p>
+          <div className="my-2 space-x-2">
+            <Link
+              className={cn("space-y-2", buttonVariants({ variant: "default" }))}
               href={UrlService.newDeployment({ templateId: "hello-world", step: RouteStepKeys.editDeployment })}
-              variant="contained"
-              endIcon={<RocketLaunchIcon />}
-              color="secondary"
             >
               Deploy!
-            </Button>
+              <Rocket className="rotate-45" />
+            </Link>
 
-            <Button onClick={handleReset} sx={{ ml: 2 }} endIcon={<RestartAltIcon />}>
+            <Button onClick={handleReset} className="space-x-2">
               Reset
+              <MdRestartAlt />
             </Button>
-          </Box>
+          </div>
         </StepContent>
       </Step>
     </Stepper>
