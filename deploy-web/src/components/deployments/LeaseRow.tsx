@@ -251,7 +251,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                 className="mb-4 mt-1"
                 value={
                   <>
-                    {isLoadingProviderStatus && <Spinner />}
+                    {isLoadingProviderStatus && <Spinner size="small" />}
                     {providerStatus && (
                       <>
                         <Link href={UrlService.providerDetail(lease.provider)}>
@@ -286,14 +286,14 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                   <strong>OR</strong>
                 </div>
                 <Button variant="default" color="secondary" disabled={isSendingManifest} onClick={sendManifest} size="sm">
-                  {isSendingManifest ? <Spinner /> : <span>Send manifest manually</span>}
+                  {isSendingManifest ? <Spinner size="small" /> : <span>Send manifest manually</span>}
                 </Button>
               </>
             )}
           </Alert>
         )}
 
-        {!leaseStatus && isLoadingLeaseStatus && <Spinner />}
+        {!leaseStatus && isLoadingLeaseStatus && <Spinner size="small" />}
 
         {isLeaseActive &&
           leaseStatus &&
@@ -314,7 +314,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                   <LabelValueOld label="Group:" value={service.name} className="text-lg" />
                   {isLoadingLeaseStatus || !isServicesAvailable ? (
                     <div className="ml-4 inline-flex">
-                      <Spinner />
+                      <Spinner size="small" />
                     </div>
                   ) : (
                     <div className="ml-2 inline-flex">

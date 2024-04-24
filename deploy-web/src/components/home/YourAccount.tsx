@@ -1,7 +1,6 @@
+"use client";
 import { useEffect, useState } from "react";
 import { ResponsivePie } from "@nivo/pie";
-import { makeStyles } from "tss-react/mui";
-import { Box, Button, Card, CardContent, CardHeader, Chip, CircularProgress, lighten, Typography, useTheme } from "@mui/material";
 import { getAvgCostPerMonth, uaktToAKT } from "@src/utils/priceUtils";
 import { PriceValue } from "../shared/PriceValue";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
@@ -12,8 +11,6 @@ import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
 import { FormattedNumber, FormattedPlural } from "react-intl";
-import { useRouter } from "next/router";
-import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import { useWallet } from "@src/context/WalletProvider";
 import { ConnectWallet } from "../shared/ConnectWallet";
 import { Balances } from "@src/types";
@@ -23,54 +20,31 @@ import sdlStore from "@src/store/sdlStore";
 import { usePricing } from "@src/context/PricingProvider";
 import { uAktDenom } from "@src/utils/constants";
 import { useUsdcDenom } from "@src/hooks/useDenom";
-
-const useStyles = makeStyles()(theme => ({
-  legendRow: {
-    display: "flex",
-    alignItems: "center",
-    fontSize: ".75rem",
-    lineHeight: "1.25rem",
-    transition: "opacity .2s ease",
-    marginBottom: ".2rem"
-  },
-  legendColor: {
-    width: "1rem",
-    height: "1rem",
-    borderRadius: "1rem"
-  },
-  legendLabel: {
-    marginLeft: "1rem",
-    fontWeight: "bold",
-    width: "90px"
-  },
-  legendValue: {
-    marginLeft: "1rem",
-    width: "100px"
-  },
-  title: {
-    fontSize: "1rem",
-    fontWeight: "bold",
-    marginBottom: ".5rem"
-  }
-}));
+import { green, gray } from "tailwindcss/colors";
+import { useTheme } from "next-themes";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import Spinner from "../shared/Spinner";
+import { cn } from "@src/utils/styleUtils";
+import { buttonVariants } from "../ui/button";
+import { Rocket } from "iconoir-react";
+import { Badge } from "../ui/badge";
+import { customColors } from "@src/utils/colors";
 
 type Props = {
-  balances: Balances;
+  balances: Balances | undefined;
   isLoadingBalances: boolean;
   activeDeployments: Array<DeploymentDto>;
-  leases: Array<LeaseDto>;
-  providers: Array<ApiProviderList>;
+  leases: Array<LeaseDto> | null | undefined;
+  providers: Array<ApiProviderList> | undefined;
 };
 
 export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadingBalances, activeDeployments, leases, providers }) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
-  const router = useRouter();
+  const { theme } = useTheme();
   const { address } = useWallet();
   const usdcIbcDenom = useUsdcDenom();
-  const [selectedDataId, setSelectedDataId] = useState<string>(null);
-  const [costPerMonth, setCostPerMonth] = useState<number>(null);
-  const [userProviders, setUserProviders] = useState<{ owner: string; name: string }[]>(null);
+  const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
+  const [costPerMonth, setCostPerMonth] = useState<number | null>(null);
+  const [userProviders, setUserProviders] = useState<{ owner: string; name: string }[] | null>(null);
   const escrowUAktSum = activeDeployments
     .filter(x => x.escrowAccount.balance.denom === uAktDenom)
     .map(x => x.escrowBalance)
@@ -83,7 +57,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const totalUsdc = balances ? balances.balanceUsdc + escrowUsdcSum : 0;
   const hasBalance = balances && totalUAkt !== 0;
   const totalCpu = activeDeployments.map(d => d.cpuAmount).reduce((a, b) => a + b, 0);
-  const totalGpu = activeDeployments.map(d => d.gpuAmount).reduce((a, b) => a + b, 0);
+  const totalGpu = activeDeployments.map(d => d.gpuAmount).reduce((a = 0, b = 0) => a + b, 0);
   const totalMemory = activeDeployments.map(d => d.memoryAmount).reduce((a, b) => a + b, 0);
   const totalStorage = activeDeployments.map(d => d.storageAmount).reduce((a, b) => a + b, 0);
   const _ram = bytesToShrink(totalMemory);
@@ -92,10 +66,10 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const { price, isLoaded } = usePricing();
 
   const colors = {
-    balance_akt: "#dd4320",
-    balance_usdc: "#dd4320",
-    deployment_akt: theme.palette.success.dark,
-    deployment_usdc: theme.palette.success.dark
+    balance_akt: customColors.akashRed,
+    balance_usdc: customColors.akashRed,
+    deployment_akt: green[500],
+    deployment_usdc: green[500]
   };
 
   const getAktData = (balances: Balances, escrowUAktSum: number) => {
@@ -166,7 +140,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
         .filter((value, index, array) => array.indexOf(value) === index)
         .map(x => {
           const provider = providers.find(p => p.owner === x);
-          return { owner: provider.owner, name: provider.name };
+          return { owner: provider?.owner || "", name: provider?.name || "Unknown" };
         });
 
       setCostPerMonth(getAvgCostPerMonth(totalCostPerBlock));
@@ -179,7 +153,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
     if (!selectedId || id === selectedId) {
       return colors[id];
     } else {
-      return theme.palette.mode === "dark" ? theme.palette.grey[900] : "#e0e0e0";
+      return theme === "dark" ? gray[900] : "#e0e0e0";
     }
   };
 
@@ -188,134 +162,103 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   };
 
   return (
-    <Card elevation={1}>
-      <CardHeader
-        title="Your Account"
-        titleTypographyProps={{ variant: "h3", sx: { fontSize: "1.25rem", fontWeight: "bold" } }}
-        sx={{ borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200]}` }}
-      />
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold">Your Account</CardTitle>
+      </CardHeader>
 
       <CardContent>
         {address && (
-          <Box sx={{ display: "flex", justifyContent: "space-between", flexDirection: { xs: "column", lg: "row" } }}>
+          <div className="flex flex-col justify-between lg:flex-row">
             {isLoadingBalances && !balances && (
-              <Box flexBasis="220px" height="200px" display="flex" alignItems="center" justifyContent="center">
-                <CircularProgress size="3rem" color="secondary" />
-              </Box>
+              <div className="flex h-[200px] basis-[220px] items-center justify-center">
+                <Spinner size="large" />
+              </div>
             )}
 
-            <Box sx={{ flexBasis: "40%" }}>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
+            <div className="basis-2/5">
+              <div className="flex items-center">
                 {activeDeployments.length > 0 && <StatusPill state="active" style={{ marginLeft: 0 }} />}
-                <Typography variant="body1" sx={{ marginLeft: activeDeployments.length > 0 ? "1rem" : 0 }}>
+                <p className={cn({ ["ml-4"]: activeDeployments.length > 0 })}>
                   You have{" "}
                   <Link href={UrlService.deploymentList()} passHref>
                     {activeDeployments.length} active{" "}
                     <FormattedPlural value={activeDeployments.length} zero="deployment" one="deployment" other="deployments" />
                   </Link>
-                </Typography>
-              </Box>
+                </p>
+              </div>
 
               {activeDeployments.length > 0 ? (
                 <>
-                  <Box sx={{ marginTop: "2rem" }}>
-                    <Typography variant="body2" color="textSecondary" sx={{ marginBottom: "1rem" }}>
-                      Total resources leased
-                    </Typography>
+                  <div className="mt-8">
+                    <p className="mb-4 text-sm text-muted-foreground">Total resources leased</p>
 
-                    <Box sx={{ display: "flex", alignItems: "start", flexDirection: "column" }}>
+                    <div className="flex flex-col items-start">
                       <LeaseSpecDetail type="cpu" value={totalCpu} />
                       {!!totalGpu && <LeaseSpecDetail type="gpu" value={totalGpu} />}
                       <LeaseSpecDetail type="ram" value={`${roundDecimal(_ram.value, 1)} ${_ram.unit}`} />
                       <LeaseSpecDetail type="storage" value={`${roundDecimal(_storage.value, 1)} ${_storage.unit}`} />
-                    </Box>
-                  </Box>
+                    </div>
+                  </div>
 
-                  <Box sx={{ marginTop: "2rem" }}>
-                    <Typography variant="body2" color="textSecondary" sx={{ marginBottom: "1rem" }}>
-                      Total cost
-                    </Typography>
+                  <div className="mt-8">
+                    <p className="mb-4 text-sm text-muted-foreground">Total cost</p>
 
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <Typography variant="body1">
+                    <div className="flex items-center">
+                      <p>
                         <strong>
                           <FormattedNumber
-                            value={costPerMonth}
+                            value={costPerMonth || 0}
                             // eslint-disable-next-line react/style-prop-object
                             style="currency"
                             currency="USD"
                           />
                         </strong>{" "}
                         / month
-                      </Typography>
-                    </Box>
-                  </Box>
+                      </p>
+                    </div>
+                  </div>
 
-                  <Box sx={{ marginTop: "2rem" }}>
-                    <Typography variant="body2" color="textSecondary" sx={{ marginBottom: "1rem" }}>
-                      Providers
-                    </Typography>
+                  <div className="mt-8">
+                    <p className="mb-4 text-sm text-muted-foreground">Providers</p>
 
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: ".5rem", alignItems: "center" }}>
+                    <div className="flex flex-wrap items-center gap-2">
                       {userProviders?.map(p => (
-                        <Chip
-                          key={p.owner}
-                          label={p.name}
-                          size="small"
-                          clickable
-                          color="secondary"
-                          variant="outlined"
-                          component={Link}
-                          href={UrlService.providerDetailLeases(p.owner)}
-                        />
+                        <Link key={p.owner} href={UrlService.providerDetailLeases(p.owner)}>
+                          <Badge>{p.name}</Badge>
+                        </Link>
                       ))}
-                    </Box>
-                  </Box>
+                    </div>
+                  </div>
                 </>
               ) : (
-                <Button
-                  href={UrlService.newDeployment()}
-                  component={Link}
-                  variant="contained"
-                  size="medium"
-                  color="secondary"
-                  sx={{ marginTop: "1rem" }}
-                  onClick={onDeployClick}
-                >
+                <Link href={UrlService.newDeployment()} className={cn("mt-4", buttonVariants({ variant: "default" }))} onClick={onDeployClick}>
                   Deploy
-                  <RocketLaunchIcon sx={{ marginLeft: "1rem" }} fontSize="small" />
-                </Button>
+                  <Rocket className="ml-4 rotate-45 text-sm" />
+                </Link>
               )}
-            </Box>
+            </div>
 
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                flexBasis: "60%",
-                marginTop: { xs: "1rem", sm: "1rem", md: 0 },
-                flexDirection: { xs: "column", sm: "column", md: "row" }
-              }}
-            >
+            <div className="mt-4 flex basis-3/5 flex-col items-center md:mt-0 md:flex-row">
               {hasBalance && (
-                <Box>
+                <div>
                   {filteredAktData.length > 0 && <BalancePie data={filteredAktData} getColor={_getColor} label="AKT" />}
                   {filteredUsdcData.length > 0 && <BalancePie data={filteredUsdcData} getColor={_getColor} label="USDC" />}
-                </Box>
+                </div>
               )}
 
               {balances && (
-                <Box padding={hasBalance ? 0 : "1rem"} onMouseLeave={() => setSelectedDataId(null)}>
+                <div className={cn({ ["p-4"]: !hasBalance })} onMouseLeave={() => setSelectedDataId(null)}>
                   {allData.map((balance, i) => (
                     <div
-                      className={classes.legendRow}
+                      className="mb-2 flex items-center text-xs leading-5 transition-opacity duration-200 ease-in-out"
                       key={i}
                       onMouseEnter={() => setSelectedDataId(balance.id)}
                       style={{ opacity: !selectedDataId || balance.id === selectedDataId ? 1 : 0.3 }}
                     >
-                      <div className={classes.legendColor} style={{ backgroundColor: balance.color }} />
-                      <div className={classes.legendLabel}>{balance.label}</div>
-                      <div className={classes.legendValue}>
+                      <div className="h-4 w-4 rounded-lg" style={{ backgroundColor: balance.color }} />
+                      <div className="ml-4 w-[90px] font-bold">{balance.label}</div>
+                      <div className="ml-4 w-[100px]">
                         {udenomToDenom(balance.value, 2)} {balance.denomLabel}
                       </div>
 
@@ -325,10 +268,10 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     </div>
                   ))}
 
-                  <Box className={classes.legendRow} sx={{ fontSize: ".9rem !important" }}>
-                    <div className={classes.legendColor} />
-                    <div className={classes.legendLabel}>Total</div>
-                    <div className={classes.legendValue}>
+                  <div className="mb-2 flex items-center text-sm leading-5 transition-opacity duration-200 ease-in-out">
+                    <div className="h-4 w-4 rounded-lg" />
+                    <div className="ml-4 w-[90px] font-bold">Total</div>
+                    <div className="ml-4 w-[100px]">
                       <strong>{uaktToAKT(totalUAkt, 2)} AKT</strong>
                     </div>
 
@@ -337,11 +280,11 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                         <PriceValue denom={uAktDenom} value={uaktToAKT(totalUAkt, 6)} />
                       </strong>
                     </div>
-                  </Box>
-                  <Box className={classes.legendRow} sx={{ fontSize: ".9rem !important" }}>
-                    <div className={classes.legendColor} />
-                    <div className={classes.legendLabel}></div>
-                    <div className={classes.legendValue}>
+                  </div>
+                  <div className="mb-2 flex items-center text-sm leading-5 transition-opacity duration-200 ease-in-out">
+                    <div className="h-4 w-4 rounded-lg" />
+                    <div className="ml-4 w-[90px] font-bold"></div>
+                    <div className="ml-4 w-[100px]">
                       <strong>{udenomToDenom(totalUsdc, 2)} USDC</strong>
                     </div>
 
@@ -350,36 +293,28 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                         <PriceValue denom={usdcIbcDenom} value={udenomToDenom(totalUsdc, 6)} />
                       </strong>
                     </div>
-                  </Box>
+                  </div>
 
-                  <Box
-                    className={classes.legendRow}
-                    sx={{
-                      fontSize: ".9rem !important",
-                      marginTop: ".5rem",
-                      paddingTop: ".5rem",
-                      borderTop: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200]}`
-                    }}
-                  >
-                    <div className={classes.legendColor} />
-                    <div className={classes.legendLabel}></div>
-                    <div className={classes.legendValue}></div>
+                  <div className="mb-2 mt-2 flex items-center border-t border-muted-foreground pt-2 text-sm leading-5 transition-opacity duration-200 ease-in-out">
+                    <div className="h-4 w-4 rounded-lg" />
+                    <div className="ml-4 w-[90px] font-bold"></div>
+                    <div className="ml-4 w-[100px]"></div>
 
                     <div>
                       <strong>
                         <FormattedNumber
-                          value={udenomToDenom(totalUsdc, 6) + udenomToDenom(totalUAkt, 6) * price}
+                          value={udenomToDenom(totalUsdc, 6) + udenomToDenom(totalUAkt, 6) * (price || 0)}
                           // eslint-disable-next-line react/style-prop-object
                           style="currency"
                           currency="USD"
                         />
                       </strong>
                     </div>
-                  </Box>
-                </Box>
+                  </div>
+                </div>
               )}
-            </Box>
-          </Box>
+            </div>
+          </div>
         )}
 
         {!address && <ConnectWallet text="Connect your wallet to deploy!" />}
@@ -395,9 +330,9 @@ type BalancePieProps = {
 };
 
 const BalancePie: React.FunctionComponent<BalancePieProps> = ({ label, data, getColor }) => {
-  const theme = useTheme();
+  const { theme } = useTheme();
   return (
-    <Box height="200px" width="220px" display="flex" alignItems="center" justifyContent="center">
+    <div className="flex h-[200px] w-[220px] items-center justify-center">
       <ResponsivePie
         data={data}
         margin={{ top: 15, right: 15, bottom: 15, left: 0 }}
@@ -415,38 +350,29 @@ const BalancePie: React.FunctionComponent<BalancePieProps> = ({ label, data, get
           return `${udenomToDenom(value, 2)} ${label}`;
         }}
         tooltip={value => (
-          <Box
-            sx={{
-              backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300],
-              padding: ".25rem .5rem",
-              borderRadius: ".25rem",
-              display: "flex",
-              alignItems: "center"
-            }}
-          >
-            <Box sx={{ width: ".5rem", height: ".5rem", backgroundColor: value.datum.color }} />
-            <Box sx={{ marginLeft: ".5rem" }}>
+          <div className="flex items-center rounded bg-muted px-2 py-1">
+            <div className="h-2 w-2" style={{ backgroundColor: value.datum.color }} />
+            <div className="ml-2">
               {value.datum.label}: {value.datum.formattedValue}
-            </Box>
-          </Box>
+            </div>
+          </div>
         )}
         enableArcLinkLabels={false}
         arcLabelsSkipAngle={10}
         theme={{
-          background: theme.palette.mode === "dark" ? lighten(theme.palette.background.paper, 0.0525) : theme.palette.background.paper,
+          // background: theme === "dark" ? lighten(theme.palette.background.paper, 0.0525) : theme.palette.background.paper,
           textColor: "#fff",
           fontSize: 12,
           tooltip: {
             basic: {
-              color: theme.palette.mode === "dark" ? theme.palette.primary.contrastText : theme.palette.primary.main
+              color: theme === "dark" ? "#fff" : customColors.main
             },
             container: {
-              backgroundColor: theme.palette.mode === "dark" ? theme.palette.primary.main : theme.palette.primary.contrastText
+              backgroundColor: theme === "dark" ? customColors.main : "#fff"
             }
           }
         }}
       />
-    </Box>
+    </div>
   );
 };
-

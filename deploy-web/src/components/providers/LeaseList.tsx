@@ -32,11 +32,11 @@ type Props = {
 };
 
 const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases }) => {
-  const [page, setPage] = useState(1);
+  const [pageIndex, setPageIndex] = useState(0);
   const [filteredLeases, setFilteredLeases] = useState(leases || []);
   const [isFilteringActive, setIsFilteringActive] = useState(false);
   const [pageSize, setPageSize] = useState(10);
-  const start = (page - 1) * pageSize;
+  const start = pageIndex * pageSize;
   const end = start + pageSize;
   const currentPageLeases = filteredLeases.slice(start, end);
   const pageCount = Math.ceil(filteredLeases.length / pageSize);
@@ -53,12 +53,8 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
     }
   }, [leases, isFilteringActive]);
 
-  const handleChangePage = (newPage: number) => {
-    setPage(newPage);
-  };
-
   const onIsActiveChange = (value: boolean) => {
-    setPage(1);
+    setPageIndex(0);
     setIsFilteringActive(value);
   };
 
@@ -99,7 +95,7 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
           </Table>
 
           <div className="px-4 pb-8 pt-4">
-            <CustomPagination pageSize={pageSize} setPageIndex={handleChangePage} pageIndex={page} totalPageCount={pageCount} setPageSize={setPageSize} />
+            <CustomPagination pageSize={pageSize} setPageIndex={setPageIndex} pageIndex={pageIndex} totalPageCount={pageCount} setPageSize={setPageSize} />
           </div>
         </>
       )}

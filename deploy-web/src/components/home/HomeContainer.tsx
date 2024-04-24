@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import React from "react";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
@@ -7,12 +7,13 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { Box, CircularProgress } from "@mui/material";
 import { Footer } from "@src/components/layout/Footer";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { DeploymentDto } from "@src/types/deployment";
 import { WelcomePanel } from "./WelcomePanel";
 import Layout from "../layout/Layout";
+import { YourAccount } from "./YourAccount";
+import Spinner from "../shared/Spinner";
 
 export function HomeContainer() {
   const { address, isWalletLoaded } = useWallet();
@@ -43,18 +44,38 @@ export function HomeContainer() {
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
 
+  useEffect(() => {
+    if (address && isSettingsInit) {
+      getBalances();
+      getLeases();
+    }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, isSettingsInit]);
+
+  useEffect(() => {
+    if (isWalletLoaded && isSettingsInit) {
+      getDeployments();
+    }
+  }, [isSettingsInit, isWalletLoaded, getDeployments, apiEndpoint, address]);
+
   return (
-    <Layout>
-      <Box sx={{ marginBottom: "1rem" }}>
-        <WelcomePanel />
-      </Box>
-      {/* {isSettingsInit && isWalletLoaded ? (
-        <YourAccount isLoadingBalances={isLoadingBalances} balances={balances} activeDeployments={activeDeployments} leases={leases} providers={providers} />
-      ) : (
-        <Box sx={{ padding: "2rem", display: "flex", justifyContent: "center" }}>
-          <CircularProgress color="secondary" size="4rem" />
-        </Box>
-      )} */}
+    <Layout
+      containerClassname="flex h-full flex-col justify-between"
+      isLoading={isLoadingDeployments || isLoadingBalances || isLoadingProviders || isLoadingLeases}
+    >
+      <div>
+        <div className="mb-4">
+          <WelcomePanel />
+        </div>
+        {isSettingsInit && isWalletLoaded ? (
+          <YourAccount isLoadingBalances={isLoadingBalances} balances={balances} activeDeployments={activeDeployments} leases={leases} providers={providers} />
+        ) : (
+          <div className="flex justify-center p-8">
+            <Spinner size="large" />
+          </div>
+        )}
+      </div>
 
       <Footer />
     </Layout>
