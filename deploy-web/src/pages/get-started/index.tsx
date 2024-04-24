@@ -18,11 +18,7 @@ const GetStarted: React.FunctionComponent<Props> = ({}) => {
       />
 
       <Card>
-        <CardHeader
-        // title=""
-        // titleTypographyProps={{ variant: "h3", sx: { fontSize: "1.25rem", fontWeight: "bold" } }}
-        // sx={{ borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200]}` }}
-        >
+        <CardHeader>
           <CardTitle>Get started with Akash Console!</CardTitle>
         </CardHeader>
         <CardContent>

@@ -93,7 +93,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
             {minDeposit.usdc} USDC, you can request for some tokens to get started on our <ExternalLink href="https://discord.gg/akash" text="Discord" />.
           </p>
 
-          <div className="my-2 flex items-center space-x-4">
+          <div className="my-4 flex items-center space-x-4">
             <Button variant="default" onClick={handleNext}>
               Next
             </Button>
@@ -163,7 +163,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
           </p>
 
           <p className="text-muted-foreground">For the sake of getting started, we will deploy a simple Next.js app that you can find in the deploy page.</p>
-          <div className="my-2 flex flex-wrap items-center space-x-4">
+          <div className="my-4 flex flex-wrap items-center space-x-4">
             <Button variant="default" onClick={handleNext}>
               Next
             </Button>
@@ -188,17 +188,17 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
             Deploy your first web app on Akash! This is a simple Next.js app and you can see the{" "}
             <ExternalLink href="https://github.com/maxmaxlabs/hello-akash-world" text="source code here" />.
           </p>
-          <div className="my-2 space-x-2">
+          <div className="my-4 space-x-2">
             <Link
-              className={cn("space-y-2", buttonVariants({ variant: "default" }))}
+              className={cn("space-x-2", buttonVariants({ variant: "default" }))}
               href={UrlService.newDeployment({ templateId: "hello-world", step: RouteStepKeys.editDeployment })}
             >
-              Deploy!
+              <span>Deploy!</span>
               <Rocket className="rotate-45" />
             </Link>
 
-            <Button onClick={handleReset} className="space-x-2">
-              Reset
+            <Button onClick={handleReset} className="space-x-2" variant="ghost">
+              <span>Reset</span>
               <MdRestartAlt />
             </Button>
           </div>
