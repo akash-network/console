@@ -9,8 +9,8 @@ export function TermsOfService() {
     <Layout>
       <CustomNextSeo
         title="Terms of service"
-        url={`https://deploy.cloudmos.io${UrlService.termsOfService()}`}
-        description="Cloudmos webiste terms of service."
+        url={`https://console.akash.network${UrlService.termsOfService()}`}
+        description="Akash Console webiste terms of service."
       />
 
       <div className="mb-8">
@@ -19,15 +19,17 @@ export function TermsOfService() {
 
       <p>Effective date: November 16, 2022</p>
 
-      <h2>1. AGREEMENT TO TERMS</h2>
+      <Title subTitle className="my-4">
+        1. AGREEMENT TO TERMS
+      </Title>
 
       <p>
-        These Terms of Use constitute a legally binding agreement made between you, whether personally or on behalf of an entity (&ldquo;you&rdquo;) and MaxMax
-        Labs Inc. (&quot;Company&quot;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;), concerning your access to and use of the https://cloudmos.io/
-        website as well as any other media form, media channel, mobile website or mobile application related, linked, or otherwise connected thereto
-        (collectively, the &ldquo;Site&rdquo;). P.O. Box 144, 3119 9 Forum Lane, Camana Bay, George Town, Grand Cayman KY1-9006, Cayman Islands. You agree that
-        by accessing the Site, you have read, understood, and agree to be bound by all of these Terms of Use. IF YOU DO NOT AGREE WITH ALL OF THESE TERMS OF
-        USE, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SITE AND YOU MUST DISCONTINUE USE IMMEDIATELY.
+        These Terms of Use constitute a legally binding agreement made between you, whether personally or on behalf of an entity (&ldquo;you&rdquo;) and
+        Overclock Labs Inc. (&quot;Company&quot;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;), concerning your access to and use of the
+        https://console.akash.network/ website as well as any other media form, media channel, mobile website or mobile application related, linked, or
+        otherwise connected thereto (collectively, the &ldquo;Site&rdquo;). P.O. Box 144, 3119 9 Forum Lane, Camana Bay, George Town, Grand Cayman KY1-9006,
+        Cayman Islands. You agree that by accessing the Site, you have read, understood, and agree to be bound by all of these Terms of Use. IF YOU DO NOT AGREE
+        WITH ALL OF THESE TERMS OF USE, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SITE AND YOU MUST DISCONTINUE USE IMMEDIATELY.
       </p>
 
       <p>
@@ -62,14 +64,16 @@ export function TermsOfService() {
 
       <p>A breach or violation of any of the Terms will result in an immediate termination of your Service.</p>
 
-      <h2>2. OUR SERVICES</h2>
+      <Title subTitle className="my-4">
+        2. OUR SERVICES
+      </Title>
 
       <p>
         The Website is designed to provide an online resource for reviewing Data and Analytics related to crypto assets. For example, you may use the Website to
         obtain daily crypto asset data sets of either crypto asset network or market data (&ldquo;Data&rdquo;). You may also obtain correlations and other
         derived analytics of the various Data that we or our licensors have generated (&ldquo;Analytics&rdquo;). You may also register with the Website to
         receive customized alert notifications and access to further data. We may also offer paid subscriptions for products from time to time &ndash; if we do
-        so, your use of such products will be subject to a separate license agreement between you and MaxMax Labs Inc.
+        so, your use of such products will be subject to a separate license agreement between you and Overclock Labs Inc.
       </p>
 
       <p>
@@ -78,7 +82,9 @@ export function TermsOfService() {
         lost through the usage of those features.
       </p>
 
-      <h2>3. ACCURACY, COMPLETENESS AND TIMELINESS OF INFORMATION</h2>
+      <Title subTitle className="my-4">
+        3. ACCURACY, COMPLETENESS AND TIMELINESS OF INFORMATION
+      </Title>
 
       <p>
         We are not responsible if information made available on this site is not accurate, complete or current. The material on this site is provided for
@@ -92,7 +98,9 @@ export function TermsOfService() {
         your responsibility to monitor changes to our site.
       </p>
 
-      <h2>4. INTELLECTUAL PROPERTY RIGHTS</h2>
+      <Title subTitle className="my-4">
+        4. INTELLECTUAL PROPERTY RIGHTS
+      </Title>
 
       <p>
         Unless otherwise indicated, the Site is our proprietary property and all source code, databases, functionality, software, website designs, audio, video,
@@ -111,7 +119,9 @@ export function TermsOfService() {
         granted to you in and to the Site, the Content and the Marks.
       </p>
 
-      <h2>5. USER REPRESENTATIONS</h2>
+      <Title subTitle className="my-4">
+        5. USER REPRESENTATIONS
+      </Title>
 
       <p>
         By using the Site, you represent and warrant that: (1) all registration information you submit will be true, accurate, current, and complete; (2) you
@@ -126,7 +136,9 @@ export function TermsOfService() {
         any and all current or future use of the Site (or any portion thereof).
       </p>
 
-      <h2>6. USER REGISTRATION</h2>
+      <Title subTitle className="my-4">
+        6. USER REGISTRATION
+      </Title>
 
       <p>
         You may be required to register with the Site. You agree to keep your password confidential and will be responsible for all use of your account and
@@ -134,7 +146,9 @@ export function TermsOfService() {
         inappropriate, obscene, or otherwise objectionable.
       </p>
 
-      <h2>7. FEES AND PAYMENT</h2>
+      <Title subTitle className="my-4">
+        7. FEES AND PAYMENT
+      </Title>
 
       <p>
         You may be required to purchase or pay a fee to access some of our services. You agree to provide current, complete, and accurate purchase and account
@@ -155,16 +169,18 @@ export function TermsOfService() {
         refuse any order placed through the Site.
       </p>
 
-      <h2>8. CANCELLATION</h2>
+      <Title subTitle className="my-4">
+        8. CANCELLATION
+      </Title>
 
       <p>
         All purchases are non-refundable. You can cancel your subscription at any time by logging into your account. Your cancellation will take effect at the
         end of the current paid term.
       </p>
 
-      <p>If you are unsatisfied with our services, please email us at contact@cloudmos.io or call us at (888) 546-3184.</p>
+      <p>If you are unsatisfied with our services, please email us at support@akash.network.</p>
 
-      <h2>9. SOFTWARE</h2>
+      <Title subTitle>9. SOFTWARE</Title>
 
       <p>
         We may include software for use in connection with our services. If such software is accompanied by an end user license agreement (&ldquo;EULA&rdquo;),
@@ -175,16 +191,18 @@ export function TermsOfService() {
         use or performance of any Software. You may not reproduce or redistribute any software except in accordance with the EULA or these Terms of Use.
       </p>
 
-      <h2>10. PROHIBITED ACTIVITIES</h2>
+      <Title subTitle className="my-4">
+        10. PROHIBITED ACTIVITIES
+      </Title>
 
       <p>
         You may not access or use the Site for any purpose other than that for which we make the Site available. The Site may not be used in connection with any
         commercial endeavors except those that are specifically endorsed or approved by us.
       </p>
 
-      <h2>As a user of the Site, you agree not to:</h2>
+      <Title subTitle>As a user of the Site, you agree not to:</Title>
 
-      <ul>
+      <ul className="list-disc py-4 pl-8">
         <li>
           Systematically retrieve data or other content from the Site to create or compile, directly or indirectly, a collection, compilation, database, or
           directory without written permission from us.
@@ -262,12 +280,14 @@ export function TermsOfService() {
         <li>Sell or otherwise transfer your profile. Use the Site to advertise or offer to sell goods and services.</li>
 
         <li>
-          You are allowed to use Cloudmos data and contents solely for your own account and any resale of the Cloudmos contents, data, and analytics is
+          You are allowed to use Akash Console data and contents solely for your own account and any resale of the Akash Console contents, data, and analytics is
           prohibited whether modified or not.
         </li>
       </ul>
 
-      <h2>11. USER GENERATED CONTRIBUTIONS</h2>
+      <Title subTitle className="my-4">
+        11. USER GENERATED CONTRIBUTIONS
+      </Title>
 
       <p>
         The Site may invite you to chat, contribute to, or participate in blogs, message boards, online forums, and other functionality, and may provide you
@@ -278,7 +298,7 @@ export function TermsOfService() {
         represent and warrant that:
       </p>
 
-      <ul>
+      <ul className="list-disc py-4 pl-8">
         <li>
           The creation, distribution, transmission, public display, or performance, and the accessing, downloading, or copying of your Contributions do not and
           will not infringe the proprietary rights, including but not limited to the copyright, patent, trademark, trade secret, or moral rights of any third
@@ -339,7 +359,9 @@ export function TermsOfService() {
         rights to use the Site.
       </p>
 
-      <h2>12. CONTRIBUTION LICENSE</h2>
+      <Title subTitle className="my-4">
+        12. CONTRIBUTION LICENSE
+      </Title>
 
       <p>
         By posting your Contributions to any part of the Site, you automatically grant, and you represent and warrant that you have the right to grant, to us an
@@ -369,7 +391,9 @@ export function TermsOfService() {
         without notice. We have no obligation to monitor your Contributions.
       </p>
 
-      <h2>13. SUBMISSIONS</h2>
+      <Title subTitle className="my-4">
+        13. SUBMISSIONS
+      </Title>
 
       <p>
         You acknowledge and agree that any questions, comments, suggestions, ideas, feedback, or other information regarding the Site (&quot;Submissions&quot;)
@@ -380,7 +404,9 @@ export function TermsOfService() {
         infringement or misappropriation of any proprietary right in your Submissions.
       </p>
 
-      <h2>14. THIRD-PARTY WEBSITES AND CONTENT</h2>
+      <Title subTitle className="my-4">
+        14. THIRD-PARTY WEBSITES AND CONTENT
+      </Title>
 
       <p>
         The Site may contain (or you may be sent via the Site) links to other websites (&quot;Third-Party Websites&quot;) as well as articles, photographs,
@@ -399,7 +425,9 @@ export function TermsOfService() {
         sustained by you or harm caused to you relating to or resulting in any way from any Third-Party Content or any contact with Third-Party Websites.
       </p>
 
-      <h2>15. SITE MANAGEMENT</h2>
+      <Title subTitle className="my-4">
+        15. SITE MANAGEMENT
+      </Title>
 
       <p>
         We reserve the right, but not the obligation, to: (1) monitor the Site for violations of these Terms of Use; (2) take appropriate legal action against
@@ -410,14 +438,18 @@ export function TermsOfService() {
         otherwise manage the Site in a manner designed to protect our rights and property and to facilitate the proper functioning of the Site.
       </p>
 
-      <h2>16. PRIVACY POLICY</h2>
+      <Title subTitle className="my-4">
+        16. PRIVACY POLICY
+      </Title>
 
       <p>
         Your submission of personal information through the site is governed by our Privacy Policy. Please review our Privacy Policy:
-        https://cloudmos.io/privacy-policy. By using the Site, you agree to be bound by our Privacy Policy, which is incorporated into these Terms of Use.
+        https://console.akash.network/privacy-policy. By using the Site, you agree to be bound by our Privacy Policy, which is incorporated into these Terms of Use.
       </p>
 
-      <h2>17. COPYRIGHT INFRINGEMENTS</h2>
+      <Title subTitle className="my-4">
+        17. COPYRIGHT INFRINGEMENTS
+      </Title>
 
       <p>
         We respect the intellectual property rights of others. If you believe that any material available on or through the Site infringes upon any copyright
@@ -427,7 +459,9 @@ export function TermsOfService() {
         linked to by the Site infringes your copyright, you should consider first contacting an attorney.
       </p>
 
-      <h2>18. TERM AND TERMINATION</h2>
+      <Title subTitle className="my-4">
+        18. TERM AND TERMINATION
+      </Title>
 
       <p>
         These Terms of Use shall remain in full force and effect while you use the Site. WITHOUT LIMITING ANY OTHER PROVISION OF THESE TERMS OF USE, WE RESERVE
@@ -443,7 +477,9 @@ export function TermsOfService() {
         account, we reserve the right to take appropriate legal action, including without limitation pursuing civil, criminal, and injunctive redress.
       </p>
 
-      <h2>19. MODIFICATIONS AND INTERRUPTIONS</h2>
+      <Title subTitle className="my-4">
+        19. MODIFICATIONS AND INTERRUPTIONS
+      </Title>
 
       <p>
         We reserve the right to change, modify, or remove the contents of the Site at any time or for any reason at our sole discretion without notice. However,
@@ -459,7 +495,9 @@ export function TermsOfService() {
         be construed to obligate us to maintain and support the Site or to supply any corrections, updates, or releases in connection therewith.
       </p>
 
-      <h2>20. GOVERNING LAW</h2>
+      <Title subTitle className="my-4">
+        20. GOVERNING LAW
+      </Title>
 
       <p>
         These Terms of Service and any separate agreements whereby we provide you Services shall be governed by and construed in accordance with the laws of the
@@ -468,15 +506,19 @@ export function TermsOfService() {
         agree to submit to the jurisdiction of such courts.
       </p>
 
-      <h2>21. DISPUTE RESOLUTION</h2>
+      <Title subTitle className="my-4">
+        21. DISPUTE RESOLUTION
+      </Title>
 
       <p>
         You agree to irrevocably submit all disputes related to Terms or the legal relationship established by this Agreement to the jurisdiction of the
-        Province of Quebec courts. MaxMax Labs Inc. shall also maintain the right to bring proceedings as to the substance of the matter in the courts of the
+        Province of Quebec courts. Overclock Labs Inc. shall also maintain the right to bring proceedings as to the substance of the matter in the courts of the
         country where you reside or, if these Terms are entered into in the course of your trade or profession, the state of your principal place of business.
       </p>
 
-      <h2>22. CORRECTIONS</h2>
+      <Title subTitle className="my-4">
+        22. CORRECTIONS
+      </Title>
 
       <p>
         There may be information on the Site that contains typographical errors, inaccuracies, or omissions, including descriptions, pricing, availability, and
@@ -484,7 +526,9 @@ export function TermsOfService() {
         any time, without prior notice.
       </p>
 
-      <h2>23. DISCLAIMER</h2>
+      <Title subTitle className="my-4">
+        23. DISCLAIMER
+      </Title>
 
       <p>
         THE SITE IS PROVIDED ON AN AS-IS AND AS-AVAILABLE BASIS. YOU AGREE THAT YOUR USE OF THE SITE AND OUR SERVICES WILL BE AT YOUR SOLE RISK. TO THE FULLEST
@@ -502,7 +546,9 @@ export function TermsOfService() {
         SERVICE THROUGH ANY MEDIUM OR IN ANY ENVIRONMENT, YOU SHOULD USE YOUR BEST JUDGMENT AND EXERCISE CAUTION WHERE APPROPRIATE.
       </p>
 
-      <h2>24. LIMITATIONS OF LIABILITY</h2>
+      <Title subTitle className="my-4">
+        24. LIMITATIONS OF LIABILITY
+      </Title>
 
       <p>
         IN NO EVENT WILL WE OR OUR DIRECTORS, EMPLOYEES, OR AGENTS BE LIABLE TO YOU OR ANY THIRD PARTY FOR ANY DIRECT, INDIRECT, CONSEQUENTIAL, EXEMPLARY,
@@ -514,7 +560,9 @@ export function TermsOfService() {
         YOU MAY HAVE ADDITIONAL RIGHTS.
       </p>
 
-      <h2>25. INDEMNIFICATION</h2>
+      <Title subTitle className="my-4">
+        25. INDEMNIFICATION
+      </Title>
 
       <p>
         You agree to defend, indemnify, and hold us harmless, including our subsidiaries, affiliates, and all of our respective officers, agents, partners, and
@@ -527,7 +575,9 @@ export function TermsOfService() {
         is subject to this indemnification upon becoming aware of it.
       </p>
 
-      <h2>26. USER DATA</h2>
+      <Title subTitle className="my-4">
+        26. USER DATA
+      </Title>
 
       <p>
         We will maintain certain data that you transmit to the Site for the purpose of managing the performance of the Site, as well as data relating to your
@@ -536,7 +586,9 @@ export function TermsOfService() {
         hereby waive any right of action against us arising from any such loss or corruption of such data.
       </p>
 
-      <h2>27. ELECTRONIC COMMUNICATIONS, TRANSACTIONS, AND SIGNATURES</h2>
+      <Title subTitle className="my-4">
+        27. ELECTRONIC COMMUNICATIONS, TRANSACTIONS, AND SIGNATURES
+      </Title>
 
       <p>
         Visiting the Site, sending us emails, and completing online forms constitute electronic communications. You consent to receive electronic
@@ -547,7 +599,9 @@ export function TermsOfService() {
         signature or delivery or retention of non-electronic records, or to payments or the granting of credits by any means other than electronic means.
       </p>
 
-      <h2>28. MISCELLANEOUS</h2>
+      <Title subTitle className="my-4">
+        28. MISCELLANEOUS
+      </Title>
 
       <p>
         These Terms of Use and any policies or operating rules posted by us on the Site or in respect to the Site constitute the entire agreement and
@@ -561,7 +615,9 @@ export function TermsOfService() {
         the electronic form of these Terms of Use and the lack of signing by the parties hereto to execute these Terms of Use.
       </p>
 
-      <h2>29. CONTACT US</h2>
+      <Title subTitle className="my-4">
+        29. CONTACT US
+      </Title>
 
       <p>In order to resolve a complaint regarding the Site or to receive further information regarding use of the Site, please contact us at:</p>
 
