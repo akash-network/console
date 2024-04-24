@@ -55,6 +55,8 @@ export function HomeContainer() {
           <CircularProgress color="secondary" size="4rem" />
         </Box>
       )} */}
+
+      <Footer />
     </Layout>
   );
 }

@@ -1,166 +1,165 @@
 import React from "react";
-import { useSnackbar } from "notistack";
-import { makeStyles } from "tss-react/mui";
-import { Box, Chip, Grid, Typography } from "@mui/material";
-import { DiscordIcon } from "../shared/icons";
-import CloseIcon from "@mui/icons-material/Close";
-import FileCopyIcon from "@mui/icons-material/FileCopy";
-import CopyrightIcon from "@mui/icons-material/Copyright";
-import YouTubeIcon from "@mui/icons-material/YouTube";
-import TwitterIcon from "@mui/icons-material/Twitter";
-import GitHubIcon from "@mui/icons-material/GitHub";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
+import { Copyright, Youtube, Twitter, Github, Discord } from "iconoir-react";
+import { Title } from "../shared/Title";
 
 export interface IFooterProps {}
 
-export const useStyles = makeStyles()(theme => ({
-  root: {
-    marginTop: "5rem",
-    paddingBottom: "3rem",
-    [theme.breakpoints.down("sm")]: {
-      textAlign: "center"
-    }
-  },
-  link: {
-    fontWeight: "bold",
-    textDecoration: "underline"
-  },
-  title: {
-    fontSize: "1.5rem",
-    fontWeight: "bold",
-    marginBottom: ".5rem"
-  },
-  subSitle: {
-    fontSize: ".9rem",
-    fontWeight: 300
-  },
-  donationLabel: {
-    maxWidth: "15rem"
-  },
-  sectionTitle: {
-    fontWeight: "normal",
-    padding: ".5rem 0",
-    fontSize: "1rem"
-  },
-  socialLinks: {
-    listStyle: "none",
-    display: "flex",
-    padding: 0,
-    margin: 0,
-    [theme.breakpoints.down("sm")]: {
-      justifyContent: "center"
-    }
-  },
-  socialLink: {
-    display: "block",
-    padding: ".5rem 1rem",
-    transition: ".3s all ease",
-    "& path": {
-      fill: theme.palette.mode === "dark" ? theme.palette.primary.contrastText : theme.palette.primary.main,
-      transition: ".3s all ease"
-    },
-    "&:hover": {
-      color: theme.palette.secondary.main,
-      "& path": {
-        fill: theme.palette.secondary.main
-      }
-    }
-  },
-  socialIcon: {
-    height: "1.5rem",
-    width: "1.5rem",
-    fontSize: "3rem",
-    display: "block",
-    margin: "0 auto"
-  },
-  meta: {
-    display: "flex",
-    alignItems: "center",
-    height: "5rem",
-    justifyContent: "space-between",
-    [theme.breakpoints.down("sm")]: {
-      flexDirection: "column",
-      marginBottom: "1rem"
-    }
-  },
-  footerLink: {
-    color: "inherit"
-  }
-}));
+// export const useStyles = makeStyles()(theme => ({
+
+//   link: {
+//     fontWeight: "bold",
+//     textDecoration: "underline"
+//   },
+//   title: {
+//     fontSize: "1.5rem",
+//     fontWeight: "bold",
+//     marginBottom: ".5rem"
+//   },
+//   subSitle: {
+//     fontSize: ".9rem",
+//     fontWeight: 300
+//   },
+//   donationLabel: {
+//     maxWidth: "15rem"
+//   },
+//   sectionTitle: {
+//     fontWeight: "normal",
+//     padding: ".5rem 0",
+//     fontSize: "1rem"
+//   },
+//   socialLinks: {
+//     listStyle: "none",
+//     display: "flex",
+//     padding: 0,
+//     margin: 0,
+//     [theme.breakpoints.down("sm")]: {
+//       justifyContent: "center"
+//     }
+//   },
+//   socialLink: {
+//     display: "block",
+//     padding: ".5rem 1rem",
+//     transition: ".3s all ease",
+//     "& path": {
+//       fill: theme.palette.mode === "dark" ? theme.palette.primary.contrastText : theme.palette.primary.main,
+//       transition: ".3s all ease"
+//     },
+//     "&:hover": {
+//       color: theme.palette.secondary.main,
+//       "& path": {
+//         fill: theme.palette.secondary.main
+//       }
+//     }
+//   },
+//   socialIcon: {
+//     height: "1.5rem",
+//     width: "1.5rem",
+//     fontSize: "3rem",
+//     display: "block",
+//     margin: "0 auto"
+//   },
+//   meta: {
+//     display: "flex",
+//     alignItems: "center",
+//     height: "5rem",
+//     justifyContent: "space-between",
+//     [theme.breakpoints.down("sm")]: {
+//       flexDirection: "column",
+//       marginBottom: "1rem"
+//     }
+//   },
+//   footerLink: {
+//     color: "inherit"
+//   }
+// }));
 
 export const Footer: React.FunctionComponent<IFooterProps> = () => {
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const { classes } = useStyles();
+  const year = new Date().getFullYear();
 
   return (
-    <div className={classes.root}>
+    <div className="mt-20 pb-12 text-center sm:text-left">
       <footer>
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <Typography variant="body1" className={classes.title}>
-              Cloudmos
-            </Typography>
-            <Typography variant="body2" className={classes.subSitle}>
-              Cloudmos is the #1 platform to deploy docker containers on the Akash Network, a decentralized cloud compute marketplace. Explore, deploy and track
-              all in one place!
-            </Typography>
-          </Grid>
-        </Grid>
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <Title subTitle>Akash Console</Title>
+            <p className="text-sm font-light">
+              Akash Console is the #1 platform to deploy docker containers on the Akash Network, a decentralized cloud compute marketplace. Explore, deploy and
+              track all in one place!
+            </p>
+          </div>
+        </div>
 
-        <Box className={classes.meta}>
-          <ul className={classes.socialLinks}>
+        <div className="mb-4 flex h-20 flex-col items-center justify-between sm:mb-0 sm:flex-row">
+          <ul className="flex items-center justify-center sm:justify-normal">
             <li>
-              <a href="https://discord.gg/akash" target="_blank" className={classes.socialLink}>
-                <DiscordIcon className={classes.socialIcon} />
+              <a
+                href="https://discord.gg/akash"
+                target="_blank"
+                className="block px-4 py-2 transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+              >
+                <Discord className="mx-auto block h-6 w-6 text-5xl" />
               </a>
             </li>
             <li>
-              <a href="https://www.youtube.com/channel/UC1rgl1y8mtcQoa9R_RWO0UA?sub_confirmation=1" target="_blank" className={classes.socialLink}>
-                <YouTubeIcon className={classes.socialIcon} />
+              <a
+                href="https://www.youtube.com/channel/UC1rgl1y8mtcQoa9R_RWO0UA?sub_confirmation=1"
+                target="_blank"
+                className="block px-4 py-2 transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+              >
+                <Youtube className="mx-auto block h-6 w-6 text-5xl" />
               </a>
             </li>
             <li>
-              <a href="https://twitter.com/cloudmosio" target="_blank" className={classes.socialLink}>
-                <TwitterIcon className={classes.socialIcon} />
+              <a
+                href="https://twitter.com/cloudmosio"
+                target="_blank"
+                className="block px-4 py-2 transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+              >
+                <Twitter className="mx-auto block h-6 w-6 text-5xl" />
               </a>
             </li>
             <li>
-              <a href="https://github.com/akash-network/cloudmos" target="_blank" className={classes.socialLink}>
-                <GitHubIcon className={classes.socialIcon} />
+              <a
+                href="https://github.com/akash-network/cloudmos"
+                target="_blank"
+                className="block px-4 py-2 transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+              >
+                <Github className="mx-auto block h-6 w-6 text-5xl" />
               </a>
             </li>
           </ul>
 
-          <Box sx={{ margin: { xs: ".5rem 0 1rem", sm: 0 }, display: "flex", alignItems: "center" }}>
-            <Link href={UrlService.termsOfService()} className={classes.footerLink}>
-              <Typography variant="caption">Terms of Service</Typography>
+          <div className="mb-4 mt-2 flex items-center sm:mb-0 sm:mt-0">
+            <Link href={UrlService.termsOfService()} className="text-current">
+              <p className="text-sm text-muted-foreground">Terms of Service</p>
             </Link>
 
-            <Box sx={{ marginLeft: "1rem" }}>
-              <Link href={UrlService.privacyPolicy()} className={classes.footerLink}>
-                <Typography variant="caption">Privacy Policy</Typography>
+            <div className="ml-4">
+              <Link href={UrlService.privacyPolicy()} className="text-current">
+                <p className="text-sm text-muted-foreground">Privacy Policy</p>
               </Link>
-            </Box>
+            </div>
 
-            <Box sx={{ marginLeft: "1rem" }}>
-              <Link href={UrlService.faq()} className={classes.footerLink}>
-                <Typography variant="caption">FAQ</Typography>
+            <div className="ml-4">
+              <Link href={UrlService.faq()} className="text-current">
+                <p className="text-sm text-muted-foreground">FAQ</p>
               </Link>
-            </Box>
+            </div>
 
-            <Box sx={{ marginLeft: "1rem" }}>
-              <Link href={UrlService.contact()} className={classes.footerLink}>
-                <Typography variant="caption">Contact</Typography>
+            <div className="ml-4">
+              <Link href={UrlService.contact()} className="text-current">
+                <p className="text-sm text-muted-foreground">Contact</p>
               </Link>
-            </Box>
-          </Box>
+            </div>
+          </div>
 
-          <Box sx={{ display: "flex", alignItems: "center", fontSize: ".75rem" }}>
-            <CopyrightIcon fontSize="small" />
-            &nbsp;Cloudmos
-          </Box>
-        </Box>
+          <p className="text-balance flex items-center text-center text-sm leading-loose text-muted-foreground md:text-left">
+            <Copyright className="text-xs" />
+            &nbsp;Akash Network {year}
+          </p>
+        </div>
       </footer>
     </div>
   );
