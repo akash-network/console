@@ -1,10 +1,7 @@
-// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isMaintenanceMode } from "./utils/constants";
-// import { isMaintenanceMode } from "@src/utils/constants";
 
-// This function can be marked `async` if using `await` inside
 export function middleware(request: NextRequest) {
   const maintenancePage = "/maintenance";
   if (isMaintenanceMode && !request.nextUrl.pathname.startsWith(maintenancePage)) {
@@ -34,7 +31,6 @@ function getReturnPath(request: NextRequest) {
   }
 }
 
-// See "Matching Paths" below to learn more
 export const config = {
-  matcher: ["/((?!_next|api/auth).*)(.+)"]
+  matcher: ["/((?!_next|api/auth).*)(.+)", "/"]
 };
