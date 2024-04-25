@@ -1,5 +1,4 @@
 import Layout from "@src/components/layout/Layout";
-import PageContainer from "@src/components/shared/PageContainer";
 import { Title } from "@src/components/shared/Title";
 import { NextSeo } from "next-seo";
 import Image from "next/image";
@@ -18,7 +17,7 @@ const FaqEntries = [
           <br />
           Here's some possible reasons why a provider could close your lease:
         </p>
-        <ul>
+        <ul className="list-disc py-4 pl-8">
           <li>Your docker image was not able to be downloaded or crashed on launch.</li>
           <li>Your deployment was using more resources than what was specified in your sdl. For example, you used more disk space than allowed.</li>
           <li>Your deployment did not meet the terms of service of the provider. Ultimately, each provider can choose what workload they allow.</li>
@@ -46,7 +45,7 @@ const FaqEntries = [
           </a>{" "}
           where the shell access will stop working if the provider pod gets restarted. Here's two workarounds you can try:
         </p>
-        <ul>
+        <ul className="list-disc py-4 pl-8">
           <li>
             You can try the "UPDATE DEPLOYMENT" button in the "UPDATE" tab of your deployment. Even without changing your SDL, this should temporarily restore
             the shell access.
@@ -96,7 +95,7 @@ const FaqEntries = [
     content: (
       <>
         <p>Here are some actions you can take to fix most of the errors you may encounter:</p>
-        <ul>
+        <ul className="list-disc py-4 pl-8">
           <li>
             <strong>Change the selected node in the settings.</strong> Nodes are public services and can have outages and rate limiting.
             <br />
@@ -128,25 +127,26 @@ export default function FaqPage() {
   return (
     <Layout>
       <NextSeo title={`Frequently Asked Questions`} />
+      <Title>Frequently Asked Questions</Title>
 
-      <PageContainer>
-        <Title value="Frequently Asked Questions" />
+      <ul className="list-disc py-4 pl-8">
+        {FaqEntries.map(entry => (
+          <li key={entry.anchor}>
+            <Link href={"#" + entry.anchor}>{entry.title}</Link>
+          </li>
+        ))}
+      </ul>
 
-        <ul>
-          {FaqEntries.map(entry => (
-            <li key={entry.anchor}>
-              <Link href={"#" + entry.anchor}>{entry.title}</Link>
-            </li>
-          ))}
-        </ul>
-
+      <div className="pb-8">
         {FaqEntries.map(entry => (
           <div key={entry.anchor}>
-            <h2 id={entry.anchor}>{entry.title}</h2>
+            <Title subTitle id={entry.anchor} className="my-4">
+              {entry.title}
+            </Title>
             {entry.content}
           </div>
         ))}
-      </PageContainer>
+      </div>
     </Layout>
   );
 }

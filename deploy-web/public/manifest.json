@@ -1,7 +1,7 @@
 {
   "name": "Akash Console",
   "short_name": "Akash Console",
-  "description": "Akash Console - The Akash Network offical console.",
+  "description": "Akash Console - The Akash Network official console.",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
