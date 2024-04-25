@@ -14,7 +14,7 @@ export function CustomPagination({ pageIndex, totalPageCount, pageSize, setPageS
     <div className="flex flex-col items-center justify-between px-2 sm:flex-row">
       <div className="flex items-center space-x-6 lg:space-x-8">
         <div className="flex items-center space-x-2">
-          <p className="text-sm font-medium">Rows per page</p>
+          <p className="text-xs">Rows per page</p>
           <Select
             value={`${pageSize}`}
             onValueChange={value => {
@@ -33,8 +33,8 @@ export function CustomPagination({ pageIndex, totalPageCount, pageSize, setPageS
             </SelectContent>
           </Select>
         </div>
-        <div className="flex flex-col sm:flex-row">
-          <div className="mb-2 flex w-[100px] items-center justify-center text-sm font-medium sm:mb-0">
+        <div className="flex flex-col sm:flex-row sm:space-x-2">
+          <div className="mb-2 flex items-center justify-center whitespace-nowrap text-xs sm:mb-0">
             Page {pageIndex + 1} of {totalPageCount}
           </div>
 

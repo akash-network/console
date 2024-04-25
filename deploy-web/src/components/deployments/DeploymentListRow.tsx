@@ -31,59 +31,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dr
 import Spinner from "../shared/Spinner";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 
-// const useStyles = makeStyles()(theme => ({
-//   root: {
-//     cursor: "pointer",
-//     transition: "background-color .2s ease",
-//     "&:hover": {
-//       backgroundColor: theme.palette.mode === "dark" ? darken(theme.palette.grey[800], 0.7) : theme.palette.grey[300]
-//     },
-//     [theme.breakpoints.down("md")]: {
-//       padding: ".5rem"
-//     }
-//   },
-//   deploymentInfo: {
-//     display: "flex",
-//     alignItems: "center",
-//     marginBottom: "2px",
-//     fontSize: ".875rem",
-//     lineHeight: "1rem"
-//   },
-//   title: {
-//     fontSize: "2rem",
-//     fontWeight: "bold"
-//   },
-//   dseq: {
-//     display: "inline",
-//     fontSize: "12px"
-//   },
-//   leaseChip: {
-//     marginLeft: ".5rem"
-//   },
-//   warningIcon: {
-//     fontSize: "1rem",
-//     marginLeft: ".5rem",
-//     color: theme.palette.error.main
-//   },
-//   editButton: {
-//     marginLeft: ".5rem",
-//     color: theme.palette.grey[400],
-//     transition: "color .3s ease",
-//     "&:hover": {
-//       color: theme.palette.text.primary
-//     }
-//   },
-//   editIcon: {
-//     fontSize: ".9rem"
-//   },
-//   tooltip: {
-//     fontSize: "1rem"
-//   },
-//   tooltipIcon: {
-//     fontSize: "1rem"
-//   }
-// }));
-
 type Props = {
   deployment: NamedDeploymentDto;
   isSelectable?: boolean;
@@ -193,7 +140,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     router.push(url);
   };
 
-  function onDepositClicked(e?: React.MouseEvent<HTMLAnchorElement, MouseEvent>) {
+  function onDepositClicked(e?: React.MouseEvent) {
     e?.preventDefault();
     e?.stopPropagation();
     setIsDepositingDeployment(true);
@@ -201,8 +148,8 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
 
   return (
     <>
-      <TableRow className="cursor-pointer hover:bg-muted-foreground/10" onClick={() => viewDeployment()}>
-        <TableCell align="center">
+      <TableRow className="cursor-pointer hover:bg-muted-foreground/10 [&>td]:p-2" onClick={() => viewDeployment()}>
+        <TableCell className="text-center">
           <SpecDetailList
             cpuAmount={deployment.cpuAmount}
             gpuAmount={deployment.gpuAmount}
@@ -211,12 +158,10 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
             isActive={isActive}
           />
         </TableCell>
-        <TableCell className="max-w-[100px]" align="center">
-          {deploymentName}
-        </TableCell>
-        <TableCell align="center">
+        <TableCell className="max-w-[100px] text-center">{deploymentName}</TableCell>
+        <TableCell className="text-center">
           {isActive && isValidTimeLeft && realTimeLeft && (
-            <div className="flex items-center">
+            <span>
               ~{formatDistanceToNow(realTimeLeft?.timeLeft)}
               {showTimeLeftWarning && (
                 <CustomTooltip
@@ -233,12 +178,12 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                   <WarningCircle className="ml-2 text-xs text-destructive-foreground" />
                 </CustomTooltip>
               )}
-            </div>
+            </span>
           )}
         </TableCell>
-        <TableCell align="center">
+        <TableCell className="text-center">
           {isActive && !!escrowBalance && (
-            <div className="flex">
+            <div className="inline-flex">
               <PriceValue
                 denom={deployment.escrowAccount.balance.denom}
                 value={udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.escrow : escrowBalance, 6)}
@@ -268,11 +213,11 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
             </div>
           )}
         </TableCell>
-        <TableCell align="center">
+        <TableCell className="text-center">
           {isActive && !!deploymentCost && (
-            <div className="ml-4 flex">
+            <div className="ml-4 inline-flex">
               <div className="flex items-center">
-                <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={udenomToDenom(deploymentCost, 10)} />
+                <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={udenomToDenom(deploymentCost, 10)} className="whitespace-nowrap" />
 
                 <CustomTooltip
                   title={
@@ -288,20 +233,20 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
           )}
         </TableCell>
 
-        <TableCell align="center">
+        <TableCell className="text-center">
           {hasLeases && (
-            <div className="flex flex-wrap items-center">{filteredLeases?.map(lease => <LeaseChip key={lease.id} lease={lease} providers={providers} />)}</div>
+            <div className="inline-flex flex-wrap items-center space-x-2">
+              {filteredLeases?.map(lease => <LeaseChip key={lease.id} lease={lease} providers={providers} />)}
+            </div>
           )}
           {isLoadingLeases && <Spinner size="small" />}
         </TableCell>
 
-        <TableCell align="center">
-          <div className="flex items-center justify-end">
+        <TableCell>
+          <div className="flex items-center justify-end space-x-2">
             {isSelectable && (
               <Checkbox
                 checked={checked}
-                // size="small"
-                // color="secondary"
                 onClick={event => {
                   event.stopPropagation();
                 }}
@@ -311,22 +256,24 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
               />
             )}
 
-            <div className="ml-1">
-              {/* <Button onClick={handleMenuClick} size="icon" variant="ghost">
-                <MoreHoriz />
-              </Button> */}
-
+            <div className="">
               <DropdownMenu modal={false} open={open}>
                 <DropdownMenuTrigger asChild>
                   <Button onClick={handleMenuClick} size="icon" variant="ghost">
                     <MoreHoriz />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" onMouseLeave={() => setOpen(false)}>
+                <DropdownMenuContent
+                  align="end"
+                  onMouseLeave={() => setOpen(false)}
+                  onClick={e => {
+                    e.stopPropagation();
+                  }}
+                >
                   <ClickAwayListener onClickAway={() => setOpen(false)}>
                     <div>
                       {isActive && (
-                        <CustomDropdownLinkItem onClick={() => onDepositClicked} icon={<Plus fontSize="small" />}>
+                        <CustomDropdownLinkItem onClick={onDepositClicked} icon={<Plus fontSize="small" />}>
                           Add funds
                         </CustomDropdownLinkItem>
                       )}
@@ -349,34 +296,12 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
               </DropdownMenu>
             </div>
 
-            <div className="ml-2 flex">
+            <div className="flex pr-2">
               <NavArrowRight />
             </div>
           </div>
         </TableCell>
       </TableRow>
-
-      {/* <Menu
-        id={`deployment-list-menu-${deployment.dseq}`}
-        anchorEl={anchorEl}
-        keepMounted
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "right"
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "right"
-        }}
-        onClick={handleMenuClose}
-      >
-        {isActive && <CustomMenuItem onClick={onDepositClicked} icon={<AddIcon fontSize="small" />} text="Add funds" />}
-        <CustomMenuItem onClick={() => changeDeploymentName(deployment.dseq)} icon={<EditIcon fontSize="small" />} text="Edit name" />
-        {storageDeploymentData?.manifest && <CustomMenuItem onClick={() => redeploy()} icon={<PublishIcon fontSize="small" />} text="Redeploy" />}
-        {isActive && <CustomMenuItem onClick={() => onCloseDeployment()} icon={<CancelPresentationIcon fontSize="small" />} text="Close" />}
-      </Menu> */}
 
       {isActive && isDepositingDeployment && (
         <DeploymentDepositModal

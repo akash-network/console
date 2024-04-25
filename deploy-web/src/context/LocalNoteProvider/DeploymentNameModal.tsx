@@ -5,8 +5,7 @@ import { updateDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { useToast } from "@src/components/ui/use-toast";
 import { Popup } from "@src/components/shared/Popup";
 import { Card, CardContent } from "@src/components/ui/card";
-import { Input } from "@src/components/ui/input";
-import { FormControl } from "@src/components/ui/form";
+import { Input, InputWithIcon } from "@src/components/ui/input";
 
 export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName }) => {
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -67,22 +66,15 @@ export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName 
       onClose={onClose}
       maxWidth="xs"
     >
-      <Card className="flex p-4">
-        <CardContent className="flex-grow">
-          <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-            {/* <FormControl> */}
-            <label>Name</label>
-            <Controller
-              control={control}
-              name="name"
-              render={({ field }) => {
-                return <Input {...field} autoFocus type="text" />;
-              }}
-            />
-            {/* </FormControl> */}
-          </form>
-        </CardContent>
-      </Card>
+      <form onSubmit={handleSubmit(onSubmit)} ref={formRef} className="px-2 py-4">
+        <Controller
+          control={control}
+          name="name"
+          render={({ field }) => {
+            return <InputWithIcon {...field} label="Name" autoFocus type="text" />;
+          }}
+        />
+      </form>
     </Popup>
   );
 

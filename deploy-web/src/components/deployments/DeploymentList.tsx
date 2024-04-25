@@ -16,7 +16,7 @@ import { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
 import { PageContainer } from "@src/components/shared/PageContainer";
 import { Button, buttonVariants } from "@src/components/ui/button";
 import { Refresh, Rocket, Xmark } from "iconoir-react";
-import { Checkbox } from "@src/components/ui/checkbox";
+import { Checkbox, CheckboxWithLabel } from "@src/components/ui/checkbox";
 import { cn } from "@src/utils/styleUtils";
 import { InputWithIcon } from "@src/components/ui/input";
 import { IconButton } from "@mui/material";
@@ -139,19 +139,8 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
 
               <div className="ml-8">
                 <div className="flex items-center space-x-2">
-                  <Checkbox checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} id="active-deployments" />
-                  <label
-                    htmlFor="active-deployments"
-                    className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Active
-                  </label>
+                  <CheckboxWithLabel label="Active" checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} />
                 </div>
-
-                {/* <FormControlLabel
-                  control={<Checkbox checked={isFilteringActive} onChange={onIsFilteringActiveClick} color="secondary" size="small" />}
-                  label="Active"
-                /> */}
               </div>
 
               {selectedDeploymentDseqs.length > 0 && (
@@ -169,7 +158,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
               )}
 
               {(filteredDeployments?.length || 0) > 0 && (
-                <Link href={UrlService.newDeployment()} className={cn(buttonVariants({ variant: "default" }))} onClick={onDeployClick}>
+                <Link href={UrlService.newDeployment()} className={cn("ml-auto", buttonVariants({ variant: "default" }))} onClick={onDeployClick}>
                   Deploy
                   <Rocket className="ml-4 rotate-45 text-sm" />
                 </Link>
@@ -178,34 +167,27 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
           )}
         </div>
 
-        {(deployments?.length || 0) > 0 && (
+        {(filteredDeployments?.length || 0) > 0 && (
           <div className="flex items-center pb-4 pt-2">
             <InputWithIcon
               label="Search Deployments by name"
               value={search}
               onChange={onSearchChange}
+              className="w-full"
               type="text"
-              // variant="outlined"
-              // fullWidth
-              // size="small"
               endIcon={
-                <IconButton size="small" onClick={() => setSearch("")}>
-                  <Xmark />
-                </IconButton>
+                !!search && (
+                  <Button size="icon" variant="text" onClick={() => setSearch("")}>
+                    <Xmark className="text-xs" />
+                  </Button>
+                )
               }
-              // InputProps={{
-              //   endAdornment: search && (
-              //     <InputAdornment position="end">
-
-              //     </InputAdornment>
-              //   )
-              // }}
             />
           </div>
         )}
 
         {filteredDeployments?.length === 0 && !isLoadingDeployments && !search && (
-          <div className="p-[4rem] text-center">
+          <div className="p-16 text-center">
             <h5 className="font-normal">{isFilteringActive ? "No active deployments" : "No deployments"}</h5>
 
             <Link href={UrlService.newDeployment()} className={cn(buttonVariants({ variant: "default", size: "lg" }), "mt-4")} onClick={onDeployClick}>
@@ -223,9 +205,9 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
 
         <div>
           {orderedDeployments.length > 0 && (
-            <div className="flex flex-wrap items-center justify-between pb-2">
-              <span className="text-sm text-muted-foreground">
-                You have {orderedDeployments.length}
+            <div className="flex flex-wrap items-center justify-between pb-4">
+              <span className="text-xs">
+                You have <strong>{orderedDeployments.length}</strong>
                 {isFilteringActive ? " active" : ""} deployments
               </span>
             </div>
@@ -235,25 +217,13 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[10%]" align="center">
-                    Specs
-                  </TableHead>
-                  <TableHead className="w-[20%]" align="center">
-                    Name
-                  </TableHead>
-                  <TableHead className="w-[10%]" align="center">
-                    Time left
-                  </TableHead>
-                  <TableHead align="center" className="w-[10%]">
-                    Balance
-                  </TableHead>
-                  <TableHead align="center" className="w-[10%]">
-                    Cost
-                  </TableHead>
-                  <TableHead align="center" className="w-[20%]">
-                    Leases
-                  </TableHead>
-                  <TableHead align="center" className="w-[20%]"></TableHead>
+                  <TableHead className="w-[10%] text-center">Specs</TableHead>
+                  <TableHead className="w-[20%] text-center">Name</TableHead>
+                  <TableHead className="w-[10%] text-center">Time left</TableHead>
+                  <TableHead className="w-[10%] text-center">Balance</TableHead>
+                  <TableHead className="w-[15%] text-center">Cost</TableHead>
+                  <TableHead className="w-[15%] text-center">Leases</TableHead>
+                  <TableHead className="w-[10%]"></TableHead>
                 </TableRow>
               </TableHeader>
 

@@ -82,7 +82,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
         <StepLabel
           StepIconComponent={QontoStepIcon}
           onClick={() => (activeStep > 0 ? onStepClick(0) : null)}
-          classes={{ label: cn("text-xl font-bold", { ["cursor-pointer hover:text-primary"]: activeStep > 0 }) }}
+          classes={{ label: cn("text-xl tracking-tight", { ["cursor-pointer hover:text-primary"]: activeStep > 0, ["!font-bold"]: activeStep === 0 }) }}
         >
           Wallet
         </StepLabel>
@@ -152,7 +152,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
         <StepLabel
           StepIconComponent={QontoStepIcon}
           onClick={() => onStepClick(1)}
-          classes={{ label: cn("text-xl font-bold", { ["cursor-pointer hover:text-primary"]: activeStep > 1 }) }}
+          classes={{ label: cn("text-xl tracking-tight", { ["cursor-pointer hover:text-primary"]: activeStep > 1, ["!font-bold"]: activeStep === 1 }) }}
         >
           Docker container
         </StepLabel>
@@ -180,7 +180,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
       </Step>
 
       <Step>
-        <StepLabel StepIconComponent={QontoStepIcon} classes={{ label: "text-xl font-bold" }}>
+        <StepLabel StepIconComponent={QontoStepIcon} classes={{ label: cn("text-xl tracking-tight", { ["!font-bold"]: activeStep === 2 }) }}>
           Hello world
         </StepLabel>
         <StepContent>

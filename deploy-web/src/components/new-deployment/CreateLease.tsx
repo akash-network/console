@@ -243,7 +243,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
           <div className="flex flex-col items-end justify-between py-2 md:flex-row">
             <div className="flex w-full flex-grow items-end md:w-auto">
               <InputWithIcon
-                label="Search provider..."
+                label="Search provider"
+                placeholder="Search provider..."
                 disabled={bids?.length === 0 || isSendingManifest}
                 value={search}
                 onChange={onSearchChange}
@@ -327,7 +328,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         )}
 
         {bids && bids.length > 0 && (
-          <div className="mb-1 flex flex-col items-center justify-between md:mb-0 md:flex-row">
+          <div className="my-1 flex flex-col items-center justify-between md:flex-row">
             <div className="flex w-full items-center md:w-auto">
               <div className="flex items-center space-x-2">
                 <Checkbox checked={isFilteringFavorites} onCheckedChange={value => setIsFilteringFavorites(value as boolean)} id="provider-favorites" />
