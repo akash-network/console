@@ -68,35 +68,6 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
   components: {
     MuiCssBaseline: {
       styleOverrides: {
-        // html: {
-        //   scrollPaddingTop: `${accountBarHeight}px`,
-        //   WebkitFontSmoothing: "auto",
-        //   height: "100%",
-        //   width: "100%"
-        // },
-        // body: {
-        //   height: `calc(100% - ${accountBarHeight}px) !important`,
-        //   width: "100%",
-        //   overflowY: "scroll !important",
-        //   padding: "0 !important",
-        //   "&::-webkit-scrollbar": {
-        //     width: "10px"
-        //   },
-        //   "&::-webkit-scrollbar-track": {
-        //     background: mode === "dark" ? darken(customColors.dark, 0.2) : customColors.white
-        //   },
-        //   "&::-webkit-scrollbar-thumb": {
-        //     width: "5px",
-        //     backgroundColor: mode === "dark" ? lighten(customColors.darkLight, 0.2) : grey[500],
-        //     borderRadius: "5px"
-        //   }
-        // },
-        // "*": {
-        //   transition: "background-color .2s ease"
-        // },
-        // ul: {
-        //   paddingLeft: "2rem"
-        // },
         // Nextjs root div
         "#__next": {
           height: "100%"
@@ -119,13 +90,6 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
           borderTopColor: `hsl(var(--primary)) !important`,
           borderLeftColor: `hsl(var(--primary)) !important`
         }
-        // a: {
-        //   textDecoration: "none",
-        //   color: customColors.main,
-        //   "&:hover": {
-        //     textDecoration: "underline"
-        //   }
-        // }
       }
     },
     MuiLinearProgress: {

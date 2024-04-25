@@ -19,7 +19,6 @@ import { CertificateProvider } from "@src/context/CertificateProvider";
 import { TemplatesProvider } from "@src/context/TemplatesProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { isProd } from "@src/utils/constants";
-import { GoogleAnalytics } from "nextjs-google-analytics";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { Provider } from "jotai";
@@ -36,6 +35,7 @@ import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@src/components/ui/tooltip";
 import { cn } from "@src/utils/styleUtils";
 import { GeistSans } from "geist/font/sans";
+import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 
 interface Props extends AppProps {
   emotionCache?: EmotionCache;
@@ -60,46 +60,10 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
     <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
       <PageHead />
 
-      {/* <CacheProvider value={emotionCache}>
-        <QueryClientProvider client={queryClient}>
-          <Provider>
-            <ColorModeProvider>
-              <CustomSnackbarProvider>
-                <PricingProvider>
-                  <UserProvider>
-                    <AddressBookProvider>
-                      <SettingsProvider>
-                        <CustomChainProvider>
-                          <ChainParamProvider>
-                            <WalletProvider>
-                              <CertificateProvider>
-                                <TemplatesProvider>
-                                  <LocalNoteProvider>
-                                    <BackgroundTaskProvider>
-                                      {isProd && <GoogleAnalytics />}
-                                      <Component {...pageProps} />
-                                    </BackgroundTaskProvider>
-                                  </LocalNoteProvider>
-                                </TemplatesProvider>
-                              </CertificateProvider>
-                            </WalletProvider>
-                          </ChainParamProvider>
-                        </CustomChainProvider>
-                      </SettingsProvider>
-                    </AddressBookProvider>
-                  </UserProvider>
-                </PricingProvider>
-              </CustomSnackbarProvider>
-            </ColorModeProvider>
-          </Provider>
-        </QueryClientProvider>
-      </CacheProvider> */}
-
       <CacheProvider value={emotionCache}>
         <CustomIntlProvider>
           <QueryClientProvider client={queryClient}>
             <Provider>
-              {/* <StyledEngineProvider injectFirst> */}
               <ThemeProvider attribute="class" defaultTheme="light" storageKey="theme" enableSystem disableTransitionOnChange>
                 <ColorModeProvider>
                   <PricingProvider>
@@ -114,9 +78,8 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
                                     <BackgroundTaskProvider>
                                       <TemplatesProvider>
                                         <LocalNoteProvider>
-                                          {/* <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting /> */}
+                                          <GoogleAnalytics />
 
-                                          {isProd && <GoogleAnalytics />}
                                           <Component {...pageProps} />
                                         </LocalNoteProvider>
                                       </TemplatesProvider>
@@ -132,7 +95,6 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
                   </PricingProvider>
                 </ColorModeProvider>
               </ThemeProvider>
-              {/* </StyledEngineProvider> */}
             </Provider>
           </QueryClientProvider>
         </CustomIntlProvider>
