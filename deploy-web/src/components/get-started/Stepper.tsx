@@ -1,9 +1,6 @@
 import React from "react";
-import { makeStyles } from "tss-react/mui";
 import { StepConnector, stepConnectorClasses, StepIconProps, styled } from "@mui/material";
-import Check from "@mui/icons-material/Check";
-
-export const useStyles = makeStyles()(theme => ({}));
+import { Check } from "iconoir-react";
 
 export const QontoConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.alternativeLabel}`]: {
@@ -13,18 +10,13 @@ export const QontoConnector = styled(StepConnector)(({ theme }) => ({
   },
   [`&.${stepConnectorClasses.active}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      borderColor: theme.palette.secondary.main
+      borderColor: theme.palette.primary.main
     }
   },
   [`&.${stepConnectorClasses.completed}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      borderColor: theme.palette.secondary.main
+      borderColor: theme.palette.primary.main
     }
-  },
-  [`& .${stepConnectorClasses.line}`]: {
-    borderColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : "#eaeaf0",
-    borderTopWidth: 3,
-    borderRadius: 1
   }
 }));
 
@@ -34,10 +26,10 @@ const QontoStepIconRoot = styled("div")<{ ownerState: { active?: boolean } }>(({
   height: 22,
   alignItems: "center",
   ...(ownerState.active && {
-    color: theme.palette.secondary.main
+    color: theme.palette.primary.main
   }),
   "& .QontoStepIcon-completedIcon": {
-    color: theme.palette.secondary.main,
+    color: theme.palette.primary.main,
     zIndex: 1,
     fontSize: 18,
     marginLeft: "4px"

@@ -1,34 +1,28 @@
 import { ReactNode } from "react";
-import PageContainer from "@src/components/shared/PageContainer";
-import { Box, Typography, useTheme } from "@mui/material";
 import { Title } from "@src/components/shared/Title";
 import { NextSeo } from "next-seo";
-import ConstructionIcon from "@mui/icons-material/Construction";
+import { Tools } from "iconoir-react";
 
 type Props = {
   children?: ReactNode;
 };
 
 const Maintenance: React.FunctionComponent<Props> = ({}) => {
-  const theme = useTheme();
-
   return (
     <div>
       <NextSeo title="Maintenance" />
 
-      <PageContainer>
-        <Box sx={{ textAlign: "center", padding: "3rem 0" }}>
-          <Typography variant="h1" sx={{ color: theme.palette.grey[400], fontSize: { xs: "2rem", sm: "4rem" }, marginBottom: "1rem" }}>
-            Maintenance
-          </Typography>
+      <div className="container pb-8 pt-4 sm:pt-8">
+        <div className="py-12 text-center">
+          <Title className="mb-2 text-2xl sm:text-5xl">Maintenance</Title>
 
-          <Title value="We'll be right back!" />
+          <Title subTitle className="!font-normal">We'll be right back!</Title>
 
-          <Box sx={{ paddingTop: "1rem" }}>
-            <ConstructionIcon fontSize="large" />
-          </Box>
-        </Box>
-      </PageContainer>
+          <div className="flex items-center justify-center pt-8">
+            <Tools className="text-4xl text-primary" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
