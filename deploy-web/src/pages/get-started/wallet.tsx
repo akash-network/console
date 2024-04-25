@@ -1,33 +1,14 @@
 import React from "react";
-import { makeStyles } from "tss-react/mui";
 import Layout from "@src/components/layout/Layout";
-import PageContainer from "@src/components/shared/PageContainer";
-import { Breadcrumbs, Card, CardContent, CardHeader, Paper, Typography, useTheme } from "@mui/material";
 import { useRouter } from "next/router";
 import { UrlService } from "@src/utils/urlUtils";
 import { NoWalletSection } from "@src/components/get-started/NoWalletSection";
 import Link from "next/link";
-import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import { NoKeplrSection } from "@src/components/get-started/NoKeplrSection";
 import { WithKeplrSection } from "@src/components/get-started/WithKeplrSection";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
-
-const useStyles = makeStyles()(theme => ({
-  paper: {
-    padding: ".5rem 1rem",
-    marginBottom: "1rem",
-    "&:hover": {
-      backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100],
-      cursor: "pointer"
-    },
-    "&:last-child": {
-      marginBottom: 0
-    }
-  },
-  subTitle: {
-    fontWeight: "bold"
-  }
-}));
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@src/components/ui/breadcrumb";
+import { Card, CardContent, CardHeader, CardTitle } from "@src/components/ui/card";
 
 enum GetWalletSection {
   NoWallet = "no-wallet",
@@ -39,8 +20,6 @@ enum GetWalletSection {
 type Props = {};
 
 const GetStartedWallet: React.FunctionComponent<Props> = ({}) => {
-  const theme = useTheme();
-  const { classes } = useStyles();
   const router = useRouter();
   // Fallback to null if the section is not valid
   const currentSection = Object.values(GetWalletSection).includes(router.query.section as GetWalletSection) ? router.query.section : null;
@@ -67,41 +46,40 @@ const GetStartedWallet: React.FunctionComponent<Props> = ({}) => {
     <Layout>
       <CustomNextSeo
         title="Setup wallet"
-        url={`https://deploy.cloudmos.io${UrlService.getStartedWallet()}`}
+        url={`https://console.akash.network${UrlService.getStartedWallet()}`}
         description="Follow the steps to install Keplr and get tokens!"
       />
 
-      <PageContainer>
-        <Breadcrumbs sx={{ marginBottom: "1rem" }} separator={<NavigateNextIcon fontSize="small" />}>
-          <Link href={UrlService.getStarted()}>Get Started</Link>
-          <Typography color="text.primary">Setup Wallet</Typography>
-        </Breadcrumbs>
+      <Breadcrumb className="mb-4">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href={UrlService.getStarted()}>Get Started</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Setup Wallet</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
-        <Card elevation={1}>
-          <CardHeader
-            title="Installing Keplr and getting AKT"
-            titleTypographyProps={{ variant: "h3", sx: { fontSize: "1.25rem", fontWeight: "bold" } }}
-            sx={{ borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200]}` }}
-          />
-          <CardContent>
-            {!currentSection &&
-              sections.map((section, index) => (
-                <Paper elevation={5} className={classes.paper} key={index} onClick={() => router.push(UrlService.getStartedWallet(section.id))}>
-                  <Typography variant="body1" className={classes.subTitle}>
-                    {section.title}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    {section.description}
-                  </Typography>
-                </Paper>
-              ))}
+      <Card>
+        <CardHeader>
+          <CardTitle>Installing Keplr and getting AKT</CardTitle>
+        </CardHeader>
+        <CardContent className="mt-4 space-y-4">
+          {!currentSection &&
+            sections.map((section, index) => (
+              <Link className="block px-4 py-2 hover:bg-muted hover:no-underline" key={index} href={UrlService.getStartedWallet(section.id)}>
+                <p className="font-bold text-secondary-foreground">{section.title}</p>
+                <p className="text-sm text-muted-foreground">{section.description}</p>
+              </Link>
+            ))}
 
-            {currentSection === GetWalletSection.NoWallet && <NoWalletSection />}
-            {currentSection === GetWalletSection.NoKeplr && <NoKeplrSection />}
-            {currentSection === GetWalletSection.HasKeplr && <WithKeplrSection />}
-          </CardContent>
-        </Card>
-      </PageContainer>
+          {currentSection === GetWalletSection.NoWallet && <NoWalletSection />}
+          {currentSection === GetWalletSection.NoKeplr && <NoKeplrSection />}
+          {currentSection === GetWalletSection.HasKeplr && <WithKeplrSection />}
+        </CardContent>
+      </Card>
     </Layout>
   );
 };

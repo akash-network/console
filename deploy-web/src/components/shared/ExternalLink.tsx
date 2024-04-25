@@ -1,6 +1,6 @@
-import { Box } from "@mui/material";
+"use client";
+import { OpenNewWindow } from "iconoir-react";
 import Link from "next/link";
-import LaunchIcon from "@mui/icons-material/Launch";
 
 type Props = {
   href: string;
@@ -10,9 +10,10 @@ type Props = {
 export const ExternalLink: React.FunctionComponent<Props> = ({ href, text }) => {
   return (
     <Link href={href} passHref target="_blank" rel="noreferrer">
-      <Box component="span" sx={{ display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }}>
-        {text} <LaunchIcon fontSize="small" sx={{ marginLeft: ".2rem" }} />
-      </Box>
+      <span className="inline-flex items-center space-x-2 whitespace-nowrap">
+        <span>{text}</span>
+        <OpenNewWindow className="text-xs" />
+      </span>
     </Link>
   );
 };
