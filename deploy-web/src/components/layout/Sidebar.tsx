@@ -19,6 +19,7 @@ import { Home, Cloud, MultiplePages, Tools, Server, OpenInWindow, HelpCircle, Se
 import { ISidebarGroupMenu } from "@src/types";
 import getConfig from "next/config";
 import { useTheme } from "@mui/material";
+import { ModeToggle } from "./ModeToggle";
 
 const { publicRuntimeConfig } = getConfig();
 
@@ -35,9 +36,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const _isNavOpen = isNavOpen || isHovering;
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const theme = useTheme();
-  // TODO Verify
   const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
-  // const mobileScreen = useMediaQuery(breakpoints.xs.mediaQuery);
 
   const routeGroups: ISidebarGroupMenu[] = [
     {
@@ -167,7 +166,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           <div className="pb-4 pl-4 pr-4">
             <NodeStatusBar />
 
-            <div className="flex items-center justify-center pt-4">
+            <div className="flex items-center justify-center space-x-1 pt-4">
               <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet_" className={cn(buttonVariants({ variant: "text", size: "icon" }))}>
                 <TwitterX width="1.2rem" height="1.2rem" />
                 <span className="sr-only">Twitter</span>
@@ -187,20 +186,12 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
                 <Discord width="1.2rem" height="1.2rem" />
                 <span className="sr-only">Twitter</span>
               </Link>
-
-              {/** TODO */}
-              {/* <ModeToggle /> */}
+              <ModeToggle />
             </div>
 
             {publicRuntimeConfig?.version && _isNavOpen && (
-              <div className="flex flex-col items-center justify-center">
-                <div className="text-xs font-bold text-muted-foreground">
-                  <strong>v{publicRuntimeConfig?.version}</strong>
-                </div>
-
-                <Badge color="secondary" className="h-[12px] text-xs font-bold">
-                  beta
-                </Badge>
+              <div className="flex flex-row items-center justify-center">
+                <div className="text-xs font-bold text-muted-foreground">v{publicRuntimeConfig?.version}</div>
               </div>
             )}
           </div>

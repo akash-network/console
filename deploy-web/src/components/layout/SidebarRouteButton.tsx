@@ -24,8 +24,8 @@ export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, clas
         target={route.target ?? "_self"}
         rel={route.rel ? route.rel : ""}
         href={route.url}
-        className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "text-md flex w-full items-center justify-start text-current hover:text-primary", {
-          ["font-bold"]: isSelected,
+        className={cn(buttonVariants({ variant: "text", size: "sm" }), "flex w-full items-center justify-start text-current hover:text-primary hover:no-underline", {
+          ["font-bold text-base"]: isSelected,
           ["min-w-[initial] px-4 py-1"]: isNavOpen,
           ["min-w-0 p-4"]: !isNavOpen
         })}

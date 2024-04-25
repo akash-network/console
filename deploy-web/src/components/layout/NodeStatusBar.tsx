@@ -18,13 +18,13 @@ export const NodeStatusBar = () => {
   return (
     <div className="mb-4">
       <div className="text-center">
-        <span className="text-sm font-bold text-muted-foreground">{selectedNetwork.title}</span>
+        <span className="text-sm font-bold text-primary">{selectedNetwork.title}</span>
       </div>
 
       <LinearLoadingSkeleton isLoading={isRefreshingNodeStatus} />
       <div className="flex items-center justify-center">
         {shownNode && (
-          <Button size="sm" className="w-full" variant="outline" onClick={() => router.push(UrlService.settings())}>
+          <Button size="sm" className="w-full text-xs" variant="outline" onClick={() => router.push(UrlService.settings())}>
             <div className="ml-2">{shownNode?.id?.length > 15 ? getSplitText(shownNode?.id, 0, 15) : shownNode?.id}</div>
 
             <div className="ml-2 text-xs">

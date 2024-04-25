@@ -28,7 +28,7 @@ const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
   loading: props => {
     if (props.isLoading) {
       return (
-        <Button variant="default" disabled>
+        <Button variant="default" disabled size="sm">
           <span>Get More</span>
           <Spinner size="small" className="ml-2" />
         </Button>
