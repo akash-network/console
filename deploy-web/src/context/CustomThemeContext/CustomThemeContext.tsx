@@ -5,7 +5,6 @@ import { createTheme, ThemeProvider, ThemeOptions } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { customColors } from "@src/utils/colors";
 import { grey } from "@mui/material/colors";
-import { accountBarHeight } from "@src/utils/constants";
 import { useTheme } from "next-themes";
 
 type ContextType = {
@@ -202,7 +201,6 @@ const lightTheme = createTheme(getDesignTokens("light"));
 
 export const CustomThemeProvider = ({ children }) => {
   const [isMounted, setIsMounted] = useState(false);
-  // const { darkModeActive } = useDarkMode();
   const { theme: nextTheme } = useTheme();
   const darkModeActive = nextTheme === "dark";
   const mode = darkModeActive ? "dark" : "light";
