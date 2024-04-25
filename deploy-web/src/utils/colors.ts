@@ -8,7 +8,7 @@ export const customColors = {
   dark: "#0c0b0b",
   darkLight: "#101010",
   brown: "#874302",
-  akashRed: "#e30613",
+  akashRed: "#ff424c",
   vsDark: "#1e1e1e",
   vsDarkFont: "#d4d4d4"
 };

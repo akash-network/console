@@ -1,57 +1,45 @@
+"use client";
 import React, { useState } from "react";
-import { makeStyles } from "tss-react/mui";
-import { Alert, Box, Button, Collapse, useTheme } from "@mui/material";
-import { useRouter } from "next/router";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import { ExternalLink } from "../shared/ExternalLink";
 import { CreateWalletSection } from "./CreateWalletSection";
 import { LinkTo } from "../shared/LinkTo";
-
-const useStyles = makeStyles()(theme => ({
-  list: {
-    listStyle: "numeric",
-    "& li": {
-      marginBottom: theme.spacing(0.5),
-
-      "&:last-child": {
-        marginBottom: 0
-      }
-    }
-  }
-}));
+import { Alert } from "../ui/alert";
+import { NavArrowLeft } from "iconoir-react";
+import { cn } from "@src/utils/styleUtils";
+import { buttonVariants } from "../ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 
 type Props = {};
 
 export const NoKeplrSection: React.FunctionComponent<Props> = ({}) => {
-  const theme = useTheme();
-  const { classes } = useStyles();
-  const router = useRouter();
   const [isCreateWalletOpen, setIsCreateWalletOpen] = useState(false);
 
   return (
-    <Box>
-      <Button href={UrlService.getStartedWallet()} component={Link} startIcon={<ChevronLeftIcon />} sx={{ color: theme.palette.secondary.main }}>
+    <div>
+      <Link href={UrlService.getStartedWallet()} className={cn(buttonVariants({ variant: "text" }))}>
+        <NavArrowLeft className="mr-2 text-sm" />
         Back
-      </Button>
-      <Box component="ul" className={classes.list}>
+      </Link>
+      <ul className="list-decimal space-y-2 py-4 pl-8">
         <li>
           Install <ExternalLink href="https://chrome.google.com/webstore/detail/keplr/dmkamcknogkgcdfhhbddcghachkejeap" text="Keplr" />
         </li>
-        <li>
-          Create a wallet using{" "}
-          <LinkTo sx={{ fontSize: "initial" }} onClick={() => setIsCreateWalletOpen(prev => !prev)}>
-            Keplr
-          </LinkTo>
-        </li>
+        <Collapsible open={isCreateWalletOpen} onOpenChange={setIsCreateWalletOpen}>
+          <li>
+            Create a wallet using{" "}
+            <CollapsibleTrigger asChild>
+              <LinkTo onClick={() => setIsCreateWalletOpen(prev => !prev)}>Keplr</LinkTo>
+            </CollapsibleTrigger>
+          </li>
 
-        <Collapse in={isCreateWalletOpen}>
-          <Alert variant="outlined" severity="info" icon={false} sx={{ margin: "1rem 0 " }}>
-            <CreateWalletSection />
-          </Alert>
-        </Collapse>
-
+          <CollapsibleContent>
+            <Alert className="my-4">
+              <CreateWalletSection />
+            </Alert>
+          </CollapsibleContent>
+        </Collapsible>
         <li>Use a decentralized or centralized exchange to purchase USDC</li>
 
         <li>
@@ -67,7 +55,7 @@ export const NoKeplrSection: React.FunctionComponent<Props> = ({}) => {
           <ExternalLink href="https://app.osmosis.zone/assets" text="Withdraw" /> AKT to Keplr
         </li>
         <li>Done!</li>
-      </Box>
-    </Box>
+      </ul>
+    </div>
   );
 };
