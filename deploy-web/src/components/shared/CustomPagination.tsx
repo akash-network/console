@@ -1,3 +1,4 @@
+"use client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import Paginator from "./Pagninator";
 

@@ -1,3 +1,4 @@
+"use client";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import Spinner from "./Spinner";

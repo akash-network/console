@@ -190,16 +190,24 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
               />
               <CustomTooltip
                 title={
-                  <>
-                    <strong>
-                      {udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.escrow : escrowBalance, 6)}&nbsp;{denomData?.label}
-                    </strong>
-                    <div className="flex">
-                      {udenomToDenom(amountSpent || 0, 2)} {denomData?.label} spent
+                  <div className="text-left">
+                    <div className="space-x-2">
+                      <span>Balance:</span>
+                      <strong>
+                        {udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.escrow : escrowBalance, 6)}&nbsp;{denomData?.label}
+                      </strong>
+                    </div>
+                    <div className="space-x-2">
+                      <span>Spent:</span>
+                      <strong>
+                        {udenomToDenom(amountSpent || 0, 2)} {denomData?.label}
+                      </strong>
                     </div>
                     <br />
-                    The escrow account balance will be fully returned to your wallet balance when the deployment is closed.{" "}
-                  </>
+                    <p className="text-xs text-muted-foreground">
+                      The escrow account balance will be fully returned to your wallet balance when the deployment is closed.
+                    </p>
+                  </div>
                 }
               >
                 <InfoCircle className="ml-2 text-xs text-muted-foreground" />

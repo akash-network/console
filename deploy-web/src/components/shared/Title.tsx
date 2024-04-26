@@ -1,3 +1,4 @@
+"use client";
 import { cn } from "@src/utils/styleUtils";
 import { ReactNode } from "react";
 
