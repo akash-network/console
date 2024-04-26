@@ -18,7 +18,7 @@ import { Alert } from "../ui/alert";
 import { FormItem } from "../ui/form";
 import { cn } from "@src/utils/styleUtils";
 import { InputWithIcon } from "../ui/input";
-import { Checkbox } from "../ui/checkbox";
+import { Checkbox, CheckboxWithLabel } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useSettings } from "@src/context/SettingsProvider";
@@ -60,6 +60,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   });
   const { amount, useDepositor, depositorAddress } = watch();
   const usdcIbcDenom = useUsdcDenom();
+  const validGrants = granteeGrants?.filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1 && x.authorization.spend_limit.denom === denom) || [];
 
   useEffect(() => {
     if (depositData && amount === 0 && !disableMin) {
@@ -187,7 +188,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
           color: "secondary",
           variant: "default",
           side: "right",
-          disabled: !amount || isCheckingDepositor,
+          disabled: !amount || isCheckingDepositor || (useDepositor && validGrants.length === 0),
           isLoading: isCheckingDepositor,
           onClick: onDepositClick
         }
@@ -199,12 +200,6 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
     >
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
         {infoText}
-
-        <div className={cn("mb-2 text-right", { ["mt-2"]: !infoText })}>
-          <LinkTo onClick={() => onBalanceClick()}>
-            Balance: {depositData?.balance} {depositData?.label}
-          </LinkTo>
-        </div>
 
         <FormItem
           className="w-full"
@@ -223,7 +218,14 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
                 <InputWithIcon
                   {...field}
                   type="number"
-                  label="Amount"
+                  label={
+                    <div className="mb-1 flex items-center justify-between">
+                      <span>Amount</span>
+                      <LinkTo onClick={() => onBalanceClick()} className="text-xs">
+                        Balance: {depositData?.balance} {depositData?.label}
+                      </LinkTo>
+                    </div>
+                  }
                   autoFocus
                   error={fieldState.error && helperText}
                   // helperText={fieldState.error && helperText}
@@ -237,13 +239,12 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
           />
         </FormItem>
 
-        <FormItem className="flex items-center">
-          <Label>Use another address to fund</Label>
+        <FormItem className="my-4 flex items-center">
           <Controller
             control={control}
             name="useDepositor"
             render={({ field }) => {
-              return <Checkbox checked={field.value} onCheckedChange={field.onChange} />;
+              return <CheckboxWithLabel label="Use another address to fund" checked={field.value} onCheckedChange={field.onChange} />;
             }}
           />
         </FormItem>
@@ -263,19 +264,17 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
                   // error={fieldState.error}
                 >
                   <Label htmlFor="deposit-grantee-address">Address</Label>
-                  <Select value={field.value || ""} onValueChange={field.onChange}>
+                  <Select value={field.value || ""} onValueChange={field.onChange} disabled={validGrants.length === 0}>
                     <SelectTrigger id="deposit-grantee-address">
-                      <SelectValue placeholder="Select address" />
+                      <SelectValue placeholder={validGrants.length === 0 ? "No available grants" : "Select address"} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        {granteeGrants
-                          .filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1 && x.authorization.spend_limit.denom === denom)
-                          .map(grant => (
-                            <SelectItem key={grant.granter} value={grant.granter}>
-                              <GranteeDepositMenuItem grant={grant} />
-                            </SelectItem>
-                          ))}
+                        {validGrants.map(grant => (
+                          <SelectItem key={grant.granter} value={grant.granter}>
+                            <GranteeDepositMenuItem grant={grant} />
+                          </SelectItem>
+                        ))}
                       </SelectGroup>
                     </SelectContent>
                   </Select>

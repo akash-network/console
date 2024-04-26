@@ -156,7 +156,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
   const onSearchChange = event => {
     const value = event.target.value;
     setSearch(value);
-    setPage(0);
+    setPageIndex(0);
   };
 
   const handleSortChange = event => {

@@ -289,13 +289,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           onDeploymentDeposit={onDeploymentDeposit}
           denom={sdlDenom}
           infoText={
-            <Alert className="mb-4" variant="default">
-              <p>
-                To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
-                <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/glossary/escrow#escrow-accounts")}>
-                  <strong>Learn more.</strong>
-                </LinkTo>
-              </p>
+            <Alert className="mb-4 text-xs" variant="default">
+              To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
+              <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/other-resources/payments/")}>
+                <strong>Learn more.</strong>
+              </LinkTo>
             </Alert>
           }
         />

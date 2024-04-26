@@ -134,26 +134,13 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
 
       {gpuModels.length > 0 && (
         <TableCell align="center">
-          {gpuModels.map((gpu, i) => (
-            //   gpuChip: {
-            //     height: "16px",
-            //     fontSize: ".65rem",
-            //     fontWeight: "bold"
-            //   },
-            //   gpuChipLabel: {
-            //     padding: "0 4px"
-            //   }
-            <Badge
-              key={`${gpu.vendor}-${gpu.model}`}
-              className={cn("h-[16px] px-1 py-0 text-xs font-bold", { ["mr-1"]: i < gpuModels.length })}
-              // className={classes.gpuChip}
-              // classes={{ label: classes.gpuChipLabel }}
-              // sx={{ marginRight: i < gpuModels.length ? ".2rem" : 0 }}
-              variant="default"
-            >
-              {gpu.vendor}-{gpu.model}
-            </Badge>
-          ))}
+          <div className="space-x">
+            {gpuModels.map((gpu) => (
+              <Badge key={`${gpu.vendor}-${gpu.model}`} className={cn("px-1 py-0 text-xs")} variant="default">
+                {gpu.vendor}-{gpu.model}
+              </Badge>
+            ))}
+          </div>
         </TableCell>
       )}
 
@@ -184,15 +171,8 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
             </div>
           )}
           {!isLoadingStatus && error && !isSendingManifest && (
-            //   providerOffline: {
-            //     marginTop: "4px",
-            //     fontSize: ".85rem"
-            //   },
             <div className="mt-2 flex items-center space-x-2">
-              <CloudXmark
-                className="text-xs text-primary"
-                // className={cx(classes.stateIcon, classes.stateInactive)} sx={{ fontSize: "1rem" }}
-              />
+              <CloudXmark className="text-xs text-primary" />
               <span className="text-sm text-muted-foreground">OFFLINE</span>
             </div>
           )}
@@ -201,11 +181,6 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
             <>
               {bid.state !== "open" || disabled ? (
                 <div className="flex items-center justify-center">
-                  {/* //   chip: {
-//     height: "1rem",
-//     fontSize: ".75rem",
-//     lineHeight: ".75rem"
-//   }, */}
                   <Badge color={bid.state === "active" ? "success" : "error"} className="h-4 text-xs">
                     {bid.state}
                   </Badge>
@@ -220,15 +195,6 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
                     disabled={bid.state !== "open" || disabled}
                   />
                 </RadioGroup>
-                // <Radio
-                //   checked={isCurrentBid}
-                //   onChange={() => handleBidSelected(bid)}
-                //   value={bid.id}
-                //   name="radio-button-demo"
-                //   disabled={bid.state !== "open" || disabled}
-                //   size="small"
-                //   color="success"
-                // />
               )}
             </>
           )}
