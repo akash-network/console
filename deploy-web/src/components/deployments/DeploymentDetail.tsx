@@ -132,38 +132,37 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
   };
 
   return (
-    <Layout isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders} isUsingSettings isUsingWallet>
+    <Layout isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders} isUsingSettings isUsingWallet containerClassName="pb-0">
       <NextSeo title={`Deployment detail #${dseq}`} />
 
-      <PageContainer className="pt-4">
-        {deployment && (
-          <DeploymentDetailTopBar
-            address={address}
-            loadDeploymentDetail={loadDeploymentDetail}
-            removeLeases={removeLeases}
-            setActiveTab={setActiveTab}
-            deployment={deployment}
-          />
-        )}
+      {deployment && (
+        <DeploymentDetailTopBar
+          address={address}
+          loadDeploymentDetail={loadDeploymentDetail}
+          removeLeases={removeLeases}
+          setActiveTab={setActiveTab}
+          deployment={deployment}
+        />
+      )}
 
-        {isDeploymentNotFound && (
-          <div className="mt-8 text-center">
-            <h1>404</h1>
-            <h5>This deployment does not exist or it was created using another wallet.</h5>
-            <div className="pt-4">
-              <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center")}>
-                Go to homepage&nbsp;
-                <ArrowRight fontSize="small" />
-              </Link>
-            </div>
+      {isDeploymentNotFound && (
+        <div className="mt-8 text-center">
+          <h1>404</h1>
+          <h5>This deployment does not exist or it was created using another wallet.</h5>
+          <div className="pt-4">
+            <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center")}>
+              Go to homepage&nbsp;
+              <ArrowRight fontSize="small" />
+            </Link>
           </div>
-        )}
+        </div>
+      )}
 
-        {deployment && (
-          <>
-            <DeploymentSubHeader deployment={deployment} leases={leases} />
+      {deployment && (
+        <>
+          <DeploymentSubHeader deployment={deployment} leases={leases} />
 
-            {/* <Tabs
+          {/* <Tabs
             value={activeTab}
             onChange={onChangeTab}
             indicatorColor="secondary"
@@ -180,68 +179,67 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
             <Tab value="EDIT" label="Update" classes={{ selected: classes.selectedTab }} />
           </Tabs> */}
 
-            <Tabs value={activeTab} onValueChange={onChangeTab}>
-              <TabsList className="mb-4 grid w-full grid-cols-4">
-                <TabsTrigger value="LEASES">Leases</TabsTrigger>
-                {isActive && <TabsTrigger value="LOGS">Logs</TabsTrigger>}
-                {isActive && <TabsTrigger value="SHELL">Shell</TabsTrigger>}
-                {isActive && <TabsTrigger value="EVENTS">Events</TabsTrigger>}
-                <TabsTrigger value="EDIT">Update</TabsTrigger>
-              </TabsList>
+          <Tabs value={activeTab} onValueChange={onChangeTab}>
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="LEASES">Leases</TabsTrigger>
+              {isActive && <TabsTrigger value="LOGS">Logs</TabsTrigger>}
+              {isActive && <TabsTrigger value="SHELL">Shell</TabsTrigger>}
+              {isActive && <TabsTrigger value="EVENTS">Events</TabsTrigger>}
+              <TabsTrigger value="EDIT">Update</TabsTrigger>
+            </TabsList>
 
-              {activeTab === "EDIT" && deployment && leases && (
-                <ManifestUpdate
-                  deployment={deployment}
-                  leases={leases}
-                  closeManifestEditor={() => {
-                    setActiveTab("EVENTS");
-                    setSelectedLogsMode("events");
-                    loadDeploymentDetail();
-                  }}
-                />
-              )}
-              {activeTab === "LOGS" && <DeploymentLogs leases={leases} selectedLogsMode="logs" />}
-              {activeTab === "EVENTS" && <DeploymentLogs leases={leases} selectedLogsMode="events" />}
-              {activeTab === "SHELL" && <DeploymentLeaseShell leases={leases} />}
-              {activeTab === "LEASES" && (
-                <div className="p-4">
-                  {leases && (!localCert || !isLocalCertMatching) && (
-                    <div className="mb-4">
-                      <Alert variant="warning">You do not have a valid local certificate. You need to create a new one to view lease status and details.</Alert>
+            {activeTab === "EDIT" && deployment && leases && (
+              <ManifestUpdate
+                deployment={deployment}
+                leases={leases}
+                closeManifestEditor={() => {
+                  setActiveTab("EVENTS");
+                  setSelectedLogsMode("events");
+                  loadDeploymentDetail();
+                }}
+              />
+            )}
+            {activeTab === "LOGS" && <DeploymentLogs leases={leases} selectedLogsMode="logs" />}
+            {activeTab === "EVENTS" && <DeploymentLogs leases={leases} selectedLogsMode="events" />}
+            {activeTab === "SHELL" && <DeploymentLeaseShell leases={leases} />}
+            {activeTab === "LEASES" && (
+              <div className="p-4">
+                {leases && (!localCert || !isLocalCertMatching) && (
+                  <div className="mb-4">
+                    <Alert variant="warning">You do not have a valid local certificate. You need to create a new one to view lease status and details.</Alert>
 
-                      <Button className="mt-4" disabled={isCreatingCert} onClick={() => createCertificate()}>
-                        {isCreatingCert ? <Spinner size="medium" /> : "Create Certificate"}
-                      </Button>
-                    </div>
-                  )}
+                    <Button className="mt-4" disabled={isCreatingCert} onClick={() => createCertificate()}>
+                      {isCreatingCert ? <Spinner size="medium" /> : "Create Certificate"}
+                    </Button>
+                  </div>
+                )}
 
-                  {leases &&
-                    leases.map((lease, i) => (
-                      <LeaseRow
-                        key={lease.id}
-                        lease={lease}
-                        setActiveTab={setActiveTab}
-                        ref={leaseRefs[i]}
-                        deploymentManifest={deploymentManifest || ""}
-                        dseq={dseq}
-                        providers={providers || []}
-                        loadDeploymentDetail={loadDeploymentDetail}
-                      />
-                    ))}
+                {leases &&
+                  leases.map((lease, i) => (
+                    <LeaseRow
+                      key={lease.id}
+                      lease={lease}
+                      setActiveTab={setActiveTab}
+                      ref={leaseRefs[i]}
+                      deploymentManifest={deploymentManifest || ""}
+                      dseq={dseq}
+                      providers={providers || []}
+                      loadDeploymentDetail={loadDeploymentDetail}
+                    />
+                  ))}
 
-                  {!hasLeases && !isLoadingLeases && !isLoadingDeployment && <>This deployment doesn't have any leases</>}
+                {!hasLeases && !isLoadingLeases && !isLoadingDeployment && <>This deployment doesn't have any leases</>}
 
-                  {(isLoadingLeases || isLoadingDeployment) && !hasLeases && (
-                    <div className="flex items-center justify-center p-8">
-                      <Spinner size="large" />
-                    </div>
-                  )}
-                </div>
-              )}
-            </Tabs>
-          </>
-        )}
-      </PageContainer>
+                {(isLoadingLeases || isLoadingDeployment) && !hasLeases && (
+                  <div className="flex items-center justify-center p-8">
+                    <Spinner size="large" />
+                  </div>
+                )}
+              </div>
+            )}
+          </Tabs>
+        </>
+      )}
     </Layout>
   );
 }

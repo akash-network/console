@@ -18,11 +18,11 @@ type Props = {
   isUsingSettings?: boolean;
   isUsingWallet?: boolean;
   disableContainer?: boolean;
-  containerClassname?: string;
+  containerClassName?: string;
   children?: ReactNode;
 };
 
-const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassname }) => {
+const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName }) => {
   const [locale, setLocale] = useState("en-US");
 
   useEffect(() => {
@@ -38,7 +38,7 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
         isUsingSettings={isUsingSettings}
         isUsingWallet={isUsingWallet}
         disableContainer={disableContainer}
-        containerClassname={containerClassname}
+        containerClassName={containerClassName}
       >
         {children}
       </LayoutApp>
@@ -46,7 +46,7 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
   );
 };
 
-const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassname = "" }) => {
+const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName = "" }) => {
   const theme = useTheme();
   const [isShowingWelcome, setIsShowingWelcome] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(true);
@@ -124,7 +124,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
                 <ErrorBoundary FallbackComponent={ErrorFallback}>
                   {!isUsingSettings || isSettingsInit ? (
                     !isUsingWallet || isWalletLoaded ? (
-                      <div className={cn(containerClassname, { ["container pb-8 pt-4 sm:pt-8"]: !disableContainer })}>{children}</div>
+                      <div className={cn({ ["container pb-8 pt-4 sm:pt-8"]: !disableContainer }, containerClassName)}>{children}</div>
                     ) : (
                       <Loading text="Loading wallet..." />
                     )

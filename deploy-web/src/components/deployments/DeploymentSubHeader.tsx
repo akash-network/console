@@ -11,8 +11,7 @@ import { PriceValue } from "@src/components/shared/PriceValue";
 import { CustomTooltip } from "@src/components/shared/CustomTooltip";
 import { PricePerMonth } from "@src/components/shared/PricePerMonth";
 import { StatusPill } from "@src/components/shared/StatusPill";
-import { Info } from "lucide-react";
-import { WarningCircle } from "iconoir-react";
+import { InfoCircle, WarningCircle } from "iconoir-react";
 
 type Props = {
   deployment: DeploymentDto;
@@ -30,21 +29,13 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const denomData = useDenomData(deployment.escrowAccount.balance.denom);
 
   return (
-    <div
-      className="grid grid-cols-2 gap-4 p-4"
-      // sx={{
-      //   gridTemplateColumns: { xs: "repeat(2,1fr)", sm: "repeat(2,1fr)", md: "repeat(2,1fr)" },
-      //   display: "grid",
-      //   gap: { xs: "1rem", sm: "1rem", md: "1rem" },
-      //   padding: "1rem"
-      // }}
-    >
+    <div className="grid grid-cols-2 gap-4 p-4">
       <div>
         <LabelValue
           label="Balance"
           labelWidth="6rem"
           value={
-            <div className="flex items-center">
+            <div className="flex items-center space-x-2">
               <PriceValue
                 denom={deployment.escrowAccount.balance.denom}
                 value={udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.escrow : deployment.escrowBalance, 6)}
@@ -60,12 +51,12 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
                   </>
                 }
               >
-                <Info className="ml-2 text-xs text-muted-foreground" />
+                <InfoCircle className="text-xs text-muted-foreground" />
               </CustomTooltip>
 
               {isActive && hasActiveLeases && !!realTimeLeft && realTimeLeft.escrow <= 0 && (
                 <CustomTooltip title="Your deployment is out of funds and can be closed by your provider at any time now. You can add funds to keep active.">
-                  <WarningCircle className="ml-2 text-destructive" />
+                  <WarningCircle className="text-xs text-destructive" />
                 </CustomTooltip>
               )}
             </div>
@@ -76,7 +67,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           labelWidth="6rem"
           value={
             !!deploymentCost && (
-              <div className="flex items-center">
+              <div className="flex items-center space-x-2">
                 <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={udenomToDenom(deploymentCost, 10)} />
 
                 <CustomTooltip
@@ -86,7 +77,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
                     </span>
                   }
                 >
-                  <Info className="ml-2 text-xs text-muted-foreground" />
+                  <InfoCircle className="text-xs text-muted-foreground" />
                 </CustomTooltip>
               </div>
             )
@@ -96,7 +87,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           label="Spent"
           labelWidth="6rem"
           value={
-            <div className="flex items-center">
+            <div className="flex items-center space-x-2">
               <PriceValue
                 denom={deployment.escrowAccount.balance.denom}
                 value={udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount), 6)}
@@ -110,7 +101,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
                   </span>
                 }
               >
-                <Info className="ml-2 text-xs text-muted-foreground" />
+                <InfoCircle className="text-xs text-muted-foreground" />
               </CustomTooltip>
             </div>
           }
@@ -122,9 +113,9 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           label="Status"
           labelWidth="6rem"
           value={
-            <div className="flex items-center">
+            <div className="flex items-center space-x-2">
               <div>{deployment.state}</div>
-              <StatusPill state={deployment.state} style={{ marginLeft: ".5rem" }} />
+              <StatusPill state={deployment.state} size="small" />
             </div>
           }
         />
