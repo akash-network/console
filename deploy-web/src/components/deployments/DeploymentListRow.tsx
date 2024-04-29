@@ -267,7 +267,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
             <div className="">
               <DropdownMenu modal={false} open={open}>
                 <DropdownMenuTrigger asChild>
-                  <Button onClick={handleMenuClick} size="icon" variant="ghost">
+                  <Button onClick={handleMenuClick} size="icon" variant="ghost" className="rounded-full">
                     <MoreHoriz />
                   </Button>
                 </DropdownMenuTrigger>

@@ -28,7 +28,7 @@ export function SpecDetail({
   const memory = bytesToShrink(memoryAmount);
   const storage = bytesToShrink(storageAmount);
   const { theme } = useTheme();
-  const badgeClasses = cn("h-auto rounded-3xl py-0 px-1", {
+  const badgeClasses = cn("h-auto rounded-3xl py-0 px-2", {
     ["bg-gray-700"]: theme === "dark",
     ["bg-gray-100"]: theme === "light",
     ["bg-primary text-white"]: color === "primary",
@@ -39,18 +39,11 @@ export function SpecDetail({
 
   return (
     <div
-      className={cn("grid ", {
-        ["grid-cols-1 sm:grid-cols-3"]: gpuAmount === 0,
-        ["grid-cols-1 sm:grid-cols-4"]: gpuAmount > 0,
-        ["gap-1"]: gutterSize === "small",
-        ["gap-2"]: gutterSize === "medium",
-        ["gap-3"]: gutterSize === "large"
+      className={cn("flex items-center", {
+        ["space-x-1"]: gutterSize === "small",
+        ["space-x-2"]: gutterSize === "medium",
+        ["space-x-3"]: gutterSize === "large"
       })}
-      // sx={{
-      //   display: "flex",
-      //   alignItems: { xs: "start", sm: "start", md: "center" },
-      //   flexDirection: { xs: "column", sm: "column", md: "row" }
-      // }}
     >
       <Badge className={badgeClasses} variant="outline">
         <div className="flex items-center py-1">
@@ -60,27 +53,14 @@ export function SpecDetail({
       </Badge>
 
       {gpuAmount > 0 && (
-        <Badge
-          variant="outline"
-          // variant="outlined"
-          // // TODO Type
-          // color={color as any}
-          // classes={{ root: classes.chipRoot }}
-          // className={cx({
-          //   [classes.defaultColor]: color === "default",
-          //   [classes.gutterSmall]: !smallScreen && gutterSize === "small",
-          //   [classes.gutterMedium]: !smallScreen && gutterSize === "medium",
-          //   [classes.gutterLarge]: !smallScreen && gutterSize === "large"
-          // })}
-          className={badgeClasses}
-        >
+        <Badge variant="outline" className={badgeClasses}>
           <div className="flex items-center py-1">
             <MdDeveloperBoard className={specDetailIconClasses} />
             <div className={specDetailClasses}>{gpuAmount + " GPU"}</div>
             {gpuModels && gpuModels?.length > 0 && (
-              <div style={{ display: "inline", marginLeft: "5px" }}>
+              <div className="ml-2 inline-flex items-center space-x-2">
                 {gpuModels.map((gpu, i) => (
-                  <Badge key={`${gpu.vendor}-${gpu.model}`} className={cn({ ["mr-1"]: i < gpuModels.length })} color="default">
+                  <Badge key={`${gpu.vendor}-${gpu.model}`} className="text-xs py-0" color="default">
                     {`${gpu.vendor}-${gpu.model}`}
                   </Badge>
                 ))}

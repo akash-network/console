@@ -17,7 +17,7 @@ import { useBidInfo } from "@src/queries/useBidQuery";
 import { useToast } from "@src/components/ui/use-toast";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
-import { Card, CardContent } from "@src/components/ui/card";
+import { Card, CardContent, CardHeader } from "@src/components/ui/card";
 import { SpecDetail } from "@src/components/shared/SpecDetail";
 import { LabelValueOld } from "@src/components/shared/LabelValueOld";
 import { PricePerMonth } from "@src/components/shared/PricePerMonth";
@@ -35,52 +35,6 @@ import { Check, Copy, InfoCircle, OpenInWindow } from "iconoir-react";
 import { Badge } from "@src/components/ui/badge";
 
 const yaml = require("js-yaml");
-
-// const useStyles = makeStyles()(theme => ({
-//   root: {
-//     marginBottom: "1rem"
-//   },
-//   cardHeader: {
-//     borderBottom: "1px solid rgba(0,0,0,0.1)",
-//     padding: ".5rem 1rem",
-//     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[100]
-//   },
-//   cardHeaderTitle: {
-//     fontSize: "18px"
-//   },
-//   listItem: {
-//     borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`
-//   },
-//   link: {
-//     display: "flex",
-//     alignItems: "center"
-//   },
-//   tooltip: {
-//     fontSize: "1rem"
-//   },
-//   tooltipIcon: {
-//     fontSize: "1rem",
-//     color: theme.palette.grey[500]
-//   },
-//   whiteLink: {
-//     fontWeight: "bold",
-//     color: theme.palette.common.white
-//   },
-//   marginLeft: {
-//     marginLeft: "1rem"
-//   },
-//   serviceChip: {
-//     height: ".875rem",
-//     lineHeight: ".875rem",
-//     fontSize: ".5rem",
-//     fontWeight: "bold"
-//   },
-//   activeLeaseIcon: {
-//     fontSize: "1rem",
-//     display: "flex",
-//     color: theme.palette.success.dark
-//   }
-// }));
 
 type Props = {
   lease: LeaseDto;
@@ -201,11 +155,9 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
 
   return (
     <Card className="mb-4">
-      <CardContent
-      // classes={{ title: classes.cardHeaderTitle, root: classes.cardHeader }}
-      >
+      <CardHeader className="bg-secondary py-2">
         <div className="flex items-center">
-          <div className="inline-flex items-center text-sm text-muted-foreground">
+          <div className="inline-flex items-center text-xs text-muted-foreground">
             <span>{lease.state}</span>
             <StatusPill state={lease.state} size="small" />
 
@@ -218,62 +170,63 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
 
           {isLeaseActive && (
             <div className="ml-4 inline-flex">
-              <LinkTo onClick={() => setActiveTab("LOGS")}>View logs</LinkTo>
+              <LinkTo className="text-sm" onClick={() => setActiveTab("LOGS")}>
+                View logs
+              </LinkTo>
             </div>
           )}
         </div>
-        <div className="flex">
-          <div>
-            <div className="pb-4">
-              <SpecDetail
-                cpuAmount={lease.cpuAmount}
-                gpuAmount={lease.gpuAmount}
-                gpuModels={gpuModels}
-                memoryAmount={lease.memoryAmount}
-                storageAmount={lease.storageAmount}
-                color={isLeaseActive ? "primary" : "default"}
-                size="medium"
-              />
-            </div>
+      </CardHeader>
+      <CardContent className="pt-4">
+        <div className="space-y-2">
+          <div className="">
+            <SpecDetail
+              cpuAmount={lease.cpuAmount}
+              gpuAmount={lease.gpuAmount}
+              gpuModels={gpuModels}
+              memoryAmount={lease.memoryAmount}
+              storageAmount={lease.storageAmount}
+              color="secondary"
+              size="medium"
+            />
+          </div>
+          <LabelValueOld
+            label="Price:"
+            value={
+              <div className="flex items-center">
+                <PricePerMonth denom={lease.price.denom} perBlockValue={udenomToDenom(lease.price.amount, 10)} className="text-lg" />
+                <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} />
+              </div>
+            }
+          />
+
+          {isLeaseActive && (
             <LabelValueOld
-              label="Price:"
+              label="Provider:"
               value={
-                <div className="flex items-center">
-                  <PricePerMonth denom={lease.price.denom} perBlockValue={udenomToDenom(lease.price.amount, 10)} className="text-lg" />
-                  <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} />
-                </div>
+                <>
+                  {isLoadingProviderStatus && <Spinner size="small" />}
+                  {providerStatus && (
+                    <div className="flex items-center space-x-2">
+                      <Link href={UrlService.providerDetail(lease.provider)}>
+                        {providerStatus.name?.length > 25 ? getSplitText(providerStatus.name, 10, 10) : providerStatus.name}
+                      </Link>
+
+                      <div className="flex items-center space-x-2">
+                        <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
+
+                        {provider?.isAudited && (
+                          <div className="ml-2">
+                            <AuditorButton provider={provider} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
               }
             />
-
-            {isLeaseActive && (
-              <LabelValueOld
-                label="Provider:"
-                className="mb-4 mt-1"
-                value={
-                  <>
-                    {isLoadingProviderStatus && <Spinner size="small" />}
-                    {providerStatus && (
-                      <>
-                        <Link href={UrlService.providerDetail(lease.provider)}>
-                          {providerStatus.name?.length > 25 ? getSplitText(providerStatus.name, 10, 10) : providerStatus.name}
-                        </Link>
-
-                        <div className="ml-1 flex items-center">
-                          <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
-
-                          {provider?.isAudited && (
-                            <div className="ml-2">
-                              <AuditorButton provider={provider} />
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </>
-                }
-              />
-            )}
-          </div>
+          )}
         </div>
 
         {isLeaseNotFound && (
@@ -302,16 +255,13 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
             .map(n => leaseStatus.services[n])
             .map((service, i) => (
               <div
-                className={cn({ ["mb-2 border-b pb-2"]: servicesNames.length !== i + 1 })}
-                // pb={servicesNames.length === i + 1 ? 0 : 2}
-                // mb={servicesNames.length === i + 1 ? 0 : 2}
-                // borderBottom={
-                //   servicesNames.length === i + 1 ? 0 : `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[700] : theme.palette.grey[300]}`
-                // }
+                className={cn("mt-2", {
+                  ["border-b pb-2"]: servicesNames.length > 1 && i !== servicesNames.length - 1
+                })}
                 key={`${service.name}_${i}`}
               >
                 <div className="flex items-center">
-                  <LabelValueOld label="Group:" value={service.name} className="text-lg" />
+                  <LabelValueOld label="Group:" value={service.name} />
                   {isLoadingLeaseStatus || !isServicesAvailable ? (
                     <div className="ml-4 inline-flex">
                       <Spinner size="small" />
@@ -337,40 +287,38 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
 
                   {isServicesAvailable && (
                     <div className="ml-2">
-                      <Check className="text-lg text-green-600" />
+                      <Check className="text-sm text-green-600" />
                     </div>
                   )}
                 </div>
 
                 <div
-                  className={cn("flex items-center", {
+                  className={cn("flex items-center space-x-4", {
                     ["mb-4"]: service.uris?.length > 0 || (leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0)
                   })}
-                  // display="flex"
-                  // alignItems="center"
-                  // mb={service.uris?.length > 0 || (leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0) ? "1rem" : 0}
                 >
-                  <div className="flex items-center">
+                  <div className="flex items-center space-x-1">
                     <span className="text-xs text-muted-foreground">Available:&nbsp;</span>
-                    <Badge color="default" className="text-xs leading-3">
+                    <Badge variant={service.available > 0 ? "success" : "destructive"} className="h-4 px-1 text-xs leading-3">
                       {service.available}
                     </Badge>
                   </div>
-                  <div className="flex items-center">
-                    <span className="ml-4 text-xs text-muted-foreground">Ready Replicas:&nbsp;</span>
-                    <Badge className="text-xs leading-3">{service.ready_replicas}</Badge>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-xs text-muted-foreground">Ready Replicas:&nbsp;</span>
+                    <Badge variant={service.ready_replicas > 0 ? "success" : "destructive"} className="h-4 px-1 text-xs leading-3">
+                      {service.ready_replicas}
+                    </Badge>
                   </div>
-                  <div className="flex items-center">
-                    <span className="ml-4 text-xs text-muted-foreground">Total:&nbsp;</span>
-                    <Badge className="text-xs leading-3">{service.total}</Badge>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-xs text-muted-foreground">Total:&nbsp;</span>
+                    <Badge variant={service.total > 0 ? "success" : "destructive"} className="h-4 px-1 text-xs leading-3">
+                      {service.total}
+                    </Badge>
                   </div>
                 </div>
 
                 {leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0 && (
-                  <div
-                    className={cn("mt-2", { ["mb-4"]: service.uris?.length > 0 })}
-                    // mb={service.uris?.length > 0 ? "1rem" : 0}
-                  >
+                  <div className={cn("mt-2", { ["mb-4"]: service.uris?.length > 0 })}>
                     <LabelValueOld
                       label="Forwarded Ports:"
                       value={leaseStatus.forwarded_ports[service.name].map(p => (
@@ -398,14 +346,16 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                         {service.uris.map(uri => {
                           return (
                             <li className="flex items-center py-1" key={uri}>
-                              <LinkTo className="flex items-center truncate" onClick={ev => handleExternalUrlClick(ev, uri)}>
-                                {uri} <OpenInWindow />
-                              </LinkTo>
+                              <Link href={`http://${uri}`} target="_blank" className="flex items-center space-x-2 truncate text-sm">
+                                <span>{uri}</span>
+                                <OpenInWindow className="text-xs" />
+                              </Link>
                               &nbsp;&nbsp;
                               <Button
                                 aria-label="uri"
                                 size="icon"
                                 variant="ghost"
+                                className="rounded-full"
                                 onClick={ev => {
                                   copyTextToClipboard(uri);
                                   toast({ title: "Uri copied to clipboard!", variant: "success" });

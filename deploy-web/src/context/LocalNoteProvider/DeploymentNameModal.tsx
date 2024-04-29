@@ -4,8 +4,7 @@ import { useForm, Controller } from "react-hook-form";
 import { updateDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { useToast } from "@src/components/ui/use-toast";
 import { Popup } from "@src/components/shared/Popup";
-import { Card, CardContent } from "@src/components/ui/card";
-import { Input, InputWithIcon } from "@src/components/ui/input";
+import { InputWithIcon } from "@src/components/ui/input";
 
 export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName }) => {
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -66,7 +65,7 @@ export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName 
       onClose={onClose}
       maxWidth="xs"
     >
-      <form onSubmit={handleSubmit(onSubmit)} ref={formRef} className="px-2 py-4">
+      <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
         <Controller
           control={control}
           name="name"
@@ -77,30 +76,4 @@ export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName 
       </form>
     </Popup>
   );
-
-  // return (
-  //   <Dialog open={!!dseq} onClose={onClose} maxWidth="xs" fullWidth>
-  //     <DialogTitle>Change Deployment Name {dseq ? `(${dseq})` : ""}</DialogTitle>
-  //     <DialogContent dividers className={classes.dialogContent}>
-  //       <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-  //         <FormControl fullWidth>
-  //           <Controller
-  //             control={control}
-  //             name="name"
-  //             render={({ field }) => {
-  //               return <TextField {...field} autoFocus type="text" variant="outlined" label="Name" />;
-  //             }}
-  //           />
-  //         </FormControl>
-  //       </form>
-  //     </DialogContent>
-  //     <DialogActions className={classes.dialogActions}>
-  //       <Button onClick={onClose}>Close</Button>
-  //       <Button variant="contained" color="secondary" onClick={onSaveClick}>
-  //         Save
-  //       </Button>
-  //     </DialogActions>
-  //   </Dialog>
-
-  // );
 };
