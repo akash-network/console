@@ -22,24 +22,11 @@ import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkele
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { Alert } from "@src/components/ui/alert";
 import Spinner from "@src/components/shared/Spinner";
-import { Checkbox } from "@src/components/ui/checkbox";
+import { Checkbox, CheckboxWithLabel } from "@src/components/ui/checkbox";
 import { cn } from "@src/utils/styleUtils";
 import { Download, MoreHoriz } from "iconoir-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@src/components/ui/dropdown-menu";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
-
-// const useStyles = makeStyles()(theme => ({
-//   root: {
-//     "& .MuiToggleButton-root": {
-//       color: theme.palette.mode === "dark" ? theme.palette.grey[700] : theme.palette.primary.main,
-//       "&.Mui-selected": {
-//         fontWeight: "bold",
-//         color: theme.palette.mode === "dark" ? theme.palette.secondary.main : theme.palette.primary.contrastText,
-//         backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.secondary.main
-//       }
-//     }
-//   }
-// }));
 
 export type LOGS_MODE = "logs" | "events";
 
@@ -273,7 +260,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
         <>
           {selectedLease && (
             <>
-              <div className="flex h-[56px] items-center p-2">
+              <div className="flex h-[56px] items-center space-x-4 p-2">
                 <div className="flex items-center">
                   {(leases?.length || 0) > 1 && <LeaseSelect leases={leases} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
 
@@ -291,32 +278,14 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                 </div>
 
                 {!smallScreen ? (
-                  <div className="ml-4">
+                  <div>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
-                        <Button onClick={handleMenuClick} size="icon" variant="ghost">
-                          <MoreHoriz />
+                        <Button onClick={handleMenuClick} size="icon" variant="ghost" className="rounded-full">
+                          <MoreHoriz className="text-xs" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {/* {isActive && (
-                            <CustomDropdownLinkItem onClick={() => onDepositClicked} icon={<Plus fontSize="small" />}>
-                              Add funds
-                            </CustomDropdownLinkItem>
-                          )}
-                          <CustomDropdownLinkItem onClick={() => changeDeploymentName(deployment.dseq)} icon={<Edit fontSize="small" />}>
-                            Edit name
-                          </CustomDropdownLinkItem>
-                          {storageDeploymentData?.manifest && (
-                            <CustomDropdownLinkItem onClick={() => redeploy()} icon={<Upload fontSize="small" />}>
-                              Redeploy
-                            </CustomDropdownLinkItem>
-                          )}
-                          {isActive && (
-                            <CustomDropdownLinkItem onClick={() => onCloseDeployment()} icon={<XmarkSquare fontSize="small" />}>
-                              Close
-                            </CustomDropdownLinkItem>
-                          )} */}
                         <CustomDropdownLinkItem>
                           <div className="flex items-center space-x-2">
                             <Checkbox checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} id="stick-bottom" />
@@ -339,62 +308,14 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
-
-                    {/* <Button aria-label="settings" aria-haspopup="true" onClick={handleMenuClick} size="icon">
-                      <MoreHorizIcon fontSize="medium" />
-                    </Button> */}
-                    {/* 
-                    <Menu
-                      id="long-menu"
-                      anchorEl={anchorEl}
-                      keepMounted
-                      open={Boolean(anchorEl)}
-                      onClose={handleMenuClose}
-                      anchorOrigin={{
-                        vertical: "bottom",
-                        horizontal: "right"
-                      }}
-                      transformOrigin={{
-                        vertical: "top",
-                        horizontal: "right"
-                      }}
-                    >
-                      <MenuItem>
-                        <FormControlLabel
-                          control={<Checkbox color="secondary" checked={stickToBottom} onChange={ev => setStickToBottom(ev.target.checked)} size="small" />}
-                          label={"Stick to bottom"}
-                        />
-                      </MenuItem>
-                      {localCert && (
-                        <CustomMenuItem
-                          onClick={onDownloadLogsClick}
-                          icon={isDownloadingLogs ? <CircularProgress size="1.2rem" color="secondary" /> : <DownloadIcon fontSize="small" />}
-                          text={selectedLogsMode === "logs" ? "Download logs" : "Download events"}
-                          disabled={isDownloadingLogs}
-                        />
-                      )}
-                    </Menu> */}
                   </div>
                 ) : (
-                  <div className="ml-4 flex items-center">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} id="stick-bottom" />
-                      <label
-                        htmlFor="stick-bottom"
-                        className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Stick to bottom
-                      </label>
-                    </div>
-
-                    {/* <FormControlLabel
-                      control={<Checkbox checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} />}
-                      label={"Stick to bottom"}
-                    /> */}
+                  <div className="flex items-center">
+                    <CheckboxWithLabel label="Stick to bottom" checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} />
                     {localCert && (
                       <div className="ml-4">
                         <Button onClick={onDownloadLogsClick} variant="default" size="sm" color="secondary" disabled={isDownloadingLogs}>
-                          {isDownloadingLogs ? <Spinner /> : selectedLogsMode === "logs" ? "Download logs" : "Download events"}
+                          {isDownloadingLogs ? <Spinner size="small" /> : selectedLogsMode === "logs" ? "Download logs" : "Download events"}
                         </Button>
                       </div>
                     )}
@@ -402,8 +323,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                 )}
 
                 {isLoadingStatus && (
-                  <div className="ml-4">
-                    <Spinner />
+                  <div>
+                    <Spinner size="small" />
                   </div>
                 )}
               </div>

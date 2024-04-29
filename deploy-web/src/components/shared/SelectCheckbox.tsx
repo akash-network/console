@@ -1,9 +1,12 @@
 "use client";
 import { useState } from "react";
-import { FormItem } from "../ui/form";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Label } from "../ui/label";
 import { Checkbox } from "../ui/checkbox";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -16,12 +19,12 @@ const MenuProps = {
   },
   getContentAnchorEl: null,
   anchorOrigin: {
-    vertical: "bottom",
-    horizontal: "center"
+    vertical: "bottom" as "bottom",
+    horizontal: "center" as "center"
   },
   transformOrigin: {
-    vertical: "top",
-    horizontal: "center"
+    vertical: "top" as "top",
+    horizontal: "center" as "center"
   }
   // variant: "menu"
 };
@@ -65,8 +68,8 @@ export const SelectCheckbox = ({ defaultValue, options, onSelectedChange, label,
   const [selected, setSelected] = useState(defaultValue);
   const isAllSelected = options.length > 0 && selected.length === options.length;
 
-  const handleChange = value => {
-    // const value = event.target.value;
+  const handleChange = event => {
+    const value = event.target.value;
     let newValue = value;
     if (value[value.length - 1] === "all") {
       newValue = selected.length === options.length ? [] : options;
@@ -77,11 +80,9 @@ export const SelectCheckbox = ({ defaultValue, options, onSelectedChange, label,
   };
 
   return (
-    <FormItem>
-      <Label>{label}</Label>
-
-      {/* <InputLabel id="mutiple-select-label">{label}</InputLabel> */}
-      {/* <Select
+    <FormControl className="w-auto min-w-[150px]">
+      <InputLabel id="mutiple-select-label">{label}</InputLabel>
+      <Select
         labelId="mutiple-select-label"
         multiple
         label={label}
@@ -89,76 +90,33 @@ export const SelectCheckbox = ({ defaultValue, options, onSelectedChange, label,
         onChange={handleChange}
         renderValue={selected => selected.join(", ")}
         size="small"
-        // TODO Fix
-        MenuProps={MenuProps as any}
+        MenuProps={MenuProps}
         disabled={disabled}
         variant="outlined"
         classes={{
-          select: classes.menuRoot
+          select: "py-2 px-4 text-xs"
         }}
       >
         <MenuItem
           value="all"
           classes={{
-            root: isAllSelected ? classes.selectedAll : ""
+            root: isAllSelected ? "bg-secondary" : ""
           }}
         >
           <ListItemIcon>
-            <Checkbox
-              classes={{ root: classes.checkboxRoot, indeterminate: classes.indeterminateColor }}
-              checked={isAllSelected}
-              indeterminate={selected.length > 0 && selected.length < options.length}
-              size="small"
-              color="secondary"
-            />
+            <Checkbox checked={isAllSelected} />
           </ListItemIcon>
-          <ListItemText classes={{ primary: classes.selectAllText }} primary="Select All" />
+          <ListItemText classes={{ primary: "font-normal" }} primary="Select All" />
         </MenuItem>
         {options.map(option => (
           <MenuItem key={option} value={option}>
             <ListItemIcon>
-              <Checkbox checked={selected.indexOf(option) > -1} size="small" classes={{ root: classes.checkboxRoot }} color="secondary" />
+              <Checkbox checked={selected.indexOf(option) > -1} />
             </ListItemIcon>
             <ListItemText primary={option} />
           </MenuItem>
         ))}
-      </Select> */}
-
-      <Select value={selected.join(", ")} onValueChange={handleChange} disabled={disabled}>
-        <SelectTrigger>
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectItem
-              value="all"
-              // classes={{
-              //   root: isAllSelected ? classes.selectedAll : ""
-              // }}
-            >
-              <Checkbox
-                // classes={{ root: classes.checkboxRoot, indeterminate: classes.indeterminateColor }}
-                checked={isAllSelected}
-                // indeterminate={selected.length > 0 && selected.length < options.length}
-              />
-              <div
-              // classes={{ primary: classes.selectAllText }}
-              >
-                Select All
-              </div>
-            </SelectItem>
-            {options.map(option => (
-              <SelectItem key={option} value={option}>
-                <Checkbox
-                  checked={selected.indexOf(option) > -1}
-                  // classes={{ root: classes.checkboxRoot }}
-                />
-                <div>{option}</div>
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
       </Select>
-    </FormItem>
+    </FormControl>
   );
 };
