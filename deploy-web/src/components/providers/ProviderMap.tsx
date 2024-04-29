@@ -1,7 +1,7 @@
 "use client";
 import { ApiProviderList } from "@src/types/provider";
 import { ComposableMap, Geographies, Geography, Marker, Point, ZoomableGroup } from "react-simple-maps";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CustomNoDivTooltip, CustomTooltip } from "../shared/CustomTooltip";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
@@ -20,12 +20,14 @@ const maxZoom = 8;
 
 export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initialZoom = minZoom, initialCoordinates = [0, 0] }) => {
   const [dotSize, setDotSize] = useState({ r: 5, w: 1 });
-  const { theme } = useTheme();
   const activeProviders = providers.filter(x => x.isOnline || x.isOnline);
-  // const bgColor = theme === "dark" ? theme.palette.grey[800] : theme.palette.grey[400];
   const [position, setPosition] = useState({ coordinates: initialCoordinates, zoom: initialZoom });
   const isInitialPosition =
     position.coordinates[0] === initialCoordinates[0] && position.coordinates[1] === initialCoordinates[1] && position.zoom === initialZoom;
+
+  useEffect(() => {
+    handleDotSize(position.zoom);
+  }, []);
 
   function resetZoom() {
     setPosition({ coordinates: initialCoordinates, zoom: initialZoom });

@@ -8,24 +8,6 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/compone
 import Spinner from "@src/components/shared/Spinner";
 import { CheckboxWithLabel } from "@src/components/ui/checkbox";
 
-// const useStyles = makeStyles()(theme => ({
-//   pagination: {
-//     "& .MuiPagination-ul": {
-//       justifyContent: "center"
-//     }
-//   },
-//   title: {
-//     fontSize: "1.5rem"
-//   },
-//   flexCenter: {
-//     display: "flex",
-//     alignItems: "center"
-//   },
-//   monthlyCost: {
-//     marginLeft: ".5rem"
-//   }
-// }));
-
 type Props = {
   leases: LeaseDto[] | null;
   isLoadingLeases: boolean;
@@ -70,7 +52,7 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
 
       {currentPageLeases?.length === 0 && isLoadingLeases && (
         <div className="flex items-center justify-center">
-          <Spinner />
+          <Spinner size="large" />
         </div>
       )}
 

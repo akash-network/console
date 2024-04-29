@@ -122,7 +122,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                     title={<FormattedDate value={x.checkDate} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />}
                   >
                     <div
-                      className={cn("h-[24px] w-[2%] max-w-[8px] rounded-sm", { ["ml-1"]: i > 0, ["bg-green-500"]: x.isOnline, ["bg-red-500"]: !x.isOnline })}
+                      className={cn("h-[24px] w-[2%] max-w-[8px] rounded-[2px]", { ["ml-1"]: i > 0, ["bg-green-500"]: x.isOnline, ["bg-red-500"]: !x.isOnline })}
                     />
                   </CustomNoDivTooltip>
                 ))}
