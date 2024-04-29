@@ -16,14 +16,14 @@ type Props = {
 };
 
 export const CapacityIcon: React.FunctionComponent<Props> = ({ value, fontSize = "medium" }) => {
-  if (value === 0) return <Battery0BarIcon fontSize={fontSize} />;
-  else if (value < 0.16) return <Battery1BarIcon fontSize={fontSize} />;
-  else if (value < 0.32) return <Battery2BarIcon fontSize={fontSize} />;
-  else if (value < 0.48) return <Battery3BarIcon fontSize={fontSize} />;
-  else if (value < 0.64) return <Battery4BarIcon fontSize={fontSize} />;
-  else if (value < 0.8) return <Battery5BarIcon color="secondary" fontSize={fontSize} />;
-  else if (value < 1) return <Battery6BarIcon color="secondary" fontSize={fontSize} />;
-  else if (value === 1) return <BatteryFullIcon color="secondary" fontSize={fontSize} />;
+  if (value === 0) return <Battery0BarIcon color="disabled" fontSize={fontSize} />;
+  else if (value < 0.16) return <Battery1BarIcon color="disabled" fontSize={fontSize} />;
+  else if (value < 0.32) return <Battery2BarIcon color="disabled" fontSize={fontSize} />;
+  else if (value < 0.48) return <Battery3BarIcon color="primary" className="opacity-60" fontSize={fontSize} />;
+  else if (value < 0.64) return <Battery4BarIcon color="primary" className="opacity-60" fontSize={fontSize} />;
+  else if (value < 0.8) return <Battery5BarIcon color="primary" className="opacity-80" fontSize={fontSize} />;
+  else if (value < 1) return <Battery6BarIcon color="primary" fontSize={fontSize} />;
+  else if (value === 1) return <BatteryFullIcon color="primary" fontSize={fontSize} />;
 
   return <BatteryUnknownIcon color="disabled" fontSize={fontSize} />;
 };

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import Router from "next/router";
 import NProgress from "nprogress"; //nprogress module
 import "nprogress/nprogress.css"; //styles of nprogress
@@ -22,7 +22,6 @@ import { isProd } from "@src/utils/constants";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { Provider } from "jotai";
-import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { PageHead } from "@src/components/layout/PageHead";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 
@@ -54,8 +53,6 @@ Router.events.on("routeChangeError", () => NProgress.done());
 const clientSideEmotionCache = createEmotionCache();
 
 const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCache = clientSideEmotionCache }) => {
-  usePreviousRoute();
-
   return (
     <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
       <PageHead />

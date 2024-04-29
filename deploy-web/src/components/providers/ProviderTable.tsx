@@ -19,30 +19,14 @@ export const ProviderTable: React.FunctionComponent<Props> = ({ providers, sortO
         <TableRow>
           <TableHead className="w-[10%]">Name</TableHead>
           <TableHead className="w-[10%]">Location</TableHead>
-          <TableHead className="w-[5%]" align="center">
-            Uptime (7d)
-          </TableHead>
-          <TableHead align="left" className={cn("w-[5%]", { ["font-bold"]: isSortingLeases })}>
-            Active Leases
-          </TableHead>
-          <TableHead align="center" className="w-[15%]">
-            CPU
-          </TableHead>
-          <TableHead align="center" className={cn("w-[15%]", { ["font-bold"]: sortOption === "gpu-available-desc" })}>
-            GPU
-          </TableHead>
-          <TableHead align="center" className="w-[15%]">
-            Memory
-          </TableHead>
-          <TableHead align="center" className="w-[15%]">
-            Disk
-          </TableHead>
-          <TableHead align="center" className="w-[5%]">
-            Audited
-          </TableHead>
-          <TableHead align="center" className="w-[5%]">
-            Favorite
-          </TableHead>
+          <TableHead className="w-[5%] text-center">Uptime (7d)</TableHead>
+          <TableHead className={cn("w-[5%] text-center", { ["font-bold text-primary"]: isSortingLeases })}>Active Leases</TableHead>
+          <TableHead className="w-[15%]">CPU</TableHead>
+          <TableHead className={cn("w-[15%]", { ["font-bold text-primary"]: sortOption === "gpu-available-desc" })}>GPU</TableHead>
+          <TableHead className="w-[15%]">Memory</TableHead>
+          <TableHead className="w-[15%]">Disk</TableHead>
+          <TableHead className="w-[5%] text-center">Audited</TableHead>
+          <TableHead className="w-[5%] text-center">Favorite</TableHead>
         </TableRow>
       </TableHeader>
 

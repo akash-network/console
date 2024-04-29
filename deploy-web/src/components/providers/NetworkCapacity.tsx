@@ -5,6 +5,7 @@ import { roundDecimal } from "@src/utils/mathHelpers";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import useTailwind from "@src/hooks/useTailwind";
+import { useIntl } from "react-intl";
 
 type Props = {
   activeCPU: number;
@@ -37,7 +38,6 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
 }) => {
   const { theme } = useTheme();
   const tw = useTailwind();
-  const router = useRouter();
   const activeMemoryBytes = activeMemory + pendingMemory;
   const availableMemoryBytes = totalMemory - (activeMemory + pendingMemory);
   const activeStorageBytes = activeStorage + pendingStorage;
@@ -53,13 +53,13 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
   const memoryData = useData(activeMemoryBytes, availableMemoryBytes);
   const storageData = useData(activeStorageBytes, availableStorageBytes);
   const pieTheme = usePieTheme();
-  const flexBasis = "25%";
+  const intl = useIntl();
 
   const _getColor = bar => getColor(bar.id);
 
   const colors = {
     active: tw.theme.colors["primary"].DEFAULT,
-    available: theme === "dark" ? tw.theme.colors.gray[800] : tw.theme.colors.gray[500]
+    available: theme === "dark" ? tw.theme.colors.gray[800] : tw.theme.colors["muted"].foreground
   };
 
   const getColor = (id: string) => {
@@ -87,7 +87,13 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
               from: "color",
               modifiers: [["darker", 0.2]]
             }}
-            valueFormat={value => `${roundDecimal(value, 2)} CPU`}
+            valueFormat={value =>
+              `${intl.formatNumber(roundDecimal(value, 2), {
+                notation: "compact",
+                compactDisplay: "short",
+                maximumFractionDigits: 2
+              })} CPU`
+            }
             enableArcLinkLabels={false}
             arcLabelsSkipAngle={10}
             theme={pieTheme}
@@ -114,7 +120,12 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
               from: "color",
               modifiers: [["darker", 0.2]]
             }}
-            valueFormat={value => `${roundDecimal(value, 2)} GPU`}
+            valueFormat={value =>
+              `${intl.formatNumber(roundDecimal(value, 2), {
+                notation: "compact",
+                compactDisplay: "short"
+              })} GPU`
+            }
             enableArcLinkLabels={false}
             arcLabelsSkipAngle={10}
             theme={pieTheme}
@@ -212,18 +223,14 @@ const usePieTheme = () => {
   const { theme } = useTheme();
   const tw = useTailwind();
   return {
-    background: theme === "dark" ? tw.theme.colors["background"] : tw.theme.colors["background"],
-    // background: theme === "dark" ? theme.palette.background.default : theme.palette.background.default,
     textColor: "#fff",
     fontSize: 12,
     tooltip: {
       basic: {
         color: theme === "dark" ? tw.theme.colors.white : tw.theme.colors.current
-        // color: theme === "dark" ? theme.palette.primary.contrastText : theme.palette.primary.main
       },
       container: {
         backgroundColor: theme === "dark" ? tw.theme.colors.current : tw.theme.colors.white
-        // backgroundColor: theme === "dark" ? theme.palette.primary.main : theme.palette.primary.contrastText
       }
     }
   };

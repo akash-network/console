@@ -19,27 +19,6 @@ import { cn } from "@src/utils/styleUtils";
 import { Badge } from "@src/components/ui/badge";
 import { WarningCircle } from "iconoir-react";
 
-// const useStyles = makeStyles()(theme => ({
-//   root: {
-//     cursor: "pointer",
-//     transition: "background-color .2s ease",
-//     "& td": {
-//       fontSize: ".8rem"
-//     },
-//     "&:hover": {
-//       backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[300]
-//     }
-//   },
-//   gpuChip: {
-//     height: "16px",
-//     fontSize: ".6rem",
-//     fontWeight: "bold"
-//   },
-//   gpuChipLabel: {
-//     padding: "0 4px"
-//   }
-// }));
-
 type Props = {
   provider: ClientProviderList;
 };
@@ -115,30 +94,28 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
           </CustomTooltip>
         )}
       </TableCell>
-      <TableCell align="center">{provider.isOnline && <Uptime value={provider.uptime7d} />}</TableCell>
-      <TableCell align="left">
+      <TableCell className="text-center font-bold">{provider.isOnline && <Uptime value={provider.uptime7d} />}</TableCell>
+      <TableCell className="text-center">
         <CustomTooltip title={`You have ${provider.userActiveLeases} active lease${(provider.userActiveLeases || 0) > 1 ? "s" : ""} with this provider.`}>
-          <div>
-            {provider.leaseCount}
+          <div className="inline-flex items-center space-x-1">
+            <span>{provider.leaseCount}</span>
             {(provider.userActiveLeases || 0) > 0 && (
-              <p
-                className={cn("text-sm text-muted-foreground", {
-                  ["font-bold"]: (provider.userActiveLeases || 0) > 0,
-                  ["text-primary"]: (provider.userActiveLeases || 0) > 0
+              <span
+                className={cn("text-xs text-muted-foreground", {
+                  ["font-bold text-primary"]: (provider.userActiveLeases || 0) > 0
                 })}
-                // sx={{ color: provider.userActiveLeases > 0 ? theme.palette.secondary.main : "", fontWeight: provider.userActiveLeases > 0 ? "bold" : "" }}
               >
                 &nbsp;({provider.userActiveLeases})
-              </p>
+              </span>
             )}
           </div>
         </CustomTooltip>
       </TableCell>
-      <TableCell align="left">
+      <TableCell>
         {provider.isOnline && (
           <div className="flex items-center">
             <CapacityIcon value={(activeCPU + pendingCPU) / totalCPU} fontSize="small" />
-            <span className="text-xs text-primary">
+            <span className="whitespace-nowrap text-xs">
               {Math.round(activeCPU + pendingCPU)}/{Math.round(totalCPU)}
             </span>
           </div>
@@ -150,18 +127,13 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
           <div className="flex items-center">
             <div className="flex w-[65px] items-center">
               <CapacityIcon value={(activeGPU + pendingGPU) / totalGPU} fontSize="small" />
-              <span className="text-xs text-primary">
+              <span className="whitespace-nowrap text-xs">
                 {Math.round(activeGPU + pendingGPU)}/{Math.round(totalGPU)}
               </span>
             </div>
-            <div className="mt-1 text-center">
+            <div className="mt-1 inline-flex flex-nowrap items-center space-x-1 text-center">
               {gpuModels.slice(0, 2).map((gpu, i) => (
-                <Badge
-                  key={gpu}
-                  // className={classes.gpuChip}
-                  // classes={{ label: classes.gpuChipLabel }}
-                  className={cn({ ["mr-1"]: i < gpuModels.length })}
-                >
+                <Badge key={gpu} className="px-1 py-0 text-xs">
                   {gpu}
                 </Badge>
               ))}
@@ -169,14 +141,9 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
               {gpuModels.length > 2 && (
                 <CustomTooltip
                   title={
-                    <div>
+                    <div className="space-x-1">
                       {gpuModels.map((gpu, i) => (
-                        <Badge
-                          key={gpu}
-                          // className={classes.gpuChip}
-                          // classes={{ label: classes.gpuChipLabel }}
-                          className={cn({ ["mr-1"]: i < gpuModels.length })}
-                        >
+                        <Badge key={gpu} className="px-1 py-0 text-xs">
                           {gpu}
                         </Badge>
                       ))}
@@ -184,7 +151,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
                   }
                 >
                   <div>
-                    <Badge>{`+${gpuModels.length - 2}`}</Badge>
+                    <Badge className="px-1 py-0 text-xs">{`+${gpuModels.length - 2}`}</Badge>
                   </div>
                 </CustomTooltip>
               )}
@@ -193,7 +160,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
         )}
       </TableCell>
 
-      <TableCell align="left">
+      <TableCell>
         {provider.isOnline && _activeMemory && _totalMemory && (
           <div className="flex items-center">
             <CapacityIcon
@@ -203,7 +170,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
               }
               fontSize="small"
             />
-            <span className="text-sm text-primary">
+            <span className="whitespace-nowrap text-xs">
               <Unit value={roundDecimal(_activeMemory.value, 0)} unit={_activeMemory.unit} />
               /
               <Unit value={roundDecimal(_totalMemory.value, 0)} unit={_totalMemory.unit} />
@@ -211,7 +178,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
           </div>
         )}
       </TableCell>
-      <TableCell align="left">
+      <TableCell>
         {provider.isOnline && _activeStorage && _totalStorage && (
           <div className="flex items-center">
             <CapacityIcon
@@ -221,7 +188,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
               }
               fontSize="small"
             />
-            <span className="text-sm text-primary">
+            <span className="whitespace-nowrap text-xs">
               <Unit value={roundDecimal(_activeStorage.value, 0)} unit={_activeStorage.unit} />
               /
               <Unit value={roundDecimal(_totalStorage.value, 0)} unit={_totalStorage.unit} />
@@ -229,8 +196,8 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
           </div>
         )}
       </TableCell>
-      <TableCell align="center">
-        <div className="flex items-center">
+      <TableCell>
+        <div className="flex items-center justify-center">
           {provider.isAudited ? (
             <>
               <span className="text-sm text-primary">Yes</span>
@@ -244,7 +211,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
           )}
         </div>
       </TableCell>
-      <TableCell align="center">
+      <TableCell className="text-center">
         <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
       </TableCell>
     </TableRow>
@@ -253,16 +220,9 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
 
 const Unit: React.FunctionComponent<{ value: number; unit: string }> = ({ value, unit }) => {
   return (
-    <p className="text-sm text-muted-foreground">
+    <span>
       {value}
-      {value > 0 && (
-        <small
-          className="text-xs"
-          // sx={{ fontSize: ".5rem" }}
-        >
-          {unit}
-        </small>
-      )}
-    </p>
+      {value > 0 && <small className="text-muted-foreground">{unit}</small>}
+    </span>
   );
 };
