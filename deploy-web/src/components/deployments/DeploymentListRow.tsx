@@ -243,7 +243,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
 
         <TableCell className="text-center">
           {hasLeases && (
-            <div className="inline-flex flex-wrap items-center space-x-2">
+            <div className="inline-flex flex-wrap items-center">
               {filteredLeases?.map(lease => <LeaseChip key={lease.id} lease={lease} providers={providers} />)}
             </div>
           )}

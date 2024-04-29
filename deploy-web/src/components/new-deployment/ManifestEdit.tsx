@@ -247,7 +247,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
                 className="w-full whitespace-nowrap sm:w-auto"
               >
                 {isCreatingDeployment ? (
-                  <Spinner size="medium" />
+                  <Spinner size="small" />
                 ) : (
                   <>
                     Create Deployment{" "}

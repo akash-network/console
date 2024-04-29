@@ -246,14 +246,6 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     }
   };
 
-  function handleMenuClick(ev) {
-    setAnchorEl(ev.currentTarget);
-  }
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
   return (
     <div>
       {isLocalCertMatching ? (
@@ -281,7 +273,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                   <div>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
-                        <Button onClick={handleMenuClick} size="icon" variant="ghost" className="rounded-full">
+                        <Button size="icon" variant="ghost" className="rounded-full">
                           <MoreHoriz className="text-xs" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -314,7 +306,13 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                     <CheckboxWithLabel label="Stick to bottom" checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} />
                     {localCert && (
                       <div className="ml-4">
-                        <Button onClick={onDownloadLogsClick} variant="default" size="sm" color="secondary" disabled={isDownloadingLogs}>
+                        <Button
+                          onClick={onDownloadLogsClick}
+                          variant="default"
+                          size="sm"
+                          color="secondary"
+                          disabled={isDownloadingLogs || !isConnectionEstablished}
+                        >
                           {isDownloadingLogs ? <Spinner size="small" /> : selectedLogsMode === "logs" ? "Download logs" : "Download events"}
                         </Button>
                       </div>

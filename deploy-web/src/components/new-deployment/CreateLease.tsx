@@ -304,18 +304,18 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
           </Button>
         )}
 
-        {(isLoadingBids || (bids?.length || 0) === 0) && !maxRequestsReached && !isSendingManifest && (
-          <div className="flex flex-col items-center justify-center pt-4 text-center">
-            <Spinner size="large" />
-            <div className="pt-4">Waiting for bids...</div>
-          </div>
-        )}
-
         {warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-4">
             <Alert variant="warning">
               There should be bids by now... You can wait longer in case a bid shows up or close the deployment and try again with a different configuration.
             </Alert>
+          </div>
+        )}
+
+        {(isLoadingBids || (bids?.length || 0) === 0) && !maxRequestsReached && !isSendingManifest && (
+          <div className="flex flex-col items-center justify-center pt-4 text-center">
+            <Spinner size="large" />
+            <div className="pt-4">Waiting for bids...</div>
           </div>
         )}
 

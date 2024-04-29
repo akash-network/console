@@ -318,22 +318,31 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                 </div>
 
                 {leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0 && (
-                  <div className={cn("mt-2", { ["mb-4"]: service.uris?.length > 0 })}>
+                  <div className={cn({ ["mb-4"]: service.uris?.length > 0 })}>
                     <LabelValueOld
                       label="Forwarded Ports:"
-                      value={leaseStatus.forwarded_ports[service.name].map(p => (
-                        <div key={"port_" + p.externalPort} className="mr-2 inline">
-                          {p.host ? (
-                            <LinkTo disabled={p.available < 1} onClick={ev => handleExternalUrlClick(ev, `${p.host}:${p.externalPort}`)}>
-                              {p.port}:{p.externalPort}
-                            </LinkTo>
-                          ) : (
-                            <>
-                              <Badge>{`${p.port}:${p.externalPort}`}</Badge>
-                            </>
-                          )}
+                      value={
+                        <div className="inline-flex items-center space-x-2">
+                          {leaseStatus.forwarded_ports[service.name].map(p => (
+                            <div key={"port_" + p.externalPort}>
+                              {p.host ? (
+                                <Link
+                                  className={cn({ ["cursor-none text-muted-foreground"]: p.available < 1 }, "inline-flex items-center space-x-2 text-sm")}
+                                  href={`http://${p.host}:${p.externalPort}`}
+                                  target="_blank"
+                                >
+                                  <span>
+                                    {p.port}:{p.externalPort}
+                                  </span>
+                                  <OpenInWindow className="text-xs" />
+                                </Link>
+                              ) : (
+                                <Badge variant="outline">{`${p.port}:${p.externalPort}`}</Badge>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      }
                     />
                   </div>
                 )}
@@ -346,7 +355,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                         {service.uris.map(uri => {
                           return (
                             <li className="flex items-center py-1" key={uri}>
-                              <Link href={`http://${uri}`} target="_blank" className="flex items-center space-x-2 truncate text-sm">
+                              <Link href={`http://${uri}`} target="_blank" className="inline-flex items-center space-x-2 truncate text-sm">
                                 <span>{uri}</span>
                                 <OpenInWindow className="text-xs" />
                               </Link>
@@ -378,40 +387,41 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
             <LabelValueOld label="IP(s):" />
             <ul>
               {servicesNames
-                .map(n => leaseStatus.ips[n])
-                .map((ips, i) => {
-                  return ips?.map((ip, ii) => (
-                    <li key={`${ip.IP}${ip.ExternalPort}`} className="flex items-center">
-                      <LinkTo className="flex items-center" onClick={ev => handleExternalUrlClick(ev, ip.IP)}>
-                        {ip.IP}:{ip.ExternalPort} <OpenInWindow />
-                      </LinkTo>
-                      &nbsp;&nbsp;
-                      <CustomTooltip
-                        title={
-                          <>
-                            <div>IP:&nbsp;{ip.IP}</div>
-                            <div>External Port:&nbsp;{ip.ExternalPort}</div>
-                            <div>Port:&nbsp;{ip.Port}</div>
-                            <div>Protocol:&nbsp;{ip.Protocol}</div>
-                          </>
-                        }
-                      >
-                        <InfoCircle className="ml-2 text-xs text-muted-foreground" />
-                      </CustomTooltip>
-                      &nbsp;&nbsp;
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={ev => {
-                          copyTextToClipboard(ip.IP);
-                          toast({ title: "IP copied to clipboard!", variant: "success" });
-                        }}
-                      >
-                        <Copy />
-                      </Button>
-                    </li>
-                  ));
-                })}
+                .flatMap(n => leaseStatus.ips[n])
+                .map((ip, i) => (
+                  <li key={`${ip.IP}${ip.ExternalPort}`} className="flex items-center space-x-2">
+                    <Link className="inline-flex items-center space-x-2 text-sm" href={`http://${ip.IP}:${ip.ExternalPort}`} target="_blank">
+                      <span>
+                        {ip.IP}:{ip.ExternalPort}
+                      </span>
+                      <OpenInWindow className="text-xs" />
+                    </Link>
+                    &nbsp;&nbsp;
+                    <CustomTooltip
+                      title={
+                        <>
+                          <div>IP:&nbsp;{ip.IP}</div>
+                          <div>External Port:&nbsp;{ip.ExternalPort}</div>
+                          <div>Port:&nbsp;{ip.Port}</div>
+                          <div>Protocol:&nbsp;{ip.Protocol}</div>
+                        </>
+                      }
+                    >
+                      <InfoCircle className="text-xs text-muted-foreground" />
+                    </CustomTooltip>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="rounded-full"
+                      onClick={ev => {
+                        copyTextToClipboard(`${ip.IP}:${ip.ExternalPort}`);
+                        toast({ title: "IP copied to clipboard!", variant: "success" });
+                      }}
+                    >
+                      <Copy />
+                    </Button>
+                  </li>
+                ))}
             </ul>
           </div>
         )}

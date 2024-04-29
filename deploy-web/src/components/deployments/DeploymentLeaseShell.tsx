@@ -247,7 +247,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
         <>
           {selectedLease && (
             <>
-              <div className="flex h-[56px] items-center p-2">
+              <div className="flex h-[56px] items-center space-x-4 p-2">
                 <div className="flex items-center">
                   {(leases?.length || 0) > 1 && <LeaseSelect leases={leases} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
 
@@ -259,38 +259,36 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
                 </div>
 
                 {localCert && (
-                  <div className="ml-4 flex items-center">
-                    <div>
-                      <Button onClick={onDownloadFileClick} variant="default" size="sm" disabled={!isConnectionEstablished}>
-                        Download file
-                      </Button>
-                    </div>
+                  <div className="flex items-center">
+                    <Button onClick={onDownloadFileClick} variant="default" size="sm" disabled={!isConnectionEstablished}>
+                      Download file
+                    </Button>
                   </div>
                 )}
 
                 {(isLoadingStatus || isLoadingData) && (
-                  <div className="ml-4">
-                    <Spinner />
+                  <div>
+                    <Spinner size="small" />
                   </div>
                 )}
               </div>
 
               {showArrowAndTabWarning && (
                 <Alert variant="warning" className="mb-1 rounded-none">
-                  <Link href={UrlService.faq("shell-arrows-and-completion")} target="_blank" style={{ display: "inline-flex", alignItems: "center" }}>
-                    Why is my UP arrow and TAB autocompletion not working?
-                    <OpenInWindow className="text-sm" />
+                  <Link href={UrlService.faq("shell-arrows-and-completion")} target="_blank" className="inline-flex items-center space-x-2">
+                    <span>Why is my UP arrow and TAB autocompletion not working?</span>
+                    <OpenInWindow className="text-xs" />
                   </Link>
                 </Alert>
               )}
 
-              <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
+              <ViewPanel stickToBottom className="overflow-hidden">
                 {isConnectionClosed && (
                   <Alert variant="warning" className="rounded-none">
                     The connection to your Cloudmos Shell was lost. (
-                    <Link href={UrlService.faq("shell-lost")} target="_blank" style={{ display: "inline-flex", alignItems: "center" }}>
-                      More Info
-                      <OpenNewWindow fontSize={"small"} alignmentBaseline="middle" />
+                    <Link href={UrlService.faq("shell-lost")} target="_blank" className="inline-flex items-center space-x-2">
+                      <span>More Info</span>
+                      <OpenNewWindow className="text-xs" alignmentBaseline="middle" />
                     </Link>
                     )
                   </Alert>
@@ -305,7 +303,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
           <Alert variant="warning">You need a valid certificate to access the lease shell.</Alert>
 
           <Button variant="default" className="mt-4" disabled={isCreatingCert} onClick={() => createCertificate()}>
-            {isCreatingCert ? <Spinner /> : "Create Certificate"}
+            {isCreatingCert ? <Spinner size="small" /> : "Create Certificate"}
           </Button>
         </div>
       )}
