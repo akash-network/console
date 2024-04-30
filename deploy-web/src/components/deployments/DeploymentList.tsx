@@ -13,7 +13,6 @@ import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
-import { PageContainer } from "@src/components/shared/PageContainer";
 import { Button, buttonVariants } from "@src/components/ui/button";
 import { Refresh, Rocket, Xmark } from "iconoir-react";
 import { Checkbox, CheckboxWithLabel } from "@src/components/ui/checkbox";
@@ -131,145 +130,143 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
     <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings isUsingWallet>
       <NextSeo title="Deployments" />
 
-      <PageContainer>
-        <div className="flex flex-wrap items-center pb-2">
-          <Title className="font-bold" subTitle>
-            Deployments
-          </Title>
+      <div className="flex flex-wrap items-center pb-2">
+        <Title className="font-bold" subTitle>
+          Deployments
+        </Title>
 
-          {deployments && (
-            <>
-              <div className="ml-4">
-                <Button aria-label="back" onClick={() => getDeployments()} size="icon" variant="ghost">
-                  <Refresh />
-                </Button>
-              </div>
-
-              <div className="ml-8">
-                <div className="flex items-center space-x-2">
-                  <CheckboxWithLabel label="Active" checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} />
-                </div>
-              </div>
-
-              {selectedDeploymentDseqs.length > 0 && (
-                <>
-                  <div className="md:ml-4">
-                    <Button onClick={onCloseSelectedDeployments} color="secondary">
-                      Close selected ({selectedDeploymentDseqs.length})
-                    </Button>
-                  </div>
-
-                  <div className="ml-4">
-                    <LinkTo onClick={onClearSelection}>Clear</LinkTo>
-                  </div>
-                </>
-              )}
-
-              {(filteredDeployments?.length || 0) > 0 && (
-                <Link href={UrlService.newDeployment()} className={cn("ml-auto", buttonVariants({ variant: "default", size: "sm" }))} onClick={onDeployClick}>
-                  Deploy
-                  <Rocket className="ml-4 rotate-45 text-sm" />
-                </Link>
-              )}
-            </>
-          )}
-        </div>
-
-        {(filteredDeployments?.length || 0) > 0 && (
-          <div className="flex items-center pb-4 pt-2">
-            <InputWithIcon
-              label="Search Deployments by name"
-              value={search}
-              onChange={onSearchChange}
-              className="w-full"
-              type="text"
-              endIcon={
-                !!search && (
-                  <Button size="icon" variant="text" onClick={() => setSearch("")}>
-                    <Xmark className="text-xs" />
-                  </Button>
-                )
-              }
-            />
-          </div>
-        )}
-
-        {filteredDeployments?.length === 0 && !isLoadingDeployments && !search && (
-          <div className="p-16 text-center">
-            <h5 className="font-normal">{isFilteringActive ? "No active deployments" : "No deployments"}</h5>
-
-            <Link href={UrlService.newDeployment()} className={cn(buttonVariants({ variant: "default", size: "lg" }), "mt-4")} onClick={onDeployClick}>
-              Deploy
-              <Rocket className="ml-4 rotate-45 text-sm" />
-            </Link>
-          </div>
-        )}
-
-        {(!filteredDeployments || filteredDeployments?.length === 0) && isLoadingDeployments && (
-          <div className="flex items-center justify-center p-8">
-            <Spinner size="large" />
-          </div>
-        )}
-
-        <div>
-          {orderedDeployments.length > 0 && (
-            <div className="flex flex-wrap items-center justify-between pb-4">
-              <span className="text-xs">
-                You have <strong>{orderedDeployments.length}</strong>
-                {isFilteringActive ? " active" : ""} deployments
-              </span>
+        {deployments && (
+          <>
+            <div className="ml-4">
+              <Button aria-label="back" onClick={() => getDeployments()} size="icon" variant="ghost">
+                <Refresh />
+              </Button>
             </div>
-          )}
 
-          {currentPageDeployments?.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[10%] text-center">Specs</TableHead>
-                  <TableHead className="w-[20%] text-center">Name</TableHead>
-                  <TableHead className="w-[10%] text-center">Time left</TableHead>
-                  <TableHead className="w-[10%] text-center">Balance</TableHead>
-                  <TableHead className="w-[15%] text-center">Cost</TableHead>
-                  <TableHead className="w-[15%] text-center">Leases</TableHead>
-                  <TableHead className="w-[10%]"></TableHead>
-                </TableRow>
-              </TableHeader>
+            <div className="ml-8">
+              <div className="flex items-center space-x-2">
+                <CheckboxWithLabel label="Active" checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} />
+              </div>
+            </div>
 
-              <TableBody>
-                {currentPageDeployments.map(deployment => (
-                  <DeploymentListRow
-                    key={deployment.dseq}
-                    deployment={deployment}
-                    refreshDeployments={getDeployments}
-                    providers={providers}
-                    isSelectable
-                    onSelectDeployment={onSelectDeployment}
-                    checked={selectedDeploymentDseqs.some(x => x === deployment.dseq)}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          )}
+            {selectedDeploymentDseqs.length > 0 && (
+              <>
+                <div className="md:ml-4">
+                  <Button onClick={onCloseSelectedDeployments} color="secondary">
+                    Close selected ({selectedDeploymentDseqs.length})
+                  </Button>
+                </div>
+
+                <div className="ml-4">
+                  <LinkTo onClick={onClearSelection}>Clear</LinkTo>
+                </div>
+              </>
+            )}
+
+            {(filteredDeployments?.length || 0) > 0 && (
+              <Link href={UrlService.newDeployment()} className={cn("ml-auto", buttonVariants({ variant: "default", size: "sm" }))} onClick={onDeployClick}>
+                Deploy
+                <Rocket className="ml-4 rotate-45 text-sm" />
+              </Link>
+            )}
+          </>
+        )}
+      </div>
+
+      {(filteredDeployments?.length || 0) > 0 && (
+        <div className="flex items-center pb-4 pt-2">
+          <InputWithIcon
+            label="Search Deployments by name"
+            value={search}
+            onChange={onSearchChange}
+            className="w-full"
+            type="text"
+            endIcon={
+              !!search && (
+                <Button size="icon" variant="text" onClick={() => setSearch("")}>
+                  <Xmark className="text-xs" />
+                </Button>
+              )
+            }
+          />
         </div>
+      )}
 
-        {search && currentPageDeployments.length === 0 && (
-          <div className="py-4">
-            <p>No deployment found.</p>
+      {filteredDeployments?.length === 0 && !isLoadingDeployments && !search && (
+        <div className="p-16 text-center">
+          <h5 className="font-normal">{isFilteringActive ? "No active deployments" : "No deployments"}</h5>
+
+          <Link href={UrlService.newDeployment()} className={cn(buttonVariants({ variant: "default", size: "lg" }), "mt-4")} onClick={onDeployClick}>
+            Deploy
+            <Rocket className="ml-4 rotate-45 text-sm" />
+          </Link>
+        </div>
+      )}
+
+      {(!filteredDeployments || filteredDeployments?.length === 0) && isLoadingDeployments && (
+        <div className="flex items-center justify-center p-8">
+          <Spinner size="large" />
+        </div>
+      )}
+
+      <div>
+        {orderedDeployments.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between pb-4">
+            <span className="text-xs">
+              You have <strong>{orderedDeployments.length}</strong>
+              {isFilteringActive ? " active" : ""} deployments
+            </span>
           </div>
         )}
 
-        {(filteredDeployments?.length || 0) > 0 && (
-          <div className="flex items-center justify-center py-8">
-            <CustomPagination
-              totalPageCount={pageCount}
-              setPageIndex={handleChangePage}
-              pageIndex={pageIndex}
-              pageSize={pageSize}
-              setPageSize={onPageSizeChange}
-            />
-          </div>
+        {currentPageDeployments?.length > 0 && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[10%] text-center">Specs</TableHead>
+                <TableHead className="w-[20%] text-center">Name</TableHead>
+                <TableHead className="w-[10%] text-center">Time left</TableHead>
+                <TableHead className="w-[10%] text-center">Balance</TableHead>
+                <TableHead className="w-[15%] text-center">Cost</TableHead>
+                <TableHead className="w-[15%] text-center">Leases</TableHead>
+                <TableHead className="w-[10%]"></TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {currentPageDeployments.map(deployment => (
+                <DeploymentListRow
+                  key={deployment.dseq}
+                  deployment={deployment}
+                  refreshDeployments={getDeployments}
+                  providers={providers}
+                  isSelectable
+                  onSelectDeployment={onSelectDeployment}
+                  checked={selectedDeploymentDseqs.some(x => x === deployment.dseq)}
+                />
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </PageContainer>
+      </div>
+
+      {search && currentPageDeployments.length === 0 && (
+        <div className="py-4">
+          <p>No deployment found.</p>
+        </div>
+      )}
+
+      {(filteredDeployments?.length || 0) > 0 && (
+        <div className="flex items-center justify-center py-8">
+          <CustomPagination
+            totalPageCount={pageCount}
+            setPageIndex={handleChangePage}
+            pageIndex={pageIndex}
+            pageSize={pageSize}
+            setPageSize={onPageSizeChange}
+          />
+        </div>
+      )}
     </Layout>
   );
 };

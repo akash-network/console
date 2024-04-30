@@ -24,11 +24,15 @@ export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, clas
         target={route.target ?? "_self"}
         rel={route.rel ? route.rel : ""}
         href={route.url}
-        className={cn(buttonVariants({ variant: "text", size: "sm" }), "flex w-full items-center justify-start text-current hover:text-primary hover:no-underline", {
-          ["font-bold text-base"]: isSelected,
-          ["min-w-[initial] px-4 py-1"]: isNavOpen,
-          ["min-w-0 p-4"]: !isNavOpen
-        })}
+        className={cn(
+          buttonVariants({ variant: isSelected ? "secondary" : "ghost", size: "sm" }),
+          "flex w-full items-center justify-start text-current hover:no-underline",
+          {
+            ["font-bold"]: isSelected,
+            ["min-w-[initial] px-4 py-1"]: isNavOpen,
+            ["w-[45px] min-w-0 p-2"]: !isNavOpen
+          }
+        )}
       >
         {!!route.icon && (
           <span className={cn("z-[100] min-w-0", { ["m-[initial]"]: isNavOpen, ["mx-auto"]: !isNavOpen })}>

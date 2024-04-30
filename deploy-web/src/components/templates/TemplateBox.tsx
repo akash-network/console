@@ -29,11 +29,11 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
             </AvatarFallback>
           </Avatar>
 
-          <div className="ml-4 break-all font-bold">{template.name}</div>
+          <div className="ml-4 break-all font-bold tracking-tight">{template.name}</div>
         </div>
       </CardHeader>
       <CardContent className="pb-4 pt-0">
-        <p className="text-sm text-muted-foreground">{getShortText(template.summary, 128)}</p>
+        <p className="text-xs text-muted-foreground">{getShortText(template.summary, 128)}</p>
       </CardContent>
     </Link>
   );
