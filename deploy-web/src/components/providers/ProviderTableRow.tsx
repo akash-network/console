@@ -62,24 +62,24 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
         <TableCell>
           {provider.name?.length > 20 ? (
             <CustomTooltip title={provider.name}>
-              <div>{getSplitText(provider.name, 4, 13)}</div>
+              <span className="text-xs">{getSplitText(provider.name, 4, 13)}</span>
             </CustomTooltip>
           ) : (
-            provider.name
+            <span className="text-xs">{provider.name}</span>
           )}
         </TableCell>
       ) : (
         <TableCell>
           {provider.hostUri?.length > 20 ? (
             <CustomTooltip title={provider.hostUri}>
-              <div>{getSplitText(provider.hostUri, 4, 13)}</div>
+              <span className="text-xs">{getSplitText(provider.hostUri, 4, 13)}</span>
             </CustomTooltip>
           ) : (
-            provider.hostUri
+            <span className="text-xs">{provider.hostUri}</span>
           )}
         </TableCell>
       )}
-      <TableCell>
+      <TableCell className="text-center">
         {provider.ipRegion && provider.ipCountry && (
           <CustomTooltip
             title={
@@ -88,7 +88,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
               </>
             }
           >
-            <div>
+            <div className="text-xs">
               {provider.ipRegionCode}, {provider.ipCountryCode}
             </div>
           </CustomTooltip>

@@ -25,6 +25,7 @@ import { CustomPagination } from "@src/components/shared/CustomPagination";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
 import Layout from "../layout/Layout";
 import { DeploymentListRow } from "./DeploymentListRow";
+import { Title } from "../shared/Title";
 
 type Props = {};
 
@@ -132,7 +133,9 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
 
       <PageContainer>
         <div className="flex flex-wrap items-center pb-2">
-          <h3 className="text-2xl font-bold">Deployments</h3>
+          <Title className="font-bold" subTitle>
+            Deployments
+          </Title>
 
           {deployments && (
             <>
@@ -256,7 +259,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
         )}
 
         {(filteredDeployments?.length || 0) > 0 && (
-          <div className="flex items-center justify-center pb-8 pt-4">
+          <div className="flex items-center justify-center py-8">
             <CustomPagination
               totalPageCount={pageCount}
               setPageIndex={handleChangePage}

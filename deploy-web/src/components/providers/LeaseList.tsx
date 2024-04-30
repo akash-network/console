@@ -81,7 +81,7 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
             </TableBody>
           </Table>
 
-          <div className="px-4 pb-8 pt-4">
+          <div className="flex items-center justify-center py-8">
             <CustomPagination pageSize={pageSize} setPageIndex={setPageIndex} pageIndex={pageIndex} totalPageCount={pageCount} setPageSize={onPageSizeChange} />
           </div>
         </>

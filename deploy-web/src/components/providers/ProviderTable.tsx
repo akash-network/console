@@ -18,7 +18,7 @@ export const ProviderTable: React.FunctionComponent<Props> = ({ providers, sortO
       <TableHeader>
         <TableRow>
           <TableHead className="w-[10%]">Name</TableHead>
-          <TableHead className="w-[10%]">Location</TableHead>
+          <TableHead className="w-[10%] text-center">Location</TableHead>
           <TableHead className="w-[5%] text-center">Uptime (7d)</TableHead>
           <TableHead className={cn("w-[5%] text-center", { ["font-bold text-primary"]: isSortingLeases })}>Active Leases</TableHead>
           <TableHead className="w-[15%]">CPU</TableHead>

@@ -59,11 +59,15 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     <>
       <span className="truncate" title={deployment.name}>
         <strong>{deployment.name}</strong>
-        <span className="inline text-sm">&nbsp;-&nbsp;{deployment.dseq}</span>
+        <span className="inline text-sm">
+          &nbsp;-&nbsp;<small>{deployment.dseq}</small>
+        </span>
       </span>
     </>
   ) : (
-    <span className="inline text-sm">{deployment.dseq}</span>
+    <span className="inline text-sm">
+      <small>{deployment.dseq}</small>
+    </span>
   );
   const showTimeLeftWarning = differenceInCalendarDays(timeLeft, new Date()) < 7;
   const escrowBalance = isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance;

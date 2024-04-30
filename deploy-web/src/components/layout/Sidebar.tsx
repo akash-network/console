@@ -8,9 +8,7 @@ import { NodeStatusBar } from "./NodeStatusBar";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
 import { MobileSidebarUser } from "./MobileSidebarUser";
-import { breakpoints } from "@src/utils/responsiveUtils";
 import { useMediaQuery } from "usehooks-ts";
-import { Badge } from "../ui/badge";
 import { Button, buttonVariants } from "../ui/button";
 import { cn } from "@src/utils/styleUtils";
 import { Rocket, Github, X as TwitterX, Discord, Menu, MenuScale } from "iconoir-react";
@@ -190,8 +188,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
             </div>
 
             {publicRuntimeConfig?.version && _isNavOpen && (
-              <div className="flex flex-row items-center justify-center">
-                <div className="text-xs font-bold text-muted-foreground">v{publicRuntimeConfig?.version}</div>
+              <div className="flex flex-row items-center justify-center text-xs font-bold text-muted-foreground">
+                <small>v{publicRuntimeConfig?.version}</small>
               </div>
             )}
           </div>
