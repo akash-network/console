@@ -98,7 +98,7 @@ export const getProviderList = async () => {
   const [auditors, providerAttributeSchema] = await Promise.all([auditorsQuery, providerAttributeSchemaQuery]);
 
   return distinctProviders.map((x) => {
-    const lastSuccessfulSnapshot = providerWithNodes.find((p) => p.owner === x.owner)?.lastSnapshot;
+    const lastSuccessfulSnapshot = providerWithNodes.find((p) => p.owner === x.owner)?.lastSuccessfulSnapshot;
     return mapProviderToList(x, providerAttributeSchema, auditors, lastSuccessfulSnapshot);
   });
 };
