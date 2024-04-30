@@ -121,6 +121,11 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
     setDeploySdl(null);
   };
 
+  const onPageSizeChange = (value: number) => {
+    setPageSize(value);
+    setPageIndex(0);
+  };
+
   return (
     <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings isUsingWallet>
       <NextSeo title="Deployments" />
@@ -252,7 +257,13 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
 
         {(filteredDeployments?.length || 0) > 0 && (
           <div className="flex items-center justify-center pb-8 pt-4">
-            <CustomPagination totalPageCount={pageCount} setPageIndex={handleChangePage} pageIndex={pageIndex} pageSize={pageSize} setPageSize={setPageSize} />
+            <CustomPagination
+              totalPageCount={pageCount}
+              setPageIndex={handleChangePage}
+              pageIndex={pageIndex}
+              pageSize={pageSize}
+              setPageSize={onPageSizeChange}
+            />
           </div>
         )}
       </PageContainer>

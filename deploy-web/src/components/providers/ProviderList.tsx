@@ -163,6 +163,11 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
     router.replace(UrlService.providers(value), { scroll: false });
   };
 
+  const onPageSizeChange = (value: number) => {
+    setPageSize(value);
+    setPageIndex(0);
+  };
+
   return (
     <Layout isLoading={isLoadingProviders || isLoadingLeases || isLoadingNetworkCapacity}>
       <CustomNextSeo
@@ -294,7 +299,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
                   setPageIndex={handleChangePage}
                   pageIndex={pageIndex}
                   totalPageCount={pageCount}
-                  setPageSize={setPageSize}
+                  setPageSize={onPageSizeChange}
                 />
               </div>
             )}

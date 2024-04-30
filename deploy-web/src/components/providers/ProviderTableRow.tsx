@@ -200,13 +200,13 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
         <div className="flex items-center justify-center">
           {provider.isAudited ? (
             <>
-              <span className="text-sm text-primary">Yes</span>
+              <span className="text-xs">Yes</span>
               <AuditorButton provider={provider} />
             </>
           ) : (
             <>
-              <span className="text-sm text-muted-foreground">No</span>
-              <WarningCircle className="ml-2 text-sm text-warning" />
+              <span className="text-xs text-muted-foreground">No</span>
+              <WarningCircle className="ml-2 text-xs text-warning" />
             </>
           )}
         </div>

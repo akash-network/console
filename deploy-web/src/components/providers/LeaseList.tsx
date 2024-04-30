@@ -40,6 +40,11 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
     setIsFilteringActive(value);
   };
 
+  const onPageSizeChange = (value: number) => {
+    setPageSize(value);
+    setPageIndex(0);
+  };
+
   return (
     <>
       <div className="flex items-center pb-2">
@@ -77,7 +82,7 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
           </Table>
 
           <div className="px-4 pb-8 pt-4">
-            <CustomPagination pageSize={pageSize} setPageIndex={setPageIndex} pageIndex={pageIndex} totalPageCount={pageCount} setPageSize={setPageSize} />
+            <CustomPagination pageSize={pageSize} setPageIndex={setPageIndex} pageIndex={pageIndex} totalPageCount={pageCount} setPageSize={onPageSizeChange} />
           </div>
         </>
       )}
