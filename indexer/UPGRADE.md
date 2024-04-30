@@ -25,7 +25,7 @@ WITH last_successful_snapshots AS (
 UPDATE provider p
 SET "lastSuccessfulSnapshotId"=last_successful_snapshots."snapshotId"
 FROM last_successful_snapshots
-WHERE p.owner=last_successful_snapshots.owner
+WHERE p.owner=last_successful_snapshots.owner;
 
 -- Set downtimeFirstSnapshotId on providers
 WITH downtime_first_snapshot AS (
@@ -50,10 +50,10 @@ WITH downtime_first_snapshot AS (
 UPDATE provider 
 SET "downtimeFirstSnapshotId"=downtime_first_snapshot."downtimeFirstSnapshotId"
 FROM downtime_first_snapshot
-WHERE provider.owner=downtime_first_snapshot.owner
+WHERE provider.owner=downtime_first_snapshot.owner;
 
 -- Spread providers "nextCheckDate" evenly accross a 15 minute window
-UPDATE provider SET "nextCheckDate"=NOW() + interval '1 second' * (random() * 15 * 60)
+UPDATE provider SET "nextCheckDate"=NOW() + interval '1 second' * (random() * 15 * 60);
 
 ALTER TABLE IF EXISTS public."providerSnapshot"
     ADD COLUMN "isLastSuccessOfDay" boolean NOT NULL DEFAULT false;
