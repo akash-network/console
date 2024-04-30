@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@akashnetwork/akash-api": "^1.0.3",
-    "@akashnetwork/akashjs": "^0.6.0",
+    "@akashnetwork/akashjs": "^0.6.1",
     "@chain-registry/assets": "^0.7.1",
     "@cosmjs/crypto": "^0.28.11",
     "@cosmjs/encoding": "^0.28.11",
