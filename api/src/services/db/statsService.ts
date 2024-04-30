@@ -204,7 +204,7 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
             SELECT DISTINCT ON("hostUri",DATE("checkDate")) DATE("checkDate") AS date, ps."activeCPU", ps."pendingCPU", ps."availableCPU", ps."activeGPU", ps."pendingGPU", ps."availableGPU", ps."activeMemory", ps."pendingMemory", ps."availableMemory", ps."activeStorage", ps."pendingStorage", ps."availableStorage", ps."isOnline"
             FROM "providerSnapshot" ps
             INNER JOIN "provider" ON "provider"."owner"=ps."owner"
-            WHERE ps."isLastSuccessOfDay" = TRUE AND ps."checkDate" >= DATE(ps."checkDate")::timestamp + INTERVAL '1 day' - INTERVAL :grace_duration || ' minutes'
+            WHERE ps."isLastSuccessOfDay" = TRUE AND ps."checkDate" >= DATE(ps."checkDate")::timestamp + INTERVAL '1 day' - (:grace_duration * INTERVAL '1 minutes')
             ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
          ) "dailyProviderStats"
          ON DATE(d."date")="dailyProviderStats"."date"
