@@ -1,10 +1,13 @@
+import { ResourcesMetric, Status } from "@akashnetwork/akash-api/akash/provider/v1";
+import { ProviderRPCClient } from "@akashnetwork/akash-api/akash/provider/v1/grpc-js";
+import { NodeResources } from "@akashnetwork/akash-api/akash/inventory/v1";
+import { Empty } from "@akashnetwork/akash-api/google/protobuf";
+import { promisify } from "util";
+import memoize from "lodash/memoize";
+
 import { Provider } from "@shared/dbSchemas/akash";
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
-import { createPromiseClient } from "@connectrpc/connect";
-import { createGrpcTransport } from "@connectrpc/connect-node";
-import { ProviderRPC } from "@src/proto/gen/akash/provider/v1/service_connect";
-import { ResourcesMetric, Status } from "@src/proto/gen/akash/provider/v1/status_pb";
-import { NodeResources } from "@src/proto/gen/akash/inventory/v1/resources_pb";
+import { FakeInsecureCredentials } from "./fake-insecure-credentials";
 import { ProviderStatusInfo } from "./types";
 
 export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
@@ -80,20 +83,22 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
 }
 
 async function queryStatus(hostUri: string, timeout: number): Promise<Status> {
-  const url = hostUri.replace(":8443", ":8444"); // Use 8444 as default GRPC port for now, enventually get from on-chain data
-
-  const transport = createGrpcTransport({
-    baseUrl: url,
-    httpVersion: "2",
-    nodeOptions: { rejectUnauthorized: false },
-    defaultTimeoutMs: timeout,
-    interceptors: []
-  });
-  const client = createPromiseClient(ProviderRPC, transport);
-  const res = await client.getStatus({});
-
-  return res;
+  return await createProviderClient(hostUri).getStatus(timeout);
 }
+
+const createProviderClient = memoize((hostUri: string) => {
+  // TODO: fetch port from chain
+  const url = hostUri.replace(":8443", ":8444").replace("https://", "dns:///");
+
+  // TODO: refactor to use on-change cert validation
+  //  Issue: https://github.com/akash-network/cloudmos/issues/170
+  const client = new ProviderRPCClient(url, FakeInsecureCredentials.createInsecure());
+  const getStatus = promisify(client.getStatus.bind(client));
+
+  return {
+    getStatus: (timeout: number) => getStatus(Empty, { deadline: Date.now() + timeout })
+  };
+});
 
 function parseResources(resources: ResourcesMetric) {
   return {
