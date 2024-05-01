@@ -25,7 +25,7 @@ export const ExposeList: React.FunctionComponent<Props> = ({ currentService, set
               Expose is a list of port settings describing what can connect to the service.
               <br />
               <br />
-              <a href="https://docs.akash.network/readme/stack-definition-language#services.expose" target="_blank" rel="noopener">
+              <a href="https://akash.network/docs/getting-started/stack-definition-language/#servicesexpose" target="_blank" rel="noopener">
                 View official documentation.
               </a>
             </>

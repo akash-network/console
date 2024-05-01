@@ -153,7 +153,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                             The service name serves as a identifier for the workload to be ran on the Akash Network.
                             <br />
                             <br />
-                            <a href="https://docs.akash.network/readme/stack-definition-language#services" target="_blank" rel="noopener">
+                            <a href="https://akash.network/docs/getting-started/stack-definition-language/#services" target="_blank" rel="noopener">
                               View official documentation.
                             </a>
                           </>
@@ -330,7 +330,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                     The number of instances of the service to run.
                                     <br />
                                     <br />
-                                    <a href="https://docs.akash.network/readme/stack-definition-language#services.count" target="_blank" rel="noopener">
+                                    <a href="https://akash.network/docs/getting-started/stack-definition-language/#profilesplacement" target="_blank" rel="noopener">
                                       View official documentation.
                                     </a>
                                   </>
@@ -382,7 +382,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                               You can filter providers by attributes, audited by and pricing.
                               <br />
                               <br />
-                              <a href="https://docs.akash.network/readme/stack-definition-language#profiles.placement" target="_blank" rel="noopener">
+                              <a href="https://akash.network/docs/getting-started/stack-definition-language/#profilesplacement" target="_blank" rel="noopener">
                                 View official documentation.
                               </a>
                             </>

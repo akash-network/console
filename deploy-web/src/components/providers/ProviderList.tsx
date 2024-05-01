@@ -218,7 +218,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
       {(providers?.length || 0) > 0 && (
         <>
           <div className="mr-4">
-            <Button onClick={() => window.open("https://docs.akash.network/providers", "_blank")} size="lg" color="secondary">
+            <Button onClick={() => window.open("https://akash.network/providers/", "_blank")} size="lg" color="secondary">
               Become a provider
               <OpenNewWindow className="ml-2 text-sm" />
             </Button>

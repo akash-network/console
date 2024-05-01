@@ -108,8 +108,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
   function handleUpdateDocClick(ev) {
     ev.preventDefault();
 
-    // TODO Update
-    window.open("https://docs.akash.network/guides/cli/detailed-steps/part-11.-update-the-deployment", "_blank");
+    window.open("https://akash.network/docs/deployments/akash-cli/installation/#update-the-deployment", "_blank");
   }
 
   async function sendManifest(providerInfo: ApiProviderList, manifest: any) {

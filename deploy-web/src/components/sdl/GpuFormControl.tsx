@@ -89,7 +89,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                           bid on your workload.
                           <br />
                           <br />
-                          <a href="https://docs.akash.network/testnet/example-gpu-sdls/specific-gpu-vendor" target="_blank" rel="noopener">
+                          <a href="https://akash.network/docs/getting-started/stack-definition-language/#gpu-support" target="_blank" rel="noopener">
                             View official documentation.
                           </a>
                         </>

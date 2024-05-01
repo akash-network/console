@@ -76,7 +76,7 @@ export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
                 This allows for requiring a third-party certification of any provider that you deploy to.
                 <br />
                 <br />
-                <a href="https://docs.akash.network/readme/stack-definition-language#profiles.placement.signedby" target="_blank" rel="noopener">
+                <a href="https://akash.network/docs/getting-started/stack-definition-language/#profilesplacementsignedby" target="_blank" rel="noopener">
                   View official documentation.
                 </a>
               </>

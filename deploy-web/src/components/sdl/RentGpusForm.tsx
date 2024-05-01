@@ -266,7 +266,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
             <Alert className="mb-4" variant="default">
               <p className="text-sm text-muted-foreground">
                 To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
-                <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/glossary/escrow#escrow-accounts")}>
+                <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/intro-to-akash/bids-and-leases/#escrow-accounts")}>
                   <strong>Learn more.</strong>
                 </LinkTo>
               </p>

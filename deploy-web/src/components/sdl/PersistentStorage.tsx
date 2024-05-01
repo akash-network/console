@@ -65,7 +65,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                         This storage is mounted on a persistent volume and persistent through the lifetime of the deployment
                         <br />
                         <br />
-                        <a href="https://docs.akash.network/features/persistent-storage" target="_blank" rel="noopener">
+                        <a href="https://akash.network/docs/network-features/persistent-storage/" target="_blank" rel="noopener">
                           View official documentation.
                         </a>
                       </>

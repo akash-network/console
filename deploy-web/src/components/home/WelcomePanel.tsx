@@ -40,7 +40,7 @@ export const WelcomePanel: React.FC<Props> = () => {
                 </Avatar>
 
                 <div className="flex flex-col">
-                  <Link href={UrlService.getStarted()} className="font-bold tracking-tight">
+                  <Link href={UrlService.getStarted()} className="tracking-tight">
                     Getting started with Akash Console
                   </Link>
                   <span className="text-sm text-muted-foreground">Learn how to deploy your first docker container on Akash in a few click using Console.</span>
@@ -55,7 +55,7 @@ export const WelcomePanel: React.FC<Props> = () => {
                 </Avatar>
 
                 <div className="ml-4 flex flex-col">
-                  <Link href={UrlService.templates()} className="font-bold tracking-tight">
+                  <Link href={UrlService.templates()} className="tracking-tight">
                     Explore the marketplace
                   </Link>
                   <span className="text-sm text-muted-foreground">
@@ -72,7 +72,7 @@ export const WelcomePanel: React.FC<Props> = () => {
                 </Avatar>
 
                 <div className="ml-4 flex flex-col">
-                  <Link href="https://docs.akash.network/" target="_blank" className="font-bold tracking-tight">
+                  <Link href="https://akash.network/docs/" target="_blank" className="tracking-tight">
                     Learn more about Akash
                   </Link>
                   <span className="text-sm text-muted-foreground">Want to know about the advantages of using a decentralized cloud compute marketplace?</span>
