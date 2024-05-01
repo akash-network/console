@@ -103,13 +103,13 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
           </div>
 
           <div className="my-4 flex items-center space-x-2">
-            <Check className="text-green-500" />
+            <Check className="text-green-600" />
             <span>Wallet is installed</span>
           </div>
 
           {isWalletConnected ? (
             <div className="my-4 flex items-center space-x-2">
-              <Check className="text-green-500" />
+              <Check className="text-green-600" />
               <span>Wallet is connected</span>
             </div>
           ) : (
@@ -126,7 +126,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
           {walletBalances && (
             <div className="my-4 flex items-center space-x-2">
               {aktBalance >= minDeposit.akt || usdcBalance >= minDeposit.usdc ? (
-                <Check className="text-green-500" />
+                <Check className="text-green-600" />
               ) : (
                 <CustomTooltip
                   title={

@@ -22,7 +22,6 @@ import { BidCountdownTimer } from "./BidCountdownTimer";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { useToast } from "../ui/use-toast";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
@@ -32,6 +31,9 @@ import Spinner from "../shared/Spinner";
 import { InputWithIcon } from "../ui/input";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { useSnackbar } from "notistack";
+import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
+import { Snackbar } from "../shared/Snackbar";
 
 const yaml = require("js-yaml");
 
@@ -56,9 +58,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const [search, setSearch] = useState("");
   const { address, signAndBroadcastTx } = useWallet();
   const { localCert } = useCertificate();
-  const { toast, dismiss } = useToast();
   const router = useRouter();
-  const [anchorEl, setAnchorEl] = useState(null);
   const [numberOfRequests, setNumberOfRequests] = useState(0);
   const { data: providers } = useProviderList();
   const warningRequestsReached = numberOfRequests > WARNING_NUM_OF_BID_REQUESTS;
@@ -82,6 +82,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
       }, {} as any) || {};
   const dseqList = Object.keys(groupedBids).map(g => parseInt(g));
   const allClosed = (bids?.length || 0) > 0 && bids?.every(bid => bid.state === "closed");
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   useEffect(() => {
     getDeploymentDetail();
@@ -148,7 +149,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
       return response;
     } catch (err) {
-      toast({ title: "Error", description: `Error while sending manifest to provider. ${err}`, variant: "destructive" });
+      enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
       throw err;
     }
   }
@@ -184,7 +185,10 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     const localDeploymentData = getDeploymentLocalData(dseq);
     if (localDeploymentData && localDeploymentData.manifest) {
       // Send the manifest
-      const { id: sendManifestKey } = toast({ title: "Deploying! 🚀", description: "Please wait a few seconds...", loading: true, variant: "default" });
+      const sendManifestKey = enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
+        variant: "info",
+        autoHideDuration: null
+      });
 
       try {
         const yamlJson = yaml.load(localDeploymentData.manifest);
@@ -198,7 +202,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
       } catch (err) {
         console.error(err);
       }
-      dismiss(sendManifestKey);
+      closeSnackbar(sendManifestKey);
     }
 
     event(AnalyticsEvents.SEND_MANIFEST, {
@@ -220,10 +224,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     } catch (error) {
       throw error;
     }
-  }
-
-  function handleMenuClick(ev) {
-    setAnchorEl(ev.currentTarget);
   }
 
   const onSearchChange = event => {
@@ -262,7 +262,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <div className="mx-2">
-                    <Button size="icon" variant="ghost" onClick={handleMenuClick}>
+                    <Button size="icon" variant="ghost">
                       <MoreHoriz className="text-lg" />
                     </Button>
                   </div>

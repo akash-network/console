@@ -68,8 +68,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const colors = {
     balance_akt: customColors.akashRed,
     balance_usdc: customColors.akashRed,
-    deployment_akt: green[500],
-    deployment_usdc: green[500]
+    deployment_akt: green[600],
+    deployment_usdc: green[600]
   };
 
   const getAktData = (balances: Balances, escrowUAktSum: number) => {

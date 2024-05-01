@@ -2,13 +2,14 @@
 import { useEffect, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { updateDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
-import { useToast } from "@src/components/ui/use-toast";
 import { Popup } from "@src/components/shared/Popup";
 import { InputWithIcon } from "@src/components/ui/input";
+import { useSnackbar } from "notistack";
+import { Snackbar } from "@src/components/shared/Snackbar";
 
 export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName }) => {
   const formRef = useRef<HTMLFormElement | null>(null);
-  const { toast } = useToast();
+  const { enqueueSnackbar } = useSnackbar();
   const { handleSubmit, control, setValue } = useForm({
     defaultValues: {
       name: ""
@@ -31,11 +32,7 @@ export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName 
   function onSubmit({ name }) {
     updateDeploymentLocalData(dseq, { name: name });
 
-    toast({
-      title: "Success!",
-      variant: "success"
-    });
-    // enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
+    enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
 
     onSaved();
   }

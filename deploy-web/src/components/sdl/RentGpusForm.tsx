@@ -328,21 +328,19 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           </Alert>
         )}
 
-        <div className="flex items-center justify-center pt-4">
-          <div className="flex items-center">
-            <Button size="lg" color="secondary" variant="default" type="submit" disabled={isCreatingDeployment || !!error}>
-              {isCreatingDeployment ? (
-                <Spinner />
-              ) : (
-                <>
-                  Deploy{" "}
-                  <span className="ml-2 inline-flex items-center">
-                    <Rocket className="rotate-45 text-sm" />
-                  </span>
-                </>
-              )}
-            </Button>
-          </div>
+        <div className="flex items-center justify-end pt-4">
+          <Button size="lg" variant="default" type="submit" disabled={isCreatingDeployment || !!error}>
+            {isCreatingDeployment ? (
+              <Spinner />
+            ) : (
+              <>
+                Deploy{" "}
+                <span className="ml-2 inline-flex items-center">
+                  <Rocket className="rotate-45 text-sm" />
+                </span>
+              </>
+            )}
+          </Button>
         </div>
       </form>
     </>

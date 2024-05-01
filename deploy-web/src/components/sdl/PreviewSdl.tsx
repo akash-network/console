@@ -1,12 +1,13 @@
-"use client"
+"use client";
 import { ReactNode } from "react";
 import Editor from "@monaco-editor/react";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
-import { useToast } from "@src/components/ui/use-toast";
 import { Popup } from "@src/components/shared/Popup";
 import { Button } from "@src/components/ui/button";
 import { Copy } from "iconoir-react";
 import { useTheme } from "next-themes";
+import { useSnackbar } from "notistack";
+import { Snackbar } from "../shared/Snackbar";
 
 type Props = {
   sdl: string;
@@ -15,16 +16,15 @@ type Props = {
 };
 
 export const PreviewSdl: React.FunctionComponent<Props> = ({ sdl, onClose }) => {
-  const { toast } = useToast();
   const { theme } = useTheme();
+  const { enqueueSnackbar } = useSnackbar();
 
   const onCopyClick = () => {
     copyTextToClipboard(sdl);
-    toast({title: "SDL copied to clipboard!", variant: "success"});
-    // enqueueSnackbar(<Snackbar title="SDL copied to clipboard!" iconVariant="success" />, {
-    //   variant: "success",
-    //   autoHideDuration: 3000
-    // });
+    enqueueSnackbar(<Snackbar title="SDL copied to clipboard!" iconVariant="success" />, {
+      variant: "success",
+      autoHideDuration: 3000
+    });
   };
 
   return (
@@ -46,7 +46,7 @@ export const PreviewSdl: React.FunctionComponent<Props> = ({ sdl, onClose }) => 
       maxWidth="md"
       enableCloseOnBackdropClick
     >
-      <div className="flex items-center mb-4">
+      <div className="mb-4 flex items-center">
         <Button color="secondary" variant="default" onClick={onCopyClick} size="sm">
           Copy the SDL
           <Copy className="ml-2 text-sm" />

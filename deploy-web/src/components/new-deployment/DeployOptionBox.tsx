@@ -30,11 +30,11 @@ export const DeployOptionBox: React.FunctionComponent<Props> = ({ title, descrip
             </Avatar>
           )}
 
-          <div className="ml-4 font-bold">{title}</div>
+          <div className="ml-4 font-bold tracking-tight">{title}</div>
         </div>
       </CardHeader>
       <CardContent className="pb-4 pt-0">
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
   );

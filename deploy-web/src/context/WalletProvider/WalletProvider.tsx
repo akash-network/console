@@ -18,8 +18,10 @@ import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { customRegistry } from "@src/utils/customRegistry";
 import { useManager } from "@cosmos-kit/react";
-import { useToast } from "@src/components/ui/use-toast";
-import { OpenInWindow } from "iconoir-react";
+import { OpenInWindow, OpenNewWindow } from "iconoir-react";
+import { SnackbarKey, useSnackbar } from "notistack";
+import { Snackbar } from "@src/components/shared/Snackbar";
+import Link from "next/link";
 
 type Balances = {
   uakt: number;
@@ -46,7 +48,7 @@ export const WalletProvider = ({ children }) => {
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
-  const { toast, dismiss } = useToast();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const sigingClient = useRef<SigningStargateClient | null>(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -160,7 +162,7 @@ export const WalletProvider = ({ children }) => {
 
   async function signAndBroadcastTx(msgs: EncodeObject[]): Promise<boolean> {
     setIsWaitingForApproval(true);
-    let pendingSnackbarKey: string | null = null;
+    let pendingSnackbarKey: SnackbarKey | null = null;
     try {
       const estimatedFees = await estimateFee(msgs);
 
@@ -169,13 +171,10 @@ export const WalletProvider = ({ children }) => {
       setIsWaitingForApproval(false);
       setIsBroadcastingTx(true);
 
-      const { id } = toast({
-        title: "Broadcasting transaction...",
-        description: "Please wait a few seconds",
-        loading: true,
-        variant: "default"
+      pendingSnackbarKey = enqueueSnackbar(<Snackbar title="Broadcasting transaction..." subTitle="Please wait a few seconds" showLoading />, {
+        variant: "info",
+        autoHideDuration: null
       });
-      pendingSnackbarKey = id;
 
       const txResult = await broadcast(txRaw);
 
@@ -185,15 +184,7 @@ export const WalletProvider = ({ children }) => {
         throw new Error(txResult.rawLog);
       }
 
-      toast({
-        title: "Transaction success!",
-        description: (
-          <LinkTo className="flex items-center" onClick={() => window.open(`https://stats.akash.network/transactions/${txResult.transactionHash}`, "_blank")}>
-            View transaction <OpenInWindow className="ml-2 text-sm" />
-          </LinkTo>
-        ),
-        variant: "success"
-      });
+      showTransactionSnackbar("Transaction success!", "", txResult.transactionHash, "success");
 
       event(AnalyticsEvents.SUCCESSFUL_TX, {
         category: "transactions",
@@ -253,26 +244,37 @@ export const WalletProvider = ({ children }) => {
         });
       }
 
-      toast({
-        title: "Transaction has failed...",
-        description: transactionHash && (
-          <LinkTo className="flex items-center" onClick={() => window.open(`https://stats.akash.network/transactions/${transactionHash}`, "_blank")}>
-            View transaction <OpenInWindow className="ml-2 text-xs" />
-          </LinkTo>
-        ),
-        variant: "success"
-      });
+      showTransactionSnackbar("Transaction has failed...", errorMsg, transactionHash, "error");
 
       return false;
     } finally {
       if (pendingSnackbarKey) {
-        dismiss(pendingSnackbarKey);
+        closeSnackbar(pendingSnackbarKey);
       }
 
       setIsWaitingForApproval(false);
       setIsBroadcastingTx(false);
     }
   }
+
+  const showTransactionSnackbar = (
+    snackTitle: string,
+    snackMessage: string,
+    transactionHash: string,
+    snackVariant: React.ComponentProps<typeof Snackbar>["iconVariant"]
+  ) => {
+    enqueueSnackbar(
+      <Snackbar
+        title={snackTitle}
+        subTitle={<TransactionSnackbarContent snackMessage={snackMessage} transactionHash={transactionHash} />}
+        iconVariant={snackVariant}
+      />,
+      {
+        variant: snackVariant,
+        autoHideDuration: 10000
+      }
+    );
+  };
 
   async function refreshBalances(address?: string): Promise<{ uakt: number; usdc: number }> {
     const _address = address || walletAddress;
@@ -325,3 +327,20 @@ export const WalletProvider = ({ children }) => {
 export function useWallet() {
   return { ...React.useContext(WalletProviderContext) };
 }
+
+const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
+  const txUrl = transactionHash && `https://stats.akash.network/transactions/${transactionHash}`;
+
+  return (
+    <>
+      {snackMessage}
+      {snackMessage && <br />}
+      {txUrl && (
+        <Link href={txUrl} target="_blank" className="inline-flex items-center space-x-2 !text-white">
+          <span>View transaction</span>
+          <OpenNewWindow className="text-xs" />
+        </Link>
+      )}
+    </>
+  );
+};

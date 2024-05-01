@@ -13,7 +13,6 @@ import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { ApiProviderList } from "@src/types/provider";
 import { useSettings } from "@src/context/SettingsProvider";
-import { useToast } from "@src/components/ui/use-toast";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { Alert } from "@src/components/ui/alert";
 import { Button } from "@src/components/ui/button";
@@ -25,6 +24,9 @@ import { CustomTooltip } from "@src/components/shared/CustomTooltip";
 import { InfoCircle, WarningCircle } from "iconoir-react";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { Title } from "../shared/Title";
+import { useSnackbar } from "notistack";
+import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
+import { Snackbar } from "../shared/Snackbar";
 
 type Props = {
   deployment: DeploymentDto;
@@ -40,9 +42,9 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
   const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
   const { settings } = useSettings();
   const { address, signAndBroadcastTx } = useWallet();
-  const { toast, dismiss } = useToast();
   const { data: providers } = useProviderList();
   const { localCert, isLocalCertMatching, createCertificate, isCreatingCert } = useCertificate();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   useEffect(() => {
     const init = async () => {
@@ -116,7 +118,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
       return response;
     } catch (err) {
-      toast({ title: "Error", description: `Error while sending manifest to provider. ${err}`, variant: "destructive" });
+      enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
       throw err;
     }
   }
@@ -148,7 +150,10 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
         saveDeploymentManifest(dd.deploymentId.dseq, editedManifest, dd.version, address);
 
-        const { id: sendManifestKey } = toast({ title: "Deploying! 🚀", description: "Please wait a few seconds...", loading: true, variant: "default" });
+        sendManifestKey = enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
+          variant: "info",
+          autoHideDuration: null
+        });
 
         const leaseProviders = leases.map(lease => lease.provider).filter((v, i, s) => s.indexOf(v) === i);
 
@@ -164,14 +169,14 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
         setIsSendingManifest(false);
 
-        dismiss(sendManifestKey);
+        closeSnackbar(sendManifestKey);
 
         closeManifestEditor();
       }
     } catch (error) {
       console.error(error);
       setIsSendingManifest(false);
-      dismiss(sendManifestKey);
+      closeSnackbar(sendManifestKey);
     }
   }
 
@@ -226,7 +231,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
               <div>
                 {!localCert || !isLocalCertMatching ? (
                   <div className="flex items-center space-x-4">
-                    <Alert variant="warning" className="text-sm py-2">
+                    <Alert variant="warning" className="py-2 text-sm">
                       You do not have a valid certificate. You need to create a new one to update an existing deployment.
                     </Alert>
 

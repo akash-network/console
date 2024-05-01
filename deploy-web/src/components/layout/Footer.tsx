@@ -14,7 +14,7 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
       <footer>
         <div className="mb-4 grid grid-cols-1 gap-4">
           <div>
-            <Title subTitle className="mb-2">
+            <Title subTitle className="mb-2 tracking-tight">
               Akash Console
             </Title>
             <p className="text-sm font-light">

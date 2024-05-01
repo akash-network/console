@@ -14,7 +14,6 @@ import { ApiProviderList } from "@src/types/provider";
 import { LeaseDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { useBidInfo } from "@src/queries/useBidQuery";
-import { useToast } from "@src/components/ui/use-toast";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { Card, CardContent, CardHeader } from "@src/components/ui/card";
@@ -33,6 +32,9 @@ import { StatusPill } from "@src/components/shared/StatusPill";
 import { cn } from "@src/utils/styleUtils";
 import { Check, Copy, InfoCircle, OpenInWindow } from "iconoir-react";
 import { Badge } from "@src/components/ui/badge";
+import { useSnackbar } from "notistack";
+import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
+import { Snackbar } from "../shared/Snackbar";
 
 const yaml = require("js-yaml");
 
@@ -50,7 +52,6 @@ export type AcceptRefType = {
 };
 
 export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActiveTab, deploymentManifest, dseq, providers, loadDeploymentDetail }, ref) => {
-  const { toast } = useToast();
   const provider = providers?.find(p => p.owner === lease?.provider);
   const { localCert } = useCertificate();
   const isLeaseActive = lease.state === "active";
@@ -83,6 +84,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
   const servicesNames = leaseStatus ? Object.keys(leaseStatus.services) : [];
   const [isSendingManifest, setIsSendingManifest] = useState(false);
   const { data: bid } = useBidInfo(lease.owner, lease.dseq, lease.gseq, lease.oseq, lease.provider);
+  const { enqueueSnackbar } = useSnackbar();
 
   React.useImperativeHandle(ref, () => ({
     getLeaseStatus: loadLeaseStatus
@@ -131,13 +133,11 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
 
       await sendManifestToProvider(provider as ApiProviderList, manifest, dseq, localCert as LocalCert);
 
-      toast({ title: "Manifest sent!", variant: "success" });
-      // enqueueSnackbar(<Snackbar title="Manifest sent!" iconVariant="success" />, { variant: "success", autoHideDuration: 10_000 });
+      enqueueSnackbar(<Snackbar title="Manifest sent!" iconVariant="success" />, { variant: "success", autoHideDuration: 10_000 });
 
       loadDeploymentDetail();
     } catch (err) {
-      toast({ title: "Error", description: `Error while sending manifest to provider. ${err}`, variant: "destructive" });
-      // enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
+      enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
     }
     setIsSendingManifest(false);
   }
@@ -367,7 +367,10 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                                 className="rounded-full"
                                 onClick={ev => {
                                   copyTextToClipboard(uri);
-                                  toast({ title: "Uri copied to clipboard!", variant: "success" });
+                                  enqueueSnackbar(<Snackbar title="Uri copied to clipboard!" iconVariant="success" />, {
+                                    variant: "success",
+                                    autoHideDuration: 2000
+                                  });
                                 }}
                               >
                                 <Copy />
@@ -415,7 +418,10 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                       className="rounded-full"
                       onClick={ev => {
                         copyTextToClipboard(`${ip.IP}:${ip.ExternalPort}`);
-                        toast({ title: "IP copied to clipboard!", variant: "success" });
+                        enqueueSnackbar(<Snackbar title="Ip copied to clipboard!" iconVariant="success" />, {
+                          variant: "success",
+                          autoHideDuration: 2000
+                        });
                       }}
                     >
                       <Copy />

@@ -13,16 +13,16 @@ import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { Popup } from "../shared/Popup";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useUsdcDenom } from "@src/hooks/useDenom";
-import { useToast } from "../ui/use-toast";
 import { Alert } from "../ui/alert";
 import { FormItem } from "../ui/form";
-import { cn } from "@src/utils/styleUtils";
 import { InputWithIcon } from "../ui/input";
-import { Checkbox, CheckboxWithLabel } from "../ui/checkbox";
+import { CheckboxWithLabel } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useSettings } from "@src/context/SettingsProvider";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
+import { useSnackbar } from "notistack";
+import { Snackbar } from "../shared/Snackbar";
 
 type Props = {
   infoText?: string | ReactNode;
@@ -36,8 +36,7 @@ type Props = {
 export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleCancel, onDeploymentDeposit, disableMin, denom, infoText = null }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const { settings } = useSettings();
-  // const { enqueueSnackbar } = useSnackbar();
-  const { toast } = useToast();
+  const { enqueueSnackbar } = useSnackbar();
   const [error, setError] = useState("");
   const [isCheckingDepositor, setIsCheckingDepositor] = useState(false);
   const { walletBalances, address } = useWallet();
@@ -115,8 +114,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
       return true;
     } catch (err) {
       console.error(err);
-      // enqueueSnackbar(<Snackbar title={err.message} iconVariant="error" />, { variant: "error" });
-      toast({ title: err.message, variant: "destructive" });
+      enqueueSnackbar(<Snackbar title={err.message} iconVariant="error" />, { variant: "error" });
       return false;
     } finally {
       setIsCheckingDepositor(false);

@@ -63,33 +63,35 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
             <Provider>
               <ThemeProvider attribute="class" defaultTheme="light" storageKey="theme" enableSystem disableTransitionOnChange>
                 <ColorModeProvider>
-                  <PricingProvider>
-                    <UserProvider>
-                      <AddressBookProvider>
-                        <TooltipProvider>
-                          <SettingsProvider>
-                            <CustomChainProvider>
-                              <WalletProvider>
-                                <ChainParamProvider>
-                                  <CertificateProvider>
-                                    <BackgroundTaskProvider>
-                                      <TemplatesProvider>
-                                        <LocalNoteProvider>
-                                          <GoogleAnalytics />
+                  <CustomSnackbarProvider>
+                    <PricingProvider>
+                      <UserProvider>
+                        <AddressBookProvider>
+                          <TooltipProvider>
+                            <SettingsProvider>
+                              <CustomChainProvider>
+                                <WalletProvider>
+                                  <ChainParamProvider>
+                                    <CertificateProvider>
+                                      <BackgroundTaskProvider>
+                                        <TemplatesProvider>
+                                          <LocalNoteProvider>
+                                            <GoogleAnalytics />
 
-                                          <Component {...pageProps} />
-                                        </LocalNoteProvider>
-                                      </TemplatesProvider>
-                                    </BackgroundTaskProvider>
-                                  </CertificateProvider>
-                                </ChainParamProvider>
-                              </WalletProvider>
-                            </CustomChainProvider>
-                          </SettingsProvider>
-                        </TooltipProvider>
-                      </AddressBookProvider>
-                    </UserProvider>
-                  </PricingProvider>
+                                            <Component {...pageProps} />
+                                          </LocalNoteProvider>
+                                        </TemplatesProvider>
+                                      </BackgroundTaskProvider>
+                                    </CertificateProvider>
+                                  </ChainParamProvider>
+                                </WalletProvider>
+                              </CustomChainProvider>
+                            </SettingsProvider>
+                          </TooltipProvider>
+                        </AddressBookProvider>
+                      </UserProvider>
+                    </PricingProvider>
+                  </CustomSnackbarProvider>
                 </ColorModeProvider>
               </ThemeProvider>
             </Provider>
