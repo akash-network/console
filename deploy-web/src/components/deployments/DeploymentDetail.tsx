@@ -27,6 +27,8 @@ import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
 import Layout from "../layout/Layout";
 import { NextSeo } from "next-seo";
 import { Title } from "../shared/Title";
+import { event } from "nextjs-google-analytics";
+import { AnalyticsEvents } from "@src/utils/analytics";
 
 export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: string }>) {
   const router = useRouter();
@@ -130,10 +132,10 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
       router.replace(UrlService.deploymentDetails(dseq));
     }
 
-    // event(`${AnalyticsEvents.NAVIGATE_TAB}${value}`, {
-    //   category: "deployments",
-    //   label: `Navigate tab ${value} in deployment detail`
-    // });
+    event(`${AnalyticsEvents.NAVIGATE_TAB}${value}`, {
+      category: "deployments",
+      label: `Navigate tab ${value} in deployment detail`
+    });
   };
 
   return (
