@@ -91,7 +91,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
   function groupUptimeChecksByPeriod(uptimeChecks: { isOnline: boolean; checkDate: string }[] = []) {
     const groupedSnapshots: { checkDate: Date; checks: boolean[] }[] = [];
 
-    const sortedUptimeChecks = uptimeChecks.toSorted((a, b) => new Date(a.checkDate).getTime() - new Date(b.checkDate).getTime());
+    const sortedUptimeChecks = [...uptimeChecks].sort((a, b) => new Date(a.checkDate).getTime() - new Date(b.checkDate).getTime());
 
     for (const snapshot of sortedUptimeChecks) {
       const recentGroup = groupedSnapshots.find(x => differenceInMinutes(new Date(snapshot.checkDate), x.checkDate) < 15);
@@ -113,7 +113,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
   }
 
   const uptimePeriods = useMemo(() => groupUptimeChecksByPeriod(provider?.uptime || []), [provider?.uptime]);
-  const wasRecentlyOnline = provider && (provider.isOnline || (provider.lastCheckDate && new Date(provider.lastCheckDate) >= sub(new Date(), { hours: 24 })));
+  const wasRecentlyOnline = provider && (provider.isOnline || (provider.lastOnlineDate && new Date(provider.lastOnlineDate) >= sub(new Date(), { hours: 24 })));
 
   return (
     <Layout isLoading={isLoading}>
@@ -126,7 +126,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
           </Box>
         )}
 
-        {provider && !wasRecentlyOnline && !isLoading && (
+        {provider && !wasRecentlyOnline && !isLoadingProvider && (
           <Alert
             variant="outlined"
             severity="warning"
