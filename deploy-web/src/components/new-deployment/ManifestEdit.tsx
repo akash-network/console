@@ -24,8 +24,7 @@ import { useAtom } from "jotai";
 import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { useChainParam } from "@src/context/ChainParamProvider";
-import { useMediaQuery } from "usehooks-ts";
-import { default as useMuiTheme } from "@mui/material/styles/useTheme";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { Alert } from "../ui/alert";
 import { Button } from "../ui/button";
@@ -36,6 +35,7 @@ import { InputWithIcon } from "../ui/input";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { cn } from "@src/utils/styleUtils";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 type Props = {
   selectedTemplate: TemplateCreation;

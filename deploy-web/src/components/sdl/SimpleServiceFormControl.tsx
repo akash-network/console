@@ -24,7 +24,6 @@ import { MemoryFormControl } from "./MemoryFormControl";
 import { StorageFormControl } from "./StorageFormControl";
 import { TokenFormControl } from "./TokenFormControl";
 import { GpuVendor } from "@src/types/gpu";
-import { useMediaQuery } from "usehooks-ts";
 import { Card, CardContent } from "../ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Button, buttonVariants } from "../ui/button";
@@ -32,7 +31,8 @@ import { NavArrowDown, Bin, InfoCircle, OpenInWindow, BinMinusIn } from "iconoir
 import { cn } from "@src/utils/styleUtils";
 import { InputWithIcon } from "../ui/input";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { default as useMuiTheme } from "@mui/material/styles/useTheme";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 type Props = {
   _services: Service[];

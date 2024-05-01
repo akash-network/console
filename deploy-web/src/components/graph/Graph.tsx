@@ -3,11 +3,11 @@ import { ResponsiveLineCanvas } from "@nivo/line";
 import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@src/types";
 import { FormattedDate, useIntl } from "react-intl";
 import { useTheme } from "next-themes";
-import { default as useMuiTheme } from "@mui/material/styles/useTheme";
-import { useMediaQuery } from "usehooks-ts";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { nFormatter, roundDecimal } from "@src/utils/mathHelpers";
 import { customColors } from "@src/utils/colors";
 import { selectedRangeValues } from "@src/utils/constants";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 interface IGraphProps {
   rangedData: SnapshotValue[];

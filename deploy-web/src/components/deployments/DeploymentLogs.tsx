@@ -11,8 +11,7 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { LeaseDto } from "@src/types/deployment";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { useMediaQuery } from "usehooks-ts";
-import { default as useMuiTheme } from "@mui/material/styles/useTheme";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { MemoMonaco } from "@src/components/shared/MemoMonaco";
 import { editor } from "monaco-editor";
 import { Monaco } from "@monaco-editor/react";
@@ -27,6 +26,7 @@ import { cn } from "@src/utils/styleUtils";
 import { Download, MoreHoriz } from "iconoir-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@src/components/ui/dropdown-menu";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 export type LOGS_MODE = "logs" | "events";
 

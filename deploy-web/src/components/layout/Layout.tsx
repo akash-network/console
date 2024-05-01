@@ -107,8 +107,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
       <div className="h-full">
         <div className="h-full w-full" style={{ marginTop: `${accountBarHeight}px` }}>
           <div className="h-full">
-            {/* <Header isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} /> */}
-            <Nav />
+            <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} />
 
             <div className="block h-full w-full flex-grow rounded-none md:flex">
               <Sidebar onOpenMenuClick={onOpenMenuClick} isNavOpen={isNavOpen} handleDrawerToggle={handleDrawerToggle} isMobileOpen={isMobileOpen} />

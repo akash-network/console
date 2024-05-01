@@ -1,6 +1,6 @@
 "use client";
 import React, { ReactNode, useState } from "react";
-import { accountBarHeight, closedDrawerWidth, drawerWidth } from "@src/utils/constants";
+import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { UrlService } from "@src/utils/urlUtils";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
 import Link from "next/link";
@@ -8,16 +8,16 @@ import { NodeStatusBar } from "./NodeStatusBar";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
 import { MobileSidebarUser } from "./MobileSidebarUser";
-import { useMediaQuery } from "usehooks-ts";
 import { Button, buttonVariants } from "../ui/button";
 import { cn } from "@src/utils/styleUtils";
 import { Rocket, Github, X as TwitterX, Discord, Menu, MenuScale } from "iconoir-react";
-import { Drawer } from "@rewind-ui/core";
 import { Home, Cloud, MultiplePages, Tools, Server, OpenInWindow, HelpCircle, Settings } from "iconoir-react";
 import { ISidebarGroupMenu } from "@src/types";
 import getConfig from "next/config";
-import { useTheme } from "@mui/material";
 import { ModeToggle } from "./ModeToggle";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
+import Drawer from "@mui/material/Drawer";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 const { publicRuntimeConfig } = getConfig();
 
@@ -33,8 +33,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const [isHovering, setIsHovering] = useState(false);
   const _isNavOpen = isNavOpen || isHovering;
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
-  const theme = useTheme();
-  const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  const muiTheme = useMuiTheme();
+  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   const routeGroups: ISidebarGroupMenu[] = [
     {
@@ -138,7 +138,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const drawer = (
     <div
       style={{ width: _isNavOpen ? drawerWidth : closedDrawerWidth }}
-      className="box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 bg-popover transition-[width] duration-300 ease-in-out"
+      className="box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 bg-popover transition-[width] duration-300 ease-in-out md:h-[calc(100%-57px)]"
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: _isNavOpen, ["pb-2 pt-2"]: !_isNavOpen })}>
         <Link
@@ -208,67 +208,50 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
 
   return (
     <nav
-      style={{
-        // width: !mdScreen ? 0 : _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth,
-        height: `calc(100% - ${accountBarHeight}px)`
-      }}
-      className={cn("ease fixed z-[100] h-full bg-header/95  transition-[width] duration-300 md:flex-shrink-0", {
+      className={cn("ease fixed z-[100] bg-header/95 md:flex-shrink-0", {
         ["md:w-[240px]"]: _isNavOpen || isHovering,
         ["md:w-[57px]"]: !(_isNavOpen || isHovering)
       })}
     >
       {/* Mobile Drawer */}
       <Drawer
-        // variant="temporary"
+        variant="temporary"
         open={isMobileOpen}
-        // disableScrollLock
+        disableScrollLock
         onClose={handleDrawerToggle}
-        position="left"
-        className="!bg-background p-4"
-        // customIdSuffix="mobile-drawer"
-        // overlayClassName="block md:hidden"
-        // ModalProps={{
-        //   keepMounted: true // Better open performance on mobile.
-        // }}
-        // sx={{
-        //   display: { xs: "block", sm: "block", md: "none" },
-        //   "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth, overflow: "hidden" }
-        // }}
-        // PaperProps={{
-        //   sx: {
-        //     border: "none"
-        //   }
-        // }}
+        className="block p-4 md:hidden"
+        ModalProps={{
+          keepMounted: true // Better open performance on mobile.
+        }}
+        sx={{
+          display: { xs: "block", sm: "block", md: "none" },
+          "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth, overflow: "hidden" }
+        }}
+        PaperProps={{
+          sx: {
+            border: "none"
+          }
+        }}
       >
         {drawer}
       </Drawer>
 
       {/* Desktop Drawer */}
-      <div
-        className="hidden h-full md:block"
-        // variant="permanent"
-        // sx={{
-        //   display: { xs: "none", sm: "none", md: "block" },
-        //   "& .MuiDrawer-paper": {
-        //     boxSizing: "border-box",
-        //     width: _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth,
-        //     overflow: "hidden",
-        //     marginTop: `${accountBarHeight}px`,
-        //     transition: "width .3s ease",
-        //     zIndex: 1000
-        //   }
-        // }}
+      <Drawer
+        className="hidden md:block"
+        variant="permanent"
         onMouseEnter={onDrawerHover}
         onMouseLeave={() => setIsHovering(false)}
-        // PaperProps={{
-        //   sx: {
-        //     border: "none"
-        //   }
-        // }}
-        // open
+        PaperProps={{
+          className: cn("border-none ease z-[1000] bg-header/95 transition-[width] duration-300 box-border overflow-hidden mt-[57px]", {
+            ["md:w-[240px]"]: _isNavOpen || isHovering,
+            ["md:w-[57px]"]: !(_isNavOpen || isHovering)
+          })
+        }}
+        open
       >
         {drawer}
-      </div>
+      </Drawer>
     </nav>
   );
 };
