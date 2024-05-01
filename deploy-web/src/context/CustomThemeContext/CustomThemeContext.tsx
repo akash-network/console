@@ -56,6 +56,9 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
           }
         })
   },
+  typography: {
+    fontFamily: ["Geist", "sans-serif"].join(",")
+  },
   breakpoints: {
     values: {
       xs: 0,

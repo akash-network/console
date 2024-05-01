@@ -4,20 +4,6 @@ import Document, { Head, Main, NextScript, Html } from "next/document";
 import createEmotionServer from "@emotion/server/create-instance";
 import React from "react";
 import { customColors } from "@src/utils/colors";
-import { cn } from "@src/utils/styleUtils";
-// import { cookies } from "next/headers";
-
-/**
- * Get the theme from the cookie
- * next-themes doesn't support SSR
- * https://github.com/pacocoursey/next-themes/issues/169
- */
-// function getTheme() {
-//   const cookieStore = cookies();
-//   const themeCookie = cookieStore.get("theme");
-//   const theme = themeCookie ? themeCookie.value : "light";
-//   return theme;
-// }
 
 export default class MyDocument extends Document {
   render() {
@@ -33,6 +19,7 @@ export default class MyDocument extends Document {
           <meta name="theme-color" content={customColors.dark} />
           <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
           <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;500;700;900&display=swap" rel="stylesheet" />
 
           {/* Inject MUI styles first to match with the prepend: true configuration. */}
           {(this.props as any).emotionStyleTags}
