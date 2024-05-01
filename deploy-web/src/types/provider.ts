@@ -205,6 +205,7 @@ export interface ApiProviderList {
   uptime30d: number;
   isValidVersion: boolean;
   isOnline: boolean;
+  lastOnlineDate: string;
   isAudited: boolean;
   gpuModels: { vendor: string; model: string; ram: string; interface: string }[];
   activeStats: {
