@@ -25,7 +25,7 @@ import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useMediaQuery } from "usehooks-ts";
-import { breakpoints } from "@src/utils/responsiveUtils";
+import { default as useMuiTheme } from "@mui/material/styles/useTheme";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { Alert } from "../ui/alert";
 import { Button } from "../ui/button";
@@ -35,6 +35,7 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import { InputWithIcon } from "../ui/input";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
+import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   selectedTemplate: TemplateCreation;
@@ -55,8 +56,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const router = useRouter();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
-  // TODO
-  const smallScreen = useMediaQuery(breakpoints.md.mediaQuery);
+  const muiTheme = useMuiTheme();
+  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
   const { minDeposit } = useChainParam();
 
@@ -277,7 +278,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       {parsingError && <Alert variant="warning">{parsingError}</Alert>}
 
       {selectedSdlEditMode === "yaml" && (
-        <ViewPanel stickToBottom style={{ overflow: "hidden", margin: !smallScreen ? "0 -1rem" : 0 }}>
+        <ViewPanel stickToBottom className={cn("overflow-hidden", { ["-mx-4"]: smallScreen })}>
           <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
         </ViewPanel>
       )}

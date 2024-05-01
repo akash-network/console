@@ -3,8 +3,8 @@ import { ResponsiveLineCanvas } from "@nivo/line";
 import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@src/types";
 import { FormattedDate, useIntl } from "react-intl";
 import { useTheme } from "next-themes";
+import { default as useMuiTheme } from "@mui/material/styles/useTheme";
 import { useMediaQuery } from "usehooks-ts";
-import { breakpoints } from "@src/utils/responsiveUtils";
 import { nFormatter, roundDecimal } from "@src/utils/mathHelpers";
 import { customColors } from "@src/utils/colors";
 import { selectedRangeValues } from "@src/utils/constants";
@@ -24,7 +24,8 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   const { theme } = useTheme();
   const intl = useIntl();
   const graphTheme = getTheme(theme);
-  const smallScreen = useMediaQuery(breakpoints.xs.mediaQuery);
+  const muiTheme = useMuiTheme();
+  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("sm"));
   const minValue = rangedData && snapshotMetadata.unitFn(rangedData.map(x => x.value).reduce((a: number, b: number) => (a < b ? a : b))).value;
   const maxValue = snapshotData && snapshotMetadata.unitFn(rangedData.map(x => x.value).reduce((a: number, b: number) => (a > b ? a : b))).value;
   const graphData = snapshotData

@@ -12,7 +12,7 @@ import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { LeaseDto } from "@src/types/deployment";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { useMediaQuery } from "usehooks-ts";
-import { breakpoints } from "@src/utils/responsiveUtils";
+import { default as useMuiTheme } from "@mui/material/styles/useTheme";
 import { MemoMonaco } from "@src/components/shared/MemoMonaco";
 import { editor } from "monaco-editor";
 import { Monaco } from "@monaco-editor/react";
@@ -71,9 +71,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       return true;
     }
   });
-  const [anchorEl, setAnchorEl] = useState(null);
-  // TODO Breakpoints
-  const smallScreen = useMediaQuery(breakpoints.md.mediaQuery);
+  const muiTheme = useMuiTheme();
+  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   function handleEditorDidMount(editor: editor.IStandaloneCodeEditor, monaco: Monaco) {
     // here is another way to get monaco instance
@@ -269,7 +268,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                   )}
                 </div>
 
-                {!smallScreen ? (
+                {smallScreen ? (
                   <div>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>

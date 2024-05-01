@@ -25,7 +25,6 @@ import { StorageFormControl } from "./StorageFormControl";
 import { TokenFormControl } from "./TokenFormControl";
 import { GpuVendor } from "@src/types/gpu";
 import { useMediaQuery } from "usehooks-ts";
-import { breakpoints } from "@src/utils/responsiveUtils";
 import { Card, CardContent } from "../ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Button, buttonVariants } from "../ui/button";
@@ -33,6 +32,7 @@ import { NavArrowDown, Bin, InfoCircle, OpenInWindow, BinMinusIn } from "iconoir
 import { cn } from "@src/utils/styleUtils";
 import { InputWithIcon } from "../ui/input";
 import { CustomTooltip } from "../shared/CustomTooltip";
+import { default as useMuiTheme } from "@mui/material/styles/useTheme";
 
 type Props = {
   _services: Service[];
@@ -63,8 +63,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(null);
   const [isEditingExpose, setIsEditingExpose] = useState<number | boolean | null>(null);
   const [isEditingPlacement, setIsEditingPlacement] = useState<number | boolean | null>(null);
-  // TODO
-  const isDesktop = useMediaQuery(breakpoints.md.mediaQuery);
+  const muiTheme = useMuiTheme();
+  const isDesktop = useMediaQuery(muiTheme.breakpoints.up("sm"));
   const expanded = !serviceCollapsed.some(x => x === serviceIndex);
   const currentService: Service = _services[serviceIndex] || ({} as any);
   const _isEditingEnv = serviceIndex === isEditingEnv;
@@ -330,7 +330,11 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                     The number of instances of the service to run.
                                     <br />
                                     <br />
-                                    <a href="https://akash.network/docs/getting-started/stack-definition-language/#profilesplacement" target="_blank" rel="noopener">
+                                    <a
+                                      href="https://akash.network/docs/getting-started/stack-definition-language/#profilesplacement"
+                                      target="_blank"
+                                      rel="noopener"
+                                    >
                                       View official documentation.
                                     </a>
                                   </>
