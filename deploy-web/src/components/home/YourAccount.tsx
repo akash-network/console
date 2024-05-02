@@ -20,7 +20,6 @@ import sdlStore from "@src/store/sdlStore";
 import { usePricing } from "@src/context/PricingProvider";
 import { uAktDenom } from "@src/utils/constants";
 import { useUsdcDenom } from "@src/hooks/useDenom";
-import { green, gray } from "tailwindcss/colors";
 import { useTheme } from "next-themes";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import Spinner from "../shared/Spinner";
@@ -28,8 +27,9 @@ import { cn } from "@src/utils/styleUtils";
 import { Button, buttonVariants } from "../ui/button";
 import { Rocket } from "iconoir-react";
 import { Badge } from "../ui/badge";
-import { customColors } from "@src/utils/colors";
+import { HSLToHex, customColors } from "@src/utils/colors";
 import dynamic from "next/dynamic";
+import useTailwind from "@src/hooks/useTailwind";
 
 const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
   ssr: false,
@@ -55,6 +55,7 @@ type Props = {
 
 export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadingBalances, activeDeployments, leases, providers }) => {
   const { theme } = useTheme();
+  const tw = useTailwind();
   const { address, walletBalances, refreshBalances } = useWallet();
   const usdcIbcDenom = useUsdcDenom();
   const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
@@ -84,8 +85,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const colors = {
     balance_akt: customColors.akashRed,
     balance_usdc: customColors.akashRed,
-    deployment_akt: green[600],
-    deployment_usdc: green[600]
+    deployment_akt: tw.theme.colors.green[600],
+    deployment_usdc: tw.theme.colors.green[600]
   };
 
   const getAktData = (balances: Balances, escrowUAktSum: number) => {
@@ -169,7 +170,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
     if (!selectedId || id === selectedId) {
       return colors[id];
     } else {
-      return theme === "dark" ? gray[900] : "#e0e0e0";
+      return theme === "dark" ? tw.theme.colors.neutral[800] : "#e0e0e0";
     }
   };
 

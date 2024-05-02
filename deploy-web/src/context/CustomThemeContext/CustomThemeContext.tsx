@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import { darken, lighten, PaletteMode } from "@mui/material";
 import { createTheme, ThemeProvider, ThemeOptions } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
 import { customColors } from "@src/utils/colors";
 import { grey } from "@mui/material/colors";
 import { useTheme } from "next-themes";
@@ -46,9 +45,6 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
             default: customColors.dark,
             paper: customColors.darkLight
           },
-          text: {
-            primary: grey[200]
-          },
           success: {
             main: customColors.green,
             light: lighten(customColors.green, 0.2),
@@ -69,32 +65,6 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
     }
   },
   components: {
-    MuiCssBaseline: {
-      styleOverrides: {
-        // Nextjs root div
-        "#__next": {
-          height: "100%"
-        },
-        // Page loading styling
-        "#nprogress .bar": {
-          background: `hsl(var(--primary)) !important`,
-          height: "2px !important",
-          zIndex: "10000 !important"
-        },
-        "#nprogress .spinner": {
-          zIndex: `10000 !important`,
-          top: "6px !important",
-          right: "8px !important"
-        },
-        "#nprogress .peg": {
-          boxShadow: `0 0 10px hsl(var(--primary)), 0 0 5pxhsl(var(--primary))`
-        },
-        "#nprogress .spinner-icon": {
-          borderTopColor: `hsl(var(--primary)) !important`,
-          borderLeftColor: `hsl(var(--primary)) !important`
-        }
-      }
-    },
     MuiLinearProgress: {
       styleOverrides: {
         root: {
@@ -180,10 +150,7 @@ export const CustomThemeProvider = ({ children }) => {
 
   return (
     <CustomThemeProviderContext.Provider value={{ mode }}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline enableColorScheme />
-        {isMounted ? children : <div style={{ visibility: "hidden" }}>{children}</div>}
-      </ThemeProvider>
+      <ThemeProvider theme={theme}>{isMounted ? children : <div style={{ visibility: "hidden" }}>{children}</div>}</ThemeProvider>
     </CustomThemeProviderContext.Provider>
   );
 };

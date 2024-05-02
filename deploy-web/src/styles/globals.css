@@ -31,13 +31,12 @@
   }
 
   .dark {
-    --background: 0 0% 11%;
-    --header: 0 0% 14%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 14%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --background: 20 14.3% 4.1%;
+    --foreground: 0 0% 95%;
+    --card: 24 9.8% 10%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 95%;
     --primary: 357 100% 63%;
     --primary-foreground: 0 85.7% 97.3%;
     --primary-visited: 357 100% 30%;
@@ -82,12 +81,12 @@
     }
 
     &::-webkit-scrollbar-track {
-      background: hsl(var(--secondary));
+      background: hsl(var(--muted));
       border-radius: 5px;
     }
 
     &::-webkit-scrollbar-thumb {
-      background-color: hsl(var(--secondary-foreground));
+      background-color: hsl(var(--muted-foreground));
       border-radius: 14px;
     }
 
@@ -107,5 +106,32 @@
 
   a:hover {
     text-decoration: underline;
+  }
+
+  #__next {
+    height: 100%;
+  }
+
+  #nprogress .bar {
+    background: hsl(var(--primary)) !important;
+    height: 2px !important;
+    z-index: 10000 !important;
+  }
+
+  #nprogress .spinner {
+    z-index: 10000 !important;
+    top: 6px !important;
+    right: 8px !important;
+  }
+
+  #nprogress .peg {
+    box-shadow:
+      0 0 10px hsl(var(--primary)),
+      0 0 5pxhsl (var(--primary));
+  }
+
+  #nprogress .spinner-icon {
+    border-top-color: hsl(var(--primary)) !important;
+    border-left-color: hsl(var(--primary)) !important;
   }
 }

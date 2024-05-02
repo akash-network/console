@@ -23,7 +23,7 @@ export const Snackbar: React.FunctionComponent<Props> = ({ title, subTitle, icon
 
         {showLoading && (
           <div className="flex items-center">
-            <Spinner size="small" className="text-white" />
+            <Spinner size="small" variant="dark" />
           </div>
         )}
         <h5 className="flex-grow text-lg font-semibold leading-4 tracking-tight">{title}</h5>

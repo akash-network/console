@@ -28,7 +28,7 @@ export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) =>
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden rounded-b-none">
       <CardContent className="p-0">
         <div className="flex flex-col lg:flex-row lg:justify-between">
           <div className="flex-grow-1 p-4">

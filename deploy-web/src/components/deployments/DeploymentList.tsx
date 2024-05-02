@@ -173,7 +173,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
         )}
       </div>
 
-      {(filteredDeployments?.length || 0) > 0 && (
+      {((filteredDeployments?.length || 0) > 0 || !!search) && (
         <div className="flex items-center pb-4 pt-2">
           <InputWithIcon
             label="Search Deployments by name"
@@ -203,7 +203,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
         </div>
       )}
 
-      {(!filteredDeployments || filteredDeployments?.length === 0) && isLoadingDeployments && (
+      {(!filteredDeployments || filteredDeployments?.length === 0) && isLoadingDeployments && !search && (
         <div className="flex items-center justify-center p-8">
           <Spinner size="large" />
         </div>

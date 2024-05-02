@@ -59,7 +59,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
 
   const colors = {
     active: tw.theme.colors["primary"].DEFAULT,
-    available: theme === "dark" ? tw.theme.colors.gray[800] : tw.theme.colors["muted"].foreground
+    available: theme === "dark" ? tw.theme.colors.neutral[800] : tw.theme.colors.neutral[500]
   };
 
   const getColor = (id: string) => {

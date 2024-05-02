@@ -101,7 +101,7 @@ export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initial
                 <Geography
                   key={geo.rsmKey}
                   geography={geo}
-                  className="fill-muted-foreground"
+                  className="fill-neutral-500 dark:fill-neutral-800"
                   style={{
                     default: { outline: "none" },
                     hover: { outline: "none" },

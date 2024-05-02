@@ -54,7 +54,7 @@ export const TemplateDetail: React.FunctionComponent<Props> = ({ templateId, tem
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full">
+          <TabsList className="w-full rounded-none">
             <TabsTrigger value="README" className={cn({ ["font-bold"]: activeTab === "README" })}>
               README
             </TabsTrigger>
