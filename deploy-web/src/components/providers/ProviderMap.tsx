@@ -31,7 +31,7 @@ export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initial
 
   function resetZoom() {
     setPosition({ coordinates: initialCoordinates, zoom: initialZoom });
-    setDotSize({ r: 5, w: 1 });
+    handleDotSize(initialZoom);
   }
 
   function handleMoveEnd(position: { coordinates: [number, number]; zoom: number }) {
