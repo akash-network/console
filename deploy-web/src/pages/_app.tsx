@@ -24,6 +24,7 @@ import { CustomChainProvider } from "@src/context/CustomChainProvider";
 
 import "../styles/globals.css";
 import "../styles/index.css";
+import "@leapwallet/elements/styles.css";
 
 import { ChainParamProvider } from "@src/context/ChainParamProvider";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";

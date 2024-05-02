@@ -10,7 +10,6 @@ import { uaktToAKT } from "@src/utils/priceUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { RouteStepKeys } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import "@leapwallet/elements/styles.css";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { Button, buttonVariants } from "../ui/button";
 import Spinner from "../shared/Spinner";

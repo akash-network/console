@@ -114,6 +114,13 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           url: "https://api.cloudmos.io/v1/swagger",
           activeRoutes: [],
           target: "_blank"
+        },
+        {
+          title: "Docs",
+          icon: props => <OpenInWindow {...props} />,
+          url: "https://akash.network/docs",
+          activeRoutes: [],
+          target: "_blank"
         }
       ]
     }
