@@ -14,7 +14,7 @@ const route = createRoute({
       owner: z.string().openapi({ example: openApiExampleAddress })
     }),
     query: z.object({
-      dseq: z.number().optional(),
+      dseq: z.string().optional().openapi({ type: "number" }),
       startDate: z.string().optional().openapi({ format: "YYYY-MM-DD" }),
       endDate: z.string().optional().openapi({ format: "YYYY-MM-DD" })
     })
