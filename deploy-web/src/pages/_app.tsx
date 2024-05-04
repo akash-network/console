@@ -1,9 +1,7 @@
 import React from "react";
 import Router from "next/router";
 import NProgress from "nprogress"; //nprogress module
-import "nprogress/nprogress.css"; //styles of nprogress
-import { CacheProvider, EmotionCache } from "@emotion/react";
-import createEmotionCache from "@src/utils/createEmotionCache";
+import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { CustomSnackbarProvider } from "@src/context/CustomSnackbarProvider";
 import { AppProps } from "next/app";
@@ -22,6 +20,7 @@ import { Provider } from "jotai";
 import { PageHead } from "@src/components/layout/PageHead";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 
+import "nprogress/nprogress.css"; //styles of nprogress
 import "../styles/globals.css";
 import "../styles/index.css";
 import "@leapwallet/elements/styles.css";
@@ -35,7 +34,7 @@ import { GeistSans } from "geist/font/sans";
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 
 interface Props extends AppProps {
-  emotionCache?: EmotionCache;
+  // emotionCache?: EmotionCache;
 }
 
 NProgress.configure({
@@ -47,15 +46,13 @@ Router.events.on("routeChangeStart", () => NProgress.start());
 Router.events.on("routeChangeComplete", () => NProgress.done());
 Router.events.on("routeChangeError", () => NProgress.done());
 
-// Client-side cache, shared for the whole session of the user in the browser.
-const clientSideEmotionCache = createEmotionCache();
-
-const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCache = clientSideEmotionCache }) => {
+const App: React.FunctionComponent<Props> = props => {
+  const { Component, pageProps } = props;
   return (
     <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
       <PageHead />
 
-      <CacheProvider value={emotionCache}>
+      <AppCacheProvider {...props}>
         <CustomIntlProvider>
           <QueryClientProvider client={queryClient}>
             <Provider>
@@ -95,7 +92,7 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
             </Provider>
           </QueryClientProvider>
         </CustomIntlProvider>
-      </CacheProvider>
+      </AppCacheProvider>
     </main>
   );
 };

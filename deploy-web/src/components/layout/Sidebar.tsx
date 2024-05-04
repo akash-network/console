@@ -18,6 +18,7 @@ import { ModeToggle } from "./ModeToggle";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import Drawer from "@mui/material/Drawer";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import Image from "next/image";
 
 const { publicRuntimeConfig } = getConfig();
 
@@ -89,7 +90,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       routes: [
         {
           title: "Akash Network",
-          icon: props => <img src="/images/akash-logo.svg" alt="Akash Logo" style={{ height: "20px" }} {...props} />,
+          icon: props => <Image src="/images/akash-logo.svg" alt="Akash Logo" quality={100} width={20} height={20} {...props} />,
           url: "https://akash.network",
           activeRoutes: [],
           target: "_blank"
@@ -251,8 +252,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         onMouseLeave={() => setIsHovering(false)}
         PaperProps={{
           className: cn("border-none ease z-[1000] bg-header/95 transition-[width] duration-300 box-border overflow-hidden mt-[57px]", {
-            ["md:w-[240px]"]: _isNavOpen || isHovering,
-            ["md:w-[57px]"]: !(_isNavOpen || isHovering)
+            ["md:w-[240px]"]: _isNavOpen,
+            ["md:w-[57px]"]: !_isNavOpen
           })
         }}
         open

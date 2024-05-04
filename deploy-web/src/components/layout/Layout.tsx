@@ -1,3 +1,4 @@
+"use client";
 import React, { ReactNode, useEffect, useState } from "react";
 import { IntlProvider } from "react-intl";
 import { ErrorBoundary } from "react-error-boundary";

@@ -5,7 +5,7 @@ import { useSettings } from "../context/SettingsProvider";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { BidDto, RpcBid } from "@src/types/deployment";
 
-async function getBidList(apiEndpoint: string, address: string, dseq: string): Promise<Array<BidDto>> {
+async function getBidList(apiEndpoint: string, address: string, dseq: string): Promise<Array<BidDto> | null> {
   if (!address || !dseq) return null;
 
   const response = await axios.get(ApiUrlService.bidList(apiEndpoint, address, dseq));
@@ -28,7 +28,7 @@ export function useBidList(address: string, dseq: string, options) {
   return useQuery(QueryKeys.getBidListKey(address, dseq), () => getBidList(settings.apiEndpoint, address, dseq), options);
 }
 
-async function getBidInfo(apiEndpoint: string, address: string, dseq: string, gseq: number, oseq: number, provider: string): Promise<RpcBid> {
+async function getBidInfo(apiEndpoint: string, address: string, dseq: string, gseq: number, oseq: number, provider: string): Promise<RpcBid | null> {
   if (!address || !dseq || !gseq || !oseq || !provider) return null;
 
   const response = await axios.get(ApiUrlService.bidInfo(apiEndpoint, address, dseq, gseq, oseq, provider));

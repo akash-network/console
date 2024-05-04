@@ -20,7 +20,7 @@ export function SpecDetail({
   memoryAmount: number;
   storageAmount: number;
   gpuAmount?: number;
-  gpuModels?: { vendor: string; model: string }[];
+  gpuModels?: { vendor: string; model: string }[] | null | undefined;
   color?: string;
   size?: "small" | "medium" | "large";
   gutterSize?: "small" | "medium" | "large";
@@ -60,7 +60,7 @@ export function SpecDetail({
             {gpuModels && gpuModels?.length > 0 && (
               <div className="ml-2 inline-flex items-center space-x-2">
                 {gpuModels.map((gpu, i) => (
-                  <Badge key={`${gpu.vendor}-${gpu.model}`} className="text-xs py-0" color="default">
+                  <Badge key={`${gpu.vendor}-${gpu.model}`} className="py-0 text-xs" color="default">
                     {`${gpu.vendor}-${gpu.model}`}
                   </Badge>
                 ))}
