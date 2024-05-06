@@ -4,7 +4,7 @@ export type LocalDeploymentData = {
   owner?: string;
   name?: string;
   manifest?: string;
-  manifestVersion?: string;
+  manifestVersion?: Uint8Array;
 };
 
 export function getDeploymentLocalData(dseq: string | number) {
@@ -21,12 +21,12 @@ export function getDeploymentLocalData(dseq: string | number) {
   return parsedData;
 }
 
-export function saveDeploymentManifestAndName(dseq: string, manifest: string, version: string, address: string, name: string) {
+export function saveDeploymentManifestAndName(dseq: string, manifest: string, version: Uint8Array, address: string, name: string) {
   saveDeploymentManifest(dseq, manifest, version, address);
   updateDeploymentLocalData(dseq, { name: name });
 }
 
-export function saveDeploymentManifest(dseq: string, manifest: string, version: string, address: string) {
+export function saveDeploymentManifest(dseq: string, manifest: string, version: Uint8Array, address: string) {
   const data = getDeploymentLocalData(dseq) || {};
   data.owner = address;
   data.manifest = manifest;
