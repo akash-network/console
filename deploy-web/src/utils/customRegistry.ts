@@ -1,8 +1,8 @@
 import { Registry } from "@cosmjs/proto-signing";
 import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
 import { MsgGrant, MsgRevoke, MsgGrantAllowance, MsgRevokeAllowance } from "./proto/grant";
-import * as v1beta3 from "./proto/v1beta3";
-import * as v1beta4 from "./proto/v1beta4";
+import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
+import * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
 
 export const customRegistry = new Registry();
 
