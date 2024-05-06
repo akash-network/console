@@ -117,9 +117,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
   async function sendManifest(providerInfo: ApiProviderList, manifest: any) {
     try {
-      const response = await sendManifestToProvider(providerInfo, manifest, deployment.dseq, localCert);
-
-      return response;
+      return await sendManifestToProvider(providerInfo, manifest, deployment.dseq, localCert);
     } catch (err) {
       enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
       throw err;
@@ -135,9 +133,6 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
       const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, editedManifest, deployment.dseq, address); // TODO Flags
       const mani = deploymentData.getManifest(doc, true);
 
-      // const sdl = getSdl(doc as any, "beta3");
-      // console.log("Sorted Manifest", sdl.manifestSortedJSON());
-
       // If it's actual update, send a transaction, else just send the manifest
       if (Buffer.from(dd.version).toString("base64") !== deployment.version) {
         const message = TransactionMessageData.getUpdateDeploymentMsg(dd);
@@ -148,8 +143,6 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
       if (response) {
         setIsSendingManifest(true);
-
-        console.log(dd, mani);
 
         saveDeploymentManifest(dd.deploymentId.dseq, editedManifest, dd.version, address);
 
@@ -280,4 +273,3 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
     </>
   );
 };
-

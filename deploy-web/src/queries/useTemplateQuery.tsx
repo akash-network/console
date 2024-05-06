@@ -104,6 +104,11 @@ export function useRemoveFavoriteTemplate(id: string) {
 
 async function getTemplates() {
   const response = await axios.get(ApiUrlService.templates());
+
+  if (!response.data) {
+    return { categories: [], templates: [] };
+  }
+
   let categories = response.data.filter(x => (x.templates || []).length > 0);
   categories.forEach(c => {
     c.templates.forEach(t => (t.category = c.title));
