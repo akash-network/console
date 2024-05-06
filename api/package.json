@@ -24,8 +24,7 @@
     "url": "git+https://github.com/akash-network/cloudmos"
   },
   "dependencies": {
-    "@akashnetwork/akash-api": "^1.0.3",
-    "@akashnetwork/akashjs": "^0.6.1",
+    "@akashnetwork/akash-api": "^1.3.0",
     "@chain-registry/assets": "^0.7.1",
     "@cosmjs/crypto": "^0.28.11",
     "@cosmjs/encoding": "^0.28.11",
