@@ -11,8 +11,7 @@
     "build-analyze": "set ANALYZE=true&& next build",
     "start": "next start",
     "type-check": "tsc",
-    "pretty": "prettier --write \"./**/*.{js,jsx,ts,tsx,json}\"",
-    "postinstall": "patch-package"
+    "pretty": "prettier --write \"./**/*.{js,jsx,ts,tsx,json}\""
   },
   "dependencies": {
     "@akashnetwork/akash-api": "^1.3.0",
@@ -102,7 +101,6 @@
     "@types/react": "^17.0.2",
     "@types/react-dom": "^17.0.1",
     "@types/react-simple-maps": "^3.0.0",
-    "patch-package": "^8.0.0",
     "prettier": "^3.0.2",
     "typescript": "^5.3.2"
   }
