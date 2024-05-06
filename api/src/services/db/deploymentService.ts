@@ -1,5 +1,5 @@
-import * as v1 from "@src/proto/akash/v1beta1";
-import * as v2 from "@src/proto/akash/v1beta2";
+import * as v1beta1 from "@akashnetwork/akash-api/deprecated/akash/market/v1beta1";
+import * as v2beta2 from "@akashnetwork/akash-api/akash/market/v1beta2";
 import { decodeMsg } from "@src/utils/protobuf";
 import { Transaction } from "@shared/dbSchemas/base";
 import { Deployment, Lease } from "@shared/dbSchemas/akash";
@@ -41,13 +41,13 @@ export async function getDeploymentRelatedMessages(owner: string, dseq: string) 
   const createBidMsgs = relatedMessages
     .filter((msg) => msg.type.endsWith("MsgCreateBid"))
     .map((msg) => ({
-      decoded: decodeMsg(msg.type, msg.data) as v1.MsgCreateBid | v2.MsgCreateBid,
+      decoded: decodeMsg(msg.type, msg.data) as v1beta1.MsgCreateBid | v2beta2.MsgCreateBid,
       msg: msg
     }));
 
   const createLeaseMsgs = relatedMessages
     .filter((x) => x.type.endsWith("MsgCreateLease"))
-    .map((msg) => decodeMsg(msg.type, msg.data) as v1.MsgCreateLease | v2.MsgCreateLease);
+    .map((msg) => decodeMsg(msg.type, msg.data) as v1beta1.MsgCreateLease | v2beta2.MsgCreateLease);
 
   const acceptedBids = createBidMsgs.filter((createBidMsg) =>
     createLeaseMsgs.some(

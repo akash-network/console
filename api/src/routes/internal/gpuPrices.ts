@@ -4,7 +4,7 @@ import { AkashMessage, Deployment, DeploymentGroup, DeploymentGroupResource } fr
 import { Day, Transaction } from "@shared/dbSchemas/base";
 import { cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
-import { MsgCreateBid } from "@src/proto/akash/v1beta4";
+import { MsgCreateBid } from "@akashnetwork/akash-api/akash/market/v1beta4";
 import { toUTC } from "@src/utils";
 import { averageBlockCountInAMonth, averageBlockCountInAnHour } from "@src/utils/constants";
 import { env } from "@src/utils/env";
