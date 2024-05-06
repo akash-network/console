@@ -1,8 +1,8 @@
 import * as benchmark from "../shared/utils/benchmark";
-import * as v1beta1 from "../proto/akash/v1beta1";
-import * as v1beta2 from "../proto/akash/v1beta2";
-import * as v1beta3 from "../proto/akash/v1beta3";
-import * as v1beta4 from "../proto/akash/v1beta4";
+import * as v1beta1 from "@akashnetwork/akash-api/v1beta1";
+import * as v1beta2 from "@akashnetwork/akash-api/v1beta2";
+import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
+import * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
 import * as uuid from "uuid";
 import { uint8arrayToString } from "@src/shared/utils/protobuf";
 import { accountSettle } from "@src/shared/utils/akashPaymentSettle";
