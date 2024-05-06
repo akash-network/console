@@ -1,38 +1,18 @@
-import { CustomValidationError, ManifestVersion, getCurrentHeight, Manifest, DeploymentGroups, getSdl, parseSizeStr } from "./helpers";
+import { CustomValidationError, DeploymentGroups, getCurrentHeight, getSdl, Manifest, ManifestVersion, parseSizeStr } from "./helpers";
 import { defaultInitialDeposit } from "../constants";
 import { stringToBoolean } from "../stringUtils";
 import path from "path";
 import yaml from "js-yaml";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
+import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 
-const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
-const endpointKindIP = "ip";
-
-function validate(yamlStr: string, yamlJson) {
+function validate(yamlStr: string, yamlJson, networkId: NetworkId) {
+  let sdl: SDL;
   try {
-    SDL.validate(yamlStr);
+    sdl = getSdl(yamlJson, "beta3", networkId);
   } catch (e) {
     throw new CustomValidationError(e.message);
-  }
-
-  const sdl = getSdl(yamlJson, "beta2");
-
-  // ENDPOINT VALIDATION
-  if (yamlJson.endpoints) {
-    Object.keys(yamlJson.endpoints).forEach(endpoint => {
-      const _endpoint = yamlJson.endpoints[endpoint];
-      if (!endpointNameValidationRegex.test(endpoint)) {
-        throw new CustomValidationError(`Endpoint named "${endpoint}" is not a valid name.`);
-      }
-
-      if (!_endpoint.kind) {
-        throw new CustomValidationError(`Endpoint named "${endpoint}" has no kind.`);
-      }
-
-      if (_endpoint.kind !== endpointKindIP) {
-        throw new CustomValidationError(`Endpoint named "${endpoint}" has an unknown kind "${_endpoint.kind}".`);
-      }
-    });
   }
 
   const endpointsUsed = {};
@@ -178,13 +158,13 @@ function validate(yamlStr: string, yamlJson) {
 }
 
 export function getManifest(yamlJson, asString = false) {
-  const manifest = Manifest(yamlJson, "beta2", asString);
-
-  return manifest;
+  const { id: networkId } = getSelectedNetwork();
+  return Manifest(yamlJson, "beta2", networkId, asString);
 }
 
 export async function getManifestVersion(yamlJson, asString = false) {
-  const version = await ManifestVersion(yamlJson, "beta2");
+  const { id: networkId } = getSelectedNetwork();
+  const version = await ManifestVersion(yamlJson, "beta2", networkId);
 
   if (asString) {
     return Buffer.from(version).toString("base64");
@@ -201,14 +181,15 @@ export async function NewDeploymentData(
   deposit = defaultInitialDeposit,
   depositorAddress = null
 ) {
+  const { id: networkId } = getSelectedNetwork();
   const yamlJson = yaml.load(yamlStr) as any;
 
   // Validate the integrity of the yaml
-  validate(yamlStr, yamlJson);
+  validate(yamlStr, yamlJson, networkId);
 
-  const groups = DeploymentGroups(yamlJson, "beta2");
-  const mani = Manifest(yamlJson, "beta2");
-  const ver = await ManifestVersion(yamlJson, "beta2");
+  const groups = DeploymentGroups(yamlJson, "beta2", networkId);
+  const mani = Manifest(yamlJson, "beta2", networkId);
+  const ver = await ManifestVersion(yamlJson, "beta2", networkId);
   const id = {
     owner: fromAddress,
     dseq: dseq
