@@ -80,7 +80,7 @@ export function SettingsProvider({ children }: React.PropsWithChildren<{}>) {
       setSelectedNetworkId(_selectedNetworkId);
 
       const settingsStr = getLocalStorageItem("settings");
-      const settings = { ...defaultSettings, ...JSON.parse(settingsStr || "") } || {};
+      const settings = { ...defaultSettings, ...JSON.parse(settingsStr || "{}") };
       let defaultApiNode, defaultRpcNode, selectedNode;
 
       // Set the available nodes list and default endpoints
