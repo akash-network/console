@@ -597,7 +597,7 @@ export class AkashStatsIndexer extends Indexer {
       deployment.closedHeight = height;
       await deployment.save({ transaction: blockGroupTransaction });
     } else {
-      const predictedClosedHeight = deployment.balance / (blockRate - lease.price);
+      const predictedClosedHeight = Math.ceil((deployment.lastWithdrawHeight || lease.createdHeight) + deployment.balance / (blockRate - lease.price));
       await Lease.update({ predictedClosedHeight: predictedClosedHeight }, { where: { deploymentId: deployment.id }, transaction: blockGroupTransaction });
     }
   }
