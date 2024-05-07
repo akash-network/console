@@ -2,16 +2,16 @@ import React from "react";
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 
 export function PrivacyPolicy() {
   return (
     <Layout>
       <CustomNextSeo
         title="Privacy Policy"
-        url={`https://console.akash.network${UrlService.privacyPolicy()}`}
-        description="At Akash Console, accessible from https://console.akash.network, one of our main priorities is the privacy of our visitors. This Privacy Policy document contains
-          types of information that is collected and recorded by Overclock Labs Inc. and how we use it."
+        url={`${domainName}${UrlService.privacyPolicy()}`}
+        description={`At Akash Console, accessible from ${domainName}, one of our main priorities is the privacy of our visitors. This Privacy Policy document contains
+          types of information that is collected and recorded by Overclock Labs Inc. and how we use it.`}
       />
 
       <div className="mb-8">
@@ -19,7 +19,7 @@ export function PrivacyPolicy() {
       </div>
 
       <p>
-        At Akash Console, accessible from https://console.akash.network, one of our main priorities is the privacy of our visitors. This Privacy Policy document
+        At Akash Console, accessible from {domainName}, one of our main priorities is the privacy of our visitors. This Privacy Policy document
         contains types of information that is collected and recorded by Overclock Labs Inc. and how we use it.
       </p>
 

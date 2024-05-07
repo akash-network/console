@@ -8,7 +8,7 @@ import { LeaseList } from "./LeaseList";
 import { LeaseDto } from "@src/types/deployment";
 import ProviderDetailLayout, { ProviderDetailTabs } from "./ProviderDetailLayout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 
 type Props = {
@@ -68,7 +68,7 @@ export const LeaseListContainer: React.FunctionComponent<Props> = ({ owner }) =>
 
   return (
     <Layout isLoading={isLoadingLeases || isLoadingProvider || isLoadingStatus}>
-      <CustomNextSeo title={`Provider leases for ${owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetailLeases(owner)}`} />
+      <CustomNextSeo title={`Provider leases for ${owner}`} url={`${domainName}${UrlService.providerDetailLeases(owner)}`} />
 
       <ProviderDetailLayout address={owner} page={ProviderDetailTabs.LEASES} refresh={refresh} provider={provider as ClientProviderDetailWithStatus}>
         <LeaseList isLoadingLeases={isLoadingLeases} leases={filteredLeases} />

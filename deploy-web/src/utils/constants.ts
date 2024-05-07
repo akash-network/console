@@ -48,7 +48,8 @@ export function getNetworkBaseApiUrl(network: string) {
 export const PROVIDER_PROXY_URL = getProviderProxyHttpUrl();
 export const PROVIDER_PROXY_URL_WS = getProviderProxyWsUrl();
 
-export const auth0TokenNamespace = "https://cloudmos.io";
+// TODO: Fix for console
+export const auth0TokenNamespace = "https://console.akash.network";
 
 export const uAktDenom = "uakt";
 export const usdcIbcDenoms = {
@@ -62,16 +63,6 @@ export const readableDenoms = {
   [usdcIbcDenoms[mainnetId]]: readableUsdcDenom,
   [usdcIbcDenoms[sandboxId]]: readableUsdcDenom
 };
-
-// Cloudmos fee
-export const feePercent = 3;
-// Max .2$
-export const maxFee = 0.2;
-
-// Cloudmos validator
-export const treasuryAddress = "akash1dh33aa6wc8eh0kt3e43ydcpsv2n3gt7nn9epyn";
-export const validatorAddress = "akashvaloper14mt78hz73d9tdwpdvkd59ne9509kxw8yj7qy8f";
-export const donationAddress = "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm";
 
 function getApiMainnetUrl() {
   if (process.env.API_MAINNET_BASE_URL) return process.env.API_MAINNET_BASE_URL;
@@ -123,12 +114,10 @@ function getProviderProxyWsUrl() {
   return "ws://localhost:3040";
 }
 
-// export const cloudmosApi = "https://api.cloudmos.io/api";
-
 export let selectedNetworkId = "";
 
-// 5AKT aka 5000000uakt
-export const defaultInitialDeposit = 5000000;
+// 0.5AKT aka 500000uakt
+export const defaultInitialDeposit = 500000;
 
 export let networkVersion: "v1beta2" | "v1beta3" | "v1beta4";
 export let networkVersionMarket: "v1beta2" | "v1beta3" | "v1beta4";

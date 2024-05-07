@@ -1,6 +1,6 @@
 import { Title } from "@src/components/shared/Title";
 import React from "react";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 import { RentGpusForm } from "@src/components/sdl/RentGpusForm";
 import Layout from "@src/components/layout/Layout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
@@ -10,7 +10,7 @@ function RentGpuPage() {
     <Layout>
       <CustomNextSeo
         title="Rent GPUs"
-        url={`https://deploy.cloudmos.io${UrlService.sdlBuilder()}`}
+        url={`${domainName}${UrlService.sdlBuilder()}`}
         description="Experience Global GPU Rental Excellence: Seamlessly Deploy AI Workloads with Docker Containers on Kubernetes"
       />
 

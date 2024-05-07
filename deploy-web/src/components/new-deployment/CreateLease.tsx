@@ -11,7 +11,7 @@ import { sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { deploymentData } from "@src/utils/deploymentData";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import ViewPanel from "../shared/ViewPanel";
 import { event } from "nextjs-google-analytics";
@@ -235,7 +235,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     <>
       <CustomNextSeo
         title="Create Deployment - Create Lease"
-        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.createLeases })}`}
+        url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.createLeases })}`}
       />
 
       <div className="mt-4">

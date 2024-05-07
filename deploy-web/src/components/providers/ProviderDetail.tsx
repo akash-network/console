@@ -18,7 +18,7 @@ import { ProviderSpecs } from "./ProviderSpecs";
 import { Check } from "iconoir-react";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import Layout from "../layout/Layout";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 
 const NetworkCapacity = dynamic(() => import("./NetworkCapacity"), {
   ssr: false
@@ -77,7 +77,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
 
   return (
     <Layout isLoading={isLoading}>
-      <CustomNextSeo title={`Provider detail ${provider?.name || provider?.owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetail(owner)}`} />
+      <CustomNextSeo title={`Provider detail ${provider?.name || provider?.owner}`} url={`${domainName}${UrlService.providerDetail(owner)}`} />
 
       <ProviderDetailLayout address={owner} page={ProviderDetailTabs.DETAIL} refresh={refresh} provider={provider}>
         {!provider && isLoading && (
@@ -122,7 +122,11 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                     title={<FormattedDate value={x.checkDate} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />}
                   >
                     <div
-                      className={cn("h-[24px] w-[2%] max-w-[8px] rounded-[2px]", { ["ml-1"]: i > 0, ["bg-green-500"]: x.isOnline, ["bg-red-500"]: !x.isOnline })}
+                      className={cn("h-[24px] w-[2%] max-w-[8px] rounded-[2px]", {
+                        ["ml-1"]: i > 0,
+                        ["bg-green-500"]: x.isOnline,
+                        ["bg-red-500"]: !x.isOnline
+                      })}
                     />
                   </CustomNoDivTooltip>
                 ))}

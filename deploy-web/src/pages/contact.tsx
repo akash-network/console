@@ -2,8 +2,8 @@ import { ReactNode } from "react";
 import { Title } from "@src/components/shared/Title";
 import { CustomNextSeo } from "../components/shared/CustomNextSeo";
 import Layout from "@src/components/layout/Layout";
-import { UrlService } from "@src/utils/urlUtils";
-import { Youtube, Twitter, Github, Discord } from "iconoir-react";
+import { UrlService, domainName } from "@src/utils/urlUtils";
+import { Youtube, X as TwitterX, Github, Discord } from "iconoir-react";
 
 type Props = {
   children?: ReactNode;
@@ -12,17 +12,17 @@ type Props = {
 const ContactPage: React.FunctionComponent<Props> = ({}) => {
   return (
     <Layout>
-      <CustomNextSeo title="Contact" url={`https://deploy.cloudmos.io${UrlService.contact()}`} />
+      <CustomNextSeo title="Contact" url={`${domainName}${UrlService.contact()}`} />
 
       <div className="py-12 text-center">
         <Title>Contact us</Title>
 
-        <div className="space-y-2 pt-4">
-          <p>Need help or have an issue with something?</p>
+        <div className="space-y-1 pt-4">
+          <p className="text-lg">Need help or have an issue with something?</p>
           <p className="text-sm">The best way to reach us is through our discord server or twitter.</p>
         </div>
 
-        <ul className="flex items-center justify-center sm:justify-normal">
+        <ul className="flex items-center justify-center py-8">
           <li>
             <a
               href="https://discord.gg/akash"
@@ -34,7 +34,7 @@ const ContactPage: React.FunctionComponent<Props> = ({}) => {
           </li>
           <li>
             <a
-              href="https://www.youtube.com/channel/UC1rgl1y8mtcQoa9R_RWO0UA?sub_confirmation=1"
+              href="https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1"
               target="_blank"
               className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
             >
@@ -43,11 +43,11 @@ const ContactPage: React.FunctionComponent<Props> = ({}) => {
           </li>
           <li>
             <a
-              href="https://twitter.com/cloudmosio"
+              href="https://twitter.com/akashnet_"
               target="_blank"
               className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
             >
-              <Twitter className="mx-auto block h-6 w-6 text-5xl" />
+              <TwitterX className="mx-auto block h-6 w-6 text-5xl" />
             </a>
           </li>
           <li>

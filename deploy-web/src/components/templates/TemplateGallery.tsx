@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useTemplates } from "../../context/TemplatesProvider";
 import { useRouter, useSearchParams } from "next/navigation";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { ApiTemplate } from "@src/types";
 import { Button, buttonVariants } from "@src/components/ui/button";
@@ -121,7 +121,7 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
     <Layout isLoading={isLoadingTemplates}>
       <CustomNextSeo
         title="Template Gallery"
-        url={`https://deploy.cloudmos.io${UrlService.templates()}`}
+        url={`${domainName}${UrlService.templates()}`}
         description="Explore all the templates made by the community to easily deploy any docker container on the Akash Network."
       />
 

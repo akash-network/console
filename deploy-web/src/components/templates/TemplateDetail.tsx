@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { DynamicMonacoEditor } from "@src/components/shared/DynamicMonacoEditor";
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
@@ -49,7 +49,7 @@ export const TemplateDetail: React.FunctionComponent<Props> = ({ templateId, tem
       <div className="[&>img]:max-w-full">
         <CustomNextSeo
           title={`Template detail${_template ? " " + _template?.name : ""}`}
-          url={`https://deploy.cloudmos.io${UrlService.templateDetails(templateId)}`}
+          url={`${domainName}${UrlService.templateDetails(templateId)}`}
           description={getShortText(_template.summary || "", 140)}
         />
 

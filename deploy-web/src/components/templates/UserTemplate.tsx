@@ -2,7 +2,7 @@
 import { Title } from "@src/components/shared/Title";
 import { RouteStepKeys } from "@src/utils/constants";
 import { ITemplate } from "@src/types";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 import Link from "next/link";
 import { LeaseSpecDetail } from "@src/components/shared/LeaseSpecDetail";
 import { bytesToShrink } from "@src/utils/unitUtils";
@@ -74,11 +74,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
   };
   return (
     <Layout>
-      <CustomNextSeo
-        title={`${template.title}`}
-        url={`https://deploy.cloudmos.io${UrlService.template(id)}`}
-        description={getShortText(template.description || "", 140)}
-      />
+      <CustomNextSeo title={`${template.title}`} url={`${domainName}${UrlService.template(id)}`} description={getShortText(template.description || "", 140)} />
 
       <Popup
         fullWidth

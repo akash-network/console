@@ -18,7 +18,8 @@ function getSelectedNetworkQueryParam() {
   }
 }
 
-// TODO Refactor the explorer routes to stats.akash.network
+export const domainName = "https://console.akash.network";
+
 export class UrlService {
   static home = () => "/";
   static getStarted = () => "/get-started";

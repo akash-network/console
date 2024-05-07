@@ -1,7 +1,7 @@
 import React from "react";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
-import { Copyright, Youtube, Twitter, Github, Discord } from "iconoir-react";
+import { Copyright, Youtube, X as TwitterX, Github, Discord } from "iconoir-react";
 import { Title } from "../shared/Title";
 
 export interface IFooterProps {}
@@ -37,7 +37,7 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
             </li>
             <li>
               <a
-                href="https://www.youtube.com/channel/UC1rgl1y8mtcQoa9R_RWO0UA?sub_confirmation=1"
+                href="https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1"
                 target="_blank"
                 className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
               >
@@ -46,11 +46,11 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
             </li>
             <li>
               <a
-                href="https://twitter.com/cloudmosio"
+                href="https://twitter.com/akashnet_"
                 target="_blank"
                 className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
               >
-                <Twitter className="mx-auto block h-6 w-6 text-5xl" />
+                <TwitterX className="mx-auto block h-6 w-6 text-5xl" />
               </a>
             </li>
             <li>

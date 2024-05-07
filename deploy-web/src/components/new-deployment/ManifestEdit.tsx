@@ -11,7 +11,7 @@ import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
 import ViewPanel from "../shared/ViewPanel";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
-import { UrlService, handleDocClick } from "@src/utils/urlUtils";
+import { UrlService, domainName, handleDocClick } from "@src/utils/urlUtils";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
@@ -216,7 +216,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     <>
       <CustomNextSeo
         title="Create Deployment - Manifest Edit"
-        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`}
+        url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`}
       />
 
       <div className="mb-2 pt-4">

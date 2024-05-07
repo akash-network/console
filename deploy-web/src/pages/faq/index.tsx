@@ -35,7 +35,7 @@ const FaqEntries = [
   },
   {
     anchor: "shell-lost",
-    title: "Can't access shell: 'The connection to your Cloudmos Shell was lost.'",
+    title: "Can't access shell: 'The connection to your Akash Console Shell was lost.'",
     content: (
       <>
         <p>
@@ -110,8 +110,8 @@ const FaqEntries = [
         </ul>
         <p>
           If you still have an issue after taking these steps, please ask your question in the{" "}
-          <Link href="https://discord.com/channels/747885925232672829/1111749073322660034" target="_blank">
-            #ecosystem-cloudmos
+          <Link href="https://discord.gg/akash" target="_blank">
+            #deployments
           </Link>{" "}
           channel. If you have issue creating or updating a deployment, it can help to include your SDL. Make sure to remove any sensitive information from it
           before sharing (ex: secrets in your env variables).

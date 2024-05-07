@@ -6,7 +6,7 @@ import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useWallet } from "@src/context/WalletProvider";
 import { useNetworkCapacity, useProviderList } from "@src/queries/useProvidersQuery";
 import dynamic from "next/dynamic";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { ClientProviderList } from "@src/types/provider";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -170,11 +170,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
 
   return (
     <Layout isLoading={isLoadingProviders || isLoadingLeases || isLoadingNetworkCapacity}>
-      <CustomNextSeo
-        title="Providers"
-        url={`https://deploy.cloudmos.io${UrlService.providers()}`}
-        description="Explore all the providers available on the Akash Network."
-      />
+      <CustomNextSeo title="Providers" url={`${domainName}${UrlService.providers()}`} description="Explore all the providers available on the Akash Network." />
 
       <Title>Network Capacity</Title>
 
