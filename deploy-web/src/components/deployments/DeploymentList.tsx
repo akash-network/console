@@ -15,10 +15,9 @@ import { useProviderList } from "@src/queries/useProvidersQuery";
 import { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
 import { Button, buttonVariants } from "@src/components/ui/button";
 import { Refresh, Rocket, Xmark } from "iconoir-react";
-import { Checkbox, CheckboxWithLabel } from "@src/components/ui/checkbox";
+import { CheckboxWithLabel } from "@src/components/ui/checkbox";
 import { cn } from "@src/utils/styleUtils";
 import { InputWithIcon } from "@src/components/ui/input";
-import { IconButton } from "@mui/material";
 import Spinner from "@src/components/shared/Spinner";
 import { CustomPagination } from "@src/components/shared/CustomPagination";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
@@ -69,7 +68,9 @@ export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
 
       // Filter for search
       if (search) {
-        filteredDeployments = filteredDeployments.filter(x => x.name?.toLowerCase().includes(search.toLowerCase()));
+        filteredDeployments = filteredDeployments.filter(
+          x => x.name?.toLowerCase().includes(search.toLowerCase()) || x.dseq?.toLowerCase().includes(search.toLowerCase())
+        );
       }
 
       if (isFilteringActive) {
