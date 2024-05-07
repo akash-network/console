@@ -22,7 +22,7 @@ export function getSelectedStorageWallet() {
 
 export function getStorageWallets() {
   const selectedNetworkId = localStorage.getItem("selectedNetworkId") || mainnetId;
-  const wallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`) || "") as LocalWalletDataType[];
+  const wallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`) || "[]") as LocalWalletDataType[];
 
   return wallets || [];
 }
@@ -34,7 +34,7 @@ export function updateWallet(address: string, func: (w: LocalWalletDataType) => 
   if (wallet) {
     wallet = func(wallet);
 
-    const newWallets = wallets.map(w => (w.address === address ? wallet as LocalWalletDataType : w));
+    const newWallets = wallets.map(w => (w.address === address ? (wallet as LocalWalletDataType) : w));
     updateStorageWallets(newWallets);
   }
 }

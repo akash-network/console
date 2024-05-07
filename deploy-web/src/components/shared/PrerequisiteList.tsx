@@ -9,6 +9,8 @@ import { CheckCircle, WarningCircle } from "iconoir-react";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { Avatar, AvatarFallback } from "../../components/ui/avatar";
 import { Title } from "./Title";
+import { aktToUakt } from "@src/utils/priceUtils";
+import { denomToUdenom } from "@src/utils/mathHelpers";
 
 type Props = {
   onClose: () => void;
@@ -26,7 +28,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       setIsLoadingPrerequisites(true);
 
       const balance = await refreshBalances();
-      const isBalanceValidated = balance.uakt >= 5000000 || balance.usdc >= 5000000;
+      const isBalanceValidated = balance.uakt >= aktToUakt(minDeposit.akt) || balance.usdc >= denomToUdenom(minDeposit.usdc);
 
       setIsBalanceValidated(isBalanceValidated);
       setIsLoadingPrerequisites(false);
@@ -36,11 +38,11 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       }
     }
 
-    if (address) {
+    if (address && minDeposit.akt && minDeposit.usdc && !!walletBalances) {
       loadPrerequisites();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletBalances?.uakt, walletBalances?.usdc]);
+  }, [address, walletBalances?.uakt, walletBalances?.usdc, minDeposit.akt, minDeposit.usdc]);
 
   return (
     <Popup
@@ -59,7 +61,6 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
           label: "Continue",
           color: "primary",
           variant: "default",
-          disabled: !isBalanceValidated,
           side: "right",
           isLoading: isLoadingPrerequisites,
           onClick: onContinue

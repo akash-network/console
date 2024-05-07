@@ -283,7 +283,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
         )}
 
         {error && (
-          <Alert variant="destructive" className="mt-4">
+          <Alert variant="destructive" className="mt-4 text-sm">
             {error}
           </Alert>
         )}
