@@ -30,6 +30,7 @@ import { Checkbox } from "../ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import Spinner from "../shared/Spinner";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
+import { getShortText, getSplitText } from "@src/hooks/useShortText";
 
 type Props = {
   deployment: NamedDeploymentDto;
@@ -57,12 +58,23 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const realTimeLeft = useRealTimeLeft(deploymentCost || 0, deployment.escrowBalance, parseFloat(deployment.escrowAccount.settled_at), deployment.createdAt);
   const deploymentName = deployment.name ? (
     <>
-      <span className="truncate" title={deployment.name}>
-        <strong>{deployment.name}</strong>
-        <span className="inline text-sm">
-          &nbsp;-&nbsp;<small>{deployment.dseq}</small>
+      {deployment.name.length > 20 ? (
+        <CustomTooltip title={deployment.name}>
+          <span className="text-sm">
+            <strong>{getShortText(deployment.name, 15)}</strong>
+            <span className="inline text-xs">
+              &nbsp;-&nbsp;<small>{deployment.dseq}</small>
+            </span>
+          </span>
+        </CustomTooltip>
+      ) : (
+        <span className="text-sm">
+          <strong>{deployment.name}</strong>
+          <span className="inline text-xs">
+            &nbsp;-&nbsp;<small>{deployment.dseq}</small>
+          </span>
         </span>
-      </span>
+      )}
     </>
   ) : (
     <span className="inline text-sm">
