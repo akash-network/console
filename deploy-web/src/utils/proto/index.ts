@@ -1,9 +1,9 @@
 import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
 import * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
-import { mainnetId, testnetId, sandboxId } from "../constants";
-import omit from "lodash/omit";
 
-const commonTypes = { ...omit(v1beta3, "GPU"), ...v1beta4 };
+import { mainnetId, testnetId, sandboxId } from "../constants";
+
+const commonTypes = { ...v1beta3, ...v1beta4 };
 const mainnetTypes = commonTypes;
 const sandboxTypes = commonTypes;
 
