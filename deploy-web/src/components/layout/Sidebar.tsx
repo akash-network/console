@@ -10,7 +10,7 @@ import sdlStore from "@src/store/sdlStore";
 import { MobileSidebarUser } from "./MobileSidebarUser";
 import { Button, buttonVariants } from "../ui/button";
 import { cn } from "@src/utils/styleUtils";
-import { Rocket, Github, X as TwitterX, Discord, Menu, MenuScale } from "iconoir-react";
+import { Rocket, Github, X as TwitterX, Discord, Menu, MenuScale, Youtube } from "iconoir-react";
 import { Home, Cloud, MultiplePages, Tools, Server, OpenInWindow, HelpCircle, Settings } from "iconoir-react";
 import { ISidebarGroupMenu } from "@src/types";
 import getConfig from "next/config";
@@ -19,6 +19,7 @@ import { useTheme as useMuiTheme } from "@mui/material/styles";
 import Drawer from "@mui/material/Drawer";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import Image from "next/image";
+import { Badge } from "../ui/badge";
 
 const { publicRuntimeConfig } = getConfig();
 
@@ -169,35 +170,59 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         {smallScreen && <MobileSidebarUser />}
 
         {_isNavOpen && (
-          <div className="pb-4 pl-4 pr-4">
+          <div className="pb-4 pl-4 pr-4 space-y-2">
             <NodeStatusBar />
 
             <div className="flex items-center justify-center space-x-1 pt-4">
-              <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet_" className={cn(buttonVariants({ variant: "text", size: "icon" }))}>
-                <TwitterX width="1.2rem" height="1.2rem" />
+              <Link
+                target="_blank"
+                rel="noreferrer"
+                href="https://discord.akash.network"
+                className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
+              >
+                <Discord className="h-5 w-5" />
+                <span className="sr-only">Discord</span>
+              </Link>
+
+              <Link
+                target="_blank"
+                rel="noreferrer"
+                href="https://twitter.com/akashnet_"
+                className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
+              >
+                <TwitterX className="h-5 w-5" />
                 <span className="sr-only">Twitter</span>
               </Link>
 
               <Link
                 target="_blank"
                 rel="noreferrer"
-                href="https://github.com/akash-network/cloudmos"
-                className={cn(buttonVariants({ variant: "text", size: "icon" }))}
+                href="https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1"
+                className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
               >
-                <Github width="1.2rem" height="1.2rem" />
+                <Youtube className="h-5 w-5" />
+                <span className="sr-only">Youtube</span>
+              </Link>
+
+              <Link
+                target="_blank"
+                rel="noreferrer"
+                href="https://github.com/akash-network/cloudmos"
+                className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
+              >
+                <Github className="h-5 w-5" />
                 <span className="sr-only">GitHub</span>
               </Link>
 
-              <Link target="_blank" rel="noreferrer" href="https://discord.akash.network" className={cn(buttonVariants({ variant: "text", size: "icon" }))}>
-                <Discord width="1.2rem" height="1.2rem" />
-                <span className="sr-only">Twitter</span>
-              </Link>
               <ModeToggle />
             </div>
 
             {publicRuntimeConfig?.version && _isNavOpen && (
-              <div className="flex flex-row items-center justify-center text-xs font-bold text-muted-foreground">
+              <div className="flex flex-row items-center justify-center space-x-4 text-xs font-bold text-muted-foreground">
                 <small>v{publicRuntimeConfig?.version}</small>
+                <Badge className="text-xs leading-3" variant="outline">
+                  <small>Beta</small>
+                </Badge>
               </div>
             )}
           </div>
