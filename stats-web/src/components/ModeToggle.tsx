@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
 import { SunLight, HalfMoon } from "iconoir-react";
+import { cn } from "@/lib/utils";
 
 export function ModeToggle() {
-  const { setTheme } = useTheme();
+  const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -33,9 +34,15 @@ export function ModeToggle() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => onThemeClick("light")}>Light</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onThemeClick("dark")}>Dark</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onThemeClick("system")}>System</DropdownMenuItem>
+        <DropdownMenuItem className={cn({ "text-primary": theme === "light" })} onClick={() => onThemeClick("light")}>
+          Light
+        </DropdownMenuItem>
+        <DropdownMenuItem className={cn({ "text-primary": theme === "dark" })} onClick={() => onThemeClick("dark")}>
+          Dark
+        </DropdownMenuItem>
+        <DropdownMenuItem className={cn({ "text-primary": theme === "system" })} onClick={() => onThemeClick("system")}>
+          System
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
