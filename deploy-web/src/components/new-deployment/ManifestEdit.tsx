@@ -262,7 +262,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           </div>
         </div>
 
-        <Button variant={selectedSdlEditMode === "builder" ? "default" : "outline"} onClick={() => onModeChange("builder")} size="sm">
+        <Button variant={selectedSdlEditMode === "builder" ? "default" : "outline"} onClick={() => onModeChange("builder")} size="sm" className="rounded-e-none">
           Builder
         </Button>
         <Button
@@ -270,6 +270,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
           onClick={() => onModeChange("yaml")}
           size="sm"
+          className="rounded-s-none"
         >
           YAML
         </Button>

@@ -16,7 +16,7 @@ type Props = {
 };
 
 export const PreviewSdl: React.FunctionComponent<Props> = ({ sdl, onClose }) => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const { enqueueSnackbar } = useSnackbar();
 
   const onCopyClick = () => {
@@ -53,7 +53,7 @@ export const PreviewSdl: React.FunctionComponent<Props> = ({ sdl, onClose }) => 
         </Button>
       </div>
       <div className="mb-2">
-        <Editor height="500px" defaultLanguage="yaml" value={sdl} theme={theme === "dark" ? "vs-dark" : "light"} />
+        <Editor height="500px" defaultLanguage="yaml" value={sdl} theme={resolvedTheme === "dark" ? "vs-dark" : "light"} />
       </div>
     </Popup>
   );

@@ -24,7 +24,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
   const [sdl, setSdl] = useState<string | undefined>("");
   const [parsingError, setParsingError] = useState<string | null>(null);
   const { enqueueSnackbar } = useSnackbar();
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     const timer = Timer(500);
@@ -115,7 +115,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
         Paste your sdl here to import <ArrowDown className="ml-4 text-sm" />
       </h6>
       <div className="mb-2">
-        <Editor height="500px" defaultLanguage="yaml" value={sdl} onChange={value => setSdl(value)} theme={theme === "dark" ? "vs-dark" : "light"} />
+        <Editor height="500px" defaultLanguage="yaml" value={sdl} onChange={value => setSdl(value)} theme={resolvedTheme === "dark" ? "vs-dark" : "light"} />
       </div>
       {parsingError && (
         <Alert className="mt-4" variant="destructive">

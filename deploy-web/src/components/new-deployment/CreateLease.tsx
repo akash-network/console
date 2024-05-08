@@ -233,10 +233,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
   return (
     <>
-      <CustomNextSeo
-        title="Create Deployment - Create Lease"
-        url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.createLeases })}`}
-      />
+      <CustomNextSeo title="Create Deployment - Create Lease" url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.createLeases })}`} />
 
       <div className="mt-4">
         {!isLoadingBids && (bids?.length || 0) > 0 && !allClosed && (

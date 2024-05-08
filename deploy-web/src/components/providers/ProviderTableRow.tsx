@@ -6,7 +6,7 @@ import { AuditorButton } from "./AuditorButton";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { CapacityIcon } from "./CapacityIcon";
-import { CustomTooltip } from "../shared/CustomTooltip";
+import { CustomNoDivTooltip, CustomTooltip } from "../shared/CustomTooltip";
 import { getSplitText } from "@src/hooks/useShortText";
 import { useRouter } from "next/navigation";
 import { UrlService } from "@src/utils/urlUtils";
@@ -133,13 +133,13 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
             </div>
             <div className="mt-1 inline-flex flex-nowrap items-center space-x-1 text-center">
               {gpuModels.slice(0, 2).map((gpu, i) => (
-                <Badge key={gpu} className="px-1 py-0 text-xs">
-                  {gpu}
+                <Badge key={gpu} className="h-4 px-1 py-0 text-xs">
+                  <small>{gpu}</small>
                 </Badge>
               ))}
 
               {gpuModels.length > 2 && (
-                <CustomTooltip
+                <CustomNoDivTooltip
                   title={
                     <div className="space-x-1">
                       {gpuModels.map((gpu, i) => (
@@ -150,10 +150,10 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
                     </div>
                   }
                 >
-                  <div>
-                    <Badge className="px-1 py-0 text-xs">{`+${gpuModels.length - 2}`}</Badge>
-                  </div>
-                </CustomTooltip>
+                  <Badge className="h-4 px-1 py-0 text-xs">
+                    <small>{`+${gpuModels.length - 2}`}</small>
+                  </Badge>
+                </CustomNoDivTooltip>
               )}
             </div>
           </div>

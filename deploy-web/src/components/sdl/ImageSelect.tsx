@@ -173,6 +173,7 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
             anchorEl={anchorEl}
             disablePortal
             sx={{ zIndex: 1000, width: `${popperWidth}px`, boxShadow: muiTheme.shadows[2] }}
+            className="bg-popover"
             nonce={undefined}
             onResize={undefined}
             onResizeCapture={undefined}
@@ -182,29 +183,6 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
                 <li
                   className="MuiAutocomplete-option flex w-full cursor-pointer items-center justify-between px-4 py-2 text-sm hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
                   ref={eleRefs[template.id as string]}
-                  // sx={{
-                  //   display: "flex",
-                  //   alignItems: "center",
-                  //   justifyContent: "space-between !important",
-                  //   width: "100%",
-                  //   padding: ".5rem 1rem",
-                  //   minHeight: "auto",
-                  //   overflow: "hidden",
-                  //   backgroundColor:
-                  //     selectedTemplate?.id === template.id
-                  //       ? muiTheme.palette.mode === "dark"
-                  //         ? muiTheme.palette.grey[700]
-                  //         : muiTheme.palette.grey[300]
-                  //       : hoveredTemplate?.id === template.id
-                  //         ? muiTheme.palette.mode === "dark"
-                  //           ? muiTheme.palette.grey[900]
-                  //           : muiTheme.palette.grey[100]
-                  //         : "transparent",
-                  //   "&:hover": {
-                  //     backgroundColor: muiTheme.palette.mode === "dark" ? muiTheme.palette.grey[900] : muiTheme.palette.grey[100],
-                  //     cursor: "pointer"
-                  //   }
-                  // }}
                   key={template.id}
                   onClick={() => _onSelectTemplate(template)}
                   onMouseOver={() => {

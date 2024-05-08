@@ -299,20 +299,20 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                 >
                   <div className="flex items-center space-x-1">
                     <span className="text-xs text-muted-foreground">Available:&nbsp;</span>
-                    <Badge variant={service.available > 0 ? "success" : "destructive"} className="h-4 px-1 text-xs leading-3">
-                      {service.available}
+                    <Badge variant={service.available > 0 ? "success" : "destructive"} className="h-3 px-1 text-xs leading-3">
+                      <small>{service.available}</small>
                     </Badge>
                   </div>
                   <div className="flex items-center space-x-1">
                     <span className="text-xs text-muted-foreground">Ready Replicas:&nbsp;</span>
-                    <Badge variant={service.ready_replicas > 0 ? "success" : "destructive"} className="h-4 px-1 text-xs leading-3">
-                      {service.ready_replicas}
+                    <Badge variant={service.ready_replicas > 0 ? "success" : "destructive"} className="h-3 px-1 text-xs leading-3">
+                      <small>{service.ready_replicas}</small>
                     </Badge>
                   </div>
                   <div className="flex items-center space-x-1">
                     <span className="text-xs text-muted-foreground">Total:&nbsp;</span>
-                    <Badge variant={service.total > 0 ? "success" : "destructive"} className="h-4 px-1 text-xs leading-3">
-                      {service.total}
+                    <Badge variant={service.total > 0 ? "success" : "destructive"} className="h-3 px-1 text-xs leading-3">
+                      <small>{service.total}</small>
                     </Badge>
                   </div>
                 </div>
@@ -351,10 +351,10 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                   <>
                     <div className="mt-2">
                       <LabelValueOld label="URI(s):" />
-                      <ul className="space-y-4">
+                      <ul className="mt-2 space-y-2">
                         {service.uris.map(uri => {
                           return (
-                            <li className="flex items-center py-1" key={uri}>
+                            <li className="flex items-center" key={uri}>
                               <Link href={`http://${uri}`} target="_blank" className="inline-flex items-center space-x-2 truncate text-sm">
                                 <span>{uri}</span>
                                 <OpenInWindow className="text-xs" />
@@ -364,7 +364,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                                 aria-label="uri"
                                 size="icon"
                                 variant="ghost"
-                                className="rounded-full"
+                                className="h-6 w-6 rounded-full"
                                 onClick={ev => {
                                   copyTextToClipboard(uri);
                                   enqueueSnackbar(<Snackbar title="Uri copied to clipboard!" iconVariant="success" />, {
@@ -373,7 +373,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                                   });
                                 }}
                               >
-                                <Copy />
+                                <Copy className="text-xs" />
                               </Button>
                             </li>
                           );
@@ -388,11 +388,11 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
         {isLeaseActive && leaseStatus && leaseStatus.ips && (
           <div className="mt-2">
             <LabelValueOld label="IP(s):" />
-            <ul>
+            <ul className="mt-2 space-y-2">
               {servicesNames
                 .flatMap(n => leaseStatus.ips[n])
                 .map((ip, i) => (
-                  <li key={`${ip.IP}${ip.ExternalPort}`} className="flex items-center space-x-2">
+                  <li key={`${ip.IP}${ip.ExternalPort}`} className="flex items-center">
                     <Link className="inline-flex items-center space-x-2 text-sm" href={`http://${ip.IP}:${ip.ExternalPort}`} target="_blank">
                       <span>
                         {ip.IP}:{ip.ExternalPort}
@@ -415,7 +415,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="rounded-full"
+                      className="h-6 w-6 rounded-full"
                       onClick={ev => {
                         copyTextToClipboard(`${ip.IP}:${ip.ExternalPort}`);
                         enqueueSnackbar(<Snackbar title="Ip copied to clipboard!" iconVariant="success" />, {
@@ -424,7 +424,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                         });
                       }}
                     >
-                      <Copy />
+                      <Copy className="text-xs" />
                     </Button>
                   </li>
                 ))}

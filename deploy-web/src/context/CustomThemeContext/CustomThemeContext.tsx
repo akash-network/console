@@ -138,7 +138,7 @@ const lightTheme = createTheme(getDesignTokens("light"));
 
 export const CustomThemeProvider = ({ children }) => {
   const [isMounted, setIsMounted] = useState(false);
-  const { theme: nextTheme } = useTheme();
+  const { resolvedTheme: nextTheme } = useTheme();
   const darkModeActive = nextTheme === "dark";
   const mode = darkModeActive ? "dark" : "light";
   // Update the theme only if the mode changes

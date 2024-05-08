@@ -22,13 +22,15 @@ export const Nav = ({
   return (
     <header className="fixed top-0 z-50 w-full border-b border-border bg-popover dark:bg-background">
       <div className="flex h-14 items-center justify-between pl-4 pr-4">
-        <Link className="flex items-center" href="/">
-          {theme === "light" ? (
-            <AkashConsoleBetaLogoLight className="h-[19px] max-w-[200px]" />
-          ) : (
-            <AkashConsoleBetaLogoDark className="h-[19px] max-w-[200px]" />
-          )}
-        </Link>
+        {!!theme && (
+          <Link className="flex items-center" href="/">
+            {theme === "light" ? (
+              <AkashConsoleBetaLogoLight className="h-[19px] max-w-[200px]" />
+            ) : (
+              <AkashConsoleBetaLogoDark className="h-[19px] max-w-[200px]" />
+            )}
+          </Link>
+        )}
 
         <div>
           <Button size="icon" className="rounded-full md:hidden" variant="ghost" onClick={handleDrawerToggle}>

@@ -16,13 +16,13 @@ type Props = {
 };
 
 export const DynamicMonacoEditor: React.FunctionComponent<Props> = ({ value, height = "100%", onChange, onMount, language = "yaml", options = {} }) => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
 
   return (
     <_DynamicMonacoEditor
       height={height}
       language={language}
-      theme={theme === "dark" ? "vs-dark" : "hc-light"}
+      theme={resolvedTheme === "dark" ? "vs-dark" : "hc-light"}
       value={value}
       onChange={onChange}
       options={{ ...monacoOptions, ...options }}

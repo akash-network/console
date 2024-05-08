@@ -11,13 +11,13 @@ type MarkdownProps = {
 };
 
 const Markdown: React.FunctionComponent<MarkdownProps> = ({ children }) => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
 
   return (
     <ReactMarkdown
       className={cn(
         "markdownContainerRoot prose dark:prose-invert prose-code:before:hidden prose-code:after:hidden",
-        theme === "dark" ? "markdownContainer-dark" : "markdownContainer"
+        resolvedTheme === "dark" ? "markdownContainer-dark" : "markdownContainer"
       )}
       linkTarget="_blank"
       remarkPlugins={[remarkGfm]}

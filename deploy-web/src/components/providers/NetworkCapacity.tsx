@@ -2,7 +2,6 @@
 import { ResponsivePie } from "@nivo/pie";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
-import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import useTailwind from "@src/hooks/useTailwind";
 import { useIntl } from "react-intl";
@@ -36,7 +35,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
   pendingStorage,
   totalStorage
 }) => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const tw = useTailwind();
   const activeMemoryBytes = activeMemory + pendingMemory;
   const availableMemoryBytes = totalMemory - (activeMemory + pendingMemory);
@@ -59,7 +58,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
 
   const colors = {
     active: tw.theme.colors["primary"].DEFAULT,
-    available: theme === "dark" ? tw.theme.colors.neutral[800] : tw.theme.colors.neutral[500]
+    available: resolvedTheme === "dark" ? tw.theme.colors.neutral[800] : tw.theme.colors.neutral[500]
   };
 
   const getColor = (id: string) => {
@@ -220,17 +219,17 @@ const useData = (active: number, available: number) => {
 };
 
 const usePieTheme = () => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const tw = useTailwind();
   return {
     textColor: "#fff",
     fontSize: 12,
     tooltip: {
       basic: {
-        color: theme === "dark" ? tw.theme.colors.white : tw.theme.colors.current
+        color: resolvedTheme === "dark" ? tw.theme.colors.white : tw.theme.colors.current
       },
       container: {
-        backgroundColor: theme === "dark" ? tw.theme.colors.current : tw.theme.colors.white
+        backgroundColor: resolvedTheme === "dark" ? tw.theme.colors.neutral[700] : tw.theme.colors.white
       }
     }
   };

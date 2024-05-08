@@ -17,7 +17,6 @@ import { hasSomeParentTheClass } from "@src/utils/domUtils";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { TableCell, TableRow } from "../ui/table";
 import { cn } from "@src/utils/styleUtils";
-import { useTheme } from "next-themes";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { Badge } from "../ui/badge";
 import { WarningTriangle, CloudXmark } from "iconoir-react";
@@ -35,7 +34,6 @@ type Props = {
 
 export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handleBidSelected, disabled, provider, isSendingManifest }) => {
   const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
-  const { theme } = useTheme();
   const isFavorite = favoriteProviders.some(x => provider.owner === x);
   const isCurrentBid = selectedBid?.id === bid.id;
   const {
@@ -74,7 +72,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
       key={bid.id}
       className={cn("bid-list-row [&>td]:px-2 [&>td]:py-1", {
         ["cursor-pointer hover:bg-muted-foreground/10"]: bid.state === "open",
-        [`border ${theme === "dark" ? "bg-green-800" : "bg-green-100"}`]: isCurrentBid
+        [`border bg-green-100 dark:bg-green-900`]: isCurrentBid
       })}
       onClick={onRowClick}
     >

@@ -21,9 +21,9 @@ interface IGraphProps {
 }
 
 const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetadata, snapshotData, snapshot, selectedRange }) => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const intl = useIntl();
-  const graphTheme = getTheme(theme);
+  const graphTheme = getTheme(resolvedTheme);
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("sm"));
   const minValue = rangedData && snapshotMetadata.unitFn(rangedData.map(x => x.value).reduce((a: number, b: number) => (a < b ? a : b))).value;

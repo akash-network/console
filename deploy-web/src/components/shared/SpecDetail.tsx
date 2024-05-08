@@ -4,7 +4,6 @@ import { roundDecimal } from "@src/utils/mathHelpers";
 import { cn } from "@src/utils/styleUtils";
 import { Badge } from "../ui/badge";
 import { MdDeveloperBoard, MdMemory, MdSpeed, MdStorage } from "react-icons/md";
-import { useTheme } from "next-themes";
 
 export function SpecDetail({
   cpuAmount,
@@ -27,12 +26,9 @@ export function SpecDetail({
 }>) {
   const memory = bytesToShrink(memoryAmount);
   const storage = bytesToShrink(storageAmount);
-  const { theme } = useTheme();
   const badgeClasses = cn("h-auto rounded-3xl py-0 px-2", {
-    ["bg-gray-700"]: theme === "dark",
-    ["bg-gray-100"]: theme === "light",
     ["bg-primary text-white"]: color === "primary",
-    ["bg-secondary text-initial"]: color === "secondary"
+    ["bg-secondary text-initial dark:bg-neutral-800"]: color === "secondary"
   });
   const specDetailIconClasses = cn({ ["text-2xl"]: size === "large", ["text-xl"]: size === "medium", ["text-sm"]: size === "small" });
   const specDetailClasses = cn("ml-2", { ["text-lg"]: size === "large", ["text-sm"]: size === "medium", ["text-xs"]: size === "small" });

@@ -54,7 +54,7 @@ type Props = {
 };
 
 export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadingBalances, activeDeployments, leases, providers }) => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const tw = useTailwind();
   const { address, walletBalances, refreshBalances } = useWallet();
   const usdcIbcDenom = useUsdcDenom();
@@ -170,7 +170,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
     if (!selectedId || id === selectedId) {
       return colors[id];
     } else {
-      return theme === "dark" ? tw.theme.colors.neutral[800] : "#e0e0e0";
+      return resolvedTheme === "dark" ? tw.theme.colors.neutral[800] : "#e0e0e0";
     }
   };
 
@@ -351,7 +351,7 @@ type BalancePieProps = {
 };
 
 const BalancePie: React.FunctionComponent<BalancePieProps> = ({ label, data, getColor }) => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   return (
     <div className="flex h-[200px] w-[220px] items-center justify-center">
       <ResponsivePie
@@ -386,10 +386,10 @@ const BalancePie: React.FunctionComponent<BalancePieProps> = ({ label, data, get
           fontSize: 12,
           tooltip: {
             basic: {
-              color: theme === "dark" ? "#fff" : customColors.main
+              color: resolvedTheme === "dark" ? "#fff" : customColors.main
             },
             container: {
-              backgroundColor: theme === "dark" ? customColors.main : "#fff"
+              backgroundColor: resolvedTheme === "dark" ? customColors.main : "#fff"
             }
           }
         }}

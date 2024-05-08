@@ -4,7 +4,7 @@ import { IntlProvider } from "react-intl";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "../shared/ErrorFallback";
 import { accountBarHeight } from "@src/utils/constants";
-import { useMediaQuery, useTheme } from "@mui/material";
+import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 import { WelcomeModal } from "./WelcomeModal";
 import { Sidebar } from "./Sidebar";
 import { useSettings } from "@src/context/SettingsProvider";
@@ -48,13 +48,13 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
 };
 
 const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName = "" }) => {
-  const theme = useTheme();
+  const muiTheme = useMuiTheme();
   const [isShowingWelcome, setIsShowingWelcome] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
-  const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   useEffect(() => {
     const _isNavOpen = localStorage.getItem("isNavOpen");
