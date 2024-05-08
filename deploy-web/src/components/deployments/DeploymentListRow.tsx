@@ -59,21 +59,29 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const deploymentName = deployment.name ? (
     <>
       {deployment.name.length > 20 ? (
-        <CustomTooltip title={deployment.name}>
+        <CustomTooltip
+          title={
+            <>
+              {deployment.name}-{deployment.dseq}
+            </>
+          }
+        >
           <span className="text-sm">
             <strong>{getShortText(deployment.name, 15)}</strong>
             <span className="inline text-xs">
-              &nbsp;-&nbsp;<small>{deployment.dseq}</small>
+              &nbsp;-&nbsp;<small>{getShortText(deployment.dseq, 15)}</small>
             </span>
           </span>
         </CustomTooltip>
       ) : (
-        <span className="text-sm">
-          <strong>{deployment.name}</strong>
-          <span className="inline text-xs">
-            &nbsp;-&nbsp;<small>{deployment.dseq}</small>
+        <CustomTooltip title={deployment.dseq}>
+          <span className="text-sm">
+            <strong>{deployment.name}</strong>
+            <span className="inline text-xs">
+              &nbsp;-&nbsp;<small>{getShortText(deployment.dseq, 15)}</small>
+            </span>
           </span>
-        </span>
+        </CustomTooltip>
       )}
     </>
   ) : (

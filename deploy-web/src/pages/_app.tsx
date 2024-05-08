@@ -33,9 +33,7 @@ import { cn } from "@src/utils/styleUtils";
 import { GeistSans } from "geist/font/sans";
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 
-interface Props extends AppProps {
-  // emotionCache?: EmotionCache;
-}
+interface Props extends AppProps {}
 
 NProgress.configure({
   minimum: 0.2
@@ -56,7 +54,7 @@ const App: React.FunctionComponent<Props> = props => {
         <CustomIntlProvider>
           <QueryClientProvider client={queryClient}>
             <Provider>
-              <ThemeProvider attribute="class" defaultTheme="light" storageKey="theme" enableSystem disableTransitionOnChange>
+              <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
                 <ColorModeProvider>
                   <CustomSnackbarProvider>
                     <PricingProvider>
