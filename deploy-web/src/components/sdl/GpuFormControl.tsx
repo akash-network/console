@@ -48,7 +48,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
   };
 
   return (
-    <FormPaper className="p-4">
+    <FormPaper>
       <div className="flex items-center">
         <Controller
           control={control}

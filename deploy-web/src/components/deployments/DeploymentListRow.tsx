@@ -23,7 +23,7 @@ import { PricePerMonth } from "../shared/PricePerMonth";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { TableCell, TableRow } from "../ui/table";
-import { WarningCircle, MoreHoriz, InfoCircle, NavArrowRight, Plus, Edit, XmarkSquare, Upload } from "iconoir-react";
+import { WarningCircle, MoreHoriz, InfoCircle, NavArrowRight, Plus, Edit, XmarkSquare, Upload, WarningTriangle } from "iconoir-react";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -62,7 +62,8 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         <CustomTooltip
           title={
             <>
-              {deployment.name}-{deployment.dseq}
+              <div>{deployment.name}</div>
+              <small>{deployment.dseq}</small>
             </>
           }
         >
@@ -74,7 +75,14 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
           </span>
         </CustomTooltip>
       ) : (
-        <CustomTooltip title={deployment.dseq}>
+        <CustomTooltip
+          title={
+            <>
+              <div>{deployment.name}</div>
+              <small>{deployment.dseq}</small>
+            </>
+          }
+        >
           <span className="text-sm">
             <strong>{deployment.name}</strong>
             <span className="inline text-xs">
@@ -185,8 +193,8 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         <TableCell className="max-w-[100px] text-center">{deploymentName}</TableCell>
         <TableCell className="text-center">
           {isActive && isValidTimeLeft && realTimeLeft && (
-            <span>
-              ~{formatDistanceToNow(realTimeLeft?.timeLeft)}
+            <div className="inline-flex items-center space-x-2">
+              <span>~{formatDistanceToNow(realTimeLeft?.timeLeft)}</span>
               {showTimeLeftWarning && (
                 <CustomTooltip
                   title={
@@ -199,10 +207,10 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                     </>
                   }
                 >
-                  <WarningCircle className="ml-2 text-xs text-destructive-foreground" />
+                  <WarningTriangle className="text-xs text-warning" />
                 </CustomTooltip>
               )}
-            </span>
+            </div>
           )}
         </TableCell>
         <TableCell className="text-center">
