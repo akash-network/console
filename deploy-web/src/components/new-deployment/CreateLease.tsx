@@ -11,7 +11,7 @@ import { sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { deploymentData } from "@src/utils/deploymentData";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import ViewPanel from "../shared/ViewPanel";
 import { event } from "nextjs-google-analytics";
@@ -22,7 +22,6 @@ import { BidCountdownTimer } from "./BidCountdownTimer";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { useToast } from "../ui/use-toast";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
@@ -32,6 +31,9 @@ import Spinner from "../shared/Spinner";
 import { InputWithIcon } from "../ui/input";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { useSnackbar } from "notistack";
+import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
+import { Snackbar } from "../shared/Snackbar";
 
 const yaml = require("js-yaml");
 
@@ -56,9 +58,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const [search, setSearch] = useState("");
   const { address, signAndBroadcastTx } = useWallet();
   const { localCert } = useCertificate();
-  const { toast, dismiss } = useToast();
   const router = useRouter();
-  const [anchorEl, setAnchorEl] = useState(null);
   const [numberOfRequests, setNumberOfRequests] = useState(0);
   const { data: providers } = useProviderList();
   const warningRequestsReached = numberOfRequests > WARNING_NUM_OF_BID_REQUESTS;
@@ -82,6 +82,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
       }, {} as any) || {};
   const dseqList = Object.keys(groupedBids).map(g => parseInt(g));
   const allClosed = (bids?.length || 0) > 0 && bids?.every(bid => bid.state === "closed");
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   useEffect(() => {
     getDeploymentDetail();
@@ -148,7 +149,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
       return response;
     } catch (err) {
-      toast({ title: "Error", description: `Error while sending manifest to provider. ${err}`, variant: "destructive" });
+      enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
       throw err;
     }
   }
@@ -184,7 +185,10 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     const localDeploymentData = getDeploymentLocalData(dseq);
     if (localDeploymentData && localDeploymentData.manifest) {
       // Send the manifest
-      const { id: sendManifestKey } = toast({ title: "Deploying! 🚀", description: "Please wait a few seconds...", loading: true, variant: "default" });
+      const sendManifestKey = enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
+        variant: "info",
+        autoHideDuration: null
+      });
 
       try {
         const yamlJson = yaml.load(localDeploymentData.manifest);
@@ -198,7 +202,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
       } catch (err) {
         console.error(err);
       }
-      dismiss(sendManifestKey);
+      closeSnackbar(sendManifestKey);
     }
 
     event(AnalyticsEvents.SEND_MANIFEST, {
@@ -222,10 +226,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     }
   }
 
-  function handleMenuClick(ev) {
-    setAnchorEl(ev.currentTarget);
-  }
-
   const onSearchChange = event => {
     const value = event.target.value;
     setSearch(value);
@@ -233,17 +233,15 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
   return (
     <>
-      <CustomNextSeo
-        title="Create Deployment - Create Lease"
-        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.createLeases })}`}
-      />
+      <CustomNextSeo title="Create Deployment - Create Lease" url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.createLeases })}`} />
 
       <div className="mt-4">
         {!isLoadingBids && (bids?.length || 0) > 0 && !allClosed && (
           <div className="flex flex-col items-end justify-between py-2 md:flex-row">
             <div className="flex w-full flex-grow items-end md:w-auto">
               <InputWithIcon
-                label="Search provider..."
+                label="Search provider"
+                placeholder="Search provider..."
                 disabled={bids?.length === 0 || isSendingManifest}
                 value={search}
                 onChange={onSearchChange}
@@ -261,7 +259,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <div className="mx-2">
-                    <Button size="icon" variant="ghost" onClick={handleMenuClick}>
+                    <Button size="icon" variant="ghost">
                       <MoreHoriz className="text-lg" />
                     </Button>
                   </div>
@@ -303,18 +301,18 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
           </Button>
         )}
 
-        {(isLoadingBids || (bids?.length || 0) === 0) && !maxRequestsReached && !isSendingManifest && (
-          <div className="flex flex-col items-center justify-center pt-4 text-center">
-            <Spinner size="large" />
-            <div className="pt-4">Waiting for bids...</div>
-          </div>
-        )}
-
         {warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-4">
             <Alert variant="warning">
               There should be bids by now... You can wait longer in case a bid shows up or close the deployment and try again with a different configuration.
             </Alert>
+          </div>
+        )}
+
+        {(isLoadingBids || (bids?.length || 0) === 0) && !maxRequestsReached && !isSendingManifest && (
+          <div className="flex flex-col items-center justify-center pt-4 text-center">
+            <Spinner size="large" />
+            <div className="pt-4">Waiting for bids...</div>
           </div>
         )}
 
@@ -327,7 +325,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         )}
 
         {bids && bids.length > 0 && (
-          <div className="mb-1 flex flex-col items-center justify-between md:mb-0 md:flex-row">
+          <div className="my-1 flex flex-col items-center justify-between md:flex-row">
             <div className="flex w-full items-center md:w-auto">
               <div className="flex items-center space-x-2">
                 <Checkbox checked={isFilteringFavorites} onCheckedChange={value => setIsFilteringFavorites(value as boolean)} id="provider-favorites" />

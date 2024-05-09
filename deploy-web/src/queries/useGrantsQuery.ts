@@ -5,7 +5,7 @@ import { useQuery } from "react-query";
 import { QueryKeys } from "./queryKeys";
 
 async function getGranterGrants(apiEndpoint: string, address: string) {
-  if (!address) return null;
+  if (!address) return [];
 
   const response = await axios.get(ApiUrlService.granterGrants(apiEndpoint, address));
   const filteredGrants = response.data.grants.filter(
@@ -24,7 +24,7 @@ export function useGranterGrants(address: string, options = {}) {
 }
 
 async function getGranteeGrants(apiEndpoint: string, address: string) {
-  if (!address) return null;
+  if (!address) return [];
 
   const response = await axios.get(ApiUrlService.granteeGrants(apiEndpoint, address));
   const filteredGrants = response.data.grants.filter(
@@ -45,7 +45,7 @@ export function useGranteeGrants(address: string, options = {}) {
 }
 
 async function getAllowancesIssued(apiEndpoint: string, address: string) {
-  if (!address) return null;
+  if (!address) return [];
 
   const response = await axios.get(ApiUrlService.allowancesIssued(apiEndpoint, address));
 
@@ -59,7 +59,7 @@ export function useAllowancesIssued(address: string, options = {}) {
 }
 
 async function getAllowancesGranted(apiEndpoint: string, address: string) {
-  if (!address) return null;
+  if (!address) return [];
 
   const response = await axios.get(ApiUrlService.allowancesGranted(apiEndpoint, address));
 

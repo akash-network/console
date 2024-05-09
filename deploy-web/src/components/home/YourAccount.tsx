@@ -20,15 +20,30 @@ import sdlStore from "@src/store/sdlStore";
 import { usePricing } from "@src/context/PricingProvider";
 import { uAktDenom } from "@src/utils/constants";
 import { useUsdcDenom } from "@src/hooks/useDenom";
-import { green, gray } from "tailwindcss/colors";
 import { useTheme } from "next-themes";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import Spinner from "../shared/Spinner";
 import { cn } from "@src/utils/styleUtils";
-import { buttonVariants } from "../ui/button";
+import { Button, buttonVariants } from "../ui/button";
 import { Rocket } from "iconoir-react";
 import { Badge } from "../ui/badge";
-import { customColors } from "@src/utils/colors";
+import { HSLToHex, customColors } from "@src/utils/colors";
+import dynamic from "next/dynamic";
+import useTailwind from "@src/hooks/useTailwind";
+
+const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
+  ssr: false,
+  loading: props => {
+    if (props.isLoading) {
+      return (
+        <Button variant="default" disabled size="sm">
+          <span>Get More</span>
+          <Spinner size="small" className="ml-2" />
+        </Button>
+      );
+    } else return null;
+  }
+});
 
 type Props = {
   balances: Balances | undefined;
@@ -39,8 +54,9 @@ type Props = {
 };
 
 export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadingBalances, activeDeployments, leases, providers }) => {
-  const { theme } = useTheme();
-  const { address } = useWallet();
+  const { resolvedTheme } = useTheme();
+  const tw = useTailwind();
+  const { address, walletBalances, refreshBalances } = useWallet();
   const usdcIbcDenom = useUsdcDenom();
   const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
   const [costPerMonth, setCostPerMonth] = useState<number | null>(null);
@@ -64,12 +80,13 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const _storage = bytesToShrink(totalStorage);
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const { price, isLoaded } = usePricing();
+  const aktBalance = walletBalances ? uaktToAKT(walletBalances.uakt) : 0;
 
   const colors = {
     balance_akt: customColors.akashRed,
     balance_usdc: customColors.akashRed,
-    deployment_akt: green[500],
-    deployment_usdc: green[500]
+    deployment_akt: tw.theme.colors.green[600],
+    deployment_usdc: tw.theme.colors.green[600]
   };
 
   const getAktData = (balances: Balances, escrowUAktSum: number) => {
@@ -153,7 +170,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
     if (!selectedId || id === selectedId) {
       return colors[id];
     } else {
-      return theme === "dark" ? gray[900] : "#e0e0e0";
+      return resolvedTheme === "dark" ? tw.theme.colors.neutral[800] : "#e0e0e0";
     }
   };
 
@@ -311,6 +328,10 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                       </strong>
                     </div>
                   </div>
+
+                  <div className="flex items-center justify-end">
+                    <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} />
+                  </div>
                 </div>
               )}
             </div>
@@ -330,7 +351,7 @@ type BalancePieProps = {
 };
 
 const BalancePie: React.FunctionComponent<BalancePieProps> = ({ label, data, getColor }) => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   return (
     <div className="flex h-[200px] w-[220px] items-center justify-center">
       <ResponsivePie
@@ -365,10 +386,10 @@ const BalancePie: React.FunctionComponent<BalancePieProps> = ({ label, data, get
           fontSize: 12,
           tooltip: {
             basic: {
-              color: theme === "dark" ? "#fff" : customColors.main
+              color: resolvedTheme === "dark" ? "#fff" : customColors.main
             },
             container: {
-              backgroundColor: theme === "dark" ? customColors.main : "#fff"
+              backgroundColor: resolvedTheme === "dark" ? customColors.main : "#fff"
             }
           }
         }}

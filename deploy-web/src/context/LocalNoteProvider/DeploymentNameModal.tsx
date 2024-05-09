@@ -2,15 +2,14 @@
 import { useEffect, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { updateDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
-import { useToast } from "@src/components/ui/use-toast";
 import { Popup } from "@src/components/shared/Popup";
-import { Card, CardContent } from "@src/components/ui/card";
-import { Input } from "@src/components/ui/input";
-import { FormControl } from "@src/components/ui/form";
+import { InputWithIcon } from "@src/components/ui/input";
+import { useSnackbar } from "notistack";
+import { Snackbar } from "@src/components/shared/Snackbar";
 
 export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName }) => {
   const formRef = useRef<HTMLFormElement | null>(null);
-  const { toast } = useToast();
+  const { enqueueSnackbar } = useSnackbar();
   const { handleSubmit, control, setValue } = useForm({
     defaultValues: {
       name: ""
@@ -33,11 +32,7 @@ export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName 
   function onSubmit({ name }) {
     updateDeploymentLocalData(dseq, { name: name });
 
-    toast({
-      title: "Success!",
-      variant: "success"
-    });
-    // enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
+    enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
 
     onSaved();
   }
@@ -67,48 +62,15 @@ export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName 
       onClose={onClose}
       maxWidth="xs"
     >
-      <Card className="flex p-4">
-        <CardContent className="flex-grow">
-          <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-            {/* <FormControl> */}
-            <label>Name</label>
-            <Controller
-              control={control}
-              name="name"
-              render={({ field }) => {
-                return <Input {...field} autoFocus type="text" />;
-              }}
-            />
-            {/* </FormControl> */}
-          </form>
-        </CardContent>
-      </Card>
+      <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+        <Controller
+          control={control}
+          name="name"
+          render={({ field }) => {
+            return <InputWithIcon {...field} label="Name" autoFocus type="text" />;
+          }}
+        />
+      </form>
     </Popup>
   );
-
-  // return (
-  //   <Dialog open={!!dseq} onClose={onClose} maxWidth="xs" fullWidth>
-  //     <DialogTitle>Change Deployment Name {dseq ? `(${dseq})` : ""}</DialogTitle>
-  //     <DialogContent dividers className={classes.dialogContent}>
-  //       <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-  //         <FormControl fullWidth>
-  //           <Controller
-  //             control={control}
-  //             name="name"
-  //             render={({ field }) => {
-  //               return <TextField {...field} autoFocus type="text" variant="outlined" label="Name" />;
-  //             }}
-  //           />
-  //         </FormControl>
-  //       </form>
-  //     </DialogContent>
-  //     <DialogActions className={classes.dialogActions}>
-  //       <Button onClick={onClose}>Close</Button>
-  //       <Button variant="contained" color="secondary" onClick={onSaveClick}>
-  //         Save
-  //       </Button>
-  //     </DialogActions>
-  //   </Dialog>
-
-  // );
 };

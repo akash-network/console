@@ -7,11 +7,12 @@ import { UseFormSetValue } from "react-hook-form";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { useToast } from "@src/components/ui/use-toast";
 import { Popup } from "@src/components/shared/Popup";
 import { useTheme } from "next-themes";
 import { ArrowDown } from "iconoir-react";
 import { Alert } from "@src/components/ui/alert";
+import { useSnackbar } from "notistack";
+import { Snackbar } from "../shared/Snackbar";
 
 type Props = {
   setValue: UseFormSetValue<SdlBuilderFormValues>;
@@ -22,8 +23,8 @@ type Props = {
 export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setValue }) => {
   const [sdl, setSdl] = useState<string | undefined>("");
   const [parsingError, setParsingError] = useState<string | null>(null);
-  const { toast } = useToast();
-  const { theme } = useTheme();
+  const { enqueueSnackbar } = useSnackbar();
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     const timer = Timer(500);
@@ -70,11 +71,10 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
 
     setValue("services", result as Service[]);
 
-    toast({ title: "Import success!", variant: "success" });
-    // enqueueSnackbar(<Snackbar title="Import success!" iconVariant="success" />, {
-    //   variant: "success",
-    //   autoHideDuration: 4000
-    // });
+    enqueueSnackbar(<Snackbar title="Import success!" iconVariant="success" />, {
+      variant: "success",
+      autoHideDuration: 4000
+    });
 
     event(AnalyticsEvents.IMPORT_SDL, {
       category: "sdl_builder",
@@ -115,7 +115,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
         Paste your sdl here to import <ArrowDown className="ml-4 text-sm" />
       </h6>
       <div className="mb-2">
-        <Editor height="500px" defaultLanguage="yaml" value={sdl} onChange={value => setSdl(value)} theme={theme === "dark" ? "vs-dark" : "light"} />
+        <Editor height="500px" defaultLanguage="yaml" value={sdl} onChange={value => setSdl(value)} theme={resolvedTheme === "dark" ? "vs-dark" : "light"} />
       </div>
       {parsingError && (
         <Alert className="mt-4" variant="destructive">

@@ -17,7 +17,7 @@ type Props = {
 export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref }) => {
   return (
     <Link
-      className={cn(cardClasses, "min-h-[100px] cursor-pointer !no-underline hover:bg-primary/10")}
+      className={cn(cardClasses, "min-h-[100px] cursor-pointer !no-underline hover:bg-secondary/60 dark:hover:bg-secondary/30")}
       href={linkHref ? linkHref : UrlService.templateDetails(template.id as string)}
     >
       <CardHeader>
@@ -29,11 +29,11 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
             </AvatarFallback>
           </Avatar>
 
-          <div className="ml-4 break-all font-bold">{template.name}</div>
+          <div className="ml-4 break-all font-bold tracking-tight">{template.name}</div>
         </div>
       </CardHeader>
       <CardContent className="pb-4 pt-0">
-        <p className="text-sm text-muted-foreground">{getShortText(template.summary, 128)}</p>
+        <p className="text-xs text-muted-foreground">{getShortText(template.summary, 128)}</p>
       </CardContent>
     </Link>
   );

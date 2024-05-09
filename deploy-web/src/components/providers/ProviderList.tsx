@@ -6,7 +6,7 @@ import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useWallet } from "@src/context/WalletProvider";
 import { useNetworkCapacity, useProviderList } from "@src/queries/useProvidersQuery";
 import dynamic from "next/dynamic";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { ClientProviderList } from "@src/types/provider";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,13 +16,13 @@ import { OpenNewWindow, Refresh, Xmark } from "iconoir-react";
 import { CheckboxWithLabel } from "@src/components/ui/checkbox";
 import { CustomPagination } from "@src/components/shared/CustomPagination";
 import { InputWithIcon } from "@src/components/ui/input";
-import { FormItem } from "@src/components/ui/form";
 import { Label } from "@src/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
 import Layout from "../layout/Layout";
 import { ProviderMap } from "./ProviderMap";
 import { ProviderTable } from "./ProviderTable";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
+import { Title } from "../shared/Title";
 
 const NetworkCapacity = dynamic(() => import("./NetworkCapacity"), {
   ssr: false
@@ -156,34 +156,27 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
   const onSearchChange = event => {
     const value = event.target.value;
     setSearch(value);
-    setPage(0);
+    setPageIndex(0);
   };
 
-  const handleSortChange = event => {
-    const value = event.target.value;
-
+  const handleSortChange = value => {
     router.replace(UrlService.providers(value), { scroll: false });
   };
 
-  const handleRowsPerPageChange = event => {
-    const value = event.target.value;
-
+  const onPageSizeChange = (value: number) => {
     setPageSize(value);
+    setPageIndex(0);
   };
 
   return (
     <Layout isLoading={isLoadingProviders || isLoadingLeases || isLoadingNetworkCapacity}>
-      <CustomNextSeo
-        title="Providers"
-        url={`https://deploy.cloudmos.io${UrlService.providers()}`}
-        description="Explore all the providers available on the Akash Network."
-      />
+      <CustomNextSeo title="Providers" url={`${domainName}${UrlService.providers()}`} description="Explore all the providers available on the Akash Network." />
 
-      <h1 className="mb-8 text-2xl font-bold">Network Capacity</h1>
+      <Title>Network Capacity</Title>
 
       {providers && providers.length > 0 && (
-        <h3 className="mb-8 text-lg text-muted-foreground">
-          <span className="text-xl font-bold text-primary">{providers.filter(x => x.isOnline).length}</span> active providers on {selectedNetwork.title}
+        <h3 className="mb-8 text-base text-muted-foreground">
+          <span className="text-2xl font-bold text-primary">{providers.filter(x => x.isOnline).length}</span> active providers on {selectedNetwork.title}
         </h3>
       )}
 
@@ -221,7 +214,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
       {(providers?.length || 0) > 0 && (
         <>
           <div className="mr-4">
-            <Button onClick={() => window.open("https://docs.akash.network/providers", "_blank")} size="lg" color="secondary">
+            <Button onClick={() => window.open("https://akash.network/providers/", "_blank")} size="lg" color="secondary">
               Become a provider
               <OpenNewWindow className="ml-2 text-sm" />
             </Button>
@@ -233,7 +226,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
                 <h3 className="text-2xl font-bold">Providers</h3>
 
                 <div className="ml-4">
-                  <Button aria-label="back" onClick={() => refresh()} size="icon">
+                  <Button aria-label="back" onClick={() => refresh()} size="icon" variant="ghost" className="rounded-full">
                     <Refresh />
                   </Button>
                 </div>
@@ -252,78 +245,38 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
               </div>
             </div>
 
-            <div className="flex flex-col items-center px-4 md:flex-row">
+            <div className="my-2 flex flex-col items-center md:flex-row md:space-x-2">
               <InputWithIcon
                 label="Search Providers"
                 value={search}
                 onChange={onSearchChange}
+                className="w-full"
                 type="text"
                 endIcon={
-                  <Button size="icon" variant="ghost" onClick={() => setSearch("")}>
-                    <Xmark />
-                  </Button>
+                  !!search && (
+                    <Button size="icon" variant="text" onClick={() => setSearch("")}>
+                      <Xmark />
+                    </Button>
+                  )
                 }
               />
 
-              <div
-                className="mt-4 flex w-full items-start md:mt-0 md:w-auto md:items-center"
-                // sx={{
-                //   display: "flex",
-                //   width: { xs: "100%", sm: "100%", md: "auto" },
-                //   alignItems: { xs: "start", sm: "start", md: "center" },
-                //   marginTop: { xs: "1rem", sm: "1rem", md: 0 }
-                // }}
-              >
-                {/* <FormControl sx={{ flexBasis: "100px", marginLeft: { xs: 0, sm: 0, md: "1rem" } }}>
-                  <InputLabel id="sort-select-label">Rows per page</InputLabel>
-                  <Select
-                    labelId="sort-select-label"
-                    label="Rows per page"
-                    value={rowsPerPage}
-                    onChange={handleRowsPerPageChange}
-                    variant="outlined"
-                    size="small"
-                  >
-                    <MenuItem value={10}>
-                      <Typography variant="caption">10</Typography>
-                    </MenuItem>
-                    <MenuItem value={20}>
-                      <Typography variant="caption">20</Typography>
-                    </MenuItem>
-                    <MenuItem value={50}>
-                      <Typography variant="caption">50</Typography>
-                    </MenuItem>
-                  </Select>
-                </FormControl> */}
-                {/* 
-                <FormControl className={classes.selectFormControl}>
-                  <InputLabel id="sort-select-label">Sort by</InputLabel>
-                  <Select labelId="sort-select-label" label="Sort by" value={sort} onChange={handleSortChange} variant="outlined" size="small">
-                    {sortOptions.map(l => (
-                      <MenuItem key={l.id} value={l.id}>
-                        <Typography variant="caption">{l.title}</Typography>
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl> */}
-
-                <FormItem>
-                  <Label>Sort by</Label>
-                  <Select value={sort} onValueChange={handleSortChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select lease" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {sortOptions.map(l => (
-                          <SelectItem key={l.id} value={l.id}>
-                            <span className="text-sm text-muted-foreground">{l.title}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </FormItem>
+              <div className="min-w-[200px]">
+                <Label>Sort by</Label>
+                <Select value={sort} onValueChange={handleSortChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select lease" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {sortOptions.map(l => (
+                        <SelectItem key={l.id} value={l.id}>
+                          <span className="text-sm text-muted-foreground">{l.title}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -336,13 +289,13 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
             )}
 
             {(providers?.length || 0) > 0 && (
-              <div className="px-4 pb-8 pt-4">
+              <div className="flex items-center justify-center py-8">
                 <CustomPagination
                   pageSize={pageSize}
                   setPageIndex={handleChangePage}
                   pageIndex={pageIndex}
                   totalPageCount={pageCount}
-                  setPageSize={setPageSize}
+                  setPageSize={onPageSizeChange}
                 />
               </div>
             )}

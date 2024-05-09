@@ -89,7 +89,7 @@ export function AccountMenu({}: React.PropsWithChildren<{}>) {
                     ) : (
                       <div>
                         <CustomDropdownLinkItem
-                          className="bg-primary !text-white hover:bg-primary/80 hover:text-white"
+                          className="bg-primary !text-white hover:bg-primary/80 hover:text-white focus:bg-primary/80"
                           onClick={() => router.push(UrlService.signup())}
                         >
                           Sign up

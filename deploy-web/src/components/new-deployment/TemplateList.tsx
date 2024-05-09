@@ -1,7 +1,7 @@
 "use client";
 import React, { Dispatch, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import { TemplateBox } from "../templates/TemplateBox";
@@ -89,10 +89,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
 
   return (
     <>
-      <CustomNextSeo
-        title="Create Deployment - Template List"
-        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.chooseTemplate })}`}
-      />
+      <CustomNextSeo title="Create Deployment - Template List" url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.chooseTemplate })}`} />
 
       <div className="mb-8 mt-8 flex items-center">
         <Button aria-label="back" onClick={handleBackClick} size="icon" variant="ghost">

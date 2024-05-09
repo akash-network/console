@@ -18,7 +18,8 @@ export default handleAuth({
         refetch: true,
         afterRefetch: async (req, res, session) => {
           try {
-            const user_metadata = session.user["https://cloudmos.io/user_metadata"];
+            // TODO: Fix for console
+            const user_metadata = session.user["https://console.akash.network/user_metadata"];
 
             const userSettings = await axios.post(
               `${BASE_API_MAINNET_URL}/user/tokenInfo`,
@@ -35,8 +36,8 @@ export default handleAuth({
               }
             );
 
-            // session.user["user_metadata"] = { ...session.user["https://cloudmos.io/user_metadata"] };
-            // delete session.user["https://cloudmos.io/user_metadata"];
+            // session.user["user_metadata"] = { ...session.user["https://console.akash.network/user_metadata"] };
+            // delete session.user["https://console.akash.network/user_metadata"];
 
             session.user = { ...session.user, ...userSettings.data };
           } catch (err) {

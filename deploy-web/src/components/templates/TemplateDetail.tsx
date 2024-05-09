@@ -2,11 +2,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { DynamicMonacoEditor } from "@src/components/shared/DynamicMonacoEditor";
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
-import { PageContainer } from "@src/components/shared/PageContainer";
 import { RouteStepKeys } from "@src/utils/constants";
 import { ApiTemplate } from "@src/types";
 import Markdown from "@src/components/shared/Markdown";
@@ -46,16 +45,16 @@ export const TemplateDetail: React.FunctionComponent<Props> = ({ templateId, tem
   }
 
   return (
-    <Layout isLoading={isLoading} disableContainer>
+    <Layout disableContainer>
       <div className="[&>img]:max-w-full">
         <CustomNextSeo
           title={`Template detail${_template ? " " + _template?.name : ""}`}
-          url={`https://deploy.cloudmos.io${UrlService.templateDetails(templateId)}`}
+          url={`${domainName}${UrlService.templateDetails(templateId)}`}
           description={getShortText(_template.summary || "", 140)}
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full">
+          <TabsList className="w-full rounded-none">
             <TabsTrigger value="README" className={cn({ ["font-bold"]: activeTab === "README" })}>
               README
             </TabsTrigger>
@@ -97,23 +96,23 @@ export const TemplateDetail: React.FunctionComponent<Props> = ({ templateId, tem
 
           {activeTab === "README" && (
             <ViewPanel stickToBottom className="overflow-auto pb-12">
-              <PageContainer>
+              <div className="container pb-8 pt-4 sm:pt-8">
                 <Markdown>{_template?.readme}</Markdown>
-              </PageContainer>
+              </div>
             </ViewPanel>
           )}
           {activeTab === "SDL" && (
             <ViewPanel stickToBottom className="overflow-hidden">
-              <PageContainer className="h-full">
+              <div className="container h-full pb-8 pt-4 sm:pt-8">
                 <DynamicMonacoEditor height="100%" language="yaml" value={_template?.deploy || ""} options={{ readOnly: true }} />
-              </PageContainer>
+              </div>
             </ViewPanel>
           )}
           {activeTab === "GUIDE" && (
             <ViewPanel stickToBottom className="overflow-auto p-4 pb-12">
-              <PageContainer>
+              <div className="container h-full pb-8 pt-4 sm:pt-8">
                 <Markdown>{_template?.guide}</Markdown>
-              </PageContainer>
+              </div>
             </ViewPanel>
           )}
         </Tabs>

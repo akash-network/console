@@ -47,8 +47,8 @@ export function useAddressDeployments(
   options?: Omit<UseQueryOptions<PaginatedResults<DeploymentSummary>, Error, any, QueryKey>, "queryKey" | "queryFn">
 ) {
   return useQuery<PaginatedResults<DeploymentSummary>, Error>(
-    QueryKeys.getAddressDeploymentsKey(address, skip, limit, reverseSorting, removeEmptyFilters(filters)),
-    () => getAddressDeployments(address, skip, limit, reverseSorting, removeEmptyFilters(filters)),
+    QueryKeys.getAddressDeploymentsKey(address, skip, limit, reverseSorting, removeEmptyFilters(filters || {})),
+    () => getAddressDeployments(address, skip, limit, reverseSorting, removeEmptyFilters(filters || {})),
     options
   );
 }

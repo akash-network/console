@@ -4,11 +4,12 @@ import { getSplitText } from "@src/hooks/useShortText";
 import { useRemoveAddressName, useSaveAddressName } from "@src/queries/useAddressNames";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { useToast } from "@src/components/ui/use-toast";
 import { Popup } from "@src/components/shared/Popup";
 import { Bin, Check } from "iconoir-react";
 import { InputWithIcon } from "@src/components/ui/input";
 import { FormPaper } from "@src/components/sdl/FormPaper";
+import { useSnackbar } from "notistack";
+import { Snackbar } from "@src/components/shared/Snackbar";
 
 type Props = {
   open: boolean;
@@ -23,7 +24,7 @@ export const EditAddressBookmarkModal: React.FunctionComponent<Props> = ({ open,
   const [_address, setAddress] = useState(address);
   const { mutate: saveAddress, isLoading: isSaving } = useSaveAddressName(_address);
   const { mutate: deleteAddress, isLoading: isDeleting } = useRemoveAddressName(_address);
-  const { toast } = useToast();
+  const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
     if (open) {
@@ -34,7 +35,9 @@ export const EditAddressBookmarkModal: React.FunctionComponent<Props> = ({ open,
   async function onSaveClick() {
     await saveAddress(customName);
 
-    toast({ title: "Address saved!", variant: "success" });
+    enqueueSnackbar(<Snackbar title="Address saved!" iconVariant="success" />, {
+      variant: "success"
+    });
 
     event(AnalyticsEvents.ADDRESS_BOOK_SAVE_ADDRESS, {
       category: "settings",

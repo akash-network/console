@@ -13,6 +13,7 @@ import { NavArrowLeft, Refresh } from "iconoir-react";
 import { cn } from "@src/utils/styleUtils";
 import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
 import { ErrorFallback } from "@src/components/shared/ErrorFallback";
+import { Title } from "../shared/Title";
 
 export enum ProviderDetailTabs {
   DETAIL = "1",
@@ -27,22 +28,6 @@ type Props = {
   refresh: () => void;
   children?: ReactNode;
 };
-
-// const useStyles = makeStyles()(theme => ({
-//   tabsRoot: {
-//     minHeight: "36px",
-//     borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`,
-//     "& button": {
-//       minHeight: "36px"
-//     }
-//   },
-//   selectedTab: {
-//     fontWeight: "bold"
-//   },
-//   tabsContainer: {
-//     justifyContent: "center"
-//   }
-// }));
 
 const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, address, provider, refresh }) => {
   const router = useRouter();
@@ -75,13 +60,13 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
   return (
     <div className="pb-12">
       <div className="mb-2 flex items-center">
-        <Button aria-label="back" onClick={handleBackClick} size="sm">
+        <Button aria-label="back" onClick={handleBackClick} size="sm" variant="ghost" className="rounded-full">
           <NavArrowLeft />
         </Button>
-        <h1 className="ml-2 text-2xl font-bold">Provider detail</h1>
+        <Title className="ml-2 text-2xl">Provider detail</Title>
 
         <div className="ml-4">
-          <Button aria-label="back" onClick={() => refresh()} size="sm">
+          <Button aria-label="back" onClick={() => refresh()} size="sm" className="rounded-full" variant="ghost">
             <Refresh />
           </Button>
         </div>
@@ -100,7 +85,7 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
           <ProviderSummary provider={provider as ClientProviderDetailWithStatus} />
 
           <Tabs value={page} onValueChange={handleTabChange}>
-            <TabsList className="mb-4 grid w-full grid-cols-4">
+            <TabsList className="mb-4 grid w-full grid-cols-4 rounded-t-none">
               <TabsTrigger value={ProviderDetailTabs.DETAIL}>Detail</TabsTrigger>
               <TabsTrigger value={ProviderDetailTabs.LEASES}>My Leases</TabsTrigger>
               <TabsTrigger value={ProviderDetailTabs.RAW}>Raw Data</TabsTrigger>
@@ -110,19 +95,6 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
               <div className="pt-8">{children}</div>
             </ErrorBoundary>
           </Tabs>
-          {/* <Tabs
-            value={page}
-            onChange={handleTabChange}
-            classes={{ root: classes.tabsRoot, flexContainer: classes.tabsContainer }}
-            indicatorColor="secondary"
-            textColor="secondary"
-            variant="scrollable"
-            scrollButtons="auto"
-          >
-            <Tab value={ProviderDetailTabs.DETAIL} label="Detail" classes={{ selected: classes.selectedTab }} />
-            <Tab value={ProviderDetailTabs.LEASES} label="My Leases" classes={{ selected: classes.selectedTab }} />
-            <Tab value={ProviderDetailTabs.RAW} label="Raw Data" classes={{ selected: classes.selectedTab }} />
-          </Tabs> */}
         </>
       )}
     </div>
