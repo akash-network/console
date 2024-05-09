@@ -6,18 +6,6 @@ import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { createFilterUnique } from "@src/utils/array";
 import { Check } from "iconoir-react";
 
-// const useStyles = makeStyles()(theme => ({
-//   root: {
-//     padding: "1rem",
-//     display: "grid",
-//     gridTemplateColumns: "repeat(2,1fr)",
-//     gap: "1rem",
-//     [theme.breakpoints.down("sm")]: {
-//       gridTemplateColumns: "repeat(1,1fr)"
-//     }
-//   }
-// }));
-
 type Props = {
   provider: ClientProviderDetailWithStatus;
 };

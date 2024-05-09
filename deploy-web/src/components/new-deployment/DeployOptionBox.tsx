@@ -14,7 +14,7 @@ type Props = {
 
 export const DeployOptionBox: React.FunctionComponent<Props> = ({ title, description, icon, imageUrl, onClick }) => {
   return (
-    <Card className="min-h-[100px] cursor-pointer hover:bg-primary/10" onClick={onClick}>
+    <Card className="min-h-[100px] cursor-pointer hover:bg-secondary/60 dark:hover:bg-secondary/30" onClick={onClick}>
       <CardHeader>
         <div className="flex items-center">
           {icon ? (
@@ -30,11 +30,11 @@ export const DeployOptionBox: React.FunctionComponent<Props> = ({ title, descrip
             </Avatar>
           )}
 
-          <div className="ml-4 font-bold">{title}</div>
+          <div className="ml-4 font-bold tracking-tight">{title}</div>
         </div>
       </CardHeader>
       <CardContent className="pb-4 pt-0">
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
   );

@@ -47,7 +47,7 @@ export const AuditorsModal: React.FunctionComponent<Props> = ({ attributes, onCl
           <TableRow>
             <TableHead>Key</TableHead>
             <TableHead>Value</TableHead>
-            <TableHead>Auditors</TableHead>
+            <TableHead className="text-center">Auditors</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -58,27 +58,29 @@ export const AuditorsModal: React.FunctionComponent<Props> = ({ attributes, onCl
                 <TableCell>{a.key}</TableCell>
                 <TableCell>{a.value}</TableCell>
                 <TableCell>
-                  {a.auditedBy
-                    .filter(x => auditors?.some(y => y.address === x))
-                    .map(x => {
-                      const auditor = auditors?.find(y => y.address === x);
-                      return (
-                        <div key={x}>
-                          <CustomTooltip
-                            title={
+                  <div className="flex flex-col items-center space-y-1">
+                    {a.auditedBy
+                      .filter(x => auditors?.some(y => y.address === x))
+                      .map(x => {
+                        const auditor = auditors?.find(y => y.address === x);
+                        return (
+                          <div key={x}>
+                            <CustomTooltip
+                              title={
+                                <div className="flex flex-col items-center space-y-2">
+                                  <LinkTo onClick={event => onWebsiteClick(event, auditor?.website)}>{auditor?.website}</LinkTo>
+                                  <Address address={auditor?.address || ""} isCopyable disableTooltip />
+                                </div>
+                              }
+                            >
                               <div>
-                                <LinkTo onClick={event => onWebsiteClick(event, auditor?.website)} className="mb-2">
-                                  {auditor?.website}
-                                </LinkTo>
-                                <Address address={auditor?.address || ""} isCopyable />
+                                <Badge variant="outline">{auditor?.name}</Badge>
                               </div>
-                            }
-                          >
-                            <Badge className="mb-1">{auditor?.name}</Badge>
-                          </CustomTooltip>
-                        </div>
-                      );
-                    })}
+                            </CustomTooltip>
+                          </div>
+                        );
+                      })}
+                  </div>
                 </TableCell>
               </TableRow>
             );

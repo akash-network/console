@@ -13,7 +13,6 @@ import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { ApiProviderList } from "@src/types/provider";
 import { useSettings } from "@src/context/SettingsProvider";
-import { useToast } from "@src/components/ui/use-toast";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { Alert } from "@src/components/ui/alert";
 import { Button } from "@src/components/ui/button";
@@ -24,18 +23,16 @@ import Spinner from "@src/components/shared/Spinner";
 import { CustomTooltip } from "@src/components/shared/CustomTooltip";
 import { InfoCircle, WarningCircle } from "iconoir-react";
 import { LinkTo } from "@src/components/shared/LinkTo";
+import { Title } from "../shared/Title";
+import { useSnackbar } from "notistack";
+import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
+import { Snackbar } from "../shared/Snackbar";
 
 type Props = {
   deployment: DeploymentDto;
   leases: LeaseDto[];
   closeManifestEditor: () => void;
 };
-
-// export const useStyles = makeStyles()(theme => ({
-//   title: {
-//     fontSize: "1rem"
-//   }
-// }));
 
 export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, leases, closeManifestEditor }) => {
   const [parsingError, setParsingError] = useState<string | null>(null);
@@ -45,9 +42,9 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
   const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
   const { settings } = useSettings();
   const { address, signAndBroadcastTx } = useWallet();
-  const { toast, dismiss } = useToast();
   const { data: providers } = useProviderList();
   const { localCert, isLocalCertMatching, createCertificate, isCreatingCert } = useCertificate();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   useEffect(() => {
     const init = async () => {
@@ -111,7 +108,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
   function handleUpdateDocClick(ev) {
     ev.preventDefault();
 
-    window.open("https://docs.akash.network/guides/cli/detailed-steps/part-11.-update-the-deployment", "_blank");
+    window.open("https://akash.network/docs/deployments/akash-cli/installation/#update-the-deployment", "_blank");
   }
 
   async function sendManifest(providerInfo: ApiProviderList, manifest: any) {
@@ -120,7 +117,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
       return response;
     } catch (err) {
-      toast({ title: "Error", description: `Error while sending manifest to provider. ${err}`, variant: "destructive" });
+      enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
       throw err;
     }
   }
@@ -152,7 +149,10 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
         saveDeploymentManifest(dd.deploymentId.dseq, editedManifest, dd.version, address);
 
-        const { id: sendManifestKey } = toast({ title: "Deploying! 🚀", description: "Please wait a few seconds...", loading: true, variant: "default" });
+        sendManifestKey = enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
+          variant: "info",
+          autoHideDuration: null
+        });
 
         const leaseProviders = leases.map(lease => lease.provider).filter((v, i, s) => s.indexOf(v) === i);
 
@@ -168,14 +168,14 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
         setIsSendingManifest(false);
 
-        dismiss(sendManifestKey);
+        closeSnackbar(sendManifestKey);
 
         closeManifestEditor();
       }
     } catch (error) {
       console.error(error);
       setIsSendingManifest(false);
-      dismiss(sendManifestKey);
+      closeSnackbar(sendManifestKey);
     }
   }
 
@@ -196,20 +196,22 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
       ) : (
         <>
           <div>
-            <div className="flex h-[50px] items-center justify-center px-2 py-1">
-              <div className="flex items-center">
-                <h6 className="text-sm">Update Deployment</h6>
+            <div className="flex h-[50px] items-center justify-between space-x-2 px-2 py-1">
+              <div className="flex items-center space-x-2">
+                <Title subTitle className="!text-base">
+                  Update Deployment
+                </Title>
 
                 <CustomTooltip
                   title={
-                    <Alert>
+                    <div>
                       Akash Groups are translated into Kubernetes Deployments, this means that only a few fields from the Akash SDL are mutable. For example
                       image, command, args, env and exposed ports can be modified, but compute resources and placement criteria cannot. (
                       <LinkTo onClick={handleUpdateDocClick}>View doc</LinkTo>)
-                    </Alert>
+                    </div>
                   }
                 >
-                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                  <InfoCircle className="text-xs text-muted-foreground" />
                 </CustomTooltip>
 
                 {!!deploymentVersion && deploymentVersion !== deployment.version && (
@@ -220,24 +222,27 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
                       </Alert>
                     }
                   >
-                    <WarningCircle className="text-warning ml-2 text-xs" />
+                    <WarningCircle className="text-xs text-warning" />
                   </CustomTooltip>
                 )}
               </div>
 
               <div>
                 {!localCert || !isLocalCertMatching ? (
-                  <div className="flex items-center p-4">
-                    <Alert variant="warning">You do not have a valid certificate. You need to create a new one to update an existing deployment.</Alert>
+                  <div className="flex items-center space-x-4">
+                    <Alert variant="warning" className="py-2 text-sm">
+                      You do not have a valid certificate. You need to create a new one to update an existing deployment.
+                    </Alert>
 
-                    <Button className="ml-4" disabled={isCreatingCert} onClick={() => createCertificate()}>
-                      {isCreatingCert ? <Spinner /> : "Create Certificate"}
+                    <Button size="sm" disabled={isCreatingCert} onClick={() => createCertificate()}>
+                      {isCreatingCert ? <Spinner size="small" /> : "Create Certificate"}
                     </Button>
                   </div>
                 ) : (
                   <Button
                     disabled={!!parsingError || !editedManifest || !providers || isSendingManifest || deployment.state !== "active"}
                     onClick={() => handleUpdateClick()}
+                    size="sm"
                   >
                     Update Deployment
                   </Button>

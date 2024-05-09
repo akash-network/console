@@ -28,9 +28,9 @@ export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) =>
   };
 
   return (
-    <Card className="overflow-hidden">
-      <CardContent>
-        <div className="flex flex-col lg:flex-row">
+    <Card className="overflow-hidden rounded-b-none">
+      <CardContent className="p-0">
+        <div className="flex flex-col lg:flex-row lg:justify-between">
           <div className="flex-grow-1 p-4">
             <LabelValue label="Name" value={provider.name} />
             <LabelValue label="Uri" value={provider.hostUri} />
@@ -52,7 +52,7 @@ export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) =>
               label="Audited"
               value={
                 provider.isAudited ? (
-                  <div>
+                  <div className="inline-flex items-center space-x-2">
                     <span className="text-sm text-muted-foreground">Yes</span>
                     <AuditorButton provider={provider} />
                   </div>
@@ -63,7 +63,7 @@ export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) =>
             />
           </div>
           {provider.isOnline && (
-            <div className="h-full flex-shrink-0 basis-full lg:basis-1/2">
+            <div className="h-full flex-shrink-0 basis-full lg:basis-2/5">
               <ProviderMap
                 providers={[provider as ApiProviderList]}
                 initialZoom={5}

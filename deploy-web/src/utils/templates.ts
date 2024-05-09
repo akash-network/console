@@ -24,13 +24,13 @@ export const helloWorldTemplate = {
 version: "2.0"
 
 # The top-level services entry contains a map of workloads to be ran on the Akash deployment. Each key is a service name; values are a map containing the following keys:
-# https://docs.akash.network/intro-to-akash/stack-definition-language#services
+# https://akash.network/docs/getting-started/stack-definition-language/#services
 services:
   # The name of the service "web"
   web:
     # The docker container image with version. You must specify a version, the "latest" tag doesn't work.
     image: akashlytics/hello-akash-world:0.2.0
-    # You can map ports here https://docs.akash.network/intro-to-akash/stack-definition-language#services.expose
+    # You can map ports here https://akash.network/docs/getting-started/stack-definition-language/#servicesexpose
     expose:
       - port: 3000
         as: 80
@@ -38,10 +38,10 @@ services:
           - global: true
 
 # The profiles section contains named compute and placement profiles to be used in the deployment.
-# https://docs.akash.network/intro-to-akash/stack-definition-language#profiles
+# https://akash.network/docs/getting-started/stack-definition-language/#profiles
 profiles:
   # profiles.compute is map of named compute profiles. Each profile specifies compute resources to be leased for each service instance uses uses the profile.
-  # https://docs.akash.network/intro-to-akash/stack-definition-language#profiles.compute
+  # https://akash.network/docs/getting-started/stack-definition-language/#profilescompute
   compute:
     # The name of the service
     web:
@@ -54,7 +54,7 @@ profiles:
           size: 512Mi
 
 # profiles.placement is map of named datacenter profiles. Each profile specifies required datacenter attributes and pricing configuration for each compute profile that will be used within the datacenter. It also specifies optional list of signatures of which tenants expects audit of datacenter attributes.
-# https://docs.akash.network/intro-to-akash/stack-definition-language#profiles.placement
+# https://akash.network/docs/getting-started/stack-definition-language/#profilesplacement
   placement:
     dcloud:
       pricing:
@@ -64,7 +64,7 @@ profiles:
           amount: 1000
 
 # The deployment section defines how to deploy the services. It is a mapping of service name to deployment configuration.
-# https://docs.akash.network/intro-to-akash/stack-definition-language#deployment
+# https://akash.network/docs/getting-started/stack-definition-language/#deployment
 deployment:
   # The name of the service
   web:

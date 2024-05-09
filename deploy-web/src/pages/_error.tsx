@@ -1,5 +1,4 @@
 import Layout from "../components/layout/Layout";
-import { PageContainer } from "@src/components/shared/PageContainer";
 import { Title } from "@src/components/shared/Title";
 import { NextSeo } from "next-seo";
 import { UrlService } from "@src/utils/urlUtils";
@@ -19,22 +18,20 @@ const Error: NextPage<Props> = ({ statusCode }) => {
     <Layout>
       <NextSeo title="Error" />
 
-      <PageContainer>
-        <div className="text-center">
-          <h1>{statusCode}</h1>
+      <div className="text-center">
+        <h1>{statusCode}</h1>
 
-          <Title>Error occured.</Title>
+        <Title>Error occured.</Title>
 
-          <p>{statusCode ? `An error ${statusCode} occurred on server` : "An error occurred on client"}</p>
+        <p>{statusCode ? `An error ${statusCode} occurred on server` : "An error occurred on client"}</p>
 
-          <div className="pt-4">
-            <Link className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center")} href={UrlService.home()}>
-              Go to homepage&nbsp;
-              <NavArrowRight className="text-sm" />
-            </Link>
-          </div>
+        <div className="pt-4">
+          <Link className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center")} href={UrlService.home()}>
+            Go to homepage&nbsp;
+            <NavArrowRight className="text-sm" />
+          </Link>
         </div>
-      </PageContainer>
+      </div>
     </Layout>
   );
 };

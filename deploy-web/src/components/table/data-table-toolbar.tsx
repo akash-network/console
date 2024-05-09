@@ -6,7 +6,6 @@ import { DataTableFacetedFilter } from "./data-table-faceted-filter";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { DataTableViewOptions } from "./data-table-view-options";
-import { statuses } from "@/app/addresses/[address]/deployments/data";
 
 interface DataTableToolbarProps<TData> {
   hasStatusFilter?: boolean;
@@ -26,7 +25,7 @@ export function DataTableToolbar<TData>({ table, hasStatusFilter }: DataTableToo
           onChange={event => table.getColumn("title")?.setFilterValue(event.target.value)}
           className="h-8 w-[150px] lg:w-[250px]"
         /> */}
-        {hasStatusFilter && <DataTableFacetedFilter column={table.getColumn("status")} title="Status" options={statuses} />}
+        {/* {hasStatusFilter && <DataTableFacetedFilter column={table.getColumn("status")} title="Status" options={statuses} />} */}
         {isFiltered && (
           <Button variant="ghost" onClick={() => table.resetColumnFilters()} className="h-8 px-2 lg:px-3">
             Reset

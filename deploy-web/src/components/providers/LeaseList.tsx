@@ -8,24 +8,6 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/compone
 import Spinner from "@src/components/shared/Spinner";
 import { CheckboxWithLabel } from "@src/components/ui/checkbox";
 
-// const useStyles = makeStyles()(theme => ({
-//   pagination: {
-//     "& .MuiPagination-ul": {
-//       justifyContent: "center"
-//     }
-//   },
-//   title: {
-//     fontSize: "1.5rem"
-//   },
-//   flexCenter: {
-//     display: "flex",
-//     alignItems: "center"
-//   },
-//   monthlyCost: {
-//     marginLeft: ".5rem"
-//   }
-// }));
-
 type Props = {
   leases: LeaseDto[] | null;
   isLoadingLeases: boolean;
@@ -58,6 +40,11 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
     setIsFilteringActive(value);
   };
 
+  const onPageSizeChange = (value: number) => {
+    setPageSize(value);
+    setPageIndex(0);
+  };
+
   return (
     <>
       <div className="flex items-center pb-2">
@@ -70,7 +57,7 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
 
       {currentPageLeases?.length === 0 && isLoadingLeases && (
         <div className="flex items-center justify-center">
-          <Spinner />
+          <Spinner size="large" />
         </div>
       )}
 
@@ -94,8 +81,8 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
             </TableBody>
           </Table>
 
-          <div className="px-4 pb-8 pt-4">
-            <CustomPagination pageSize={pageSize} setPageIndex={setPageIndex} pageIndex={pageIndex} totalPageCount={pageCount} setPageSize={setPageSize} />
+          <div className="flex items-center justify-center py-8">
+            <CustomPagination pageSize={pageSize} setPageIndex={setPageIndex} pageIndex={pageIndex} totalPageCount={pageCount} setPageSize={onPageSizeChange} />
           </div>
         </>
       )}

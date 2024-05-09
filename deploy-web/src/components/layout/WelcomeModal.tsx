@@ -1,39 +1,45 @@
-import { Button, Dialog, DialogContent, DialogActions, Typography, Box, Paper, useTheme } from "@mui/material";
-// import { feePercent, maxFee } from "@src/utils/constants";
-import { FormattedNumber } from "react-intl";
-import { makeStyles } from "tss-react/mui";
-import { LinkTo } from "../shared/LinkTo";
-
-const useStyles = makeStyles()(theme => ({
-  dialogContent: {
-    padding: "1rem"
-  }
-}));
+"use client";
+import { Popup } from "../shared/Popup";
+import { Title } from "../shared/Title";
+import { Card, CardContent } from "../ui/card";
+import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
+import { useTheme } from "next-themes";
 
 export const WelcomeModal = ({ open, onClose }) => {
-  const { classes } = useStyles();
-  const theme = useTheme();
-
+  const { resolvedTheme } = useTheme();
   return (
-    <Dialog open={open} maxWidth="sm" fullWidth>
-      <DialogContent className={classes.dialogContent}>
-        <Typography variant="h3" sx={{ fontSize: "2rem" }}>
-          <strong>Welcome!</strong>
-        </Typography>
-        <Paper elevation={2} sx={{ padding: "1rem", margin: "1rem 0 0", backgroundColor: theme.palette.mode === "dark" ? "" : theme.palette.grey[200] }}>
-          <Typography variant="body2" color="textSecondary">
-            Thank you for choosing Cloudmos!
-          </Typography>
+    <Popup
+      fullWidth
+      open={open}
+      variant="custom"
+      actions={[
+        {
+          label: "I accept",
+          variant: "default",
+          side: "right",
+          onClick: onClose
+        }
+      ]}
+      maxWidth="sm"
+      hideCloseButton
+    >
+      <div className="mb-4 flex items-center justify-between">
+        <Title>Welcome!</Title>
+        {resolvedTheme === "light" ? <AkashConsoleBetaLogoLight className="h-[19px] max-w-[200px]" /> : <AkashConsoleBetaLogoDark className="h-[19px] max-w-[200px]" />}
+      </div>
+      <Card className="bg-background">
+        <CardContent className="pt-4">
+          <p className="text-muted-foreground">Thank you for choosing Akash Console!</p>
           <br />
-          <Typography variant="body2" color="textSecondary">
+          <p className="text-muted-foreground">
             We hope you enjoy using our platform and look forward to continuing to provide you with excellent service. We are excited to have you as a user and
             look forward to helping you build your business.
-          </Typography>
-          <Typography variant="body1" sx={{ marginBottom: "1rem", marginTop: "1.5rem" }}>
+          </p>
+          <Title subTitle className="my-4 !text-lg">
             Disclaimer
-          </Typography>
+          </Title>
 
-          <Typography variant="body2" color="textSecondary">
+          <p className="text-muted-foreground">
             Our app is currently in the BETA stage, which means that we are still in the process of testing and improving it. To ensure a safe and enjoyable
             experience, we recommend that you create a new wallet and start with a small amount of AKT/USDC.
             <br />
@@ -42,17 +48,11 @@ export const WelcomeModal = ({ open, onClose }) => {
             discovered yet. As with any BETA product, use at your own discretion.
             <br />
             <br />
-            We appreciate your understanding and support as we work to make Cloudmos even better. If you encounter any problems or have suggestions for
+            We appreciate your understanding and support as we work to make Akash Console even better. If you encounter any problems or have suggestions for
             improvement, please don't hesitate to reach out to us. We're here to help!
-          </Typography>
-        </Paper>
-      </DialogContent>
-      <DialogActions>
-        <Button variant="contained" onClick={onClose} type="button" color="secondary">
-          I accept
-        </Button>
-      </DialogActions>
-    </Dialog>
+          </p>
+        </CardContent>
+      </Card>
+    </Popup>
   );
 };
-

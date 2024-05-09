@@ -87,7 +87,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                 Map container ports to exposed http/https/tcp ports.
                 <br />
                 <br />
-                <a href="https://docs.akash.network/readme/stack-definition-language#services.expose" target="_blank" rel="noopener">
+                <a href="https://akash.network/docs/getting-started/stack-definition-language/#servicesexpose" target="_blank" rel="noopener">
                   View official documentation.
                 </a>
               </>
@@ -280,7 +280,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                                 Option for Tenants to request publicly routable IP addresses for the services they deploy
                                 <br />
                                 <br />
-                                <a href="https://docs.akash.network/features/ip-leases/ip-leases-features-and-limitations" target="_blank" rel="noopener">
+                                <a href="https://akash.network/docs/network-features/ip-leases/" target="_blank" rel="noopener">
                                   View official documentation.
                                 </a>
                               </>

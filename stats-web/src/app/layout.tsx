@@ -84,7 +84,7 @@ export const viewport: Viewport = {
 function getTheme() {
   const cookieStore = cookies();
   const themeCookie = cookieStore.get("theme");
-  const theme = themeCookie ? themeCookie.value : "light";
+  const theme = themeCookie ? themeCookie.value : "system";
   return theme;
 }
 

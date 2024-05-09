@@ -2,14 +2,14 @@ import React from "react";
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 
 export function TermsOfService() {
   return (
     <Layout>
       <CustomNextSeo
         title="Terms of service"
-        url={`https://console.akash.network${UrlService.termsOfService()}`}
+        url={`${domainName}${UrlService.termsOfService()}`}
         description="Akash Console webiste terms of service."
       />
 

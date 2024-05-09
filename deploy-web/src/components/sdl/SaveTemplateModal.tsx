@@ -7,13 +7,14 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { useToast } from "@src/components/ui/use-toast";
 import { Popup } from "@src/components/shared/Popup";
 import { Alert } from "@src/components/ui/alert";
 import { MustConnect } from "@src/components/shared/MustConnect";
 import TextField from "@mui/material/TextField";
 import { RadioGroup, RadioGroupItem } from "@src/components/ui/radio-group";
 import { Label } from "@src/components/ui/label";
+import { useSnackbar } from "notistack";
+import { Snackbar } from "../shared/Snackbar";
 
 type Props = {
   services: Service[];
@@ -26,7 +27,7 @@ type Props = {
 
 export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, getTemplateData, templateMetadata, setTemplateMetadata, services }) => {
   const [publicEnvs, setPublicEnvs] = useState<EnvironmentVariable[]>([]);
-  const { toast } = useToast();
+  const { enqueueSnackbar } = useSnackbar();
   const formRef = useRef<HTMLFormElement>(null);
   const { user, isLoading: isLoadingUser } = useCustomUser();
   const isRestricted = !isLoadingUser && !user;
@@ -63,7 +64,9 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
     }
     setTemplateMetadata(newTemplateMetadata);
 
-    toast({ title: "Template saved!", variant: "success" });
+    enqueueSnackbar(<Snackbar title="Template saved!" iconVariant="success" />, {
+      variant: "success"
+    });
 
     if (newTemplateMetadata.id) {
       event(AnalyticsEvents.UPDATE_SDL_TEMPLATE, {

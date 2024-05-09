@@ -28,11 +28,12 @@ const CheckboxWithLabel = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root> & {
     label: string;
     labelPosition?: "left" | "right";
+    labelClassName?: string;
   }
->(({ className, label, labelPosition = "right", ...props }, ref) => {
+>(({ className, label, labelPosition = "right", labelClassName = "", ...props }, ref) => {
   const id = nanoid();
   const _label = (
-    <label htmlFor={id} className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+    <label htmlFor={id} className={cn("cursor-pointer text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70", labelClassName)}>
       {label}
     </label>
   );

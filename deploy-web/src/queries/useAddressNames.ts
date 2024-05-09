@@ -13,7 +13,7 @@ async function getAddressNames(): Promise<AddressNamesType> {
 
 export function useAddressNames(options?: Omit<UseQueryOptions<AddressNamesType, Error, any, QueryKey>, "queryKey" | "queryFn">) {
   const { user } = useCustomUser();
-  return useQuery<AddressNamesType, Error>(QueryKeys.getAddressNamesKey(user?.sub), () => (user ? getAddressNames() : {}), options);
+  return useQuery<AddressNamesType, Error>(QueryKeys.getAddressNamesKey(user?.sub as string), () => (user ? getAddressNames() : {}), options);
 }
 
 export function useSaveAddressName(address: string) {
@@ -22,7 +22,7 @@ export function useSaveAddressName(address: string) {
 
   return useMutation((name: string) => axios.post("/api/proxy/user/saveAddressName", { address: address, name: name }), {
     onSuccess: (_response, newName) => {
-      queryClient.setQueryData(QueryKeys.getAddressNamesKey(user?.sub), (oldData: AddressNamesType) => {
+      queryClient.setQueryData(QueryKeys.getAddressNamesKey(user?.sub as string), (oldData: AddressNamesType) => {
         return { ...oldData, [address]: newName };
       });
     }
@@ -35,7 +35,7 @@ export function useRemoveAddressName(address: string) {
 
   return useMutation(() => axios.delete(`/api/proxy/user/removeAddressName/${address}`), {
     onSuccess: () => {
-      queryClient.setQueryData(QueryKeys.getAddressNamesKey(user?.sub), (oldData: AddressNamesType) => {
+      queryClient.setQueryData(QueryKeys.getAddressNamesKey(user?.sub as string), (oldData: AddressNamesType) => {
         const { [address]: removedAddress, ...newData } = oldData;
 
         return newData;

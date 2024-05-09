@@ -31,17 +31,17 @@ export const WelcomePanel: React.FC<Props> = () => {
 
         <CollapsibleContent>
           <CardContent>
-            <ul className="space-y-4">
-              <li className="flex items-center">
+            <ul className="space-y-6">
+              <li className="flex items-center space-x-4">
                 <Avatar className="h-12 w-12">
                   <AvatarFallback>
-                    <Rocket />
+                    <Rocket className="rotate-45" />
                   </AvatarFallback>
                 </Avatar>
 
-                <div className="ml-4 flex flex-col">
+                <div className="flex flex-col">
                   <Link href={UrlService.getStarted()}>Getting started with Akash Console</Link>
-                  <span>Learn how to deploy your first docker container on Akash in a few click using Console.</span>
+                  <span className="text-sm text-muted-foreground">Learn how to deploy your first docker container on Akash in a few click using Console.</span>
                 </div>
               </li>
 
@@ -54,7 +54,9 @@ export const WelcomePanel: React.FC<Props> = () => {
 
                 <div className="ml-4 flex flex-col">
                   <Link href={UrlService.templates()}>Explore the marketplace</Link>
-                  <span>Browse through the marketplace of pre-made solutions with categories like blogs, blockchain nodes and more!</span>
+                  <span className="text-sm text-muted-foreground">
+                    Browse through the marketplace of pre-made solutions with categories like blogs, blockchain nodes and more!
+                  </span>
                 </div>
               </li>
 
@@ -66,10 +68,10 @@ export const WelcomePanel: React.FC<Props> = () => {
                 </Avatar>
 
                 <div className="ml-4 flex flex-col">
-                  <Link href="https://docs.akash.network/" target="_blank">
+                  <Link href="https://akash.network/docs/" target="_blank">
                     Learn more about Akash
                   </Link>
-                  <span>Want to know about the advantages of using a decentralized cloud compute marketplace?</span>
+                  <span className="text-sm text-muted-foreground">Want to know about the advantages of using a decentralized cloud compute marketplace?</span>
                 </div>
               </li>
             </ul>

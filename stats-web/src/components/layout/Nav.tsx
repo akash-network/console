@@ -15,9 +15,11 @@ export const Nav = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-header/95 backdrop-blur supports-[backdrop-filter]:bg-header/60">
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex">
-          <Link className="flex items-center space-x-2" href="/">
-            {theme === "light" ? <AkashConsoleLightLogo className="h-[25px] max-w-[180px]" /> : <AkashConsoleDarkLogo className="h-[25px] max-w-[180px]" />}
-          </Link>
+          {!!theme && (
+            <Link className="flex items-center space-x-2" href="/">
+              {theme === "light" ? <AkashConsoleLightLogo className="h-[25px] max-w-[180px]" /> : <AkashConsoleDarkLogo className="h-[25px] max-w-[180px]" />}
+            </Link>
+          )}
 
           <div className="ml-8 hidden md:flex">
             <NetworkSelect />

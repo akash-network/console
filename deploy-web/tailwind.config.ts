@@ -1,16 +1,8 @@
 import type { Config } from "tailwindcss";
-import defaultTheme, { fontFamily } from "tailwindcss/defaultTheme";
 
 const config: Config = {
-  darkMode: ["class"],
-  content: [
-    "./pages/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-    "./app/**/*.{ts,tsx}",
-    "./src/**/*.{ts,tsx}",
-    "./node_modules/@rewind-ui/core/dist/theme/styles/Drawer.styles.js",
-    "./node_modules/@rewind-ui/core/dist/theme/styles/Overlay.styles.js"
-  ],
+  darkMode: "selector",
+  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   // important: "#root",
   // corePlugins: {
   //   // Using MUI

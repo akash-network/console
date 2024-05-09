@@ -10,7 +10,6 @@ import { uaktToAKT } from "@src/utils/priceUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { RouteStepKeys } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import "@leapwallet/elements/styles.css";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { Button, buttonVariants } from "../ui/button";
 import Spinner from "../shared/Spinner";
@@ -28,7 +27,7 @@ const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
   loading: props => {
     if (props.isLoading) {
       return (
-        <Button variant="default" disabled>
+        <Button variant="default" disabled size="sm">
           <span>Get More</span>
           <Spinner size="small" className="ml-2" />
         </Button>
@@ -82,7 +81,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
         <StepLabel
           StepIconComponent={QontoStepIcon}
           onClick={() => (activeStep > 0 ? onStepClick(0) : null)}
-          classes={{ label: cn("text-xl font-bold", { ["cursor-pointer hover:text-primary"]: activeStep > 0 }) }}
+          classes={{ label: cn("text-xl tracking-tight", { ["cursor-pointer hover:text-primary"]: activeStep > 0, ["!font-bold"]: activeStep === 0 }) }}
         >
           Wallet
         </StepLabel>
@@ -103,13 +102,13 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
           </div>
 
           <div className="my-4 flex items-center space-x-2">
-            <Check className="text-green-500" />
+            <Check className="text-green-600" />
             <span>Wallet is installed</span>
           </div>
 
           {isWalletConnected ? (
             <div className="my-4 flex items-center space-x-2">
-              <Check className="text-green-500" />
+              <Check className="text-green-600" />
               <span>Wallet is connected</span>
             </div>
           ) : (
@@ -126,7 +125,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
           {walletBalances && (
             <div className="my-4 flex items-center space-x-2">
               {aktBalance >= minDeposit.akt || usdcBalance >= minDeposit.usdc ? (
-                <Check className="text-green-500" />
+                <Check className="text-green-600" />
               ) : (
                 <CustomTooltip
                   title={
@@ -152,7 +151,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
         <StepLabel
           StepIconComponent={QontoStepIcon}
           onClick={() => onStepClick(1)}
-          classes={{ label: cn("text-xl font-bold", { ["cursor-pointer hover:text-primary"]: activeStep > 1 }) }}
+          classes={{ label: cn("text-xl tracking-tight", { ["cursor-pointer hover:text-primary"]: activeStep > 1, ["!font-bold"]: activeStep === 1 }) }}
         >
           Docker container
         </StepLabel>
@@ -180,7 +179,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
       </Step>
 
       <Step>
-        <StepLabel StepIconComponent={QontoStepIcon} classes={{ label: "text-xl font-bold" }}>
+        <StepLabel StepIconComponent={QontoStepIcon} classes={{ label: cn("text-xl tracking-tight", { ["!font-bold"]: activeStep === 2 }) }}>
           Hello world
         </StepLabel>
         <StepContent>

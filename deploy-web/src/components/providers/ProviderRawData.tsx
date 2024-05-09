@@ -8,7 +8,7 @@ import { DynamicReactJson } from "@src/components/shared/DynamicJsonView";
 import ProviderDetailLayout, { ProviderDetailTabs } from "./ProviderDetailLayout";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 
 type Props = {
   owner: string;
@@ -59,7 +59,7 @@ export const ProviderRawData: React.FunctionComponent<Props> = ({ owner }) => {
 
   return (
     <Layout isLoading={isLoadingLeases || isLoadingProvider || isLoadingStatus}>
-      <CustomNextSeo title={`Provider raw data for ${owner}`} url={`https://deploy.cloudmos.io${UrlService.providerDetailRaw(owner)}`} />
+      <CustomNextSeo title={`Provider raw data for ${owner}`} url={`${domainName}${UrlService.providerDetailRaw(owner)}`} />
 
       <ProviderDetailLayout address={owner} page={ProviderDetailTabs.RAW} refresh={refresh} provider={provider as ClientProviderDetailWithStatus}>
         {provider && <DynamicReactJson src={JSON.parse(JSON.stringify(provider))} collapsed={1} />}
