@@ -150,9 +150,11 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
                     </div>
                   }
                 >
-                  <Badge className="h-4 px-1 py-0 text-xs">
-                    <small>{`+${gpuModels.length - 2}`}</small>
-                  </Badge>
+                  <div className="inline-flex">
+                    <Badge className="h-4 px-1 py-0 text-xs">
+                      <small>{`+${gpuModels.length - 2}`}</small>
+                    </Badge>
+                  </div>
                 </CustomNoDivTooltip>
               )}
             </div>

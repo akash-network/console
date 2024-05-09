@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useWallet } from "@src/context/WalletProvider";
 import { ApiProviderDetail, ClientProviderDetailWithStatus } from "@src/types/provider";
@@ -19,6 +19,7 @@ import { Check } from "iconoir-react";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import Layout from "../layout/Layout";
 import { UrlService, domainName } from "@src/utils/urlUtils";
+import { differenceInMinutes, sub } from "date-fns";
 
 const NetworkCapacity = dynamic(() => import("./NetworkCapacity"), {
   ssr: false
@@ -75,6 +76,33 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
     getProviderStatus();
   };
 
+  function groupUptimeChecksByPeriod(uptimeChecks: { isOnline: boolean; checkDate: string }[] = []) {
+    const groupedSnapshots: { checkDate: Date; checks: boolean[] }[] = [];
+
+    const sortedUptimeChecks = uptimeChecks.toSorted((a, b) => new Date(a.checkDate).getTime() - new Date(b.checkDate).getTime());
+
+    for (const snapshot of sortedUptimeChecks) {
+      const recentGroup = groupedSnapshots.find(x => differenceInMinutes(new Date(snapshot.checkDate), x.checkDate) < 15);
+
+      if (recentGroup) {
+        recentGroup.checks.push(snapshot.isOnline);
+      } else {
+        groupedSnapshots.push({
+          checkDate: new Date(snapshot.checkDate),
+          checks: [snapshot.isOnline]
+        });
+      }
+    }
+
+    return groupedSnapshots.map(x => ({
+      date: x.checkDate,
+      status: x.checks.every(x => x) ? "online" : x.checks.every(x => !x) ? "offline" : "partial"
+    }));
+  }
+
+  const uptimePeriods = useMemo(() => groupUptimeChecksByPeriod(provider?.uptime || []), [provider?.uptime]);
+  const wasRecentlyOnline = provider && (provider.isOnline || (provider.lastCheckDate && new Date(provider.lastCheckDate) >= sub(new Date(), { hours: 24 })));
+
   return (
     <Layout isLoading={isLoading}>
       <CustomNextSeo title={`Provider detail ${provider?.name || provider?.owner}`} url={`${domainName}${UrlService.providerDetail(owner)}`} />
@@ -86,13 +114,13 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
           </div>
         )}
 
-        {provider && !provider.isOnline && !isLoading && (
+        {provider && !wasRecentlyOnline && !isLoading && (
           <Alert variant="warning" className="flex items-center justify-center p-8 text-lg">
             This provider is inactive.
           </Alert>
         )}
 
-        {provider && provider.isOnline && (
+        {provider && wasRecentlyOnline && (
           <>
             <div className="mb-4">
               <NetworkCapacity
@@ -112,24 +140,21 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
             </div>
 
             <p className="mb-4">Up time (24h)</p>
-            <div className="mb-8 flex items-center">
-              {provider?.uptime
-                // sort by date
-                .sort((a, b) => new Date(a.checkDate).getTime() - new Date(b.checkDate).getTime())
-                .map((x, i) => (
-                  <CustomNoDivTooltip
-                    key={x.id}
-                    title={<FormattedDate value={x.checkDate} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />}
-                  >
-                    <div
-                      className={cn("h-[24px] w-[2%] max-w-[8px] rounded-[2px]", {
-                        ["ml-1"]: i > 0,
-                        ["bg-green-500"]: x.isOnline,
-                        ["bg-red-500"]: !x.isOnline
-                      })}
-                    />
-                  </CustomNoDivTooltip>
-                ))}
+            <div className="mb-8 flex items-center space-x-1">
+              {uptimePeriods.map((x, i) => (
+                <CustomNoDivTooltip
+                  key={x.date.toISOString()}
+                  title={<FormattedDate value={x.date} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />}
+                >
+                  <div
+                    className={cn("h-[24px] w-[2%] max-w-[8px] rounded-[2px]", {
+                      "bg-green-600": x.status === "online",
+                      "bg-destructive": x.status === "offline",
+                      "bg-warning": x.status === "partial"
+                    })}
+                  />
+                </CustomNoDivTooltip>
+              ))}
             </div>
 
             <ActiveLeasesGraph provider={provider} />
