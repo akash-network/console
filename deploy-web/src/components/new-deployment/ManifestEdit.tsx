@@ -11,7 +11,7 @@ import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
 import ViewPanel from "../shared/ViewPanel";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
-import { UrlService, handleDocClick } from "@src/utils/urlUtils";
+import { UrlService, domainName, handleDocClick } from "@src/utils/urlUtils";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
@@ -24,8 +24,7 @@ import { useAtom } from "jotai";
 import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { useChainParam } from "@src/context/ChainParamProvider";
-import { useMediaQuery } from "usehooks-ts";
-import { breakpoints } from "@src/utils/responsiveUtils";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { Alert } from "../ui/alert";
 import { Button } from "../ui/button";
@@ -35,6 +34,8 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import { InputWithIcon } from "../ui/input";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
+import { cn } from "@src/utils/styleUtils";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 type Props = {
   selectedTemplate: TemplateCreation;
@@ -55,8 +56,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const router = useRouter();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
-  // TODO
-  const smallScreen = useMediaQuery(breakpoints.md.mediaQuery);
+  const muiTheme = useMuiTheme();
+  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
   const { minDeposit } = useChainParam();
 
@@ -215,7 +216,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     <>
       <CustomNextSeo
         title="Create Deployment - Manifest Edit"
-        url={`https://deploy.cloudmos.io${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`}
+        url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`}
       />
 
       <div className="mb-2 pt-4">
@@ -229,7 +230,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
               title={
                 <p>
                   You may use the sample deployment file as-is or modify it for your own needs as described in the{" "}
-                  <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/intro-to-akash/stack-definition-language")}>
+                  <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/stack-definition-language/")}>
                     SDL (Stack Definition Language)
                   </LinkTo>{" "}
                   documentation. A typical modification would be to reference your own image instead of the demo app image.
@@ -247,7 +248,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
                 className="w-full whitespace-nowrap sm:w-auto"
               >
                 {isCreatingDeployment ? (
-                  <Spinner size="medium" />
+                  <Spinner size="small" />
                 ) : (
                   <>
                     Create Deployment{" "}
@@ -261,7 +262,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           </div>
         </div>
 
-        <Button variant={selectedSdlEditMode === "builder" ? "default" : "outline"} onClick={() => onModeChange("builder")} size="sm">
+        <Button variant={selectedSdlEditMode === "builder" ? "default" : "outline"} onClick={() => onModeChange("builder")} size="sm" className="rounded-e-none">
           Builder
         </Button>
         <Button
@@ -269,6 +270,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
           onClick={() => onModeChange("yaml")}
           size="sm"
+          className="rounded-s-none"
         >
           YAML
         </Button>
@@ -277,7 +279,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       {parsingError && <Alert variant="warning">{parsingError}</Alert>}
 
       {selectedSdlEditMode === "yaml" && (
-        <ViewPanel stickToBottom style={{ overflow: "hidden", margin: !smallScreen ? "0 -1rem" : 0 }}>
+        <ViewPanel stickToBottom className={cn("overflow-hidden", { ["-mx-4"]: smallScreen })}>
           <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
         </ViewPanel>
       )}
@@ -289,13 +291,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           onDeploymentDeposit={onDeploymentDeposit}
           denom={sdlDenom}
           infoText={
-            <Alert className="mb-4" variant="default">
-              <p>
-                To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
-                <LinkTo onClick={ev => handleDocClick(ev, "https://docs.akash.network/glossary/escrow#escrow-accounts")}>
-                  <strong>Learn more.</strong>
-                </LinkTo>
-              </p>
+            <Alert className="mb-4 text-xs" variant="default">
+              To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
+              <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/other-resources/payments/")}>
+                <strong>Learn more.</strong>
+              </LinkTo>
             </Alert>
           }
         />

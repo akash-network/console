@@ -1,10 +1,11 @@
 "use client";
 import React, { ReactNode, useState } from "react";
 import { Copy } from "iconoir-react";
-import { useToast } from "../ui/use-toast";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { cn } from "@src/utils/styleUtils";
 import { CustomTooltip } from "./CustomTooltip";
+import { useSnackbar } from "notistack";
+import { Snackbar } from "./Snackbar";
 
 type Props = {
   address: string;
@@ -17,7 +18,7 @@ type Props = {
 
 export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, disableTruncate, disableTooltip, showIcon, ...rest }) => {
   const [isOver, setIsOver] = useState(false);
-  const { toast } = useToast();
+  const { enqueueSnackbar } = useSnackbar();
   let formattedAddress = disableTruncate ? address : [address?.slice(0, 8), "...", address?.slice(address?.length - 5)].join("");
 
   const onClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -26,9 +27,9 @@ export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, d
       event.stopPropagation();
 
       copyTextToClipboard(address);
-      toast({
-        title: "Address copied to clipboard!",
-        variant: "success"
+      enqueueSnackbar(<Snackbar title="Address copied to clipboard!" />, {
+        variant: "success",
+        autoHideDuration: 2000
       });
     }
   };

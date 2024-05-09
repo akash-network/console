@@ -48,7 +48,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
   };
 
   return (
-    <FormPaper className="p-4">
+    <FormPaper>
       <div className="flex items-center">
         <Controller
           control={control}
@@ -89,13 +89,13 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                           bid on your workload.
                           <br />
                           <br />
-                          <a href="https://docs.akash.network/testnet/example-gpu-sdls/specific-gpu-vendor" target="_blank" rel="noopener">
+                          <a href="https://akash.network/docs/getting-started/stack-definition-language/#gpu-support" target="_blank" rel="noopener">
                             View official documentation.
                           </a>
                         </>
                       }
                     >
-                      <InfoCircle className="ml-4 text-sm text-muted-foreground" />
+                      <InfoCircle className="ml-4 text-xs text-muted-foreground" />
                     </CustomTooltip>
                   </div>
 

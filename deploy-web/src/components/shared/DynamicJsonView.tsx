@@ -1,3 +1,4 @@
+"use client";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import Spinner from "./Spinner";
@@ -17,6 +18,6 @@ type Props = {
 };
 
 export const DynamicReactJson: React.FunctionComponent<Props> = ({ src, collapsed = 5 }) => {
-  const { theme } = useTheme();
-  return <_DynamicReactJson value={src} theme={theme === "dark" ? "dark" : "light"} defaultInspectDepth={collapsed} />;
+  const { resolvedTheme } = useTheme();
+  return <_DynamicReactJson value={src} theme={resolvedTheme === "dark" ? "dark" : "light"} defaultInspectDepth={collapsed} />;
 };

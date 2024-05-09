@@ -51,10 +51,10 @@ RUN setcap cap_net_bind_service=+ep `readlink -f \`which node\``
 
 USER nextjs
 
-#EXPOSE 3001
-EXPOSE 80
+EXPOSE 3001
+# EXPOSE 80
 
-#ENV PORT 3001
-ENV PORT 80
+ENV PORT 3001
+# ENV PORT 80
 
 CMD ["node", "server.js"]

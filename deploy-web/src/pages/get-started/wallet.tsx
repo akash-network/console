@@ -1,7 +1,7 @@
 import React from "react";
 import Layout from "@src/components/layout/Layout";
 import { useRouter } from "next/router";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 import { NoWalletSection } from "@src/components/get-started/NoWalletSection";
 import Link from "next/link";
 import { NoKeplrSection } from "@src/components/get-started/NoKeplrSection";
@@ -46,7 +46,7 @@ const GetStartedWallet: React.FunctionComponent<Props> = ({}) => {
     <Layout>
       <CustomNextSeo
         title="Setup wallet"
-        url={`https://console.akash.network${UrlService.getStartedWallet()}`}
+        url={`${domainName}${UrlService.getStartedWallet()}`}
         description="Follow the steps to install Keplr and get tokens!"
       />
 

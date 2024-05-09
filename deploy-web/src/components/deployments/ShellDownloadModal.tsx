@@ -8,31 +8,7 @@ import { Popup } from "@src/components/shared/Popup";
 import { Alert } from "@src/components/ui/alert";
 import { InputWithIcon } from "@src/components/ui/input";
 
-// const useStyles = makeStyles()(theme => ({
-//   dialogTitle: {
-//     paddingBottom: 0
-//   },
-//   dialogActions: {
-//     display: "flex",
-//     alignItems: "center",
-//     justifyContent: "space-between"
-//   },
-//   formControl: {
-//     marginBottom: "1rem"
-//   },
-//   alert: {
-//     marginBottom: "1rem"
-//   }
-// }));
-
-// const osList = [
-//   { id: "linux", title: "Linux" },
-//   { id: "macos", title: "MacOS" },
-//   { id: "windows", title: "Windows" }
-// ];
-
 export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedService, providerInfo }) => {
-  //const [selectedOs] = useState("linux");
   const formRef = useRef<HTMLFormElement | null>(null);
   const { downloadFileFromShell } = useBackgroundTask();
   const {
@@ -61,13 +37,10 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  // const handleOsChange = (event) => {
-  //   setSelectedOs(event.target.value);
-  // };
-
   return (
     <Popup
       fullWidth
+      open
       variant="custom"
       title="Download file"
       actions={[
@@ -90,23 +63,12 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
       onClose={onCloseClick}
       maxWidth="xs"
     >
-      <p className="text-sm text-muted-foreground">Enter the path of a file on the server to be downloaded to your computer. Example: /app/logs.txt</p>
-      <Alert variant="warning" className="mb-4">
-        <p className="text-sm text-muted-foreground">This is an experimental feature and may not work reliably.</p>
+      <p className="text-xs text-muted-foreground">Enter the path of a file on the server to be downloaded to your computer. Example: /app/logs.txt</p>
+      <Alert variant="warning" className="my-2 py-2">
+        <p className="text-xs">This is an experimental feature and may not work reliably.</p>
       </Alert>
 
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-        {/* <FormControl className={classes.formControl}>
-            <InputLabel id="os-label">Os</InputLabel>
-            <Select labelId="os-label" id="os-select" value={selectedOs} onChange={handleOsChange}>
-              {osList.map((os) => (
-                <MenuItem key={os.id} value={os.id}>
-                  {os.title}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl> */}
-
         <Controller
           control={control}
           name="filePath"
@@ -127,7 +89,7 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
                 error={fieldState.error?.message}
                 // helperText={fieldState.error?.message}
                 autoFocus
-                placeholder="Type a valid file path"
+                placeholder="Example: /app/logs.txt"
               />
             );
           }}

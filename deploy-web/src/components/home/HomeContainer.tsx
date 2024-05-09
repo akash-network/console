@@ -61,7 +61,7 @@ export function HomeContainer() {
 
   return (
     <Layout
-      containerClassname="flex h-full flex-col justify-between"
+      containerClassName="flex h-full flex-col justify-between"
       isLoading={isLoadingDeployments || isLoadingBalances || isLoadingProviders || isLoadingLeases}
     >
       <div>

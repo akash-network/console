@@ -16,26 +16,6 @@ import { DropdownMenu, DropdownMenuContent } from "@src/components/ui/dropdown-m
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 
-// const useStyles = makeStyles()(theme => ({
-//   title: {
-//     fontWeight: "bold",
-//     marginLeft: ".5rem",
-//     fontSize: "1.5rem"
-//   },
-//   actionContainer: {
-//     marginLeft: ".5rem",
-//     display: "flex",
-//     alignItems: "center",
-//     "& .MuiButtonBase-root:first-of-type": {
-//       marginLeft: 0
-//     }
-//   },
-//   actionButton: {
-//     marginLeft: ".5rem",
-//     whiteSpace: "nowrap"
-//   }
-// }));
-
 type Props = {
   address: string;
   loadDeploymentDetail: () => void;
@@ -46,7 +26,6 @@ type Props = {
 };
 
 export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address, loadDeploymentDetail, removeLeases, setActiveTab, deployment }) => {
-  const [anchorEl, setAnchorEl] = useState(null);
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
   const router = useRouter();
   const { signAndBroadcastTx } = useWallet();
@@ -64,8 +43,6 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   }
 
   const onCloseDeployment = async () => {
-    handleMenuClose();
-
     try {
       const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
       const response = await signAndBroadcastTx([message]);
@@ -85,17 +62,8 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   };
 
   function onChangeName() {
-    handleMenuClose();
     changeDeploymentName(deployment.dseq);
   }
-
-  function handleMenuClick(ev) {
-    setAnchorEl(ev.currentTarget);
-  }
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
 
   const redeploy = () => {
     const url = UrlService.newDeployment({ redeploy: deployment.dseq });
@@ -129,27 +97,22 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
 
   return (
     <>
-      <div className="flex items-center px-2 pb-2">
+      <div className="flex items-center space-x-2 px-2 pb-2">
         <Button aria-label="back" onClick={handleBackClick} size="icon" variant="ghost">
           <NavArrowLeft />
         </Button>
 
-        <h3 className="ml-2 truncate text-2xl font-bold">{deploymentName ? deploymentName : "Deployment detail"}</h3>
+        <h3 className="truncate text-2xl font-bold">{deploymentName ? deploymentName : "Deployment detail"}</h3>
 
-        <div className="ml-2">
-          <Button aria-label="refresh" onClick={() => loadDeploymentDetail()} size="icon">
-            <Refresh />
-          </Button>
-        </div>
+        <Button aria-label="refresh" onClick={() => loadDeploymentDetail()} size="icon" variant="text">
+          <Refresh />
+        </Button>
 
         {deployment?.state === "active" && (
-          <div className="ml-2 flex items-center">
-            {/* <Button aria-label="settings" aria-haspopup="true" onClick={handleMenuClick} size="icon">
-              <MoreHoriz className="text-xl" />
-            </Button> */}
+          <div className="flex items-center">
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <Button onClick={handleMenuClick} size="icon" variant="ghost">
+                <Button size="icon" variant="ghost" className="rounded-full">
                   <MoreHoriz />
                 </Button>
               </DropdownMenuTrigger>
@@ -171,38 +134,18 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
             <Button variant="default" className="ml-2 whitespace-nowrap" onClick={() => setIsDepositingDeployment(true)} size="sm">
               Add funds
             </Button>
-
-            {/* <Menu
-              id="long-menu"
-              anchorEl={anchorEl}
-              keepMounted
-              open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
-              anchorOrigin={{
-                vertical: "bottom",
-                horizontal: "right"
-              }}
-              transformOrigin={{
-                vertical: "top",
-                horizontal: "right"
-              }}
-            >
-              <CustomMenuItem onClick={() => onChangeName()} icon={<EditIcon fontSize="small" />} text="Edit Name" />
-              {storageDeploymentData?.manifest && <CustomMenuItem onClick={() => redeploy()} icon={<PublishIcon fontSize="small" />} text="Redeploy" />}
-              <CustomMenuItem onClick={() => onCloseDeployment()} icon={<CancelPresentationIcon fontSize="small" />} text="Close" />
-            </Menu> */}
           </div>
         )}
 
         {deployment?.state === "closed" && (
-          <div className="ml-2 flex items-center">
+          <div className="flex items-center space-x-2">
             <Button onClick={() => onChangeName()} variant="default" className="whitespace-nowrap" color="secondary" size="sm">
               <Edit fontSize="small" />
               &nbsp;Edit Name
             </Button>
 
             {storageDeploymentData?.manifest && (
-              <Button onClick={() => redeploy()} variant="default" className="ml-5 whitespace-nowrap" color="secondary" size="sm">
+              <Button onClick={() => redeploy()} variant="default" className="whitespace-nowrap" color="secondary" size="sm">
                 <Upload fontSize="small" />
                 &nbsp;Redeploy
               </Button>

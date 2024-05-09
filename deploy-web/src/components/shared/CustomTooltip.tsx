@@ -1,3 +1,4 @@
+"use client";
 import { cn } from "@src/utils/styleUtils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";

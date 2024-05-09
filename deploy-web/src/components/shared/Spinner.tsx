@@ -4,14 +4,17 @@ import { cn } from "@src/utils/styleUtils";
 type SpinnerProps = {
   className?: string;
   size?: "small" | "medium" | "large";
+  variant?: "primary" | "dark";
 };
 
-export default function Spinner({ className, size = "medium" }: SpinnerProps) {
+export default function Spinner({ className, size = "medium", variant = "primary" }: SpinnerProps) {
   return (
     <div role="status" className={className}>
       <svg
         aria-hidden="true"
-        className={cn("animate-spin fill-red-200 text-red-500", {
+        className={cn("animate-spin ", {
+          "fill-red-200 text-red-500 dark:text-transparent/20 dark:fill-red-500": variant === "primary",
+          "fill-red-500 text-white": variant === "dark",
           "h-4 w-4": size === "small",
           "h-8 w-8": size === "medium",
           "h-12 w-12": size === "large"

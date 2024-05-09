@@ -1,14 +1,14 @@
+"use client";
 import React, { ReactNode, useEffect, useState } from "react";
 import { IntlProvider } from "react-intl";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "../shared/ErrorFallback";
-import { accountBarHeight, closedDrawerWidth, drawerWidth } from "@src/utils/constants";
-import { useMediaQuery, useTheme } from "@mui/material";
+import { accountBarHeight } from "@src/utils/constants";
+import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 import { WelcomeModal } from "./WelcomeModal";
 import { Sidebar } from "./Sidebar";
 import { useSettings } from "@src/context/SettingsProvider";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
-import { Header } from "./Header";
 import { useWallet } from "@src/context/WalletProvider";
 import Spinner from "../shared/Spinner";
 import { cn } from "@src/utils/styleUtils";
@@ -19,29 +19,11 @@ type Props = {
   isUsingSettings?: boolean;
   isUsingWallet?: boolean;
   disableContainer?: boolean;
-  containerClassname?: string;
+  containerClassName?: string;
   children?: ReactNode;
 };
 
-// const useStyles = makeStyles()(theme => ({
-//   root: {
-//     width: "100%"
-//   },
-//   accountBar: {
-//     height: `${accountBarHeight}px`,
-//     display: "flex",
-//     alignItems: "center",
-//     justifyContent: "space-between",
-//     width: "100%",
-//     borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`
-//   },
-//   viewContentContainer: {
-//     flexGrow: 1,
-//     transition: "margin-left .3s ease"
-//   }
-// }));
-
-const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassname }) => {
+const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName }) => {
   const [locale, setLocale] = useState("en-US");
 
   useEffect(() => {
@@ -57,7 +39,7 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
         isUsingSettings={isUsingSettings}
         isUsingWallet={isUsingWallet}
         disableContainer={disableContainer}
-        containerClassname={containerClassname}
+        containerClassName={containerClassName}
       >
         {children}
       </LayoutApp>
@@ -65,14 +47,14 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
   );
 };
 
-const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassname = "" }) => {
-  const theme = useTheme();
+const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName = "" }) => {
+  const muiTheme = useMuiTheme();
   const [isShowingWelcome, setIsShowingWelcome] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
-  const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   useEffect(() => {
     const _isNavOpen = localStorage.getItem("isNavOpen");
@@ -121,73 +103,14 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
 
   return (
     <>
-      {/* <WelcomeModal open={isShowingWelcome} onClose={onWelcomeClose} /> */}
+      <WelcomeModal open={isShowingWelcome} onClose={onWelcomeClose} />
 
-      {/* <Box sx={{ height: "100%" }}>
-        <Box className={classes.root} sx={{ marginTop: `${accountBarHeight}px`, height: "100%" }}>
-          <Box height="100%">
-            <Header isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} />
+      <div className="h-full">
+        <div className="h-full w-full" style={{ marginTop: `${accountBarHeight}px` }}>
+          <div className="h-full">
+            <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} />
 
-            <Box
-              sx={{
-                display: { xs: "block", sx: "block", md: "flex" },
-                width: "100%",
-                borderRadius: 0,
-                flexGrow: 1,
-                height: "100%"
-              }}
-            >
-              <Sidebar onOpenMenuClick={onOpenMenuClick} isNavOpen={isNavOpen} handleDrawerToggle={handleDrawerToggle} isMobileOpen={isMobileOpen} />
-
-              <Box
-                className={classes.viewContentContainer}
-                sx={{ marginLeft: { xs: 0, sm: 0, md: isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }, minWidth: 0 }}
-              >
-                <ErrorBoundary FallbackComponent={ErrorFallback}>
-                  {isLoading !== undefined && <LinearLoadingSkeleton isLoading={isLoading} />}
-
-                  {!isUsingSettings || isSettingsInit ? (
-                    !isUsingWallet || isWalletLoaded ? (
-                      children
-                    ) : (
-                      <Loading text="Loading wallet..." />
-                    )
-                  ) : (
-                    <Loading text="Loading settings..." />
-                  )}
-                </ErrorBoundary>
-              </Box>
-            </Box>
-          </Box>
-        </Box>
-      </Box> */}
-
-      <div
-        className="h-full"
-        // sx={{ height: "100%" }}
-      >
-        <div
-          className="h-full w-full"
-          style={{ marginTop: `${accountBarHeight}px` }}
-          // className={classes.root} sx={{ marginTop: `${accountBarHeight}px`, height: "100%" }}
-        >
-          <div
-            className="h-full"
-            // height="100%"
-          >
-            {/* <Header isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} /> */}
-            <Nav />
-
-            <div
-              className="block h-full w-full flex-grow rounded-none md:flex"
-              // sx={{
-              //   display: { xs: "block", sx: "block", md: "flex" },
-              //   width: "100%",
-              //   borderRadius: 0,
-              //   flexGrow: 1,
-              //   height: "100%"
-              // }}
-            >
+            <div className="block h-full w-full flex-grow rounded-none md:flex">
               <Sidebar onOpenMenuClick={onOpenMenuClick} isNavOpen={isNavOpen} handleDrawerToggle={handleDrawerToggle} isMobileOpen={isMobileOpen} />
 
               <div
@@ -195,20 +118,13 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
                   ["sm:ml-[240px]"]: isNavOpen,
                   ["sm:ml-[57px]"]: !isNavOpen
                 })}
-                // style={{ marginLeft: !smallScreen ? 0 : isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }}
-                // className={classes.viewContentContainer}
-                // sx={{ marginLeft: { xs: 0, sm: 0, md: isNavOpen ? `${drawerWidth}px` : `${closedDrawerWidth}px` }, minWidth: 0 }}
-                // viewContentContainer: {
-                //   flexGrow: 1,
-                //   transition: "margin-left .3s ease"
-                // }
               >
                 {isLoading !== undefined && <LinearLoadingSkeleton isLoading={isLoading} />}
 
                 <ErrorBoundary FallbackComponent={ErrorFallback}>
                   {!isUsingSettings || isSettingsInit ? (
                     !isUsingWallet || isWalletLoaded ? (
-                      <div className={cn(containerClassname, { ["container pb-8 pt-4 sm:pt-8"]: !disableContainer })}>{children}</div>
+                      <div className={cn({ ["container pb-8 pt-4 sm:pt-8"]: !disableContainer }, containerClassName)}>{children}</div>
                     ) : (
                       <Loading text="Loading wallet..." />
                     )

@@ -1,13 +1,19 @@
+"use client";
 import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Box, ClickAwayListener, IconButton, InputAdornment, Paper, Popper, TextField, useTheme } from "@mui/material";
 import { ApiTemplate, RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import InfoIcon from "@mui/icons-material/Info";
 import { Control, Controller } from "react-hook-form";
 import Image from "next/image";
 import Link from "next/link";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
+import { InfoCircle, OpenNewWindow } from "iconoir-react";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
+import Popper from "@mui/material/Popper";
+import InputAdornment from "@mui/material/InputAdornment";
+import { buttonVariants } from "../ui/button";
+import { cn } from "@src/utils/styleUtils";
+import TextField from "@mui/material/TextField";
 
 type Props = {
   children?: ReactNode;
@@ -17,26 +23,26 @@ type Props = {
 };
 
 export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentService, onSelectTemplate }) => {
-  const theme = useTheme();
+  const muiTheme = useMuiTheme();
   const { gpuTemplates } = useGpuTemplates();
   const [hoveredTemplate, setHoveredTemplate] = useState<ApiTemplate | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<ApiTemplate | null>(null);
-  const [popperWidth, setPopperWidth] = useState<number>(null);
+  const [popperWidth, setPopperWidth] = useState<number | null>(null);
   const eleRefs = useRef(null);
   const textFieldRef = useRef<HTMLInputElement>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const filteredGpuTemplates = gpuTemplates.filter(x => x.name.toLowerCase().includes(currentService.image));
+  const filteredGpuTemplates = gpuTemplates.filter(x => x.name?.toLowerCase().includes(currentService.image));
   const open = Boolean(anchorEl) && filteredGpuTemplates.length > 0;
 
   useEffect(() => {
     // Populate ref list
-    gpuTemplates.forEach(template => (eleRefs[template.id] = { current: null }));
+    gpuTemplates.forEach(template => (eleRefs[template.id as string] = { current: null }));
   }, [gpuTemplates]);
 
   // Effect that scrolls active element when it changes
   useLayoutEffect(() => {
     if (selectedTemplate) {
-      eleRefs[selectedTemplate.id].current?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+      eleRefs[selectedTemplate.id as string].current?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
     }
   }, [gpuTemplates, selectedTemplate]);
 
@@ -104,9 +110,9 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
   };
 
   return (
-    <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
+    <div className="flex w-full items-center">
       <ClickAwayListener onClickAway={onClose}>
-        <Box sx={{ width: "100%" }}>
+        <div className="w-full">
           <Controller
             control={control}
             name={`services.0.image`}
@@ -146,14 +152,13 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
                   ),
                   endAdornment: (
                     <InputAdornment position="end">
-                      <IconButton
+                      <Link
+                        className={cn(buttonVariants({ variant: "text", size: "icon" }))}
                         href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`}
-                        component={Link}
-                        size="small"
                         target="_blank"
                       >
-                        <OpenInNewIcon fontSize="small" />
-                      </IconButton>
+                        <OpenNewWindow className="text-xs" />
+                      </Link>
                     </InputAdornment>
                   )
                 }}
@@ -167,69 +172,33 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
             placement="bottom-start"
             anchorEl={anchorEl}
             disablePortal
-            sx={{ zIndex: 1000, width: `${popperWidth}px`, boxShadow: theme.shadows[2] }}
+            sx={{ zIndex: 1000, width: `${popperWidth}px`, boxShadow: muiTheme.shadows[2] }}
+            className="bg-popover"
             nonce={undefined}
             onResize={undefined}
             onResizeCapture={undefined}
           >
-            <Paper>
-              <Box
-                component="ul"
-                sx={{
-                  listStyle: "none",
-                  margin: 0,
-                  padding: "8px 0",
-                  maxHeight: "40vh",
-                  overflow: "auto",
-                  position: "relative"
-                }}
-              >
-                {filteredGpuTemplates.map(template => (
-                  <Box
-                    component="li"
-                    className={"MuiAutocomplete-option"}
-                    ref={eleRefs[template.id]}
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between !important",
-                      width: "100%",
-                      padding: ".5rem 1rem",
-                      minHeight: "auto",
-                      overflow: "hidden",
-                      backgroundColor:
-                        selectedTemplate?.id === template.id
-                          ? theme.palette.mode === "dark"
-                            ? theme.palette.grey[700]
-                            : theme.palette.grey[300]
-                          : hoveredTemplate?.id === template.id
-                          ? theme.palette.mode === "dark"
-                            ? theme.palette.grey[900]
-                            : theme.palette.grey[100]
-                          : "transparent",
-                      "&:hover": {
-                        backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100],
-                        cursor: "pointer"
-                      }
-                    }}
-                    key={template.id}
-                    onClick={() => _onSelectTemplate(template)}
-                    onMouseOver={() => {
-                      setHoveredTemplate(template);
-                      setSelectedTemplate(null);
-                    }}
-                  >
-                    <div>{template.name}</div>
-                  </Box>
-                ))}
-              </Box>
-            </Paper>
+            <ul className="relative m-0 max-h-[40vh] list-none overflow-auto py-2">
+              {filteredGpuTemplates.map(template => (
+                <li
+                  className="MuiAutocomplete-option flex w-full cursor-pointer items-center justify-between px-4 py-2 text-sm hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                  ref={eleRefs[template.id as string]}
+                  key={template.id}
+                  onClick={() => _onSelectTemplate(template)}
+                  onMouseOver={() => {
+                    setHoveredTemplate(template);
+                    setSelectedTemplate(null);
+                  }}
+                >
+                  {template.name}
+                </li>
+              ))}
+            </ul>
           </Popper>
-        </Box>
+        </div>
       </ClickAwayListener>
 
       <CustomTooltip
-        arrow
         title={
           <>
             Docker image of the container.
@@ -239,8 +208,8 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
           </>
         }
       >
-        <InfoIcon color="disabled" fontSize="small" sx={{ marginLeft: ".5rem" }} />
+        <InfoCircle className="ml-2 text-xs text-muted-foreground" />
       </CustomTooltip>
-    </Box>
+    </div>
   );
 };

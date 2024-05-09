@@ -1,58 +1,40 @@
 "use client";
-import { FormItem } from "@src/components/ui/form";
-import { Label } from "@src/components/ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
 import { useState } from "react";
-
-// const useStyles = makeStyles()(theme => ({
-//   formControl: {
-//     minWidth: "150px",
-//     width: "auto"
-//   },
-//   select: {
-//     padding: ".25rem .5rem",
-//     display: "flex !important",
-//     alignItems: "center"
-//   }
-// }));
 
 export const ServiceSelect = ({ defaultValue, services, onSelectedChange }) => {
   const [selected, setSelected] = useState(defaultValue);
 
-  const handleChange = value => {
-    // const value = event.target.value;
+  const handleChange = event => {
+    const value = event.target.value;
 
     setSelected(value);
     onSelectedChange(value);
   };
 
   return (
-    <FormItem>
-      <Label id="service-select-label">Services</Label>
+    <FormControl className="w-auto min-w-[150px]">
+      <InputLabel id="service-select-label">Services</InputLabel>
       <Select
-        // labelId="service-select-label"
+        labelId="service-select-label"
         value={selected}
-        onValueChange={handleChange}
-        // variant="outlined"
-        // size="small"
-        // label="Services"
-        // classes={{
-        //   select: classes.select
-        // }}
+        onChange={handleChange}
+        variant="outlined"
+        size="small"
+        label="Services"
+        classes={{
+          select: "py-2 px-4 text-xs"
+        }}
       >
-        <SelectTrigger>
-          <SelectValue placeholder="Select protocol" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {services.map(service => (
-              <SelectItem key={service} value={service}>
-                <p className="text-sm text-muted-foreground">{service}</p>
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
+        {services.map(service => (
+          <MenuItem key={service} value={service} dense>
+            <span className="text-sm text-muted-foreground">{service}</span>
+          </MenuItem>
+        ))}
       </Select>
-    </FormItem>
+    </FormControl>
   );
 };

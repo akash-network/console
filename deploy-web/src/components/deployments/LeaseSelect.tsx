@@ -1,26 +1,9 @@
 "use client";
-import { FormItem } from "@src/components/ui/form";
-import { Label } from "@src/components/ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
 import { useState } from "react";
-
-// const useStyles = makeStyles()(theme => ({
-//   formControl: {
-//     minWidth: "150px",
-//     width: "auto"
-//   },
-//   menuRoot: {
-//     paddingTop: "17px",
-//     paddingBottom: "2px"
-//   },
-//   selectLabel: {
-//     top: "2px",
-//     left: "4px"
-//   },
-//   selectItem: {
-//     lineHeight: "1rem"
-//   }
-// }));
 
 export const LeaseSelect = ({ defaultValue, leases, onSelectedChange }) => {
   const [selected, setSelected] = useState(defaultValue);
@@ -33,32 +16,24 @@ export const LeaseSelect = ({ defaultValue, leases, onSelectedChange }) => {
   };
 
   return (
-    <FormItem>
-      <Label id="lease-select-label">Lease</Label>
+    <FormControl className="w-auto min-w-[150px]">
+      <InputLabel id="lease-select-label">Lease</InputLabel>
       <Select
-        // labelId="service-select-label"
+        labelId="lease-select-label"
+        label="Lease"
         value={selected}
-        onValueChange={handleChange}
-        // variant="outlined"
-        // size="small"
-        // label="Services"
-        // classes={{
-        //   select: classes.select
-        // }}
+        onChange={handleChange}
+        variant="outlined"
+        classes={{
+          select: "py-2 px-4 text-xs"
+        }}
       >
-        <SelectTrigger>
-          <SelectValue placeholder="Select lease" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {leases.map(l => (
-              <SelectItem key={l.id} value={l.id}>
-                GSEQ: {l.gseq}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
+        {leases.map(l => (
+          <MenuItem key={l.id} value={l.id} dense>
+            <p className="leading-4">GSEQ: {l.gseq}</p>
+          </MenuItem>
+        ))}
       </Select>
-    </FormItem>
+    </FormControl>
   );
 };

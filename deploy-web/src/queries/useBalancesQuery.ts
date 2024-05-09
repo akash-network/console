@@ -33,14 +33,14 @@ async function getBalances(apiEndpoint: string, address: string): Promise<Balanc
 
   // Balance
   const balanceData = balanceResponse.data;
-  const balance = balanceData.balances.some(b => b.denom === uAktDenom) ? parseFloat(balanceData.balances.find(b => b.denom === uAktDenom).amount) : 0;
+  const balance = balanceData.balances.some(b => b.denom === uAktDenom) ? parseFloat(balanceData.balances.find(b => b.denom === uAktDenom)?.amount || "0") : 0;
   const balanceUsdc = balanceData.balances.some(b => b.denom === usdcIbcDenom)
-    ? parseFloat(balanceData.balances.find(b => b.denom === usdcIbcDenom).amount)
+    ? parseFloat(balanceData.balances.find(b => b.denom === usdcIbcDenom)?.amount || "0")
     : 0;
 
   // Rewards
   const rewardsData = rewardsResponse.data;
-  const rewards = rewardsData.total.some(b => b.denom === uAktDenom) ? parseFloat(rewardsData.total.find(b => b.denom === uAktDenom).amount) : 0;
+  const rewards = rewardsData.total.some(b => b.denom === uAktDenom) ? parseFloat(rewardsData.total.find(b => b.denom === uAktDenom)?.amount || "0") : 0;
 
   // Redelegations
   const redelegationsData = redelegationsResponse.data;

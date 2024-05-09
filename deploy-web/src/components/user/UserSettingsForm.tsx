@@ -85,17 +85,6 @@ export const UserSettingsForm: React.FunctionComponent<Props> = ({}) => {
     });
   }
 
-  // function onUpgradeClick(ev) {
-  //   ev.preventDefault();
-
-  //   event(AnalyticsEvents.USER_SETTINGS_UPGRADE_PLAN, {
-  //     category: "settings",
-  //     label: "Click on upgrade plan from user settings"
-  //   });
-
-  //   router.push(UrlService.pricing());
-  // }
-
   return (
     <Layout isLoading={isLoading}>
       <NextSeo title={user?.username} />
@@ -160,36 +149,6 @@ export const UserSettingsForm: React.FunctionComponent<Props> = ({}) => {
                   </div>
                 }
               />
-              {/* <LabelValue
-                label="Subscription"
-                value={
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    {user.plan.name}
-                    {user.planCode === "COMMUNITY" ? (
-                      <Button sx={{ marginLeft: 1 }} variant="outlined" color="secondary" onClick={onUpgradeClick}>
-                        Upgrade
-                      </Button>
-                    ) : (
-                      <form method="POST" action="/api/proxy/user/manage-subscription">
-                        <Button
-                          sx={{ marginLeft: 2 }}
-                          variant="contained"
-                          color="secondary"
-                          type="submit"
-                          onClick={() => {
-                            event(AnalyticsEvents.USER_SETTINGS_MANAGE_BILLING, {
-                              category: "settings",
-                              label: "Manage billing from user settings"
-                            });
-                          }}
-                        >
-                          Manage billing
-                        </Button>
-                      </form>
-                    )}
-                  </Box>
-                }
-              /> */}
               <LabelValue label="Bio" value={<Textarea disabled={isFormDisabled} rows={4} className="w-full" {...register("bio")} />} />
 
               <LabelValue
@@ -200,32 +159,17 @@ export const UserSettingsForm: React.FunctionComponent<Props> = ({}) => {
                     className="w-full"
                     {...register("youtubeUsername")}
                     startIcon={<div>https://www.youtube.com/c/</div>}
-                    // startAdornment={<InputAdornment position="start">https://www.youtube.com/c/</InputAdornment>}
                   />
                 }
               />
               <LabelValue
                 label="X"
-                value={
-                  <InputWithIcon
-                    disabled={isFormDisabled}
-                    className="w-full"
-                    {...register("twitterUsername")}
-                    startIcon={<div>https://x.com/</div>}
-                    // startAdornment={<InputAdornment position="start">https://twitter.com/</InputAdornment>}
-                  />
-                }
+                value={<InputWithIcon disabled={isFormDisabled} className="w-full" {...register("twitterUsername")} startIcon={<div>https://x.com/</div>} />}
               />
               <LabelValue
                 label="Github"
                 value={
-                  <InputWithIcon
-                    disabled={isFormDisabled}
-                    className="w-full"
-                    {...register("githubUsername")}
-                    startIcon={<div>https://github.com/</div>}
-                    // startAdornment={<InputAdornment position="start">https://github.com/</InputAdornment>}
-                  />
+                  <InputWithIcon disabled={isFormDisabled} className="w-full" {...register("githubUsername")} startIcon={<div>https://github.com/</div>} />
                 }
               />
 

@@ -83,7 +83,7 @@ export const importSimpleSdl = (yamlStr: string) => {
           }
         };
 
-        service.expose.push(_expose);
+        service.expose?.push(_expose);
       });
 
       // Placement
@@ -136,11 +136,13 @@ export const importSimpleSdl = (yamlStr: string) => {
 };
 
 const getResourceDigit = (size: string): number => {
-  return parseFloat(size.match(/\d+/g)[0]);
+  const match = size.match(/\d+/g);
+  return match ? parseFloat(match[0]) : 0;
 };
 
 const getResourceUnit = (size: string): string => {
-  return capitalizeFirstLetter(size.match(/[a-zA-Z]+/g)[0]);
+  const match = size.match(/[a-zA-Z]+/g);
+  return match ? capitalizeFirstLetter(match[0]) : "";
 };
 
 const getGpuModels = (vendor: { [key: string]: { model: string; ram: string; interface: string }[] }): ProfileGpuModel[] => {

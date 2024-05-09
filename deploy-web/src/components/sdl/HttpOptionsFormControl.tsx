@@ -41,7 +41,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                 size where necessary.
                 <br />
                 <br />
-                <a href="https://docs.akash.network/features/deployment-http-options" target="_blank" rel="noopener">
+                <a href="https://akash.network/docs/network-features/deployment-http-options/" target="_blank" rel="noopener">
                   View official documentation.
                 </a>
               </>

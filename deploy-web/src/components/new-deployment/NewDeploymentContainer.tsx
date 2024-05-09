@@ -9,7 +9,6 @@ import { TemplateCreation } from "@src/types";
 import { hardcodedTemplates } from "@src/utils/templates";
 import sdlStore from "@src/store/sdlStore";
 import { useAtomValue } from "jotai";
-import { PageContainer } from "@src/components/shared/PageContainer";
 import Layout from "../layout/Layout";
 import { CustomizedSteppers } from "./Stepper";
 import { TemplateList } from "./TemplateList";
@@ -112,20 +111,14 @@ export function NewDeploymentContainer() {
   }
 
   return (
-    <Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet>
-      <PageContainer className="h-full">
-        <div className="flex w-full items-center">{activeStep !== null && <CustomizedSteppers activeStep={activeStep} />}</div>
+    <Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet containerClassName="pb-0">
+      <div className="flex w-full items-center">{activeStep !== null && <CustomizedSteppers activeStep={activeStep} />}</div>
 
-        {activeStep === 0 && <TemplateList setSelectedTemplate={setSelectedTemplate} setEditedManifest={setEditedManifest} />}
-        {activeStep === 1 && (
-          <ManifestEdit
-            selectedTemplate={selectedTemplate as TemplateCreation}
-            editedManifest={editedManifest as string}
-            setEditedManifest={setEditedManifest}
-          />
-        )}
-        {activeStep === 2 && <CreateLease dseq={dseq as string} />}
-      </PageContainer>
+      {activeStep === 0 && <TemplateList setSelectedTemplate={setSelectedTemplate} setEditedManifest={setEditedManifest} />}
+      {activeStep === 1 && (
+        <ManifestEdit selectedTemplate={selectedTemplate as TemplateCreation} editedManifest={editedManifest as string} setEditedManifest={setEditedManifest} />
+      )}
+      {activeStep === 2 && <CreateLease dseq={dseq as string} />}
     </Layout>
   );
 }

@@ -7,7 +7,8 @@ import { Button } from "../ui/button";
 import Spinner from "../shared/Spinner";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/input";
-import { useToast } from "../ui/use-toast";
+import { useSnackbar } from "notistack";
+import { Snackbar } from "../shared/Snackbar";
 
 type Props = {
   id: string;
@@ -24,7 +25,7 @@ type DescriptionFormValues = {
 export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, description, onCancel, onSave }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const { toast } = useToast();
+  const { enqueueSnackbar } = useSnackbar();
   const { handleSubmit, control } = useForm<DescriptionFormValues>({
     defaultValues: {
       description: description || ""
@@ -38,10 +39,9 @@ export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, descri
       description: data.description
     });
 
-    toast({ title: "Description saved!", variant: "success" });
-    // enqueueSnackbar(<Snackbar title="Description saved!" iconVariant="success" />, {
-    //   variant: "success"
-    // });
+    enqueueSnackbar(<Snackbar title="Description saved!" iconVariant="success" />, {
+      variant: "success"
+    });
 
     onSave(data.description);
   };
@@ -68,7 +68,7 @@ export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, descri
           )}
         />
 
-        <div className="flex mt-2 items-center justify-end space-x-4">
+        <div className="mt-2 flex items-center justify-end space-x-4">
           <Button onClick={onCancel} variant="ghost">
             Cancel
           </Button>

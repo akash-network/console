@@ -2,9 +2,9 @@
 import { ResponsivePie } from "@nivo/pie";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
-import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import useTailwind from "@src/hooks/useTailwind";
+import { useIntl } from "react-intl";
 
 type Props = {
   activeCPU: number;
@@ -35,9 +35,8 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
   pendingStorage,
   totalStorage
 }) => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const tw = useTailwind();
-  const router = useRouter();
   const activeMemoryBytes = activeMemory + pendingMemory;
   const availableMemoryBytes = totalMemory - (activeMemory + pendingMemory);
   const activeStorageBytes = activeStorage + pendingStorage;
@@ -53,13 +52,13 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
   const memoryData = useData(activeMemoryBytes, availableMemoryBytes);
   const storageData = useData(activeStorageBytes, availableStorageBytes);
   const pieTheme = usePieTheme();
-  const flexBasis = "25%";
+  const intl = useIntl();
 
   const _getColor = bar => getColor(bar.id);
 
   const colors = {
     active: tw.theme.colors["primary"].DEFAULT,
-    available: theme === "dark" ? tw.theme.colors.gray[800] : tw.theme.colors.gray[500]
+    available: resolvedTheme === "dark" ? tw.theme.colors.neutral[800] : tw.theme.colors.neutral[500]
   };
 
   const getColor = (id: string) => {
@@ -69,7 +68,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
   return (
     <div className="flex flex-col items-start md:flex-row md:items-center">
       <div className="basis-1/4">
-        <p className="leading-4">CPU</p>
+        <p className="font-bold leading-4 tracking-tight">CPU</p>
         <p className="text-sm text-muted-foreground">
           {Math.round(activeCPU + pendingCPU)}&nbsp;CPU&nbsp;/&nbsp;{Math.round(totalCPU)}&nbsp;CPU
         </p>
@@ -87,7 +86,13 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
               from: "color",
               modifiers: [["darker", 0.2]]
             }}
-            valueFormat={value => `${roundDecimal(value, 2)} CPU`}
+            valueFormat={value =>
+              `${intl.formatNumber(roundDecimal(value, 2), {
+                notation: "compact",
+                compactDisplay: "short",
+                maximumFractionDigits: 2
+              })} CPU`
+            }
             enableArcLinkLabels={false}
             arcLabelsSkipAngle={10}
             theme={pieTheme}
@@ -96,7 +101,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
       </div>
 
       <div className="basis-1/4">
-        <p className="leading-4">GPU</p>
+        <p className="font-bold leading-4 tracking-tight">GPU</p>
         <p className="text-sm text-muted-foreground">
           {Math.round(activeGPU + pendingGPU)}&nbsp;GPU&nbsp;/&nbsp;{Math.round(totalGPU)}&nbsp;GPU
         </p>
@@ -114,7 +119,12 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
               from: "color",
               modifiers: [["darker", 0.2]]
             }}
-            valueFormat={value => `${roundDecimal(value, 2)} GPU`}
+            valueFormat={value =>
+              `${intl.formatNumber(roundDecimal(value, 2), {
+                notation: "compact",
+                compactDisplay: "short"
+              })} GPU`
+            }
             enableArcLinkLabels={false}
             arcLabelsSkipAngle={10}
             theme={pieTheme}
@@ -123,7 +133,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
       </div>
 
       <div className="basis-1/4">
-        <p className="leading-4">Memory</p>
+        <p className="font-bold leading-4 tracking-tight">Memory</p>
         <p className="text-sm text-muted-foreground">
           {`${roundDecimal(_activeMemory.value, 2)} ${_activeMemory.unit}`}&nbsp;/&nbsp;{`${roundDecimal(_totalMemory.value, 2)} ${_totalMemory.unit}`}
         </p>
@@ -154,7 +164,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
       </div>
 
       <div className="basis-1/4">
-        <p className="leading-4">Storage</p>
+        <p className="font-bold leading-4 tracking-tight">Storage</p>
         <p className="text-sm text-muted-foreground">
           {`${roundDecimal(_activeStorage.value, 2)} ${_activeStorage.unit}`}&nbsp;/&nbsp;{`${roundDecimal(_totalStorage.value, 2)} ${_totalStorage.unit}`}
         </p>
@@ -209,21 +219,17 @@ const useData = (active: number, available: number) => {
 };
 
 const usePieTheme = () => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const tw = useTailwind();
   return {
-    background: theme === "dark" ? tw.theme.colors["background"] : tw.theme.colors["background"],
-    // background: theme === "dark" ? theme.palette.background.default : theme.palette.background.default,
     textColor: "#fff",
     fontSize: 12,
     tooltip: {
       basic: {
-        color: theme === "dark" ? tw.theme.colors.white : tw.theme.colors.current
-        // color: theme === "dark" ? theme.palette.primary.contrastText : theme.palette.primary.main
+        color: resolvedTheme === "dark" ? tw.theme.colors.white : tw.theme.colors.current
       },
       container: {
-        backgroundColor: theme === "dark" ? tw.theme.colors.current : tw.theme.colors.white
-        // backgroundColor: theme === "dark" ? theme.palette.primary.main : theme.palette.primary.contrastText
+        backgroundColor: resolvedTheme === "dark" ? tw.theme.colors.neutral[700] : tw.theme.colors.white
       }
     }
   };

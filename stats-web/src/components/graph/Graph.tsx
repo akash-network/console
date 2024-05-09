@@ -21,9 +21,9 @@ interface IGraphProps {
 }
 
 const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetadata, snapshotData, snapshot, selectedRange }) => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const intl = useIntl();
-  const graphTheme = getTheme(theme);
+  const graphTheme = getTheme(resolvedTheme);
   const smallScreen = useMediaQuery(breakpoints.xs.mediaQuery);
   const minValue = rangedData && snapshotMetadata.unitFn(rangedData.map(x => x.value).reduce((a, b) => (a < b ? a : b))).value;
   const maxValue = snapshotData && snapshotMetadata.unitFn(rangedData.map(x => x.value).reduce((a, b) => (a > b ? a : b))).value;

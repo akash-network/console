@@ -124,18 +124,9 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
           // severity="info"
         >
           <p className="text-sm text-muted-foreground">
-            <LinkTo
-              onClick={ev =>
-                handleDocClick(
-                  ev,
-                  "https://docs.akash.network/features/authorized-spend/relevant-commands-and-example-use#authorize-another-wallet-to-deploy-using-your-tokens"
-                )
-              }
-            >
-              Authorized Spend
-            </LinkTo>{" "}
-            allows users to authorize spend of a set number of tokens from a source wallet to a destination, funded wallet. The authorized spend is restricted
-            to Akash deployment activities and the recipient of the tokens would not have access to those tokens for other operations.
+            <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/network-features/authorized-spend/")}>Authorized Spend</LinkTo> allows users
+            to authorize spend of a set number of tokens from a source wallet to a destination, funded wallet. The authorized spend is restricted to Akash
+            deployment activities and the recipient of the tokens would not have access to those tokens for other operations.
           </p>
         </Alert>
 

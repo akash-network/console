@@ -1,6 +1,6 @@
 "use client";
 import React, { ReactNode, useState } from "react";
-import { accountBarHeight, closedDrawerWidth, drawerWidth } from "@src/utils/constants";
+import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { UrlService } from "@src/utils/urlUtils";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
 import Link from "next/link";
@@ -8,17 +8,18 @@ import { NodeStatusBar } from "./NodeStatusBar";
 import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
 import { MobileSidebarUser } from "./MobileSidebarUser";
-import { breakpoints } from "@src/utils/responsiveUtils";
-import { useMediaQuery } from "usehooks-ts";
-import { Badge } from "../ui/badge";
 import { Button, buttonVariants } from "../ui/button";
 import { cn } from "@src/utils/styleUtils";
-import { Rocket, Github, X as TwitterX, Discord, Menu, MenuScale } from "iconoir-react";
-import { Drawer } from "@rewind-ui/core";
+import { Rocket, Github, X as TwitterX, Discord, Menu, MenuScale, Youtube } from "iconoir-react";
 import { Home, Cloud, MultiplePages, Tools, Server, OpenInWindow, HelpCircle, Settings } from "iconoir-react";
 import { ISidebarGroupMenu } from "@src/types";
 import getConfig from "next/config";
-import { useTheme } from "@mui/material";
+import { ModeToggle } from "./ModeToggle";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
+import Drawer from "@mui/material/Drawer";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import Image from "next/image";
+import { Badge } from "../ui/badge";
 
 const { publicRuntimeConfig } = getConfig();
 
@@ -34,10 +35,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const [isHovering, setIsHovering] = useState(false);
   const _isNavOpen = isNavOpen || isHovering;
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
-  const theme = useTheme();
-  // TODO Verify
-  const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
-  // const mobileScreen = useMediaQuery(breakpoints.xs.mediaQuery);
+  const muiTheme = useMuiTheme();
+  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   const routeGroups: ISidebarGroupMenu[] = [
     {
@@ -92,7 +91,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       routes: [
         {
           title: "Akash Network",
-          icon: props => <img src="/images/akash-logo.svg" alt="Akash Logo" style={{ height: "20px" }} {...props} />,
+          icon: props => <Image src="/images/akash-logo.svg" alt="Akash Logo" quality={100} width={20} height={20} {...props} />,
           url: "https://akash.network",
           activeRoutes: [],
           target: "_blank"
@@ -115,6 +114,13 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           title: "API",
           icon: props => <OpenInWindow {...props} />,
           url: "https://api.cloudmos.io/v1/swagger",
+          activeRoutes: [],
+          target: "_blank"
+        },
+        {
+          title: "Docs",
+          icon: props => <OpenInWindow {...props} />,
+          url: "https://akash.network/docs",
           activeRoutes: [],
           target: "_blank"
         }
@@ -141,7 +147,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const drawer = (
     <div
       style={{ width: _isNavOpen ? drawerWidth : closedDrawerWidth }}
-      className={`box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 transition-[width] duration-300 ease-in-out`}
+      className="box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 bg-popover transition-[width] duration-300 ease-in-out dark:bg-background md:h-[calc(100%-57px)]"
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: _isNavOpen, ["pb-2 pt-2"]: !_isNavOpen })}>
         <Link
@@ -164,42 +170,58 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         {smallScreen && <MobileSidebarUser />}
 
         {_isNavOpen && (
-          <div className="pb-4 pl-4 pr-4">
+          <div className="pb-4 pl-4 pr-4 space-y-2">
             <NodeStatusBar />
 
-            <div className="flex items-center justify-center pt-4">
-              <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet_" className={cn(buttonVariants({ variant: "text", size: "icon" }))}>
-                <TwitterX width="1.2rem" height="1.2rem" />
+            <div className="flex items-center justify-center space-x-1 pt-4">
+              <Link
+                target="_blank"
+                rel="noreferrer"
+                href="https://discord.akash.network"
+                className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
+              >
+                <Discord className="h-5 w-5" />
+                <span className="sr-only">Discord</span>
+              </Link>
+
+              <Link
+                target="_blank"
+                rel="noreferrer"
+                href="https://twitter.com/akashnet_"
+                className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
+              >
+                <TwitterX className="h-5 w-5" />
                 <span className="sr-only">Twitter</span>
               </Link>
 
               <Link
                 target="_blank"
                 rel="noreferrer"
-                href="https://github.com/akash-network/cloudmos"
-                className={cn(buttonVariants({ variant: "text", size: "icon" }))}
+                href="https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1"
+                className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
               >
-                <Github width="1.2rem" height="1.2rem" />
+                <Youtube className="h-5 w-5" />
+                <span className="sr-only">Youtube</span>
+              </Link>
+
+              <Link
+                target="_blank"
+                rel="noreferrer"
+                href="https://github.com/akash-network/cloudmos"
+                className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
+              >
+                <Github className="h-5 w-5" />
                 <span className="sr-only">GitHub</span>
               </Link>
 
-              <Link target="_blank" rel="noreferrer" href="https://discord.akash.network" className={cn(buttonVariants({ variant: "text", size: "icon" }))}>
-                <Discord width="1.2rem" height="1.2rem" />
-                <span className="sr-only">Twitter</span>
-              </Link>
-
-              {/** TODO */}
-              {/* <ModeToggle /> */}
+              <ModeToggle />
             </div>
 
             {publicRuntimeConfig?.version && _isNavOpen && (
-              <div className="flex flex-col items-center justify-center">
-                <div className="text-xs font-bold text-muted-foreground">
-                  <strong>v{publicRuntimeConfig?.version}</strong>
-                </div>
-
-                <Badge color="secondary" className="h-[12px] text-xs font-bold">
-                  beta
+              <div className="flex flex-row items-center justify-center space-x-4 text-xs font-bold text-muted-foreground">
+                <small>v{publicRuntimeConfig?.version}</small>
+                <Badge className="text-xs leading-3" variant="outline">
+                  <small>Beta</small>
                 </Badge>
               </div>
             )}
@@ -219,67 +241,50 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
 
   return (
     <nav
-      style={{
-        // width: !mdScreen ? 0 : _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth,
-        height: `calc(100% - ${accountBarHeight}px)`
-      }}
-      className={cn("ease fixed z-[100] h-full bg-header/95  transition-[width] duration-300 md:flex-shrink-0", {
+      className={cn("ease fixed z-[100] bg-header/95 md:flex-shrink-0", {
         ["md:w-[240px]"]: _isNavOpen || isHovering,
         ["md:w-[57px]"]: !(_isNavOpen || isHovering)
       })}
     >
       {/* Mobile Drawer */}
       <Drawer
-        // variant="temporary"
+        variant="temporary"
         open={isMobileOpen}
-        // disableScrollLock
+        disableScrollLock
         onClose={handleDrawerToggle}
-        position="left"
-        className="!bg-background p-4"
-        // customIdSuffix="mobile-drawer"
-        // overlayClassName="block md:hidden"
-        // ModalProps={{
-        //   keepMounted: true // Better open performance on mobile.
-        // }}
-        // sx={{
-        //   display: { xs: "block", sm: "block", md: "none" },
-        //   "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth, overflow: "hidden" }
-        // }}
-        // PaperProps={{
-        //   sx: {
-        //     border: "none"
-        //   }
-        // }}
+        className="block p-4 md:hidden"
+        ModalProps={{
+          keepMounted: true // Better open performance on mobile.
+        }}
+        sx={{
+          display: { xs: "block", sm: "block", md: "none" },
+          "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth, overflow: "hidden" }
+        }}
+        PaperProps={{
+          sx: {
+            border: "none"
+          }
+        }}
       >
         {drawer}
       </Drawer>
 
       {/* Desktop Drawer */}
-      <div
-        className="hidden h-full md:block"
-        // variant="permanent"
-        // sx={{
-        //   display: { xs: "none", sm: "none", md: "block" },
-        //   "& .MuiDrawer-paper": {
-        //     boxSizing: "border-box",
-        //     width: _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth,
-        //     overflow: "hidden",
-        //     marginTop: `${accountBarHeight}px`,
-        //     transition: "width .3s ease",
-        //     zIndex: 1000
-        //   }
-        // }}
+      <Drawer
+        className="hidden md:block"
+        variant="permanent"
         onMouseEnter={onDrawerHover}
         onMouseLeave={() => setIsHovering(false)}
-        // PaperProps={{
-        //   sx: {
-        //     border: "none"
-        //   }
-        // }}
-        // open
+        PaperProps={{
+          className: cn("border-none ease z-[1000] bg-header/95 transition-[width] duration-300 box-border overflow-hidden mt-[57px]", {
+            ["md:w-[240px]"]: _isNavOpen,
+            ["md:w-[57px]"]: !_isNavOpen
+          })
+        }}
+        open
       >
         {drawer}
-      </div>
+      </Drawer>
     </nav>
   );
 };

@@ -4,6 +4,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { RouteStepKeys } from "@src/utils/constants";
 import { Check } from "iconoir-react";
 import React from "react";
+import { cn } from "@src/utils/styleUtils";
 
 interface Step {
   id: number;
@@ -32,12 +33,16 @@ export const CustomizedSteppers = ({ activeStep }: React.PropsWithChildren<{ act
         {steps.map((step, stepIdx) => (
           <li key={step.name} className="relative md:flex md:flex-1">
             {step.id < activeStep ? (
-              <a href="#" className="group flex w-full items-center" onClick={ev => onChooseTemplateClick(ev, step)}>
+              <a
+                href="#"
+                className={cn("group flex w-full items-center", { "pointer-events-auto": step.id !== 0 })}
+                onClick={ev => onChooseTemplateClick(ev, step)}
+              >
                 <span className="flex items-center px-6 py-4 text-sm font-medium">
                   <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary group-hover:bg-primary/80">
                     <Check className="h-6 w-6 text-white" aria-hidden="true" />
                   </span>
-                  <span className="ml-4 text-sm font-medium text-gray-900">{step.name}</span>
+                  <span className="ml-4 text-sm font-medium text-neutral-900 dark:text-neutral-500">{step.name}</span>
                 </span>
               </a>
             ) : step.id === activeStep ? (
@@ -50,10 +55,12 @@ export const CustomizedSteppers = ({ activeStep }: React.PropsWithChildren<{ act
             ) : (
               <div className="group flex items-center">
                 <span className="flex items-center px-6 py-4 text-sm font-medium">
-                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-2 border-muted-foreground/20 group-hover:border-muted-foreground/30">
-                    <span className="text-gray-500 group-hover:text-gray-900">{step.id + 1}</span>
+                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-2 border-muted-foreground/20 group-hover:border-muted-foreground/30 dark:group-hover:border-muted-foreground/20">
+                    <span className="text-muted-foreground group-hover:text-neutral-600 dark:group-hover:text-muted-foreground/70">{step.id + 1}</span>
                   </span>
-                  <span className="ml-4 text-sm font-medium text-gray-500 group-hover:text-gray-900">{step.name}</span>
+                  <span className="ml-4 text-sm font-medium text-muted-foreground group-hover:text-neutral-600 dark:group-hover:text-muted-foreground/70">
+                    {step.name}
+                  </span>
                 </span>
               </div>
             )}
@@ -62,7 +69,7 @@ export const CustomizedSteppers = ({ activeStep }: React.PropsWithChildren<{ act
               <>
                 {/* Arrow separator for lg screens and up */}
                 <div className="absolute right-0 top-0 hidden h-full w-5 md:block" aria-hidden="true">
-                  <svg className="h-full w-full text-gray-300" viewBox="0 0 22 80" fill="none" preserveAspectRatio="none">
+                  <svg className="h-full w-full text-neutral-300 dark:text-neutral-700" viewBox="0 0 22 80" fill="none" preserveAspectRatio="none">
                     <path d="M0 -2L20 40L0 82" vectorEffect="non-scaling-stroke" stroke="currentcolor" strokeLinejoin="round" />
                   </svg>
                 </div>
