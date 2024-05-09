@@ -95,7 +95,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                         </>
                       }
                     >
-                      <InfoCircle className="ml-4 text-sm text-muted-foreground" />
+                      <InfoCircle className="ml-4 text-xs text-muted-foreground" />
                     </CustomTooltip>
                   </div>
 
