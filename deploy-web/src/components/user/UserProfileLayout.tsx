@@ -7,7 +7,6 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@src/components/shared/ErrorFallback";
-import { PageContainer } from "@src/components/shared/PageContainer";
 
 type UserProfileTab = "templates" | "favorites" | "address-book" | "settings";
 type Props = {

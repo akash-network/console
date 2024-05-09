@@ -3,26 +3,23 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import { UserSettings } from "@src/types/user";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import axios, { AxiosResponse } from "axios";
-// import { useSnackbar } from "notistack";
 import { useMutation, useQuery } from "react-query";
 import { QueryKeys } from "./queryKeys";
 import { DepositParams, RpcDepositParams } from "@src/types/deployment";
-import { useToast } from "@src/components/ui/use-toast";
+import { useSnackbar } from "notistack";
 
 export function useSaveSettings() {
-  const { toast } = useToast();
+  const { enqueueSnackbar } = useSnackbar();
   const { checkSession } = useCustomUser();
 
   return useMutation<AxiosResponse<any, any>, unknown, UserSettings>(newSettings => axios.put("/api/proxy/user/updateSettings", newSettings), {
     onSuccess: () => {
-      toast({ title: "Settings saved", variant: "success" });
-      // enqueueSnackbar("Settings saved", { variant: "success" });
+      enqueueSnackbar("Settings saved", { variant: "success" });
 
       checkSession();
     },
     onError: () => {
-      toast({ title: "Error saving settings", variant: "destructive" });
-      // enqueueSnackbar("Error saving settings", { variant: "error" });
+      enqueueSnackbar("Error saving settings", { variant: "error" });
     }
   });
 }

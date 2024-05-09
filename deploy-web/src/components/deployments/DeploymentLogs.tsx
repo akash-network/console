@@ -11,8 +11,7 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { LeaseDto } from "@src/types/deployment";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { useMediaQuery } from "usehooks-ts";
-import { breakpoints } from "@src/utils/responsiveUtils";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { MemoMonaco } from "@src/components/shared/MemoMonaco";
 import { editor } from "monaco-editor";
 import { Monaco } from "@monaco-editor/react";
@@ -22,24 +21,12 @@ import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkele
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { Alert } from "@src/components/ui/alert";
 import Spinner from "@src/components/shared/Spinner";
-import { Checkbox } from "@src/components/ui/checkbox";
+import { Checkbox, CheckboxWithLabel } from "@src/components/ui/checkbox";
 import { cn } from "@src/utils/styleUtils";
 import { Download, MoreHoriz } from "iconoir-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@src/components/ui/dropdown-menu";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
-
-// const useStyles = makeStyles()(theme => ({
-//   root: {
-//     "& .MuiToggleButton-root": {
-//       color: theme.palette.mode === "dark" ? theme.palette.grey[700] : theme.palette.primary.main,
-//       "&.Mui-selected": {
-//         fontWeight: "bold",
-//         color: theme.palette.mode === "dark" ? theme.palette.secondary.main : theme.palette.primary.contrastText,
-//         backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.secondary.main
-//       }
-//     }
-//   }
-// }));
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 export type LOGS_MODE = "logs" | "events";
 
@@ -84,9 +71,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       return true;
     }
   });
-  const [anchorEl, setAnchorEl] = useState(null);
-  // TODO Breakpoints
-  const smallScreen = useMediaQuery(breakpoints.md.mediaQuery);
+  const muiTheme = useMuiTheme();
+  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   function handleEditorDidMount(editor: editor.IStandaloneCodeEditor, monaco: Monaco) {
     // here is another way to get monaco instance
@@ -259,21 +245,13 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     }
   };
 
-  function handleMenuClick(ev) {
-    setAnchorEl(ev.currentTarget);
-  }
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
   return (
     <div>
       {isLocalCertMatching ? (
         <>
           {selectedLease && (
             <>
-              <div className="flex h-[56px] items-center p-2">
+              <div className="flex h-[56px] items-center space-x-4 p-2">
                 <div className="flex items-center">
                   {(leases?.length || 0) > 1 && <LeaseSelect leases={leases} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
 
@@ -290,33 +268,15 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                   )}
                 </div>
 
-                {!smallScreen ? (
-                  <div className="ml-4">
+                {smallScreen ? (
+                  <div>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
-                        <Button onClick={handleMenuClick} size="icon" variant="ghost">
-                          <MoreHoriz />
+                        <Button size="icon" variant="ghost" className="rounded-full">
+                          <MoreHoriz className="text-xs" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {/* {isActive && (
-                            <CustomDropdownLinkItem onClick={() => onDepositClicked} icon={<Plus fontSize="small" />}>
-                              Add funds
-                            </CustomDropdownLinkItem>
-                          )}
-                          <CustomDropdownLinkItem onClick={() => changeDeploymentName(deployment.dseq)} icon={<Edit fontSize="small" />}>
-                            Edit name
-                          </CustomDropdownLinkItem>
-                          {storageDeploymentData?.manifest && (
-                            <CustomDropdownLinkItem onClick={() => redeploy()} icon={<Upload fontSize="small" />}>
-                              Redeploy
-                            </CustomDropdownLinkItem>
-                          )}
-                          {isActive && (
-                            <CustomDropdownLinkItem onClick={() => onCloseDeployment()} icon={<XmarkSquare fontSize="small" />}>
-                              Close
-                            </CustomDropdownLinkItem>
-                          )} */}
                         <CustomDropdownLinkItem>
                           <div className="flex items-center space-x-2">
                             <Checkbox checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} id="stick-bottom" />
@@ -339,62 +299,20 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
-
-                    {/* <Button aria-label="settings" aria-haspopup="true" onClick={handleMenuClick} size="icon">
-                      <MoreHorizIcon fontSize="medium" />
-                    </Button> */}
-                    {/* 
-                    <Menu
-                      id="long-menu"
-                      anchorEl={anchorEl}
-                      keepMounted
-                      open={Boolean(anchorEl)}
-                      onClose={handleMenuClose}
-                      anchorOrigin={{
-                        vertical: "bottom",
-                        horizontal: "right"
-                      }}
-                      transformOrigin={{
-                        vertical: "top",
-                        horizontal: "right"
-                      }}
-                    >
-                      <MenuItem>
-                        <FormControlLabel
-                          control={<Checkbox color="secondary" checked={stickToBottom} onChange={ev => setStickToBottom(ev.target.checked)} size="small" />}
-                          label={"Stick to bottom"}
-                        />
-                      </MenuItem>
-                      {localCert && (
-                        <CustomMenuItem
-                          onClick={onDownloadLogsClick}
-                          icon={isDownloadingLogs ? <CircularProgress size="1.2rem" color="secondary" /> : <DownloadIcon fontSize="small" />}
-                          text={selectedLogsMode === "logs" ? "Download logs" : "Download events"}
-                          disabled={isDownloadingLogs}
-                        />
-                      )}
-                    </Menu> */}
                   </div>
                 ) : (
-                  <div className="ml-4 flex items-center">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} id="stick-bottom" />
-                      <label
-                        htmlFor="stick-bottom"
-                        className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Stick to bottom
-                      </label>
-                    </div>
-
-                    {/* <FormControlLabel
-                      control={<Checkbox checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} />}
-                      label={"Stick to bottom"}
-                    /> */}
+                  <div className="flex items-center">
+                    <CheckboxWithLabel label="Stick to bottom" checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} />
                     {localCert && (
                       <div className="ml-4">
-                        <Button onClick={onDownloadLogsClick} variant="default" size="sm" color="secondary" disabled={isDownloadingLogs}>
-                          {isDownloadingLogs ? <Spinner /> : selectedLogsMode === "logs" ? "Download logs" : "Download events"}
+                        <Button
+                          onClick={onDownloadLogsClick}
+                          variant="default"
+                          size="sm"
+                          color="secondary"
+                          disabled={isDownloadingLogs || !isConnectionEstablished}
+                        >
+                          {isDownloadingLogs ? <Spinner size="small" /> : selectedLogsMode === "logs" ? "Download logs" : "Download events"}
                         </Button>
                       </div>
                     )}
@@ -402,8 +320,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                 )}
 
                 {isLoadingStatus && (
-                  <div className="ml-4">
-                    <Spinner />
+                  <div>
+                    <Spinner size="small" />
                   </div>
                 )}
               </div>

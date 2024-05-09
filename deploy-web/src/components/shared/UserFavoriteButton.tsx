@@ -6,8 +6,9 @@ import { MustConnectModal } from "./MustConnectModal";
 import { Button } from "../ui/button";
 import Spinner from "./Spinner";
 import { MdStar, MdStarOutline } from "react-icons/md";
-import { useToast } from "../ui/use-toast";
 import { cn } from "@src/utils/styleUtils";
+import { useSnackbar } from "notistack";
+import { Snackbar } from "./Snackbar";
 
 type Props = {
   id: string;
@@ -24,7 +25,7 @@ export const UserFavoriteButton: React.FunctionComponent<Props> = ({ id, isFavor
   const { mutate: removeFavorite, isLoading: isRemoving } = useRemoveFavoriteTemplate(id);
   const [showMustConnectModal, setShowMustConnectModal] = useState(false);
   const isSaving = isAdding || isRemoving;
-  const { toast } = useToast();
+  const { enqueueSnackbar } = useSnackbar();
 
   const onFavoriteClick = async () => {
     try {
@@ -45,7 +46,9 @@ export const UserFavoriteButton: React.FunctionComponent<Props> = ({ id, isFavor
       setIsFavorite(prev => !prev);
     } catch (error) {
       console.log(error);
-      toast({ title: "An error has occured.", variant: "destructive" });
+      enqueueSnackbar(<Snackbar title="An error has occured." iconVariant="error" />, {
+        variant: "error"
+      });
     }
   };
 

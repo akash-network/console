@@ -90,3 +90,26 @@
 .markdownContainerRoot span.linenumber {
   display: none !important;
 }
+
+#nprogress .bar {
+  background: hsl(var(--primary)) !important;
+  height: 2px !important;
+  z-index: 10000 !important;
+}
+
+#nprogress .spinner {
+  z-index: 10000 !important;
+  top: 6px !important;
+  right: 8px !important;
+}
+
+#nprogress .peg {
+  box-shadow:
+    0 0 10px hsl(var(--primary)),
+    0 0 5pxhsl (var(--primary));
+}
+
+#nprogress .spinner-icon {
+  border-top-color: hsl(var(--primary)) !important;
+  border-left-color: hsl(var(--primary)) !important;
+}

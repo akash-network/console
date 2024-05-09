@@ -57,7 +57,7 @@ export const BidCountdownTimer: React.FunctionComponent<Props> = ({ height }) =>
   if (!isTimerInit) return null;
 
   return (
-    <Badge variant={timeLeft === 0 ? "default" : "secondary"}>
+    <Badge variant={timeLeft === 0 ? "destructive" : "outline"}>
       <span className="inline-flex items-center">
         {timeLeft === 0 ? (
           <>Time's up!</>
@@ -68,7 +68,7 @@ export const BidCountdownTimer: React.FunctionComponent<Props> = ({ height }) =>
         )}
 
         <CustomTooltip title={<div>Bids automatically close 5 minutes after the deployment is created if none are selected for a lease.</div>}>
-          <InfoCircle className={cn("ml-2 text-xs text-muted-foreground", { ["text-muted-foreground"]: timeLeft !== 0, ["text-white"]: timeLeft === 0 })} />
+          <InfoCircle className={cn("ml-2 text-xs", { ["text-muted-foreground"]: timeLeft !== 0, ["text-white"]: timeLeft === 0 })} />
         </CustomTooltip>
       </span>
     </Badge>

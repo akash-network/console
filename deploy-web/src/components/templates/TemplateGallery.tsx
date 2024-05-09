@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useTemplates } from "../../context/TemplatesProvider";
 import { useRouter, useSearchParams } from "next/navigation";
-import { UrlService } from "@src/utils/urlUtils";
+import { UrlService, domainName } from "@src/utils/urlUtils";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { ApiTemplate } from "@src/types";
 import { Button, buttonVariants } from "@src/components/ui/button";
@@ -16,6 +16,7 @@ import { CustomNextSeo } from "../shared/CustomNextSeo";
 import Layout from "../layout/Layout";
 import { TemplateBox } from "./TemplateBox";
 import { MobileTemplatesFilter } from "./MobileTemplatesFilter";
+import { Title } from "../shared/Title";
 
 type Props = {};
 
@@ -120,14 +121,16 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
     <Layout isLoading={isLoadingTemplates}>
       <CustomNextSeo
         title="Template Gallery"
-        url={`https://deploy.cloudmos.io${UrlService.templates()}`}
+        url={`${domainName}${UrlService.templates()}`}
         description="Explore all the templates made by the community to easily deploy any docker container on the Akash Network."
       />
 
       <div className="mb-6 text-center sm:mb-8 md:mb-12">
-        <h1 className="mb-4 text-2xl font-bold sm:text-3xl md:text-4xl">Find your Template</h1>
+        <Title className="mb-2 text-2xl font-bold sm:text-3xl md:text-4xl">Find your Template</Title>
 
-        <h3 className="text-lg text-muted-foreground sm:text-xl md:text-2xl">Jumpstart your app development process with our pre-built solutions.</h3>
+        <Title subTitle className="text-base font-normal text-muted-foreground sm:text-lg">
+          Jumpstart your app development process with our pre-built solutions.
+        </Title>
       </div>
 
       <div className="mb-4 block md:hidden">
@@ -166,7 +169,10 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
                   )}
                   onClick={() => onCategoryClick(null)}
                 >
-                  All <small className="ml-2">({templates.length - 1})</small>
+                  All{" "}
+                  <span className="text-xs">
+                    <small className="ml-2 text-muted-foreground">({templates.length - 1})</small>
+                  </span>
                 </li>
               )}
 
@@ -182,7 +188,10 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
                     )}
                     onClick={() => onCategoryClick(category.title)}
                   >
-                    {category.title} <small className="ml-2">({category.templates.length})</small>
+                    {category.title}{" "}
+                    <span className="text-xs">
+                      <small className="ml-2 text-muted-foreground">({category.templates.length})</small>
+                    </span>
                   </li>
                 ))}
             </ul>

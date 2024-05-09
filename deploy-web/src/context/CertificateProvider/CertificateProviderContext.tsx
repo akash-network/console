@@ -10,7 +10,8 @@ import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { RestApiCertificatesResponseType } from "@src/types/certificate";
-import { useToast } from "@src/components/ui/use-toast";
+import { useSnackbar } from "notistack";
+import { Snackbar } from "@src/components/shared/Snackbar";
 
 export type LocalCert = {
   certPem: string;
@@ -68,7 +69,7 @@ export const CertificateProvider = ({ children }) => {
   const [localCert, setLocalCert] = useState<LocalCert | null>(null);
   const [isLocalCertMatching, setIsLocalCertMatching] = useState(false);
   const { settings, isSettingsInit } = useSettings();
-  const { toast } = useToast();
+  const { enqueueSnackbar } = useSnackbar();
   const { address, signAndBroadcastTx } = useWallet();
   const { apiEndpoint } = settings;
 
@@ -95,11 +96,7 @@ export const CertificateProvider = ({ children }) => {
         setIsLoadingCertificates(false);
 
         if (showSnackbar) {
-          toast({
-            title: "Certificate refreshed!",
-            variant: "success"
-          });
-          // enqueueSnackbar(<Snackbar title="Certificate refreshed!" iconVariant="success" />, { variant: "success" });
+          enqueueSnackbar(<Snackbar title="Certificate refreshed!" iconVariant="success" />, { variant: "success" });
         }
 
         return certs;
@@ -108,11 +105,7 @@ export const CertificateProvider = ({ children }) => {
 
         setIsLoadingCertificates(false);
         if (showSnackbar) {
-          toast({
-            title: "Error fetching certificate.",
-            variant: "destructive"
-          });
-          // enqueueSnackbar(<Snackbar title="Error fetching certificate." iconVariant="error" />, { variant: "error" });
+          enqueueSnackbar(<Snackbar title="Error fetching certificate." iconVariant="error" />, { variant: "error" });
         }
 
         return [];

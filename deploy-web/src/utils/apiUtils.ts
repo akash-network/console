@@ -135,7 +135,7 @@ export class ApiUrlService {
   }
 }
 
-// CLOUDMOS
+// AKASH CONSOLE
 export const mainnetNodes = ApiUrlService.mainnetNodes();
 export const testnetNodes = ApiUrlService.testnetNodes();
 export const sandboxNodes = ApiUrlService.sandboxNodes();

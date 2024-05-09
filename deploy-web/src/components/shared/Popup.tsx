@@ -2,7 +2,7 @@ import * as React from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "./ErrorFallback";
 import { ButtonProps, Button } from "../ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogTitle as _DialogTitle } from "../ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle as _DialogTitle } from "../ui/dialog";
 import { DialogProps } from "@radix-ui/react-dialog";
 import Spinner from "./Spinner";
 import { InputWithIcon } from "../ui/input";
@@ -43,7 +43,7 @@ type CommonProps = {
   fullWidth?: boolean;
   dividers?: boolean;
   maxWidth?: false | "xs" | "sm" | "md" | "lg" | "xl";
-  dialogProps?: any; // TODO: Partial<DialogProps>;
+  dialogProps?: Partial<DialogProps>;
   fixedTopPosition?: boolean;
   fixedTopPositionHeight?: "10%" | "15%" | "20%" | "25%";
   enableCloseOnBackdropClick?: boolean;
@@ -63,16 +63,17 @@ export type PopupProps = (MessageProps | ConfirmProps | PromptProps | CustomProm
 
 export interface DialogTitleProps {
   children: React.ReactNode;
-  onClose?: (event: React.MouseEvent | React.TouchEvent) => void;
 }
 
 export const DialogTitle = (props: DialogTitleProps) => {
-  const { children, onClose, ...other } = props;
+  const { children, ...other } = props;
 
   return (
-    <_DialogTitle {...other}>
-      <span className="text-lg">{children}</span>
-    </_DialogTitle>
+    <DialogHeader>
+      <_DialogTitle {...other}>
+        <span className="text-lg">{children}</span>
+      </_DialogTitle>
+    </DialogHeader>
   );
 };
 
@@ -88,21 +89,13 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
   const ConfirmButtonLabel = "Confirm";
   const CancelButtonLabel = "Cancel";
 
-  const dialogProps = {
-    disableEscapeKeyDown: true,
+  const dialogProps: DialogProps = {
     open: !!props.open,
-    fullWidth: props.fullWidth,
-    maxWidth: props.maxWidth,
-    onClose: props.onClose,
     ...props.dialogProps
-  } as DialogProps;
+  };
 
   if (props.title) {
-    component.push(
-      <DialogTitle key="dialog-title" onClose={props.onClose ? event => onClose(event, "action") : undefined}>
-        {props.title}
-      </DialogTitle>
-    );
+    component.push(<DialogTitle key="dialog-title">{props.title}</DialogTitle>);
   }
 
   if (props.message && props.variant !== "prompt") {
@@ -113,22 +106,20 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
     );
   } else {
     component.push(
-      <ScrollArea
-        key="dialog-content"
-        className="max-h-[75vh]"
-        // dividers={props.dividers}
-      >
-        {props.variant === "prompt" ? (
-          <InputWithIcon
-            label={props.message}
-            value={promptInput}
-            // eslint-disable-next-line no-void
-            onChange={_ => void setPromptInput(_.target.value)}
-            className="w-full"
-          />
-        ) : (
-          props.children
-        )}
+      <ScrollArea key="dialog-content" className="-mx-4 max-h-[75vh]">
+        <div className="p-4">
+          {props.variant === "prompt" ? (
+            <InputWithIcon
+              label={props.message}
+              value={promptInput}
+              // eslint-disable-next-line no-void
+              onChange={_ => void setPromptInput(_.target.value)}
+              className="w-full"
+            />
+          ) : (
+            props.children
+          )}
+        </div>
       </ScrollArea>
     );
   }
@@ -278,7 +269,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
         <DialogContent
           // TODO sizes
           // dividers={props.dividers}
-          className={cn("m-0 p-4 ", {
+          className={cn("m-0 p-4", {
             ["sm:max-w-[400px]"]: props.maxWidth === "xs",
             ["sm:max-w-[600px]"]: props.maxWidth === "sm",
             ["sm:max-w-[750px]"]: props.maxWidth === "md",
@@ -288,7 +279,6 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
           hideCloseButton={props.hideCloseButton}
         >
           {component}
-          {/* <ScrollArea className="max-h-screen">{component}</ScrollArea> */}
         </DialogContent>
       </ErrorBoundary>
     </Dialog>

@@ -1,19 +1,12 @@
 "use client";
 import { ApiProviderList } from "@src/types/provider";
 import { ComposableMap, Geographies, Geography, Marker, Point, ZoomableGroup } from "react-simple-maps";
-import { useState } from "react";
-import { CustomNoDivTooltip, CustomTooltip } from "../shared/CustomTooltip";
+import { useEffect, useState } from "react";
+import { CustomNoDivTooltip } from "../shared/CustomTooltip";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
-import { useTheme } from "next-themes";
 import { Button } from "@src/components/ui/button";
 import { Minus, Plus, Restart } from "iconoir-react";
-
-// const useStyles = makeStyles()(theme => ({
-//   circle: {
-//     cursor: "pointer"
-//   }
-// }));
 
 type Props = {
   initialZoom?: number;
@@ -26,16 +19,18 @@ const maxZoom = 8;
 
 export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initialZoom = minZoom, initialCoordinates = [0, 0] }) => {
   const [dotSize, setDotSize] = useState({ r: 5, w: 1 });
-  const { theme } = useTheme();
   const activeProviders = providers.filter(x => x.isOnline);
-  // const bgColor = theme === "dark" ? theme.palette.grey[800] : theme.palette.grey[400];
   const [position, setPosition] = useState({ coordinates: initialCoordinates, zoom: initialZoom });
   const isInitialPosition =
     position.coordinates[0] === initialCoordinates[0] && position.coordinates[1] === initialCoordinates[1] && position.zoom === initialZoom;
 
+  useEffect(() => {
+    handleDotSize(position.zoom);
+  }, []);
+
   function resetZoom() {
     setPosition({ coordinates: initialCoordinates, zoom: initialZoom });
-    setDotSize({ r: 5, w: 1 });
+    handleDotSize(initialZoom);
   }
 
   function handleMoveEnd(position: { coordinates: [number, number]; zoom: number }) {
@@ -74,18 +69,15 @@ export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initial
 
   return (
     <div className="relative flex">
-      <div
-        className="absolute left-1/2 -translate-x-1/2 transform rounded-md bg-black bg-opacity-20 p-2"
-        // sx={{ position: "absolute", padding: ".5rem", backgroundColor: `rgba(0,0,0,0.2)`, borderRadius: ".5rem", left: "50%", transform: "translateX(-50%)" }}
-      >
-        <Button onClick={handleZoomIn} disabled={position.zoom === maxZoom} size="icon">
+      <div className="absolute left-1/2 -translate-x-1/2 transform space-x-2 rounded-md bg-black bg-opacity-20 p-2">
+        <Button onClick={handleZoomIn} disabled={position.zoom === maxZoom} size="icon" variant="ghost">
           <Plus />
         </Button>
-        <Button onClick={handleZoomOut} disabled={position.zoom === minZoom} size="icon" className="ml-2">
+        <Button onClick={handleZoomOut} disabled={position.zoom === minZoom} size="icon" variant="ghost">
           <Minus />
         </Button>
 
-        <Button onClick={() => resetZoom()} disabled={isInitialPosition} size="icon" className="ml-2">
+        <Button onClick={() => resetZoom()} disabled={isInitialPosition} size="icon" variant="ghost">
           <Restart />
         </Button>
       </div>
@@ -108,7 +100,7 @@ export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initial
                 <Geography
                   key={geo.rsmKey}
                   geography={geo}
-                  className="fill-muted-foreground"
+                  className="fill-neutral-500 dark:fill-neutral-800"
                   style={{
                     default: { outline: "none" },
                     hover: { outline: "none" },

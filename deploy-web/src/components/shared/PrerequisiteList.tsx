@@ -8,6 +8,9 @@ import Spinner from "./Spinner";
 import { CheckCircle, WarningCircle } from "iconoir-react";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { Avatar, AvatarFallback } from "../../components/ui/avatar";
+import { Title } from "./Title";
+import { aktToUakt } from "@src/utils/priceUtils";
+import { denomToUdenom } from "@src/utils/mathHelpers";
 
 type Props = {
   onClose: () => void;
@@ -25,7 +28,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       setIsLoadingPrerequisites(true);
 
       const balance = await refreshBalances();
-      const isBalanceValidated = balance.uakt >= 5000000 || balance.usdc >= 5000000;
+      const isBalanceValidated = balance.uakt >= aktToUakt(minDeposit.akt) || balance.usdc >= denomToUdenom(minDeposit.usdc);
 
       setIsBalanceValidated(isBalanceValidated);
       setIsLoadingPrerequisites(false);
@@ -35,11 +38,11 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       }
     }
 
-    if (address) {
+    if (address && minDeposit.akt && minDeposit.usdc && !!walletBalances) {
       loadPrerequisites();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletBalances?.uakt, walletBalances?.usdc]);
+  }, [address, walletBalances?.uakt, walletBalances?.usdc, minDeposit.akt, minDeposit.usdc]);
 
   return (
     <Popup
@@ -51,14 +54,13 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
           label: "Close",
           color: "secondary",
           variant: "ghost",
-          side: "right",
+          side: "left",
           onClick: onClose
         },
         {
           label: "Continue",
           color: "primary",
           variant: "default",
-          disabled: !isBalanceValidated,
           side: "right",
           isLoading: isLoadingPrerequisites,
           onClick: onContinue
@@ -73,18 +75,20 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
         <Card>
           <CardContent className="p-4">
             <ul className="space-y-4 pb-4 pt-0">
-              <li className="flex items-center">
+              <li className="flex items-center space-x-4">
                 <Avatar className="h-10 w-10">
                   <AvatarFallback>
-                    {isBalanceValidated === null && <Spinner size="medium" />}
+                    {isBalanceValidated === null && <Spinner size="small" />}
                     {isBalanceValidated === true && <CheckCircle className="text-green-600" />}
                     {isBalanceValidated === false && <WarningCircle className="text-destructive" />}
                   </AvatarFallback>
                 </Avatar>
 
-                <div className="ml-4 flex flex-col">
-                  <p className="text-xl">Wallet Balance</p>
-                  <p className="text-muted-foreground">
+                <div className="flex flex-col">
+                  <Title subTitle className="!text-lg">
+                    Wallet Balance
+                  </Title>
+                  <p className="text-sm text-muted-foreground">
                     The balance of the wallet needs to be of at least {minDeposit.akt} AKT or {minDeposit.usdc} USDC. If you do not have {minDeposit.akt} AKT or{" "}
                     {minDeposit.usdc} USDC, you will need to specify an authorized depositor.
                   </p>

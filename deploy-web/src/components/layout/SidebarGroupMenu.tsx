@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import { ISidebarGroupMenu } from "@src/types";
 import { SidebarRouteButton } from "./SidebarRouteButton";
 import { Separator } from "../ui/separator";
+import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   children?: ReactNode;
@@ -16,8 +17,8 @@ export const SidebarGroupMenu: React.FunctionComponent<Props> = ({ group, hasDiv
     <div className="mt-4 w-full">
       {hasDivider && <Separator className="mb-2" />}
 
-      <nav className="flex flex-1 flex-col" aria-label="Sidebar">
-        <ul role="list" className="space-y-2">
+      <nav className={cn("flex flex-1 flex-col", { ["items-center"]: !isNavOpen })} aria-label="Sidebar">
+        <ul role="list" className="space-y-1">
           {!!group.title && isNavOpen && (
             <li>
               <span className="text-sm font-light">{group.title}</span>

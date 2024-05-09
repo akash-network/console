@@ -58,7 +58,7 @@ export function WalletStatus({}: React.PropsWithChildren<{}>) {
 
               <div className="flex items-center text-left">
                 <div className="flex items-center text-sm font-bold">
-                  <Wallet className="text-sm" />
+                  <Wallet className="text-xs" />
                   <Link className="ml-2 cursor-pointer leading-4" href={`https://stats.akash.network/addresses/${address}`} target="_blank">
                     <Tooltip>
                       <TooltipTrigger asChild>

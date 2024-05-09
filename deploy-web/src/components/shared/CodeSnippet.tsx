@@ -2,17 +2,18 @@
 import { useRef } from "react";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { selectText } from "@src/utils/stringUtils";
-import { useToast } from "../ui/use-toast";
 import { Button } from "../ui/button";
 import { Copy } from "iconoir-react";
+import { useSnackbar } from "notistack";
+import { Snackbar } from "./Snackbar";
 
 export const CodeSnippet = ({ code }: React.PropsWithChildren<{ code: string }>) => {
-  const { toast } = useToast();
+  const { enqueueSnackbar } = useSnackbar();
   const codeRef = useRef<HTMLElement>(null);
 
   const onCopyClick = () => {
     copyTextToClipboard(code);
-    toast({ title: "Copied to clipboard!", variant: "success" });
+    enqueueSnackbar(<Snackbar title="Copied to clipboard!" iconVariant="success" />, { variant: "success", autoHideDuration: 1500 });
   };
 
   const onCodeClick = () => {

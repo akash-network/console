@@ -64,7 +64,7 @@ export const ToFormControl = forwardRef<ToRefType, Props>(({ control, serviceInd
                   If the service is marked as global, it will allow connections from outside the datacenter.
                   <br />
                   <br />
-                  <a href="https://docs.akash.network/readme/stack-definition-language#services.expose.to" target="_blank" rel="noopener">
+                  <a href="https://akash.network/docs/getting-started/stack-definition-language/#servicesexposeto" target="_blank" rel="noopener">
                     View official documentation.
                   </a>
                 </>

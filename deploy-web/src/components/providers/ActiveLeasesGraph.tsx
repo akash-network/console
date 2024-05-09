@@ -32,8 +32,8 @@ export const ActiveLeasesGraph: React.FunctionComponent<IProps> = ({ provider })
   return (
     <div className="m-auto max-w-[800px] py-4">
       <div className="mb-1">
-        <h1 className="text-center text-lg font-normal sm:text-left">
-          Active Leases&nbsp;
+        <h1 className="text-center text-xl font-normal tracking-tight sm:text-left space-x-4">
+          <span>Active Leases</span>
           {provider.name && <span className="text-sm text-muted-foreground">({provider.name})</span>}
         </h1>
       </div>
@@ -46,14 +46,14 @@ export const ActiveLeasesGraph: React.FunctionComponent<IProps> = ({ provider })
 
       {snapshotData && (
         <>
-          <div className="mb-4 flex flex-col flex-wrap items-center justify-center sm:flex-row sm:flex-nowrap">
-            <div className="mb-4 basis-full sm:mb-0 sm:basis-auto">
-              <h3 className="font-bol flex items-center justify-center text-3xl sm:justify-start">
-                <FormattedNumber value={metric.modifiedValue || metric.value} maximumFractionDigits={2} />
-                &nbsp;{metric.unit}&nbsp;
-                <DiffPercentageChip value={percIncrease(snapshotData.compareValue, snapshotData.currentValue)} size="medium" />
+          <div className="mb-4 flex flex-col flex-wrap items-center justify-between sm:flex-row sm:flex-nowrap">
+            <div className="mb-4 basis-full sm:mb-0 sm:basis-0">
+              <h3 className="flex items-center text-4xl font-bold tracking-tight sm:justify-center">
+                <FormattedNumber value={metric.modifiedValue || metric.value} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
+                &nbsp;{metric.unit ? `${metric.unit} ` : ""}
+                <DiffPercentageChip value={percIncrease(snapshotData.compareValue, snapshotData.currentValue)} size="medium" className="ml-2" />
                 &nbsp;
-                <DiffNumber value={metricDiff.modifiedValue || metricDiff.value} unit={metricDiff.unit} className="text-xs font-light" />
+                <DiffNumber value={metricDiff.modifiedValue || metricDiff.value} unit={metricDiff.unit} className="whitespace-nowrap text-sm font-light" />
               </h3>
             </div>
 

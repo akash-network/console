@@ -16,7 +16,6 @@ import sdlStore from "@src/store/sdlStore";
 import { RouteStepKeys } from "@src/utils/constants";
 import { useAtom } from "jotai";
 import { useGpuModels } from "@src/queries/useGpuQuery";
-import { useToast } from "@src/components/ui/use-toast";
 import { memoryUnits, storageUnits } from "@src/components/shared/akash/units";
 import { SimpleServiceFormControl } from "@src/components/sdl/SimpleServiceFormControl";
 import { Button } from "@src/components/ui/button";
@@ -26,6 +25,8 @@ import { NavArrowRight } from "iconoir-react";
 import { ImportSdlModal } from "./ImportSdlModal";
 import { PreviewSdl } from "./PreviewSdl";
 import { SaveTemplateModal } from "./SaveTemplateModal";
+import { useSnackbar } from "notistack";
+import { Snackbar } from "../shared/Snackbar";
 
 type Props = {};
 
@@ -42,7 +43,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [sdlBuilderSdl, setSdlBuilderSdl] = useAtom(sdlStore.sdlBuilderSdl);
   const { data: gpuModels } = useGpuModels();
-  const { toast } = useToast();
+  const { enqueueSnackbar } = useSnackbar();
   const { handleSubmit, reset, control, trigger, watch, setValue } = useForm<SdlBuilderFormValues>({
     defaultValues: {
       services: [{ ...defaultService }]
@@ -100,7 +101,9 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
       setServiceCollapsed(services.map((x, i) => i));
       setTemplateMetadata(template);
     } catch (error) {
-      toast({ title: "Error fetching template.", variant: "destructive" });
+      enqueueSnackbar(<Snackbar title="Error fetching template." iconVariant="error" />, {
+        variant: "error"
+      });
 
       setIsLoadingTemplate(false);
     }

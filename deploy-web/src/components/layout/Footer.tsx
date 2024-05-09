@@ -1,7 +1,7 @@
 import React from "react";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
-import { Copyright, Youtube, Twitter, Github, Discord } from "iconoir-react";
+import { Copyright, Youtube, X as TwitterX, Github, Discord } from "iconoir-react";
 import { Title } from "../shared/Title";
 
 export interface IFooterProps {}
@@ -14,7 +14,7 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
       <footer>
         <div className="mb-4 grid grid-cols-1 gap-4">
           <div>
-            <Title subTitle className="mb-2">
+            <Title subTitle className="mb-2 tracking-tight">
               Akash Console
             </Title>
             <p className="text-sm font-light">
@@ -30,6 +30,7 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
               <a
                 href="https://discord.gg/akash"
                 target="_blank"
+                rel="noreferrer"
                 className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
               >
                 <Discord className="mx-auto block h-6 w-6 text-5xl" />
@@ -37,8 +38,19 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
             </li>
             <li>
               <a
-                href="https://www.youtube.com/channel/UC1rgl1y8mtcQoa9R_RWO0UA?sub_confirmation=1"
+                href="https://twitter.com/akashnet_"
                 target="_blank"
+                rel="noreferrer"
+                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+              >
+                <TwitterX className="mx-auto block h-6 w-6 text-5xl" />
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1"
+                target="_blank"
+                rel="noreferrer"
                 className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
               >
                 <Youtube className="mx-auto block h-6 w-6 text-5xl" />
@@ -46,17 +58,9 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
             </li>
             <li>
               <a
-                href="https://twitter.com/cloudmosio"
-                target="_blank"
-                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
-              >
-                <Twitter className="mx-auto block h-6 w-6 text-5xl" />
-              </a>
-            </li>
-            <li>
-              <a
                 href="https://github.com/akash-network/cloudmos"
                 target="_blank"
+                rel="noreferrer"
                 className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
               >
                 <Github className="mx-auto block h-6 w-6 text-5xl" />

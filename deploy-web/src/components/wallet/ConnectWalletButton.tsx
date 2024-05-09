@@ -3,6 +3,7 @@ import React, { ReactNode } from "react";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { Button, ButtonProps } from "../ui/button";
 import { Wallet } from "iconoir-react";
+import { cn } from "@src/utils/styleUtils";
 
 interface Props extends ButtonProps {
   children?: ReactNode;
@@ -13,7 +14,7 @@ export const ConnectWalletButton: React.FunctionComponent<Props> = ({ className 
   const { connect } = useSelectedChain();
 
   return (
-    <Button variant="outline" color="primary" onClick={() => connect()} className={className} {...rest}>
+    <Button variant="outline" onClick={() => connect()} className={cn("border-primary", className)} {...rest}>
       <Wallet className="text-xs" />
       <span className="ml-2 whitespace-nowrap">Connect Wallet</span>
     </Button>

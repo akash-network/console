@@ -122,7 +122,7 @@ export type XTermRefType = {
 };
 
 const XTerm: React.FunctionComponent<IProps> = props => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   /**
    * The ref for the containing element.
    */
@@ -146,13 +146,13 @@ const XTerm: React.FunctionComponent<IProps> = props => {
     terminalRef.current = new Terminal({
       ...props.options,
       theme: {
-        background: theme === "dark" ? "#1e1e1e" : "white",
-        foreground: theme === "dark" ? "white" : "black",
-        cursor: theme === "dark" ? "white" : "black",
-        cursorAccent: theme === "dark" ? "#1e1e1e" : "white",
-        selectionBackground: theme === "dark" ? "white" : "black",
-        selectionForeground: theme === "dark" ? "black" : "white",
-        selectionInactiveBackground: theme === "dark" ? "white" : "black"
+        background: resolvedTheme === "dark" ? "#1e1e1e" : "white",
+        foreground: resolvedTheme === "dark" ? "white" : "black",
+        cursor: resolvedTheme === "dark" ? "white" : "black",
+        cursorAccent: resolvedTheme === "dark" ? "#1e1e1e" : "white",
+        selectionBackground: resolvedTheme === "dark" ? "white" : "black",
+        selectionForeground: resolvedTheme === "dark" ? "black" : "white",
+        selectionInactiveBackground: resolvedTheme === "dark" ? "white" : "black"
       },
       cursorBlink: true
     });

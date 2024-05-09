@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import { DynamicMonacoEditor } from "./DynamicMonacoEditor";
 import isEqual from "lodash/isEqual";

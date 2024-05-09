@@ -1,5 +1,5 @@
 import { FaqAnchorType } from "@src/pages/faq";
-import { selectedNetworkId } from "./constants";
+import { mainnetId, selectedNetworkId } from "./constants";
 
 type NewDeploymentParams = {
   step?: string;
@@ -13,12 +13,13 @@ function getSelectedNetworkQueryParam() {
     return selectedNetworkId;
   } else if (typeof window !== "undefined") {
     return new URLSearchParams(window.location.search).get("network");
+  } else {
+    return mainnetId;
   }
-
-  return undefined;
 }
 
-// TODO Refactor the explorer routes to stats.akash.network
+export const domainName = "https://console.akash.network";
+
 export class UrlService {
   static home = () => "/";
   static getStarted = () => "/get-started";

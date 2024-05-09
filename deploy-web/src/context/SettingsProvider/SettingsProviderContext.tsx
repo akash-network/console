@@ -9,6 +9,7 @@ import { NodeStatus } from "@src/types/node";
 import { initiateNetworkData, networks } from "@src/store/networkStore";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 import { mainnetNodes } from "@src/utils/apiUtils";
+import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 
 export type BlockchainNode = {
   api: string;
@@ -58,6 +59,7 @@ export function SettingsProvider({ children }: React.PropsWithChildren<{}>) {
   const { getLocalStorageItem, setLocalStorageItem } = useLocalStorage();
   const [selectedNetworkId, setSelectedNetworkId] = useState(mainnetId);
   const { isCustomNode, customNode, nodes, apiEndpoint } = settings;
+  usePreviousRoute();
 
   // load settings from localStorage or set default values
   useEffect(() => {
@@ -78,7 +80,7 @@ export function SettingsProvider({ children }: React.PropsWithChildren<{}>) {
       setSelectedNetworkId(_selectedNetworkId);
 
       const settingsStr = getLocalStorageItem("settings");
-      const settings = { ...defaultSettings, ...JSON.parse(settingsStr || "") } || {};
+      const settings = { ...defaultSettings, ...JSON.parse(settingsStr || "{}") };
       let defaultApiNode, defaultRpcNode, selectedNode;
 
       // Set the available nodes list and default endpoints

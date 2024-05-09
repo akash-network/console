@@ -1,47 +1,33 @@
 "use client";
-import { SnackbarKey, SnackbarProvider } from "notistack";
+import { styled } from "@mui/material/styles";
+import { Button } from "@src/components/ui/button";
+import useTailwind from "@src/hooks/useTailwind";
+import { Xmark } from "iconoir-react";
+import { MaterialDesignContent, SnackbarKey, SnackbarProvider } from "notistack";
 import React, { useRef } from "react";
-import CloseIcon from "@mui/icons-material/Close";
-import { makeStyles } from "tss-react/mui";
-import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
 
-const useStyles = makeStyles()(theme => ({
-  root: {
-    padding: "1rem",
-    width: "360px !important",
-    "& #notistack-snackbar": {
-      paddingRight: "1rem"
+const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => {
+  const tw = useTailwind();
+  return {
+    "&.notistack-MuiContent-success": {
+      backgroundColor: tw.theme.colors.green[600]
     },
-    "& .MuiCollapse-root": {
-      width: "100%"
+    "&.notistack-MuiContent-error": {
+      backgroundColor: "hsl(var(--destructive))"
+    },
+    "&.notistack-MuiContent-warning": {
+      backgroundColor: "hsl(var(--warning))"
+    },
+    "&.notistack-MuiContent-info": {
+      backgroundColor: tw.theme.colors.blue[600]
     }
-  },
-  success: {
-    backgroundColor: ""
-  },
-  error: {
-    backgroundColor: ""
-  },
-  warning: {
-    backgroundColor: ""
-  },
-  info: {
-    backgroundColor: ""
-  },
-  action: {
-    position: "absolute",
-    top: "4px",
-    right: "4px",
-    color: theme.palette.primary.contrastText
-  }
-}));
+  };
+});
 
 export const CustomSnackbarProvider = ({ children }) => {
-  const notistackRef = useRef<SnackbarProvider>();
-  const { classes } = useStyles();
+  const notistackRef = useRef<SnackbarProvider>(null);
   const onClickDismiss = (key: SnackbarKey) => () => {
-    notistackRef.current.closeSnackbar(key);
+    notistackRef.current?.closeSnackbar(key);
   };
 
   return (
@@ -50,20 +36,27 @@ export const CustomSnackbarProvider = ({ children }) => {
       anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       ref={notistackRef}
       classes={{
-        containerRoot: classes.root,
-        variantSuccess: classes.success,
-        variantError: classes.error,
-        variantWarning: classes.warning,
-        variantInfo: classes.info
+        containerRoot: "pb-4 !w-[360px] [&>div]:w-full"
+      }}
+      Components={{
+        success: StyledMaterialDesignContent,
+        error: StyledMaterialDesignContent,
+        warning: StyledMaterialDesignContent,
+        info: StyledMaterialDesignContent
       }}
       hideIconVariant
       dense
       action={key => (
-        <Box width="2rem">
-          <IconButton onClick={onClickDismiss(key)} size="small" className={classes.action}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        </Box>
+        <div className="w-8">
+          <Button
+            onClick={onClickDismiss(key)}
+            size="icon"
+            variant="text"
+            className="absolute right-2 top-2 h-6 w-6 rounded-full text-white hover:text-white/70"
+          >
+            <Xmark className="text-xs" />
+          </Button>
+        </div>
       )}
     >
       {children}
