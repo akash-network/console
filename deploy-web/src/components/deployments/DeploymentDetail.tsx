@@ -82,7 +82,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
       }
     }
   });
-  const isDeploymentNotFound = deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found");
+  const isDeploymentNotFound = (deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found")) || !address;
   const hasLeases = leases && leases.length > 0;
   const { isLocalCertMatching, localCert, isCreatingCert, createCertificate } = useCertificate();
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
@@ -155,9 +155,9 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
       {isDeploymentNotFound && (
         <div className="mt-8 text-center">
           <Title className="mb-2">404</Title>
-          <Title subTitle className="text-xl !font-normal">
+          <p>
             This deployment does not exist or it was created using another wallet.
-          </Title>
+          </p>
           <div className="pt-4">
             <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center space-x-2")}>
               <ArrowLeft className="text-sm" />

@@ -166,8 +166,8 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
             <div className="mt-4">
               <p className="mb-4">General Info</p>
 
-              <Card className="mb-4 grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
-                <CardContent>
+              <Card className="mb-4">
+                <CardContent className="mb-4 grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
                   <div>
                     <LabelValue label="Host" value={provider.host} />
                     <LabelValue label="Website" value={provider.website} />
@@ -191,16 +191,16 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
               <ProviderSpecs provider={provider} />
 
               <p className="mb-4 mt-4">Features</p>
-              <Card className="mb-4 grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
-                <CardContent>
+              <Card className="mb-4">
+                <CardContent className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
                   <div>
                     <LabelValue label="Akash version" value={provider.akashVersion || "Unknown"} />
-                    <LabelValue label="IP Leases" value={provider.featEndpointIp && <Check className="ml-2 text-primary" />} />
-                    <LabelValue label="Chia" value={provider.workloadSupportChia && <Check className="ml-2 text-primary" />} />
+                    <LabelValue label="IP Leases" value={provider.featEndpointIp && <Check className="ml-0 text-primary sm:ml-2" />} />
+                    <LabelValue label="Chia" value={provider.workloadSupportChia && <Check className="ml-0 text-primary sm:ml-2" />} />
                   </div>
                   <div>
                     <LabelValue label="Kube version" value={provider.kube ? `${provider.kube?.major}.${provider.kube?.minor}` : "Unkown"} />
-                    <LabelValue label="Custom domain" value={provider.featEndpointCustomDomain && <Check className="ml-2 text-primary" />} />
+                    <LabelValue label="Custom domain" value={provider.featEndpointCustomDomain && <Check className="ml-0 text-primary sm:ml-2" />} />
                     <LabelValue label="Chia capabilities" value={provider.workloadSupportChiaCapabilities} />
                   </div>
                 </CardContent>
@@ -208,8 +208,8 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
 
               <p className="mb-4">Stats</p>
 
-              <Card className="mb-4 p-4">
-                <CardContent>
+              <Card className="mb-4">
+                <CardContent className="p-4">
                   <LabelValue label="Deployments" value={provider.deploymentCount} />
                   <LabelValue label="Leases" value={provider.leaseCount} />
                   <LabelValue label="Orders" value={provider.orderCount || "0"} />
@@ -219,8 +219,8 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
             </div>
 
             <p className="mb-4">Raw attributes</p>
-            <Card className="p-4">
-              <CardContent>
+            <Card>
+              <CardContent className="p-4">
                 {provider.attributes.map(x => (
                   <LabelValue key={x.key} label={x.key} value={x.value} />
                 ))}

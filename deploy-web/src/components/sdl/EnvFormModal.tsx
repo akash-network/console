@@ -9,7 +9,7 @@ import { FormInput } from "../ui/input";
 import { Bin } from "iconoir-react";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
-import { CustomTooltip } from "../shared/CustomTooltip";
+import { CustomNoDivTooltip, CustomTooltip } from "../shared/CustomTooltip";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
@@ -139,7 +139,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
                     control={control}
                     name={`services.${serviceIndex}.env.${envIndex}.isSecret`}
                     render={({ field }) => (
-                      <CustomTooltip
+                      <CustomNoDivTooltip
                         title={
                           <>
                             <p>
@@ -151,8 +151,8 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
                           </>
                         }
                       >
-                        <Switch checked={field.value || false} onCheckedChange={field.onChange} />
-                      </CustomTooltip>
+                        <Switch checked={!!field.value} onCheckedChange={field.onChange} />
+                      </CustomNoDivTooltip>
                     )}
                   />
                 )}
