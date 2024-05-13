@@ -282,8 +282,8 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
 
             <ProviderTable providers={currentPageProviders} sortOption={sort} />
 
-            {search && currentPageProviders.length === 0 && (
-              <div className="p-4">
+            {currentPageProviders.length === 0 && (
+              <div className="p-4 text-center">
                 <p>No provider found.</p>
               </div>
             )}
