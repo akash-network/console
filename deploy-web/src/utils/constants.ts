@@ -16,7 +16,7 @@ export const drawerWidth = 240;
 export const closedDrawerWidth = 58;
 export const accountBarHeight = 58;
 // Rebrand Banner
-export const hasBanner = true;
+export const hasBanner = false;
 export const bannerHeight = 30;
 export const bannerHeightSm = 80;
 
