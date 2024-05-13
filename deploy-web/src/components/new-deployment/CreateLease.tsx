@@ -89,53 +89,31 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filter bids by search
+  // Filter bids
   useEffect(() => {
-    let fBids: string[] = [];
     if ((search || isFilteringFavorites || isFilteringAudited) && providers) {
-      bids?.forEach(bid => {
-        let isAdded = false;
+      let filteredBids = [...(bids || [])];
 
-        // Filter for search
-        if (search) {
-          const provider = providers.find(p => p.owner === bid.provider);
-          // Filter by attribute value
-          provider?.attributes.forEach(att => {
-            if (att.value?.toLowerCase().includes(search.toLowerCase())) {
-              fBids.push(bid.id);
-              isAdded = true;
-            }
-          });
+      if (search) {
+        filteredBids = filteredBids.filter(bid => {
+          const provider = providers?.find(p => p.owner === bid.provider);
+          return provider?.attributes.some(att => att.value?.toLowerCase().includes(search.toLowerCase())) || provider?.hostUri.includes(search);
+        });
+      }
 
-          if (!isAdded && provider?.hostUri.includes(search)) {
-            fBids.push(bid.id);
-          }
-        }
+      if (isFilteringFavorites) {
+        filteredBids = filteredBids.filter(bid => favoriteProviders.some(y => y === bid.provider));
+      }
 
-        // Filter for favorites
-        if (!isAdded && !search && isFilteringFavorites) {
-          const provider = favoriteProviders.find(p => p === bid.provider);
+      if (isFilteringAudited) {
+        filteredBids = filteredBids.filter(bid => !!providers.filter(x => x.isAudited).find(p => p.owner === bid.provider));
+      }
 
-          if (provider) {
-            fBids.push(bid.id);
-            isAdded = true;
-          }
-        }
-
-        // Filter for audited
-        if (!isAdded && !search && isFilteringAudited) {
-          const provider = providers.filter(x => x.isAudited).find(p => p.owner === bid.provider);
-
-          if (provider) {
-            fBids.push(bid.id);
-          }
-        }
-      });
+      setFilteredBids(filteredBids.map(bid => bid.id));
     } else {
-      fBids = bids?.map(b => b.id) || [];
+      setFilteredBids(bids?.map(bid => bid.id) || []);
     }
 
-    setFilteredBids(fBids);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, bids, providers, isFilteringFavorites, isFilteringAudited, favoriteProviders]);
 
