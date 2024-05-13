@@ -7,7 +7,7 @@ import { DialogProps } from "@radix-ui/react-dialog";
 import Spinner from "./Spinner";
 import { InputWithIcon } from "../ui/input";
 import { cn } from "@src/utils/styleUtils";
-import { ScrollArea } from "../ui/scroll-area";
+import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 
 type MessageProps = {
   variant: "message";
@@ -45,7 +45,6 @@ type CommonProps = {
   maxWidth?: false | "xs" | "sm" | "md" | "lg" | "xl";
   dialogProps?: Partial<DialogProps>;
   fixedTopPosition?: boolean;
-  fixedTopPositionHeight?: "10%" | "15%" | "20%" | "25%";
   enableCloseOnBackdropClick?: boolean;
   hideCloseButton?: boolean;
 };
@@ -56,7 +55,6 @@ export type ActionButton = ButtonProps & {
   label: string | React.ReactNode;
   side: ActionButtonSide;
   isLoading?: boolean;
-  isLoadingColor?: "inherit" | "primary" | "secondary" | "success" | "error" | "info" | "warning";
 };
 
 export type PopupProps = (MessageProps | ConfirmProps | PromptProps | CustomPrompt) & CommonProps;
@@ -102,6 +100,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
     component.push(
       <ScrollArea className="max-h-[75vh]" key="dialog-content">
         {props.message}
+        <ScrollBar orientation="horizontal" />
       </ScrollArea>
     );
   } else {
@@ -120,6 +119,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
             props.children
           )}
         </div>
+        <ScrollBar orientation="horizontal" />
       </ScrollArea>
     );
   }
@@ -194,38 +194,20 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
     case "custom": {
       const leftButtons = props.actions
         ?.filter(x => x.side === "left")
-        .map(({ isLoading, isLoadingColor, side, label, ...rest }, idx) => (
+        .map(({ isLoading, side, label, ...rest }, idx) => (
           <Button key={`dialog-action-button-${idx}`} {...rest}>
-            {isLoading ? (
-              <Spinner
-                size="small"
-                // TODO
-                // color={isLoadingColor ? isLoadingColor : "secondary"}
-                // sx={{ color: !isLoadingColor && rest.color === "secondary" ? theme.palette.secondary.contrastText : "" }}
-              />
-            ) : (
-              label
-            )}
+            {isLoading ? <Spinner size="small" /> : label}
           </Button>
         ));
       const rightButtons = props.actions
         ?.filter(x => x.side === "right")
-        .map(({ isLoading, isLoadingColor, side, label, ...rest }, idx) => (
+        .map(({ isLoading, side, label, ...rest }, idx) => (
           <Button key={`dialog-action-button-${idx}`} {...rest}>
-            {isLoading ? (
-              <Spinner
-                size="small"
-                // TODO
-                // color={isLoadingColor ? isLoadingColor : "secondary"}
-                // sx={{ color: !isLoadingColor && rest.color === "secondary" ? theme.palette.secondary.contrastText : "" }}
-              />
-            ) : (
-              label
-            )}
+            {isLoading ? <Spinner size="small" /> : label}
           </Button>
         ));
       component.push(
-        <DialogFooter className="flex justify-between space-x-2 sm:justify-between" key="DialogCustomActions">
+        <DialogFooter className="flex justify-between space-x-2 sm:justify-between flex-row" key="DialogCustomActions">
           <div className="space-x-2">{leftButtons}</div>
           <div className="space-x-2">{rightButtons}</div>
         </DialogFooter>
@@ -234,31 +216,11 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
     }
   }
 
-  // const getFixedPositionHeightClass = () => {
-  //   switch (props.fixedTopPositionHeight) {
-  //     case "10%":
-  //       return classes.fixedTopPosition10;
-  //     case "15%":
-  //       return classes.fixedTopPosition15;
-  //     case "20%":
-  //       return classes.fixedTopPosition20;
-  //     case "25%":
-  //       return classes.fixedTopPosition25;
-
-  //     default:
-  //       break;
-  //   }
-  // };
-
   /**
    * Prevent close because of click on backdrop unless enabled through the setting 'enableCloseOnBackdropClick'.
    */
   const handleOnClose = (open: boolean) => {
-    // if ((props.enableCloseOnBackdropClick || reason !== "backdropClick") && props.onClose) {
-    //   props.onClose();
-    // }
     if (!open && props.onClose) {
-      // TODO
       props.onClose(null, "action");
     }
   };
@@ -267,8 +229,6 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
     <Dialog key="Dialog" {...dialogProps} onOpenChange={handleOnClose}>
       <ErrorBoundary FallbackComponent={ErrorFallback}>
         <DialogContent
-          // TODO sizes
-          // dividers={props.dividers}
           className={cn("m-0 p-4", {
             ["sm:max-w-[400px]"]: props.maxWidth === "xs",
             ["sm:max-w-[600px]"]: props.maxWidth === "sm",

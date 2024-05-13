@@ -115,8 +115,8 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
 
               <div
                 className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300", {
-                  ["sm:ml-[240px]"]: isNavOpen,
-                  ["sm:ml-[57px]"]: !isNavOpen
+                  ["md:ml-[240px]"]: isNavOpen,
+                  ["md:ml-[57px]"]: !isNavOpen
                 })}
               >
                 {isLoading !== undefined && <LinearLoadingSkeleton isLoading={isLoading} />}

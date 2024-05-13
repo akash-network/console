@@ -162,7 +162,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
           </p>
 
           <p className="text-muted-foreground">For the sake of getting started, we will deploy a simple Next.js app that you can find in the deploy page.</p>
-          <div className="my-4 flex flex-wrap items-center space-x-4">
+          <div className="my-4 flex flex-col flex-wrap items-start space-y-4 sm:flex-row sm:items-center sm:space-x-4 sm:space-y-0">
             <Button variant="default" onClick={handleNext}>
               Next
             </Button>
@@ -171,7 +171,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
               <ExternalLink href="https://docs.docker.com/get-started/" text="Learn how" />
             </div>
 
-            <Link href={UrlService.templates()} className={cn("py-4", buttonVariants({ variant: "text" }))}>
+            <Link href={UrlService.templates()} className={cn("py-4", buttonVariants({ variant: "secondary" }))}>
               Explore Marketplace
             </Link>
           </div>
