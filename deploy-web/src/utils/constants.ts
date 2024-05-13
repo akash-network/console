@@ -15,6 +15,10 @@ export const statusBarHeight = 30;
 export const drawerWidth = 240;
 export const closedDrawerWidth = 58;
 export const accountBarHeight = 58;
+// Rebrand Banner
+export const hasBanner = true;
+export const bannerHeight = 30;
+export const bannerHeightSm = 80;
 
 // Deployment creation
 export enum RouteStepKeys {

@@ -3,7 +3,7 @@ import Box from "@mui/material/Box";
 import { IntlProvider } from "react-intl";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "../shared/ErrorFallback";
-import { accountBarHeight, closedDrawerWidth, drawerWidth } from "@src/utils/constants";
+import { accountBarHeight, closedDrawerWidth, drawerWidth, hasBanner } from "@src/utils/constants";
 import { CircularProgress, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
 import { WelcomeModal } from "./WelcomeModal";
@@ -13,6 +13,7 @@ import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Header } from "./Header";
 import { NewsletterModal } from "../shared/NewsletterModal";
 import { useWallet } from "@src/context/WalletProvider";
+import { useBannerHeight } from "@src/hooks/useBannerHeight";
 
 type Props = {
   isLoading?: boolean;
@@ -24,14 +25,6 @@ type Props = {
 const useStyles = makeStyles()(theme => ({
   root: {
     width: "100%"
-  },
-  accountBar: {
-    height: `${accountBarHeight}px`,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-    borderBottom: `1px solid ${theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[300]}`
   },
   viewContentContainer: {
     flexGrow: 1,
@@ -66,6 +59,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
   const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  const bannerHeight = useBannerHeight();
 
   useEffect(() => {
     const _isNavOpen = localStorage.getItem("isNavOpen");
@@ -118,7 +112,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
       <NewsletterModal />
 
       <Box sx={{ height: "100%" }}>
-        <Box className={classes.root} sx={{ marginTop: `${accountBarHeight}px`, height: "100%" }}>
+        <Box className={classes.root} sx={{ marginTop: `${hasBanner ? accountBarHeight + bannerHeight : accountBarHeight}px`, height: "100%" }}>
           <Box height="100%">
             <Header isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} />
 
@@ -173,4 +167,3 @@ const Loading: React.FunctionComponent<{ text: string }> = ({ text }) => {
 };
 
 export default Layout;
-
