@@ -44,9 +44,9 @@ export function CertificateDisplay() {
               {selectedCertificate ? (
                 <span>
                   Current certificate:{" "}
-                  <div className="inline-flex items-center text-xs font-bold text-primary">
+                  <span className="inline-flex items-center text-xs font-bold text-primary">
                     {selectedCertificate.serial} <Check color="secondary" className="ml-2" />
-                  </div>
+                  </span>
                 </span>
               ) : (
                 "No local certificate."

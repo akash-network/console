@@ -13,13 +13,13 @@ export default function Paginator({ currentPage, totalPages, onPageChange, showP
     <Pagination>
       <PaginationContent>
         {showPreviousNext && totalPages ? (
-          <PaginationItem>
+          <PaginationItem className="hidden sm:list-item">
             <PaginationPrevious onClick={() => onPageChange(currentPage - 1)} disabled={currentPage - 1 < 1} />
           </PaginationItem>
         ) : null}
         {generatePaginationLinks(currentPage, totalPages, onPageChange)}
         {showPreviousNext && totalPages ? (
-          <PaginationItem>
+          <PaginationItem className="hidden sm:list-item">
             <PaginationNext onClick={() => onPageChange(currentPage + 1)} disabled={currentPage > totalPages - 1} />
           </PaginationItem>
         ) : null}

@@ -214,14 +214,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
   return (
     <>
-      <CustomNextSeo
-        title="Create Deployment - Manifest Edit"
-        url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`}
-      />
+      <CustomNextSeo title="Create Deployment - Manifest Edit" url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`} />
 
       <div className="mb-2 pt-4">
         <div className="mb-2 flex flex-col items-end justify-between md:flex-row">
-          <div className="flex-grow">
+          <div className="w-full flex-grow">
             <InputWithIcon value={deploymentName} onChange={ev => setDeploymentName(ev.target.value)} label="Name your deployment (optional)" />
           </div>
 
@@ -237,10 +234,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
                 </p>
               }
             >
-              <InfoCircle className="mx-4 text-sm text-muted-foreground" />
+              <InfoCircle className="mr-4 text-sm text-muted-foreground md:ml-4" />
             </CustomTooltip>
 
-            <div>
+            <div className="flex-grow">
               <Button
                 variant="default"
                 disabled={isCreatingDeployment || !!parsingError || !editedManifest}
@@ -261,8 +258,15 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
             </div>
           </div>
         </div>
+      </div>
 
-        <Button variant={selectedSdlEditMode === "builder" ? "default" : "outline"} onClick={() => onModeChange("builder")} size="sm" className="rounded-e-none">
+      <div className="mb-2 flex items-center">
+        <Button
+          variant={selectedSdlEditMode === "builder" ? "default" : "outline"}
+          onClick={() => onModeChange("builder")}
+          size="sm"
+          className="flex-grow rounded-e-none sm:flex-grow-0"
+        >
           Builder
         </Button>
         <Button
@@ -270,7 +274,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
           onClick={() => onModeChange("yaml")}
           size="sm"
-          className="rounded-s-none"
+          className="flex-grow rounded-s-none sm:flex-grow-0"
         >
           YAML
         </Button>

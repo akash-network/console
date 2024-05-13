@@ -16,18 +16,17 @@ export const GranteeDepositMenuItem: React.FunctionComponent<Props> = ({ grant }
   const denomData = useDenomData(grant.authorization.spend_limit.denom);
 
   return (
-    <div className="text-sm">
-      <Address address={grant.granter} />
-      &nbsp;|&nbsp;
+    <div className="text-xs">
+      <Address address={grant.granter} disableTooltip />
+      &nbsp;<small className="text-muted-foreground">|</small>&nbsp;
       <AKTAmount uakt={coinToUDenom(grant.authorization.spend_limit)} />
       &nbsp;
       {denomData?.label}
       &nbsp;
-      <small>
+      <small className="text-muted-foreground">
         (Exp:&nbsp;
-        <FormattedDate value={new Date(grant.expiration)} />
+        <FormattedDate value={new Date(grant.expiration)} />)
       </small>
-      )
     </div>
   );
 };
