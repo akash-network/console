@@ -1,6 +1,6 @@
 {
   "name": "akash-console",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "description": "Web UI to deploy on the Akash Network and view statistic about network usage.",
   "author": "Akash Network",
   "private": true,
