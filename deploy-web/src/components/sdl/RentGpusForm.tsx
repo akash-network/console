@@ -4,8 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { ApiTemplate, ProfileGpuModel, RentGpusFormValues, Service } from "@src/types";
 import { defaultAnyRegion, defaultRentGpuService } from "@src/utils/sdl/data";
 import { useRouter, useSearchParams } from "next/navigation";
-import sdlStore from "@src/store/sdlStore";
 import { useAtom } from "jotai";
+import { EncodeObject } from "@cosmjs/proto-signing";
+import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
+
+import sdlStore from "@src/store/sdlStore";
 import { RegionSelect } from "./RegionSelect";
 import { AdvancedConfig } from "./AdvancedConfig";
 import { GpuFormControl } from "./GpuFormControl";
@@ -21,7 +24,6 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
-import { generateCertificate } from "@src/utils/certificateUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { updateWallet } from "@src/utils/walletUtils";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
@@ -35,7 +37,6 @@ import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
-import { EncodeObject } from "@cosmjs/proto-signing";
 import { Alert } from "../ui/alert";
 import { FormPaper } from "./FormPaper";
 import { Button } from "../ui/button";
@@ -211,7 +212,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
 
       // Create a cert if the user doesn't have one
       if (!hasValidCert) {
-        const { crtpem, pubpem, encryptedKey } = generateCertificate(address);
+        const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(address);
         _crtpem = crtpem;
         _encryptedKey = encryptedKey;
         messages.push(TransactionMessageData.getCreateCertificateMsg(address, crtpem, pubpem));

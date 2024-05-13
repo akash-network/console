@@ -1,8 +1,14 @@
 "use client";
 import { useState, useEffect, Dispatch, useRef } from "react";
+import { useRouter } from "next/navigation";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
+import { useAtom } from "jotai";
+import { event } from "nextjs-google-analytics";
+import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
+
 import { useSettings } from "../../context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useRouter } from "next/navigation";
 import { Timer } from "@src/utils/timer";
 import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
@@ -12,19 +18,15 @@ import ViewPanel from "../shared/ViewPanel";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { UrlService, domainName, handleDocClick } from "@src/utils/urlUtils";
-import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import { TemplateCreation } from "@src/types";
 import { useCertificate } from "@src/context/CertificateProvider";
-import { generateCertificate } from "@src/utils/certificateUtils";
 import { updateWallet } from "@src/utils/walletUtils";
 import sdlStore from "@src/store/sdlStore";
-import { useAtom } from "jotai";
 import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { useChainParam } from "@src/context/ChainParamProvider";
-import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { Alert } from "../ui/alert";
 import { Button } from "../ui/button";
@@ -35,7 +37,6 @@ import { InputWithIcon } from "../ui/input";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { cn } from "@src/utils/styleUtils";
-import useMediaQuery from "@mui/material/useMediaQuery";
 
 type Props = {
   selectedTemplate: TemplateCreation;
@@ -157,7 +158,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
       // Create a cert if the user doesn't have one
       if (!hasValidCert) {
-        const { crtpem, pubpem, encryptedKey } = generateCertificate(address);
+        const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(address);
         _crtpem = crtpem;
         _encryptedKey = encryptedKey;
         messages.push(TransactionMessageData.getCreateCertificateMsg(address, crtpem, pubpem));
