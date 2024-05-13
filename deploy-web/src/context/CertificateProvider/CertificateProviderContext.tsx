@@ -1,17 +1,18 @@
 "use client";
 import React, { useState, useCallback, useEffect } from "react";
 import axios from "axios";
+import { useSnackbar } from "notistack";
+import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
+
 import { useSettings } from "../SettingsProvider";
 import { networkVersion } from "@src/utils/constants";
-import { generateCertificate, getCertPem, openCert } from "@src/utils/certificateUtils";
+import { Snackbar } from "@src/components/shared/Snackbar";
 import { getSelectedStorageWallet, getStorageWallets, updateWallet } from "@src/utils/walletUtils";
 import { useWallet } from "../WalletProvider";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { RestApiCertificatesResponseType } from "@src/types/certificate";
-import { useSnackbar } from "notistack";
-import { Snackbar } from "@src/components/shared/Snackbar";
 
 export type LocalCert = {
   certPem: string;
@@ -83,7 +84,7 @@ export const CertificateProvider = ({ children }) => {
         );
         const certs = (response.data.certificates || []).map(cert => {
           const parsed = atob(cert.certificate.cert);
-          const pem = getCertPem(parsed);
+          const pem = certificateManager.parsePem(parsed);
 
           return {
             ...cert,
@@ -159,8 +160,7 @@ export const CertificateProvider = ({ children }) => {
     for (let i = 0; i < wallets.length; i++) {
       const _wallet = wallets[i];
 
-      const cert = await openCert(_wallet.cert as string, _wallet.certKey as string);
-      const _cert = { ...cert, address: _wallet.address };
+      const _cert = { certPem: _wallet.cert, keyPem: _wallet.certKey, address: _wallet.address };
 
       certs.push(_cert as LocalCert);
 
@@ -178,7 +178,7 @@ export const CertificateProvider = ({ children }) => {
   async function createCertificate() {
     setIsCreatingCert(true);
 
-    const { crtpem, pubpem, encryptedKey } = generateCertificate(address);
+    const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(address);
 
     try {
       const message = TransactionMessageData.getCreateCertificateMsg(address, crtpem, pubpem);
@@ -215,7 +215,7 @@ export const CertificateProvider = ({ children }) => {
    */
   async function regenerateCertificate() {
     setIsCreatingCert(true);
-    const { crtpem, pubpem, encryptedKey } = generateCertificate(address);
+    const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(address);
 
     try {
       const revokeCertMsg = TransactionMessageData.getRevokeCertificateMsg(address, selectedCertificate?.serial as string);
