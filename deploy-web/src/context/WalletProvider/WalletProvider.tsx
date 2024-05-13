@@ -12,7 +12,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { useSettings } from "../SettingsProvider";
 import axios from "axios";
 import { useUsdcDenom } from "@src/hooks/useDenom";
-import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { getSelectedNetwork, useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { customRegistry } from "@src/utils/customRegistry";
@@ -328,7 +328,8 @@ export function useWallet() {
 }
 
 const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
-  const txUrl = transactionHash && `https://stats.akash.network/transactions/${transactionHash}`;
+  const selectedNetwork = useSelectedNetwork();
+  const txUrl = transactionHash && `https://stats.akash.network/transactions/${transactionHash}?network=${selectedNetwork.id}`;
 
   return (
     <>
