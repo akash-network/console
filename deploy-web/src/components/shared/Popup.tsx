@@ -207,7 +207,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
           </Button>
         ));
       component.push(
-        <DialogFooter className="flex justify-between space-x-2 sm:justify-between" key="DialogCustomActions">
+        <DialogFooter className="flex justify-between space-x-2 sm:justify-between flex-row" key="DialogCustomActions">
           <div className="space-x-2">{leftButtons}</div>
           <div className="space-x-2">{rightButtons}</div>
         </DialogFooter>

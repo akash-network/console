@@ -132,10 +132,6 @@ export const WalletProvider = ({ children }) => {
   // Update balances on wallet address change
   useEffect(() => {
     if (walletAddress) {
-      // Redirect to deployment list if on deployment detail page
-      if (pathname?.startsWith("/deployments/")) {
-        router.push(UrlService.deploymentList());
-      }
       loadWallet();
     }
   }, [walletAddress]);

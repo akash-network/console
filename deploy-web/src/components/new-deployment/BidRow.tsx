@@ -133,7 +133,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
       {gpuModels.length > 0 && (
         <TableCell align="center">
           <div className="space-x">
-            {gpuModels.map((gpu) => (
+            {gpuModels.map(gpu => (
               <Badge key={`${gpu.vendor}-${gpu.model}`} className={cn("px-1 py-0 text-xs")} variant="default">
                 {gpu.vendor}-{gpu.model}
               </Badge>
@@ -198,7 +198,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
           )}
 
           {isSendingManifest && isCurrentBid && (
-            <div className="flex items-center justify-center">
+            <div className="flex items-center justify-center whitespace-nowrap">
               <Badge variant="success">Deploying! 🚀</Badge>
             </div>
           )}

@@ -232,7 +232,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
                 </div>
               </div>
 
-              <div className="flex items-center md:ml-8">
+              <div className="my-2 flex items-center md:ml-8 md:my-0">
                 <div>
                   <CheckboxWithLabel checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} label="Active" />
                 </div>
@@ -245,7 +245,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
               </div>
             </div>
 
-            <div className="my-2 flex flex-col items-center md:flex-row md:space-x-2">
+            <div className="my-2 flex flex-col items-center space-y-2 md:flex-row md:space-x-2 md:space-y-0">
               <InputWithIcon
                 label="Search Providers"
                 value={search}
@@ -261,7 +261,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
                 }
               />
 
-              <div className="min-w-[200px]">
+              <div className="w-full min-w-[200px] md:w-auto">
                 <Label>Sort by</Label>
                 <Select value={sort} onValueChange={handleSortChange}>
                   <SelectTrigger>
