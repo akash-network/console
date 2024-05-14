@@ -2,9 +2,9 @@ name: Deploy Web CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "features/temp-cloudmos-maintain"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "features/temp-cloudmos-maintain"]
 
 jobs:
   build:
