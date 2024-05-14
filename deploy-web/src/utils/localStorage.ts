@@ -1,6 +1,6 @@
 import getConfig from "next/config";
 import { gt, neq } from "semver";
-import { mainnetId } from "./constants";
+import { mainnetId, sandboxId, testnetId } from "./constants";
 const { publicRuntimeConfig } = getConfig();
 
 const migrations = {
@@ -44,3 +44,12 @@ export const migrateLocalStorage = () => {
   // Update the latestUpdatedVersion
   localStorage.setItem("latestUpdatedVersion", currentVersion);
 };
+
+export function extractLocalStorageData() {
+  const networks = [mainnetId, testnetId, sandboxId];
+
+  const allKeys = Object.keys(localStorage);
+  const filteredKeys = allKeys.filter(key => networks.some(network => key.startsWith(network + "/")));
+
+  return filteredKeys.reduce((acc, key) => ({ ...acc, [key]: localStorage.getItem(key) }), {} as { [key: string]: string });
+}
