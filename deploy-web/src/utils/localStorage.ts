@@ -24,7 +24,6 @@ export const migrateLocalStorage = () => {
     } else {
       // It's a brand new installation
       latestUpdatedVersion = currentVersion;
-      localStorage.setItem("selectedNetworkId", mainnetId);
     }
   }
 
@@ -45,4 +44,8 @@ export const migrateLocalStorage = () => {
 
   // Update the latestUpdatedVersion
   localStorage.setItem("latestUpdatedVersion", currentVersion);
+
+  if (!localStorage.getItem("selectedNetworkId")) {
+    localStorage.setItem("selectedNetworkId", mainnetId);
+  }
 };
