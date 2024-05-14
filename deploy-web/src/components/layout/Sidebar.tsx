@@ -4,7 +4,7 @@ import { useTheme } from "@mui/material/styles";
 import HomeIcon from "@mui/icons-material/Home";
 import DnsIcon from "@mui/icons-material/Dns";
 import React, { ReactNode, useState } from "react";
-import { accountBarHeight, closedDrawerWidth, drawerWidth } from "@src/utils/constants";
+import { accountBarHeight, closedDrawerWidth, drawerWidth, hasBanner } from "@src/utils/constants";
 import getConfig from "next/config";
 import { makeStyles } from "tss-react/mui";
 import { UrlService } from "@src/utils/urlUtils";
@@ -30,6 +30,7 @@ import { useAtom } from "jotai";
 import sdlStore from "@src/store/sdlStore";
 import { MobileSidebarUser } from "./MobileSidebarUser";
 import { ISidebarGroupMenu } from "@src/types";
+import { useBannerHeight } from "@src/hooks/useBannerHeight";
 
 const { publicRuntimeConfig } = getConfig();
 
@@ -95,6 +96,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const _isNavOpen = isNavOpen || isHovering;
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const smallScreen = useMediaQuery(theme.breakpoints.down("md"));
+  const bannerHeight = useBannerHeight();
 
   const routeGroups: ISidebarGroupMenu[] = [
     {
@@ -198,7 +200,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const drawer = (
     <Box
       sx={{
-        height: { xs: "100%", sx: "100%", md: `calc(100% - ${accountBarHeight}px)` },
+        height: { xs: "100%", sx: "100%", md: `calc(100% - ${hasBanner ? bannerHeight + accountBarHeight : accountBarHeight}px)` },
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -370,7 +372,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
             boxSizing: "border-box",
             width: _isNavOpen || isHovering ? drawerWidth : closedDrawerWidth,
             overflow: "hidden",
-            marginTop: `${accountBarHeight}px`,
+            marginTop: `${hasBanner ? bannerHeight + accountBarHeight : accountBarHeight}px`,
             transition: "width .3s ease",
             zIndex: 1000
           }
