@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import axios from "axios";
 import { queryClient } from "@src/queries";
 import { mainnetId } from "@src/utils/constants";
@@ -10,6 +10,7 @@ import { initiateNetworkData, networks } from "@src/store/networkStore";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 import { mainnetNodes } from "@src/utils/apiUtils";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
+import { z } from "zod";
 
 export type BlockchainNode = {
   api: string;
@@ -51,6 +52,8 @@ const defaultSettings: Settings = {
   customNode: null
 };
 
+const autoImportOrigin = "https://deploy.cloudmos.io";
+
 export function SettingsProvider({ children }: React.PropsWithChildren<{}>) {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
@@ -59,7 +62,44 @@ export function SettingsProvider({ children }: React.PropsWithChildren<{}>) {
   const { getLocalStorageItem, setLocalStorageItem } = useLocalStorage();
   const [selectedNetworkId, setSelectedNetworkId] = useState(mainnetId);
   const { isCustomNode, customNode, nodes, apiEndpoint } = settings;
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
   usePreviousRoute();
+
+  useEffect(() => {
+    window.addEventListener("message", handleMessage);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, []);
+
+  async function handleMessage(ev: MessageEvent) {
+    if (ev.origin !== autoImportOrigin) {
+      console.log(`${window.location.origin} => Invalid origin ${ev.origin}`, ev);
+      return;
+    }
+
+    console.log(`${window.location.origin} => Received event: `, ev);
+
+    const importDataSchema = z.record(z.string(), z.string());
+
+    const parsedData = await importDataSchema.safeParseAsync(ev.data);
+
+    if (!parsedData.success) {
+      console.error(`${window.location.origin} => Invalid data format`, parsedData.success);
+      return;
+    }
+
+    const existingKeys = Object.keys(localStorage);
+    const newKeys = Object.keys(parsedData.data).filter(key => !existingKeys.includes(key));
+
+    for (const key of newKeys) {
+      localStorage.setItem(key, parsedData.data[key]);
+    }
+
+    console.log(`${window.location.origin} => Imported ${newKeys.length} keys from ${ev.origin}`);
+  }
 
   // load settings from localStorage or set default values
   useEffect(() => {
@@ -314,6 +354,9 @@ export function SettingsProvider({ children }: React.PropsWithChildren<{}>) {
       }}
     >
       {children}
+
+      {/* iframe for localstorage automatic import */}
+      {isSettingsInit && <iframe ref={iframeRef} className="hidden" src={`${autoImportOrigin}/standalone/localstorage-import`} width={0} height={0} />}
     </SettingsProviderContext.Provider>
   );
 }
