@@ -4,7 +4,7 @@ import networkStore, { networks } from "@src/store/networkStore";
 import { mainnetId } from "@src/utils/constants";
 
 export const getSelectedNetwork = () => {
-  const selectedNetworkId = localStorage.getItem("selectedNetworkId") ?? mainnetId;
+  const selectedNetworkId = (typeof window !== "undefined" && localStorage.getItem("selectedNetworkId")) ?? mainnetId;
   const selectedNetwork = networks.find(n => n.id === selectedNetworkId);
 
   // return mainnet if selected network is not found
@@ -21,4 +21,3 @@ export const useSelectedNetwork = () => {
 
   return selectedNetwork ?? networks[0];
 };
-
