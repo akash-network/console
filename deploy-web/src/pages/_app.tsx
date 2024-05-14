@@ -46,7 +46,7 @@ Router.events.on("routeChangeError", () => NProgress.done());
 // Client-side cache, shared for the whole session of the user in the browser.
 const clientSideEmotionCache = createEmotionCache();
 
-const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCache = clientSideEmotionCache }) => {
+const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCache = clientSideEmotionCache, router }) => {
   usePreviousRoute();
 
   useEffect(() => {
@@ -62,6 +62,11 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
       return { width: this.offsetWidth, height: this.offsetHeight };
     };
   }, []);
+
+  // Do not wrap with layout if standalone page
+  if (router.pathname.startsWith("/standalone/")) {
+    return <Component {...pageProps} />;
+  }
 
   return (
     <>
