@@ -2,9 +2,9 @@ name: Stats Web CI
 
 on:
   push:
-    branches: ["main", "collab-rebrand"]
+    branches: ["main"]
   pull_request:
-    branches: ["main", "collab-rebrand"]
+    branches: ["main"]
 
 jobs:
   build:

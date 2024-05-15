@@ -356,7 +356,7 @@ export function SettingsProvider({ children }: React.PropsWithChildren<{}>) {
       {children}
 
       {/* iframe for localstorage automatic import */}
-      {isSettingsInit && <iframe ref={iframeRef} className="hidden" src={`${autoImportOrigin}/standalone/localstorage-import`} width={0} height={0} />}
+      {isSettingsInit && <iframe ref={iframeRef} className="hidden" src={`${autoImportOrigin}/standalone/localstorage-export`} width={0} height={0} />}
     </SettingsProviderContext.Provider>
   );
 }
