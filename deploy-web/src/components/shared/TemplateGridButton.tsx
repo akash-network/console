@@ -14,7 +14,7 @@ type Props = {
 export const TemplateGridButton: React.FunctionComponent<Props> = ({ template, onClick }) => {
   return (
     <Link
-      className={cn(cardClasses, "min-h-[100px] cursor-pointer !no-underline hover:bg-primary/10")}
+      className={cn(cardClasses, "min-h-[100px] cursor-pointer !no-underline hover:bg-secondary/60 dark:hover:bg-secondary/30")}
       href={UrlService.template(template.id as string)}
       onClick={onClick}
     >

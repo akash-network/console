@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ErrorFallback } from "@src/components/shared/ErrorFallback";
 import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
 import { cn } from "@src/utils/styleUtils";
+import { Title } from "../shared/Title";
 
 export enum SettingsTabs {
   GENERAL = "GENERAL",
@@ -45,8 +46,8 @@ export const SettingsLayout: React.FunctionComponent<Props> = ({ children, page,
         </TabsTrigger>
       </TabsList>
 
-      <div className="flex flex-wrap items-center pb-2 pt-8 mb-4">
-        <h1 className="text-3xl font-bold">{title}</h1>
+      <div className="flex flex-wrap items-center py-4 mt-4">
+        <Title>{title}</Title>
         {headerActions}
       </div>
 

@@ -21,6 +21,7 @@ import { AllowanceIssuedRow } from "./AllowanceIssuedRow";
 import { GranteeRow } from "./GranteeRow";
 import { GranterRow } from "./GranterRow";
 import { NextSeo } from "next-seo";
+import { Title } from "../shared/Title";
 
 type Props = {};
 
@@ -128,14 +129,14 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
         page={SettingsTabs.AUTHORIZATIONS}
         headerActions={
           <div className="md:ml-4">
-            <Button onClick={onCreateNewGrant} color="secondary" variant="default" type="button">
+            <Button onClick={onCreateNewGrant} color="secondary" variant="default" type="button" size="sm">
               <Bank />
               &nbsp;Authorize Spend
             </Button>
           </div>
         }
       >
-        <h3 className="mb-4 text-lg text-muted-foreground">
+        <h3 className="mb-4 text-muted-foreground">
           These authorizations allow you authorize other addresses to spend on deployments or deployment deposits using your funds. You can revoke these
           authorizations at any time.
         </h3>
@@ -200,15 +201,15 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
           )}
         </Fieldset>
 
-        <div className="flex flex-wrap items-center pb-6 pt-4">
-          <h1 className="text-3xl font-bold">Tx Fee Authorizations</h1>
-          <Button onClick={onCreateNewAllowance} color="secondary" variant="default" className="md:ml-4" type="button">
+        <div className="flex flex-wrap items-center py-4">
+          <Title>Tx Fee Authorizations</Title>
+          <Button onClick={onCreateNewAllowance} color="secondary" variant="default" className="md:ml-4" type="button" size="sm">
             <Bank />
             &nbsp;Authorize Fee Spend
           </Button>
         </div>
 
-        <h3 className="mb-4 text-lg text-muted-foreground">
+        <h3 className="mb-4 text-muted-foreground">
           These authorizations allow you authorize other addresses to spend on transaction fees using your funds. You can revoke these authorizations at any
           time.
         </h3>
