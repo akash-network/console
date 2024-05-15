@@ -17,6 +17,7 @@ export const env = z
     UserDatabaseCS: z.string().optional(),
     Network: z.string().default("mainnet"),
     RestApiNodeUrl: z.string().optional(),
+    ServerOrigin: z.string().optional().default("http://localhost:3080"),
     AkashlyticsGithubPAT: z.string().optional(),
     Auth0JWKSUri: z.string().optional(),
     Auth0Audience: z.string().optional(),

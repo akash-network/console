@@ -1,21 +1,16 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { swaggerUI } from "@hono/swagger-ui";
 import routesV1 from "../routes/v1";
-import { isProd } from "@src/utils/constants";
+import { env } from "@src/utils/env";
 
 export const apiRouter = new OpenAPIHono();
 
 function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRoutes: OpenAPIHono[]) {
   const versionRouter = new OpenAPIHono();
 
-  const servers = [{ url: `https://api.cloudmos.io/${version}`, description: "Production" }];
-  if (!isProd) {
-    servers.unshift({ url: `http://localhost:3080/${version}`, description: "Localhost" });
-  }
-
   versionRouter.doc(`/doc`, {
     openapi: "3.0.0",
-    servers: servers,
+    servers: [{ url: `${env.ServerOrigin}/${version}` }],
     info: {
       title: "Cloudmos API",
       description: "Access Akash data from our indexer",
