@@ -15,7 +15,7 @@ type Props = {
 
 export const AllowanceGrantedRow: React.FunctionComponent<Props> = ({ allowance }) => {
   return (
-    <TableRow>
+    <TableRow className="[&>td]:px-2 [&>td]:py-1">
       <TableCell>{getAllowanceTitleByType(allowance)}</TableCell>
       <TableCell>
         <Address address={allowance.granter} isCopyable />

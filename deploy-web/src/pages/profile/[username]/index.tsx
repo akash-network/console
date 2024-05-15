@@ -1,9 +1,7 @@
-import { UrlService } from "@src/utils/urlUtils";
-import { Metadata } from "next";
 import { BASE_API_MAINNET_URL } from "@src/utils/constants";
-import { UserProfile } from "../../../components/user/UserProfile";
 import { IUserSetting } from "@src/types/user";
 import axios from "axios";
+import { UserProfile } from "@src/components/user/UserProfile";
 
 type Props = {
   username: string;

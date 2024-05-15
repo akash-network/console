@@ -21,7 +21,7 @@ export const GranterRow: React.FunctionComponent<Props> = ({ children, grant, on
   const denomData = useDenomData(grant.authorization.spend_limit.denom);
 
   return (
-    <TableRow>
+    <TableRow className="[&>td]:px-2 [&>td]:py-1">
       <TableCell>
         <Address address={grant.grantee} isCopyable />
       </TableCell>
