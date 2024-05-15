@@ -181,14 +181,16 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   return (
     <>
       <TableRow className="cursor-pointer hover:bg-muted-foreground/10 [&>td]:p-2" onClick={() => viewDeployment()}>
-        <TableCell className="text-center">
-          <SpecDetailList
-            cpuAmount={deployment.cpuAmount}
-            gpuAmount={deployment.gpuAmount}
-            memoryAmount={deployment.memoryAmount}
-            storageAmount={deployment.storageAmount}
-            isActive={isActive}
-          />
+        <TableCell>
+          <div className="flex items-center justify-center">
+            <SpecDetailList
+              cpuAmount={deployment.cpuAmount}
+              gpuAmount={deployment.gpuAmount}
+              memoryAmount={deployment.memoryAmount}
+              storageAmount={deployment.storageAmount}
+              isActive={isActive}
+            />
+          </div>
         </TableCell>
         <TableCell className="max-w-[100px] text-center">{deploymentName}</TableCell>
         <TableCell className="text-center">
