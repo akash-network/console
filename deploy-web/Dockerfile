@@ -48,12 +48,21 @@ RUN apt-get update
 RUN apt-get install libcap2-bin -y
 RUN setcap cap_net_bind_service=+ep `readlink -f \`which node\``
 
-USER nextjs
+# Setup nginx for HTTPS
+RUN apt-get install nginx -y
+RUN mkdir -p /etc/nginx/ssl
+RUN openssl req -x509 -newkey rsa:4096 -sha256 -nodes -keyout /etc/nginx/ssl/my_ssl_key.key -out /etc/nginx/ssl/my_ssl_cert.crt -subj "/CN=cloudmos.io" -days 600
+COPY nginx.conf /etc/nginx/nginx.conf
+RUN nginx -t
+
+#USER nextjs
 
 #EXPOSE 3001
 EXPOSE 80
+EXPOSE 443
 
-#ENV PORT 3001
-ENV PORT 80
+ENV PORT 3001
+#ENV PORT 80
 
-CMD ["node", "server.js"]
+#CMD ["node", "server.js"]
+CMD sed -i "s/127.0.0.1/$(hostname -i)/" /etc/nginx/nginx.conf && service nginx start && node server.js
