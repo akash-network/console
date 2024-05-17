@@ -12,6 +12,7 @@ import { SelectNetworkModal } from "./SelectNetworkModal";
 import { SettingsForm } from "./SettingsForm";
 import { ColorModeSelect } from "./ColorModeSelect";
 import { NextSeo } from "next-seo";
+import { LocalDataManager } from "@src/components/settings/LocalDataManager";
 
 type Props = {};
 
@@ -48,6 +49,7 @@ export const SettingsContainer: React.FunctionComponent<Props> = ({}) => {
 
           <Fieldset label="General">
             <ColorModeSelect />
+            <LocalDataManager />
           </Fieldset>
         </div>
 

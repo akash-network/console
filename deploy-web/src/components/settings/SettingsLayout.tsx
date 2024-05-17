@@ -46,7 +46,7 @@ export const SettingsLayout: React.FunctionComponent<Props> = ({ children, page,
         </TabsTrigger>
       </TabsList>
 
-      <div className="flex flex-wrap items-center py-4 mt-4">
+      <div className="mt-4 flex flex-wrap items-center py-4">
         <Title>{title}</Title>
         {headerActions}
       </div>
