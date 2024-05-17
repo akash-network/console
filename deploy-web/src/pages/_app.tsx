@@ -65,7 +65,11 @@ const App: React.FunctionComponent<Props> = ({ Component, pageProps, emotionCach
 
   // Do not wrap with layout if standalone page
   if (router.pathname.startsWith("/standalone/")) {
-    return <Component {...pageProps} />;
+    return (
+      <ColorModeProvider>
+        <Component {...pageProps} />
+      </ColorModeProvider>
+    );
   }
 
   return (
