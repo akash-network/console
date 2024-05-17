@@ -36,7 +36,7 @@ type Props = {
 
 export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, leases, closeManifestEditor }) => {
   const [parsingError, setParsingError] = useState<string | null>(null);
-  const [deploymentVersion, setDeploymentVersion] = useState(null);
+  const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
   const [editedManifest, setEditedManifest] = useState("");
   const [isSendingManifest, setIsSendingManifest] = useState(false);
   const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
@@ -54,7 +54,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
         setEditedManifest(localDeploymentData?.manifest);
 
         const yamlVersion = yaml.load(localDeploymentData?.manifest);
-        const version = await deploymentData.getManifestVersion(yamlVersion, true);
+        const version = await deploymentData.getManifestVersion(yamlVersion);
 
         setDeploymentVersion(version);
       } else {
@@ -113,9 +113,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
   async function sendManifest(providerInfo: ApiProviderList, manifest: any) {
     try {
-      const response = await sendManifestToProvider(providerInfo, manifest, deployment.dseq, localCert as LocalCert);
-
-      return response;
+      return await sendManifestToProvider(providerInfo, manifest, deployment.dseq, localCert as LocalCert);
     } catch (err) {
       enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
       throw err;
