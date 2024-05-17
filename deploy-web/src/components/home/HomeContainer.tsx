@@ -14,6 +14,7 @@ import { WelcomePanel } from "./WelcomePanel";
 import Layout from "../layout/Layout";
 import { YourAccount } from "./YourAccount";
 import Spinner from "../shared/Spinner";
+import CloudmosImportPanel from "./CloudmosImportPanel";
 
 export function HomeContainer() {
   const { address, isWalletLoaded } = useWallet();
@@ -67,6 +68,9 @@ export function HomeContainer() {
       <div>
         <div className="mb-4">
           <WelcomePanel />
+        </div>
+        <div className="mb-4">
+          <CloudmosImportPanel />
         </div>
         {isSettingsInit && isWalletLoaded ? (
           <YourAccount isLoadingBalances={isLoadingBalances} balances={balances} activeDeployments={activeDeployments} leases={leases} providers={providers} />
