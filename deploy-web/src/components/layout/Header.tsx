@@ -100,7 +100,7 @@ export const Header: React.FunctionComponent<Props> = ({ isMobileOpen, handleDra
               <Link href="https://console.akash.network" target="_blank" className={classes.bannerLink}>
                 console.akash.network
               </Link>{" "}
-              soon. All user data will be migrated. Please try out Console and let us know if you run into any issues.
+              soon. Please try out Console and let us know if you run into any issues.
             </Typography>
           </Box>
         )}
