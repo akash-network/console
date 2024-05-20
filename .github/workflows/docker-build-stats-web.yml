@@ -20,8 +20,8 @@ jobs:
         with:
           filters: |
             stats-web:
-              - 'stats-web/**'
+              - 'apps/stats-web/**'
 
       - name: Build the Docker image
         if: steps.filter.outputs.stats-web == 'true'
-        run: docker build ./stats-web/
+        run: docker build ./apps/stats-web

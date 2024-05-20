@@ -24,43 +24,37 @@ jobs:
         with:
           filters: |
             api:
-              - 'api/**'
-            shared:
-              - 'shared/**'
+              - 'apps/api/**'
+              - 'packages/shared/**'
 
-      - name: Restore node_modules cache
-        id: deps-cache
-        uses: martijnhols/actions-cache/restore@v3
+      - name: Setup Node.js
+        if: steps.filter.outputs.api == 'true'
+        uses: actions/setup-node@v4
         with:
-          path: api/node_modules
-          key: ${{ runner.os }}-build-api-deps-cache-${{ hashFiles('api/package-lock.json') }}
+          node-version: 18.20.2
+          cache: npm
+          cache-dependency-path: package-lock.json
 
-      - name: Install Dependencies
-        if: steps.deps-cache.outputs.cache-hit != 'true'
-        run: |
-          cd api
-          npm install
-
-      - name: Cache node modules
-        if: steps.deps-cache.outputs.cache-hit != 'true'
-        uses: martijnhols/actions-cache/save@v3
+      - name: Setup Local Deps
+        if: steps.filter.outputs.api == 'true'
+        uses: actions/setup-node@v4
         with:
-          path: api/node_modules
-          key: ${{ runner.os }}-build-api-deps-cache-${{ hashFiles('api/package-lock.json') }}
+          node-version: 18.20.2
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install dependencies
+        if: steps.filter.outputs.api == 'true'
+        run: npm ci --workspace=apps/api
 
       - name: Run static code analysis
-        if: steps.filter.outputs.api == 'true' || steps.filter.outputs.shared == 'true'
-        run: |
-          cd api
-          npm run lint
+        if: steps.filter.outputs.api == 'true'
+        run: npm run lint --workspace=apps/api
 
       - name: Run unit tests
-        if: steps.filter.outputs.api == 'true' || steps.filter.outputs.shared == 'true'
-        run: |
-          cd api
-          npm run test:unit
-
+        if: steps.filter.outputs.api == 'true'
+        run: npm run test:unit --workspace=apps/api
 
       - name: Build the Docker image for API
-        if: steps.filter.outputs.api == 'true' || steps.filter.outputs.shared == 'true'
-        run: docker build . --file ./api/Dockerfile
+        if: steps.filter.outputs.api == 'true'
+        run: docker build -f Dockerfile.api -t cloudmos-api .

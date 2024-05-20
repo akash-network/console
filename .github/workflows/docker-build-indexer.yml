@@ -20,10 +20,9 @@ jobs:
         with:
           filters: |
             indexer:
-              - 'indexer/**'
-            shared:
-              - 'shared/**'
+              - 'apps/indexer/**'
+              - 'packages/shared/**'
 
       - name: Build the Docker image
-        if: steps.filter.outputs.indexer == 'true' || steps.filter.outputs.shared == 'true'
-        run: docker build . --file ./indexer/Dockerfile
+        if: steps.filter.outputs.indexer == 'true'
+        run: docker build -f Dockerfile.indexer -t cloudmos-indexer .

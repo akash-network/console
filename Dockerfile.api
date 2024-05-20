@@ -1,0 +1,35 @@
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+COPY /apps/api /app/apps/api
+COPY /packages/shared /app/packages/shared
+COPY package.json /app
+COPY package-lock.json /app
+
+RUN apk add --no-cache python3 make g++ libc6-compat postgresql-dev
+
+RUN npm ci --workspace apps/api
+RUN npm run build --workspace apps/api
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/packages/shared /app/packages/shared
+COPY --from=builder /app/package.json /app/package.json
+COPY --from=builder /app/package-lock.json /app/package-lock.json
+
+COPY --from=builder /app/apps/api/dist /app/apps/api/dist
+COPY --from=builder /app/apps/api/package.json /app/apps/api/package.json
+COPY --from=builder /app/apps/api/package-lock.json /app/apps/api/package-lock.json
+
+RUN apk add --no-cache python3 make g++ libc6-compat postgresql-dev
+
+RUN npm ci --workspace apps/api --omit=dev
+
+EXPOSE 80
+
+WORKDIR /app/apps/api
+
+CMD ["node", "dist/server.js"]

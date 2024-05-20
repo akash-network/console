@@ -1,0 +1,30 @@
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+COPY /apps/indexer /app/apps/indexer
+COPY /packages/shared /app/packages/shared
+COPY package.json /app
+COPY package-lock.json /app
+
+RUN npm ci --workspace apps/indexer
+RUN npm run build --workspace apps/indexer
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/apps/indexer/dist /app/apps/indexer/dist
+COPY --from=builder /app/packages/shared /app/packages/shared
+COPY --from=builder /app/package.json /app/package.json
+COPY --from=builder /app/package-lock.json /app/package-lock.json
+COPY --from=builder /app/apps/indexer/package.json /app/apps/indexer/package.json
+COPY --from=builder /app/apps/indexer/package-lock.json /app/apps/indexer/package-lock.json
+
+RUN npm ci --workspace apps/indexer --omit=dev
+
+EXPOSE 80
+
+WORKDIR /app/apps/indexer
+
+CMD ["node", "dist/server.js"]
