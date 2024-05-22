@@ -1,5 +1,8 @@
 "use client"; // Error components must be Client Components
 
+import PageContainer from "@/components/PageContainer";
+import { Title } from "@/components/Title";
+import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
@@ -9,16 +12,17 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
   }, [error]);
 
   return (
-    <div>
-      <h2>Something went wrong!</h2>
-      <button
+    <PageContainer>
+      <Title>Something went wrong!</Title>
+      <Button
+      className="my-4"
         onClick={
           // Attempt to recover by trying to re-render the segment
           () => reset()
         }
       >
         Try again
-      </button>
-    </div>
+      </Button>
+    </PageContainer>
   );
 }

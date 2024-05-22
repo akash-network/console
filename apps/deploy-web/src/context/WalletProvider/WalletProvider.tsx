@@ -2,7 +2,7 @@
 import React, { useRef } from "react";
 import { useState, useEffect } from "react";
 import { SigningStargateClient } from "@cosmjs/stargate";
-import { uAktDenom } from "@src/utils/constants";
+import { STATS_APP_URL, uAktDenom } from "@src/utils/constants";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { event } from "nextjs-google-analytics";
@@ -325,8 +325,9 @@ export function useWallet() {
 
 const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
   const selectedNetwork = useSelectedNetwork();
-  const txUrl = transactionHash && `https://stats.akash.network/transactions/${transactionHash}?network=${selectedNetwork.id}`;
+  const txUrl = transactionHash && `${STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetwork.id}`;
 
+  console.log(txUrl);
   return (
     <>
       {snackMessage}

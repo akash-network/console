@@ -8,6 +8,7 @@ import { Title } from "@/components/Title";
 import { Card, CardContent } from "@/components/ui/card";
 import { TransactionInfo } from "./TransactionInfo";
 import { TxMessageRow } from "@/components/transactions/TxMessageRow";
+import { Alert } from "@/components/ui/alert";
 
 interface IProps {
   params: { hash: string };
@@ -21,13 +22,15 @@ export async function generateMetadata({ params: { hash } }: IProps, parent: Res
   };
 }
 
-async function fetchTransactionData(hash: string, network: string): Promise<TransactionDetail> {
+async function fetchTransactionData(hash: string, network: string): Promise<TransactionDetail | null> {
   const apiUrl = getNetworkBaseApiUrl(network);
   const response = await fetch(`${apiUrl}/v1/transactions/${hash}`);
 
-  if (!response.ok) {
+  if (!response.ok && response.status !== 404) {
     // This will activate the closest `error.js` Error Boundary
-    throw new Error("Error fetching block data");
+    throw new Error("Error fetching transction data");
+  } else if (response.status === 404) {
+    return null;
   }
 
   return response.json();
@@ -40,21 +43,27 @@ export default async function TransactionDetailPage({ params: { hash }, searchPa
     <PageContainer>
       <Title className="mb-4">Transaction Details</Title>
 
-      <TransactionInfo transaction={transaction} />
+      {transaction ? (
+        <>
+          <TransactionInfo transaction={transaction} />
 
-      <div className="mt-6">
-        <Title subTitle className="mb-4">
-          Messages
-        </Title>
+          <div className="mt-6">
+            <Title subTitle className="mb-4">
+              Messages
+            </Title>
 
-        {transaction.messages.map(msg => (
-          <Card key={msg.id} className="mb-2 p-0">
-            <CardContent className="p-0">
-              <TxMessageRow message={msg} />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            {transaction.messages.map(msg => (
+              <Card key={msg.id} className="mb-2 p-0">
+                <CardContent className="p-0">
+                  <TxMessageRow message={msg} />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      ) : (
+        <Alert className="my-4">Transaction not found or indexed yet. Please wait a few seconds before refreshing.</Alert>
+      )}
     </PageContainer>
   );
 }
