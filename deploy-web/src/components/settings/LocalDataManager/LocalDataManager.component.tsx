@@ -1,6 +1,8 @@
 import React, { FC, useCallback, useRef } from "react";
 import { Download, Upload } from "iconoir-react";
+
 import { Button } from "@src/components/ui/button";
+import { usePopup } from "@src/context/PopupProvider/PopupProvider";
 
 export type LocalData = Record<string, any>;
 
@@ -12,9 +14,16 @@ interface LocalDataManagerProps {
 
 export const LocalDataManagerComponent: FC<LocalDataManagerProps> = ({ read, write, onDone }) => {
   const ref = useRef<HTMLInputElement>(null);
+  const { confirm } = usePopup();
 
-  const triggerFileUpload = useCallback(() => {
-    ref.current?.click();
+  const triggerFileUpload = useCallback(async () => {
+    const isConfirmed = await confirm({
+      title: "Import Local Data",
+      message: "Existing local data will be overwritten. Are you sure you want to proceed?"
+    });
+    if (isConfirmed) {
+      ref.current?.click();
+    }
   }, [ref.current]);
 
   const importLocalData = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {

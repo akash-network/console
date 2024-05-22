@@ -14,7 +14,7 @@ type MessageProps = {
   onValidate: () => void;
 };
 
-type ConfirmProps = {
+export type ConfirmProps = {
   variant: "confirm";
   onValidate: () => void;
   onCancel: () => void;
@@ -35,7 +35,7 @@ export type TOnCloseHandler = {
   (event: any, reason: "backdropClick" | "escapeKeyDown" | "action"): void;
 };
 
-type CommonProps = {
+export type CommonProps = {
   title?: string | React.ReactNode;
   message?: string;
   open?: boolean;
@@ -131,8 +131,8 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
           <Button
             variant="ghost"
             onClick={() => {
-              onClose(null, "action");
               props.onCancel();
+              onClose(null, "action");
             }}
           >
             {CancelButtonLabel}
@@ -141,8 +141,8 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
             variant="default"
             color="priamry"
             onClick={() => {
-              onClose(null, "action");
               props.onValidate();
+              onClose(null, "action");
             }}
           >
             {ConfirmButtonLabel}
@@ -207,7 +207,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
           </Button>
         ));
       component.push(
-        <DialogFooter className="flex justify-between space-x-2 sm:justify-between flex-row" key="DialogCustomActions">
+        <DialogFooter className="flex flex-row justify-between space-x-2 sm:justify-between" key="DialogCustomActions">
           <div className="space-x-2">{leftButtons}</div>
           <div className="space-x-2">{rightButtons}</div>
         </DialogFooter>
