@@ -27,8 +27,13 @@ import { PreviewSdl } from "./PreviewSdl";
 import { SaveTemplateModal } from "./SaveTemplateModal";
 import { useSnackbar } from "notistack";
 import { Snackbar } from "../shared/Snackbar";
+import useFormPersist from "@src/hooks/useFormPersist";
 
 type Props = {};
+
+const DEFAULT_SERVICES = {
+  services: [{ ...defaultService }]
+};
 
 export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
   const [error, setError] = useState(null);
@@ -44,10 +49,12 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
   const [sdlBuilderSdl, setSdlBuilderSdl] = useAtom(sdlStore.sdlBuilderSdl);
   const { data: gpuModels } = useGpuModels();
   const { enqueueSnackbar } = useSnackbar();
-  const { handleSubmit, reset, control, trigger, watch, setValue } = useForm<SdlBuilderFormValues>({
-    defaultValues: {
-      services: [{ ...defaultService }]
-    }
+  const { handleSubmit, reset, control, trigger, watch, setValue } = useForm<SdlBuilderFormValues>();
+  useFormPersist("sdl-builder-form", {
+    watch,
+    setValue,
+    defaultValues: DEFAULT_SERVICES,
+    storage: typeof window === "undefined" ? undefined : window.localStorage
   });
   const {
     fields: services,
@@ -288,7 +295,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
           </div>
         </div>
 
-        {services.map((service, serviceIndex) => (
+        {_services?.map((service, serviceIndex) => (
           <SimpleServiceFormControl
             key={service.id}
             serviceIndex={serviceIndex}
