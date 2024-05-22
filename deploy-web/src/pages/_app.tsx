@@ -32,6 +32,7 @@ import { TooltipProvider } from "@src/components/ui/tooltip";
 import { cn } from "@src/utils/styleUtils";
 import { GeistSans } from "geist/font/sans";
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
+import { PopupProvider } from "@src/context/PopupProvider/PopupProvider";
 
 interface Props extends AppProps {}
 
@@ -70,8 +71,9 @@ const App: React.FunctionComponent<Props> = props => {
                                         <TemplatesProvider>
                                           <LocalNoteProvider>
                                             <GoogleAnalytics />
-
-                                            <Component {...pageProps} />
+                                            <PopupProvider>
+                                              <Component {...pageProps} />
+                                            </PopupProvider>
                                           </LocalNoteProvider>
                                         </TemplatesProvider>
                                       </BackgroundTaskProvider>
