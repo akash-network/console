@@ -327,7 +327,6 @@ const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
   const selectedNetwork = useSelectedNetwork();
   const txUrl = transactionHash && `${STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetwork.id}`;
 
-  console.log(txUrl);
   return (
     <>
       {snackMessage}
