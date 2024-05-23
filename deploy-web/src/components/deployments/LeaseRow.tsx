@@ -390,7 +390,8 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
             <LabelValueOld label="IP(s):" />
             <ul className="mt-2 space-y-2">
               {servicesNames
-                .flatMap(n => leaseStatus.ips[n])
+                .flatMap(service => leaseStatus.ips[service])
+                .filter(Boolean)
                 .map((ip, i) => (
                   <li key={`${ip.IP}${ip.ExternalPort}`} className="flex items-center">
                     <Link className="inline-flex items-center space-x-2 text-sm" href={`http://${ip.IP}:${ip.ExternalPort}`} target="_blank">
