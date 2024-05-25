@@ -13,7 +13,7 @@ export type ApiTransactionResponse = {
   messages: {
     id: string;
     type: string;
-    data: any;
+    data: unknown;
     relatedDeploymentId: string | null;
   }[];
 };
