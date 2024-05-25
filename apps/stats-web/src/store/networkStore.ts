@@ -59,6 +59,8 @@ export const initiateNetworkData = async () => {
 
 const selectedNetwork = atom<Network>(networks[0]);
 
-export default {
+const networkStore = {
   selectedNetwork
 };
+
+export default networkStore;

@@ -18,7 +18,8 @@ type Props = {
 
 export const TransactionRow: React.FunctionComponent<Props> = ({ transaction, blockHeight, isSimple }) => {
   const txHash = getSplitText(transaction.hash, 6, 6);
-  const firstMessageType = transaction.messages[0].isReceiver ? "Receive" : useFriendlyMessageType(transaction.messages[0].type);
+  const friendlyMessage = useFriendlyMessageType(transaction.messages[0].type);
+  const firstMessageType = transaction.messages[0].isReceiver ? "Receive" : friendlyMessage;
 
   return (
     <TableRow>
@@ -46,7 +47,7 @@ export const TransactionRow: React.FunctionComponent<Props> = ({ transaction, bl
         <Link href={UrlService.block(blockHeight)}>{blockHeight}</Link>
       </TableCell>
       <TableCell align="center">
-        <span className="text-sm whitespace-nowrap">
+        <span className="whitespace-nowrap text-sm">
           <FormattedRelativeTime
             value={(new Date(transaction.datetime).getTime() - new Date().getTime()) / 1000}
             numeric="auto"

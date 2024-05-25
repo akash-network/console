@@ -13,7 +13,7 @@ type Props = {
   notation?: "standard" | "scientific" | "engineering" | "compact" | undefined;
 };
 
-export const AKTAmount: React.FunctionComponent<Props> = ({ uakt, showUSD, showAKTLabel, digits = 6, notation }) => {
+export const AKTAmount = ({ uakt, showUSD, showAKTLabel, digits = 6, notation }: React.PropsWithChildren<Props>) => {
   const { isLoaded: isPriceLoaded, aktToUSD } = usePricing();
   const aktAmount = udenomToDenom(uakt, 6);
 

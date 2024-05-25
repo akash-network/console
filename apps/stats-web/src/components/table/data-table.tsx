@@ -118,6 +118,7 @@ export function DataTable<TData, TValue>({
 
       table.resetPageIndex();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sorting]);
 
   useEffect(() => {
@@ -126,6 +127,7 @@ export function DataTable<TData, TValue>({
 
       table.resetPageIndex();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columnFilters]);
 
   return (

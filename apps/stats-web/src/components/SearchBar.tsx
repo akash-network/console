@@ -29,6 +29,7 @@ const SearchBar: React.FunctionComponent<Props> = ({}) => {
 
   useEffect(() => {
     setSearchType(getSearchType(searchTerms));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerms]);
 
   function onSearchTermsChange(ev: React.ChangeEvent<HTMLInputElement>) {
