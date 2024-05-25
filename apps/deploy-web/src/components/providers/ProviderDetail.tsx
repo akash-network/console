@@ -79,7 +79,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
   function groupUptimeChecksByPeriod(uptimeChecks: { isOnline: boolean; checkDate: string }[] = []) {
     const groupedSnapshots: { checkDate: Date; checks: boolean[] }[] = [];
 
-    const sortedUptimeChecks = uptimeChecks.toSorted((a, b) => new Date(a.checkDate).getTime() - new Date(b.checkDate).getTime());
+    const sortedUptimeChecks = [...uptimeChecks].sort((a, b) => new Date(a.checkDate).getTime() - new Date(b.checkDate).getTime());
 
     for (const snapshot of sortedUptimeChecks) {
       const recentGroup = groupedSnapshots.find(x => differenceInMinutes(new Date(snapshot.checkDate), x.checkDate) < 15);
@@ -101,7 +101,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
   }
 
   const uptimePeriods = useMemo(() => groupUptimeChecksByPeriod(provider?.uptime || []), [provider?.uptime]);
-  const wasRecentlyOnline = provider && (provider.isOnline || (provider.lastCheckDate && new Date(provider.lastCheckDate) >= sub(new Date(), { hours: 24 })));
+  const wasRecentlyOnline = provider && (provider.isOnline || (provider.lastOnlineDate && new Date(provider.lastOnlineDate) >= sub(new Date(), { hours: 24 })));
 
   return (
     <Layout isLoading={isLoading}>
@@ -114,7 +114,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
           </div>
         )}
 
-        {provider && !wasRecentlyOnline && !isLoading && (
+        {provider && !wasRecentlyOnline && !isLoadingProvider && (
           <Alert variant="warning" className="flex items-center justify-center p-8 text-lg">
             This provider is inactive.
           </Alert>
@@ -141,7 +141,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
 
             <p className="mb-4">Up time (24h)</p>
             <div className="mb-8 flex items-center space-x-1">
-              {uptimePeriods.map((x, i) => (
+              {uptimePeriods.map(x => (
                 <CustomNoDivTooltip
                   key={x.date.toISOString()}
                   title={<FormattedDate value={x.date} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />}
