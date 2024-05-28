@@ -4,6 +4,16 @@ Some indexer updates changes the database schemas and an upgrade script must be 
 
 **It is recommended to stop the indexer before running any migration script.**
 
+## v1.8.2
+
+Change the type of the lease's `predictedClosedHeight` to allow larger values.
+```
+ALTER TABLE lease
+ALTER COLUMN "predictedClosedHeight"
+TYPE numeric(30,0)
+USING "predictedClosedHeight"::numeric(30,0);
+```
+
 ## v1.8.0
 
 Version 1.8.0 adds the necessary fields for improving the Akash provider uptime checks.
