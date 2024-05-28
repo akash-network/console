@@ -22,19 +22,19 @@ import { Check, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
 import { useWallet } from "@src/context/WalletProvider";
 import { MdRestartAlt } from "react-icons/md";
 
-const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
-  ssr: false,
-  loading: props => {
-    if (props.isLoading) {
-      return (
-        <Button variant="default" disabled size="sm">
-          <span>Get More</span>
-          <Spinner size="small" className="ml-2" />
-        </Button>
-      );
-    } else return null;
-  }
-});
+// const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
+//   ssr: false,
+//   loading: props => {
+//     if (props.isLoading) {
+//       return (
+//         <Button variant="default" disabled size="sm">
+//           <span>Get More</span>
+//           <Spinner size="small" className="ml-2" />
+//         </Button>
+//       );
+//     } else return null;
+//   }
+// });
 
 type Props = {};
 
@@ -141,7 +141,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
               <span>
                 You have <strong>{aktBalance}</strong> AKT and <strong>{usdcBalance}</strong> USDC
               </span>
-              <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} />
+              {/* <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} /> */}
             </div>
           )}
         </StepContent>

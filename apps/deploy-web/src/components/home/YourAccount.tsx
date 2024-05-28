@@ -31,19 +31,19 @@ import { HSLToHex, customColors } from "@src/utils/colors";
 import dynamic from "next/dynamic";
 import useTailwind from "@src/hooks/useTailwind";
 
-const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
-  ssr: false,
-  loading: props => {
-    if (props.isLoading) {
-      return (
-        <Button variant="default" disabled size="sm">
-          <span>Get More</span>
-          <Spinner size="small" className="ml-2" />
-        </Button>
-      );
-    } else return null;
-  }
-});
+// const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
+//   ssr: false,
+//   loading: props => {
+//     if (props.isLoading) {
+//       return (
+//         <Button variant="default" disabled size="sm">
+//           <span>Get More</span>
+//           <Spinner size="small" className="ml-2" />
+//         </Button>
+//       );
+//     } else return null;
+//   }
+// });
 
 type Props = {
   balances: Balances | undefined;
@@ -329,9 +329,9 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-end">
+                  {/* <div className="flex items-center justify-end">
                     <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} />
-                  </div>
+                  </div> */}
                 </div>
               )}
             </div>
