@@ -20,8 +20,8 @@ jobs:
         with:
           filters: |
             deploy-web:
-              - 'deploy-web/**'
+              - 'apps/deploy-web/**'
 
       - name: Build the Docker image
         if: steps.filter.outputs.deploy-web == 'true'
-        run: docker build ./deploy-web/
+        run: docker build ./apps/deploy-web

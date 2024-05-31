@@ -20,8 +20,8 @@ jobs:
         with:
           filters: |
             provider-proxy:
-              - 'provider-proxy/**'
+              - 'apps/provider-proxy/**'
 
       - name: Build the Docker image
         if: steps.filter.outputs.provider-proxy == 'true'
-        run: docker build ./provider-proxy/
+        run: docker build ./apps/provider-proxy

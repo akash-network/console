@@ -20,8 +20,8 @@ jobs:
         with:
           filters: |
             landing:
-              - 'landing/**'
+              - 'apps/landing/**'
 
       - name: Build the Docker image for LANDING
         if: steps.filter.outputs.landing == 'true'
-        run: docker build . --file ./landing/Dockerfile
+        run: docker build ./apps/landing
