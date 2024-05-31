@@ -1,0 +1,16 @@
+{
+  "name": "@akash-network/cloudmos",
+  "scripts": {},
+  "workspaces": [
+    "./packages/*",
+    "./apps/*"
+  ],
+  "volta": {
+    "node": "18.20.2",
+    "npm": "10.5.0"
+  },
+  "engines": {
+    "node": "18.20.2",
+    "npm": "10.5.0"
+  }
+}
