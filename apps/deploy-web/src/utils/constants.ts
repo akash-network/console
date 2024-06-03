@@ -24,6 +24,7 @@ export enum RouteStepKeys {
 const productionMainnetApiUrl = "https://api.cloudmos.io";
 const productionTestnetApiUrl = "https://api-testnet.cloudmos.io";
 const productionSandboxApiUrl = "https://api-sandbox.cloudmos.io";
+const productionStatsAppUrl = "https://stats.akash.network";
 const productionHostnames = ["deploy.cloudmos.io", "console.akash.network", "staging-console.akash.network", "beta.cloudmos.io"];
 
 export const isProd = process.env.NODE_ENV === "production";
@@ -31,6 +32,7 @@ export const isMaintenanceMode = process.env.MAINTENANCE_MODE === "true";
 export const BASE_API_MAINNET_URL = getApiMainnetUrl();
 export const BASE_API_TESTNET_URL = getApiTestnetUrl();
 export const BASE_API_SANDBOX_URL = getApiSandboxUrl();
+export const STATS_APP_URL = getStatsAppUrl();
 
 export const BASE_API_URL = getApiUrl();
 
@@ -98,6 +100,13 @@ function getApiUrl() {
     }
   }
   return "http://localhost:3080";
+}
+
+function getStatsAppUrl() {
+  if (process.env.STATS_APP_URL) return process.env.STATS_APP_URL;
+  if (typeof window === "undefined") return "http://localhost:3001";
+  if (productionHostnames.includes(window.location?.hostname)) return productionStatsAppUrl;
+  return "http://localhost:3001";
 }
 
 function getProviderProxyHttpUrl() {

@@ -61,7 +61,7 @@ export const Nav = () => {
               </Button>
             </Link>
 
-            <Link rel="noreferrer" href="https://deploy.cloudmos.io" passHref target="_blank" className="ml-4">
+            <Link rel="noreferrer" href="https://console.akash.network" passHref target="_blank" className="ml-4">
               <Button variant="default" size="sm" className="h-[30px]">
                 Deploy
                 <Rocket className="ml-2 rotate-45" />

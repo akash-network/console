@@ -4,12 +4,11 @@ import { DataTableColumnHeader } from "@/components/table/data-table-column-head
 import { UrlService } from "@/lib/urlUtils";
 import { AccessorColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { getSplitText } from "@/hooks/useShortText";
-import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
 import { AKTAmount } from "@/components/AKTAmount";
 import { FormattedRelativeTime } from "react-intl";
 import { TransactionRowType } from "@/lib/zod/transactionRow";
+import { TransactionTypeCell } from "./TransactionTypeCell";
 
 export const columns: AccessorColumnDef<TransactionRowType>[] = [
   {
@@ -28,16 +27,7 @@ export const columns: AccessorColumnDef<TransactionRowType>[] = [
     enableSorting: false,
     header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
     cell: ({ row }) => {
-      const firstMessageType = row.original.messages[0].isReceiver ? "Receive" : useFriendlyMessageType(row.original.messages[0].type);
-
-      return (
-        <>
-          <Badge className="h-4 max-w-[120px] bg-primary">
-            <span className="truncate">{firstMessageType}</span>
-          </Badge>
-          <span className="text-xs">{row.original.messages.length > 1 ? " +" + (row.original.messages.length - 1) : ""}</span>
-        </>
-      );
+      return <TransactionTypeCell row={row} />;
     }
   },
   {

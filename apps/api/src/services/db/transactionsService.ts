@@ -3,6 +3,7 @@ import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/clou
 import { msgToJSON } from "@src/utils/protobuf";
 import { QueryTypes } from "sequelize";
 import { chainDb } from "@src/db/dbConnection";
+import { ApiTransactionResponse } from "@src/types/transactions";
 
 export async function getTransactions(limit: number) {
   const _limit = Math.min(limit, 100);
@@ -41,7 +42,7 @@ export async function getTransactions(limit: number) {
   }));
 }
 
-export async function getTransaction(hash: string) {
+export async function getTransaction(hash: string): Promise<ApiTransactionResponse | null> {
   const tx = await Transaction.findOne({
     where: {
       hash: hash
@@ -62,7 +63,9 @@ export async function getTransaction(hash: string) {
     ]
   });
 
-  if (!tx) return null;
+  if (!tx) {
+    return null;
+  }
 
   const messages = await Message.findAll({
     where: {
