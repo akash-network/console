@@ -13,9 +13,8 @@ import { CustomTooltip } from "../shared/CustomTooltip";
 import { Popup } from "../shared/Popup";
 import { PriceValue } from "../shared/PriceValue";
 import { USDLabel } from "../shared/UsdLabel";
-import { FormControl, FormItem } from "../ui/form";
-import { FormInput, InputWithIcon } from "../ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { FormItem } from "../ui/form";
+import { InputWithIcon } from "../ui/input";
 import { AttributesFormControl, AttributesRefType } from "./AttributesFormControl";
 import { FormPaper } from "./FormPaper";
 import { SignedByFormControl, SignedByRefType } from "./SignedByFormControl";
@@ -28,15 +27,6 @@ type Props = {
   children?: ReactNode;
   placement: Placement;
 };
-
-// const useStyles = makeStyles()(theme => ({
-//   formControl: {
-//     marginBottom: theme.spacing(1.5)
-//   },
-//   textField: {
-//     width: "100%"
-//   }
-// }));
 
 export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, services, serviceIndex, onClose, placement: _placement }) => {
   const signedByRef = useRef<SignedByRefType>(null);
@@ -104,7 +94,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                 rules={{
                   required: "Placement name is required",
                   validate: value => {
-                    const hasValidChars = /^[a-z0-9\-]+$/.test(value);
+                    const hasValidChars = /^[a-z0-9-]+$/.test(value);
                     const hasValidStartingChar = /^[a-z]/.test(value);
                     const hasValidEndingChar = !value.endsWith("-");
 

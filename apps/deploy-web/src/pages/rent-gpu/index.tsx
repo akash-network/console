@@ -28,9 +28,3 @@ function RentGpuPage() {
 }
 
 export default RentGpuPage;
-
-export async function getServerSideProps({ params }) {
-  return {
-    props: {}
-  };
-}

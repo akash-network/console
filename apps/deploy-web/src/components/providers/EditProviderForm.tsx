@@ -32,7 +32,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
   const [error, setError] = useState(null);
   const formRef = useRef<HTMLFormElement>(null);
   const { signAndBroadcastTx } = useWallet();
-  const { handleSubmit, reset, control, trigger, watch, setValue, formState } = useForm<ProviderAttributesFormValues>({
+  const { handleSubmit, control, watch, setValue, formState } = useForm<ProviderAttributesFormValues>({
     defaultValues: {
       ...defaultProviderAttributes
     }
@@ -128,21 +128,15 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
   const onSubmit = async (data: ProviderAttributesFormValues) => {
     setError(null);
 
-    debugger;
-
     try {
       const attributes = mapFormValuesToAttributes(data, providerAttributesSchema);
       console.log(data, attributes);
 
-      try {
-        const message = TransactionMessageData.getUpdateProviderMsg(provider?.owner || "", data["host-uri"], attributes, {
-          email: data.email,
-          website: data.website
-        });
-        await signAndBroadcastTx([message]);
-      } catch (error) {
-        throw error;
-      }
+      const message = TransactionMessageData.getUpdateProviderMsg(provider?.owner || "", data["host-uri"], attributes, {
+        email: data.email,
+        website: data.website
+      });
+      await signAndBroadcastTx([message]);
     } catch (error) {
       setError(error.message);
     }
@@ -688,7 +682,7 @@ const ProviderSelect: React.FunctionComponent<ProviderSelectProps> = ({
       rules={{
         required: required ? requiredMessage : undefined
       }}
-      render={({ field, fieldState }) => (
+      render={({ field }) => (
         <FormItem className={cn("w-full", className)}>
           <Label className="flex items-center">
             {label}

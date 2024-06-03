@@ -7,9 +7,7 @@ import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { Card, CardContent, CardHeader, CardTitle } from "@src/components/ui/card";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 
-type Props = {};
-
-const GetStarted: React.FunctionComponent<Props> = ({}) => {
+const GetStarted: React.FunctionComponent = () => {
   return (
     <Layout>
       <CustomNextSeo

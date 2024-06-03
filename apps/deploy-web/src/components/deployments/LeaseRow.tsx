@@ -2,6 +2,7 @@
 import React, { SetStateAction, useCallback } from "react";
 import { useEffect, useState } from "react";
 import { Check, Copy, InfoCircle, OpenInWindow } from "iconoir-react";
+import yaml from "js-yaml";
 import Link from "next/link";
 import { useSnackbar } from "notistack";
 
@@ -36,8 +37,6 @@ import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import { Snackbar } from "../shared/Snackbar";
-
-const yaml = require("js-yaml");
 
 type Props = {
   lease: LeaseDto;
@@ -104,7 +103,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
       servicesNames.length > 0
         ? servicesNames
             .map(n => leaseStatus.services[n])
-            .every((service, i) => {
+            .every(service => {
               return service.available > 0;
             })
         : false;
@@ -114,12 +113,6 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
   useEffect(() => {
     loadLeaseStatus();
   }, [lease, provider, localCert, loadLeaseStatus]);
-
-  function handleExternalUrlClick(ev, externalUrl) {
-    ev.preventDefault();
-
-    window.open("http://" + externalUrl, "_blank");
-  }
 
   function handleEditManifestClick(ev) {
     ev.preventDefault();
@@ -366,7 +359,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                                 size="icon"
                                 variant="ghost"
                                 className="h-6 w-6 rounded-full"
-                                onClick={ev => {
+                                onClick={() => {
                                   copyTextToClipboard(uri);
                                   enqueueSnackbar(<Snackbar title="Uri copied to clipboard!" iconVariant="success" />, {
                                     variant: "success",
@@ -393,7 +386,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
               {servicesNames
                 .flatMap(service => leaseStatus.ips[service])
                 .filter(Boolean)
-                .map((ip, i) => (
+                .map(ip => (
                   <li key={`${ip.IP}${ip.ExternalPort}`} className="flex items-center">
                     <Link className="inline-flex items-center space-x-2 text-sm" href={`http://${ip.IP}:${ip.ExternalPort}`} target="_blank">
                       <span>
@@ -418,7 +411,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                       size="icon"
                       variant="ghost"
                       className="h-6 w-6 rounded-full"
-                      onClick={ev => {
+                      onClick={() => {
                         copyTextToClipboard(`${ip.IP}:${ip.ExternalPort}`);
                         enqueueSnackbar(<Snackbar title="Ip copied to clipboard!" iconVariant="success" />, {
                           variant: "success",

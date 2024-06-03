@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { getShortText, getSplitText } from "@src/hooks/useShortText";
+import { getShortText } from "@src/hooks/useShortText";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { NamedDeploymentDto } from "@src/types/deployment";
@@ -123,48 +123,34 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const onDeploymentDeposit = async (deposit, depositorAddress) => {
     setIsDepositingDeployment(false);
 
-    try {
-      const message = TransactionMessageData.getDepositDeploymentMsg(
-        address,
-        deployment.dseq,
-        deposit,
-        deployment.escrowAccount.balance.denom,
-        depositorAddress
-      );
-      const response = await signAndBroadcastTx([message]);
-      if (response) {
-        refreshDeployments();
+    const message = TransactionMessageData.getDepositDeploymentMsg(address, deployment.dseq, deposit, deployment.escrowAccount.balance.denom, depositorAddress);
+    const response = await signAndBroadcastTx([message]);
+    if (response) {
+      refreshDeployments();
 
-        event(AnalyticsEvents.DEPLOYMENT_DEPOSIT, {
-          category: "deployments",
-          label: "Deposit to deployment from list"
-        });
-      }
-    } catch (error) {
-      throw error;
+      event(AnalyticsEvents.DEPLOYMENT_DEPOSIT, {
+        category: "deployments",
+        label: "Deposit to deployment from list"
+      });
     }
   };
 
   const onCloseDeployment = async () => {
     handleMenuClose();
 
-    try {
-      const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
-      const response = await signAndBroadcastTx([message]);
-      if (response) {
-        if (onSelectDeployment) {
-          onSelectDeployment(false, deployment.dseq);
-        }
-
-        refreshDeployments();
-
-        event(AnalyticsEvents.CLOSE_DEPLOYMENT, {
-          category: "deployments",
-          label: "Close deployment from list"
-        });
+    const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
+    const response = await signAndBroadcastTx([message]);
+    if (response) {
+      if (onSelectDeployment) {
+        onSelectDeployment(false, deployment.dseq);
       }
-    } catch (error) {
-      throw error;
+
+      refreshDeployments();
+
+      event(AnalyticsEvents.CLOSE_DEPLOYMENT, {
+        category: "deployments",
+        label: "Close deployment from list"
+      });
     }
   };
 

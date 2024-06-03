@@ -17,7 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 
-export function WalletStatus({}: React.PropsWithChildren<{}>) {
+export function WalletStatus() {
   const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected } = useWallet();
   const walletBalance = useTotalWalletBalance();
   const router = useRouter();

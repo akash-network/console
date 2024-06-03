@@ -18,9 +18,7 @@ enum GetWalletSection {
   CreateWallet = "create-wallet"
 }
 
-type Props = {};
-
-const GetStartedWallet: React.FunctionComponent<Props> = ({}) => {
+const GetStartedWallet: React.FunctionComponent = () => {
   const router = useRouter();
   // Fallback to null if the section is not valid
   const currentSection = Object.values(GetWalletSection).includes(router.query.section as GetWalletSection) ? router.query.section : null;

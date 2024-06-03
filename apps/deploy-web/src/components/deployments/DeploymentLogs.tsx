@@ -62,13 +62,10 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     enabled: false
   });
   const { sendJsonMessage } = useWebSocket(PROVIDER_PROXY_URL_WS, {
-    onOpen: () => {
-      // console.log("opened");
-    },
+    onOpen: () => {},
     onMessage: onLogReceived,
     onError: error => console.error("error", error),
-    shouldReconnect: closeEvent => {
-      // console.log(closeEvent);
+    shouldReconnect: () => {
       return true;
     }
   });

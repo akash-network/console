@@ -4,7 +4,6 @@ import { FormattedNumber, FormattedPlural } from "react-intl";
 import { ResponsivePie } from "@nivo/pie";
 import { Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 
@@ -16,7 +15,7 @@ import sdlStore from "@src/store/sdlStore";
 import { Balances } from "@src/types";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
-import { customColors, HSLToHex } from "@src/utils/colors";
+import { customColors } from "@src/utils/colors";
 import { uAktDenom } from "@src/utils/constants";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, uaktToAKT } from "@src/utils/priceUtils";
@@ -29,7 +28,7 @@ import { PriceValue } from "../shared/PriceValue";
 import Spinner from "../shared/Spinner";
 import { StatusPill } from "../shared/StatusPill";
 import { Badge } from "../ui/badge";
-import { Button, buttonVariants } from "../ui/button";
+import { buttonVariants } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
 // const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
@@ -57,7 +56,7 @@ type Props = {
 export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadingBalances, activeDeployments, leases, providers }) => {
   const { resolvedTheme } = useTheme();
   const tw = useTailwind();
-  const { address, walletBalances, refreshBalances } = useWallet();
+  const { address } = useWallet();
   const usdcIbcDenom = useUsdcDenom();
   const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
   const [costPerMonth, setCostPerMonth] = useState<number | null>(null);
@@ -81,7 +80,6 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const _storage = bytesToShrink(totalStorage);
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const { price, isLoaded } = usePricing();
-  const aktBalance = walletBalances ? uaktToAKT(walletBalances.uakt) : 0;
 
   const colors = {
     balance_akt: customColors.akashRed,

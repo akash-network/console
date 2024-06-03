@@ -3,7 +3,7 @@ import * as React from "react";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 
 import { cn } from "@src/utils/styleUtils";
-import { FormControl, FormDescription, FormItem, FormLabel } from "./form";
+import { FormDescription, FormItem } from "./form";
 import { Label } from "./label";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
@@ -62,7 +62,7 @@ export interface InputWithIconProps extends React.InputHTMLAttributes<HTMLInputE
 
 const InputWithIcon = React.forwardRef<HTMLInputElement, InputWithIconProps>(
   ({ className, inputClassName, type, label, startIcon, endIcon, error, ...props }, ref) => {
-    // @ts-ignore
+    // @ts-expect-error till types are outdated
     const id = React.useId();
 
     return (

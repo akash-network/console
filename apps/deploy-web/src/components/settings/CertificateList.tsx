@@ -9,9 +9,7 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { CertificateDisplay } from "./CertificateDisplay";
 
-type Props = {};
-
-export const CertificateList: React.FunctionComponent<Props> = ({}) => {
+export const CertificateList: React.FunctionComponent = () => {
   const { validCertificates, localCert, selectedCertificate, revokeCertificate, revokeAllCertificates, isLoadingCertificates } = useCertificate();
   const { address } = useWallet();
 

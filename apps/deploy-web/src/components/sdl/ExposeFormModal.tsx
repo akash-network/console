@@ -51,7 +51,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
     const acceptToRemove: number[] = [];
     const toToRemove: number[] = [];
 
-    _expose.forEach((e, i) => {
+    _expose.forEach(e => {
       e.accept?.forEach((a, ii) => {
         if (!a.value.trim()) {
           acceptToRemove.push(ii);

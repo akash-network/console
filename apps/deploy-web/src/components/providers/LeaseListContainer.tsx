@@ -35,7 +35,7 @@ export const LeaseListContainer: React.FunctionComponent<Props> = ({ owner }) =>
   } = useProviderStatus(provider?.hostUri || "", {
     enabled: false,
     retry: false,
-    onSuccess: _providerStatus => {
+    onSuccess: () => {
       setProvider(provider => (provider ? { ...provider, ...providerStatus } : (providerStatus as ClientProviderDetailWithStatus)));
     }
   });

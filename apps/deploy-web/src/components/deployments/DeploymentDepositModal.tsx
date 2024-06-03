@@ -43,15 +43,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   const { walletBalances, address } = useWallet();
   const { data: granteeGrants } = useGranteeGrants(address);
   const depositData = useDenomData(denom);
-  const {
-    handleSubmit,
-    control,
-    formState: { errors },
-    watch,
-    setValue,
-    clearErrors,
-    unregister
-  } = useForm({
+  const { handleSubmit, control, watch, setValue, clearErrors, unregister } = useForm({
     defaultValues: {
       amount: 0,
       useDepositor: false,
@@ -256,7 +248,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
             rules={{
               required: true
             }}
-            render={({ fieldState, field }) => {
+            render={({ field }) => {
               return (
                 <FormItem
                   className="mt-2 w-full"

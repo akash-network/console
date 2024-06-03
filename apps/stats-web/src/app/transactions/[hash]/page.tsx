@@ -1,5 +1,5 @@
 import React from "react";
-import { Metadata, ResolvingMetadata } from "next";
+import { Metadata } from "next";
 
 import { TransactionInfo } from "./TransactionInfo";
 
@@ -17,7 +17,7 @@ interface IProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export async function generateMetadata({ params: { hash } }: IProps, parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata({ params: { hash } }: IProps): Promise<Metadata> {
   const splittedTxHash = getSplitText(hash, 6, 6);
   return {
     title: `Tx ${splittedTxHash}`

@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import React from "react";
 import { ArrowLeft } from "iconoir-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
@@ -9,11 +9,7 @@ import { buttonVariants } from "@src/components/ui/button";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 
-type Props = {
-  children?: ReactNode;
-};
-
-const FiveHundred: React.FunctionComponent<Props> = ({}) => {
+const FiveHundred: React.FunctionComponent = () => {
   return (
     <Layout>
       <NextSeo title="Error" />

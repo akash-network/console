@@ -4,7 +4,6 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 import {
   AccessorColumnDef,
-  ColumnDef,
   ColumnFiltersState,
   flexRender,
   getCoreRowModel,
@@ -55,7 +54,6 @@ export function DataTable<TData, TValue>({
   isLoading,
   noResultsText,
   hasRowSelection,
-  hasStatusFilter,
   initialPageSize = 10,
   onColumnFiltersChange,
   onColumnSortingChange,

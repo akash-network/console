@@ -118,12 +118,13 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
         setShowArrowAndTabWarning(true);
       }
 
-      let exitCode, errorMessage;
+      let exitCode;
       try {
         const jsonData = JSON.parse(parsedData);
         exitCode = jsonData["exit_code"];
-        errorMessage = jsonData["message"];
-      } catch (error) {}
+      } catch (error) {
+        /* empty */
+      }
       if (exitCode === undefined) {
         if (!isConnectionEstablished) {
           // Welcome message

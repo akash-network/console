@@ -70,7 +70,9 @@ async function getBalances(apiEndpoint: string, address: string): Promise<Balanc
           .map(x => parseFloat(x.balance.amount))
           .reduce((a, b) => a + b, 0)
       : 0;
-  } catch (error) {}
+  } catch (error) {
+    /* empty */
+  }
 
   return {
     balance,

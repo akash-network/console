@@ -43,9 +43,7 @@ import { RegionSelect } from "./RegionSelect";
 import { StorageFormControl } from "./StorageFormControl";
 import { TokenFormControl } from "./TokenFormControl";
 
-type Props = {};
-
-export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
+export const RentGpusForm: React.FunctionComponent = () => {
   const [error, setError] = useState<string | null>(null);
   // const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
   const [isQueryInit, setIsQuertInit] = useState(false);

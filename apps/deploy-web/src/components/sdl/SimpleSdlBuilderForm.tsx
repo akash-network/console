@@ -30,13 +30,11 @@ import { ImportSdlModal } from "./ImportSdlModal";
 import { PreviewSdl } from "./PreviewSdl";
 import { SaveTemplateModal } from "./SaveTemplateModal";
 
-type Props = {};
-
 const DEFAULT_SERVICES = {
   services: [{ ...defaultService }]
 };
 
-export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
+export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
   const [error, setError] = useState(null);
   const [templateMetadata, setTemplateMetadata] = useState<ITemplate | null>(null);
   const [serviceCollapsed, setServiceCollapsed] = useState<number[]>([]);

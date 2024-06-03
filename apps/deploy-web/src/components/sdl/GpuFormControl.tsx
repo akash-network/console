@@ -231,7 +231,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                     ? () => (
                                         <IconButton
                                           size="small"
-                                          onClick={e => {
+                                          onClick={() => {
                                             field.onChange("");
                                             setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.memory`, "");
                                             setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.interface`, "");
@@ -277,7 +277,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                     ? () => (
                                         <IconButton
                                           size="small"
-                                          onClick={e => {
+                                          onClick={() => {
                                             field.onChange("");
                                           }}
                                         >
@@ -321,7 +321,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                     ? () => (
                                         <IconButton
                                           size="small"
-                                          onClick={e => {
+                                          onClick={() => {
                                             field.onChange("");
                                           }}
                                         >

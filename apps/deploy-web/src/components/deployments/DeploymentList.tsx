@@ -26,9 +26,7 @@ import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
 import { DeploymentListRow } from "./DeploymentListRow";
 
-type Props = {};
-
-export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
+export const DeploymentList: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, isWalletLoaded } = useWallet();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
   const { data: deployments, isFetching: isLoadingDeployments, refetch: getDeployments } = useDeploymentList(address, { enabled: false });

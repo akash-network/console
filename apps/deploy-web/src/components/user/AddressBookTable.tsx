@@ -13,9 +13,7 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import Layout from "../layout/Layout";
 
-type Props = {};
-
-export const AddressBookTable: React.FunctionComponent<Props> = ({}) => {
+export const AddressBookTable: React.FunctionComponent = () => {
   const { addressNames, editAddressName, isLoading: isLoadingAddressBook } = useAddressBook();
   const { user, isLoading } = useCustomUser();
 

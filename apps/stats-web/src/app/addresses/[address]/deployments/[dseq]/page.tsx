@@ -1,4 +1,4 @@
-import { Metadata, ResolvingMetadata } from "next";
+import { Metadata } from "next";
 
 import { DeploymentInfo } from "./DeploymentInfo";
 
@@ -13,7 +13,7 @@ interface IProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export async function generateMetadata({ params: { address, dseq } }: IProps, parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata({ params: { address, dseq } }: IProps): Promise<Metadata> {
   const url = `https://stats.akash.network${UrlService.deployment(address, dseq)}`;
 
   return {

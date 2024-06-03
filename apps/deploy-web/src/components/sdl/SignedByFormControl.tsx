@@ -8,7 +8,6 @@ import { SdlBuilderFormValues, SignedBy } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { Button } from "../ui/button";
-import { Card, CardContent } from "../ui/card";
 import { FormInput } from "../ui/input";
 import { FormPaper } from "./FormPaper";
 

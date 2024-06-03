@@ -8,7 +8,7 @@ import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { storageUnits, validationConfig } from "../shared/akash/units";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { FormControl, FormDescription, FormItem } from "../ui/form";
+import { FormDescription, FormItem } from "../ui/form";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Slider } from "../ui/slider";
@@ -20,15 +20,6 @@ type Props = {
   control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
   currentService: Service;
 };
-
-// const useStyles = makeStyles()(theme => ({
-//   formControl: {
-//     marginBottom: theme.spacing(1.5)
-//   },
-//   textField: {
-//     width: "100%"
-//   }
-// }));
 
 export const StorageFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, currentService }) => {
   return (

@@ -7,9 +7,3 @@ function DeploymentsPage() {
 }
 
 export default DeploymentsPage;
-
-export async function getServerSideProps({ params }) {
-  return {
-    props: {}
-  };
-}

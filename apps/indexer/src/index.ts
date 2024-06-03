@@ -124,6 +124,7 @@ async function initApp() {
   try {
     if (env.Standby) {
       console.log("Standby mode enabled. Doing nothing.");
+      // eslint-disable-next-line no-constant-condition
       while (true) {
         await sleep(5_000);
       }

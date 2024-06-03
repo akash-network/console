@@ -3,7 +3,7 @@ import { ParsedUrlQuery } from "querystring";
 
 import { UrlService } from "./urlUtils";
 
-export function withCustomPageAuthRequired(opts: WithPageAuthRequiredPageRouterOptions<{}, ParsedUrlQuery>): PageRoute<{}, ParsedUrlQuery> {
+export function withCustomPageAuthRequired(opts: WithPageAuthRequiredPageRouterOptions<object, ParsedUrlQuery>): PageRoute<object, ParsedUrlQuery> {
   return withPageAuthRequired({
     ...opts,
     getServerSideProps: async params => {

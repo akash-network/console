@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode, useState } from "react";
+import React, { useState } from "react";
 import { Learning, NavArrowDown, Rocket, SearchEngine } from "iconoir-react";
 import Link from "next/link";
 
@@ -10,11 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@src/compon
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 
-type Props = {
-  children?: ReactNode;
-};
-
-export const WelcomePanel: React.FC<Props> = () => {
+export const WelcomePanel: React.FC = () => {
   const [expanded, setExpanded] = useState(true);
 
   return (

@@ -124,7 +124,7 @@ class NodeAccessor {
 
     if (availableNodes.length === 0) return null;
 
-    const minActiveQueries = Math.min(...availableNodes.map((a, b) => a.activeQueries.length));
+    const minActiveQueries = Math.min(...availableNodes.map(a => a.activeQueries.length));
     const bestNodes = availableNodes.filter(x => x.activeQueries.length === minActiveQueries);
 
     return bestNodes[Math.floor(Math.random() * bestNodes.length)];

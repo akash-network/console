@@ -5,7 +5,6 @@ import FileCopyIcon from "@mui/icons-material/FileCopy";
 import TwitterIcon from "@mui/icons-material/Twitter";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import { Box, Chip, Grid, IconButton, Typography } from "@mui/material";
-import getConfig from "next/config";
 import Link from "next/link";
 import { useSnackbar } from "notistack";
 import { makeStyles } from "tss-react/mui";
@@ -15,10 +14,6 @@ import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { UrlService } from "@src/utils/urlUtils";
 import { DiscordIcon } from "../shared/icons";
 import { ColorModeSwitch } from "./ColorModeSwitch";
-
-const { publicRuntimeConfig } = getConfig();
-
-export interface IFooterProps {}
 
 export const useStyles = makeStyles()(theme => ({
   root: {
@@ -96,7 +91,7 @@ export const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const Footer: React.FunctionComponent<IFooterProps> = ({}) => {
+export const Footer: React.FunctionComponent = () => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { classes } = useStyles();
 

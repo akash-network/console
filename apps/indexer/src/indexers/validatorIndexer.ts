@@ -122,7 +122,7 @@ export class ValidatorIndexer extends Indexer {
     }
   }
 
-  private async handleEditValidator(decodedMessage: MsgEditValidator, height: number, dbTransaction: DbTransaction, msg: Message) {
+  private async handleEditValidator(decodedMessage: MsgEditValidator, height: number, dbTransaction: DbTransaction) {
     const validator = await Validator.findOne({
       where: {
         operatorAddress: decodedMessage.validatorAddress

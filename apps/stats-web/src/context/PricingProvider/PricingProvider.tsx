@@ -20,9 +20,10 @@ const PricingProviderContext = React.createContext<ContextType>({
   isLoaded: false,
   isLoading: false,
   price: 0,
-  uaktToUSD: (amount: number) => 0, // Provide an actual implementation for uaktToUSD
-  aktToUSD: (amount: number) => 0, // Provide an actual implementation for aktToUSD
-  getPriceForDenom: (denom: string) => 0 // Provide an actual implementation for getPriceForDenom
+  // TODO: Provide an actual implementation for the following functions
+  uaktToUSD: () => 0,
+  aktToUSD: () => 0,
+  getPriceForDenom: () => 0
 });
 
 export const PricingProvider: React.FC<any> = ({ children }) => {

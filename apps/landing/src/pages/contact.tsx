@@ -1,8 +1,8 @@
-import { ReactNode } from "react";
+import React from "react";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import TwitterIcon from "@mui/icons-material/Twitter";
 import YouTubeIcon from "@mui/icons-material/YouTube";
-import { Box, Grid, Typography, useTheme } from "@mui/material";
+import { Box, Grid, Typography } from "@mui/material";
 import { NextSeo } from "next-seo";
 import { makeStyles } from "tss-react/mui";
 
@@ -10,10 +10,6 @@ import Layout from "@src/components/layout/Layout";
 import { DiscordIcon } from "@src/components/shared/icons";
 import PageContainer from "@src/components/shared/PageContainer";
 import { Title } from "@src/components/shared/Title";
-
-type Props = {
-  children?: ReactNode;
-};
 
 export const useStyles = makeStyles()(theme => ({
   socials: {
@@ -44,8 +40,7 @@ export const useStyles = makeStyles()(theme => ({
   }
 }));
 
-const ContactPage: React.FunctionComponent<Props> = ({}) => {
-  const theme = useTheme();
+const ContactPage: React.FunctionComponent = () => {
   const { classes } = useStyles();
 
   return (

@@ -9,11 +9,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddressDetail } from "@/types";
 
 interface IProps {
-  address: string;
   addressDetail: AddressDetail;
 }
 
-export function AssetAllocation({ address, addressDetail }: IProps) {
+export function AssetAllocation({ addressDetail }: IProps) {
   const [assetTab, setAssetTab] = useState("delegations");
 
   const handleTabChange = (newValue: string) => {

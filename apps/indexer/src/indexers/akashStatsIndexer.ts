@@ -802,8 +802,7 @@ export class AkashStatsIndexer extends Indexer {
   private async handleCreateProvider(
     decodedMessage: v1beta1.MsgCreateProvider | v1beta2.MsgCreateProvider | v1beta3.MsgCreateProvider,
     height: number,
-    blockGroupTransaction: DbTransaction,
-    msg: Message
+    blockGroupTransaction: DbTransaction
   ) {
     await Provider.create(
       {
@@ -831,8 +830,7 @@ export class AkashStatsIndexer extends Indexer {
   private async handleUpdateProvider(
     decodedMessage: v1beta1.MsgUpdateProvider | v1beta2.MsgUpdateProvider | v1beta3.MsgUpdateProvider,
     height: number,
-    blockGroupTransaction: DbTransaction,
-    msg: Message
+    blockGroupTransaction: DbTransaction
   ) {
     await Provider.update(
       {
@@ -868,8 +866,7 @@ export class AkashStatsIndexer extends Indexer {
   private async handleDeleteProvider(
     decodedMessage: v1beta1.MsgDeleteProvider | v1beta2.MsgDeleteProvider | v1beta3.MsgDeleteProvider,
     height: number,
-    blockGroupTransaction: DbTransaction,
-    msg: Message
+    blockGroupTransaction: DbTransaction
   ) {
     await Provider.update(
       {
@@ -887,8 +884,7 @@ export class AkashStatsIndexer extends Indexer {
   private async handleSignProviderAttributes(
     decodedMessage: v1beta1.MsgSignProviderAttributes | v1beta2.MsgSignProviderAttributes | v1beta3.MsgSignProviderAttributes,
     height: number,
-    blockGroupTransaction: DbTransaction,
-    msg: Message
+    blockGroupTransaction: DbTransaction
   ) {
     const provider = await Provider.findOne({ where: { owner: decodedMessage.owner }, transaction: blockGroupTransaction });
 
@@ -931,8 +927,7 @@ export class AkashStatsIndexer extends Indexer {
   private async handleDeleteSignProviderAttributes(
     decodedMessage: v1beta1.MsgDeleteProviderAttributes | v1beta2.MsgDeleteProviderAttributes | v1beta3.MsgDeleteProviderAttributes,
     height: number,
-    blockGroupTransaction: DbTransaction,
-    msg: Message
+    blockGroupTransaction: DbTransaction
   ) {
     await ProviderAttributeSignature.destroy({
       where: {
@@ -942,6 +937,14 @@ export class AkashStatsIndexer extends Indexer {
       },
       transaction: blockGroupTransaction
     });
+  }
+
+  seed(): Promise<void> {
+    return Promise.resolve(undefined);
+  }
+
+  afterEveryTransaction(): Promise<void> {
+    return Promise.resolve(undefined);
   }
 }
 

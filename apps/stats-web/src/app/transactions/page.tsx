@@ -5,13 +5,11 @@ import { TransactionsTable } from "./TransactionsTable";
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 
-type Props = {};
-
 export const metadata: Metadata = {
   title: "Transactions"
 };
 
-const TransactionsPage: React.FunctionComponent<Props> = ({}) => {
+const TransactionsPage: React.FunctionComponent = () => {
   return (
     <PageContainer>
       <Title className="mb-4">Transactions</Title>

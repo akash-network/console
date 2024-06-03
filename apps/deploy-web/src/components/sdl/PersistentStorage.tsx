@@ -150,7 +150,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
               rules={{
                 required: "Name is required.",
                 validate: value => {
-                  const hasValidChars = /^[a-z0-9\-]+$/.test(value);
+                  const hasValidChars = /^[a-z0-9-]+$/.test(value);
                   const hasValidStartingChar = /^[a-z]/.test(value);
                   const hasValidEndingChar = !value.endsWith("-");
 

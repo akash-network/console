@@ -26,7 +26,7 @@ import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
 import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
-import { DeploymentLogs, LOGS_MODE } from "./DeploymentLogs";
+import { DeploymentLogs } from "./DeploymentLogs";
 import { DeploymentSubHeader } from "./DeploymentSubHeader";
 import { LeaseRow } from "./LeaseRow";
 import { ManifestUpdate } from "./ManifestUpdate";
@@ -34,7 +34,6 @@ import { ManifestUpdate } from "./ManifestUpdate";
 export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: string }>) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
-  const [selectedLogsMode, setSelectedLogsMode] = useState<LOGS_MODE>("logs");
   const { address, isWalletLoaded } = useWallet();
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
@@ -103,10 +102,6 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
     if (leases && leases.some(l => l.state === "active")) {
       if (tabQuery) {
         setActiveTab(tabQuery);
-      }
-
-      if (logsModeQuery && (logsModeQuery === "logs" || logsModeQuery === "events")) {
-        setSelectedLogsMode(logsModeQuery);
       }
     }
   }, [tabQuery, logsModeQuery, leases]);
@@ -185,7 +180,6 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
                 leases={leases}
                 closeManifestEditor={() => {
                   setActiveTab("EVENTS");
-                  setSelectedLogsMode("events");
                   loadDeploymentDetail();
                 }}
               />

@@ -6,7 +6,7 @@ import { nanoid } from "nanoid";
 
 import { EnvironmentVariable, RentGpusFormValues, SdlBuilderFormValues } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
-import { CustomNoDivTooltip, CustomTooltip } from "../shared/CustomTooltip";
+import { CustomNoDivTooltip } from "../shared/CustomTooltip";
 import { Popup } from "../shared/Popup";
 import { Button } from "../ui/button";
 import { FormInput } from "../ui/input";

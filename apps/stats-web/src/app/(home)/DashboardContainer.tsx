@@ -1,5 +1,4 @@
 "use client";
-import { ReactNode } from "react";
 import { FormattedDate, FormattedTime } from "react-intl";
 
 import { Dashboard } from "./Dashboard";
@@ -10,11 +9,7 @@ import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
 import { useMarketData } from "@/queries";
 import { useDashboardData } from "@/queries/useDashboardData";
 
-type Props = {
-  children?: ReactNode;
-};
-
-export const DashboardContainer: React.FunctionComponent<Props> = ({}) => {
+export const DashboardContainer: React.FunctionComponent = () => {
   const { data: dashboardData, isLoading: isLoadingDashboardData } = useDashboardData();
   const { data: marketData, isLoading: isLoadingMarketData } = useMarketData();
   const selectedNetwork = useSelectedNetwork();

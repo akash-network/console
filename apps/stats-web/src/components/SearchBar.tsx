@@ -12,8 +12,6 @@ import { Input } from "./ui/input";
 import { breakpoints } from "@/lib/responsiveUtils";
 import { UrlService } from "@/lib/urlUtils";
 
-type Props = {};
-
 enum SearchType {
   AccountAddress,
   ValidatorAddress,
@@ -21,7 +19,7 @@ enum SearchType {
   BlockHeight
 }
 
-const SearchBar: React.FunctionComponent<Props> = ({}) => {
+const SearchBar: React.FunctionComponent = () => {
   const [searchTerms, setSearchTerms] = useState("");
   const [searchType, setSearchType] = useState<SearchType | null>(null);
   const [isFocused, setIsFocused] = useState(false);
