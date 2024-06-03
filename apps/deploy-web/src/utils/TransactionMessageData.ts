@@ -221,7 +221,7 @@ export class TransactionMessageData {
           ],
           expiration: expiration
             ? {
-                seconds: longify(Math.floor(expiration.getTime() / 1_000)),
+                seconds: longify(Math.floor(expiration.getTime() / 1_000)) as unknown as Long,
                 nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
               }
             : undefined
