@@ -1,12 +1,13 @@
 "use client";
-import { PriceValue } from "./PriceValue";
-import { averageBlockTime, getAvgCostPerMonth } from "@src/utils/priceUtils";
-import { averageDaysInMonth } from "@src/utils/dateUtils";
-import { CustomTooltip } from "./CustomTooltip";
 import { ReactNode } from "react";
-import { udenomToDenom } from "@src/utils/mathHelpers";
-import { useDenomData } from "@src/hooks/useWalletBalance";
 import { InfoCircle } from "iconoir-react";
+
+import { useDenomData } from "@src/hooks/useWalletBalance";
+import { averageDaysInMonth } from "@src/utils/dateUtils";
+import { udenomToDenom } from "@src/utils/mathHelpers";
+import { averageBlockTime, getAvgCostPerMonth } from "@src/utils/priceUtils";
+import { CustomTooltip } from "./CustomTooltip";
+import { PriceValue } from "./PriceValue";
 
 type Props = {
   value: number | string;

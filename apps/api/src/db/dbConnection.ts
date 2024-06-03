@@ -1,10 +1,11 @@
-import pg from "pg";
-import { env } from "@src/utils/env";
-import { Transaction as DbTransaction } from "sequelize";
-import { Sequelize } from "sequelize-typescript";
+import { chainDefinitions } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import { chainModels, getChainModels, userModels } from "@akashnetwork/cloudmos-shared/dbSchemas";
 import { Template, TemplateFavorite, UserAddressName, UserSetting } from "@akashnetwork/cloudmos-shared/dbSchemas/user";
-import { chainDefinitions } from "@akashnetwork/cloudmos-shared/chainDefinitions";
+import pg from "pg";
+import { Transaction as DbTransaction } from "sequelize";
+import { Sequelize } from "sequelize-typescript";
+
+import { env } from "@src/utils/env";
 
 function isValidNetwork(network: string): network is keyof typeof csMap {
   return network in csMap;

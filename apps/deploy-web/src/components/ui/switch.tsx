@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import * as SwitchPrimitives from "@radix-ui/react-switch";
-import { cn } from "@src/utils/styleUtils";
 import { nanoid } from "nanoid";
+
+import { cn } from "@src/utils/styleUtils";
 
 const Switch = React.forwardRef<React.ElementRef<typeof SwitchPrimitives.Root>, React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>>(
   ({ className, ...props }, ref) => (

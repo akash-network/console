@@ -1,5 +1,5 @@
-import { ChannelCredentials } from "@grpc/grpc-js/build/src/channel-credentials";
 import { CallCredentials } from "@grpc/grpc-js/build/src/call-credentials";
+import { ChannelCredentials } from "@grpc/grpc-js/build/src/channel-credentials";
 import { ConnectionOptions } from "tls";
 
 // TODO: get rid of it once on-chain certificates validation is implemented

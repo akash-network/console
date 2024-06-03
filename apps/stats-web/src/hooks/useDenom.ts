@@ -1,5 +1,6 @@
-import { usdcIbcDenoms } from "@/lib/constants";
 import { getSelectedNetwork, useSelectedNetwork } from "./useSelectedNetwork";
+
+import { usdcIbcDenoms } from "@/lib/constants";
 
 export const useUsdcDenom = () => {
   const selectedNetwork = useSelectedNetwork();

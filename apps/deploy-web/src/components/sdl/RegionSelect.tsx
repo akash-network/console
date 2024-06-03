@@ -1,15 +1,16 @@
 "use client";
-import { RentGpusFormValues } from "@src/types";
-import { ProviderAttributeSchemaDetailValue, ProviderRegionValue } from "@src/types/providerAttributes";
 import { useState } from "react";
 import { Control, Controller } from "react-hook-form";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { useProviderRegions } from "@src/queries/useProvidersQuery";
-import { cn } from "@src/utils/styleUtils";
 import Autocomplete from "@mui/material/Autocomplete";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
-import { InfoCircle } from "iconoir-react";
 import TextField from "@mui/material/TextField";
+import { InfoCircle } from "iconoir-react";
+
+import { useProviderRegions } from "@src/queries/useProvidersQuery";
+import { RentGpusFormValues } from "@src/types";
+import { ProviderAttributeSchemaDetailValue, ProviderRegionValue } from "@src/types/providerAttributes";
+import { cn } from "@src/utils/styleUtils";
+import { CustomTooltip } from "../shared/CustomTooltip";
 
 type RegionSelectProps = {
   control: Control<RentGpusFormValues, any>;

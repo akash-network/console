@@ -1,14 +1,15 @@
 "use client";
 import React, { ReactNode } from "react";
 import { FormattedTime } from "react-intl";
-import { coinToUDenom } from "@src/utils/priceUtils";
-import { GrantType } from "@src/types/grant";
-import { useDenomData } from "@src/hooks/useWalletBalance";
-import { TableCell, TableRow } from "@src/components/ui/table";
+import { Bin, Edit } from "iconoir-react";
+
 import { Address } from "@src/components/shared/Address";
 import { AKTAmount } from "@src/components/shared/AKTAmount";
 import { Button } from "@src/components/ui/button";
-import { Bin, Edit } from "iconoir-react";
+import { TableCell, TableRow } from "@src/components/ui/table";
+import { useDenomData } from "@src/hooks/useWalletBalance";
+import { GrantType } from "@src/types/grant";
+import { coinToUDenom } from "@src/utils/priceUtils";
 
 type Props = {
   grant: GrantType;

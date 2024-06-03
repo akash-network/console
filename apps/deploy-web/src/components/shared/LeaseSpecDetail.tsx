@@ -1,7 +1,8 @@
 "use client";
 import React from "react";
+import { MdDeveloperBoard,MdMemory, MdSpeed, MdStorage } from "react-icons/md";
 import { FormattedNumber } from "react-intl";
-import { MdMemory, MdStorage, MdSpeed, MdDeveloperBoard } from "react-icons/md";
+
 import { cn } from "@src/utils/styleUtils";
 
 type SpecType = "cpu" | "gpu" | "ram" | "storage";

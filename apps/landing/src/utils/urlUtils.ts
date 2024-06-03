@@ -15,7 +15,7 @@ export function appendSearchParams(params) {
 
   const res = urlParams.toString();
 
-  return !!res ? `?${res}` : res;
+  return res ? `?${res}` : res;
 }
 
 export function removeEmptyFilters(obj: { [key: string]: string }) {

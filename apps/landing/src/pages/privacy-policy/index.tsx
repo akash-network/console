@@ -1,9 +1,10 @@
 import React from "react";
-import Layout from "@src/components/layout/Layout";
 import { Box } from "@mui/material";
+import { NextSeo } from "next-seo";
+
+import Layout from "@src/components/layout/Layout";
 import PageContainer from "@src/components/shared/PageContainer";
 import { Title } from "@src/components/shared/Title";
-import { NextSeo } from "next-seo";
 
 export function PrivacyPolicy() {
   return (

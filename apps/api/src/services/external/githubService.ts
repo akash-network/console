@@ -1,8 +1,9 @@
 import { Octokit } from "@octokit/rest";
+import axios from "axios";
+
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { Auditor, ProviderAttributesSchema } from "@src/types/provider";
 import { env } from "@src/utils/env";
-import axios from "axios";
 
 export function getOctokit() {
   const githubPAT = env.AkashlyticsGithubPAT;

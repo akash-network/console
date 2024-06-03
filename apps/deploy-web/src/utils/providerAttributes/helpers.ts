@@ -1,10 +1,11 @@
+import { nanoid } from "nanoid";
+
 import {
   ProviderAttributeSchemaDetail,
   ProviderAttributeSchemaDetailValue,
   ProviderAttributesFormValues,
   ProviderAttributesSchema
 } from "@src/types/providerAttributes";
-import { nanoid } from "nanoid";
 
 /**
  * Maps the form values to the attributes that are broadcasted to the network

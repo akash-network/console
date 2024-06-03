@@ -1,4 +1,18 @@
-import { statsProcessor } from "./statsProcessor";
+import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
+import { Block, Message } from "@akashnetwork/cloudmos-shared/dbSchemas";
+import { Day, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { fromBase64 } from "@cosmjs/encoding";
+import { decodeTxRaw } from "@cosmjs/proto-signing";
+import { asyncify,eachLimit } from "async";
+import { differenceInSeconds,isEqual } from "date-fns";
+import { sha256 } from "js-sha256";
+import { Op } from "sequelize";
+import * as uuid from "uuid";
+
+import { sequelize } from "@src/db/dbConnection";
+import { ExecutionMode, executionMode, isProd, lastBlockToSync } from "@src/shared/constants";
+import { env } from "@src/shared/utils/env";
+import * as benchmark from "../shared/utils/benchmark";
 import {
   blockHeightToKey,
   blockResultsDb,
@@ -9,20 +23,7 @@ import {
   getLatestHeightInCache
 } from "./dataStore";
 import { nodeAccessor } from "./nodeAccessor";
-import { sha256 } from "js-sha256";
-import { executionMode, ExecutionMode, isProd, lastBlockToSync } from "@src/shared/constants";
-import { isEqual, differenceInSeconds } from "date-fns";
-import * as benchmark from "../shared/utils/benchmark";
-import * as uuid from "uuid";
-import { eachLimit, asyncify } from "async";
-import { sequelize } from "@src/db/dbConnection";
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { Day, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
-import { Block, Message } from "@akashnetwork/cloudmos-shared/dbSchemas";
-import { env } from "@src/shared/utils/env";
-import { Op } from "sequelize";
-import { decodeTxRaw } from "@cosmjs/proto-signing";
-import { fromBase64 } from "@cosmjs/encoding";
+import { statsProcessor } from "./statsProcessor";
 
 export const setMissingBlock = (height: number) => (missingBlock = height);
 let missingBlock: number;
@@ -221,7 +222,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
         fee: decodedTx.authInfo.fee.amount.length > 0 ? parseInt(decodedTx.authInfo.fee.amount[0].amount) : 0,
         memo: decodedTx.body.memo,
         hasProcessingError: !!txJson.code,
-        log: !!txJson.code ? txJson.log : null,
+        log: txJson.code ? txJson.log : null,
         gasUsed: parseInt(txJson.gas_used),
         gasWanted: parseInt(txJson.gas_wanted)
       });

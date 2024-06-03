@@ -1,16 +1,17 @@
 "use client";
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef,useState } from "react";
 import axios from "axios";
-import { queryClient } from "@src/queries";
-import { mainnetId } from "@src/utils/constants";
-import { useLocalStorage } from "@src/hooks/useLocalStorage";
-import { initAppTypes } from "@src/utils/init";
-import { NodeStatus } from "@src/types/node";
-import { initiateNetworkData, networks } from "@src/store/networkStore";
-import { migrateLocalStorage } from "@src/utils/localStorage";
-import { mainnetNodes } from "@src/utils/apiUtils";
-import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { z } from "zod";
+
+import { useLocalStorage } from "@src/hooks/useLocalStorage";
+import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
+import { queryClient } from "@src/queries";
+import { initiateNetworkData, networks } from "@src/store/networkStore";
+import { NodeStatus } from "@src/types/node";
+import { mainnetNodes } from "@src/utils/apiUtils";
+import { mainnetId } from "@src/utils/constants";
+import { initAppTypes } from "@src/utils/init";
+import { migrateLocalStorage } from "@src/utils/localStorage";
 
 export type BlockchainNode = {
   api: string;
@@ -252,8 +253,8 @@ export function SettingsProvider({ children }: React.PropsWithChildren<{}>) {
       setIsRefreshingNodeStatus(true);
       let _nodes = settingsOverride ? settingsOverride.nodes : nodes;
       let _customNode = settingsOverride ? settingsOverride.customNode : customNode;
-      let _isCustomNode = settingsOverride ? settingsOverride.isCustomNode : isCustomNode;
-      let _apiEndpoint = settingsOverride ? settingsOverride.apiEndpoint : apiEndpoint;
+      const _isCustomNode = settingsOverride ? settingsOverride.isCustomNode : isCustomNode;
+      const _apiEndpoint = settingsOverride ? settingsOverride.apiEndpoint : apiEndpoint;
 
       if (_isCustomNode) {
         const nodeStatus = await loadNodeStatus(_apiEndpoint);

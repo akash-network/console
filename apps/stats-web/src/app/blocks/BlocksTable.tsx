@@ -1,10 +1,12 @@
 "use client";
+import { Metadata } from "next";
+
+import { BlockRow } from "../../components/blockchain/BlockRow";
+
 import Spinner from "@/components/Spinner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useBlocks } from "@/queries";
-import { Metadata } from "next";
-import { BlockRow } from "../../components/blockchain/BlockRow";
 
 type Props = {
   errors?: string;

@@ -1,9 +1,10 @@
 // pages/_document.js
-import createEmotionCache from "@src/utils/createEmotionCache";
-import Document, { Head, Main, NextScript, Html } from "next/document";
-import createEmotionServer from "@emotion/server/create-instance";
 import React from "react";
+import createEmotionServer from "@emotion/server/create-instance";
+import Document, { Head, Html,Main, NextScript } from "next/document";
+
 import { customColors } from "@src/utils/colors";
+import createEmotionCache from "@src/utils/createEmotionCache";
 
 export default class MyDocument extends Document {
   render() {

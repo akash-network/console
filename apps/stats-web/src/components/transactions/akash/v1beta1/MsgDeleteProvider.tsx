@@ -1,5 +1,5 @@
-import { TransactionMessage } from "@/types";
 import { DynamicReactJson } from "@/components/DynamicJsonView";
+import { TransactionMessage } from "@/types";
 
 type TxMessageProps = {
   message: TransactionMessage;

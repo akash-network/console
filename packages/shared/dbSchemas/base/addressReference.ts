@@ -1,8 +1,9 @@
-import { BelongsTo, Column, Model, Table } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
+import { BelongsTo, Column, Model, Table } from "sequelize-typescript";
+
+import { Required } from "../decorators/requiredDecorator";
 import { Message } from "./message";
 import { Transaction } from "./transaction";
-import { Required } from "../decorators/requiredDecorator";
 
 @Table({
   modelName: "addressReference",

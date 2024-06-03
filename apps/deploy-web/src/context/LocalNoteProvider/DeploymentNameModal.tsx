@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { updateDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
-import { Popup } from "@src/components/shared/Popup";
-import { InputWithIcon } from "@src/components/ui/input";
+import { Controller,useForm } from "react-hook-form";
 import { useSnackbar } from "notistack";
+
+import { Popup } from "@src/components/shared/Popup";
 import { Snackbar } from "@src/components/shared/Snackbar";
+import { InputWithIcon } from "@src/components/ui/input";
+import { updateDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 
 export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName }) => {
   const formRef = useRef<HTMLFormElement | null>(null);

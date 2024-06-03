@@ -1,7 +1,8 @@
-import { Level } from "level";
 import fs from "fs";
-import { bytesToHumanReadableSize } from "@src/shared/utils/files";
+import { Level } from "level";
+
 import { dataFolderPath } from "@src/shared/constants";
+import { bytesToHumanReadableSize } from "@src/shared/utils/files";
 
 const path = require("path");
 

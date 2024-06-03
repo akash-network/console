@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { getProviderActiveLeasesGraphData } from "@src/services/db/statsService";
 import { isValidBech32Address } from "@src/utils/addresses";
 import { openApiExampleProviderAddress } from "@src/utils/constants";

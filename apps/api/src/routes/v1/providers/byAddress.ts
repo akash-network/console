@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { getProviderDetail } from "@src/services/db/providerStatusService";
 import { openApiExampleProviderAddress } from "@src/utils/constants";
 

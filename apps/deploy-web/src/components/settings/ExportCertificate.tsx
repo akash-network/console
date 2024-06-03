@@ -1,11 +1,12 @@
 "use client";
 import { useEffect } from "react";
-import { useSelectedWalletFromStorage } from "@src/utils/walletUtils";
 import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
+
+import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import { Popup } from "@src/components/shared/Popup";
 import { Alert } from "@src/components/ui/alert";
-import { CodeSnippet } from "@src/components/shared/CodeSnippet";
+import { AnalyticsEvents } from "@src/utils/analytics";
+import { useSelectedWalletFromStorage } from "@src/utils/walletUtils";
 
 export function ExportCertificate({ isOpen, onClose }: React.PropsWithChildren<{ isOpen: boolean; onClose: () => void }>) {
   const selectedWallet = useSelectedWalletFromStorage();

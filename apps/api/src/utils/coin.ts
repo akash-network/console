@@ -1,6 +1,6 @@
-import { Coin } from "cosmjs-types/cosmos/base/v1beta1/coin";
 import { asset_lists } from '@chain-registry/assets';
 import * as Sentry from "@sentry/node";
+import { Coin } from "cosmjs-types/cosmos/base/v1beta1/coin";
 
 export function coinToAsset(coin: Coin) {
   try {

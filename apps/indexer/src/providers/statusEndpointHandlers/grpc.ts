@@ -1,11 +1,11 @@
+import { NodeResources } from "@akashnetwork/akash-api/akash/inventory/v1";
 import { ResourcesMetric, Status } from "@akashnetwork/akash-api/akash/provider/v1";
 import { ProviderRPCClient } from "@akashnetwork/akash-api/akash/provider/v1/grpc-js";
-import { NodeResources } from "@akashnetwork/akash-api/akash/inventory/v1";
 import { Empty } from "@akashnetwork/akash-api/google/protobuf";
-import { promisify } from "util";
-import memoize from "lodash/memoize";
-
 import { Provider } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import memoize from "lodash/memoize";
+import { promisify } from "util";
+
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
 import { FakeInsecureCredentials } from "./fake-insecure-credentials";
 import { ProviderStatusInfo } from "./types";

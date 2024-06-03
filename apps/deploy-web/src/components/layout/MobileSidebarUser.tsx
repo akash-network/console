@@ -1,16 +1,17 @@
 "use client";
 import { ReactNode } from "react";
+import { BookStack, LogOut,MediaImageList, Settings } from "iconoir-react";
 import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
+
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { SidebarRouteButton } from "./SidebarRouteButton";
-import { WalletStatus } from "./WalletStatus";
-import { Separator } from "../ui/separator";
+import { cn } from "@src/utils/styleUtils";
+import { UrlService } from "@src/utils/urlUtils";
 import Spinner from "../shared/Spinner";
 import { Avatar } from "../ui/avatar";
-import { BookStack, MediaImageList, Settings, LogOut } from "iconoir-react";
 import { buttonVariants } from "../ui/button";
-import { cn } from "@src/utils/styleUtils";
+import { Separator } from "../ui/separator";
+import { SidebarRouteButton } from "./SidebarRouteButton";
+import { WalletStatus } from "./WalletStatus";
 
 // const useStyles = makeStyles()(theme => ({
 //   list: {

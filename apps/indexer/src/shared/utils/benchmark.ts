@@ -1,4 +1,5 @@
 import { performance } from "perf_hooks";
+
 import { getPrettyTime } from "./date";
 import { round } from "./math";
 
@@ -11,7 +12,7 @@ type BenchmarkDetails = {
   frequency: number;
 };
 
-let benchmarkTimes: { [key: string]: BenchmarkDetails } = {};
+const benchmarkTimes: { [key: string]: BenchmarkDetails } = {};
 let firstTime = null;
 let lastTime = null;
 let activeTimer = null;
@@ -69,7 +70,7 @@ export function startTimer(name: string) {
     };
   }
 
-  let oldActiveTimer = activeTimer;
+  const oldActiveTimer = activeTimer;
   activeTimer = name;
 
   if (!firstTime) {

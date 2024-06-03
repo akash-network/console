@@ -1,18 +1,18 @@
 "use client";
-import React, { useState, useCallback, useEffect } from "react";
-import axios from "axios";
-import { useSnackbar } from "notistack";
+import React, { useCallback, useEffect,useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-
-import { useSettings } from "../SettingsProvider";
-import { networkVersion } from "@src/utils/constants";
-import { Snackbar } from "@src/components/shared/Snackbar";
-import { getSelectedStorageWallet, getStorageWallets, updateWallet } from "@src/utils/walletUtils";
-import { useWallet } from "../WalletProvider";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import axios from "axios";
 import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
+import { useSnackbar } from "notistack";
+
+import { Snackbar } from "@src/components/shared/Snackbar";
 import { RestApiCertificatesResponseType } from "@src/types/certificate";
+import { AnalyticsEvents } from "@src/utils/analytics";
+import { networkVersion } from "@src/utils/constants";
+import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import { getSelectedStorageWallet, getStorageWallets, updateWallet } from "@src/utils/walletUtils";
+import { useSettings } from "../SettingsProvider";
+import { useWallet } from "../WalletProvider";
 
 export type LocalCert = {
   certPem: string;

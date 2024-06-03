@@ -1,7 +1,8 @@
 import { Provider, ProviderSnapshot, ProviderSnapshotNode } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import semver from "semver";
+
 import { Auditor, ProviderAttributesSchema, ProviderList } from "@src/types/provider";
 import { createFilterUnique } from "../array/array";
-import semver from "semver";
 
 export const mapProviderToList = (
   provider: Provider,

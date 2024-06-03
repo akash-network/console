@@ -1,7 +1,6 @@
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
-
-import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion, parseSizeStr } from "./helpers";
 import { defaultInitialDeposit } from "../constants";
+import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion, parseSizeStr } from "./helpers";
 
 export const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
 

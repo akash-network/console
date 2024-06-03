@@ -1,13 +1,14 @@
+import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import { Message, Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { fromBase64, fromBech32, toBech32, toHex } from "@cosmjs/encoding";
 import { MsgCreateValidator, MsgEditValidator } from "cosmjs-types/cosmos/staking/v1beta1/tx";
+import { Transaction as DbTransaction } from "sequelize";
+
+import { IGenesis, IGenesisValidator, IGentxCreateValidator } from "@src/chain/genesisTypes";
+import { sequelize } from "@src/db/dbConnection";
+import { pubkeyToRawAddress } from "@src/shared/utils/addresses";
 import * as benchmark from "../shared/utils/benchmark";
 import { Indexer } from "./indexer";
-import { fromBase64, fromBech32, toBech32, toHex } from "@cosmjs/encoding";
-import { IGenesis, IGenesisValidator, IGentxCreateValidator } from "@src/chain/genesisTypes";
-import { pubkeyToRawAddress } from "@src/shared/utils/addresses";
-import { sequelize } from "@src/db/dbConnection";
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { Transaction as DbTransaction } from "sequelize";
 
 export class ValidatorIndexer extends Indexer {
   msgHandlers: { [key: string]: (msgSubmitProposal: any, height: number, blockGroupTransaction: DbTransaction, msg: Message) => Promise<void> };

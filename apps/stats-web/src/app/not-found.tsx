@@ -1,9 +1,10 @@
+import { ArrowLeft } from "iconoir-react";
+import { Metadata } from "next";
 import Link from "next/link";
+
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { UrlService } from "@/lib/urlUtils";
-import { ArrowLeft } from "iconoir-react";
-import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Page not found"

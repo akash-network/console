@@ -1,8 +1,9 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import axios from "axios";
+
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { GpuVendor, ProviderConfigGpusType } from "@src/types/gpu";
 import { getGpuInterface } from "@src/utils/gpu";
-import axios from "axios";
 
 const route = createRoute({
   method: "get",

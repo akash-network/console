@@ -1,11 +1,12 @@
 import { useQuery } from "react-query";
-import { QueryKeys } from "./queryKeys";
 import axios from "axios";
-import { ApiUrlService } from "@src/utils/apiUtils";
-import { getNetworkCapacityDto, providerStatusToDto } from "@src/utils/providerUtils";
-import { PROVIDER_PROXY_URL } from "@src/utils/constants";
+
 import { ApiProviderDetail, ApiProviderList, ApiProviderRegion, Auditor } from "@src/types/provider";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
+import { ApiUrlService } from "@src/utils/apiUtils";
+import { PROVIDER_PROXY_URL } from "@src/utils/constants";
+import { getNetworkCapacityDto, providerStatusToDto } from "@src/utils/providerUtils";
+import { QueryKeys } from "./queryKeys";
 
 async function getProviderDetail(owner: string): Promise<ApiProviderDetail | null> {
   if (!owner) return null;

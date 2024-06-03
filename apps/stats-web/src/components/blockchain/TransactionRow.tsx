@@ -1,4 +1,7 @@
 "use client";
+import { FormattedRelativeTime } from "react-intl";
+import Link from "next/link";
+
 import { AKTAmount } from "@/components/AKTAmount";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -6,8 +9,6 @@ import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
 import { getSplitText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";
 import { BlockTransaction } from "@/types";
-import Link from "next/link";
-import { FormattedRelativeTime } from "react-intl";
 
 type Props = {
   errors?: string;

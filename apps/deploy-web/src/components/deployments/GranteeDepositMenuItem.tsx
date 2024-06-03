@@ -1,11 +1,12 @@
 "use client";
 import React, { ReactNode } from "react";
-import { Address } from "../shared/Address";
 import { FormattedDate } from "react-intl";
-import { coinToUDenom } from "@src/utils/priceUtils";
-import { GrantType } from "@src/types/grant";
-import { AKTAmount } from "../shared/AKTAmount";
+
 import { useDenomData } from "@src/hooks/useWalletBalance";
+import { GrantType } from "@src/types/grant";
+import { coinToUDenom } from "@src/utils/priceUtils";
+import { Address } from "../shared/Address";
+import { AKTAmount } from "../shared/AKTAmount";
 
 type Props = {
   grant: GrantType;

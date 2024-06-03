@@ -1,17 +1,18 @@
 "use client";
-import { ReactNode, useImperativeHandle, forwardRef } from "react";
+import { forwardRef,ReactNode, useImperativeHandle } from "react";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { SdlBuilderFormValues, Service } from "@src/types";
-import { nanoid } from "nanoid";
-import { Card, CardContent } from "../ui/card";
-import { Button } from "../ui/button";
-import { Bin, InfoCircle } from "iconoir-react";
-import { Tooltip, TooltipTrigger } from "../ui/tooltip";
 import { TooltipContent } from "@radix-ui/react-tooltip";
+import { Bin, InfoCircle } from "iconoir-react";
+import { nanoid } from "nanoid";
+
+import { SdlBuilderFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { FormPaper } from "./FormPaper";
 import { CustomTooltip } from "../shared/CustomTooltip";
+import { Button } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Tooltip, TooltipTrigger } from "../ui/tooltip";
+import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;

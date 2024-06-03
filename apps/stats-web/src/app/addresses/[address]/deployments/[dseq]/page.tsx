@@ -1,10 +1,12 @@
 import { Metadata, ResolvingMetadata } from "next";
-import { UrlService } from "@/lib/urlUtils";
-import PageContainer from "@/components/PageContainer";
+
 import { DeploymentInfo } from "./DeploymentInfo";
-import { getNetworkBaseApiUrl } from "@/lib/constants";
-import { DeploymentDetail } from "@/types";
+
+import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
+import { getNetworkBaseApiUrl } from "@/lib/constants";
+import { UrlService } from "@/lib/urlUtils";
+import { DeploymentDetail } from "@/types";
 
 interface IProps {
   params: { address: string; dseq: string };

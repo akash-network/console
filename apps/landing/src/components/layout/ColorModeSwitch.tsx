@@ -1,6 +1,7 @@
 import React from "react";
-import { useColorMode } from "../../context/CustomThemeContext";
 import { styled, Switch } from "@mui/material";
+
+import { useColorMode } from "../../context/CustomThemeContext";
 
 export const ColorModeSwitch = () => {
   const { mode, toggleMode } = useColorMode();

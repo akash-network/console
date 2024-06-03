@@ -1,19 +1,20 @@
-import { sha256 } from "js-sha256";
-import { getCachedBlockByHeight } from "@src/chain/dataStore";
-import { Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
-import { lastBlockToSync } from "@src/shared/constants";
-import { decodeMsg } from "@src/shared/utils/protobuf";
-import { activeIndexers, indexersMsgTypes } from "@src/indexers";
-import * as benchmark from "@src/shared/utils/benchmark";
-import { getGenesis } from "./genesisImporter";
-import { sequelize } from "@src/db/dbConnection";
 import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { Op, Transaction as DbTransaction } from "sequelize";
 import { Block, Message } from "@akashnetwork/cloudmos-shared/dbSchemas";
 import { AkashMessage } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { setMissingBlock } from "./chainSync";
-import { decodeTxRaw } from "@cosmjs/proto-signing";
+import { Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { fromBase64 } from "@cosmjs/encoding";
+import { decodeTxRaw } from "@cosmjs/proto-signing";
+import { sha256 } from "js-sha256";
+import { Op, Transaction as DbTransaction } from "sequelize";
+
+import { getCachedBlockByHeight } from "@src/chain/dataStore";
+import { sequelize } from "@src/db/dbConnection";
+import { activeIndexers, indexersMsgTypes } from "@src/indexers";
+import { lastBlockToSync } from "@src/shared/constants";
+import * as benchmark from "@src/shared/utils/benchmark";
+import { decodeMsg } from "@src/shared/utils/protobuf";
+import { setMissingBlock } from "./chainSync";
+import { getGenesis } from "./genesisImporter";
 
 class StatsProcessor {
   private cacheInitialized: boolean = false;

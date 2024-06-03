@@ -1,7 +1,8 @@
-import { Op } from "sequelize";
-import { Day } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { AkashBlock as Block } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import { Day } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { add } from "date-fns";
+import { Op } from "sequelize";
+
 import { getTodayUTC } from "@src/utils";
 import { round, uaktToAKT, udenomToDenom } from "@src/utils/math";
 

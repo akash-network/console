@@ -1,10 +1,11 @@
 "use client";
-import { ResponsivePie } from "@nivo/pie";
-import { bytesToShrink } from "@src/utils/unitUtils";
-import { roundDecimal } from "@src/utils/mathHelpers";
-import { useTheme } from "next-themes";
-import useTailwind from "@src/hooks/useTailwind";
 import { useIntl } from "react-intl";
+import { ResponsivePie } from "@nivo/pie";
+import { useTheme } from "next-themes";
+
+import useTailwind from "@src/hooks/useTailwind";
+import { roundDecimal } from "@src/utils/mathHelpers";
+import { bytesToShrink } from "@src/utils/unitUtils";
 
 type Props = {
   activeCPU: number;

@@ -1,7 +1,8 @@
 import { Provider } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { sequelize } from "@src/db/dbConnection";
 import { secondsInDay } from "date-fns";
 import { QueryTypes } from "sequelize";
+
+import { sequelize } from "@src/db/dbConnection";
 
 export async function updateProviderUptime() {
   console.log("Updating provider uptimes.");

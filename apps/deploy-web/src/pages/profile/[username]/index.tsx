@@ -1,7 +1,8 @@
-import { BASE_API_MAINNET_URL } from "@src/utils/constants";
-import { IUserSetting } from "@src/types/user";
 import axios from "axios";
+
 import { UserProfile } from "@src/components/user/UserProfile";
+import { IUserSetting } from "@src/types/user";
+import { BASE_API_MAINNET_URL } from "@src/utils/constants";
 
 type Props = {
   username: string;

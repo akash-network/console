@@ -1,12 +1,13 @@
 "use client";
 import React from "react";
 import { useEffect } from "react";
-import { uAktDenom } from "@src/utils/constants";
-import { useSettings } from "../SettingsProvider";
+
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useDepositParams } from "@src/queries/useSettings";
-import { uaktToAKT } from "@src/utils/priceUtils";
+import { uAktDenom } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
+import { uaktToAKT } from "@src/utils/priceUtils";
+import { useSettings } from "../SettingsProvider";
 
 type MinDeposit = {
   akt: number;

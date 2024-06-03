@@ -1,6 +1,7 @@
 import { Template, TemplateFavorite, UserSetting } from "@akashnetwork/cloudmos-shared/dbSchemas/user";
-import * as uuid from "uuid";
 import { Op } from "sequelize";
+import * as uuid from "uuid";
+
 import { toUTC } from "@src/utils";
 
 export async function getTemplateById(id: string, userId: string = "") {

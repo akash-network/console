@@ -1,23 +1,24 @@
-import packageJson from "../package.json";
-import { isProd } from "./utils/constants";
-import * as Sentry from "@sentry/node";
-import { Scheduler } from "./scheduler";
-import { apiRouter } from "./routers/apiRouter";
-import { userRouter } from "./routers/userRouter";
-import { web3IndexRouter } from "./routers/web3indexRouter";
-import { bytesToHumanReadableSize } from "./utils/files";
-import { env } from "./utils/env";
-import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
-import { dashboardRouter } from "./routers/dashboardRouter";
-import { Hono } from "hono";
-import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
-import { legacyRouter } from "./routers/legacyRouter";
 // TODO: find out how to properly import this
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 import { sentry } from "@hono/sentry";
+import * as Sentry from "@sentry/node";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+
+import packageJson from "../package.json";
+import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
+import { apiRouter } from "./routers/apiRouter";
+import { dashboardRouter } from "./routers/dashboardRouter";
 import { internalRouter } from "./routers/internalRouter";
+import { legacyRouter } from "./routers/legacyRouter";
+import { userRouter } from "./routers/userRouter";
+import { web3IndexRouter } from "./routers/web3indexRouter";
+import { isProd } from "./utils/constants";
+import { env } from "./utils/env";
+import { bytesToHumanReadableSize } from "./utils/files";
+import { Scheduler } from "./scheduler";
 
 const appHono = new Hono();
 appHono.use(

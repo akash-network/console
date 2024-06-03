@@ -1,9 +1,10 @@
 "use client";
-import { bytesToShrink } from "@src/utils/unitUtils";
-import { roundDecimal } from "@src/utils/mathHelpers";
-import { cn } from "@src/utils/styleUtils";
 import { MdDeveloperBoard, MdMemory, MdSpeed, MdStorage } from "react-icons/md";
 import LinearProgress from "@mui/material/LinearProgress";
+
+import { roundDecimal } from "@src/utils/mathHelpers";
+import { cn } from "@src/utils/styleUtils";
+import { bytesToShrink } from "@src/utils/unitUtils";
 
 export function SpecDetailList({ cpuAmount, memoryAmount, storageAmount, gpuAmount = 0, isActive }) {
   const memory = bytesToShrink(memoryAmount);

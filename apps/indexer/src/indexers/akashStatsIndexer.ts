@@ -1,13 +1,7 @@
-import * as benchmark from "../shared/utils/benchmark";
 import * as v1beta1 from "@akashnetwork/akash-api/v1beta1";
 import * as v1beta2 from "@akashnetwork/akash-api/v1beta2";
 import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
 import * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
-import * as uuid from "uuid";
-import { uint8arrayToString } from "@src/shared/utils/protobuf";
-import { accountSettle } from "@src/shared/utils/akashPaymentSettle";
-import { Indexer } from "./indexer";
-import { getAmountFromCoin } from "@src/shared/utils/coin";
 import {
   Bid,
   Deployment,
@@ -24,6 +18,13 @@ import {
 } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
 import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
 import { Op, Transaction as DbTransaction } from "sequelize";
+import * as uuid from "uuid";
+
+import { accountSettle } from "@src/shared/utils/akashPaymentSettle";
+import { getAmountFromCoin } from "@src/shared/utils/coin";
+import { uint8arrayToString } from "@src/shared/utils/protobuf";
+import * as benchmark from "../shared/utils/benchmark";
+import { Indexer } from "./indexer";
 
 class ITotalResources {
   count: number;

@@ -1,7 +1,8 @@
 import React from "react";
-import { UrlService } from "@src/utils/urlUtils";
+import { Copyright, Discord,Github, X as TwitterX, Youtube } from "iconoir-react";
 import Link from "next/link";
-import { Copyright, Youtube, X as TwitterX, Github, Discord } from "iconoir-react";
+
+import { UrlService } from "@src/utils/urlUtils";
 import { Title } from "../shared/Title";
 
 export interface IFooterProps {}

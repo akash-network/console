@@ -1,13 +1,14 @@
 "use client";
+import { FormattedDate, useIntl } from "react-intl";
 import { ResponsiveLineCanvas } from "@nivo/line";
-import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@/types";
+import { useTheme } from "next-themes";
+import { useMediaQuery } from "usehooks-ts";
+
+import { customColors } from "@/lib/colors";
 import { selectedRangeValues } from "@/lib/constants";
 import { nFormatter, roundDecimal } from "@/lib/mathHelpers";
-import { FormattedDate, useIntl } from "react-intl";
-import { useTheme } from "next-themes";
-import { customColors } from "@/lib/colors";
-import { useMediaQuery } from "usehooks-ts";
 import { breakpoints } from "@/lib/responsiveUtils";
+import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@/types";
 
 interface IGraphProps {
   rangedData: SnapshotValue[];

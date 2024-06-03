@@ -1,5 +1,6 @@
 "use client";
-import { useState, useRef, ReactNode, useEffect, CSSProperties } from "react";
+import { CSSProperties,ReactNode, useEffect, useRef, useState } from "react";
+
 import { useWindowSize } from "@src/hooks/useWindowSize";
 
 type Props = {

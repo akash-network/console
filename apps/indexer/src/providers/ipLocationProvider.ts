@@ -1,7 +1,8 @@
 import { Provider } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { sleep } from "@src/shared/utils/delay";
 import axios from "axios";
 import dns from "dns/promises";
+
+import { sleep } from "@src/shared/utils/delay";
 
 const IpLookupDelay = 2_000;
 

@@ -1,14 +1,15 @@
+import { Octokit } from "@octokit/rest";
+import * as fs from "fs";
+import { markdownToTxt } from "markdown-to-txt";
 import fetch from "node-fetch";
 import path from "path";
-import { markdownToTxt } from "markdown-to-txt";
-import { getOctokit } from "./githubService";
-import { isUrlAbsolute } from "@src/utils/urls";
-import { Octokit } from "@octokit/rest";
-import { dataFolderPath } from "@src/utils/constants";
+
 import { GithubChainRegistryChainResponse } from "@src/types";
 import { GithubDirectoryItem } from "@src/types/github";
+import { dataFolderPath } from "@src/utils/constants";
 import { getLogoFromPath } from "@src/utils/templateReposLogos";
-import * as fs from "fs";
+import { isUrlAbsolute } from "@src/utils/urls";
+import { getOctokit } from "./githubService";
 
 const generatingTasks: { [key: string]: Promise<Category[]> } = {};
 let lastServedData: FinalCategory[] | null = null;

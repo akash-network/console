@@ -1,14 +1,16 @@
 import React from "react";
-import { getNetworkBaseApiUrl } from "@/lib/constants";
-import { TransactionDetail } from "@/types";
-import { getSplitText } from "@/hooks/useShortText";
 import { Metadata, ResolvingMetadata } from "next";
+
+import { TransactionInfo } from "./TransactionInfo";
+
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { Card, CardContent } from "@/components/ui/card";
-import { TransactionInfo } from "./TransactionInfo";
 import { TxMessageRow } from "@/components/transactions/TxMessageRow";
 import { Alert } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
+import { getSplitText } from "@/hooks/useShortText";
+import { getNetworkBaseApiUrl } from "@/lib/constants";
+import { TransactionDetail } from "@/types";
 
 interface IProps {
   params: { hash: string };

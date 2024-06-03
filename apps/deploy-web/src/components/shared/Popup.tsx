@@ -1,13 +1,14 @@
 import * as React from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { ErrorFallback } from "./ErrorFallback";
-import { ButtonProps, Button } from "../ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle as _DialogTitle } from "../ui/dialog";
 import { DialogProps } from "@radix-ui/react-dialog";
-import Spinner from "./Spinner";
-import { InputWithIcon } from "../ui/input";
+
 import { cn } from "@src/utils/styleUtils";
+import { Button,ButtonProps } from "../ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle as _DialogTitle } from "../ui/dialog";
+import { InputWithIcon } from "../ui/input";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
+import { ErrorFallback } from "./ErrorFallback";
+import Spinner from "./Spinner";
 
 type MessageProps = {
   variant: "message";

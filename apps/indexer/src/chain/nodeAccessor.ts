@@ -1,7 +1,8 @@
+import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import fs from "fs";
+
 import { concurrentNodeQuery, dataFolderPath } from "@src/shared/constants";
 import { sleep } from "@src/shared/utils/delay";
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import { NodeInfo, NodeStatus, SavedNodeInfo } from "./nodeInfo";
 
 interface NodeAccessorSettings {

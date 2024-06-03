@@ -1,12 +1,13 @@
 "use client";
-import { ApiTemplate } from "@src/types";
-import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
-import { getShortText } from "@src/utils/stringUtils";
 import { MediaImage } from "iconoir-react";
-import { cn } from "@src/utils/styleUtils";
-import { CardContent, CardHeader, cardClasses } from "@src/components/ui/card";
+import Link from "next/link";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@src/components/ui/avatar";
+import { cardClasses,CardContent, CardHeader } from "@src/components/ui/card";
+import { ApiTemplate } from "@src/types";
+import { getShortText } from "@src/utils/stringUtils";
+import { cn } from "@src/utils/styleUtils";
+import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
   template: ApiTemplate;

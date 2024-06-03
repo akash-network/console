@@ -1,10 +1,11 @@
 "use client";
 import * as React from "react";
+import { useEffect, useState } from "react";
+import { HalfMoon,SunLight } from "iconoir-react";
 import { useTheme } from "next-themes";
+
 import { Button } from "@src/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@src/components/ui/dropdown-menu";
-import { useEffect, useState } from "react";
-import { SunLight, HalfMoon } from "iconoir-react";
 import { cn } from "@src/utils/styleUtils";
 
 export function ModeToggle() {

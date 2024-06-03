@@ -1,9 +1,10 @@
 "use client";
-import { useState, MouseEvent } from "react";
-import { AuditorsModal } from "./AuditorsModal";
+import { MouseEvent,useState } from "react";
+import { BadgeCheck } from "iconoir-react";
+
 import { ClientProviderDetailWithStatus, ClientProviderList } from "@src/types/provider";
 import { Button } from "../ui/button";
-import { BadgeCheck } from "iconoir-react";
+import { AuditorsModal } from "./AuditorsModal";
 
 type Props = {
   provider: ClientProviderList | Partial<ClientProviderDetailWithStatus>;

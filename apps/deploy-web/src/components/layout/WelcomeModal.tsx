@@ -1,9 +1,10 @@
 "use client";
+import { useTheme } from "next-themes";
+
+import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
 import { Popup } from "../shared/Popup";
 import { Title } from "../shared/Title";
 import { Card, CardContent } from "../ui/card";
-import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
-import { useTheme } from "next-themes";
 
 export const WelcomeModal = ({ open, onClose }) => {
   const { resolvedTheme } = useTheme();

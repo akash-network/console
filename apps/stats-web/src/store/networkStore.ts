@@ -1,8 +1,9 @@
+import axios from "axios";
+import { atom } from "jotai";
+
 import { ApiUrlService } from "@/lib/apiUtils";
 import { mainnetId, sandboxId, testnetId } from "@/lib/constants";
 import { Network } from "@/types/network";
-import axios from "axios";
-import { atom } from "jotai";
 
 export let networks: Network[] = [
   {

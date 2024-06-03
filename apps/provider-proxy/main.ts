@@ -1,13 +1,14 @@
-import express, { Express, Request, Response } from "express";
-import fetch, { Headers } from "node-fetch";
-import http from "http";
-import WebSocket from "ws";
 import cors from "cors";
+import express, { Express, Request, Response } from "express";
+import http from "http";
 import { Agent } from "https";
+import fetch, { Headers } from "node-fetch";
 import { v4 as uuidv4 } from "uuid";
+import WebSocket from "ws";
+
 import { ClientWebSocketStats, WebSocketUsage } from "./clientSocketStats";
-import { humanFileSize } from "./sizeUtils";
 import packageJson from "./package.json";
+import { humanFileSize } from "./sizeUtils";
 
 const app: Express = express();
 
@@ -85,7 +86,7 @@ app.get("/status", async (req: Request, res: Response) => {
 app.post("/", async (req: Request, res: Response, next) => {
   const { certPem, keyPem, method, body, url } = req.body;
 
-  var myHeaders = new Headers();
+  const myHeaders = new Headers();
   myHeaders.append("Content-Type", "application/json");
 
   try {
@@ -248,7 +249,7 @@ httpServer.on("upgrade", (request, socket, head) => {
   });
 });
 
-let openSocket: { [key: string]: WebSocket } = {};
+const openSocket: { [key: string]: WebSocket } = {};
 
 process.on("uncaughtException", error => {
   console.error(error);

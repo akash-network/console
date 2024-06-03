@@ -1,8 +1,8 @@
 import { UserSetting } from "@akashnetwork/cloudmos-shared/dbSchemas/user";
 import { PlanCode } from "@akashnetwork/cloudmos-shared/plans";
-import { env } from "@src/utils/env";
-
 import Stripe from "stripe";
+
+import { env } from "@src/utils/env";
 
 const stripe = new Stripe(process.env.StripeSecretKey, { apiVersion: "2022-08-01" });
 

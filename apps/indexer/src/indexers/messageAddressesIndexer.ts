@@ -1,16 +1,17 @@
+import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import { AddressReference, Message, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
-import { MsgSend, MsgMultiSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
+import { toBech32 } from "@cosmjs/encoding";
+import { DecodedTxRaw, decodePubkey } from "@cosmjs/proto-signing";
+import { MsgMultiSend,MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
 import { MsgFundCommunityPool } from "cosmjs-types/cosmos/distribution/v1beta1/tx";
 import { MsgDeposit } from "cosmjs-types/cosmos/gov/v1beta1/tx";
 import { MsgBeginRedelegate, MsgDelegate, MsgUndelegate } from "cosmjs-types/cosmos/staking/v1beta1/tx";
-import * as benchmark from "../shared/utils/benchmark";
-import { Indexer } from "./indexer";
-import { toBech32 } from "@cosmjs/encoding";
-import { DecodedTxRaw, decodePubkey } from "@cosmjs/proto-signing";
+import { Transaction as DbTransaction } from "sequelize";
+
 import { rawSecp256k1PubkeyToRawAddress } from "@src/shared/utils/addresses";
 import { getAmountFromCoin, getAmountFromCoinArray } from "@src/shared/utils/coin";
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { Transaction as DbTransaction } from "sequelize";
+import * as benchmark from "../shared/utils/benchmark";
+import { Indexer } from "./indexer";
 
 export class MessageAddressesIndexer extends Indexer {
   constructor() {

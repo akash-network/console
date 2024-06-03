@@ -1,5 +1,10 @@
 "use client";
 
+import { FormattedNumber, FormattedTime } from "react-intl";
+import Link from "next/link";
+
+import { EventRow } from "./EventRow";
+
 import { Address } from "@/components/Address";
 import { LabelValue } from "@/components/LabelValue";
 import { LeaseSpecDetail } from "@/components/LeaseSpecDetail";
@@ -13,9 +18,6 @@ import { roundDecimal, udenomToDenom } from "@/lib/mathHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
 import { UrlService } from "@/lib/urlUtils";
 import { DeploymentDetail } from "@/types";
-import Link from "next/link";
-import { FormattedNumber, FormattedTime } from "react-intl";
-import { EventRow } from "./EventRow";
 
 interface IProps {
   deployment: DeploymentDetail;

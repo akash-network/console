@@ -1,11 +1,12 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { sub } from "date-fns";
+import * as semver from "semver";
+import { QueryTypes } from "sequelize";
+
 import { chainDb } from "@src/db/dbConnection";
 import { toUTC } from "@src/utils";
 import { env } from "@src/utils/env";
 import { round } from "@src/utils/math";
-import { sub } from "date-fns";
-import * as semver from "semver";
-import { QueryTypes } from "sequelize";
 
 const route = createRoute({
   method: "get",

@@ -1,10 +1,11 @@
 "use client";
 
+import React from "react";
+
 import { useUsdcDenom } from "@/hooks/useDenom";
 import { uAktDenom } from "@/lib/constants";
 import { roundDecimal } from "@/lib/mathHelpers";
 import { useMarketData } from "@/queries";
-import React from "react";
 
 type ContextType = {
   isLoaded: boolean;

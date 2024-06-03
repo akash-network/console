@@ -1,10 +1,12 @@
 "use client";
-import { AddressDetail } from "@/types";
-import { Card, CardContent } from "@/components/ui/card";
 import React, { useState } from "react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { Delegations } from "./Delegations";
 import { Redelegations } from "./Redelegations";
+
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AddressDetail } from "@/types";
 
 interface IProps {
   address: string;

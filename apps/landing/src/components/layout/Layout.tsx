@@ -1,16 +1,17 @@
 import React, { ReactNode, useEffect, useState } from "react";
-import PageHead from "./PageHead";
-import Box from "@mui/material/Box";
-import { IntlProvider } from "react-intl";
 import { ErrorBoundary } from "react-error-boundary";
-import { ErrorFallback } from "../shared/ErrorFallback";
-import { Header } from "./Header";
-import { Fade, LinearProgress, useMediaQuery, useTheme } from "@mui/material";
-import { Footer } from "./Footer";
+import { IntlProvider } from "react-intl";
 import Wave from "react-wavify";
+import { Fade, LinearProgress, useMediaQuery, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
 import { makeStyles } from "tss-react/mui";
-import { headerHeight, mobileHeaderHeight } from "@src/utils/constants";
+
 import { useDocHeight } from "@src/hooks/useDocHeight";
+import { headerHeight, mobileHeaderHeight } from "@src/utils/constants";
+import { ErrorFallback } from "../shared/ErrorFallback";
+import { Footer } from "./Footer";
+import { Header } from "./Header";
+import PageHead from "./PageHead";
 
 type Props = {
   isLoading?: boolean;

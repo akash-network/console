@@ -1,6 +1,6 @@
+import { ReactNode } from "react";
 import { SxProps, Theme } from "@mui/material";
 import Container from "@mui/material/Container";
-import { ReactNode } from "react";
 
 type Props = {
   children?: ReactNode;

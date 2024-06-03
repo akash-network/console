@@ -1,17 +1,18 @@
 "use client";
 import React, { useState } from "react";
 import { FormattedNumber } from "react-intl";
-import { ProviderSnapshots } from "@src/types";
-import { percIncrease } from "@src/utils/mathHelpers";
-import { DiffPercentageChip } from "@src/components/shared/DiffPercentageChip";
-import { DiffNumber } from "@src/components/shared/DiffNumber";
 import dynamic from "next/dynamic";
-import { getSnapshotMetadata } from "@src/utils/providerUtils";
-import { useProviderActiveLeasesGraph } from "@src/queries/useProvidersQuery";
-import { ClientProviderDetailWithStatus } from "@src/types/provider";
+
+import { DiffNumber } from "@src/components/shared/DiffNumber";
+import { DiffPercentageChip } from "@src/components/shared/DiffPercentageChip";
 import Spinner from "@src/components/shared/Spinner";
 import { TimeRange } from "@src/components/shared/TimeRange";
+import { useProviderActiveLeasesGraph } from "@src/queries/useProvidersQuery";
+import { ProviderSnapshots } from "@src/types";
+import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { selectedRangeValues } from "@src/utils/constants";
+import { percIncrease } from "@src/utils/mathHelpers";
+import { getSnapshotMetadata } from "@src/utils/providerUtils";
 import { Title } from "../shared/Title";
 
 const Graph = dynamic(() => import("../graph/Graph"), {
@@ -35,7 +36,7 @@ export const ActiveLeasesGraph: React.FunctionComponent<IProps> = ({ provider })
       <div className="mb-1">
         <Title subTitle className="space-x-4 font-normal tracking-tight">
           <span>Active Leases</span>
-          {provider.name && <span className="text-sm text-muted-foreground">({provider.name})</span>}
+          {provider.name && <span className="text-muted-foreground text-sm">({provider.name})</span>}
         </Title>
       </div>
 

@@ -1,11 +1,13 @@
-import { TransactionMessage } from "@/types";
-import { UrlService } from "@/lib/urlUtils";
-import { AddressLink } from "@/components/AddressLink";
 import Link from "next/link";
+
 import { LabelValue } from "../../../LabelValue";
-import { coinsToAmount } from "@/lib/mathHelpers";
+
+import { AddressLink } from "@/components/AddressLink";
 import { AKTAmount } from "@/components/AKTAmount";
 import { DynamicReactJson } from "@/components/DynamicJsonView";
+import { coinsToAmount } from "@/lib/mathHelpers";
+import { UrlService } from "@/lib/urlUtils";
+import { TransactionMessage } from "@/types";
 
 type TxMessageProps = {
   message: TransactionMessage;

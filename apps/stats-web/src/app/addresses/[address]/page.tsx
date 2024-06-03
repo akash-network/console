@@ -1,13 +1,15 @@
-import { AddressDetail } from "@/types";
-import { getNetworkBaseApiUrl } from "@/lib/constants";
 import { Metadata, ResolvingMetadata } from "next";
-import AddressLayout from "./AddressLayout";
+
 import { AddressInfo } from "./AddressInfo";
-import { Title } from "@/components/Title";
-import { UrlService } from "@/lib/urlUtils";
-import { AssetList } from "./AssetList";
+import AddressLayout from "./AddressLayout";
 import { AssetAllocation } from "./AssetAllocation";
+import { AssetList } from "./AssetList";
 import { LatestTransactions } from "./LatestTransactions";
+
+import { Title } from "@/components/Title";
+import { getNetworkBaseApiUrl } from "@/lib/constants";
+import { UrlService } from "@/lib/urlUtils";
+import { AddressDetail } from "@/types";
 
 interface IProps {
   params: { address: string };

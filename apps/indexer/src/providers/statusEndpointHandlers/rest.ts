@@ -1,6 +1,7 @@
 import { Provider } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
 import axios from "axios";
 import https from "https";
+
 import { ProviderStatusInfo } from "./types";
 
 export async function fetchProviderStatusFromREST(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {

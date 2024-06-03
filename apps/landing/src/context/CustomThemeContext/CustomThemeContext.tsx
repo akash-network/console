@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { darken, PaletteMode } from "@mui/material";
-import { createTheme, ThemeProvider, ThemeOptions } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
-import { customColors } from "@src/utils/colors";
 import { grey } from "@mui/material/colors";
+import CssBaseline from "@mui/material/CssBaseline";
+import { createTheme, ThemeOptions,ThemeProvider } from "@mui/material/styles";
 import { useDarkMode } from "next-dark-mode";
+
+import { customColors } from "@src/utils/colors";
 
 type ContextType = {
   mode: string;

@@ -1,10 +1,12 @@
-import { TransactionMessage } from "@/types";
 import Link from "next/link";
+
 import { AddressLink } from "../../AddressLink";
 import { AKTAmount } from "../../AKTAmount";
 import { LabelValue } from "../../LabelValue";
-import { UrlService } from "@/lib/urlUtils";
+
 import { coinsToAmount } from "@/lib/mathHelpers";
+import { UrlService } from "@/lib/urlUtils";
+import { TransactionMessage } from "@/types";
 
 type TxMessageProps = {
   message: TransactionMessage;

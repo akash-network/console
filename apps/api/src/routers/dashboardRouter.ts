@@ -1,6 +1,7 @@
 import { Template, UserSetting } from "@akashnetwork/cloudmos-shared/dbSchemas/user";
-import { privateMiddleware } from "@src/middlewares/privateMiddleware";
 import { Hono } from "hono";
+
+import { privateMiddleware } from "@src/middlewares/privateMiddleware";
 
 export const dashboardRouter = new Hono();
 

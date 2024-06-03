@@ -1,12 +1,13 @@
 "use client";
-import { IRedelegationDetail } from "@/types";
-import Link from "next/link";
 import { FormattedRelativeTime } from "react-intl";
 import { SearchX } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { UrlService } from "@/lib/urlUtils";
+import Link from "next/link";
+
 import { AKTAmount } from "@/components/AKTAmount";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getShortText } from "@/hooks/useShortText";
+import { UrlService } from "@/lib/urlUtils";
+import { IRedelegationDetail } from "@/types";
 
 type Props = {
   redelegations: IRedelegationDetail[];

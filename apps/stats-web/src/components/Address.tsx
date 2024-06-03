@@ -1,9 +1,11 @@
 "use client";
 import React, { ReactNode, useState } from "react";
-import { useToast } from "./ui/use-toast";
-import { copyTextToClipboard } from "@/lib/copyClipboard";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Copy } from "iconoir-react";
+
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { useToast } from "./ui/use-toast";
+
+import { copyTextToClipboard } from "@/lib/copyClipboard";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -17,7 +19,7 @@ type Props = {
 export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, disableTruncate, showIcon, ...rest }) => {
   const [isOver, setIsOver] = useState(false);
   const { toast } = useToast();
-  let formattedAddress = disableTruncate ? address : [address?.slice(0, 8), "...", address?.slice(address?.length - 5)].join("");
+  const formattedAddress = disableTruncate ? address : [address?.slice(0, 8), "...", address?.slice(address?.length - 5)].join("");
 
   const onClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (isCopyable) {

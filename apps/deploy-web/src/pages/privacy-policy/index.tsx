@@ -1,8 +1,9 @@
 import React from "react";
+
 import Layout from "@src/components/layout/Layout";
-import { Title } from "@src/components/shared/Title";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
-import { UrlService, domainName } from "@src/utils/urlUtils";
+import { Title } from "@src/components/shared/Title";
+import { domainName,UrlService } from "@src/utils/urlUtils";
 
 export function PrivacyPolicy() {
   return (

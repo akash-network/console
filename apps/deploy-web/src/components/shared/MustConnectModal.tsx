@@ -1,7 +1,8 @@
 "use client";
 import React from "react";
-import { Popup } from "./Popup";
+
 import { MustConnect } from "./MustConnect";
+import { Popup } from "./Popup";
 
 export type Props = {
   message: string;

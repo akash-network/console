@@ -1,15 +1,16 @@
+import { Edit } from "iconoir-react";
 import { NextSeo } from "next-seo";
-import { useAddressBook } from "@src/context/AddressBookProvider";
-import { AddressLink } from "@src/components/shared/AddressLink";
-import { useCustomUser } from "@src/hooks/useCustomUser";
 import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
-import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
-import { Card, CardContent } from "@src/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+
+import { AddressLink } from "@src/components/shared/AddressLink";
 import Spinner from "@src/components/shared/Spinner";
 import { Button } from "@src/components/ui/button";
-import { Edit } from "iconoir-react";
+import { Card, CardContent } from "@src/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
+import { useAddressBook } from "@src/context/AddressBookProvider";
+import { useCustomUser } from "@src/hooks/useCustomUser";
+import { AnalyticsEvents } from "@src/utils/analytics";
 import Layout from "../layout/Layout";
 
 type Props = {};

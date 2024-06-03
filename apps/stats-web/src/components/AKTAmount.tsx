@@ -1,7 +1,9 @@
 "use client";
-import { FormattedNumber, FormattedNumberParts } from "react-intl";
 import React from "react";
+import { FormattedNumber, FormattedNumberParts } from "react-intl";
+
 import { AKTLabel } from "./AKTLabel";
+
 import { usePricing } from "@/context/PricingProvider";
 import { udenomToDenom } from "@/lib/mathHelpers";
 

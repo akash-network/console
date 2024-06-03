@@ -1,8 +1,10 @@
-import { QueryKey, UseQueryOptions, useQuery } from "react-query";
-import { QueryKeys } from "./queryKeys";
+import { QueryKey, useQuery,UseQueryOptions } from "react-query";
 import axios from "axios";
-import { GraphResponse } from "@/types";
+
+import { QueryKeys } from "./queryKeys";
+
 import { ApiUrlService } from "@/lib/apiUtils";
+import { GraphResponse } from "@/types";
 
 async function getGraphSnaphot(snapshot: string): Promise<GraphResponse> {
   const res = await axios.get(ApiUrlService.graphData(snapshot));

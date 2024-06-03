@@ -1,7 +1,7 @@
 import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import { MonitoredValue } from "@akashnetwork/cloudmos-shared/dbSchemas/base/monitoredValue";
-import axios from "axios";
 import * as Sentry from "@sentry/node";
+import axios from "axios";
 
 export class DeploymentBalanceMonitor {
   async run() {
