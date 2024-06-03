@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { ArrowDown,ArrowUp } from "iconoir-react";
+import { ArrowDown, ArrowUp } from "iconoir-react";
 
 import { cn } from "@/lib/utils";
 

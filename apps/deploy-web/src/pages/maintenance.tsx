@@ -17,10 +17,12 @@ const Maintenance: React.FunctionComponent<Props> = ({}) => {
         <div className="py-12 text-center">
           <Title className="mb-2 text-2xl sm:text-5xl">Maintenance</Title>
 
-          <Title subTitle className="!font-normal">We'll be right back!</Title>
+          <Title subTitle className="!font-normal">
+            We'll be right back!
+          </Title>
 
           <div className="flex items-center justify-center pt-8">
-            <Tools className="text-4xl text-primary" />
+            <Tools className="text-primary text-4xl" />
           </div>
         </div>
       </div>

@@ -21,9 +21,9 @@ function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRou
   const swaggerInstance = swaggerUI({ url: `/${version}/doc` });
 
   versionRouter.get(`/swagger`, swaggerInstance);
-  versionRouter.get(`/swagger/`, (c) => c.redirect(`/${version}/swagger`));
+  versionRouter.get(`/swagger/`, c => c.redirect(`/${version}/swagger`));
 
-  versionRoutes.forEach((route) => versionRouter.route(`/`, route));
+  versionRoutes.forEach(route => versionRouter.route(`/`, route));
   baseRouter.route(`/${version}`, versionRouter);
 }
 

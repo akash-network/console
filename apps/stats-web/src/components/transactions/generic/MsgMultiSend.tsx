@@ -14,7 +14,7 @@ export const MsgMultiSend: React.FunctionComponent<TxMessageProps> = ({ message 
     <div key={input.address}>
       <AddressLink address={input.address} />
       &nbsp;
-      <span className="text-xs text-muted-foreground">
+      <span className="text-muted-foreground text-xs">
         (<AKTAmount uakt={coinsToAmount(input.coins, "uakt")} showAKTLabel />
       </span>
     </div>
@@ -23,7 +23,7 @@ export const MsgMultiSend: React.FunctionComponent<TxMessageProps> = ({ message 
     <div key={output.address}>
       <AddressLink address={output.address} />
       &nbsp;
-      <span className="text-xs text-muted-foreground">
+      <span className="text-muted-foreground text-xs">
         (<AKTAmount uakt={coinsToAmount(output.coins, "uakt")} showAKTLabel />)
       </span>
     </div>

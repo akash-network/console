@@ -1,5 +1,5 @@
 "use client";
-import { forwardRef,ReactNode, useImperativeHandle } from "react";
+import { forwardRef, ReactNode, useImperativeHandle } from "react";
 import { Control, Controller, useFieldArray } from "react-hook-form";
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
@@ -83,7 +83,7 @@ export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
               </>
             }
           >
-            <InfoCircle className="ml-2 text-sm text-muted-foreground" />
+            <InfoCircle className="text-muted-foreground ml-2 text-sm" />
           </CustomTooltip>
         </div>
 
@@ -94,7 +94,7 @@ export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
           <div className="flex items-center">
             <strong className="text-sm">Any of</strong>
             <CustomTooltip title={<>Filter providers that have been audited by ANY of these accounts.</>}>
-              <InfoCircle className="ml-2 text-sm text-muted-foreground" />
+              <InfoCircle className="text-muted-foreground ml-2 text-sm" />
             </CustomTooltip>
           </div>
 
@@ -143,7 +143,7 @@ export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
               );
             })
           ) : (
-            <div className="text-xs text-muted-foreground">None</div>
+            <div className="text-muted-foreground text-xs">None</div>
           )}
         </div>
 
@@ -151,7 +151,7 @@ export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
           <div className="flex items-center">
             <strong className="text-sm">All of</strong>
             <CustomTooltip title={<>Filter providers that have been audited by ALL of these accounts.</>}>
-              <InfoCircle className="ml-2 text-sm text-muted-foreground" />
+              <InfoCircle className="text-muted-foreground ml-2 text-sm" />
             </CustomTooltip>
           </div>
 
@@ -186,7 +186,7 @@ export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
             );
           })
         ) : (
-          <div className="text-xs text-muted-foreground">None</div>
+          <div className="text-muted-foreground text-xs">None</div>
         )}
       </FormPaper>
     );

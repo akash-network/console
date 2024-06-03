@@ -40,19 +40,19 @@ export async function getDeploymentRelatedMessages(owner: string, dseq: string) 
   });
 
   const createBidMsgs = relatedMessages
-    .filter((msg) => msg.type.endsWith("MsgCreateBid"))
-    .map((msg) => ({
+    .filter(msg => msg.type.endsWith("MsgCreateBid"))
+    .map(msg => ({
       decoded: decodeMsg(msg.type, msg.data) as v1beta1.MsgCreateBid | v2beta2.MsgCreateBid,
       msg: msg
     }));
 
   const createLeaseMsgs = relatedMessages
-    .filter((x) => x.type.endsWith("MsgCreateLease"))
-    .map((msg) => decodeMsg(msg.type, msg.data) as v1beta1.MsgCreateLease | v2beta2.MsgCreateLease);
+    .filter(x => x.type.endsWith("MsgCreateLease"))
+    .map(msg => decodeMsg(msg.type, msg.data) as v1beta1.MsgCreateLease | v2beta2.MsgCreateLease);
 
-  const acceptedBids = createBidMsgs.filter((createBidMsg) =>
+  const acceptedBids = createBidMsgs.filter(createBidMsg =>
     createLeaseMsgs.some(
-      (l) =>
+      l =>
         l.bidId.gseq === createBidMsg.decoded.order.gseq &&
         l.bidId.oseq === createBidMsg.decoded.order.oseq &&
         l.bidId.provider === createBidMsg.decoded.provider
@@ -60,11 +60,11 @@ export async function getDeploymentRelatedMessages(owner: string, dseq: string) 
   );
 
   const filteredMessages = relatedMessages
-    .filter((msg) => !msg.type.endsWith("MsgCreateBid"))
-    .concat(acceptedBids.map((x) => x.msg))
+    .filter(msg => !msg.type.endsWith("MsgCreateBid"))
+    .concat(acceptedBids.map(x => x.msg))
     .sort((a, b) => b.height - a.height);
 
-  return filteredMessages.map((msg) => ({
+  return filteredMessages.map(msg => ({
     txHash: msg.transaction.hash,
     date: msg.block.datetime,
     type: msg.type
@@ -101,7 +101,7 @@ export async function getProviderDeployments(provider: string, skip: number, lim
 
   const deployments = await Deployment.findAll({
     where: {
-      dseq: { [Op.in]: deploymentDseqs.map((d) => d.dseq) }
+      dseq: { [Op.in]: deploymentDseqs.map(d => d.dseq) }
     },
     include: [
       {
@@ -119,7 +119,7 @@ export async function getProviderDeployments(provider: string, skip: number, lim
     order: [["createdHeight", "DESC"]]
   });
 
-  return deployments.map((d) => ({
+  return deployments.map(d => ({
     owner: d.owner,
     dseq: d.dseq,
     denom: d.denom,
@@ -138,7 +138,7 @@ export async function getProviderDeployments(provider: string, skip: number, lim
       ephemeralStorage: d.leases.reduce((acc, l) => acc + l.ephemeralStorageQuantity, 0),
       persistentStorage: d.leases.reduce((acc, l) => acc + l.persistentStorageQuantity, 0)
     },
-    leases: d.leases.map((l) => ({
+    leases: d.leases.map(l => ({
       provider: l.providerAddress,
       gseq: l.gseq,
       oseq: l.oseq,

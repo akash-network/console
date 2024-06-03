@@ -56,7 +56,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const dataName = c.req.valid("param").dataName;
 
   if (!authorizedDataNames.includes(dataName)) {

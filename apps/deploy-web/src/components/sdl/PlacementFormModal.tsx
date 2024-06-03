@@ -126,7 +126,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                       <div className="flex items-center">
                         Name
                         <CustomTooltip title={<>The name of the placement.</>}>
-                          <InfoCircle className="ml-2 text-sm text-muted-foreground" />
+                          <InfoCircle className="text-muted-foreground ml-2 text-sm" />
                         </CustomTooltip>
                       </div>
                     }
@@ -175,7 +175,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                               </>
                             }
                           >
-                            <InfoCircle className="ml-2 text-sm text-muted-foreground" />
+                            <InfoCircle className="text-muted-foreground ml-2 text-sm" />
                           </CustomTooltip>
                         </div>
                       }

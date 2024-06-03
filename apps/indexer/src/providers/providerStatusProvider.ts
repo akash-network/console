@@ -3,7 +3,8 @@ import {
   ProviderSnapshot,
   ProviderSnapshotNode,
   ProviderSnapshotNodeCPU,
-  ProviderSnapshotNodeGPU} from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+  ProviderSnapshotNodeGPU
+} from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
 import { asyncify, eachLimit } from "async";
 import axios from "axios";
 import { add, differenceInDays, differenceInHours, differenceInMinutes, isSameDay } from "date-fns";
@@ -83,7 +84,7 @@ async function saveProviderStatus(
   cosmosVersion: string | null,
   error: string | null
 ) {
-  await sequelize.transaction(async (t) => {
+  await sequelize.transaction(async t => {
     const checkDate = toUTC(new Date());
 
     const createdSnapshot = await ProviderSnapshot.create(
@@ -192,7 +193,7 @@ async function saveProviderStatus(
         );
 
         await ProviderSnapshotNodeCPU.bulkCreate(
-          node.cpus.map((cpuInfo) => ({
+          node.cpus.map(cpuInfo => ({
             snapshotNodeId: providerSnapshotNode.id,
             vendor: cpuInfo.vendor,
             model: cpuInfo.model,
@@ -202,7 +203,7 @@ async function saveProviderStatus(
         );
 
         await ProviderSnapshotNodeGPU.bulkCreate(
-          node.gpus.map((gpuInfo) => ({
+          node.gpus.map(gpuInfo => ({
             snapshotNodeId: providerSnapshotNode.id,
             vendor: gpuInfo.vendor,
             name: gpuInfo.name,

@@ -7,7 +7,7 @@ import Spinner from "./Spinner";
 const _DynamicReactJson = dynamic(() => import("@textea/json-viewer").then(module => module.JsonViewer), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center text-sm text-muted-foreground">
+    <div className="text-muted-foreground flex items-center text-sm">
       Loading... <Spinner size="small" className="ml-2" />
     </div>
   )

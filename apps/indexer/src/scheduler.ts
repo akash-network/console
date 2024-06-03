@@ -108,7 +108,7 @@ export class Scheduler {
           pingStartPromise.finally(() => this.healthchecksPingSuccess(runningTask));
         }
       })
-      .catch((err) => {
+      .catch(err => {
         runningTask.failedRunCount++;
         runningTask.latestError = err;
         this.config.errorHandler(runningTask, err);
@@ -147,7 +147,7 @@ export class Scheduler {
   }
 
   public getTasksStatus() {
-    return Array.from(this.tasks.values()).map((task) => ({
+    return Array.from(this.tasks.values()).map(task => ({
       name: task.name,
       isRunning: !!task.runningPromise,
       function: task.function,

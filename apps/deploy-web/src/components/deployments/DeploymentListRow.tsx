@@ -4,7 +4,7 @@ import ClickAwayListener from "@mui/material/ClickAwayListener";
 import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import isValid from "date-fns/isValid";
-import { Edit, InfoCircle, MoreHoriz, NavArrowRight, Plus, Upload, WarningCircle, WarningTriangle,XmarkSquare } from "iconoir-react";
+import { Edit, InfoCircle, MoreHoriz, NavArrowRight, Plus, Upload, WarningCircle, WarningTriangle, XmarkSquare } from "iconoir-react";
 import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 
@@ -181,7 +181,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
 
   return (
     <>
-      <TableRow className="cursor-pointer hover:bg-muted-foreground/10 [&>td]:p-2" onClick={() => viewDeployment()}>
+      <TableRow className="hover:bg-muted-foreground/10 cursor-pointer [&>td]:p-2" onClick={() => viewDeployment()}>
         <TableCell>
           <div className="flex items-center justify-center">
             <SpecDetailList
@@ -210,7 +210,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                     </>
                   }
                 >
-                  <WarningTriangle className="text-xs text-warning" />
+                  <WarningTriangle className="text-warning text-xs" />
                 </CustomTooltip>
               )}
             </div>
@@ -239,18 +239,18 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                       </strong>
                     </div>
                     <br />
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       The escrow account balance will be fully returned to your wallet balance when the deployment is closed.
                     </p>
                   </div>
                 }
               >
-                <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                <InfoCircle className="text-muted-foreground ml-2 text-xs" />
               </CustomTooltip>
 
               {escrowBalance <= 0 && (
                 <CustomTooltip title="Your deployment is out of funds and can be closed by your provider at any time now. You can add funds to keep active.">
-                  <WarningCircle className="ml-2 text-destructive-foreground" />
+                  <WarningCircle className="text-destructive-foreground ml-2" />
                 </CustomTooltip>
               )}
             </div>
@@ -269,7 +269,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                     </span>
                   }
                 >
-                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                  <InfoCircle className="text-muted-foreground ml-2 text-xs" />
                 </CustomTooltip>
               </div>
             </div>

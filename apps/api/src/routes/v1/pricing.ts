@@ -48,7 +48,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const body = await c.req.json();
   const isArray = Array.isArray(body);
   const specs = isArray ? body : [body];

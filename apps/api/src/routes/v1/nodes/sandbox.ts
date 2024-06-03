@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 
-import { nodeClient } from '@src/routes/v1/nodes/nodeClient';
+import { nodeClient } from "@src/routes/v1/nodes/nodeClient";
 
 const route = createRoute({
   method: "get",
@@ -25,6 +25,6 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   return c.json(await nodeClient.getSandboxNodes());
 });

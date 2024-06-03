@@ -1,7 +1,7 @@
 import { Coin } from "cosmjs-types/cosmos/base/v1beta1/coin";
 
 export function getAmountFromCoinArray(coins: Coin[], denom: string): number {
-  const coin = coins.find((coin) => coin.denom === denom);
+  const coin = coins.find(coin => coin.denom === denom);
   return coin ? parseInt(coin.amount) : 0;
 }
 

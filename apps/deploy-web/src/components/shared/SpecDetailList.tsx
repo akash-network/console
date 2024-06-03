@@ -18,8 +18,8 @@ export function SpecDetailList({ cpuAmount, memoryAmount, storageAmount, gpuAmou
   const specDetailClasses = "flex-grow text-left text-xs leading-3 whitespace-nowrap";
 
   return (
-    <div className="inline-flex flex-col flex-nowrap items-center divide-y overflow-hidden rounded-md border bg-popover p-0">
-      {isActive && <LinearProgress className="w-full opacity-30 h-[2px]" />}
+    <div className="bg-popover inline-flex flex-col flex-nowrap items-center divide-y overflow-hidden rounded-md border p-0">
+      {isActive && <LinearProgress className="h-[2px] w-full opacity-30" />}
 
       <div className={cn(serverRowClasses, defaultColorClasses, { [activeColorClasses]: isActive })}>
         <MdSpeed className={cn(specIconClasses, defaultColorClasses, { [activeColorClasses]: isActive, [activeIconClasses]: isActive })} />

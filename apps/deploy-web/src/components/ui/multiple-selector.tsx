@@ -311,7 +311,7 @@ const MultipleSelector = React.forwardRef<MultipleSelectorRef, MultipleSelectorP
       >
         <div
           className={cn(
-            "group rounded-md border border-input bg-popover px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+            "border-input bg-popover ring-offset-background focus-within:ring-ring group rounded-md border px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-offset-2",
             className
           )}
         >
@@ -331,7 +331,7 @@ const MultipleSelector = React.forwardRef<MultipleSelectorRef, MultipleSelectorP
                   {option.label}
                   <button
                     className={cn(
-                      "ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                      "ring-offset-background focus:ring-ring ml-1 rounded-full outline-none focus:ring-2 focus:ring-offset-2",
                       (disabled || option.fixed) && "hidden"
                     )}
                     onKeyDown={e => {
@@ -370,13 +370,13 @@ const MultipleSelector = React.forwardRef<MultipleSelectorRef, MultipleSelectorP
                 inputProps?.onFocus?.(event);
               }}
               placeholder={hidePlaceholderWhenSelected && selected.length !== 0 ? "" : placeholder}
-              className={cn("ml-2 flex-1 bg-transparent outline-none placeholder:text-muted-foreground", inputProps?.className)}
+              className={cn("placeholder:text-muted-foreground ml-2 flex-1 bg-transparent outline-none", inputProps?.className)}
             />
           </div>
         </div>
         <div className="relative">
           {open && (
-            <CommandList className="absolute top-2 z-10 w-full rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in">
+            <CommandList className="bg-popover text-popover-foreground animate-in absolute top-2 z-10 w-full rounded-md border shadow-md outline-none">
               {isLoading ? (
                 <>{loadingIndicator}</>
               ) : (
@@ -407,7 +407,7 @@ const MultipleSelector = React.forwardRef<MultipleSelectorRef, MultipleSelectorP
                                 setSelected(newOptions);
                                 onChange?.(newOptions);
                               }}
-                              className={cn("cursor-pointer", option.disable && "cursor-default text-muted-foreground")}
+                              className={cn("cursor-pointer", option.disable && "text-muted-foreground cursor-default")}
                             >
                               {option.label}
                             </CommandItem>

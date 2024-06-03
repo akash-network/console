@@ -6,7 +6,7 @@ import { InfoCircle } from "iconoir-react";
 
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
-import { memoryUnits,validationConfig } from "../shared/akash/units";
+import { memoryUnits, validationConfig } from "../shared/akash/units";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { FormDescription, FormItem } from "../ui/form";
 import { Input } from "../ui/input";
@@ -54,7 +54,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
           >
             <div className="flex flex-col items-start sm:flex-row sm:items-center">
               <div className="flex items-center">
-                <MdMemory className="mr-2 text-2xl text-muted-foreground" />
+                <MdMemory className="text-muted-foreground mr-2 text-2xl" />
                 <strong className="text-sm">Memory</strong>
 
                 <CustomTooltip
@@ -70,7 +70,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
                     </>
                   }
                 >
-                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                  <InfoCircle className="text-muted-foreground ml-2 text-xs" />
                 </CustomTooltip>
               </div>
 

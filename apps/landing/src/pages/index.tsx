@@ -113,8 +113,7 @@ const Index: React.FunctionComponent<Props> = ({}) => {
             Go above and beyond the traditional cloud
           </Typography>
           <Typography variant="body1" color="textSecondary">
-            Deploy any docker container in a few clicks! Cloudmos greatly simplifies and enhances docker container deployments on the Akash
-            Network.
+            Deploy any docker container in a few clicks! Cloudmos greatly simplifies and enhances docker container deployments on the Akash Network.
           </Typography>
 
           <Box marginTop={3} marginBottom={3}>

@@ -1,4 +1,4 @@
-import { QueryKey, useQuery,UseQueryOptions } from "react-query";
+import { QueryKey, useQuery, UseQueryOptions } from "react-query";
 import axios from "axios";
 
 import { QueryKeys } from "./queryKeys";
@@ -20,6 +20,9 @@ async function getProviderGraphSnaphot(snapshot: string): Promise<GraphResponse>
   return res.data;
 }
 
-export function useProviderGraphSnapshot(snapshot: string, options?: Omit<UseQueryOptions<GraphResponse, Error, GraphResponse, QueryKey>, "queryKey" | "queryFn">) {
+export function useProviderGraphSnapshot(
+  snapshot: string,
+  options?: Omit<UseQueryOptions<GraphResponse, Error, GraphResponse, QueryKey>, "queryKey" | "queryFn">
+) {
   return useQuery(QueryKeys.getProviderGraphKey(snapshot), () => getProviderGraphSnaphot(snapshot), options);
 }

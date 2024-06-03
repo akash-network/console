@@ -33,7 +33,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const response = await cacheResponse(60 * 2, cacheKeys.getGpuModels, async () => {
     const res = await axios.get<ProviderConfigGpusType>("https://raw.githubusercontent.com/akash-network/provider-configs/main/devices/pcie/gpus.json");
     return res.data;
@@ -55,7 +55,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
         memory_size: string;
         interface: string;
       };
-      const existingModel = vendor.models.find((x) => x.name === _modelValue.name);
+      const existingModel = vendor.models.find(x => x.name === _modelValue.name);
 
       if (existingModel) {
         if (!existingModel.memory.includes(_modelValue.memory_size)) {

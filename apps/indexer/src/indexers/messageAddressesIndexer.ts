@@ -2,7 +2,7 @@ import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import { AddressReference, Message, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { toBech32 } from "@cosmjs/encoding";
 import { DecodedTxRaw, decodePubkey } from "@cosmjs/proto-signing";
-import { MsgMultiSend,MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
+import { MsgMultiSend, MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
 import { MsgFundCommunityPool } from "cosmjs-types/cosmos/distribution/v1beta1/tx";
 import { MsgDeposit } from "cosmjs-types/cosmos/gov/v1beta1/tx";
 import { MsgBeginRedelegate, MsgDelegate, MsgUndelegate } from "cosmjs-types/cosmos/staking/v1beta1/tx";
@@ -61,13 +61,13 @@ export class MessageAddressesIndexer extends Indexer {
   }
 
   private async handleMsgMultiSend(decodedMessage: MsgMultiSend, height: number, dbTransaction: DbTransaction, msg: Message) {
-    const senders = decodedMessage.inputs.map((input) => ({
+    const senders = decodedMessage.inputs.map(input => ({
       messageId: msg.id,
       transactionId: msg.txId,
       address: input.address,
       type: "Sender"
     }));
-    const receivers = decodedMessage.outputs.map((output) => ({
+    const receivers = decodedMessage.outputs.map(output => ({
       messageId: msg.id,
       transactionId: msg.txId,
       address: output.address,
@@ -103,7 +103,7 @@ export class MessageAddressesIndexer extends Indexer {
     currentTransaction.multisigThreshold = multisigThreshold;
 
     await AddressReference.bulkCreate(
-      addresses.map((address) => ({
+      addresses.map(address => ({
         messageId: null,
         transactionId: currentTransaction.id,
         address: address,
@@ -135,7 +135,7 @@ export class MessageAddressesIndexer extends Indexer {
         } else if (pubkey.type === "tendermint/PubKeyMultisigThreshold") {
           multisigThreshold = pubkey.value.threshold;
           addresses = addresses.concat(
-            pubkey.value.pubkeys.map((p) => {
+            pubkey.value.pubkeys.map(p => {
               const pubKeyBuffer = Buffer.from(p.value, "base64");
               return toBech32(activeChain.bech32Prefix, rawSecp256k1PubkeyToRawAddress(pubKeyBuffer));
             })

@@ -149,7 +149,7 @@ const SearchBar: React.FunctionComponent<Props> = ({}) => {
         </label>
 
         {searchType === null && searchTerms.trim() && isFocused && (
-          <div className=" absolute -bottom-14 left-0 w-full">
+          <div className="absolute -bottom-14 left-0 w-full">
             <Card>
               <CardContent className="!p-4">Invalid search term</CardContent>
             </Card>

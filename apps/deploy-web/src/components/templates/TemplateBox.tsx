@@ -3,7 +3,7 @@ import { MediaImage } from "iconoir-react";
 import Link from "next/link";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@src/components/ui/avatar";
-import { cardClasses,CardContent, CardHeader } from "@src/components/ui/card";
+import { cardClasses, CardContent, CardHeader } from "@src/components/ui/card";
 import { ApiTemplate } from "@src/types";
 import { getShortText } from "@src/utils/stringUtils";
 import { cn } from "@src/utils/styleUtils";
@@ -18,7 +18,7 @@ type Props = {
 export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref }) => {
   return (
     <Link
-      className={cn(cardClasses, "min-h-[100px] cursor-pointer !no-underline hover:bg-secondary/60 dark:hover:bg-secondary/30")}
+      className={cn(cardClasses, "hover:bg-secondary/60 dark:hover:bg-secondary/30 min-h-[100px] cursor-pointer !no-underline")}
       href={linkHref ? linkHref : UrlService.templateDetails(template.id as string)}
     >
       <CardHeader>
@@ -34,7 +34,7 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
         </div>
       </CardHeader>
       <CardContent className="pb-4 pt-0">
-        <p className="text-xs text-muted-foreground">{getShortText(template.summary, 128)}</p>
+        <p className="text-muted-foreground text-xs">{getShortText(template.summary, 128)}</p>
       </CardContent>
     </Link>
   );

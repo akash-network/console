@@ -1,5 +1,5 @@
 "use client";
-import { useEffect,useState } from "react";
+import { useEffect, useState } from "react";
 import { MdSearchOff } from "react-icons/md";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
@@ -11,7 +11,7 @@ import Spinner from "@src/components/shared/Spinner";
 import { Button, buttonVariants } from "@src/components/ui/button";
 import { ApiTemplate } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
-import { domainName,UrlService } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 import { useTemplates } from "../../context/TemplatesProvider";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
@@ -129,7 +129,7 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
       <div className="mb-6 text-center sm:mb-8 md:mb-12">
         <Title className="mb-2 text-2xl font-bold sm:text-3xl md:text-4xl">Find your Template</Title>
 
-        <Title subTitle className="text-base font-normal text-muted-foreground sm:text-lg">
+        <Title subTitle className="text-muted-foreground text-base font-normal sm:text-lg">
           Jumpstart your app development process with our pre-built solutions.
         </Title>
       </div>
@@ -172,7 +172,7 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
                 >
                   All{" "}
                   <span className="text-xs">
-                    <small className="ml-2 text-muted-foreground">({templates.length - 1})</small>
+                    <small className="text-muted-foreground ml-2">({templates.length - 1})</small>
                   </span>
                 </li>
               )}
@@ -191,7 +191,7 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
                   >
                     {category.title}{" "}
                     <span className="text-xs">
-                      <small className="ml-2 text-muted-foreground">({category.templates.length})</small>
+                      <small className="text-muted-foreground ml-2">({category.templates.length})</small>
                     </span>
                   </li>
                 ))}
@@ -225,7 +225,7 @@ export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
           )}
 
           {!isLoadingTemplates && categories.length > 0 && shownTemplates.length === 0 && (!!searchTerms || !!selectedCategoryTitle) && (
-            <div className="flex h-[200px] flex-col items-center justify-center border border-muted-foreground">
+            <div className="border-muted-foreground flex h-[200px] flex-col items-center justify-center border">
               <MdSearchOff className="mb-4 text-6xl" />
               <p>No search result found. Try adjusting your filters.</p>
             </div>

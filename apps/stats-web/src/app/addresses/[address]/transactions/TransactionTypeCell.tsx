@@ -14,7 +14,7 @@ export const TransactionTypeCell = ({
 
   return (
     <>
-      <Badge className="h-4 max-w-[120px] bg-primary">
+      <Badge className="bg-primary h-4 max-w-[120px]">
         <span className="truncate">{firstMessageType}</span>
       </Badge>
       <span className="text-xs">{row.original.messages.length > 1 ? " +" + (row.original.messages.length - 1) : ""}</span>

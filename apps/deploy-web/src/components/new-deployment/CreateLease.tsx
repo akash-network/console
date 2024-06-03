@@ -1,6 +1,6 @@
 "use client";
-import React, { useEffect,useState } from "react";
-import { ArrowRight, BadgeCheck,Bin, InfoCircle, MoreHoriz, Xmark } from "iconoir-react";
+import React, { useEffect, useState } from "react";
+import { ArrowRight, BadgeCheck, Bin, InfoCircle, MoreHoriz, Xmark } from "iconoir-react";
 import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
@@ -17,7 +17,7 @@ import { deploymentData } from "@src/utils/deploymentData";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { domainName,UrlService } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 import { useCertificate } from "../../context/CertificateProvider";
 import { useLocalNotes } from "../../context/LocalNoteProvider";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
@@ -351,7 +351,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
             {!maxRequestsReached && !isSendingManifest && (
               <div className="flex items-center self-start text-xs leading-4 sm:self-center">
-                <p className="text-xs text-muted-foreground">Waiting for more bids...</p>
+                <p className="text-muted-foreground text-xs">Waiting for more bids...</p>
                 <div className="ml-2">
                   <Spinner size="small" />
                 </div>

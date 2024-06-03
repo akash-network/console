@@ -3,7 +3,7 @@ import React from "react";
 import Layout from "@src/components/layout/Layout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { Title } from "@src/components/shared/Title";
-import { domainName,UrlService } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 
 export function PrivacyPolicy() {
   return (
@@ -20,8 +20,8 @@ export function PrivacyPolicy() {
       </div>
 
       <p>
-        At Akash Console, accessible from {domainName}, one of our main priorities is the privacy of our visitors. This Privacy Policy document
-        contains types of information that is collected and recorded by Overclock Labs Inc. and how we use it.
+        At Akash Console, accessible from {domainName}, one of our main priorities is the privacy of our visitors. This Privacy Policy document contains types
+        of information that is collected and recorded by Overclock Labs Inc. and how we use it.
       </p>
 
       <p>If you have additional questions or require more information about our Privacy Policy, do not hesitate to contact us.</p>

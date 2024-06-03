@@ -12,7 +12,7 @@ interface DataTablePaginationProps<TData> {
 export function DataTablePagination<TData>({ table, hasRowSelection }: DataTablePaginationProps<TData>) {
   return (
     <div className="flex flex-col items-center justify-between px-2 sm:flex-row">
-      <div className="flex-1 text-sm text-muted-foreground">
+      <div className="text-muted-foreground flex-1 text-sm">
         {hasRowSelection && (
           <>
             {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.

@@ -1,6 +1,6 @@
 "use client";
 import { ReactNode } from "react";
-import { Control, Controller, useFieldArray,UseFormSetValue } from "react-hook-form";
+import { Control, Controller, useFieldArray, UseFormSetValue } from "react-hook-form";
 import { MdSpeed } from "react-icons/md";
 import FormControl from "@mui/material/FormControl";
 import IconButton from "@mui/material/IconButton";
@@ -77,7 +77,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
               <div className="flex items-center">
                 <div className="flex items-center">
                   <div className="flex items-center">
-                    <MdSpeed className="mr-2 text-2xl text-muted-foreground" />
+                    <MdSpeed className="text-muted-foreground mr-2 text-2xl" />
                     <strong>GPU</strong>
 
                     <CustomTooltip
@@ -96,7 +96,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                         </>
                       }
                     >
-                      <InfoCircle className="ml-4 text-xs text-muted-foreground" />
+                      <InfoCircle className="text-muted-foreground ml-4 text-xs" />
                     </CustomTooltip>
                   </div>
 
@@ -158,7 +158,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
       {hasGpu && (
         <>
           <div className="my-4">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Picking specific GPU models below, filters out providers that don't have those GPUs and may reduce the number of bids you receive.
             </p>
           </div>
@@ -387,7 +387,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                   ) : (
                     <div className="ml-4 flex items-center">
                       <Spinner />
-                      <span className="ml-2 whitespace-nowrap text-sm text-muted-foreground">Loading GPU models...</span>
+                      <span className="text-muted-foreground ml-2 whitespace-nowrap text-sm">Loading GPU models...</span>
                     </div>
                   )}
                 </div>

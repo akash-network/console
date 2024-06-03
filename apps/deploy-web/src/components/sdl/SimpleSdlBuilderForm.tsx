@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useFieldArray,useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 import axios from "axios";
 import { NavArrowRight } from "iconoir-react";
 import { useAtom } from "jotai";

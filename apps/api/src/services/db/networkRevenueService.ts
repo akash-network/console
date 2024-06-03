@@ -45,7 +45,7 @@ type RevenueStatsType = {
 export const getWeb3IndexRevenue = async (debug?: boolean) => {
   const dailyNetworkRevenues = await getDailyRevenue();
 
-  let days: DalyRevenueType[] = dailyNetworkRevenues.map((r) => ({
+  let days: DalyRevenueType[] = dailyNetworkRevenues.map(r => ({
     date: r.date.getTime() / 1000,
     revenue: round(r.usd, 2),
     revenueUAkt: r.uakt,
@@ -87,7 +87,7 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
     sixtyDaysAgoRevenueUUsdc: number = 0,
     ninetyDaysAgoRevenueUUsdc: number = 0;
 
-  days.forEach((b) => {
+  days.forEach(b => {
     const date = new Date(b.date * 1000);
 
     if (date <= ninetyDaysAgo) {
@@ -193,7 +193,7 @@ export async function getDailyRevenue() {
     order: [["date", "ASC"]]
   });
 
-  const stats = result.map((day) => ({
+  const stats = result.map(day => ({
     date: day.date,
     totalUAktSpent: (day.lastBlockYet as Block).totalUAktSpent,
     totalUUsdcSpent: (day.lastBlockYet as Block).totalUUsdcSpent,
@@ -211,7 +211,7 @@ export async function getDailyRevenue() {
     return arr;
   }, []);
 
-  return relativeStats.map((x) => ({
+  return relativeStats.map(x => ({
     date: x.date,
     uakt: x.uakt,
     akt: uaktToAKT(x.uakt, 6),

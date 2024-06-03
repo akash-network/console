@@ -1,6 +1,6 @@
 "use client";
 import React, { useRef } from "react";
-import { useEffect,useState } from "react";
+import { useEffect, useState } from "react";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { useManager } from "@cosmos-kit/react";

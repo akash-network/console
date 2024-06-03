@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { darken, PaletteMode } from "@mui/material";
 import { grey } from "@mui/material/colors";
 import CssBaseline from "@mui/material/CssBaseline";
-import { createTheme, ThemeOptions,ThemeProvider } from "@mui/material/styles";
+import { createTheme, ThemeOptions, ThemeProvider } from "@mui/material/styles";
 import { useDarkMode } from "next-dark-mode";
 
 import { customColors } from "@src/utils/colors";

@@ -125,7 +125,7 @@ export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initial
                       </div>
                     }
                   >
-                    <circle className="cursor-pointer fill-primary" stroke="#FFF" strokeWidth={dotSize.w} r={dotSize.r} />
+                    <circle className="fill-primary cursor-pointer" stroke="#FFF" strokeWidth={dotSize.w} r={dotSize.r} />
                   </CustomNoDivTooltip>
                 </Marker>
               </Link>

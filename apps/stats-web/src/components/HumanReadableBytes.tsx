@@ -16,7 +16,7 @@ export const HumanReadableBytes: React.FunctionComponent<HumanReadableBytesProps
   return (
     <>
       <FormattedNumber value={result.value} maximumFractionDigits={2} />
-      <span className="text-sm pl-2">{result.unit}</span>
+      <span className="pl-2 text-sm">{result.unit}</span>
     </>
   );
 };

@@ -61,7 +61,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const heightInt = parseInt(c.req.valid("param").height);
 
   if (isNaN(heightInt)) {

@@ -1,7 +1,7 @@
 import { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
-import { mainnetId, sandboxId,testnetId } from "../constants";
+import { mainnetId, sandboxId, testnetId } from "../constants";
 import * as v1beta3 from "./v1beta3";
 export * from "./helpers";
 

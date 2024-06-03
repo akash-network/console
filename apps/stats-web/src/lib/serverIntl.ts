@@ -1,6 +1,6 @@
-'server-only';
+"server-only";
 
-import { createIntl } from '@formatjs/intl';
+import { createIntl } from "@formatjs/intl";
 
 export default async function getIntl(locale: string, namespace: string) {
   return createIntl({

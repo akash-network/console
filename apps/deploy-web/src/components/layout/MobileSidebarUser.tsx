@@ -1,6 +1,6 @@
 "use client";
 import { ReactNode } from "react";
-import { BookStack, LogOut,MediaImageList, Settings } from "iconoir-react";
+import { BookStack, LogOut, MediaImageList, Settings } from "iconoir-react";
 import Link from "next/link";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";

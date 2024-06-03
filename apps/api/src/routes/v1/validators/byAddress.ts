@@ -48,7 +48,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   if (!isValidBech32Address(c.req.valid("param").address, "akashvaloper")) {
     return c.text("Invalid address", 400);
   }

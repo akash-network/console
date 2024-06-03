@@ -1,4 +1,4 @@
-import { QueryKey,useQuery, UseQueryOptions } from "react-query";
+import { QueryKey, useQuery, UseQueryOptions } from "react-query";
 import axios from "axios";
 
 import { useSettings } from "@src/context/SettingsProvider";

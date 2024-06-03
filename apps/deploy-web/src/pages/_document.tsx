@@ -1,6 +1,6 @@
 import React from "react";
-import { documentGetInitialProps,DocumentHeadTags } from "@mui/material-nextjs/v14-pagesRouter";
-import { Head, Html,Main, NextScript } from "next/document";
+import { documentGetInitialProps, DocumentHeadTags } from "@mui/material-nextjs/v14-pagesRouter";
+import { Head, Html, Main, NextScript } from "next/document";
 
 import { customColors } from "@src/utils/colors";
 

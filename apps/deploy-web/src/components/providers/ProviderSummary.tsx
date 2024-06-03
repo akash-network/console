@@ -53,11 +53,11 @@ export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) =>
               value={
                 provider.isAudited ? (
                   <div className="inline-flex items-center space-x-2">
-                    <span className="text-sm text-muted-foreground">Yes</span>
+                    <span className="text-muted-foreground text-sm">Yes</span>
                     <AuditorButton provider={provider} />
                   </div>
                 ) : (
-                  <span className="text-sm text-muted-foreground">No</span>
+                  <span className="text-muted-foreground text-sm">No</span>
                 )
               }
             />

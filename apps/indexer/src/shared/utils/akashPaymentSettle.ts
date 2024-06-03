@@ -7,8 +7,8 @@ export async function accountSettle(deployment: Deployment, height: number, bloc
   if (!deployment) throw new Error("Deployment is missing");
   if (!deployment.leases) throw new Error("Deployment.leases is missing");
 
-  const activeLeases = deployment.leases.filter((x) => !x.closedHeight);
-  const blockRate = activeLeases.map((x) => x.price).reduce((a, b) => a + b, 0);
+  const activeLeases = deployment.leases.filter(x => !x.closedHeight);
+  const blockRate = activeLeases.map(x => x.price).reduce((a, b) => a + b, 0);
 
   if (height === deployment.lastWithdrawHeight) return { blockRate };
 

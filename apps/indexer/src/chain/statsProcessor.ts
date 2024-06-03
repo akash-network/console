@@ -60,7 +60,7 @@ class StatsProcessor {
   public async processMessages() {
     console.log("Querying unprocessed messages...");
 
-    const shouldProcessEveryBlocks = activeIndexers.some((indexer) => indexer.runForEveryBlocks);
+    const shouldProcessEveryBlocks = activeIndexers.some(indexer => indexer.runForEveryBlocks);
 
     const groupSize = 100;
 
@@ -145,7 +145,7 @@ class StatsProcessor {
 
           for (const transaction of block.transactions) {
             const decodeTimer = benchmark.startTimer("decodeTx");
-            const tx = blockData.block.data.txs.find((t) => sha256(Buffer.from(t, "base64")).toUpperCase() === transaction.hash);
+            const tx = blockData.block.data.txs.find(t => sha256(Buffer.from(t, "base64")).toUpperCase() === transaction.hash);
             const decodedTx = decodeTxRaw(fromBase64(tx));
             decodeTimer.end();
 

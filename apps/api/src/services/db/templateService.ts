@@ -125,7 +125,7 @@ export async function getFavoriteTemplates(userId: string) {
     }
   });
 
-  return templateFavorites.map((t) => ({
+  return templateFavorites.map(t => ({
     id: t.template.id,
     title: t.template.title,
     description: t.template.description

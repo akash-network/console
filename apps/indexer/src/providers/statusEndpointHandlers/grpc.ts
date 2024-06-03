@@ -16,7 +16,7 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
   const activeResources = parseResources(data.cluster.inventory.reservations.active.resources);
   const pendingResources = parseResources(data.cluster.inventory.reservations.pending.resources);
   const availableResources = data.cluster.inventory.cluster.nodes
-    .map((x) => getAvailableResources(x.resources))
+    .map(x => getAvailableResources(x.resources))
     .reduce(
       (prev, next) => ({
         cpu: prev.cpu + next.cpu,
@@ -49,7 +49,7 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
       availableMemory: availableResources.memory,
       availableStorage: availableResources.storage
     },
-    nodes: data.cluster.inventory.cluster.nodes.map((node) => {
+    nodes: data.cluster.inventory.cluster.nodes.map(node => {
       const parsedResources = parseNodeResources(node.resources);
 
       return {
@@ -65,12 +65,12 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
         capabilitiesStorageNVME: node.capabilities.storageClasses.includes("beta3"),
         gpuAllocatable: parsedResources.allocatableGPU,
         gpuAllocated: parsedResources.allocatedGPU,
-        cpus: node.resources.cpu.info.map((cpuInfo) => ({
+        cpus: node.resources.cpu.info.map(cpuInfo => ({
           vendor: cpuInfo.vendor,
           model: cpuInfo.model,
           vcores: cpuInfo.vcores
         })),
-        gpus: node.resources.gpu.info.map((gpuInfo) => ({
+        gpus: node.resources.gpu.info.map(gpuInfo => ({
           vendor: gpuInfo.vendor,
           name: gpuInfo.name,
           modelId: gpuInfo.modelid,

@@ -98,7 +98,7 @@ export function startTimer(name: string) {
 
 export function displayTimes(): void {
   const groups = Object.values(benchmarkTimes)
-    .map((x) => x.parent)
+    .map(x => x.parent)
     .filter((value, index, self) => self.indexOf(value) === index);
 
   for (const group of groups) {
@@ -111,17 +111,17 @@ export function displayTimesForGroup(group: string) {
 
   const fullTime = group
     ? Object.values(benchmarkTimes)
-        .filter((x) => x.name == group)
+        .filter(x => x.name == group)
         .reduce((acc, curr) => acc + curr.time, 0)
     : lastTime - firstTime;
   const totalRecordedTime = Object.values(benchmarkTimes)
-    .filter((x) => x.parent == group)
+    .filter(x => x.parent == group)
     .reduce((acc, curr) => acc + curr.time, 0);
 
   const results = Object.keys(benchmarkTimes)
     .sort((a, b) => benchmarkTimes[b].time - benchmarkTimes[a].time)
-    .filter((x) => benchmarkTimes[x].parent == group)
-    .map((key) => ({
+    .filter(x => benchmarkTimes[x].parent == group)
+    .map(key => ({
       name: key,
       time: getPrettyTime(benchmarkTimes[key].time),
       percentage: round((benchmarkTimes[key].time / fullTime) * 100, 2) + "%",

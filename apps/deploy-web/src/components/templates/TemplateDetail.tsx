@@ -17,7 +17,7 @@ import { getShortText } from "@src/hooks/useShortText";
 import { ApiTemplate } from "@src/types";
 import { RouteStepKeys } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
-import { domainName,UrlService } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 

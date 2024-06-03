@@ -101,11 +101,11 @@ export class NodeInfo {
   public async updateStatus(): Promise<void> {
     return axios
       .get(`${this.url}/status`, { timeout: QueryTimeout })
-      .then((res) => {
+      .then(res => {
         this.status = NodeStatus.OK;
         this.earliestBlockHeight = parseInt(res.data.result.sync_info.earliest_block_height);
       })
-      .catch((err) => {
+      .catch(err => {
         this.status = NodeStatus.UNAVAILABLE;
         this.latestError = err.message || "Unknown error";
 
@@ -193,7 +193,7 @@ export class NodeInfo {
       this.errorCount++;
       throw err;
     } finally {
-      this.activeQueries = this.activeQueries.filter((x) => x !== path);
+      this.activeQueries = this.activeQueries.filter(x => x !== path);
       this.lastQueryDate = new Date();
     }
   }

@@ -21,7 +21,7 @@ export const Nav = ({
   const theme = useCookieTheme();
 
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-border bg-popover dark:bg-background">
+    <header className="border-border bg-popover dark:bg-background fixed top-0 z-50 w-full border-b">
       <div className="flex h-14 items-center justify-between pl-4 pr-4">
         {!!theme && (
           <Link className="flex items-center" href="/">
@@ -39,7 +39,7 @@ export const Nav = ({
           </Button>
         </div>
 
-        <div style={{ height: `${accountBarHeight}px` }} className={`hidden items-center md:flex `}>
+        <div style={{ height: `${accountBarHeight}px` }} className={`hidden items-center md:flex`}>
           <div>
             <Link passHref href={UrlService.getStarted()}>
               <Button variant="outline" className="relative">

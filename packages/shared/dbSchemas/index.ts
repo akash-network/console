@@ -1,8 +1,8 @@
 import { Model, ModelCtor } from "sequelize-typescript";
 
 import { activeChain, chainDefinitions } from "../chainDefinitions";
-import { AddressReference, Block as BaseBlock, Day, Message as BaseMessage, MonitoredValue,Transaction, Validator } from "./base";
-import { Template, TemplateFavorite, UserAddressName,UserSetting } from "./user";
+import { AddressReference, Block as BaseBlock, Day, Message as BaseMessage, MonitoredValue, Transaction, Validator } from "./base";
+import { Template, TemplateFavorite, UserAddressName, UserSetting } from "./user";
 
 function getFilteredBaseModel(): ModelCtor<Model<any, any>>[] {
   let models: ModelCtor<Model<any, any>>[] = baseModels;

@@ -1,4 +1,4 @@
-import { QueryKey, useMutation, useQuery, useQueryClient,UseQueryOptions } from "react-query";
+import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions } from "react-query";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";

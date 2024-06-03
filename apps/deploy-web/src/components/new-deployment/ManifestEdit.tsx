@@ -1,5 +1,5 @@
 "use client";
-import { Dispatch, useEffect, useRef,useState } from "react";
+import { Dispatch, useEffect, useRef, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
@@ -22,7 +22,7 @@ import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { cn } from "@src/utils/styleUtils";
 import { Timer } from "@src/utils/timer";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { domainName, handleDocClick,UrlService } from "@src/utils/urlUtils";
+import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
 import { updateWallet } from "@src/utils/walletUtils";
 import { useSettings } from "../../context/SettingsProvider";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
@@ -235,7 +235,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
                 </p>
               }
             >
-              <InfoCircle className="mr-4 text-sm text-muted-foreground md:ml-4" />
+              <InfoCircle className="text-muted-foreground mr-4 text-sm md:ml-4" />
             </CustomTooltip>
 
             <div className="flex-grow">

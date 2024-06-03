@@ -1,6 +1,6 @@
 "use client";
 import { FormattedNumber } from "react-intl";
-import { Bank, LogOut,MoreHoriz, Wallet } from "iconoir-react";
+import { Bank, LogOut, MoreHoriz, Wallet } from "iconoir-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -73,7 +73,7 @@ export function WalletStatus({}: React.PropsWithChildren<{}>) {
                 </div>
 
                 {walletBalances && (
-                  <div className="ml-2 flex items-center whitespace-nowrap font-bold text-muted-foreground">
+                  <div className="text-muted-foreground ml-2 flex items-center whitespace-nowrap font-bold">
                     <Tooltip>
                       <TooltipTrigger>
                         <Badge className="h-5 text-xs font-bold" variant="secondary">

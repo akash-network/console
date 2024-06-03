@@ -157,7 +157,7 @@ export const GetStartedStepper: React.FunctionComponent<Props> = () => {
           Docker container
         </StepLabel>
         <StepContent>
-          <p className="mb-2 text-muted-foreground">
+          <p className="text-muted-foreground mb-2">
             To deploy on Akash, you need a docker container image as everything runs within Kubernetes. You can make your own or browse through pre-made
             solutions in the marketplace.
           </p>

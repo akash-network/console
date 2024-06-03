@@ -7,7 +7,7 @@ import { ValidatorIndexer } from "./validatorIndexer";
 
 const validatorIndexer = new ValidatorIndexer();
 const messageAddressesIndexer = new MessageAddressesIndexer();
-const customIndexers = [new AkashStatsIndexer()].filter((x) => activeChain.customIndexers.includes(x.name));
+const customIndexers = [new AkashStatsIndexer()].filter(x => activeChain.customIndexers.includes(x.name));
 
 export const indexers: Indexer[] = activeChain.startHeight
   ? [...customIndexers, messageAddressesIndexer]

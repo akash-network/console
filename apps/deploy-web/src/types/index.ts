@@ -7,7 +7,7 @@ export * from "./snapshots";
 export * from "./sdlBuilder";
 export * from "./billing";
 export * from "./templates";
-export * from "./providerAttributes"
+export * from "./providerAttributes";
 
 export type IGraphDataPoint = {
   date: string;

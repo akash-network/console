@@ -1,5 +1,5 @@
 import React from "react";
-import { Copyright, Discord,Github, X as TwitterX, Youtube } from "iconoir-react";
+import { Copyright, Discord, Github, X as TwitterX, Youtube } from "iconoir-react";
 import Link from "next/link";
 
 import { UrlService } from "@src/utils/urlUtils";
@@ -32,7 +32,7 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
                 href="https://discord.gg/akash"
                 target="_blank"
                 rel="noreferrer"
-                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+                className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
               >
                 <Discord className="mx-auto block h-6 w-6 text-5xl" />
               </a>
@@ -42,7 +42,7 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
                 href="https://twitter.com/akashnet_"
                 target="_blank"
                 rel="noreferrer"
-                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+                className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
               >
                 <TwitterX className="mx-auto block h-6 w-6 text-5xl" />
               </a>
@@ -52,7 +52,7 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
                 href="https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1"
                 target="_blank"
                 rel="noreferrer"
-                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+                className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
               >
                 <Youtube className="mx-auto block h-6 w-6 text-5xl" />
               </a>
@@ -62,7 +62,7 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
                 href="https://github.com/akash-network/cloudmos"
                 target="_blank"
                 rel="noreferrer"
-                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+                className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
               >
                 <Github className="mx-auto block h-6 w-6 text-5xl" />
               </a>
@@ -71,29 +71,29 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
 
           <div className="mb-4 mt-2 flex items-center sm:mb-0 sm:mt-0">
             <Link href={UrlService.termsOfService()} className="text-current">
-              <p className="text-sm text-muted-foreground">Terms of Service</p>
+              <p className="text-muted-foreground text-sm">Terms of Service</p>
             </Link>
 
             <div className="ml-4">
               <Link href={UrlService.privacyPolicy()} className="text-current">
-                <p className="text-sm text-muted-foreground">Privacy Policy</p>
+                <p className="text-muted-foreground text-sm">Privacy Policy</p>
               </Link>
             </div>
 
             <div className="ml-4">
               <Link href={UrlService.faq()} className="text-current">
-                <p className="text-sm text-muted-foreground">FAQ</p>
+                <p className="text-muted-foreground text-sm">FAQ</p>
               </Link>
             </div>
 
             <div className="ml-4">
               <Link href={UrlService.contact()} className="text-current">
-                <p className="text-sm text-muted-foreground">Contact</p>
+                <p className="text-muted-foreground text-sm">Contact</p>
               </Link>
             </div>
           </div>
 
-          <p className="text-balance flex items-center text-center text-sm leading-loose text-muted-foreground md:text-left">
+          <p className="text-muted-foreground flex items-center text-balance text-center text-sm leading-loose md:text-left">
             <Copyright className="text-xs" />
             &nbsp;Akash Network {year}
           </p>

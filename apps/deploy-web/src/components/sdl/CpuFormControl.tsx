@@ -52,7 +52,7 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
           >
             <div className="flex items-center">
               <div className="flex items-center">
-                <MdSpeed className="mr-2 text-2xl text-muted-foreground" />
+                <MdSpeed className="text-muted-foreground mr-2 text-2xl" />
                 <strong className="text-sm">CPU</strong>
 
                 <CustomTooltip
@@ -68,7 +68,7 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
                     </>
                   }
                 >
-                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                  <InfoCircle className="text-muted-foreground ml-2 text-xs" />
                 </CustomTooltip>
               </div>
 

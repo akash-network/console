@@ -47,7 +47,7 @@ export function ExportCertificate({ isOpen, onClose }: React.PropsWithChildren<{
           <div className="mb-4">
             <CodeSnippet code={selectedWallet.cert} />
           </div>
-          <p className="mb-2  font-bold">Key</p>
+          <p className="mb-2 font-bold">Key</p>
           <CodeSnippet code={selectedWallet.certKey} />
         </div>
       ) : (

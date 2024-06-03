@@ -54,7 +54,7 @@ export const CertificateList: React.FunctionComponent<Props> = ({}) => {
                       <FormattedDate value={cert.pem.expiresOn} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />
                     </TableCell>
                     <TableCell align="center">
-                      <p className="text-sm text-muted-foreground">{cert.serial}</p>
+                      <p className="text-muted-foreground text-sm">{cert.serial}</p>
                     </TableCell>
                     <TableCell align="center">
                       <Button

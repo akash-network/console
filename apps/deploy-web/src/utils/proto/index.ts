@@ -1,7 +1,7 @@
 import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
 import * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
 
-import { mainnetId, sandboxId,testnetId } from "../constants";
+import { mainnetId, sandboxId, testnetId } from "../constants";
 
 const commonTypes = { ...v1beta3, ...v1beta4 };
 const mainnetTypes = commonTypes;

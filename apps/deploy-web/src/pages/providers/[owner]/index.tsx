@@ -4,7 +4,6 @@ import { ProviderDetail } from "@src/components/providers/ProviderDetail";
 import { ApiProviderDetail } from "@src/types/provider";
 import { getNetworkBaseApiUrl } from "@src/utils/constants";
 
-
 type Props = {
   owner: string;
   _provider: ApiProviderDetail;
@@ -12,7 +11,7 @@ type Props = {
 
 const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }) => {
   return <ProviderDetail owner={owner} _provider={_provider} />;
-}
+};
 
 export default ProviderDetailPage;
 
@@ -27,4 +26,3 @@ export async function getServerSideProps({ params, query }) {
     }
   };
 }
-

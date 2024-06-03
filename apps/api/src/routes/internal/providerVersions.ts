@@ -32,7 +32,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const providers = await chainDb.query<{ hostUri: string; akashVersion: string }>(
     `
     SELECT DISTINCT ON ("hostUri") "hostUri","akashVersion"
@@ -51,7 +51,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   const grouped: { version: string; providers: string[] }[] = [];
 
   for (const provider of providers) {
-    const existing = grouped.find((x) => x.version === provider.akashVersion);
+    const existing = grouped.find(x => x.version === provider.akashVersion);
 
     if (existing) {
       existing.providers.push(provider.hostUri);
@@ -64,7 +64,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   }
 
   const nullVersionName = "<UNKNOWN>";
-  const results = grouped.map((x) => ({
+  const results = grouped.map(x => ({
     version: x.version ?? nullVersionName,
     count: x.providers.length,
     ratio: round(x.providers.length / providers.length, 2),
@@ -72,9 +72,9 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   }));
 
   const sorted = results
-    .filter((x) => x.version !== nullVersionName) // Remove <UNKNOWN> version for sorting
+    .filter(x => x.version !== nullVersionName) // Remove <UNKNOWN> version for sorting
     .sort((a, b) => semver.compare(b.version, a.version))
-    .concat(results.filter((x) => x.version === nullVersionName)) // Add back <UNKNOWN> version at the end
+    .concat(results.filter(x => x.version === nullVersionName)) // Add back <UNKNOWN> version at the end
     .reduce(
       (acc, x) => {
         acc[x.version] = x;
