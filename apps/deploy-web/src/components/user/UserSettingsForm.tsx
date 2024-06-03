@@ -20,9 +20,7 @@ import { UserSettings } from "@src/types/user";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import Layout from "../layout/Layout";
 
-type Props = {};
-
-export const UserSettingsForm: React.FunctionComponent<Props> = ({}) => {
+export const UserSettingsForm: React.FunctionComponent = () => {
   const { user, isLoading } = useCustomUser();
   const [isCheckingAvailability, setIsCheckingAvailability] = useState<boolean>(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);

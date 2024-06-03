@@ -65,7 +65,7 @@ interface Props {
   disabled?: boolean;
 }
 
-export const SelectCheckbox = ({ defaultValue, options, onSelectedChange, label, disabled, placeholder }: React.PropsWithChildren<Props>) => {
+export const SelectCheckbox = ({ defaultValue, options, onSelectedChange, label, disabled }: React.PropsWithChildren<Props>) => {
   const [selected, setSelected] = useState(defaultValue);
   const isAllSelected = options.length > 0 && selected.length === options.length;
 

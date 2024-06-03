@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import React from "react";
 import { ArrowLeft } from "iconoir-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
@@ -9,11 +9,7 @@ import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../components/layout/Layout";
 
-type Props = {
-  children?: ReactNode;
-};
-
-const FourOhFour: React.FunctionComponent<Props> = ({}) => {
+const FourOhFour: React.FunctionComponent = () => {
   return (
     <Layout>
       <NextSeo title="Page not found" />

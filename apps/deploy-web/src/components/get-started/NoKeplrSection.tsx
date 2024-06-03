@@ -12,9 +12,7 @@ import { buttonVariants } from "../ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { CreateWalletSection } from "./CreateWalletSection";
 
-type Props = {};
-
-export const NoKeplrSection: React.FunctionComponent<Props> = ({}) => {
+export const NoKeplrSection: React.FunctionComponent = () => {
   const [isCreateWalletOpen, setIsCreateWalletOpen] = useState(false);
 
   return (

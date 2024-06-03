@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import React from "react";
 import { Discord, Github, X as TwitterX, Youtube } from "iconoir-react";
 
 import Layout from "@src/components/layout/Layout";
@@ -6,11 +6,7 @@ import { Title } from "@src/components/shared/Title";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../components/shared/CustomNextSeo";
 
-type Props = {
-  children?: ReactNode;
-};
-
-const ContactPage: React.FunctionComponent<Props> = ({}) => {
+const ContactPage: React.FunctionComponent = () => {
   return (
     <Layout>
       <CustomNextSeo title="Contact" url={`${domainName}${UrlService.contact()}`} />

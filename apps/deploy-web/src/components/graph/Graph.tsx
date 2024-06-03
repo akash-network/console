@@ -61,13 +61,11 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
           max: maxValue * 1.02
         }}
         yFormat=" >-1d"
-        // @ts-ignore will be fixed in 0.69.1
         axisBottom={{
           tickRotation: smallScreen ? 45 : 0,
           format: dateStr => intl.formatDate(dateStr, { day: "numeric", month: "short", timeZone: "utc" }),
           tickValues: getTickValues(rangedData, graphMetadata.xModulo)
         }}
-        // @ts-ignore will be fixed in 0.69.1
         axisLeft={{
           format: val => nFormatter(val, 2),
           legend: snapshotMetadata.legend,

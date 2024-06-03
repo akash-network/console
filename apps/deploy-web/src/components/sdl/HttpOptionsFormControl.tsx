@@ -1,15 +1,12 @@
 "use client";
 import { ReactNode } from "react";
 import { Control, Controller } from "react-hook-form";
-import InfoIcon from "@mui/icons-material/Info";
-import { CardContent } from "@mui/material";
 import { InfoCircle } from "iconoir-react";
 
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { nextCases } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { Card } from "../ui/card";
 import { Checkbox } from "../ui/checkbox";
 import { FormItem } from "../ui/form";
 import { InputWithIcon } from "../ui/input";

@@ -18,7 +18,7 @@ type Props = {
   setDeletingGrant: (grant: GrantType) => void;
 };
 
-export const GranterRow: React.FunctionComponent<Props> = ({ children, grant, onEditGrant, setDeletingGrant }) => {
+export const GranterRow: React.FunctionComponent<Props> = ({ grant, onEditGrant, setDeletingGrant }) => {
   const denomData = useDenomData(grant.authorization.spend_limit.denom);
 
   return (

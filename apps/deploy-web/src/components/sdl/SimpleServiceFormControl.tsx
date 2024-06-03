@@ -3,7 +3,7 @@ import { Dispatch, SetStateAction, useState } from "react";
 import { Control, Controller, UseFormSetValue, UseFormTrigger } from "react-hook-form";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { Bin, BinMinusIn, InfoCircle, NavArrowDown, OpenInWindow } from "iconoir-react";
+import { BinMinusIn, InfoCircle, NavArrowDown, OpenInWindow } from "iconoir-react";
 import Image from "next/legacy/image";
 import Link from "next/link";
 
@@ -129,7 +129,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
               rules={{
                 required: "Service name is required.",
                 validate: value => {
-                  const hasValidChars = /^[a-z0-9\-]+$/.test(value);
+                  const hasValidChars = /^[a-z0-9-]+$/.test(value);
                   const hasValidStartingChar = /^[a-z]/.test(value);
                   const hasValidEndingChar = !value.endsWith("-");
 

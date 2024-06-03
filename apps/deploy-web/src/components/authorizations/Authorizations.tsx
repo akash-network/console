@@ -24,13 +24,11 @@ import { GranteeRow } from "./GranteeRow";
 import { GranterRow } from "./GranterRow";
 import { GrantModal } from "./GrantModal";
 
-type Props = {};
-
 type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "allowancesGranted" | null;
 const defaultRefetchInterval = 30 * 1000;
 const refreshingInterval = 1000;
 
-export const Authorizations: React.FunctionComponent<Props> = ({}) => {
+export const Authorizations: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx } = useWallet();
   const [editingGrant, setEditingGrant] = useState<GrantType | null>(null);
   const [editingAllowance, setEditingAllowance] = useState<AllowanceType | null>(null);

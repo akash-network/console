@@ -1,5 +1,5 @@
 import { SearchX } from "lucide-react";
-import { Metadata, ResolvingMetadata } from "next";
+import { Metadata } from "next";
 
 import { BlockInfo } from "./BlockInfo";
 
@@ -16,7 +16,7 @@ interface IProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export async function generateMetadata({ params: { height } }: IProps, parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata({ params: { height } }: IProps): Promise<Metadata> {
   return {
     title: `Block #${height}`
   };

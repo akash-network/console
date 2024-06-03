@@ -23,9 +23,3 @@ function SDLBuilderPage() {
 }
 
 export default SDLBuilderPage;
-
-export async function getServerSideProps({ params }) {
-  return {
-    props: {}
-  };
-}

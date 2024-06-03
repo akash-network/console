@@ -15,9 +15,7 @@ import { SelectNetworkModal } from "./SelectNetworkModal";
 import { SettingsForm } from "./SettingsForm";
 import { SettingsLayout, SettingsTabs } from "./SettingsLayout";
 
-type Props = {};
-
-export const SettingsContainer: React.FunctionComponent<Props> = ({}) => {
+export const SettingsContainer: React.FunctionComponent = () => {
   const [isSelectingNetwork, setIsSelectingNetwork] = useState(false);
   const selectedNetwork = useSelectedNetwork();
 

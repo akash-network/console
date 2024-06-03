@@ -9,9 +9,7 @@ import { useUserFavoriteTemplates } from "@src/queries/useTemplateQuery";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import Layout from "../layout/Layout";
 
-type Props = {};
-
-export const UserFavorites: React.FunctionComponent<Props> = () => {
+export const UserFavorites: React.FunctionComponent = () => {
   const { data: favoriteTemplates, isLoading: isLoadingTemplates } = useUserFavoriteTemplates();
   const { user, isLoading } = useCustomUser();
 

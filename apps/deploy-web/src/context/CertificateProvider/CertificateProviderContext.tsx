@@ -251,32 +251,28 @@ export const CertificateProvider = ({ children }) => {
    * Revoke certificate
    */
   const revokeCertificate = async (certificate: ChainCertificate) => {
-    try {
-      const message = TransactionMessageData.getRevokeCertificateMsg(address, certificate.serial);
-      const response = await signAndBroadcastTx([message]);
-      if (response) {
-        const validCerts = await loadValidCertificates();
-        const isRevokingOtherCert = validCerts.some(c => c.parsed === localCert?.certPem);
-        updateWallet(address, wallet => {
-          return {
-            ...wallet,
-            cert: isRevokingOtherCert ? wallet.cert : undefined,
-            certKey: isRevokingOtherCert ? wallet.certKey : undefined
-          };
-        });
-        if (validCerts?.length > 0 && certificate.serial === selectedCertificate?.serial) {
-          setSelectedCertificate(validCerts[0]);
-        } else if (validCerts?.length === 0) {
-          setSelectedCertificate(null);
-        }
-
-        event(AnalyticsEvents.REVOKE_CERTIFICATE, {
-          category: "certificates",
-          label: "Revoked certificate"
-        });
+    const message = TransactionMessageData.getRevokeCertificateMsg(address, certificate.serial);
+    const response = await signAndBroadcastTx([message]);
+    if (response) {
+      const validCerts = await loadValidCertificates();
+      const isRevokingOtherCert = validCerts.some(c => c.parsed === localCert?.certPem);
+      updateWallet(address, wallet => {
+        return {
+          ...wallet,
+          cert: isRevokingOtherCert ? wallet.cert : undefined,
+          certKey: isRevokingOtherCert ? wallet.certKey : undefined
+        };
+      });
+      if (validCerts?.length > 0 && certificate.serial === selectedCertificate?.serial) {
+        setSelectedCertificate(validCerts[0]);
+      } else if (validCerts?.length === 0) {
+        setSelectedCertificate(null);
       }
-    } catch (error) {
-      throw error;
+
+      event(AnalyticsEvents.REVOKE_CERTIFICATE, {
+        category: "certificates",
+        label: "Revoked certificate"
+      });
     }
   };
 
@@ -284,29 +280,25 @@ export const CertificateProvider = ({ children }) => {
    * Revoke all certificates
    */
   const revokeAllCertificates = async () => {
-    try {
-      const messages = validCertificates.map(cert => TransactionMessageData.getRevokeCertificateMsg(address, cert.serial));
-      const response = await signAndBroadcastTx(messages);
-      if (response) {
-        await loadValidCertificates();
+    const messages = validCertificates.map(cert => TransactionMessageData.getRevokeCertificateMsg(address, cert.serial));
+    const response = await signAndBroadcastTx(messages);
+    if (response) {
+      await loadValidCertificates();
 
-        updateWallet(address, wallet => {
-          return {
-            ...wallet,
-            cert: undefined,
-            certKey: undefined
-          };
-        });
+      updateWallet(address, wallet => {
+        return {
+          ...wallet,
+          cert: undefined,
+          certKey: undefined
+        };
+      });
 
-        setSelectedCertificate(null);
+      setSelectedCertificate(null);
 
-        event(AnalyticsEvents.REVOKE_ALL_CERTIFICATE, {
-          category: "certificates",
-          label: "Revoked all certificates"
-        });
-      }
-    } catch (error) {
-      throw error;
+      event(AnalyticsEvents.REVOKE_ALL_CERTIFICATE, {
+        category: "certificates",
+        label: "Revoked all certificates"
+      });
     }
   };
 

@@ -29,8 +29,6 @@ const NetworkCapacity = dynamic(() => import("./NetworkCapacity"), {
   ssr: false
 });
 
-type Props = {};
-
 type SortId = "active-leases-desc" | "active-leases-asc" | "my-leases-desc" | "my-active-leases-desc" | "gpu-available-desc";
 
 const sortOptions: { id: SortId; title: string }[] = [
@@ -41,7 +39,7 @@ const sortOptions: { id: SortId; title: string }[] = [
   { id: "gpu-available-desc", title: "GPUs Available (desc)" }
 ];
 
-export const ProviderList: React.FunctionComponent<Props> = ({}) => {
+export const ProviderList: React.FunctionComponent = () => {
   const { address } = useWallet();
   const [pageIndex, setPageIndex] = useState(0);
   const [isFilteringActive, setIsFilteringActive] = useState(true);

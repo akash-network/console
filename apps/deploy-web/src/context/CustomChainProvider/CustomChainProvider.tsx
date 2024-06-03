@@ -45,8 +45,8 @@ export function CustomChainProvider({ children }: Props) {
         }
       }}
       signerOptions={{
-        preferredSignType: chain => "direct",
-        signingStargate: chain => ({
+        preferredSignType: () => "direct",
+        signingStargate: () => ({
           registry: customRegistry,
           gasPrice: GasPrice.fromString("0.025uakt")
         })

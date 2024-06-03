@@ -59,6 +59,12 @@
       "rules": {
         "@typescript-eslint/no-explicit-any": ["warn"]
       }
+    },
+    {
+      "files": ["**/sentry.*.config.js"],
+      "parserOptions": {
+        "sourceType": "module"
+      }
     }
   ]
 }

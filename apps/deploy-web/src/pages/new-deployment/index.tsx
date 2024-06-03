@@ -5,9 +5,3 @@ function NewDeploymentPage() {
 }
 
 export default NewDeploymentPage;
-
-export async function getServerSideProps({ params }) {
-  return {
-    props: {}
-  };
-}

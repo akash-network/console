@@ -1,10 +1,9 @@
 import fs from "fs";
 import { Level } from "level";
+import path from "path";
 
 import { dataFolderPath } from "@src/shared/constants";
 import { bytesToHumanReadableSize } from "@src/shared/utils/files";
-
-const path = require("path");
 
 const LevelNotFoundCode = "LEVEL_NOT_FOUND";
 

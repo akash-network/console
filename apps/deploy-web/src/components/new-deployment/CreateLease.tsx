@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { ArrowRight, BadgeCheck, Bin, InfoCircle, MoreHoriz, Xmark } from "iconoir-react";
+import yaml from "js-yaml";
 import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
@@ -35,8 +36,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dr
 import { InputWithIcon } from "../ui/input";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { BidGroup } from "./BidGroup";
-
-const yaml = require("js-yaml");
 
 type Props = {
   dseq: string;
@@ -193,15 +192,11 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   }
 
   async function handleCloseDeployment() {
-    try {
-      const message = TransactionMessageData.getCloseDeploymentMsg(address, dseq);
-      const response = await signAndBroadcastTx([message]);
+    const message = TransactionMessageData.getCloseDeploymentMsg(address, dseq);
+    const response = await signAndBroadcastTx([message]);
 
-      if (response) {
-        router.replace(UrlService.deploymentList());
-      }
-    } catch (error) {
-      throw error;
+    if (response) {
+      router.replace(UrlService.deploymentList());
     }
   }
 

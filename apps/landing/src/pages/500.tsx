@@ -1,7 +1,6 @@
-import { ReactNode } from "react";
+import React from "react";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import { Box, Button, Typography, useTheme } from "@mui/material";
-import { NextPage, NextPageContext } from "next";
+import { Box, Button, Typography } from "@mui/material";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
@@ -10,11 +9,7 @@ import { Title } from "@src/components/shared/Title";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../components/layout/Layout";
 
-type Props = {
-  children?: ReactNode;
-};
-
-const FiveHundred: React.FunctionComponent<Props> = ({}) => {
+const FiveHundred: React.FunctionComponent = () => {
   return (
     <Layout>
       <NextSeo title="Error" />

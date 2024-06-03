@@ -133,7 +133,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
               </span>
             </div>
             <div className="mt-1 inline-flex flex-nowrap items-center space-x-1 text-center">
-              {gpuModels.slice(0, 2).map((gpu, i) => (
+              {gpuModels.slice(0, 2).map(gpu => (
                 <Badge key={gpu} className="h-4 px-1 py-0 text-xs">
                   <small>{gpu}</small>
                 </Badge>
@@ -143,7 +143,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
                 <CustomNoDivTooltip
                   title={
                     <div className="space-x-1">
-                      {gpuModels.map((gpu, i) => (
+                      {gpuModels.map(gpu => (
                         <Badge key={gpu} className="px-1 py-0 text-xs">
                           {gpu}
                         </Badge>

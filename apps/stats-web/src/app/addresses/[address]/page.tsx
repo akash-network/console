@@ -1,4 +1,4 @@
-import { Metadata, ResolvingMetadata } from "next";
+import { Metadata } from "next";
 
 import { AddressInfo } from "./AddressInfo";
 import AddressLayout from "./AddressLayout";
@@ -16,7 +16,7 @@ interface IProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export async function generateMetadata({ params: { address } }: IProps, parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata({ params: { address } }: IProps): Promise<Metadata> {
   const url = `https://stats.akash.network${UrlService.address(address)}`;
 
   return {

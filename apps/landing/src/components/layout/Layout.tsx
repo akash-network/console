@@ -34,7 +34,7 @@ const Layout: React.FunctionComponent<Props> = ({ children }) => {
   );
 };
 
-const useStyles = makeStyles()(theme => ({
+const useStyles = makeStyles()(() => ({
   wave: {
     height: "100%",
     zIndex: -1,

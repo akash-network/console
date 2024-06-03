@@ -27,10 +27,12 @@ export const mapFormValuesToAttributes = (data: ProviderAttributesFormValues, pr
           attributes.push({ key, value: `${value}` });
           break;
         case "option":
+          // eslint-disable-next-line no-case-declarations
           const attributeValue = attribute.values?.find(v => v.key === value.key);
           attributes.push({ key: attribute.key, value: `${attributeValue?.key}` });
           break;
         case "multiple-option":
+          // eslint-disable-next-line no-case-declarations
           const values = value as ProviderAttributeSchemaDetailValue[];
           values.forEach(_val => {
             const attributeValue = attribute.values?.find(v => v.key === _val.key);

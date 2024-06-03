@@ -44,21 +44,17 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   }
 
   const onCloseDeployment = async () => {
-    try {
-      const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
-      const response = await signAndBroadcastTx([message]);
-      if (response) {
-        setActiveTab("LEASES");
-        removeLeases();
-        loadDeploymentDetail();
+    const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
+    const response = await signAndBroadcastTx([message]);
+    if (response) {
+      setActiveTab("LEASES");
+      removeLeases();
+      loadDeploymentDetail();
 
-        event(AnalyticsEvents.CLOSE_DEPLOYMENT, {
-          category: "deployments",
-          label: "Close deployment in deployment detail"
-        });
-      }
-    } catch (error) {
-      throw error;
+      event(AnalyticsEvents.CLOSE_DEPLOYMENT, {
+        category: "deployments",
+        label: "Close deployment in deployment detail"
+      });
     }
   };
 
@@ -74,25 +70,15 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
     setIsDepositingDeployment(false);
 
-    try {
-      const message = TransactionMessageData.getDepositDeploymentMsg(
-        address,
-        deployment.dseq,
-        deposit,
-        deployment.escrowAccount.balance.denom,
-        depositorAddress
-      );
-      const response = await signAndBroadcastTx([message]);
-      if (response) {
-        loadDeploymentDetail();
+    const message = TransactionMessageData.getDepositDeploymentMsg(address, deployment.dseq, deposit, deployment.escrowAccount.balance.denom, depositorAddress);
+    const response = await signAndBroadcastTx([message]);
+    if (response) {
+      loadDeploymentDetail();
 
-        event(AnalyticsEvents.DEPLOYMENT_DEPOSIT, {
-          category: "deployments",
-          label: "Deposit deployment in deployment detail"
-        });
-      }
-    } catch (error) {
-      throw error;
+      event(AnalyticsEvents.DEPLOYMENT_DEPOSIT, {
+        category: "deployments",
+        label: "Deposit deployment in deployment detail"
+      });
     }
   };
 

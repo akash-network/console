@@ -55,7 +55,7 @@ export const BackgroundTaskProvider = ({ children }) => {
           }
           showLoading
         />,
-        { variant: "info", persist: true, action: key => null }
+        { variant: "info", persist: true, action: () => null }
       );
 
       const url = isLogs
@@ -144,7 +144,7 @@ export const BackgroundTaskProvider = ({ children }) => {
         }
         showLoading
       />,
-      { variant: "info", persist: true, action: key => null }
+      { variant: "info", persist: true, action: () => null }
     );
 
     const printCommand = getPrintCommand("linux");
@@ -168,7 +168,9 @@ export const BackgroundTaskProvider = ({ children }) => {
           const jsonData = JSON.parse(stringData);
           exitCode = jsonData["exit_code"];
           errorMessage = jsonData["message"];
-        } catch (err) {}
+        } catch (err) {
+          /* empty */
+        }
 
         if (exitCode !== undefined) {
           if (errorMessage) {
@@ -202,7 +204,7 @@ export const BackgroundTaskProvider = ({ children }) => {
       } else if (isFinished && fileContent) {
         closeSnackbar(snackbarKey);
         console.log("Done, downloading file");
-        const filename = filePath.replace(/^.*[\\\/]/, "");
+        const filename = filePath.replace(/^.*[\\/]/, "");
         FileSaver.saveAs(new Blob([fileContent]), filename);
       } else {
         console.log("No file / Failed");

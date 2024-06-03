@@ -19,11 +19,9 @@ import { Title } from "../shared/Title";
 import { MobileTemplatesFilter } from "./MobileTemplatesFilter";
 import { TemplateBox } from "./TemplateBox";
 
-type Props = {};
-
 let timeoutId: NodeJS.Timeout | null = null;
 
-export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
+export const TemplateGallery: React.FunctionComponent = () => {
   const [selectedCategoryTitle, setSelectedCategoryTitle] = useState<string | null>(null);
   const [searchTerms, setSearchTerms] = useState("");
   const [shownTemplates, setShownTemplates] = useState<ApiTemplate[]>([]);

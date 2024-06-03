@@ -3,7 +3,7 @@ import ReactPlayer from "react-player/lazy";
 import LaunchIcon from "@mui/icons-material/RocketLaunch";
 import TwitterIcon from "@mui/icons-material/Twitter";
 import YouTubeIcon from "@mui/icons-material/YouTube";
-import { Box, Button, Grid, Typography, useTheme } from "@mui/material";
+import { Box, Button, Grid, Typography } from "@mui/material";
 import { NextSeo } from "next-seo";
 import { makeStyles } from "tss-react/mui";
 
@@ -93,10 +93,7 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-type Props = {};
-
-const Index: React.FunctionComponent<Props> = ({}) => {
-  const theme = useTheme();
+const Index: React.FunctionComponent = () => {
   const { classes } = useStyles();
 
   return (
@@ -166,12 +163,5 @@ const Index: React.FunctionComponent<Props> = ({}) => {
     </Layout>
   );
 };
-
-export async function getServerSideProps() {
-  return {
-    props: {}
-    //revalidate: 20
-  };
-}
 
 export default Index;

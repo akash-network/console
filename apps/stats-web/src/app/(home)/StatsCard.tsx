@@ -3,7 +3,6 @@ import React from "react";
 import { GraphUp, HelpCircle } from "iconoir-react";
 import Link from "next/link";
 
-import { DiffNumber } from "@/components/DiffNumber";
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,16 +19,7 @@ interface IStatsCardProps {
   actionButton?: string | React.ReactNode;
 }
 
-export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({
-  number,
-  text,
-  tooltip,
-  actionButton,
-  graphPath,
-  diffNumber,
-  diffPercent,
-  diffNumberUnit
-}) => {
+export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, text, tooltip, actionButton, graphPath, diffNumber, diffPercent }) => {
   return (
     <Card className="flex flex-col justify-between">
       <CardHeader className="flex flex-row items-center space-y-0 pb-2 pl-4 pr-4">

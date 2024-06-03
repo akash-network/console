@@ -1,5 +1,5 @@
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import { Box, Button, Typography, useTheme } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import * as Sentry from "@sentry/nextjs";
 import { NextPage, NextPageContext } from "next";
 import Link from "next/link";

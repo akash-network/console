@@ -32,7 +32,7 @@ const SwitchWithLabel = React.forwardRef<
     label: string;
     labelPosition?: "left" | "right";
   }
->(({ className, label, labelPosition = "right", ...props }, ref) => {
+>(({ className, label, labelPosition = "right", ...props }) => {
   const id = nanoid();
   const _label = (
     <label htmlFor={id} className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">

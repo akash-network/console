@@ -1,17 +1,12 @@
-import React, { ReactNode } from "react";
+import React from "react";
 import LaunchIcon from "@mui/icons-material/RocketLaunch";
-import { AppBar, Box, Button, Container, lighten, Toolbar, useTheme } from "@mui/material";
+import { AppBar, Box, Button, Container, Toolbar, useTheme } from "@mui/material";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/router";
 import { makeStyles } from "tss-react/mui";
 
 import { customColors } from "@src/utils/colors";
 import { headerHeight, mobileHeaderHeight } from "@src/utils/constants";
-
-type Props = {
-  children?: ReactNode;
-};
 
 const useStyles = makeStyles()(theme => ({
   toolbar: {
@@ -24,11 +19,9 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const Header: React.FunctionComponent<Props> = () => {
+export const Header: React.FunctionComponent = () => {
   const { classes } = useStyles();
   const theme = useTheme();
-  const router = useRouter();
-  const isHome = router.pathname === "/";
 
   return (
     <AppBar position="fixed" sx={{ boxShadow: "none" }}>

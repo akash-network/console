@@ -14,9 +14,9 @@ import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator } from "../ui/dropdown-menu";
 
-export function AccountMenu({}: React.PropsWithChildren<{}>) {
+export function AccountMenu() {
   const [open, setOpen] = useState(false);
-  const { user, error, isLoading } = useCustomUser();
+  const { user, isLoading } = useCustomUser();
   const username = user?.username;
   const router = useRouter();
 

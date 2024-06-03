@@ -27,7 +27,7 @@ interface IDashboardProps {
   marketData: MarketData;
 }
 
-export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardData, marketData }) => {
+export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardData }) => {
   const memoryDiff = bytesToShrink(dashboardData.now.activeMemory - dashboardData.compare.activeMemory);
   const storageDiff = bytesToShrink(dashboardData.now.activeStorage - dashboardData.compare.activeStorage);
   const capacityMemoryDiff = bytesToShrink(dashboardData.networkCapacityStats.now.memory - dashboardData.networkCapacityStats.compare.memory);

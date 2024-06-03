@@ -26,7 +26,7 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
 
   useEffect(() => {
     if (leases) {
-      let _filteredLeases = [...leases].sort((a, b) => (a.state === "active" ? -1 : 1));
+      let _filteredLeases = [...leases].sort(a => (a.state === "active" ? -1 : 1));
 
       if (isFilteringActive) {
         _filteredLeases = _filteredLeases.filter(x => x.state === "active");
@@ -76,7 +76,7 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
             </TableHeader>
 
             <TableBody>
-              {currentPageLeases.map((lease, i) => (
+              {currentPageLeases.map(lease => (
                 <LeaseRow key={lease.id} lease={lease} />
               ))}
             </TableBody>

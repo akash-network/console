@@ -6,7 +6,6 @@ import StepContent from "@mui/material/StepContent";
 import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
 import { Check, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 
 import { useChainParam } from "@src/context/ChainParamProvider";
@@ -18,7 +17,6 @@ import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { ExternalLink } from "../shared/ExternalLink";
-import Spinner from "../shared/Spinner";
 import { Button, buttonVariants } from "../ui/button";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
@@ -37,11 +35,9 @@ import { QontoConnector, QontoStepIcon } from "./Stepper";
 //   }
 // });
 
-type Props = {};
-
-export const GetStartedStepper: React.FunctionComponent<Props> = () => {
+export const GetStartedStepper: React.FunctionComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
-  const { isWalletConnected, walletBalances, address, refreshBalances } = useWallet();
+  const { isWalletConnected, walletBalances } = useWallet();
   const { minDeposit } = useChainParam();
   const aktBalance = walletBalances ? uaktToAKT(walletBalances.uakt) : 0;
   const usdcBalance = walletBalances ? udenomToDenom(walletBalances.usdc) : 0;

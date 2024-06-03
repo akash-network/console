@@ -56,7 +56,7 @@ export function SpecDetail({
             <div className={specDetailClasses}>{gpuAmount + " GPU"}</div>
             {gpuModels && gpuModels?.length > 0 && (
               <div className="ml-2 inline-flex items-center space-x-2">
-                {gpuModels.map((gpu, i) => (
+                {gpuModels.map(gpu => (
                   <Badge key={`${gpu.vendor}-${gpu.model}`} className="py-0 text-xs" color="default">
                     {`${gpu.vendor}-${gpu.model}`}
                   </Badge>

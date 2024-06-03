@@ -31,7 +31,7 @@ const CheckboxWithLabel = React.forwardRef<
     labelPosition?: "left" | "right";
     labelClassName?: string;
   }
->(({ className, label, labelPosition = "right", labelClassName = "", ...props }, ref) => {
+>(({ className, label, labelPosition = "right", labelClassName = "", ...props }) => {
   const id = nanoid();
   const _label = (
     <label htmlFor={id} className={cn("cursor-pointer text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70", labelClassName)}>

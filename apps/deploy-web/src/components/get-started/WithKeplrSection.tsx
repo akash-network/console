@@ -8,9 +8,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
 import { buttonVariants } from "../ui/button";
 
-type Props = {};
-
-export const WithKeplrSection: React.FunctionComponent<Props> = ({}) => {
+export const WithKeplrSection: React.FunctionComponent = () => {
   return (
     <div>
       <Link href={UrlService.getStartedWallet()} className={cn(buttonVariants({ variant: "text" }))}>

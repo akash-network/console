@@ -6,9 +6,7 @@ import { columns } from "./columns";
 import { DataTable } from "@/components/table/data-table";
 import { useValidators } from "@/queries";
 
-interface IProps {}
-
-export function ValidatorsTable({}: IProps) {
+export function ValidatorsTable() {
   const { data: validators, isLoading } = useValidators();
 
   return (

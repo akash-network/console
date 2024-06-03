@@ -1,14 +1,10 @@
-import { ReactNode } from "react";
+import React from "react";
 import { Tools } from "iconoir-react";
 import { NextSeo } from "next-seo";
 
 import { Title } from "@src/components/shared/Title";
 
-type Props = {
-  children?: ReactNode;
-};
-
-const Maintenance: React.FunctionComponent<Props> = ({}) => {
+const Maintenance: React.FunctionComponent = () => {
   return (
     <div>
       <NextSeo title="Maintenance" />

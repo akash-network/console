@@ -1,6 +1,6 @@
 import React from "react";
 import { ArrowLeft } from "iconoir-react";
-import { Metadata, ResolvingMetadata } from "next";
+import { Metadata } from "next";
 import Link from "next/link";
 
 import GraphContainer from "./GraphContainer";
@@ -16,7 +16,7 @@ interface IGraphProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export async function generateMetadata({ params: { snapshot: snapshotUrlParam } }: IGraphProps, parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata({ params: { snapshot: snapshotUrlParam } }: IGraphProps): Promise<Metadata> {
   const snapshot = urlParamToSnapshot(snapshotUrlParam as SnapshotsUrlParam);
   const title = getTitle(snapshot as Snapshots);
 

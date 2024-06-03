@@ -8,15 +8,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useBlocks } from "@/queries";
 
-type Props = {
-  errors?: string;
-};
-
 export const metadata: Metadata = {
   title: "Blocks"
 };
 
-export const BlocksTable: React.FunctionComponent<Props> = ({}) => {
+export const BlocksTable: React.FunctionComponent = () => {
   const { data: blocks, isLoading } = useBlocks(20, {
     refetchInterval: 7000
   });

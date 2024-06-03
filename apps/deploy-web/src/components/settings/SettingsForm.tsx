@@ -18,9 +18,7 @@ import { BlockchainNode, useSettings } from "@src/context/SettingsProvider/Setti
 import { isUrl } from "@src/utils/stringUtils";
 import { cn } from "@src/utils/styleUtils";
 
-type Props = {};
-
-export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
+export const SettingsForm: React.FunctionComponent = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isNodesOpen, setIsNodesOpen] = useState(false);
   const { settings, setSettings, refreshNodeStatuses, isRefreshingNodeStatus } = useSettings();

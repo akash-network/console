@@ -1,6 +1,6 @@
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { defaultInitialDeposit } from "../constants";
-import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion, parseSizeStr } from "./helpers";
+import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion } from "./helpers";
 
 export const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
 
@@ -9,7 +9,7 @@ export function getManifest(yamlJson, asString: boolean) {
   return Manifest(yamlJson, "beta3", network.id, asString);
 }
 
-export async function getManifestVersion<T extends boolean>(yamlJson) {
+export async function getManifestVersion(yamlJson) {
   const network = getSelectedNetwork();
   const version = await ManifestVersion(yamlJson, "beta3", network.id);
 

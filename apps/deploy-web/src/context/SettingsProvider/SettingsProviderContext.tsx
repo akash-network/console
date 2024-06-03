@@ -1,7 +1,6 @@
 "use client";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { FC, ReactNode, useCallback, useEffect, useState } from "react";
 import axios from "axios";
-import { z } from "zod";
 
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
@@ -53,7 +52,7 @@ const defaultSettings: Settings = {
   customNode: null
 };
 
-export function SettingsProvider({ children }: React.PropsWithChildren<{}>) {
+export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSettingsInit, setIsSettingsInit] = useState(false);
@@ -190,6 +189,7 @@ export function SettingsProvider({ children }: React.PropsWithChildren<{}>) {
       const end = performance.now();
       latency = end - start;
 
+      // eslint-disable-next-line no-unsafe-finally
       return {
         latency,
         status,
@@ -319,7 +319,7 @@ export function SettingsProvider({ children }: React.PropsWithChildren<{}>) {
       {children}
     </SettingsProviderContext.Provider>
   );
-}
+};
 
 export const useSettings = () => {
   return { ...React.useContext(SettingsProviderContext) };

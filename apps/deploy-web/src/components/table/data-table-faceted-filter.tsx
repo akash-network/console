@@ -20,7 +20,6 @@ interface DataTableFacetedFilterProps<TData, TValue> {
 }
 
 export function DataTableFacetedFilter<TData, TValue>({ column, title, options }: DataTableFacetedFilterProps<TData, TValue>) {
-  const facets = column?.getFacetedUniqueValues();
   const selectedValue = column?.getFilterValue() as string;
 
   return (

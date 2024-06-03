@@ -229,7 +229,7 @@ wss.on("connection", (ws: WebSocket, req: http.IncomingMessage) => {
     }
   });
 
-  ws.on("close", (ws: WebSocket) => {
+  ws.on("close", () => {
     console.log("Closing socket: " + id);
 
     stats.close();

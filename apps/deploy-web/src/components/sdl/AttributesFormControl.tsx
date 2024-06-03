@@ -8,8 +8,7 @@ import { PlacementAttribute, SdlBuilderFormValues } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { Button } from "../ui/button";
-import { Card, CardContent } from "../ui/card";
-import { FormInput, Input } from "../ui/input";
+import { FormInput } from "../ui/input";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
