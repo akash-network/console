@@ -20,6 +20,9 @@ import { CustomNextSeo } from "../shared/CustomNextSeo";
 import Layout from "../layout/Layout";
 import { UrlService, domainName } from "@src/utils/urlUtils";
 import { differenceInMinutes, sub } from "date-fns";
+import { Title } from "../shared/Title";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 const NetworkCapacity = dynamic(() => import("./NetworkCapacity"), {
   ssr: false
@@ -54,6 +57,8 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
     }
   });
   const isLoading = isLoadingProvider || isLoadingStatus || isLoadingLeases || isLoadingSchema;
+  const muiTheme = useMuiTheme();
+  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("lg"));
 
   useEffect(() => {
     getProviderDetail();
@@ -82,7 +87,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
     const sortedUptimeChecks = [...uptimeChecks].sort((a, b) => new Date(a.checkDate).getTime() - new Date(b.checkDate).getTime());
 
     for (const snapshot of sortedUptimeChecks) {
-      const recentGroup = groupedSnapshots.find(x => differenceInMinutes(new Date(snapshot.checkDate), x.checkDate) < 15);
+      const recentGroup = groupedSnapshots.find(x => differenceInMinutes(new Date(snapshot.checkDate), x.checkDate) < (smallScreen ? 30 : 15));
 
       if (recentGroup) {
         recentGroup.checks.push(snapshot.isOnline);
@@ -100,7 +105,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
     }));
   }
 
-  const uptimePeriods = useMemo(() => groupUptimeChecksByPeriod(provider?.uptime || []), [provider?.uptime]);
+  const uptimePeriods = useMemo(() => groupUptimeChecksByPeriod(provider?.uptime || []), [provider?.uptime, smallScreen]);
   const wasRecentlyOnline = provider && (provider.isOnline || (provider.lastOnlineDate && new Date(provider.lastOnlineDate) >= sub(new Date(), { hours: 24 })));
 
   return (
@@ -139,32 +144,46 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
               />
             </div>
 
-            <p className="mb-4">Up time (24h)</p>
-            <div className="mb-8 flex items-center space-x-1">
-              {uptimePeriods.map(x => (
-                <CustomNoDivTooltip
-                  key={x.date.toISOString()}
-                  title={<FormattedDate value={x.date} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />}
-                >
-                  <div
-                    className={cn("h-[24px] w-[2%] max-w-[8px] rounded-[2px]", {
-                      "bg-green-600": x.status === "online",
-                      "bg-destructive": x.status === "offline",
-                      "bg-warning": x.status === "partial"
-                    })}
-                  />
-                </CustomNoDivTooltip>
-              ))}
-            </div>
+            <div className="grid grid-cols-1 gap-4 space-y-4 md:grid-cols-2">
+              <div className="basis-1/2">
+                <ActiveLeasesGraph provider={provider} />
+              </div>
 
-            <ActiveLeasesGraph provider={provider} />
+              <div className="order-first basis-1/2 lg:order-last">
+                <Title subTitle className="mb-2 font-normal tracking-tight">
+                  Up time <span className="ml-1 text-sm">(24h)</span>
+                </Title>
+                <div className="flex items-center space-x-1">
+                  {uptimePeriods.map(x => (
+                    <CustomNoDivTooltip
+                      key={x.date.toISOString()}
+                      title={<FormattedDate value={x.date} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />}
+                    >
+                      <div
+                        className={cn("h-[24px] w-[2%] max-w-[8px] rounded-[2px]", {
+                          "bg-green-600": x.status === "online",
+                          "bg-destructive": x.status === "offline",
+                          "bg-warning": x.status === "partial"
+                        })}
+                      />
+                    </CustomNoDivTooltip>
+                  ))}
+                </div>
+                <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>24h ago</span>
+                  <span>Now</span>
+                </div>
+              </div>
+            </div>
           </>
         )}
 
         {provider && providerAttributesSchema && (
           <>
             <div className="mt-4">
-              <p className="mb-4">General Info</p>
+              <Title subTitle className="mb-4 font-normal tracking-tight">
+                General Info
+              </Title>
 
               <Card className="mb-4">
                 <CardContent className="mb-4 grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
@@ -187,10 +206,14 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                 </CardContent>
               </Card>
 
-              <p className="mb-4">Specs</p>
+              <Title subTitle className="mb-4 font-normal tracking-tight">
+                Specs
+              </Title>
               <ProviderSpecs provider={provider} />
 
-              <p className="mb-4 mt-4">Features</p>
+              <Title subTitle className="mb-4 mt-4 font-normal tracking-tight">
+                Features
+              </Title>
               <Card className="mb-4">
                 <CardContent className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
                   <div>
@@ -206,7 +229,9 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                 </CardContent>
               </Card>
 
-              <p className="mb-4">Stats</p>
+              <Title subTitle className="mb-4 font-normal tracking-tight">
+                Stats
+              </Title>
 
               <Card className="mb-4">
                 <CardContent className="p-4">
@@ -218,7 +243,9 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
               </Card>
             </div>
 
-            <p className="mb-4">Raw attributes</p>
+            <Title subTitle className="mb-4 font-normal tracking-tight">
+              Raw attributes
+            </Title>
             <Card>
               <CardContent className="p-4">
                 {provider.attributes.map(x => (
