@@ -31,9 +31,7 @@ export interface FormInputProps extends React.InputHTMLAttributes<HTMLInputEleme
 const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ className, type, label, description, ...props }, ref) => {
   return (
     <FormItem>
-      {/** TODO */}
       <Label>{label}</Label>
-      {/* <FormControl> */}
       <input
         type={type}
         className={cn(
@@ -43,7 +41,6 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ classNam
         ref={ref}
         {...props}
       />
-      {/* </FormControl> */}
       {description && <FormDescription>{description}</FormDescription>}
     </FormItem>
   );
@@ -62,7 +59,6 @@ export interface InputWithIconProps extends React.InputHTMLAttributes<HTMLInputE
 
 const InputWithIcon = React.forwardRef<HTMLInputElement, InputWithIconProps>(
   ({ className, inputClassName, type, label, startIcon, endIcon, error, ...props }, ref) => {
-    // @ts-expect-error till types are outdated
     const id = React.useId();
 
     return (

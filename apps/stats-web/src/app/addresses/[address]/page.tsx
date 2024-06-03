@@ -58,7 +58,7 @@ export default async function AddressDetailPage({ params: { address }, searchPar
             <AssetList addressDetail={addressDetail} />
           </div>
           <div className="col-span-1 md:col-span-3">
-            <AssetAllocation address={address} addressDetail={addressDetail} />
+            <AssetAllocation addressDetail={addressDetail} />
           </div>
         </div>
       </div>

@@ -156,4 +156,16 @@ export class ValidatorIndexer extends Indexer {
 
     await validator.save({ transaction: dbTransaction });
   }
+
+  initCache(): Promise<void> {
+    return Promise.resolve(undefined);
+  }
+
+  afterEveryTransaction(): Promise<void> {
+    return Promise.resolve(undefined);
+  }
+
+  afterEveryBlock(): Promise<void> {
+    return Promise.resolve(undefined);
+  }
 }

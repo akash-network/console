@@ -54,7 +54,6 @@ type FormItemContextValue = {
 const FormItemContext = React.createContext<FormItemContextValue>({} as FormItemContextValue);
 
 const FormItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => {
-  // @ts-expect-error till types are outdated
   const id = React.useId();
 
   return (
