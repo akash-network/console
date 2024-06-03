@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 import { getDeploymentRelatedMessages } from "../db/deploymentService";
-import { averageBlockCountInAMonth } from "@src/utils/constants";
+import { apiNodeUrl, averageBlockCountInAMonth, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/constants";
 import { coinToAsset } from "@src/utils/coin";
 import { getTransactionByAddress } from "@src/services/db/transactionsService";
 import axios from "axios";
@@ -8,7 +8,6 @@ import { Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { Op } from "sequelize";
 import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
-import { env } from "@src/utils/env";
 import {
   CosmosGovProposalResponse,
   CosmosGovProposalsResponse,
@@ -31,15 +30,7 @@ import { CosmosDistributionParamsResponse } from "@src/types/rest/cosmosDistribu
 import { CosmosDistributionValidatorsCommissionResponse } from "@src/types/rest/cosmosDistributionValidatorsCommissionResponse";
 import { getProviderList } from "../db/providerStatusService";
 
-const defaultNodeUrlMapping: { [key: string]: string } = {
-  mainnet: "https://api.akashnet.net:443",
-  sandbox: "https://api.sandbox-01.aksh.pw",
-  testnet: "https://api.testnet-02.aksh.pw"
-};
 
-const apiNodeUrl = env.RestApiNodeUrl ?? defaultNodeUrlMapping[env.Network] ?? defaultNodeUrlMapping.mainnet;
-const betaTypeVersion = "v1beta3";
-const betaTypeVersionMarket = "v1beta4";
 
 export async function getChainStats() {
   const result = await cacheResponse(

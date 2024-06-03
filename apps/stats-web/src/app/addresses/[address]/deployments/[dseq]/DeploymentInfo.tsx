@@ -8,15 +8,14 @@ import { Title } from "@/components/Title";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
 import { getSplitText } from "@/hooks/useShortText";
 import { roundDecimal, udenomToDenom } from "@/lib/mathHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
 import { UrlService } from "@/lib/urlUtils";
-import { cn } from "@/lib/utils";
 import { DeploymentDetail } from "@/types";
 import Link from "next/link";
 import { FormattedNumber, FormattedTime } from "react-intl";
+import { EventRow } from "./EventRow";
 
 interface IProps {
   deployment: DeploymentDetail;
@@ -90,17 +89,7 @@ export function DeploymentInfo({ deployment }: IProps) {
 
               <TableBody>
                 {deployment.events.map((event, i) => (
-                  <TableRow key={`${event.txHash}_${i}`}>
-                    <TableCell>
-                      <Link href={UrlService.transaction(event.txHash)} target="_blank">
-                        {getSplitText(event.txHash, 6, 6)}
-                      </Link>
-                    </TableCell>
-                    <TableCell align="center">{useFriendlyMessageType(event.type)}</TableCell>
-                    <TableCell align="center">
-                      <FormattedTime value={event.date} day="2-digit" month="2-digit" year="numeric" />
-                    </TableCell>
-                  </TableRow>
+                  <EventRow key={`${event.txHash}_${i}`} event={event} />
                 ))}
               </TableBody>
             </Table>

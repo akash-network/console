@@ -35,7 +35,7 @@ export function MobileNav() {
                   title: "Deploy",
                   icon: <Rocket className="rotate-45" />,
                   variant: "default",
-                  href: "https://deploy.cloudmos.io",
+                  href: "https://console.akash.network",
                   isExternal: true,
                   rel: "noreferrer"
                 },
