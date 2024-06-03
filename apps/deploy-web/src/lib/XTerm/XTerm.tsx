@@ -2,7 +2,7 @@
 import { Ref, useEffect, useRef } from "react";
 import React from "react";
 import { useTheme } from "next-themes";
-import { ITerminalAddon,ITerminalOptions, Terminal } from "xterm";
+import { ITerminalAddon, ITerminalOptions, Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 
 import { copyTextToClipboard } from "@src/utils/copyClipboard";

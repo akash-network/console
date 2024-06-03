@@ -9,7 +9,7 @@ import Layout from "@src/components/layout/Layout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@src/components/ui/breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@src/components/ui/card";
-import { domainName,UrlService } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 
 enum GetWalletSection {
   NoWallet = "no-wallet",
@@ -70,9 +70,9 @@ const GetStartedWallet: React.FunctionComponent<Props> = ({}) => {
         <CardContent className="mt-4 space-y-4">
           {!currentSection &&
             sections.map((section, index) => (
-              <Link className="block px-4 py-2 hover:bg-muted hover:no-underline" key={index} href={UrlService.getStartedWallet(section.id)}>
-                <p className="font-bold text-secondary-foreground">{section.title}</p>
-                <p className="text-sm text-muted-foreground">{section.description}</p>
+              <Link className="hover:bg-muted block px-4 py-2 hover:no-underline" key={index} href={UrlService.getStartedWallet(section.id)}>
+                <p className="text-secondary-foreground font-bold">{section.title}</p>
+                <p className="text-muted-foreground text-sm">{section.description}</p>
               </Link>
             ))}
 

@@ -32,11 +32,11 @@ export const ExposeList: React.FunctionComponent<Props> = ({ currentService, set
             </>
           }
         >
-          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+          <InfoCircle className="text-muted-foreground ml-2 text-xs" />
         </CustomTooltip>
 
         <span
-          className="ml-4 cursor-pointer text-sm font-normal text-primary underline"
+          className="text-primary ml-4 cursor-pointer text-sm font-normal underline"
           onClick={() => setIsEditingExpose(serviceIndex !== undefined ? serviceIndex : true)}
         >
           Edit

@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { GraphUp,HelpCircle } from "iconoir-react";
+import { GraphUp, HelpCircle } from "iconoir-react";
 import Link from "next/link";
 
 import { DiffNumber } from "@/components/DiffNumber";
@@ -37,7 +37,7 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({
         {tooltip && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <HelpCircle className="ml-2 text-xs text-muted-foreground" />
+              <HelpCircle className="text-muted-foreground ml-2 text-xs" />
             </TooltipTrigger>
             <TooltipContent>{tooltip}</TooltipContent>
           </Tooltip>

@@ -10,7 +10,8 @@ import {
   getTemplates,
   removeTemplateFavorite,
   saveTemplate,
-  saveTemplateDesc} from "@src/services/db/templateService";
+  saveTemplateDesc
+} from "@src/services/db/templateService";
 import {
   checkUsernameAvailable,
   getAddressNames,
@@ -19,7 +20,8 @@ import {
   removeAddressName,
   saveAddressName,
   subscribeToNewsletter,
-  updateSettings} from "@src/services/db/userDataService";
+  updateSettings
+} from "@src/services/db/userDataService";
 import { getBillingPortalUrl, getCheckoutUrl } from "@src/services/external/stripeService";
 import { isValidBech32Address } from "@src/utils/addresses";
 
@@ -31,14 +33,14 @@ userRequiredRouter.use("*", requiredUserMiddleware);
 const userOptionalRouter = new Hono();
 userOptionalRouter.use("*", optionalUserMiddleware);
 
-userRequiredRouter.post("/manage-subscription", async (c) => {
+userRequiredRouter.post("/manage-subscription", async c => {
   const userId = getCurrentUserId(c);
   const portalUrl = await getBillingPortalUrl(userId);
 
   return c.redirect(portalUrl);
 });
 
-userRequiredRouter.post("/subscribe", async (c) => {
+userRequiredRouter.post("/subscribe", async c => {
   const userId = getCurrentUserId(c);
   const { planCode, period } = await c.req.json(); // TODO Test
 
@@ -54,7 +56,7 @@ userRequiredRouter.post("/subscribe", async (c) => {
   return c.redirect(checkoutUrl, 303);
 });
 
-userOptionalRouter.get("/byUsername/:username", async (c) => {
+userOptionalRouter.get("/byUsername/:username", async c => {
   const username = c.req.param("username");
 
   const user = await getUserByUsername(username);
@@ -66,14 +68,14 @@ userOptionalRouter.get("/byUsername/:username", async (c) => {
   return c.json(user);
 });
 
-userRequiredRouter.get("/addressNames", async (c) => {
+userRequiredRouter.get("/addressNames", async c => {
   const userId = getCurrentUserId(c);
   const addressNames = await getAddressNames(userId);
 
   return c.json(addressNames);
 });
 
-userRequiredRouter.post("/saveAddressName", async (c) => {
+userRequiredRouter.post("/saveAddressName", async c => {
   const userId = getCurrentUserId(c);
   const { address, name } = await c.req.json();
 
@@ -94,7 +96,7 @@ userRequiredRouter.post("/saveAddressName", async (c) => {
   return c.text("Saved");
 });
 
-userRequiredRouter.delete("/removeAddressName/:address", async (c) => {
+userRequiredRouter.delete("/removeAddressName/:address", async c => {
   const userId = getCurrentUserId(c);
 
   if (!c.req.param("address")) {
@@ -110,7 +112,7 @@ userRequiredRouter.delete("/removeAddressName/:address", async (c) => {
   return c.text("Removed");
 });
 
-userRequiredRouter.post("/tokenInfo", async (c) => {
+userRequiredRouter.post("/tokenInfo", async c => {
   const userId = getCurrentUserId(c);
   const { wantedUsername, email, emailVerified, subscribedToNewsletter } = await c.req.json();
 
@@ -119,7 +121,7 @@ userRequiredRouter.post("/tokenInfo", async (c) => {
   return c.json(settings);
 });
 
-userRequiredRouter.put("/updateSettings", async (c) => {
+userRequiredRouter.put("/updateSettings", async c => {
   const userId = getCurrentUserId(c);
   const { username, subscribedToNewsletter, bio, youtubeUsername, twitterUsername, githubUsername } = await c.req.json();
 
@@ -132,7 +134,7 @@ userRequiredRouter.put("/updateSettings", async (c) => {
   return c.text("Saved");
 });
 
-userOptionalRouter.get("/template/:id", async (c) => {
+userOptionalRouter.get("/template/:id", async c => {
   const userId = getCurrentUserId(c);
   const templateId = c.req.param("id");
 
@@ -149,7 +151,7 @@ userOptionalRouter.get("/template/:id", async (c) => {
   return c.json(template);
 });
 
-userRequiredRouter.post("/saveTemplate", async (c) => {
+userRequiredRouter.post("/saveTemplate", async c => {
   const userId = getCurrentUserId(c);
   const { id, sdl, isPublic, title, cpu, ram, storage } = await c.req.json();
 
@@ -166,7 +168,7 @@ userRequiredRouter.post("/saveTemplate", async (c) => {
   return c.text(templateId);
 });
 
-userRequiredRouter.post("/saveTemplateDesc", async (c) => {
+userRequiredRouter.post("/saveTemplateDesc", async c => {
   const userId = getCurrentUserId(c);
   const { id, description } = await c.req.json();
 
@@ -175,7 +177,7 @@ userRequiredRouter.post("/saveTemplateDesc", async (c) => {
   return c.text("Saved");
 });
 
-userOptionalRouter.get("/templates/:username", async (c) => {
+userOptionalRouter.get("/templates/:username", async c => {
   const username = c.req.param("username");
   const userId = getCurrentUserId(c);
 
@@ -188,7 +190,7 @@ userOptionalRouter.get("/templates/:username", async (c) => {
   return c.json(templates);
 });
 
-userRequiredRouter.delete("/deleteTemplate/:id", async (c) => {
+userRequiredRouter.delete("/deleteTemplate/:id", async c => {
   const userId = getCurrentUserId(c);
 
   if (!c.req.param("id")) {
@@ -204,20 +206,20 @@ userRequiredRouter.delete("/deleteTemplate/:id", async (c) => {
   return c.text("Removed");
 });
 
-userOptionalRouter.get("/checkUsernameAvailability/:username", async (c) => {
+userOptionalRouter.get("/checkUsernameAvailability/:username", async c => {
   const isAvailable = await checkUsernameAvailable(c.req.param("username"));
 
   return c.json({ isAvailable: isAvailable });
 });
 
-userRequiredRouter.get("/favoriteTemplates", async (c) => {
+userRequiredRouter.get("/favoriteTemplates", async c => {
   const userId = getCurrentUserId(c);
   const templates = await getFavoriteTemplates(userId);
 
   return c.json(templates);
 });
 
-userRequiredRouter.post("/addFavoriteTemplate/:templateId", async (c) => {
+userRequiredRouter.post("/addFavoriteTemplate/:templateId", async c => {
   const userId = getCurrentUserId(c);
 
   if (!c.req.param("templateId")) {
@@ -229,7 +231,7 @@ userRequiredRouter.post("/addFavoriteTemplate/:templateId", async (c) => {
   return c.text("Added");
 });
 
-userRequiredRouter.delete("/removeFavoriteTemplate/:templateId", async (c) => {
+userRequiredRouter.delete("/removeFavoriteTemplate/:templateId", async c => {
   const userId = getCurrentUserId(c);
 
   if (!c.req.param("templateId")) {
@@ -241,7 +243,7 @@ userRequiredRouter.delete("/removeFavoriteTemplate/:templateId", async (c) => {
   return c.text("Removed");
 });
 
-userRequiredRouter.post("/subscribeToNewsletter", async (c) => {
+userRequiredRouter.post("/subscribeToNewsletter", async c => {
   const userId = getCurrentUserId(c);
 
   await subscribeToNewsletter(userId);

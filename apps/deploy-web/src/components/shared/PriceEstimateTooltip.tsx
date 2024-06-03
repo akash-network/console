@@ -25,7 +25,7 @@ export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, de
     <CustomTooltip
       title={
         <div>
-          <span className="text-sm text-muted-foreground">Price estimation:</span>
+          <span className="text-muted-foreground text-sm">Price estimation:</span>
           <div>
             <strong>
               <PriceValue value={_value} denom={denom} />
@@ -51,7 +51,7 @@ export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, de
         </div>
       }
     >
-      <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+      <InfoCircle className="text-muted-foreground ml-2 text-xs" />
     </CustomTooltip>
   );
 };

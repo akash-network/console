@@ -36,7 +36,7 @@ export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, d
 
   const content = (
     <span
-      className={cn("inline-flex items-center text-primary transition-all hover:underline", { ["cursor-pointer"]: isCopyable })}
+      className={cn("text-primary inline-flex items-center transition-all hover:underline", { ["cursor-pointer"]: isCopyable })}
       onClick={onClick}
       onMouseOver={() => setIsOver(true)}
       onMouseOut={() => setIsOver(false)}

@@ -26,7 +26,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const response = await cacheResponse(60 * 5, cacheKeys.getMarketData, getMarketData);
   return c.json(response);
 });

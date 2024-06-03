@@ -48,7 +48,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
               </>
             }
           >
-            <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+            <InfoCircle className="text-muted-foreground ml-2 text-xs" />
           </CustomTooltip>
         </div>
 
@@ -83,7 +83,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                   <div className="inline-flex items-center">
                     Max Body Size
                     <CustomTooltip title="Sets the maximum size of an individual HTTP request body.">
-                      <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                      <InfoCircle className="text-muted-foreground ml-2 text-xs" />
                     </CustomTooltip>
                   </div>
                 }
@@ -106,7 +106,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                   <div className="inline-flex items-center">
                     Read Timeout
                     <CustomTooltip title="Duration the proxy will wait for a response from the service.">
-                      <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                      <InfoCircle className="text-muted-foreground ml-2 text-xs" />
                     </CustomTooltip>
                   </div>
                 }
@@ -129,7 +129,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                   <div className="inline-flex items-center">
                     Send Timeout
                     <CustomTooltip title="Duration the proxy will wait for the service to accept a request.">
-                      <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                      <InfoCircle className="text-muted-foreground ml-2 text-xs" />
                     </CustomTooltip>
                   </div>
                 }
@@ -152,7 +152,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                   <div className="inline-flex items-center">
                     Next Tries
                     <CustomTooltip title="Number of attempts the proxy will attempt another replica.">
-                      <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                      <InfoCircle className="text-muted-foreground ml-2 text-xs" />
                     </CustomTooltip>
                   </div>
                 }
@@ -175,7 +175,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                   <div className="inline-flex items-center">
                     Next Timeout
                     <CustomTooltip title="Duration the proxy will wait for the service to connect to another replica.">
-                      <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                      <InfoCircle className="text-muted-foreground ml-2 text-xs" />
                     </CustomTooltip>
                   </div>
                 }
@@ -197,7 +197,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                 <Label className="inline-flex items-center">
                   Next Cases
                   <CustomTooltip title="Defines the cases where the proxy will try another replica in the service.  Reference the upcoming “Next Cases Attribute Usage” section for details pertaining to allowed values.">
-                    <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                    <InfoCircle className="text-muted-foreground ml-2 text-xs" />
                   </CustomTooltip>
                 </Label>
                 <MultipleSelector

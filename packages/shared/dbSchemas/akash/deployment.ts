@@ -1,7 +1,7 @@
 import { DataTypes, UUIDV4 } from "sequelize";
 import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 
-import { Block,Message } from "../base";
+import { Block, Message } from "../base";
 import { Required } from "../decorators/requiredDecorator";
 import { DeploymentGroup } from "./deploymentGroup";
 import { Lease } from "./lease";

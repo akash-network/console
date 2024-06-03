@@ -83,7 +83,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
         pointBorderWidth={graphMetadata.border}
         isInteractive={true}
         tooltip={props => (
-          <div className="rounded-sm bg-primary px-3 py-2 leading-4 text-primary-foreground">
+          <div className="bg-primary text-primary-foreground rounded-sm px-3 py-2 leading-4">
             <div className="mb-1 text-xs">
               <FormattedDate value={new Date(props.point.data.x)} day="numeric" month="long" timeZone="UTC" year="2-digit" />
             </div>

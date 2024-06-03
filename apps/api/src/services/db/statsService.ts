@@ -162,7 +162,7 @@ export async function getGraphData(dataName: AuthorizedGraphDataName): Promise<G
     order: [["date", "ASC"]]
   });
 
-  let stats = result.map((day) => ({
+  let stats = result.map(day => ({
     date: day.date,
     value: getter(day.lastBlock)
   }));
@@ -236,7 +236,7 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
   const currentValue = result[result.length - 1];
   const compareValue = result[result.length - 2];
 
-  const stats = result.map((day) => ({
+  const stats = result.map(day => ({
     date: day.date,
     value: getter(day)
   }));
@@ -289,7 +289,7 @@ export const getProviderActiveLeasesGraphData = async (providerAddress: string) 
   return {
     currentValue: currentValue.count,
     compareValue: compareValue.count,
-    snapshots: result.map((day) => ({
+    snapshots: result.map(day => ({
       date: day.date,
       value: day.count
     })),

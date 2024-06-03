@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect,useState } from "react";
+import React, { useEffect, useState } from "react";
 import isEqual from "lodash/isEqual";
 
 import { CustomPagination } from "@src/components/shared/CustomPagination";

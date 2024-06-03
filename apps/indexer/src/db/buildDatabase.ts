@@ -5,7 +5,7 @@ import { MonitoredValue } from "@akashnetwork/cloudmos-shared/dbSchemas/base/mon
 
 import { getGenesis } from "@src/chain/genesisImporter";
 import { indexers } from "@src/indexers";
-import { ExecutionMode,executionMode } from "@src/shared/constants";
+import { ExecutionMode, executionMode } from "@src/shared/constants";
 import { sequelize } from "./dbConnection";
 
 /**

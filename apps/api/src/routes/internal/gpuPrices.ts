@@ -59,7 +59,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const debug = c.req.query("debug") === "true";
 
   console.time("gpu prices");
@@ -146,9 +146,9 @@ async function getGpuPrices(debug: boolean) {
 
   // Decode the MsgCreateBid messages and calculate the hourly and monthly price for each bid
   const gpuBids: GpuBidType[] = deployments
-    .flatMap((d) =>
-      d.relatedMessages.map((x) => {
-        const day = days.find((d) => d.id === x.block.dayId);
+    .flatMap(d =>
+      d.relatedMessages.map(x => {
+        const day = days.find(d => d.id === x.block.dayId);
         const decodedBid = decodeMsg("/akash.market.v1beta4.MsgCreateBid", x.data) as MsgCreateBid;
 
         if (!day || !day.aktPrice) return null; // Ignore bids for days where we don't have the AKT price
@@ -165,29 +165,29 @@ async function getGpuPrices(debug: boolean) {
           monthlyPrice: blockPriceToMonthlyPrice(parseFloat(decodedBid.price.amount), day?.aktPrice),
           deployment: {
             owner: d.owner,
-            cpuUnits: decodedBid.resourcesOffer.flatMap((r) => parseInt(uint8arrayToString(r.resources.cpu.units.val))).reduce((a, b) => a + b, 0),
-            memoryUnits: decodedBid.resourcesOffer.flatMap((r) => parseInt(uint8arrayToString(r.resources.memory.quantity.val))).reduce((a, b) => a + b, 0),
+            cpuUnits: decodedBid.resourcesOffer.flatMap(r => parseInt(uint8arrayToString(r.resources.cpu.units.val))).reduce((a, b) => a + b, 0),
+            memoryUnits: decodedBid.resourcesOffer.flatMap(r => parseInt(uint8arrayToString(r.resources.memory.quantity.val))).reduce((a, b) => a + b, 0),
             storageUnits: decodedBid.resourcesOffer
-              .flatMap((r) => r.resources.storage)
-              .map((s) => parseInt(uint8arrayToString(s.quantity.val)))
+              .flatMap(r => r.resources.storage)
+              .map(s => parseInt(uint8arrayToString(s.quantity.val)))
               .reduce((a, b) => a + b, 0),
             gpus: decodedBid.resourcesOffer
-              .filter((x) => parseInt(uint8arrayToString(x.resources.gpu.units.val)) > 0)
-              .flatMap((r) => getGpusFromAttributes(r.resources.gpu.attributes))
+              .filter(x => parseInt(uint8arrayToString(x.resources.gpu.units.val)) > 0)
+              .flatMap(r => getGpusFromAttributes(r.resources.gpu.attributes))
           },
           data: decodedBid
         };
       })
     )
-    .filter((x) => x)
-    .filter((x) => x.deployment.gpus.length === 1); // Ignore bids for deployments with more than 1 GPU
+    .filter(x => x)
+    .filter(x => x.deployment.gpus.length === 1); // Ignore bids for deployments with more than 1 GPU
 
-  const gpuModels: GpuWithPricesType[] = gpus.map((x) => ({ ...x, prices: [] }));
+  const gpuModels: GpuWithPricesType[] = gpus.map(x => ({ ...x, prices: [] }));
 
   // Add bids to their corresponding GPU models
   for (const bid of gpuBids) {
     const gpu = bid.deployment.gpus[0];
-    const matchingGpuModels = gpuModels.filter((x) => x.vendor === gpu.vendor && x.model === gpu.model);
+    const matchingGpuModels = gpuModels.filter(x => x.vendor === gpu.vendor && x.model === gpu.model);
 
     for (const gpuModel of matchingGpuModels) {
       gpuModel.prices.push(bid);
@@ -199,15 +199,15 @@ async function getGpuPrices(debug: boolean) {
     (a, b) => a.vendor.localeCompare(b.vendor) || a.model.localeCompare(b.model) || a.ram.localeCompare(b.ram) || a.interface.localeCompare(b.interface)
   );
 
-  const totalAllocatable = gpuModels.map((x) => x.allocatable).reduce((a, b) => a + b, 0);
-  const totalAllocated = gpuModels.map((x) => x.allocated).reduce((a, b) => a + b, 0);
+  const totalAllocatable = gpuModels.map(x => x.allocatable).reduce((a, b) => a + b, 0);
+  const totalAllocated = gpuModels.map(x => x.allocated).reduce((a, b) => a + b, 0);
 
   return {
     availability: {
       total: totalAllocatable,
       available: totalAllocatable - totalAllocated
     },
-    models: gpuModels.map((x) => {
+    models: gpuModels.map(x => {
       /* 
         For each providers get their most relevent bid based on this order of priority:
             1- Most recent bid from the pricing bot (those deployment have tiny cpu/ram/storage specs to improve gpu price accuracy)
@@ -217,12 +217,12 @@ async function getGpuPrices(debug: boolean) {
             5- If no bids are found, increase search range from 14 to 31 days and repeat steps 2-4
       */
       const providersWithBestBid = x.providers
-        .map((p) => {
-          const providerBids = x.prices.filter((b) => b.provider === p.owner);
-          const providerBidsLast14d = providerBids.filter((x) => x.datetime > addDays(new Date(), -14));
+        .map(p => {
+          const providerBids = x.prices.filter(b => b.provider === p.owner);
+          const providerBidsLast14d = providerBids.filter(x => x.datetime > addDays(new Date(), -14));
 
           const pricingBotAddress = "akash1pas6v0905jgyznpvnjhg7tsthuyqek60gkz7uf";
-          const bidsFromPricingBot = providerBids.filter((x) => x.deployment.owner === pricingBotAddress && x.deployment.cpuUnits === 100);
+          const bidsFromPricingBot = providerBids.filter(x => x.deployment.owner === pricingBotAddress && x.deployment.cpuUnits === 100);
 
           let bestBid = null;
           if (bidsFromPricingBot.length > 0) {
@@ -236,7 +236,7 @@ async function getGpuPrices(debug: boolean) {
             bestBid: bestBid
           };
         })
-        .filter((x) => x.bestBid);
+        .filter(x => x.bestBid);
 
       return {
         vendor: x.vendor,
@@ -269,14 +269,14 @@ function getPricing(
   try {
     if (!providersWithBestBid || providersWithBestBid.length === 0) return null;
 
-    const prices = providersWithBestBid.map((x) => x.bestBid.hourlyPrice);
+    const prices = providersWithBestBid.map(x => x.bestBid.hourlyPrice);
 
     return {
       currency: "USD",
       min: Math.min(...prices),
       max: Math.max(...prices),
       avg: round(average(prices), 2),
-      weightedAverage: round(weightedAverage(providersWithBestBid.map((p) => ({ value: p.bestBid.hourlyPrice, weight: p.provider.allocatable }))), 2),
+      weightedAverage: round(weightedAverage(providersWithBestBid.map(p => ({ value: p.bestBid.hourlyPrice, weight: p.provider.allocatable }))), 2),
       med: round(median(prices), 2)
     };
   } catch (e) {
@@ -287,12 +287,12 @@ function getPricing(
 
 function findBestProviderBid(providerBids: GpuBidType[], gpuModel: GpuWithPricesType) {
   const providerBidsWithRamAndInterface = providerBids.filter(
-    (b) => b.deployment.gpus[0].ram === gpuModel.ram && isInterfaceMatching(gpuModel.interface, b.deployment.gpus[0].interface)
+    b => b.deployment.gpus[0].ram === gpuModel.ram && isInterfaceMatching(gpuModel.interface, b.deployment.gpus[0].interface)
   );
 
   if (providerBidsWithRamAndInterface.length > 0) return providerBidsWithRamAndInterface.sort((a, b) => a.hourlyPrice - b.hourlyPrice)[0];
 
-  const providerBidsWithRam = providerBids.filter((b) => b.deployment.gpus[0].ram === gpuModel.ram);
+  const providerBidsWithRam = providerBids.filter(b => b.deployment.gpus[0].ram === gpuModel.ram);
 
   if (providerBidsWithRam.length > 0) return providerBidsWithRam.sort((a, b) => a.hourlyPrice - b.hourlyPrice)[0];
 
@@ -308,8 +308,8 @@ export function isInterfaceMatching(gpuInterface: string, bidInterface: string) 
 
 export function getGpusFromAttributes(attributes: { key: string; value: string }[]) {
   return attributes
-    .filter((attr) => attr.key.startsWith("vendor/") && attr.value === "true")
-    .map((attr) => {
+    .filter(attr => attr.key.startsWith("vendor/") && attr.value === "true")
+    .map(attr => {
       const vendor = /vendor\/([^/]+)/.exec(attr.key)?.[1];
       const model = /model\/([^/]+)/.exec(attr.key)?.[1];
       const ram = /ram\/([^/]+)/.exec(attr.key)?.[1];
@@ -376,14 +376,14 @@ async function getGpus() {
     const nodeInfo = { owner: gpuNode.owner, hostUri: gpuNode.hostUri, allocated: gpuNode.allocated, allocatable: gpuNode.allocatable };
 
     const existingGpu = gpus.find(
-      (x) => x.vendor === gpuNode.vendor && x.model === gpuNode.modelName && x.interface === gpuNode.interface && x.ram === gpuNode.memorySize
+      x => x.vendor === gpuNode.vendor && x.model === gpuNode.modelName && x.interface === gpuNode.interface && x.ram === gpuNode.memorySize
     );
 
     if (existingGpu) {
       existingGpu.allocatable += gpuNode.allocatable;
       existingGpu.allocated += gpuNode.allocated;
 
-      const existingProvider = existingGpu.providers.find((p) => p.hostUri === gpuNode.hostUri);
+      const existingProvider = existingGpu.providers.find(p => p.hostUri === gpuNode.hostUri);
       if (!existingProvider) {
         existingGpu.providers.push(nodeInfo);
       } else {
@@ -391,7 +391,7 @@ async function getGpus() {
         existingProvider.allocatable += gpuNode.allocatable;
       }
 
-      existingGpu.availableProviders = existingGpu.providers.filter((p) => p.allocated < p.allocatable);
+      existingGpu.availableProviders = existingGpu.providers.filter(p => p.allocated < p.allocatable);
     } else {
       gpus.push({
         vendor: gpuNode.vendor,

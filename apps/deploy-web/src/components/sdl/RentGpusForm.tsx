@@ -17,7 +17,7 @@ import sdlStore from "@src/store/sdlStore";
 import { ApiTemplate, ProfileGpuModel, RentGpusFormValues, Service } from "@src/types";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { defaultInitialDeposit,RouteStepKeys } from "@src/utils/constants";
+import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
@@ -25,7 +25,7 @@ import { defaultAnyRegion, defaultRentGpuService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { handleDocClick,UrlService } from "@src/utils/urlUtils";
+import { handleDocClick, UrlService } from "@src/utils/urlUtils";
 import { updateWallet } from "@src/utils/walletUtils";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { LinkTo } from "../shared/LinkTo";
@@ -265,7 +265,7 @@ export const RentGpusForm: React.FunctionComponent<Props> = ({}) => {
           denom={currentService?.placement?.pricing?.denom || sdlDenom}
           infoText={
             <Alert className="mb-4" variant="default">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
                 <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/intro-to-akash/bids-and-leases/#escrow-accounts")}>
                   <strong>Learn more.</strong>

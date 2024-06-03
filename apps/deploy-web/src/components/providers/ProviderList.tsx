@@ -1,5 +1,5 @@
 "use client";
-import { useEffect,useState } from "react";
+import { useEffect, useState } from "react";
 import { OpenNewWindow, Refresh, Xmark } from "iconoir-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -18,7 +18,7 @@ import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useNetworkCapacity, useProviderList } from "@src/queries/useProvidersQuery";
 import { ClientProviderList } from "@src/types/provider";
-import { domainName,UrlService } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { Title } from "../shared/Title";
@@ -176,8 +176,8 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
       <Title>Network Capacity</Title>
 
       {providers && providers.length > 0 && (
-        <h3 className="mb-8 text-base text-muted-foreground">
-          <span className="text-2xl font-bold text-primary">{providers.filter(x => x.isOnline).length}</span> active providers on {selectedNetwork.title}
+        <h3 className="text-muted-foreground mb-8 text-base">
+          <span className="text-primary text-2xl font-bold">{providers.filter(x => x.isOnline).length}</span> active providers on {selectedNetwork.title}
         </h3>
       )}
 
@@ -233,7 +233,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
                 </div>
               </div>
 
-              <div className="my-2 flex items-center md:ml-8 md:my-0">
+              <div className="my-2 flex items-center md:my-0 md:ml-8">
                 <div>
                   <CheckboxWithLabel checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} label="Active" />
                 </div>
@@ -272,7 +272,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
                     <SelectGroup>
                       {sortOptions.map(l => (
                         <SelectItem key={l.id} value={l.id}>
-                          <span className="text-sm text-muted-foreground">{l.title}</span>
+                          <span className="text-muted-foreground text-sm">{l.title}</span>
                         </SelectItem>
                       ))}
                     </SelectGroup>

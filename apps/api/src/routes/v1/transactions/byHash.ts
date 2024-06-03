@@ -51,7 +51,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const txInfo = await getTransaction(c.req.valid("param").hash);
 
   if (txInfo) {

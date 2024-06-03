@@ -1,4 +1,4 @@
-import { asset_lists } from '@chain-registry/assets';
+import { asset_lists } from "@chain-registry/assets";
 import * as Sentry from "@sentry/node";
 import { Coin } from "cosmjs-types/cosmos/base/v1beta1/coin";
 
@@ -17,12 +17,12 @@ export function coinToAsset(coin: Coin) {
         amount: parseFloat(coin.amount)
       };
     } else {
-      const akashChain = asset_lists.find((c) => c.chain_name === "akash");
-      const ibcAsset = akashChain.assets.find((a) => a.base === coin.denom);
+      const akashChain = asset_lists.find(c => c.chain_name === "akash");
+      const ibcAsset = akashChain.assets.find(a => a.base === coin.denom);
 
       if (!ibcAsset) throw new Error(`Unknown asset ${coin.denom}`);
 
-      const displayAsset = ibcAsset.denom_units.find((d) => d.denom === ibcAsset.display);
+      const displayAsset = ibcAsset.denom_units.find(d => d.denom === ibcAsset.display);
 
       if (!displayAsset) throw new Error(`Unable to find display asset for ${coin.denom}`);
 

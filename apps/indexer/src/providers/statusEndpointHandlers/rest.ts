@@ -45,7 +45,7 @@ function sumResources(resources) {
   const resourcesArr = resources?.nodes || resources || [];
 
   return resourcesArr
-    .map((x) => ({
+    .map(x => ({
       cpu: getUnitValue(x.cpu),
       gpu: x.gpu ? getUnitValue(x.gpu) : 0,
       memory: getByteValue(x.memory),

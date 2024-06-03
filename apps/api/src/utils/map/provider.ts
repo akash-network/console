@@ -57,11 +57,11 @@ export const mapProviderToList = (
     isValidVersion,
     isOnline: provider.isOnline,
     lastOnlineDate: lastSuccessfulSnapshot?.checkDate,
-    isAudited: provider.providerAttributeSignatures.some((a) => auditors.some((y) => y.address === a.auditor)),
-    attributes: provider.providerAttributes.map((attr) => ({
+    isAudited: provider.providerAttributeSignatures.some(a => auditors.some(y => y.address === a.auditor)),
+    attributes: provider.providerAttributes.map(attr => ({
       key: attr.key,
       value: attr.value,
-      auditedBy: provider.providerAttributeSignatures.filter((pas) => pas.key === attr.key && pas.value === attr.value).map((pas) => pas.auditor)
+      auditedBy: provider.providerAttributeSignatures.filter(pas => pas.key === attr.key && pas.value === attr.value).map(pas => pas.auditor)
     })),
 
     // Attributes schema
@@ -94,7 +94,7 @@ export const mapProviderToList = (
 };
 
 function getDistinctGpuModelsFromNodes(nodes: ProviderSnapshotNode[]) {
-  const gpuModels = nodes.flatMap((x) => x.gpus).map((x) => ({ vendor: x.vendor, model: x.name, ram: x.memorySize, interface: x.interface }));
+  const gpuModels = nodes.flatMap(x => x.gpus).map(x => ({ vendor: x.vendor, model: x.name, ram: x.memorySize, interface: x.interface }));
   const distinctGpuModels = gpuModels.filter(
     createFilterUnique((a, b) => a.vendor === b.vendor && a.model === b.model && a.ram === b.ram && a.interface === b.interface)
   );
@@ -115,34 +115,34 @@ export const getProviderAttributeValue = (
     case "string":
       return (
         provider.providerAttributes
-          .filter((x) => x.key === _key)
-          .map((x) => x.value)
+          .filter(x => x.key === _key)
+          .map(x => x.value)
           .join(",") || null
       );
     case "number":
       values =
         provider.providerAttributes
-          .filter((x) => x.key === _key)
-          .map((x) => x.value)
+          .filter(x => x.key === _key)
+          .map(x => x.value)
           .join(",") || "0";
       return parseFloat(values);
     case "boolean":
       values =
         provider.providerAttributes
-          .filter((x) => x.key === _key)
-          .map((x) => x.value)
+          .filter(x => x.key === _key)
+          .map(x => x.value)
           .join(",") || null;
       return values ? values === "true" : false;
     case "option":
       return provider.providerAttributes
-        .filter((x) => x.key === _key)
-        .map((x) => possibleValues?.find((v) => v.key === x.value)?.description)
-        .filter((x) => x);
+        .filter(x => x.key === _key)
+        .map(x => possibleValues?.find(v => v.key === x.value)?.description)
+        .filter(x => x);
     case "multiple-option":
       return possibleValues
-        .filter((x) => provider.providerAttributes.some((at) => at.key === x.key))
-        .map((x) => x.description)
-        .filter((x) => x);
+        .filter(x => provider.providerAttributes.some(at => at.key === x.key))
+        .map(x => x.description)
+        .filter(x => x);
     default:
       console.error(`Unknown attribute type: ${providerAttributeSchema[key].type}`);
       return null;

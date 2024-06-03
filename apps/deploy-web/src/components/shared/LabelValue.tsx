@@ -12,7 +12,7 @@ export const LabelValue: React.FunctionComponent<LabelValueProps> = ({ label, va
   return (
     <div className={cn(className, "mb-4 flex flex-col items-start last:mb-0 sm:flex-row sm:items-center")}>
       {label && (
-        <div className="flex shrink-0 items-center break-all pr-2 font-bold text-muted-foreground" style={{ width: labelWidth }}>
+        <div className="text-muted-foreground flex shrink-0 items-center break-all pr-2 font-bold" style={{ width: labelWidth }}>
           {label}
         </div>
       )}

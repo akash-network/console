@@ -42,7 +42,7 @@ export async function getCheckoutUrl(userId: string, planCode: string, isMonthly
     product: products.data[0].id
   });
 
-  const price = prices.data.find((x) => x.recurring.interval === (isMonthly ? "month" : "year") && x.active === true);
+  const price = prices.data.find(x => x.recurring.interval === (isMonthly ? "month" : "year") && x.active === true);
 
   if (!userSettings.stripeCustomerId) {
     const createdCustomer = await stripe.customers.create({ email: userSettings.email });

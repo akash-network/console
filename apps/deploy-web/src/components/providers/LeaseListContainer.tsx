@@ -1,12 +1,12 @@
 "use client";
-import { useEffect,useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
 import { LeaseDto } from "@src/types/deployment";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
-import { domainName,UrlService } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { LeaseList } from "./LeaseList";

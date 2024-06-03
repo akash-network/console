@@ -60,7 +60,7 @@ appHono.use(
   sentry({
     dsn: env.SentryDSN,
     environment: env.NODE_ENV,
-    beforeSend: (event) => {
+    beforeSend: event => {
       event.server_name = env.SentryServerName;
       return event;
     },
@@ -77,7 +77,7 @@ appHono.route("/web3-index", web3IndexRouter);
 appHono.route("/dashboard", dashboardRouter);
 appHono.route("/internal", internalRouter);
 
-appHono.get("/status", (c) => {
+appHono.get("/status", c => {
   const version = packageJson.version;
   const tasksStatus = scheduler.getTasksStatus();
   const memoryInBytes = process.memoryUsage();

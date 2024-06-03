@@ -1,4 +1,4 @@
-import { QueryKey, useQuery,UseQueryOptions } from "react-query";
+import { QueryKey, useQuery, UseQueryOptions } from "react-query";
 import axios from "axios";
 import { z } from "zod";
 
@@ -8,7 +8,7 @@ import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 import { coinToUDenom } from "@src/utils/priceUtils";
 import { removeEmptyFilters } from "@src/utils/urlUtils";
-import { deploymentRowSchema,DeploymentRowType } from "@src/utils/zod/deploymentRow";
+import { deploymentRowSchema, DeploymentRowType } from "@src/utils/zod/deploymentRow";
 import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";
 

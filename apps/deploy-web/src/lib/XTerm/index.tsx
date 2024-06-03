@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import { forwardRef } from "react";
 import dynamic from "next/dynamic";
 

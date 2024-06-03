@@ -1,4 +1,4 @@
-import { createRoute,OpenAPIHono } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 
 import { nodeClient } from "@src/routes/v1/nodes/nodeClient";
 
@@ -16,6 +16,6 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   return c.text(await nodeClient.getMainnetVersion());
 });

@@ -7,7 +7,7 @@ export const dashboardRouter = new Hono();
 
 dashboardRouter.use("*", privateMiddleware);
 
-dashboardRouter.get("/stats", async (c) => {
+dashboardRouter.get("/stats", async c => {
   const userCountRequest = UserSetting.count();
   const publicTemplateCountRequest = Template.count({
     where: { isPublic: true }

@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { User } from "iconoir-react";
-import { Bell, Book, LogOut,MultiplePages, Settings, Star } from "iconoir-react";
+import { Bell, Book, LogOut, MultiplePages, Settings, Star } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
@@ -90,7 +90,7 @@ export function AccountMenu({}: React.PropsWithChildren<{}>) {
                     ) : (
                       <div>
                         <CustomDropdownLinkItem
-                          className="bg-primary !text-white hover:bg-primary/80 hover:text-white focus:bg-primary/80"
+                          className="bg-primary hover:bg-primary/80 focus:bg-primary/80 !text-white hover:text-white"
                           onClick={() => router.push(UrlService.signup())}
                         >
                           Sign up

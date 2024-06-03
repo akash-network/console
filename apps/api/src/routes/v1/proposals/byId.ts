@@ -55,7 +55,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const proposalId = parseInt(c.req.valid("param").id);
 
   if (isNaN(proposalId)) {

@@ -1,9 +1,9 @@
 import { ReactNode } from "react";
-import { Discord,Github, X as TwitterX, Youtube } from "iconoir-react";
+import { Discord, Github, X as TwitterX, Youtube } from "iconoir-react";
 
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
-import { domainName,UrlService } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../components/shared/CustomNextSeo";
 
 type Props = {
@@ -28,7 +28,7 @@ const ContactPage: React.FunctionComponent<Props> = ({}) => {
             <a
               href="https://discord.gg/akash"
               target="_blank"
-              className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+              className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
             >
               <Discord className="mx-auto block h-6 w-6 text-5xl" />
             </a>
@@ -37,7 +37,7 @@ const ContactPage: React.FunctionComponent<Props> = ({}) => {
             <a
               href="https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1"
               target="_blank"
-              className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+              className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
             >
               <Youtube className="mx-auto block h-6 w-6 text-5xl" />
             </a>
@@ -46,7 +46,7 @@ const ContactPage: React.FunctionComponent<Props> = ({}) => {
             <a
               href="https://twitter.com/akashnet_"
               target="_blank"
-              className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+              className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
             >
               <TwitterX className="mx-auto block h-6 w-6 text-5xl" />
             </a>
@@ -55,7 +55,7 @@ const ContactPage: React.FunctionComponent<Props> = ({}) => {
             <a
               href="https://github.com/akash-network/cloudmos"
               target="_blank"
-              className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+              className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
             >
               <Github className="mx-auto block h-6 w-6 text-5xl" />
             </a>

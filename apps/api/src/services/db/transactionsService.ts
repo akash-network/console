@@ -1,5 +1,5 @@
 import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { AddressReference,Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { AddressReference, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { QueryTypes } from "sequelize";
 
 import { chainDb } from "@src/db/dbConnection";
@@ -25,7 +25,7 @@ export async function getTransactions(limit: number) {
     ]
   });
 
-  return transactions.map((tx) => ({
+  return transactions.map(tx => ({
     height: tx.block.height,
     datetime: tx.block.datetime,
     hash: tx.hash,
@@ -35,7 +35,7 @@ export async function getTransactions(limit: number) {
     gasWanted: tx.gasWanted,
     fee: tx.fee,
     memo: tx.memo,
-    messages: tx.messages.map((msg) => ({
+    messages: tx.messages.map(msg => ({
       id: msg.id,
       type: msg.type,
       amount: msg.amount
@@ -80,13 +80,13 @@ export async function getTransaction(hash: string): Promise<ApiTransactionRespon
     hash: tx.hash,
     isSuccess: !tx.hasProcessingError,
     multisigThreshold: tx.multisigThreshold,
-    signers: tx.addressReferences.filter((x) => x.type === "Signer").map((x) => x.address),
+    signers: tx.addressReferences.filter(x => x.type === "Signer").map(x => x.address),
     error: tx.hasProcessingError ? tx.log : null,
     gasUsed: tx.gasUsed,
     gasWanted: tx.gasWanted,
     fee: tx.fee,
     memo: tx.memo,
-    messages: messages.map((msg) => ({
+    messages: messages.map(msg => ({
       id: msg.id,
       type: msg.type,
       data: msgToJSON(msg.type, msg.data),
@@ -121,7 +121,7 @@ export async function getTransactionByAddress(address: string, skip: number, lim
 
   const txs = await Transaction.findAll({
     include: [{ model: Block, required: true }, { model: Message }, { model: AddressReference, required: true, where: { address: address } }],
-    where: { id: txIds.map((x) => x.transactionId) },
+    where: { id: txIds.map(x => x.transactionId) },
     order: [
       ["height", "DESC"],
       ["index", "DESC"]
@@ -130,7 +130,7 @@ export async function getTransactionByAddress(address: string, skip: number, lim
 
   return {
     count: count,
-    results: txs.map((tx) => ({
+    results: txs.map(tx => ({
       height: tx.height,
       datetime: tx.block.datetime,
       hash: tx.hash,
@@ -140,12 +140,12 @@ export async function getTransactionByAddress(address: string, skip: number, lim
       gasWanted: tx.gasWanted,
       fee: tx.fee,
       memo: tx.memo,
-      isSigner: tx.addressReferences.some((ar) => ar.type === "Signer"),
-      messages: tx.messages.map((msg) => ({
+      isSigner: tx.addressReferences.some(ar => ar.type === "Signer"),
+      messages: tx.messages.map(msg => ({
         id: msg.id,
         type: msg.type,
         amount: msg.amount,
-        isReceiver: tx.addressReferences.some((ar) => ar.messageId === msg.id && ar.type === "Receiver")
+        isReceiver: tx.addressReferences.some(ar => ar.messageId === msg.id && ar.type === "Receiver")
       }))
     }))
   };

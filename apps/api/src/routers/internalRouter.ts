@@ -20,4 +20,4 @@ const swaggerInstance = swaggerUI({ url: `/internal/doc` });
 
 internalRouter.get(`/swagger`, swaggerInstance);
 
-routes.forEach((route) => internalRouter.route(`/`, route));
+routes.forEach(route => internalRouter.route(`/`, route));

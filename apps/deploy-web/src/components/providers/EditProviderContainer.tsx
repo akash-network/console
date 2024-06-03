@@ -48,7 +48,7 @@ export const EditProviderContainer: React.FunctionComponent<Props> = ({ owner })
           </div>
 
           <div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               This form is based on the provider attribute schema established here&nbsp;
               <a target="_blank" href="https://github.com/akash-network/cloudmos/blob/main/config/provider-attributes.json" rel="noreferrer noopener">
                 on github.

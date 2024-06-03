@@ -137,7 +137,7 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
           </div>
         }
       >
-        <h3 className="mb-4 text-muted-foreground">
+        <h3 className="text-muted-foreground mb-4">
           These authorizations allow you authorize other addresses to spend on deployments or deployment deposits using your funds. You can revoke these
           authorizations at any time.
         </h3>
@@ -166,7 +166,7 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-sm text-muted-foreground">No authorizations given.</p>
+                <p className="text-muted-foreground text-sm">No authorizations given.</p>
               )}
             </>
           )}
@@ -196,7 +196,7 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-sm text-muted-foreground">No authorizations received.</p>
+                <p className="text-muted-foreground text-sm">No authorizations received.</p>
               )}
             </>
           )}
@@ -210,7 +210,7 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
           </Button>
         </div>
 
-        <h3 className="mb-4 text-muted-foreground">
+        <h3 className="text-muted-foreground mb-4">
           These authorizations allow you authorize other addresses to spend on transaction fees using your funds. You can revoke these authorizations at any
           time.
         </h3>
@@ -246,7 +246,7 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-sm text-muted-foreground">No allowances issued.</p>
+                <p className="text-muted-foreground text-sm">No allowances issued.</p>
               )}
             </>
           )}
@@ -277,7 +277,7 @@ export const Authorizations: React.FunctionComponent<Props> = ({}) => {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-sm text-muted-foreground">No allowances received.</p>
+                <p className="text-muted-foreground text-sm">No allowances received.</p>
               )}
             </>
           )}

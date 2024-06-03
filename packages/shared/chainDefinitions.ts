@@ -18,7 +18,7 @@ import {
   ProviderSnapshotNodeGPU
 } from "./dbSchemas/akash";
 import { Block, Message } from "./dbSchemas/base";
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: ".env.local" });
 dotenv.config();
 
 export interface ChainDef {

@@ -43,7 +43,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const providerAddress = c.req.valid("param").providerAddress;
 
   if (!isValidBech32Address(providerAddress, "akash")) {

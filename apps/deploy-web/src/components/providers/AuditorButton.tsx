@@ -1,5 +1,5 @@
 "use client";
-import { MouseEvent,useState } from "react";
+import { MouseEvent, useState } from "react";
 import { BadgeCheck } from "iconoir-react";
 
 import { ClientProviderDetailWithStatus, ClientProviderList } from "@src/types/provider";
@@ -29,7 +29,7 @@ export const AuditorButton: React.FunctionComponent<Props> = ({ provider }) => {
 
   return (
     <>
-      <Button onClick={onAuditorClick} size="icon" className="rounded-full w-8 h-8" variant="ghost">
+      <Button onClick={onAuditorClick} size="icon" className="h-8 w-8 rounded-full" variant="ghost">
         <BadgeCheck className="text-sm text-green-600" fontSize="small" color="success" />
       </Button>
 

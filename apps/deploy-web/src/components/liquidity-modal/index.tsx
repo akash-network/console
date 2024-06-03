@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 import type { StdSignDoc } from "@cosmjs/amino";
-import type { AllowedDestinationChainConfig, AssetSelector, TabsConfig,ThemeDefinition, WalletClient } from "@leapwallet/elements";
-import { AsyncIDBStorage,defaultBlurs, LiquidityModal as LeapLiquidityModal, Tabs, TxnSummary, useInitCachingLayer } from "@leapwallet/elements";
+import type { AllowedDestinationChainConfig, AssetSelector, TabsConfig, ThemeDefinition, WalletClient } from "@leapwallet/elements";
+import { AsyncIDBStorage, defaultBlurs, LiquidityModal as LeapLiquidityModal, Tabs, TxnSummary, useInitCachingLayer } from "@leapwallet/elements";
 import type { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { event } from "nextjs-google-analytics";
 

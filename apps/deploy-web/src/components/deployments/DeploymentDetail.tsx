@@ -3,7 +3,7 @@
 import { createRef, useEffect, useState } from "react";
 import { ArrowLeft } from "iconoir-react";
 import Link from "next/link";
-import { useRouter,useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
 
@@ -156,9 +156,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
       {isDeploymentNotFound && (
         <div className="mt-8 text-center">
           <Title className="mb-2">404</Title>
-          <p>
-            This deployment does not exist or it was created using another wallet.
-          </p>
+          <p>This deployment does not exist or it was created using another wallet.</p>
           <div className="pt-4">
             <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center space-x-2")}>
               <ArrowLeft className="text-sm" />

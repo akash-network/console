@@ -1,7 +1,7 @@
 "use client";
-import React, { useEffect,useState } from "react";
+import React, { useEffect, useState } from "react";
 
-import { getDeploymentLocalData,LocalDeploymentData } from "@src/utils/deploymentLocalDataUtils";
+import { getDeploymentLocalData, LocalDeploymentData } from "@src/utils/deploymentLocalDataUtils";
 import { getProviderLocalData, updateProviderLocalData } from "@src/utils/providerUtils";
 import { DeploymentNameModal } from "./DeploymentNameModal";
 

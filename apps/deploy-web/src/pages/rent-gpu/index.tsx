@@ -4,7 +4,7 @@ import Layout from "@src/components/layout/Layout";
 import { RentGpusForm } from "@src/components/sdl/RentGpusForm";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { Title } from "@src/components/shared/Title";
-import { domainName,UrlService } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 
 function RentGpuPage() {
   return (
@@ -17,7 +17,7 @@ function RentGpuPage() {
 
       <Title>Rent GPUs</Title>
 
-      <p className="mb-8 text-muted-foreground">
+      <p className="text-muted-foreground mb-8">
         Deploy any AI workload on a wide variety of Nvidia GPU models. Select from one of the available templates or input your own docker container image to
         deploy on one of the providers available worldwide on the network.
       </p>

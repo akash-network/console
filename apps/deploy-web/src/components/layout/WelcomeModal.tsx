@@ -26,7 +26,11 @@ export const WelcomeModal = ({ open, onClose }) => {
     >
       <div className="mb-4 flex items-center justify-between">
         <Title>Welcome!</Title>
-        {resolvedTheme === "light" ? <AkashConsoleBetaLogoLight className="h-[19px] max-w-[200px]" /> : <AkashConsoleBetaLogoDark className="h-[19px] max-w-[200px]" />}
+        {resolvedTheme === "light" ? (
+          <AkashConsoleBetaLogoLight className="h-[19px] max-w-[200px]" />
+        ) : (
+          <AkashConsoleBetaLogoDark className="h-[19px] max-w-[200px]" />
+        )}
       </div>
       <Card className="bg-background">
         <CardContent className="pt-4">

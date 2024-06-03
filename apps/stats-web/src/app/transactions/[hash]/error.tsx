@@ -16,7 +16,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
     <PageContainer>
       <Title>Something went wrong!</Title>
       <Button
-      className="my-4"
+        className="my-4"
         onClick={
           // Attempt to recover by trying to re-render the segment
           () => reset()

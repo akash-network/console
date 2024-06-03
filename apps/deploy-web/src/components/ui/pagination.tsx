@@ -68,4 +68,3 @@ const PaginationEllipsis = ({ className, ...props }: React.ComponentProps<"span"
 PaginationEllipsis.displayName = "PaginationEllipsis";
 
 export { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious };
-

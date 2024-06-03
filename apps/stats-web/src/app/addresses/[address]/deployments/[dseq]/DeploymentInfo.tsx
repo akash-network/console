@@ -58,7 +58,7 @@ export function DeploymentInfo({ deployment }: IProps) {
                       <PriceValue value={udenomToDenom(deployment.totalMonthlyCostUDenom)} denom={deployment.denom} />
                     </span>
                     {deployment.denom === "uakt" && (
-                      <span className="ml-2 text-xs text-muted-foreground">
+                      <span className="text-muted-foreground ml-2 text-xs">
                         <FormattedNumber value={udenomToDenom(deployment.totalMonthlyCostUDenom)} /> $AKT per month
                       </span>
                     )}
@@ -126,7 +126,7 @@ export function DeploymentInfo({ deployment }: IProps) {
                         <PriceValue value={udenomToDenom(lease.monthlyCostUDenom)} denom={deployment.denom} /> per month
                       </span>
                       {deployment.denom === "uakt" && (
-                        <span className="ml-2 text-xs text-muted-foreground">
+                        <span className="text-muted-foreground ml-2 text-xs">
                           <FormattedNumber value={lease.monthlyCostUDenom} /> $AKT per month
                         </span>
                       )}

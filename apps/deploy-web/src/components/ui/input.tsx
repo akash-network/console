@@ -13,7 +13,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type,
     <input
       type={type}
       className={cn(
-        "flex h-10 w-full rounded-md border border-input bg-popover px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "border-input bg-popover ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       ref={ref}
@@ -37,7 +37,7 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ classNam
       <input
         type={type}
         className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-popover px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          "border-input bg-popover ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
         ref={ref}
@@ -68,13 +68,13 @@ const InputWithIcon = React.forwardRef<HTMLInputElement, InputWithIconProps>(
     return (
       <div className={className}>
         {label && <Label htmlFor={`${id}-input`}>{label}</Label>}
-        <div className="flex h-10 w-full items-center rounded-md border border-input bg-popover px-3 py-2 text-sm shadow-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+        <div className="border-input bg-popover ring-offset-background focus:ring-ring flex h-10 w-full items-center rounded-md border px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
           {startIcon && <div className="inset-y-0 left-0 flex items-center">{startIcon}</div>}
           <input
             id={`${id}-input`}
             type={type}
             className={cn(
-              "flex-grow file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none",
+              "placeholder:text-muted-foreground flex-grow file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none",
               // "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
               inputClassName,
               { ["pl-4"]: !!startIcon, ["pr-4"]: !!endIcon }
@@ -116,7 +116,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ classNa
   return (
     <textarea
       className={cn(
-        "flex h-10 w-full resize-y rounded-md border border-input bg-popover px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "border-input bg-popover ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full resize-y rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       ref={textAreaRef}

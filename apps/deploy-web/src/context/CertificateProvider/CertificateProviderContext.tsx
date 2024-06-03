@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect,useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import axios from "axios";
 import { event } from "nextjs-google-analytics";

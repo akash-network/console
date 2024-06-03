@@ -5,7 +5,7 @@ import { GetStartedStepper } from "@src/components/get-started/GetStartedStepper
 import Layout from "@src/components/layout/Layout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { Card, CardContent, CardHeader, CardTitle } from "@src/components/ui/card";
-import { domainName,UrlService } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 
 type Props = {};
 

@@ -52,12 +52,12 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
                   </>
                 }
               >
-                <InfoCircle className="text-xs text-muted-foreground" />
+                <InfoCircle className="text-muted-foreground text-xs" />
               </CustomTooltip>
 
               {isActive && hasActiveLeases && !!realTimeLeft && realTimeLeft.escrow <= 0 && (
                 <CustomTooltip title="Your deployment is out of funds and can be closed by your provider at any time now. You can add funds to keep active.">
-                  <WarningCircle className="text-xs text-destructive" />
+                  <WarningCircle className="text-destructive text-xs" />
                 </CustomTooltip>
               )}
             </div>
@@ -78,7 +78,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
                     </span>
                   }
                 >
-                  <InfoCircle className="text-xs text-muted-foreground" />
+                  <InfoCircle className="text-muted-foreground text-xs" />
                 </CustomTooltip>
               </div>
             )
@@ -102,7 +102,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
                   </span>
                 }
               >
-                <InfoCircle className="text-xs text-muted-foreground" />
+                <InfoCircle className="text-muted-foreground text-xs" />
               </CustomTooltip>
             </div>
           }

@@ -112,7 +112,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
       maxWidth="md"
       enableCloseOnBackdropClick
     >
-      <h6 className="mb-4 flex items-center text-muted-foreground">
+      <h6 className="text-muted-foreground mb-4 flex items-center">
         Paste your sdl here to import <ArrowDown className="ml-4 text-sm" />
       </h6>
       <div className="mb-2">

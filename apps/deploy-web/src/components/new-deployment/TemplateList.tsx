@@ -1,6 +1,6 @@
 "use client";
 import React, { Dispatch, useEffect, useRef, useState } from "react";
-import { ArrowRight,Cpu, Page, Rocket, Wrench } from "iconoir-react";
+import { ArrowRight, Cpu, Page, Rocket, Wrench } from "iconoir-react";
 import { NavArrowLeft } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -13,7 +13,7 @@ import { ApiTemplate, TemplateCreation } from "@src/types";
 import { RouteStepKeys } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { helloWorldTemplate, ubuntuTemplate } from "@src/utils/templates";
-import { domainName,UrlService } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
 import { Button, buttonVariants } from "../ui/button";

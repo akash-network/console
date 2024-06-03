@@ -6,7 +6,7 @@ import { InfoCircle } from "iconoir-react";
 
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
-import { storageUnits,validationConfig } from "../shared/akash/units";
+import { storageUnits, validationConfig } from "../shared/akash/units";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { FormControl, FormDescription, FormItem } from "../ui/form";
 import { Input } from "../ui/input";
@@ -61,7 +61,7 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
           >
             <div className="flex flex-col items-start sm:flex-row sm:items-center">
               <div className="flex items-center">
-                <MdStorage className="mr-2 text-2xl text-muted-foreground" />
+                <MdStorage className="text-muted-foreground mr-2 text-2xl" />
                 <strong className="text-sm">Ephemeral Storage</strong>
 
                 <CustomTooltip
@@ -80,7 +80,7 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
                     </>
                   }
                 >
-                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                  <InfoCircle className="text-muted-foreground ml-2 text-xs" />
                 </CustomTooltip>
               </div>
 

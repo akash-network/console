@@ -17,7 +17,8 @@ import {
   SortingState,
   Updater,
   useReactTable,
-  VisibilityState} from "@tanstack/react-table";
+  VisibilityState
+} from "@tanstack/react-table";
 import { SearchX } from "lucide-react";
 
 import Spinner from "../shared/Spinner";

@@ -37,11 +37,11 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
   if ((!cachedObject || cacheExpired) && !(key in pendingRequests)) {
     // console.log(`Making request: ${key}`);
     pendingRequests[key] = refreshRequest()
-      .then((data) => {
+      .then(data => {
         cacheEngine.storeInCache(key, { date: new Date(), data: data }, keepData ? undefined : duration);
         return data;
       })
-      .catch((err) => {
+      .catch(err => {
         // console.log(`Error making cache request ${err}`);
         Sentry.captureException(err);
       })

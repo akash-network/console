@@ -16,7 +16,7 @@ import sdlStore from "@src/store/sdlStore";
 import { Balances } from "@src/types";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
-import { customColors,HSLToHex } from "@src/utils/colors";
+import { customColors, HSLToHex } from "@src/utils/colors";
 import { uAktDenom } from "@src/utils/constants";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, uaktToAKT } from "@src/utils/priceUtils";
@@ -209,7 +209,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
               {activeDeployments.length > 0 ? (
                 <>
                   <div className="mt-8">
-                    <p className="mb-4 text-sm text-muted-foreground">Total resources leased</p>
+                    <p className="text-muted-foreground mb-4 text-sm">Total resources leased</p>
 
                     <div className="flex flex-col items-start">
                       <LeaseSpecDetail type="cpu" value={totalCpu} />
@@ -220,7 +220,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                   </div>
 
                   <div className="mt-8">
-                    <p className="mb-4 text-sm text-muted-foreground">Total cost</p>
+                    <p className="text-muted-foreground mb-4 text-sm">Total cost</p>
 
                     <div className="flex items-center">
                       <p>
@@ -238,7 +238,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                   </div>
 
                   <div className="mt-8">
-                    <p className="mb-4 text-sm text-muted-foreground">Providers</p>
+                    <p className="text-muted-foreground mb-4 text-sm">Providers</p>
 
                     <div className="flex flex-wrap items-center gap-2">
                       {userProviders?.map(p => (
@@ -313,7 +313,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     </div>
                   </div>
 
-                  <div className="mb-2 mt-2 flex items-center border-t border-muted-foreground pt-2 text-sm leading-5 transition-opacity duration-200 ease-in-out">
+                  <div className="border-muted-foreground mb-2 mt-2 flex items-center border-t pt-2 text-sm leading-5 transition-opacity duration-200 ease-in-out">
                     <div className="h-4 w-4 rounded-lg" />
                     <div className="ml-4 w-[90px] font-bold"></div>
                     <div className="ml-4 w-[100px]"></div>
@@ -372,7 +372,7 @@ const BalancePie: React.FunctionComponent<BalancePieProps> = ({ label, data, get
           return `${udenomToDenom(value, 2)} ${label}`;
         }}
         tooltip={value => (
-          <div className="flex items-center rounded bg-muted px-2 py-1">
+          <div className="bg-muted flex items-center rounded px-2 py-1">
             <div className="h-2 w-2" style={{ backgroundColor: value.datum.color }} />
             <div className="ml-2">
               {value.datum.label}: {value.datum.formattedValue}

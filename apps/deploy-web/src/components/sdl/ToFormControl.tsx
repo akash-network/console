@@ -1,5 +1,5 @@
 "use client";
-import { forwardRef,ReactNode, useImperativeHandle } from "react";
+import { forwardRef, ReactNode, useImperativeHandle } from "react";
 import { Control, Controller, useFieldArray } from "react-hook-form";
 import { TooltipContent } from "@radix-ui/react-tooltip";
 import { Bin, InfoCircle } from "iconoir-react";
@@ -53,7 +53,7 @@ export const ToFormControl = forwardRef<ToRefType, Props>(({ control, serviceInd
     <FormPaper className="h-full" contentClassName="h-full flex items-start flex-col justify-between">
       <div>
         <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center mb-4">
+          <div className="mb-4 flex items-center">
             <strong className="text-sm">To</strong>
 
             <CustomTooltip
@@ -71,7 +71,7 @@ export const ToFormControl = forwardRef<ToRefType, Props>(({ control, serviceInd
                 </>
               }
             >
-              <InfoCircle className="ml-2 text-xs text-muted-foreground " />
+              <InfoCircle className="text-muted-foreground ml-2 text-xs" />
             </CustomTooltip>
           </div>
         </div>
@@ -115,7 +115,7 @@ export const ToFormControl = forwardRef<ToRefType, Props>(({ control, serviceInd
           );
         })}
 
-        {otherServices.length === 0 && <div className="mb-4 text-xs text-muted-foreground">There's no other service to expose to.</div>}
+        {otherServices.length === 0 && <div className="text-muted-foreground mb-4 text-xs">There's no other service to expose to.</div>}
       </div>
 
       <div className="flex items-center">

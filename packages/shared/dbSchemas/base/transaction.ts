@@ -12,7 +12,7 @@ import { Message } from "./message";
     { unique: false, fields: ["height"] },
     { unique: false, fields: ["height", "isProcessed", "hasProcessingError"] },
     { unique: false, fields: ["hash"] },
-    { unique: false, fields: ["id"], where: { hasProcessingError: false }, name: "transaction_id_has_procesing_error_false" },
+    { unique: false, fields: ["id"], where: { hasProcessingError: false }, name: "transaction_id_has_procesing_error_false" }
   ]
 })
 export class Transaction extends Model {

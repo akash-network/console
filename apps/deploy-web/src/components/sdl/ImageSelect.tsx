@@ -209,7 +209,7 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
           </>
         }
       >
-        <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+        <InfoCircle className="text-muted-foreground ml-2 text-xs" />
       </CustomTooltip>
     </div>
   );

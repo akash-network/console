@@ -24,7 +24,7 @@ describe("Nodes API", () => {
   });
 
   describe("GET /nodes/*", () => {
-    it.each(["mainnet", "sandbox", "testnet"])("should return %s node", async (network) => {
+    it.each(["mainnet", "sandbox", "testnet"])("should return %s node", async network => {
       const node = NodeSeeder.create();
       interceptor.get(`/cloudmos/main/config/${network}-nodes.json`).times(1).reply(200, node);
 
@@ -42,7 +42,7 @@ describe("Nodes API", () => {
     const PATH_REWRITE: Record<string, string> = {
       testnet: "testnet-02"
     };
-    it.each(["mainnet", "sandbox", "testnet"])("should return %s node version", async (network) => {
+    it.each(["mainnet", "sandbox", "testnet"])("should return %s node version", async network => {
       const version = `v${faker.number.int()}.${faker.number.int()}.${faker.number.int()}`;
       interceptor
         .get(`/net/master/${PATH_REWRITE[network] || network}/version.txt`)

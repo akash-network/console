@@ -35,7 +35,7 @@ export class ValidatorIndexer extends Indexer {
   async seed(genesis: IGenesis) {
     const validators = genesis.app_state.staking.validators;
 
-    await sequelize.transaction(async (dbTransaction) => {
+    await sequelize.transaction(async dbTransaction => {
       for (const validator of validators) {
         console.log("Creating validator :" + validator.operator_address);
 
@@ -44,8 +44,8 @@ export class ValidatorIndexer extends Indexer {
 
       // TODO: Handle any gentx txs types
       const msgs = genesis.app_state.genutil.gen_txs
-        .flatMap((tx) => tx.body.messages)
-        .filter((x) => x["@type"] === "/cosmos.staking.v1beta1.MsgCreateValidator") as IGentxCreateValidator[];
+        .flatMap(tx => tx.body.messages)
+        .filter(x => x["@type"] === "/cosmos.staking.v1beta1.MsgCreateValidator") as IGentxCreateValidator[];
 
       for (const msg of msgs) {
         console.log("Creating validator :" + msg.validator_address);

@@ -143,7 +143,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const chainStatsQuery = await getChainStats();
   const dashboardData = await getDashboardData();
   const networkCapacity = await getNetworkCapacity();

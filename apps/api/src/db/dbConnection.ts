@@ -38,7 +38,7 @@ export const chainDb = new Sequelize(csMap[env.Network], {
 });
 
 export const chainDbs: { [key: string]: Sequelize } = Object.keys(chainDefinitions)
-  .filter((x) => chainDefinitions[x].connectionString)
+  .filter(x => chainDefinitions[x].connectionString)
   .reduce(
     (obj, chain) => ({
       ...obj,
@@ -75,4 +75,4 @@ export async function syncUserSchema() {
   await TemplateFavorite.sync();
 }
 
-export const closeConnections = async () => await Promise.all([chainDb.close(), userDb.close(), ...Object.values(chainDbs).map((db) => db.close())]);
+export const closeConnections = async () => await Promise.all([chainDb.close(), userDb.close(), ...Object.values(chainDbs).map(db => db.close())]);

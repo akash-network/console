@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Drawer from "react-modern-drawer";
-import { ArrowUpRightSquare, Discord, Github, Menu,Rocket, StatsUpSquare, X as TwitterX } from "iconoir-react";
+import { ArrowUpRightSquare, Discord, Github, Menu, Rocket, StatsUpSquare, X as TwitterX } from "iconoir-react";
 import Link from "next/link";
 
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";

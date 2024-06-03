@@ -71,7 +71,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   if (isNaN(parseInt(c.req.valid("param").dseq))) {
     return c.text("Invalid dseq.", 400);
   }

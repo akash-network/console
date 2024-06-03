@@ -3,8 +3,8 @@ import { Block, Message } from "@akashnetwork/cloudmos-shared/dbSchemas";
 import { Day, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { fromBase64 } from "@cosmjs/encoding";
 import { decodeTxRaw } from "@cosmjs/proto-signing";
-import { asyncify,eachLimit } from "async";
-import { differenceInSeconds,isEqual } from "date-fns";
+import { asyncify, eachLimit } from "async";
+import { differenceInSeconds, isEqual } from "date-fns";
 import { sha256 } from "js-sha256";
 import { Op } from "sequelize";
 import * as uuid from "uuid";
@@ -274,7 +274,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
 
     if (blocksToAdd.length >= 500 || i === endHeight) {
       try {
-        await sequelize.transaction(async (insertDbTransaction) => {
+        await sequelize.transaction(async insertDbTransaction => {
           await benchmark.measureAsync("createBlocks", async () => {
             await Block.bulkCreate(blocksToAdd, { transaction: insertDbTransaction });
           });

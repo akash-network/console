@@ -11,7 +11,7 @@ export class DeploymentBalanceMonitor {
       }
     });
 
-    await Promise.allSettled(monitoredValues.map((x) => this.updateValue(x)));
+    await Promise.allSettled(monitoredValues.map(x => this.updateValue(x)));
 
     console.log("Refreshed balances for " + monitoredValues.length + " deployments.");
   }

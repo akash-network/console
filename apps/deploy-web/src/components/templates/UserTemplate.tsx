@@ -23,7 +23,7 @@ import { RouteStepKeys } from "@src/utils/constants";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { cn } from "@src/utils/styleUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
-import { domainName,UrlService } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 
@@ -200,7 +200,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
               </div>
             )}
 
-            {description ? description : <p className="text-sm text-muted-foreground">No description...</p>}
+            {description ? description : <p className="text-muted-foreground text-sm">No description...</p>}
           </CardContent>
         </Card>
       )}

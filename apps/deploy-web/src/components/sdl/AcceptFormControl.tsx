@@ -1,5 +1,5 @@
 "use client";
-import { forwardRef,ReactNode, useImperativeHandle } from "react";
+import { forwardRef, ReactNode, useImperativeHandle } from "react";
 import { Control, Controller, useFieldArray } from "react-hook-form";
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
@@ -50,7 +50,7 @@ export const AcceptFormControl = forwardRef<AcceptRefType, Props>(({ control, se
         <strong className="text-sm">Accept</strong>
 
         <CustomTooltip title={<>List of hosts/domains to accept connections for.</>}>
-          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+          <InfoCircle className="text-muted-foreground ml-2 text-xs" />
         </CustomTooltip>
       </div>
 

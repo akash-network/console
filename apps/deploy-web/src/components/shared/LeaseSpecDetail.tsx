@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { MdDeveloperBoard,MdMemory, MdSpeed, MdStorage } from "react-icons/md";
+import { MdDeveloperBoard, MdMemory, MdSpeed, MdStorage } from "react-icons/md";
 import { FormattedNumber } from "react-intl";
 
 import { cn } from "@src/utils/styleUtils";
@@ -24,8 +24,8 @@ export const LeaseSpecDetail: React.FunctionComponent<Props> = ({ value, type, c
       </div>
 
       <div className="ml-1">{typeof value === "string" ? value : <FormattedNumber value={value} />}</div>
-      <div className="ml-1 text-muted-foreground">
-        <span className="text-xs text-muted-foreground">
+      <div className="text-muted-foreground ml-1">
+        <span className="text-muted-foreground text-xs">
           {type === "cpu" && "CPU"}
           {type === "gpu" && "GPU"}
           {type === "ram" && "RAM"}
