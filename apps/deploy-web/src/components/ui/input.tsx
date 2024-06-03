@@ -61,6 +61,7 @@ export interface InputWithIconProps extends React.InputHTMLAttributes<HTMLInputE
 
 const InputWithIcon = React.forwardRef<HTMLInputElement, InputWithIconProps>(
   ({ className, inputClassName, type, label, startIcon, endIcon, error, ...props }, ref) => {
+    // @ts-ignore
     const id = React.useId();
 
     return (

@@ -1,6 +1,5 @@
 "use client";
 import React, { useState } from "react";
-import { useRouter } from "next/router";
 import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";

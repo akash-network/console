@@ -74,6 +74,7 @@ const FormItem = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
+  // @ts-ignore
   const id = React.useId()
 
   return (
