@@ -144,7 +144,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 space-y-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 space-y-4 lg:grid-cols-2">
               <div className="basis-1/2">
                 <ActiveLeasesGraph provider={provider} />
               </div>
@@ -153,7 +153,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                 <Title subTitle className="mb-2 font-normal tracking-tight">
                   Up time <span className="ml-1 text-sm">(24h)</span>
                 </Title>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-[1px] lg:space-x-[2px]">
                   {uptimePeriods.map(x => (
                     <CustomNoDivTooltip
                       key={x.date.toISOString()}
