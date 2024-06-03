@@ -12,6 +12,7 @@ import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import Spinner from "@src/components/shared/Spinner";
 import { TimeRange } from "@src/components/shared/TimeRange";
 import { selectedRangeValues } from "@src/utils/constants";
+import { Title } from "../shared/Title";
 
 const Graph = dynamic(() => import("../graph/Graph"), {
   ssr: false
@@ -30,12 +31,12 @@ export const ActiveLeasesGraph: React.FunctionComponent<IProps> = ({ provider })
   const metricDiff = snapshotData && snapshotMetadata.unitFn(snapshotData.currentValue - snapshotData.compareValue);
 
   return (
-    <div className="m-auto max-w-[800px] py-4">
+    <div className="m-auto max-w-[800px]">
       <div className="mb-1">
-        <h1 className="text-center text-xl font-normal tracking-tight sm:text-left space-x-4">
+        <Title subTitle className="space-x-4 font-normal tracking-tight">
           <span>Active Leases</span>
           {provider.name && <span className="text-sm text-muted-foreground">({provider.name})</span>}
-        </h1>
+        </Title>
       </div>
 
       {!snapshotData && status === "loading" && (
@@ -46,7 +47,7 @@ export const ActiveLeasesGraph: React.FunctionComponent<IProps> = ({ provider })
 
       {snapshotData && (
         <>
-          <div className="mb-4 flex flex-col flex-wrap items-center justify-between sm:flex-row sm:flex-nowrap">
+          <div className="mb-4 flex flex-col flex-wrap justify-between sm:flex-row sm:flex-nowrap">
             <div className="mb-4 basis-full sm:mb-0 sm:basis-0">
               <h3 className="flex items-center text-4xl font-bold tracking-tight sm:justify-center">
                 <FormattedNumber value={metric.modifiedValue || metric.value} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
