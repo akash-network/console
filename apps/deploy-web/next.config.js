@@ -25,6 +25,9 @@ const moduleExports = {
   typescript: {
     tsconfigPath: "./tsconfig.json"
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   transpilePackages: ["geist"],
   // experimental: {
   //   // outputStandalone: true,

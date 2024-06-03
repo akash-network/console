@@ -5,12 +5,13 @@
   "semi": true,
   "quoteProps": "as-needed",
   "jsxSingleQuote": false,
-  "jsxBracketSameLine": false,
+  "bracketSameLine": false,
   "trailingComma": "none",
   "requirePragma": false,
   "insertPragma": false,
   "singleQuote": false,
   "arrowParens": "avoid",
   "endOfLine": "crlf",
-  "htmlWhitespaceSensitivity": "strict"
+  "htmlWhitespaceSensitivity": "strict",
+  "plugins": ["prettier-plugin-tailwindcss"]
 }

@@ -1,16 +1,29 @@
 {
   "name": "@akash-network/cloudmos",
-  "scripts": {},
   "workspaces": [
     "./packages/*",
     "./apps/*"
   ],
-  "volta": {
-    "node": "18.20.2",
-    "npm": "10.5.0"
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write ./**/*.{ts,tsx,js,json}"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.11.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.3",
+    "prettier": "^3.3.0",
+    "prettier-plugin-tailwindcss": "^0.6.1"
   },
   "engines": {
     "node": "18.20.2",
     "npm": "10.5.0"
+  },
+  "volta": {
+    "node": "18.20.2",
+    "npm": "10.5.0"
+  },
+  "dependencies": {
+    "eslint-plugin-simple-import-sort": "^12.1.0"
   }
 }
