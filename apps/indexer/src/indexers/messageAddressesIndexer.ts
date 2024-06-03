@@ -156,4 +156,16 @@ export class MessageAddressesIndexer extends Indexer {
 
     return { multisigThreshold, addresses };
   }
+
+  initCache(): Promise<void> {
+    return Promise.resolve(undefined);
+  }
+
+  seed(): Promise<void> {
+    return Promise.resolve(undefined);
+  }
+
+  afterEveryBlock(): Promise<void> {
+    return Promise.resolve(undefined);
+  }
 }
