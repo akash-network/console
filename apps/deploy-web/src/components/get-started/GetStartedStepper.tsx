@@ -1,26 +1,27 @@
 "use client";
-import { UrlService } from "@src/utils/urlUtils";
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import { MdRestartAlt } from "react-icons/md";
+import Step from "@mui/material/Step";
+import StepContent from "@mui/material/StepContent";
+import StepLabel from "@mui/material/StepLabel";
+import Stepper from "@mui/material/Stepper";
+import { Check, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
 import dynamic from "next/dynamic";
-import { QontoConnector, QontoStepIcon } from "./Stepper";
-import { ExternalLink } from "../shared/ExternalLink";
-import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
-import { uaktToAKT } from "@src/utils/priceUtils";
-import { CustomTooltip } from "../shared/CustomTooltip";
+import Link from "next/link";
+
+import { useChainParam } from "@src/context/ChainParamProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { RouteStepKeys } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { useChainParam } from "@src/context/ChainParamProvider";
-import { Button, buttonVariants } from "../ui/button";
-import Spinner from "../shared/Spinner";
-import Stepper from "@mui/material/Stepper";
-import Step from "@mui/material/Step";
-import StepLabel from "@mui/material/StepLabel";
-import StepContent from "@mui/material/StepContent";
+import { uaktToAKT } from "@src/utils/priceUtils";
 import { cn } from "@src/utils/styleUtils";
-import { Check, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
-import { useWallet } from "@src/context/WalletProvider";
-import { MdRestartAlt } from "react-icons/md";
+import { UrlService } from "@src/utils/urlUtils";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { ExternalLink } from "../shared/ExternalLink";
+import Spinner from "../shared/Spinner";
+import { Button, buttonVariants } from "../ui/button";
+import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
+import { QontoConnector, QontoStepIcon } from "./Stepper";
 
 // const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
 //   ssr: false,

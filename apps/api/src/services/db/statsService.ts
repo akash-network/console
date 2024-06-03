@@ -1,10 +1,11 @@
-import { Day } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { AkashBlock as Block } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import { Day } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { subHours } from "date-fns";
 import { Op, QueryTypes } from "sequelize";
+
+import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
 import { ProviderActiveLeasesStats, ProviderStats, ProviderStatsKey } from "@src/types/graph";
-import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { env } from "@src/utils/env";
 
 type GraphData = {

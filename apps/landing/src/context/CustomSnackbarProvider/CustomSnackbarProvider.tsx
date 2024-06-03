@@ -1,9 +1,9 @@
-import { SnackbarKey, SnackbarProvider } from "notistack";
 import React, { useRef } from "react";
 import CloseIcon from "@mui/icons-material/Close";
-import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
+import { SnackbarKey, SnackbarProvider } from "notistack";
+import { makeStyles } from "tss-react/mui";
 
 const useStyles = makeStyles()(theme => ({
   root: {

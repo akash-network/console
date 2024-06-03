@@ -57,7 +57,7 @@ function accountSettleFullBlocks(
   heightDelta: number,
   blockRate: number
 ): { overdrawn: boolean; remaining: number } {
-  let numFullBlocks = Math.min(Math.floor(deployment.balance / blockRate), heightDelta);
+  const numFullBlocks = Math.min(Math.floor(deployment.balance / blockRate), heightDelta);
 
   for (const lease of activeLeases) {
     lease.withdrawnAmount += numFullBlocks * lease.price;

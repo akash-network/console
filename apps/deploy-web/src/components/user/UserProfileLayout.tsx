@@ -1,12 +1,13 @@
 import React, { ReactNode } from "react";
-import { useRouter } from "next/router";
-import { UrlService } from "@src/utils/urlUtils";
-import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
-import { useCustomUser } from "@src/hooks/useCustomUser";
-import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
 import { ErrorBoundary } from "react-error-boundary";
+import { useRouter } from "next/router";
+import { event } from "nextjs-google-analytics";
+
 import { ErrorFallback } from "@src/components/shared/ErrorFallback";
+import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
+import { useCustomUser } from "@src/hooks/useCustomUser";
+import { AnalyticsEvents } from "@src/utils/analytics";
+import { UrlService } from "@src/utils/urlUtils";
 
 type UserProfileTab = "templates" | "favorites" | "address-book" | "settings";
 type Props = {

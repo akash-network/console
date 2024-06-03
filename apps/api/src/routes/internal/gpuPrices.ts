@@ -1,17 +1,18 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { MsgCreateBid } from "@akashnetwork/akash-api/akash/market/v1beta4";
 import { Block } from "@akashnetwork/cloudmos-shared/dbSchemas";
 import { AkashMessage, Deployment, DeploymentGroup, DeploymentGroupResource } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
 import { Day, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { addDays, sub } from "date-fns";
+import { Op, QueryTypes } from "sequelize";
+
 import { cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
-import { MsgCreateBid } from "@akashnetwork/akash-api/akash/market/v1beta4";
 import { toUTC } from "@src/utils";
 import { averageBlockCountInAMonth, averageBlockCountInAnHour } from "@src/utils/constants";
 import { env } from "@src/utils/env";
 import { average, median, round, weightedAverage } from "@src/utils/math";
 import { decodeMsg, uint8arrayToString } from "@src/utils/protobuf";
-import { addDays, sub } from "date-fns";
-import { Op, QueryTypes } from "sequelize";
 
 const route = createRoute({
   method: "get",

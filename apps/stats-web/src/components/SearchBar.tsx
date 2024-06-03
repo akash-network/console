@@ -1,14 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fromBech32, normalizeBech32 } from "@cosmjs/encoding";
-import { useRouter } from "next/navigation";
 import { Search, Xmark } from "iconoir-react";
-import { UrlService } from "@/lib/urlUtils";
-import { Input } from "./ui/input";
-import { Card, CardContent } from "./ui/card";
-import { Button } from "./ui/button";
-import { breakpoints } from "@/lib/responsiveUtils";
+import { useRouter } from "next/navigation";
 import { useMediaQuery } from "usehooks-ts";
+
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { Input } from "./ui/input";
+
+import { breakpoints } from "@/lib/responsiveUtils";
+import { UrlService } from "@/lib/urlUtils";
 
 type Props = {};
 

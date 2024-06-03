@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute,OpenAPIHono } from "@hono/zod-openapi";
+
 import { nodeClient } from "@src/routes/v1/nodes/nodeClient";
 
 const route = createRoute({

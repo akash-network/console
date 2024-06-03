@@ -1,12 +1,13 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useEffect,useState } from "react";
 import isEqual from "lodash/isEqual";
-import { LeaseRow } from "./LeaseRow";
-import { LeaseDto } from "@src/types/deployment";
+
 import { CustomPagination } from "@src/components/shared/CustomPagination";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
 import Spinner from "@src/components/shared/Spinner";
 import { CheckboxWithLabel } from "@src/components/ui/checkbox";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+import { LeaseDto } from "@src/types/deployment";
+import { LeaseRow } from "./LeaseRow";
 
 type Props = {
   leases: LeaseDto[] | null;

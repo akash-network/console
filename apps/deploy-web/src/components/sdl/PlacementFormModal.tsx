@@ -1,23 +1,24 @@
 "use client";
 import { ReactNode, useRef } from "react";
-import { Popup } from "../shared/Popup";
 import { Control, Controller } from "react-hook-form";
-import { Placement, SdlBuilderFormValues, Service } from "@src/types";
-import { FormPaper } from "./FormPaper";
-import { SignedByFormControl, SignedByRefType } from "./SignedByFormControl";
-import { AttributesFormControl, AttributesRefType } from "./AttributesFormControl";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { PriceValue } from "../shared/PriceValue";
-import { getAvgCostPerMonth, toReadableDenom, uaktToAKT } from "@src/utils/priceUtils";
-import { uAktDenom } from "@src/utils/constants";
-import { useSdlDenoms } from "@src/hooks/useDenom";
 import { FormattedNumber } from "react-intl";
-import { USDLabel } from "../shared/UsdLabel";
-import { udenomToDenom } from "@src/utils/mathHelpers";
 import { InfoCircle } from "iconoir-react";
+
+import { useSdlDenoms } from "@src/hooks/useDenom";
+import { Placement, SdlBuilderFormValues, Service } from "@src/types";
+import { uAktDenom } from "@src/utils/constants";
+import { udenomToDenom } from "@src/utils/mathHelpers";
+import { getAvgCostPerMonth, toReadableDenom, uaktToAKT } from "@src/utils/priceUtils";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { Popup } from "../shared/Popup";
+import { PriceValue } from "../shared/PriceValue";
+import { USDLabel } from "../shared/UsdLabel";
 import { FormControl, FormItem } from "../ui/form";
 import { FormInput, InputWithIcon } from "../ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { AttributesFormControl, AttributesRefType } from "./AttributesFormControl";
+import { FormPaper } from "./FormPaper";
+import { SignedByFormControl, SignedByRefType } from "./SignedByFormControl";
 
 type Props = {
   serviceIndex: number;

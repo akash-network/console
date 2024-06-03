@@ -1,24 +1,25 @@
-import express from "express";
-import packageJson from "../package.json";
-import { initDatabase } from "./db/buildDatabase";
-import { syncPriceHistory } from "./db/priceHistoryProvider";
-import { getSyncStatus, syncBlocks } from "./chain/chainSync";
-import { executionMode, ExecutionMode, isProd } from "./shared/constants";
-import * as Sentry from "@sentry/node";
-import { statsProcessor } from "./chain/statsProcessor";
-import { syncProvidersInfo } from "./providers/providerStatusProvider";
-import { Scheduler } from "./scheduler";
-import { fetchValidatorKeybaseInfos } from "./db/keybaseProvider";
-import { bytesToHumanReadableSize } from "./shared/utils/files";
-import { getCacheSize } from "./chain/dataStore";
-import { env } from "./shared/utils/env";
-import { nodeAccessor } from "./chain/nodeAccessor";
 import { activeChain, chainDefinitions } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { addressBalanceMonitor, deploymentBalanceMonitor } from "./monitors";
+import * as Sentry from "@sentry/node";
+import express from "express";
+
+import packageJson from "../package.json";
+import { getSyncStatus, syncBlocks } from "./chain/chainSync";
+import { getCacheSize } from "./chain/dataStore";
+import { nodeAccessor } from "./chain/nodeAccessor";
+import { statsProcessor } from "./chain/statsProcessor";
+import { initDatabase } from "./db/buildDatabase";
+import { fetchValidatorKeybaseInfos } from "./db/keybaseProvider";
+import { syncPriceHistory } from "./db/priceHistoryProvider";
 import { updateProvidersLocation } from "./providers/ipLocationProvider";
+import { syncProvidersInfo } from "./providers/providerStatusProvider";
+import { ExecutionMode, executionMode, isProd } from "./shared/constants";
 import { sleep } from "./shared/utils/delay";
-import { updateUsdSpending } from "./tasks/usdSpendingTracker";
+import { env } from "./shared/utils/env";
+import { bytesToHumanReadableSize } from "./shared/utils/files";
 import { updateProviderUptime } from "./tasks/providerUptimeTracker";
+import { updateUsdSpending } from "./tasks/usdSpendingTracker";
+import { addressBalanceMonitor, deploymentBalanceMonitor } from "./monitors";
+import { Scheduler } from "./scheduler";
 
 const app = express();
 

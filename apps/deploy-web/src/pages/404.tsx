@@ -1,12 +1,13 @@
-import Layout from "../components/layout/Layout";
 import { ReactNode } from "react";
-import { Title } from "@src/components/shared/Title";
-import { NextSeo } from "next-seo";
-import { UrlService } from "@src/utils/urlUtils";
+import { ArrowLeft } from "iconoir-react";
 import Link from "next/link";
+import { NextSeo } from "next-seo";
+
+import { Title } from "@src/components/shared/Title";
 import { buttonVariants } from "@src/components/ui/button";
 import { cn } from "@src/utils/styleUtils";
-import { ArrowLeft } from "iconoir-react";
+import { UrlService } from "@src/utils/urlUtils";
+import Layout from "../components/layout/Layout";
 
 type Props = {
   children?: ReactNode;

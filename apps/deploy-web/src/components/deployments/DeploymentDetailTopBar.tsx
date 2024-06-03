@@ -1,20 +1,21 @@
 "use client";
 import { Dispatch, ReactNode, SetStateAction, useState } from "react";
-import { DeploymentDepositModal } from "./DeploymentDepositModal";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { useRouter } from "next/navigation";
-import { UrlService } from "@src/utils/urlUtils";
-import { useWallet } from "@src/context/WalletProvider";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
-import { DeploymentDto } from "@src/types/deployment";
-import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
-import { Button } from "@src/components/ui/button";
-import { Edit, MoreHoriz, NavArrowLeft, Refresh, Upload, XmarkSquare } from "iconoir-react";
-import { DropdownMenu, DropdownMenuContent } from "@src/components/ui/dropdown-menu";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
+import { Edit, MoreHoriz, NavArrowLeft, Refresh, Upload, XmarkSquare } from "iconoir-react";
+import { useRouter } from "next/navigation";
+import { event } from "nextjs-google-analytics";
+
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
+import { Button } from "@src/components/ui/button";
+import { DropdownMenu, DropdownMenuContent } from "@src/components/ui/dropdown-menu";
+import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useWallet } from "@src/context/WalletProvider";
+import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
+import { DeploymentDto } from "@src/types/deployment";
+import { AnalyticsEvents } from "@src/utils/analytics";
+import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import { UrlService } from "@src/utils/urlUtils";
+import { DeploymentDepositModal } from "./DeploymentDepositModal";
 
 type Props = {
   address: string;

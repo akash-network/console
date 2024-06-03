@@ -1,7 +1,8 @@
+import { Row } from "@tanstack/react-table";
+
 import { Badge } from "@/components/ui/badge";
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
 import { TransactionRowType } from "@/lib/zod/transactionRow";
-import { Row } from "@tanstack/react-table";
 
 export const TransactionTypeCell = ({
   row

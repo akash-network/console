@@ -1,9 +1,10 @@
 "use client";
 import { Dispatch, ReactNode, SetStateAction } from "react";
+import { InfoCircle } from "iconoir-react";
+
 import { Service } from "@src/types";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { FormPaper } from "./FormPaper";
-import { InfoCircle } from "iconoir-react";
 
 type Props = {
   currentService: Service;

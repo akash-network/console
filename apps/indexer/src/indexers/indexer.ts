@@ -1,8 +1,9 @@
-import { DecodedTxRaw } from "@cosmjs/proto-signing";
-import { IGenesis } from "@src/chain/genesisTypes";
 import { Block, Message, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
-import * as benchmark from "@src/shared/utils/benchmark";
+import { DecodedTxRaw } from "@cosmjs/proto-signing";
 import { Transaction as DbTransaction } from "sequelize";
+
+import { IGenesis } from "@src/chain/genesisTypes";
+import * as benchmark from "@src/shared/utils/benchmark";
 
 export abstract class Indexer {
   name: string;

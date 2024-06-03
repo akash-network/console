@@ -1,8 +1,9 @@
 import axios from "axios";
-import { PROVIDER_PROXY_URL } from "./constants";
+
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
-import { wait } from "./timer";
 import { ApiProviderList } from "@src/types/provider";
+import { PROVIDER_PROXY_URL } from "./constants";
+import { wait } from "./timer";
 
 export const sendManifestToProvider = async (providerInfo: ApiProviderList, manifest: any, dseq: string, localCert: LocalCert) => {
   console.log("Sending manifest to " + providerInfo?.owner);
@@ -59,7 +60,7 @@ export function validateDeploymentData(deploymentData, selectedTemplate?) {
             deploymentData.sdl.services[serviceName].expose?.some(e => e.accept?.includes(valueToChange.initialValue)) ||
             deploymentData.sdl.services[serviceName].env?.some(e => e?.includes(valueToChange.initialValue))
           ) {
-            let error = new Error(`Template value of "${valueToChange.initialValue}" needs to be changed`);
+            const error = new Error(`Template value of "${valueToChange.initialValue}" needs to be changed`);
             error.name = "TemplateValidation";
 
             throw error;

@@ -1,8 +1,9 @@
 "use client";
 
-import { gt, neq } from "semver";
-import { mainnetId } from "./constants";
 import getConfig from "next/config";
+import { gt, neq } from "semver";
+
+import { mainnetId } from "./constants";
 const { publicRuntimeConfig } = getConfig();
 
 const migrations = {

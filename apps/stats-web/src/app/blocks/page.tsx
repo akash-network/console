@@ -1,7 +1,9 @@
+import { Metadata } from "next";
+
+import { BlocksTable } from "./BlocksTable";
+
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { Metadata } from "next";
-import { BlocksTable } from "./BlocksTable";
 
 type Props = {};
 

@@ -1,4 +1,4 @@
-import { getTodayUTC, toUTC, getPrettyTime } from './date';
+import { getPrettyTime,getTodayUTC, toUTC } from './date';
 
 describe('date helpers', () => {
   describe('getTodayUTC', () => {

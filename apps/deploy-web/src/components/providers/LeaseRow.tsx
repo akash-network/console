@@ -2,14 +2,15 @@
 import React from "react";
 import isEqual from "lodash/isEqual";
 import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
-import { uaktToAKT } from "@src/utils/priceUtils";
-import { LeaseDto } from "@src/types/deployment";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { TableCell, TableRow } from "@src/components/ui/table";
-import { StatusPill } from "@src/components/shared/StatusPill";
-import { PricePerMonth } from "@src/components/shared/PricePerMonth";
+
 import { PriceEstimateTooltip } from "@src/components/shared/PriceEstimateTooltip";
+import { PricePerMonth } from "@src/components/shared/PricePerMonth";
+import { StatusPill } from "@src/components/shared/StatusPill";
+import { TableCell, TableRow } from "@src/components/ui/table";
+import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { LeaseDto } from "@src/types/deployment";
+import { uaktToAKT } from "@src/utils/priceUtils";
+import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
   lease: LeaseDto;

@@ -1,11 +1,12 @@
 "use client";
 import React from "react";
+import { NavArrowLeft } from "iconoir-react";
 import Link from "next/link";
+
+import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
-import { cn } from "@src/utils/styleUtils";
 import { buttonVariants } from "../ui/button";
-import { NavArrowLeft } from "iconoir-react";
 
 type Props = {};
 

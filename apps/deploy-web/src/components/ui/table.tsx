@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+
 import { cn } from "@src/utils/styleUtils";
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(({ className, ...props }, ref) => (

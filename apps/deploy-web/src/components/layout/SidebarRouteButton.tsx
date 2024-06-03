@@ -2,9 +2,10 @@
 import { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UrlService } from "@src/utils/urlUtils";
+
 import { ISidebarRoute } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
+import { UrlService } from "@src/utils/urlUtils";
 import { buttonVariants } from "../ui/button";
 
 type Props = {

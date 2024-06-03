@@ -1,28 +1,28 @@
-import https from "https";
-import axios from "axios";
-import semver from "semver";
 import {
   Provider,
+  ProviderSnapshot,
   ProviderSnapshotNode,
   ProviderSnapshotNodeCPU,
-  ProviderSnapshotNodeGPU,
-  ProviderSnapshot
-} from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+  ProviderSnapshotNodeGPU} from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
 import { asyncify, eachLimit } from "async";
+import axios from "axios";
+import { add, differenceInDays, differenceInHours, differenceInMinutes, isSameDay } from "date-fns";
+import https from "https";
+import semver from "semver";
+import { Op } from "sequelize";
+
 import { sequelize } from "@src/db/dbConnection";
 import { toUTC } from "@src/shared/utils/date";
-import { ProviderStatusInfo, ProviderVersionEndpointResponseType } from "./statusEndpointHandlers/types";
-import { add, differenceInDays, differenceInHours, differenceInMinutes, isSameDay } from "date-fns";
 import { fetchProviderStatusFromGRPC } from "./statusEndpointHandlers/grpc";
 import { fetchProviderStatusFromREST } from "./statusEndpointHandlers/rest";
-import { Op } from "sequelize";
+import { ProviderStatusInfo, ProviderVersionEndpointResponseType } from "./statusEndpointHandlers/types";
 
 const ConcurrentStatusCall = 10;
 const StatusCallTimeout = 10_000; // 10 seconds
 const UptimeCheckIntervalSeconds = 15 * 60; // 15 minutes
 
 export async function syncProvidersInfo() {
-  let providers = await Provider.findAll({
+  const providers = await Provider.findAll({
     where: {
       deletedHeight: null,
       nextCheckDate: { [Op.lte]: toUTC(new Date()) }

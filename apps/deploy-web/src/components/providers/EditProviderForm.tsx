@@ -1,25 +1,26 @@
 "use client";
-import { useState, useEffect, useRef, HTMLInputTypeAttribute } from "react";
-import { useWallet } from "@src/context/WalletProvider";
-import { ApiProviderDetail } from "@src/types/provider";
+import { HTMLInputTypeAttribute,useEffect, useRef, useState } from "react";
 import { Control, Controller, FieldPath, RegisterOptions, useFieldArray, useForm } from "react-hook-form";
-import { ProviderAttributeSchemaDetailValue, ProviderAttributesFormValues, ProviderAttributesSchema } from "@src/types/providerAttributes";
-import { defaultProviderAttributes } from "@src/utils/providerAttributes/data";
-import { CustomTooltip } from "@src/components/shared/CustomTooltip";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { getUnknownAttributes, mapFormValuesToAttributes } from "@src/utils/providerAttributes/helpers";
+import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
+
 import { FormPaper } from "@src/components/sdl/FormPaper";
+import { CustomTooltip } from "@src/components/shared/CustomTooltip";
 import { Alert } from "@src/components/ui/alert";
 import { Button } from "@src/components/ui/button";
-import { InputWithIcon } from "@src/components/ui/input";
-import { Bin, InfoCircle } from "iconoir-react";
 import { CheckboxWithLabel } from "@src/components/ui/checkbox";
-import { cn } from "@src/utils/styleUtils";
-import MultipleSelector, { Option } from "@src/components/ui/multiple-selector";
-import { Label } from "@src/components/ui/label";
 import { FormItem } from "@src/components/ui/form";
+import { InputWithIcon } from "@src/components/ui/input";
+import { Label } from "@src/components/ui/label";
+import MultipleSelector, { Option } from "@src/components/ui/multiple-selector";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
+import { useWallet } from "@src/context/WalletProvider";
+import { ApiProviderDetail } from "@src/types/provider";
+import { ProviderAttributeSchemaDetailValue, ProviderAttributesFormValues, ProviderAttributesSchema } from "@src/types/providerAttributes";
+import { defaultProviderAttributes } from "@src/utils/providerAttributes/data";
+import { getUnknownAttributes, mapFormValuesToAttributes } from "@src/utils/providerAttributes/helpers";
+import { cn } from "@src/utils/styleUtils";
+import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 
 type Props = {
   provider: Partial<ApiProviderDetail>;

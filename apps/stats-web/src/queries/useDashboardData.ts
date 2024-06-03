@@ -1,8 +1,10 @@
-import { UseQueryOptions, useQuery, QueryKey } from "react-query";
+import { QueryKey,useQuery, UseQueryOptions } from "react-query";
 import axios from "axios";
+
 import { QueryKeys } from "./queryKeys";
-import { DashboardData } from "@/types";
+
 import { ApiUrlService } from "@/lib/apiUtils";
+import { DashboardData } from "@/types";
 
 async function getDashboardData(): Promise<DashboardData> {
   const response = await axios.get(ApiUrlService.dashboardData());

@@ -1,10 +1,11 @@
 "use client";
+import Link from "next/link";
+
 import { getShortText } from "@src/hooks/useShortText";
 import { ITemplate } from "@src/types";
-import { UrlService } from "@src/utils/urlUtils";
-import Link from "next/link";
-import { CardContent, CardHeader, cardClasses } from "../ui/card";
 import { cn } from "@src/utils/styleUtils";
+import { UrlService } from "@src/utils/urlUtils";
+import { cardClasses,CardContent, CardHeader } from "../ui/card";
 
 type Props = {
   template: Partial<ITemplate>;

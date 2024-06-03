@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { AuthorizedGraphDataNames, getGraphData, isValidGraphDataName } from "@src/services/db/statsService";
 
 const route = createRoute({

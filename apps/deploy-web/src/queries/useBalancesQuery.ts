@@ -1,10 +1,8 @@
 import { useQuery } from "react-query";
-import { QueryKeys } from "./queryKeys";
 import axios from "axios";
-import { useSettings } from "../context/SettingsProvider";
-import { ApiUrlService } from "@src/utils/apiUtils";
+
+import { getUsdcDenom } from "@src/hooks/useDenom";
 import { Balances } from "@src/types";
-import { uAktDenom } from "@src/utils/constants";
 import {
   RestApiBalancesResponseType,
   RestApiDelegationsType,
@@ -12,7 +10,10 @@ import {
   RestApiRewardsResponseType,
   RestApiUnbondingsResponseType
 } from "@src/types/balances";
-import { getUsdcDenom } from "@src/hooks/useDenom";
+import { ApiUrlService } from "@src/utils/apiUtils";
+import { uAktDenom } from "@src/utils/constants";
+import { useSettings } from "../context/SettingsProvider";
+import { QueryKeys } from "./queryKeys";
 
 // Account balances
 async function getBalances(apiEndpoint: string, address: string): Promise<Balances> {

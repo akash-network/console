@@ -1,8 +1,10 @@
 "use client";
 import React from "react";
-import { useValidators } from "@/queries";
-import { DataTable } from "@/components/table/data-table";
+
 import { columns } from "./columns";
+
+import { DataTable } from "@/components/table/data-table";
+import { useValidators } from "@/queries";
 
 interface IProps {}
 

@@ -1,16 +1,17 @@
 "use client";
-import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
+import { event } from "nextjs-google-analytics";
+
+import Spinner from "@src/components/shared/Spinner";
+import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
+import { buttonVariants } from "@src/components/ui/button";
+import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUserTemplates } from "@src/queries/useTemplateQuery";
 import { IUserSetting } from "@src/types/user";
-import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
-import { useCustomUser } from "@src/hooks/useCustomUser";
-import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
-import Spinner from "@src/components/shared/Spinner";
-import { buttonVariants } from "@src/components/ui/button";
 import { cn } from "@src/utils/styleUtils";
+import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 
 type Props = {

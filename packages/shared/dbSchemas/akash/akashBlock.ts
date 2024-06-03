@@ -1,5 +1,6 @@
-import { Column, Table } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
+import { Column, Table } from "sequelize-typescript";
+
 import { Block } from "../base";
 import { tableConfig } from "../base/block";
 

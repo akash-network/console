@@ -1,5 +1,5 @@
-import { assets } from "chain-registry";
 import { AssetList } from "@chain-registry/types";
+import { assets } from "chain-registry";
 
 // Obtained from https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/chain.json
 export const akash = {

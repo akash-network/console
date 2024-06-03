@@ -1,7 +1,8 @@
 import { ReactNode } from "react";
-import { Title } from "@src/components/shared/Title";
-import { NextSeo } from "next-seo";
 import { Tools } from "iconoir-react";
+import { NextSeo } from "next-seo";
+
+import { Title } from "@src/components/shared/Title";
 
 type Props = {
   children?: ReactNode;

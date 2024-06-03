@@ -1,25 +1,26 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { LeaseSelect } from "./LeaseSelect";
-import { useLeaseStatus } from "@src/queries/useLeaseQuery";
-import { ServiceSelect } from "./ServiceSelect";
-import { ShellDownloadModal } from "./ShellDownloadModal";
-import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
-import { XTermRefType } from "@src/lib/XTerm/XTerm";
-import { XTerm } from "@src/lib/XTerm";
-import { LeaseShellCode } from "@src/types/shell";
-import { useCustomWebSocket } from "@src/hooks/useCustomWebSocket";
-import { LeaseDto } from "@src/types/deployment";
-import { useProviderList } from "@src/queries/useProvidersQuery";
+import { OpenInWindow, OpenNewWindow } from "iconoir-react";
 import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
-import { useCertificate } from "@src/context/CertificateProvider";
+
+import Spinner from "@src/components/shared/Spinner";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { Alert } from "@src/components/ui/alert";
 import { Button } from "@src/components/ui/button";
-import Spinner from "@src/components/shared/Spinner";
-import { OpenInWindow, OpenNewWindow } from "iconoir-react";
+import { useCertificate } from "@src/context/CertificateProvider";
+import { useCustomWebSocket } from "@src/hooks/useCustomWebSocket";
+import { XTerm } from "@src/lib/XTerm";
+import { XTermRefType } from "@src/lib/XTerm/XTerm";
+import { useLeaseStatus } from "@src/queries/useLeaseQuery";
+import { useProviderList } from "@src/queries/useProvidersQuery";
+import { LeaseDto } from "@src/types/deployment";
+import { LeaseShellCode } from "@src/types/shell";
+import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
+import { UrlService } from "@src/utils/urlUtils";
+import { LeaseSelect } from "./LeaseSelect";
+import { ServiceSelect } from "./ServiceSelect";
+import { ShellDownloadModal } from "./ShellDownloadModal";
 
 type Props = {
   leases: LeaseDto[] | null | undefined;
@@ -109,7 +110,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
     const closed = jsonData?.closed;
 
     if (message?.data) {
-      let parsedData = Buffer.from(message.data).toString("utf-8", 1);
+      const parsedData = Buffer.from(message.data).toString("utf-8", 1);
 
       // Check if parsedData is either ^[[A, ^[[B, ^[[C or ^[[D
       const arrowKeyPattern = /\^\[\[[A-D]/;

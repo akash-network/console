@@ -1,19 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { RouteStepKeys } from "@src/utils/constants";
-import { useTemplates } from "@src/context/TemplatesProvider";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { UrlService } from "@src/utils/urlUtils";
-import { TemplateCreation } from "@src/types";
-import { hardcodedTemplates } from "@src/utils/templates";
-import sdlStore from "@src/store/sdlStore";
 import { useAtomValue } from "jotai";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useTemplates } from "@src/context/TemplatesProvider";
+import sdlStore from "@src/store/sdlStore";
+import { TemplateCreation } from "@src/types";
+import { RouteStepKeys } from "@src/utils/constants";
+import { hardcodedTemplates } from "@src/utils/templates";
+import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
+import { CreateLease } from "./CreateLease";
+import { ManifestEdit } from "./ManifestEdit";
 import { CustomizedSteppers } from "./Stepper";
 import { TemplateList } from "./TemplateList";
-import { ManifestEdit } from "./ManifestEdit";
-import { CreateLease } from "./CreateLease";
 
 export function NewDeploymentContainer() {
   const { isLoading: isLoadingTemplates, templates } = useTemplates();

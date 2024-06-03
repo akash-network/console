@@ -1,6 +1,7 @@
-import { TransactionMessage } from "@/types";
 import { AddressLink } from "../../AddressLink";
 import { LabelValue } from "../../LabelValue";
+
+import { TransactionMessage } from "@/types";
 
 type TxMessageProps = {
   message: TransactionMessage;

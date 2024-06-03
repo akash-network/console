@@ -1,10 +1,11 @@
-import { UseQueryOptions, useQuery, QueryKey } from "react-query";
+import { QueryKey,useQuery, UseQueryOptions } from "react-query";
 import axios from "axios";
-import { QueryKeys } from "./queryKeys";
+
 import { PaginatedResults, TransactionDetail } from "@src/types";
-import { removeEmptyFilters } from "@src/utils/urlUtils";
 import { DeploymentSummary } from "@src/types/deployment";
 import { ApiUrlService } from "@src/utils/apiUtils";
+import { removeEmptyFilters } from "@src/utils/urlUtils";
+import { QueryKeys } from "./queryKeys";
 
 async function getTransactions(limit: number): Promise<TransactionDetail[]> {
   const response = await axios.get(ApiUrlService.transactions(limit));

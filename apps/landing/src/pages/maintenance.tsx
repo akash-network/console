@@ -1,9 +1,10 @@
 import { ReactNode } from "react";
-import PageContainer from "@src/components/shared/PageContainer";
-import { Box, Typography, useTheme } from "@mui/material";
-import { Title } from "@src/components/shared/Title";
-import { NextSeo } from "next-seo";
 import ConstructionIcon from "@mui/icons-material/Construction";
+import { Box, Typography, useTheme } from "@mui/material";
+import { NextSeo } from "next-seo";
+
+import PageContainer from "@src/components/shared/PageContainer";
+import { Title } from "@src/components/shared/Title";
 
 type Props = {
   children?: ReactNode;

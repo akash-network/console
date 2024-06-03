@@ -1,9 +1,10 @@
-import { Transaction, AddressReference } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { msgToJSON } from "@src/utils/protobuf";
+import { AddressReference,Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { QueryTypes } from "sequelize";
+
 import { chainDb } from "@src/db/dbConnection";
 import { ApiTransactionResponse } from "@src/types/transactions";
+import { msgToJSON } from "@src/utils/protobuf";
 
 export async function getTransactions(limit: number) {
   const _limit = Math.min(limit, 100);

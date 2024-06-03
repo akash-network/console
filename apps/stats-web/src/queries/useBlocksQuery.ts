@@ -1,8 +1,10 @@
-import { UseQueryOptions, useQuery, QueryKey } from "react-query";
+import { QueryKey,useQuery, UseQueryOptions } from "react-query";
 import axios from "axios";
+
 import { QueryKeys } from "./queryKeys";
-import { Block } from "@/types";
+
 import { ApiUrlService } from "@/lib/apiUtils";
+import { Block } from "@/types";
 
 async function getBlocks(limit: number): Promise<Block[]> {
   const response = await axios.get(ApiUrlService.blocks(limit));

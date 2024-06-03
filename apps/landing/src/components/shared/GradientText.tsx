@@ -1,6 +1,7 @@
-import { Box, SxProps, Theme } from "@mui/material";
-import { burningGradientStyle } from "@src/utils/colors";
 import { ReactNode } from "react";
+import { Box, SxProps, Theme } from "@mui/material";
+
+import { burningGradientStyle } from "@src/utils/colors";
 
 type Props = {
   children?: ReactNode;

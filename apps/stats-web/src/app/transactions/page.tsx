@@ -1,7 +1,9 @@
+import { Metadata } from "next";
+
+import { TransactionsTable } from "./TransactionsTable";
+
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { Metadata } from "next";
-import { TransactionsTable } from "./TransactionsTable";
 
 type Props = {};
 

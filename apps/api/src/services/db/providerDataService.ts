@@ -1,4 +1,5 @@
 import { Provider, ProviderAttribute } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+
 import { getProviderAttributesSchema } from "@src/services/external/githubService";
 
 export async function getProviderRegions() {

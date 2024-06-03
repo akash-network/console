@@ -1,14 +1,15 @@
 import React from "react";
-import Layout from "@src/components/layout/Layout";
-import { useRouter } from "next/router";
-import { UrlService, domainName } from "@src/utils/urlUtils";
-import { NoWalletSection } from "@src/components/get-started/NoWalletSection";
 import Link from "next/link";
+import { useRouter } from "next/router";
+
 import { NoKeplrSection } from "@src/components/get-started/NoKeplrSection";
+import { NoWalletSection } from "@src/components/get-started/NoWalletSection";
 import { WithKeplrSection } from "@src/components/get-started/WithKeplrSection";
+import Layout from "@src/components/layout/Layout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@src/components/ui/breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@src/components/ui/card";
+import { domainName,UrlService } from "@src/utils/urlUtils";
 
 enum GetWalletSection {
   NoWallet = "no-wallet",

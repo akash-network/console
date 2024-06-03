@@ -1,7 +1,7 @@
-import fetch from "node-fetch";
-import { isSameDay } from "date-fns";
 import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import { Day } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { isSameDay } from "date-fns";
+import fetch from "node-fetch";
 
 interface PriceHistoryResponse {
   prices: Array<Array<number>>;

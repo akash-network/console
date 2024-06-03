@@ -1,18 +1,19 @@
 "use client";
 import React, { ReactNode, useEffect, useState } from "react";
-import { IntlProvider } from "react-intl";
 import { ErrorBoundary } from "react-error-boundary";
-import { ErrorFallback } from "../shared/ErrorFallback";
-import { accountBarHeight } from "@src/utils/constants";
+import { IntlProvider } from "react-intl";
 import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
-import { WelcomeModal } from "./WelcomeModal";
-import { Sidebar } from "./Sidebar";
+
 import { useSettings } from "@src/context/SettingsProvider";
-import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { useWallet } from "@src/context/WalletProvider";
-import Spinner from "../shared/Spinner";
+import { accountBarHeight } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
+import { ErrorFallback } from "../shared/ErrorFallback";
+import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
+import Spinner from "../shared/Spinner";
 import { Nav } from "./Nav";
+import { Sidebar } from "./Sidebar";
+import { WelcomeModal } from "./WelcomeModal";
 
 type Props = {
   isLoading?: boolean;

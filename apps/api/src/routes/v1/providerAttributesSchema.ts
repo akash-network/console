@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { getProviderAttributesSchema } from "@src/services/external/githubService";
 
 const attributeSchemaType = z.object({

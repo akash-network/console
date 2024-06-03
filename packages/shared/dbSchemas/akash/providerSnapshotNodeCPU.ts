@@ -1,5 +1,6 @@
-import { Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
+import { Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
+
 import { Required } from "../decorators/requiredDecorator";
 
 @Table({

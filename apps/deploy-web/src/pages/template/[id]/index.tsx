@@ -1,8 +1,9 @@
 import { getSession } from "@auth0/nextjs-auth0";
+import axios from "axios";
+
 import { UserTemplate } from "@src/components/templates/UserTemplate";
 import { ITemplate } from "@src/types";
 import { BASE_API_MAINNET_URL } from "@src/utils/constants";
-import axios from "axios";
 
 type Props = {
   id: string;

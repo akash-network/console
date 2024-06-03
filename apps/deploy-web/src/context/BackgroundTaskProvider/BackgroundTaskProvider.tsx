@@ -1,11 +1,12 @@
 "use client";
-import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
 import React from "react";
-import { useCertificate } from "../CertificateProvider";
 import FileSaver from "file-saver";
-import { Button } from "@src/components/ui/button";
 import { useSnackbar } from "notistack";
+
 import { Snackbar } from "@src/components/shared/Snackbar";
+import { Button } from "@src/components/ui/button";
+import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
+import { useCertificate } from "../CertificateProvider";
 
 const getPrintCommand = os => {
   switch (os) {

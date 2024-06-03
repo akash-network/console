@@ -1,7 +1,8 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { swaggerUI } from "@hono/swagger-ui";
-import routes from "../routes/internal";
+import { OpenAPIHono } from "@hono/zod-openapi";
+
 import { env } from "@src/utils/env";
+import routes from "../routes/internal";
 
 export const internalRouter = new OpenAPIHono();
 

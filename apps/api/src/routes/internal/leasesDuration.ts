@@ -1,9 +1,10 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { Block } from "@akashnetwork/cloudmos-shared/dbSchemas";
 import { Lease } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { openApiExampleAddress } from "@src/utils/constants";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { differenceInSeconds } from "date-fns";
 import { Op } from "sequelize";
+
+import { openApiExampleAddress } from "@src/utils/constants";
 
 const route = createRoute({
   method: "get",

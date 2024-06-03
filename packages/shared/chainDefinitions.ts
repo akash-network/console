@@ -1,3 +1,6 @@
+import * as dotenv from "dotenv";
+import { Model, ModelCtor } from "sequelize-typescript";
+
 import {
   AkashBlock,
   AkashMessage,
@@ -15,8 +18,6 @@ import {
   ProviderSnapshotNodeGPU
 } from "./dbSchemas/akash";
 import { Block, Message } from "./dbSchemas/base";
-import { Model, ModelCtor } from "sequelize-typescript";
-import * as dotenv from "dotenv";
 dotenv.config({ path: '.env.local' });
 dotenv.config();
 

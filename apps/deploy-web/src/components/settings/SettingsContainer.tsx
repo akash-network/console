@@ -1,18 +1,19 @@
 "use client";
-import { Fieldset } from "@src/components/shared/Fieldset";
 import { useState } from "react";
-import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { Edit } from "iconoir-react";
+import { NextSeo } from "next-seo";
+
+import { LocalDataManager } from "@src/components/settings/LocalDataManager";
+import { Fieldset } from "@src/components/shared/Fieldset";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { Button } from "@src/components/ui/button";
-import { Edit } from "iconoir-react";
-import { CertificateList } from "./CertificateList";
+import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import Layout from "../layout/Layout";
-import { SettingsLayout, SettingsTabs } from "./SettingsLayout";
+import { CertificateList } from "./CertificateList";
+import { ColorModeSelect } from "./ColorModeSelect";
 import { SelectNetworkModal } from "./SelectNetworkModal";
 import { SettingsForm } from "./SettingsForm";
-import { ColorModeSelect } from "./ColorModeSelect";
-import { NextSeo } from "next-seo";
-import { LocalDataManager } from "@src/components/settings/LocalDataManager";
+import { SettingsLayout, SettingsTabs } from "./SettingsLayout";
 
 type Props = {};
 

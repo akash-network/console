@@ -1,9 +1,10 @@
-import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
+import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
+
+import { Required } from "../decorators/requiredDecorator";
+import { AddressReference } from "./addressReference";
 import { Block } from "./block";
 import { Message } from "./message";
-import { AddressReference } from "./addressReference";
-import { Required } from "../decorators/requiredDecorator";
 
 @Table({
   modelName: "transaction",

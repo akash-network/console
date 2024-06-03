@@ -1,23 +1,24 @@
 "use client";
-import { ClientProviderList } from "@src/types/provider";
+import React from "react";
+import { WarningCircle } from "iconoir-react";
+import { useRouter } from "next/navigation";
+
+import { Badge } from "@src/components/ui/badge";
+import { TableCell, TableRow } from "@src/components/ui/table";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { getSplitText } from "@src/hooks/useShortText";
+import { ClientProviderList } from "@src/types/provider";
+import { createFilterUnique } from "@src/utils/array";
+import { hasSomeParentTheClass } from "@src/utils/domUtils";
+import { roundDecimal } from "@src/utils/mathHelpers";
+import { cn } from "@src/utils/styleUtils";
+import { bytesToShrink } from "@src/utils/unitUtils";
+import { UrlService } from "@src/utils/urlUtils";
+import { CustomNoDivTooltip, CustomTooltip } from "../shared/CustomTooltip";
 import { FavoriteButton } from "../shared/FavoriteButton";
 import { AuditorButton } from "./AuditorButton";
-import { bytesToShrink } from "@src/utils/unitUtils";
-import { roundDecimal } from "@src/utils/mathHelpers";
 import { CapacityIcon } from "./CapacityIcon";
-import { CustomNoDivTooltip, CustomTooltip } from "../shared/CustomTooltip";
-import { getSplitText } from "@src/hooks/useShortText";
-import { useRouter } from "next/navigation";
-import { UrlService } from "@src/utils/urlUtils";
 import { Uptime } from "./Uptime";
-import React from "react";
-import { hasSomeParentTheClass } from "@src/utils/domUtils";
-import { createFilterUnique } from "@src/utils/array";
-import { TableCell, TableRow } from "@src/components/ui/table";
-import { cn } from "@src/utils/styleUtils";
-import { Badge } from "@src/components/ui/badge";
-import { WarningCircle } from "iconoir-react";
 
 type Props = {
   provider: ClientProviderList;

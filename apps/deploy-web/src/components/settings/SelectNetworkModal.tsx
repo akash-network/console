@@ -1,14 +1,15 @@
 "use client";
-import { mainnetId } from "@src/utils/constants";
 import { useState } from "react";
-import { networks } from "@src/store/networkStore";
-import { cn } from "@src/utils/styleUtils";
-import { useSettings } from "@src/context/SettingsProvider";
+
 import { Popup } from "@src/components/shared/Popup";
-import { RadioGroup, RadioGroupItem } from "@src/components/ui/radio-group";
-import { buttonVariants } from "@src/components/ui/button";
-import { Badge } from "@src/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@src/components/ui/alert";
+import { Badge } from "@src/components/ui/badge";
+import { buttonVariants } from "@src/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@src/components/ui/radio-group";
+import { useSettings } from "@src/context/SettingsProvider";
+import { networks } from "@src/store/networkStore";
+import { mainnetId } from "@src/utils/constants";
+import { cn } from "@src/utils/styleUtils";
 
 export const SelectNetworkModal = ({ onClose }) => {
   const { selectedNetworkId } = useSettings();

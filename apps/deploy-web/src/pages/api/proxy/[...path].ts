@@ -1,6 +1,7 @@
 import { getSession } from "@auth0/nextjs-auth0";
-import { BASE_API_MAINNET_URL } from "@src/utils/constants";
 import httpProxy from "http-proxy";
+
+import { BASE_API_MAINNET_URL } from "@src/utils/constants";
 
 export default (req, res) => {
   return new Promise(async (resolve, reject) => {

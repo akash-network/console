@@ -1,6 +1,6 @@
+import { Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import fetch from "node-fetch";
 import { Op } from "sequelize";
-import { Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 
 export async function fetchValidatorKeybaseInfos() {
   const validators = await Validator.findAll({

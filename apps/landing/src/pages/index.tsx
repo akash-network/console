@@ -1,15 +1,16 @@
-import { Box, Button, Grid, Typography, useTheme } from "@mui/material";
 import React from "react";
 import ReactPlayer from "react-player/lazy";
-import { DiscordIcon } from "@src/components/shared/icons";
-import YouTubeIcon from "@mui/icons-material/YouTube";
-import TwitterIcon from "@mui/icons-material/Twitter";
-import Layout from "@src/components/layout/Layout";
-import PageContainer from "@src/components/shared/PageContainer";
-import { GradientText } from "@src/components/shared/GradientText";
-import { makeStyles } from "tss-react/mui";
-import { NextSeo } from "next-seo";
 import LaunchIcon from "@mui/icons-material/RocketLaunch";
+import TwitterIcon from "@mui/icons-material/Twitter";
+import YouTubeIcon from "@mui/icons-material/YouTube";
+import { Box, Button, Grid, Typography, useTheme } from "@mui/material";
+import { NextSeo } from "next-seo";
+import { makeStyles } from "tss-react/mui";
+
+import Layout from "@src/components/layout/Layout";
+import { GradientText } from "@src/components/shared/GradientText";
+import { DiscordIcon } from "@src/components/shared/icons";
+import PageContainer from "@src/components/shared/PageContainer";
 
 const useStyles = makeStyles()(theme => ({
   title: {

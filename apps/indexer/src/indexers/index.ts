@@ -1,4 +1,5 @@
 import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
+
 import { AkashStatsIndexer } from "./akashStatsIndexer";
 import { Indexer } from "./indexer";
 import { MessageAddressesIndexer } from "./messageAddressesIndexer";

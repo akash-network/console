@@ -1,16 +1,17 @@
 "use client";
 import React, { Dispatch, useEffect, useRef, useState } from "react";
-import { defaultService } from "@src/utils/sdl/data";
 import { useFieldArray, useForm } from "react-hook-form";
-import { SdlBuilderFormValues, Service } from "@src/types";
 import { nanoid } from "nanoid";
-import { generateSdl } from "@src/utils/sdl/sdlGenerator";
-import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
-import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
-import Spinner from "../shared/Spinner";
-import { Button } from "../ui/button";
-import { Alert } from "../ui/alert";
+
 import { useGpuModels } from "@src/queries/useGpuQuery";
+import { SdlBuilderFormValues, Service } from "@src/types";
+import { defaultService } from "@src/utils/sdl/data";
+import { generateSdl } from "@src/utils/sdl/sdlGenerator";
+import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
+import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
+import Spinner from "../shared/Spinner";
+import { Alert } from "../ui/alert";
+import { Button } from "../ui/button";
 
 interface Props {
   sdlString: string;
@@ -58,7 +59,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
     });
 
     try {
-      if (!!sdlString) {
+      if (sdlString) {
         const services = createAndValidateSdl(sdlString);
         setValue("services", services as Service[]);
       }

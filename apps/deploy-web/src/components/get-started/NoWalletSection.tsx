@@ -1,15 +1,16 @@
 "use client";
 import React, { useState } from "react";
+import { NavArrowLeft } from "iconoir-react";
 import Link from "next/link";
+
+import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
-import { CreateWalletSection } from "./CreateWalletSection";
 import { LinkTo } from "../shared/LinkTo";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Alert } from "../ui/alert";
 import { buttonVariants } from "../ui/button";
-import { cn } from "@src/utils/styleUtils";
-import { NavArrowLeft } from "iconoir-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import { CreateWalletSection } from "./CreateWalletSection";
 
 type Props = {};
 

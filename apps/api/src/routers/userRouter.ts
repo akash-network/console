@@ -1,28 +1,27 @@
-import {
-  saveAddressName,
-  getAddressNames,
-  removeAddressName,
-  getSettingsOrInit,
-  updateSettings,
-  getUserByUsername,
-  checkUsernameAvailable,
-  subscribeToNewsletter
-} from "@src/services/db/userDataService";
-import { isValidBech32Address } from "@src/utils/addresses";
-import * as uuid from "uuid";
-import {
-  deleteTemplate,
-  getTemplateById,
-  getFavoriteTemplates,
-  getTemplates,
-  saveTemplate,
-  saveTemplateDesc,
-  removeTemplateFavorite,
-  addTemplateFavorite
-} from "@src/services/db/templateService";
-import { getBillingPortalUrl, getCheckoutUrl } from "@src/services/external/stripeService";
 import { Hono } from "hono";
+import * as uuid from "uuid";
+
 import { getCurrentUserId, optionalUserMiddleware, requiredUserMiddleware } from "@src/middlewares/userMiddleware";
+import {
+  addTemplateFavorite,
+  deleteTemplate,
+  getFavoriteTemplates,
+  getTemplateById,
+  getTemplates,
+  removeTemplateFavorite,
+  saveTemplate,
+  saveTemplateDesc} from "@src/services/db/templateService";
+import {
+  checkUsernameAvailable,
+  getAddressNames,
+  getSettingsOrInit,
+  getUserByUsername,
+  removeAddressName,
+  saveAddressName,
+  subscribeToNewsletter,
+  updateSettings} from "@src/services/db/userDataService";
+import { getBillingPortalUrl, getCheckoutUrl } from "@src/services/external/stripeService";
+import { isValidBech32Address } from "@src/utils/addresses";
 
 export const userRouter = new Hono();
 

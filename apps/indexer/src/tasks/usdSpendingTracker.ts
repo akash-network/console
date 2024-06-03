@@ -1,7 +1,8 @@
 import { AkashBlock } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
 import { Day } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
-import { sequelize } from "@src/db/dbConnection";
 import { Op } from "sequelize";
+
+import { sequelize } from "@src/db/dbConnection";
 
 export async function updateUsdSpending() {
   // Check if there is a day flagged for update (akt price changed)

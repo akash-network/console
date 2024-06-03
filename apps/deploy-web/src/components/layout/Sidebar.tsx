@@ -1,25 +1,26 @@
 "use client";
 import React, { ReactNode, useState } from "react";
-import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
-import { UrlService } from "@src/utils/urlUtils";
-import { SidebarGroupMenu } from "./SidebarGroupMenu";
-import Link from "next/link";
-import { NodeStatusBar } from "./NodeStatusBar";
-import { useAtom } from "jotai";
-import sdlStore from "@src/store/sdlStore";
-import { MobileSidebarUser } from "./MobileSidebarUser";
-import { Button, buttonVariants } from "../ui/button";
-import { cn } from "@src/utils/styleUtils";
-import { Rocket, Github, X as TwitterX, Discord, Menu, MenuScale, Youtube } from "iconoir-react";
-import { Home, Cloud, MultiplePages, Tools, Server, OpenInWindow, HelpCircle, Settings } from "iconoir-react";
-import { ISidebarGroupMenu } from "@src/types";
-import getConfig from "next/config";
-import { ModeToggle } from "./ModeToggle";
-import { useTheme as useMuiTheme } from "@mui/material/styles";
 import Drawer from "@mui/material/Drawer";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import { Discord, Github, Menu, MenuScale, Rocket, X as TwitterX, Youtube } from "iconoir-react";
+import { Cloud, HelpCircle, Home, MultiplePages, OpenInWindow, Server, Settings,Tools } from "iconoir-react";
+import { useAtom } from "jotai";
+import getConfig from "next/config";
 import Image from "next/image";
+import Link from "next/link";
+
+import sdlStore from "@src/store/sdlStore";
+import { ISidebarGroupMenu } from "@src/types";
+import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
+import { cn } from "@src/utils/styleUtils";
+import { UrlService } from "@src/utils/urlUtils";
 import { Badge } from "../ui/badge";
+import { Button, buttonVariants } from "../ui/button";
+import { MobileSidebarUser } from "./MobileSidebarUser";
+import { ModeToggle } from "./ModeToggle";
+import { NodeStatusBar } from "./NodeStatusBar";
+import { SidebarGroupMenu } from "./SidebarGroupMenu";
 
 const { publicRuntimeConfig } = getConfig();
 

@@ -1,16 +1,17 @@
 "use client";
 import { ReactNode } from "react";
-import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { FormPaper } from "./FormPaper";
 import { Control, Controller } from "react-hook-form";
-import { validationConfig } from "../shared/akash/units";
-import { cn } from "@src/utils/styleUtils";
-import { FormDescription, FormItem } from "../ui/form";
-import { Slider } from "../ui/slider";
-import { Input } from "../ui/input";
-import { InfoCircle } from "iconoir-react";
 import { MdSpeed } from "react-icons/md";
+import { InfoCircle } from "iconoir-react";
+
+import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
+import { cn } from "@src/utils/styleUtils";
+import { validationConfig } from "../shared/akash/units";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { FormDescription, FormItem } from "../ui/form";
+import { Input } from "../ui/input";
+import { Slider } from "../ui/slider";
+import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;

@@ -1,13 +1,15 @@
 "use client";
-import { ChainProvider } from "@cosmos-kit/react";
+import { GasPrice } from "@cosmjs/stargate";
+import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
 import { wallets as keplr } from "@cosmos-kit/keplr";
 import { wallets as leap } from "@cosmos-kit/leap-extension";
-import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
-import { customRegistry } from "@src/utils/customRegistry";
-import { GasPrice } from "@cosmjs/stargate";
+import { ChainProvider } from "@cosmos-kit/react";
+import { useChain } from "@cosmos-kit/react";
+
 import { akash, akashAssetList, akashSandbox, akashSandboxAssetList, akashTestnet, akashTestnetAssetList } from "@src/chains";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
-import { useChain } from "@cosmos-kit/react";
+import { customRegistry } from "@src/utils/customRegistry";
+
 import "@interchain-ui/react/styles";
 import "@interchain-ui/react/globalStyles";
 

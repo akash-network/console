@@ -1,7 +1,8 @@
-import { BelongsTo, Column, Model, Table } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
-import { DeploymentGroup } from "./deploymentGroup";
+import { BelongsTo, Column, Model, Table } from "sequelize-typescript";
+
 import { Required } from "../decorators/requiredDecorator";
+import { DeploymentGroup } from "./deploymentGroup";
 
 @Table({ modelName: "deploymentGroupResource", indexes: [{ unique: false, fields: ["deploymentGroupId"] }] })
 export class DeploymentGroupResource extends Model {

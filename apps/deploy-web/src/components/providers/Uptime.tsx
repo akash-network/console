@@ -1,6 +1,7 @@
 "use client";
-import { cn } from "@src/utils/styleUtils";
 import { useIntl } from "react-intl";
+
+import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   value: number;

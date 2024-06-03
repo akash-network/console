@@ -1,10 +1,12 @@
 import { Metadata, ResolvingMetadata } from "next";
-import { UrlService } from "@/lib/urlUtils";
-import { getNetworkBaseApiUrl } from "@/lib/constants";
-import { ValidatorDetail } from "@/types";
+
+import { ValidatorsInfo } from "./ValidatorInfo";
+
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { ValidatorsInfo } from "./ValidatorInfo";
+import { getNetworkBaseApiUrl } from "@/lib/constants";
+import { UrlService } from "@/lib/urlUtils";
+import { ValidatorDetail } from "@/types";
 
 interface IProps {
   params: { address: string };

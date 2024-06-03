@@ -1,15 +1,16 @@
 "use client";
 import { ReactNode, useEffect, useState } from "react";
+import { Bin, Check } from "iconoir-react";
+import { event } from "nextjs-google-analytics";
+import { useSnackbar } from "notistack";
+
+import { FormPaper } from "@src/components/sdl/FormPaper";
+import { Popup } from "@src/components/shared/Popup";
+import { Snackbar } from "@src/components/shared/Snackbar";
+import { InputWithIcon } from "@src/components/ui/input";
 import { getSplitText } from "@src/hooks/useShortText";
 import { useRemoveAddressName, useSaveAddressName } from "@src/queries/useAddressNames";
-import { event } from "nextjs-google-analytics";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { Popup } from "@src/components/shared/Popup";
-import { Bin, Check } from "iconoir-react";
-import { InputWithIcon } from "@src/components/ui/input";
-import { FormPaper } from "@src/components/sdl/FormPaper";
-import { useSnackbar } from "notistack";
-import { Snackbar } from "@src/components/shared/Snackbar";
 
 type Props = {
   open: boolean;

@@ -1,10 +1,11 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { darken, lighten, PaletteMode } from "@mui/material";
-import { createTheme, ThemeProvider, ThemeOptions } from "@mui/material/styles";
-import { customColors } from "@src/utils/colors";
 import { grey } from "@mui/material/colors";
+import { createTheme, ThemeOptions,ThemeProvider } from "@mui/material/styles";
 import { useTheme } from "next-themes";
+
+import { customColors } from "@src/utils/colors";
 
 type ContextType = {
   mode: string;

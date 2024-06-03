@@ -1,24 +1,25 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import GitHubIcon from "@mui/icons-material/GitHub";
+import { NavArrowLeft, Rocket } from "iconoir-react";
 import Link from "next/link";
-import { UrlService, domainName } from "@src/utils/urlUtils";
-import ViewPanel from "@src/components/shared/ViewPanel";
+import { useRouter } from "next/navigation";
+
 import { DynamicMonacoEditor } from "@src/components/shared/DynamicMonacoEditor";
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
-import { RouteStepKeys } from "@src/utils/constants";
-import { ApiTemplate } from "@src/types";
 import Markdown from "@src/components/shared/Markdown";
-import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
-import { useTemplates } from "@src/context/TemplatesProvider";
-import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
-import { NavArrowLeft, Rocket } from "iconoir-react";
+import ViewPanel from "@src/components/shared/ViewPanel";
 import { Button, buttonVariants } from "@src/components/ui/button";
-import { cn } from "@src/utils/styleUtils";
-import GitHubIcon from "@mui/icons-material/GitHub";
-import { CustomNextSeo } from "../shared/CustomNextSeo";
+import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
+import { useTemplates } from "@src/context/TemplatesProvider";
+import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { getShortText } from "@src/hooks/useShortText";
+import { ApiTemplate } from "@src/types";
+import { RouteStepKeys } from "@src/utils/constants";
+import { cn } from "@src/utils/styleUtils";
+import { domainName,UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
+import { CustomNextSeo } from "../shared/CustomNextSeo";
 
 type Props = {
   templateId: string;

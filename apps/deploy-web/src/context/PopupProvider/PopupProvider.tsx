@@ -1,6 +1,7 @@
-import { Popup, PopupProps, CommonProps, ConfirmProps } from "@src/components/shared/Popup";
 import React, { FC, useCallback, useMemo, useState } from "react";
 import { firstValueFrom, Subject } from "rxjs";
+
+import { CommonProps, ConfirmProps,Popup, PopupProps } from "@src/components/shared/Popup";
 
 type ConfirmPopupProps = string | (Omit<CommonProps, "onClose" | "open"> & Omit<ConfirmProps, "onValidate" | "onCancel" | "variant">);
 

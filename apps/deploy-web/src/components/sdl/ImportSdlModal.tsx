@@ -1,17 +1,18 @@
 "use client";
 import { ReactNode, useEffect, useState } from "react";
-import Editor from "@monaco-editor/react";
-import { Timer } from "@src/utils/timer";
-import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { UseFormSetValue } from "react-hook-form";
-import { SdlBuilderFormValues, Service } from "@src/types";
-import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
-import { Popup } from "@src/components/shared/Popup";
-import { useTheme } from "next-themes";
+import Editor from "@monaco-editor/react";
 import { ArrowDown } from "iconoir-react";
-import { Alert } from "@src/components/ui/alert";
+import { useTheme } from "next-themes";
+import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
+
+import { Popup } from "@src/components/shared/Popup";
+import { Alert } from "@src/components/ui/alert";
+import { SdlBuilderFormValues, Service } from "@src/types";
+import { AnalyticsEvents } from "@src/utils/analytics";
+import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
+import { Timer } from "@src/utils/timer";
 import { Snackbar } from "../shared/Snackbar";
 
 type Props = {

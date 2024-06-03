@@ -1,24 +1,26 @@
 "use client";
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { StatsCard } from "./StatsCard";
-import { DashboardData, MarketData, ProviderSnapshotsUrlParam, SnapshotsUrlParam } from "@/types";
-import { bytesToShrink } from "@/lib/unitUtils";
-import { Title } from "@/components/Title";
-import { Separator } from "@/components/ui/separator";
-import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
-import { USDCLabel } from "@/components/UsdLabel";
-import { UrlService } from "@/lib/urlUtils";
-import { HumanReadableBytes } from "@/components/HumanReadableBytes";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BlockRow } from "../../components/blockchain/BlockRow";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
+
+import { BlockRow } from "../../components/blockchain/BlockRow";
 import { TransactionRow } from "../../components/blockchain/TransactionRow";
-import SearchBar from "@/components/SearchBar";
+import { StatsCard } from "./StatsCard";
+
 import { AKTAmount } from "@/components/AKTAmount";
 import { AKTLabel } from "@/components/AKTLabel";
+import { HumanReadableBytes } from "@/components/HumanReadableBytes";
+import SearchBar from "@/components/SearchBar";
+import { Title } from "@/components/Title";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { USDCLabel } from "@/components/UsdLabel";
+import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
+import { bytesToShrink } from "@/lib/unitUtils";
+import { UrlService } from "@/lib/urlUtils";
+import { DashboardData, MarketData, ProviderSnapshotsUrlParam, SnapshotsUrlParam } from "@/types";
 
 interface IDashboardProps {
   dashboardData: DashboardData;

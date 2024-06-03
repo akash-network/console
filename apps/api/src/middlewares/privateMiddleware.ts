@@ -1,5 +1,6 @@
-import { env } from "@src/utils/env";
 import { Context, Next } from "hono";
+
+import { env } from "@src/utils/env";
 
 export async function privateMiddleware(c: Context, next: Next) {
   if (!env.SecretToken) {

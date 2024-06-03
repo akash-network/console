@@ -1,12 +1,13 @@
 "use client";
 import { useRef } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { Controller,useForm } from "react-hook-form";
 import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
-import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
+
 import { Popup } from "@src/components/shared/Popup";
 import { Alert } from "@src/components/ui/alert";
 import { InputWithIcon } from "@src/components/ui/input";
+import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
+import { AnalyticsEvents } from "@src/utils/analytics";
 
 export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedService, providerInfo }) => {
   const formRef = useRef<HTMLFormElement | null>(null);

@@ -1,24 +1,25 @@
 "use client";
 import { ReactNode, useRef } from "react";
-import { Popup } from "../shared/Popup";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Expose, SdlBuilderFormValues, Service } from "@src/types";
-import { AcceptFormControl, AcceptRefType } from "./AcceptFormControl";
-import { nanoid } from "nanoid";
-import { ToFormControl, ToRefType } from "./ToFormControl";
-import { protoTypes } from "@src/utils/sdl/data";
-import { FormPaper } from "./FormPaper";
-import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
-import { HttpOptionsFormControl } from "./HttpOptionsFormControl";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { Button } from "../ui/button";
 import { Bin, InfoCircle } from "iconoir-react";
-import { InputWithIcon } from "../ui/input";
+import { nanoid } from "nanoid";
+
+import { Expose, SdlBuilderFormValues, Service } from "@src/types";
+import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
+import { protoTypes } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { Popup } from "../shared/Popup";
+import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { FormItem } from "../ui/form";
+import { InputWithIcon } from "../ui/input";
 import { Label } from "../ui/label";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { AcceptFormControl, AcceptRefType } from "./AcceptFormControl";
+import { FormPaper } from "./FormPaper";
+import { HttpOptionsFormControl } from "./HttpOptionsFormControl";
+import { ToFormControl, ToRefType } from "./ToFormControl";
 
 type Props = {
   serviceIndex: number;

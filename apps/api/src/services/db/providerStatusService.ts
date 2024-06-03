@@ -6,13 +6,14 @@ import {
   ProviderSnapshotNodeGPU
 } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
 import { ProviderSnapshot } from "@akashnetwork/cloudmos-shared/dbSchemas/akash/providerSnapshot";
-import { toUTC } from "@src/utils";
 import { add, sub } from "date-fns";
 import { Op } from "sequelize";
+
+import { ProviderDetail } from "@src/types/provider";
+import { toUTC } from "@src/utils";
+import { env } from "@src/utils/env";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { getAuditors, getProviderAttributesSchema } from "../external/githubService";
-import { ProviderDetail } from "@src/types/provider";
-import { env } from "@src/utils/env";
 
 export async function getNetworkCapacity() {
   const providers = await Provider.findAll({

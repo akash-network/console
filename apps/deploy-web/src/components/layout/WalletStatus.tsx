@@ -1,20 +1,21 @@
 "use client";
-import { useWallet } from "@src/context/WalletProvider";
-import { udenomToDenom } from "@src/utils/mathHelpers";
-import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
-import { FormattedDecimal } from "../shared/FormattedDecimal";
-import { Address } from "../shared/Address";
-import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
 import { FormattedNumber } from "react-intl";
-import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
+import { Bank, LogOut,MoreHoriz, Wallet } from "iconoir-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button } from "../ui/button";
-import { MoreHoriz, Wallet, Bank, LogOut } from "iconoir-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { Badge } from "../ui/badge";
+
+import { useWallet } from "@src/context/WalletProvider";
+import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
+import { udenomToDenom } from "@src/utils/mathHelpers";
+import { UrlService } from "@src/utils/urlUtils";
+import { Address } from "../shared/Address";
+import { FormattedDecimal } from "../shared/FormattedDecimal";
 import Spinner from "../shared/Spinner";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 
 export function WalletStatus({}: React.PropsWithChildren<{}>) {
   const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected } = useWallet();

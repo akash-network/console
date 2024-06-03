@@ -1,33 +1,33 @@
-import fetch from "node-fetch";
-import { getDeploymentRelatedMessages } from "../db/deploymentService";
-import { apiNodeUrl, averageBlockCountInAMonth, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/constants";
-import { coinToAsset } from "@src/utils/coin";
-import { getTransactionByAddress } from "@src/services/db/transactionsService";
-import axios from "axios";
-import { Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
-import { Op } from "sequelize";
+import { Block } from "@akashnetwork/cloudmos-shared/dbSchemas";
 import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import { Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import axios from "axios";
+import fetch from "node-fetch";
+import { Op } from "sequelize";
+
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
+import { getTransactionByAddress } from "@src/services/db/transactionsService";
 import {
   CosmosGovProposalResponse,
   CosmosGovProposalsResponse,
+  RestAkashDeploymentListResponse,
+  RestAkasheploymentInfoResponse,
+  RestAkashLeaseListResponse,
   RestCosmosBankBalancesResponse,
   RestCosmosDistributionDelegatorsRewardsResponse,
   RestCosmosStakingDelegationsResponse,
+  RestCosmosStakingDelegatorsRedelegationsResponse,
   RestCosmosStakingValidatorsResponse,
-  RestAkasheploymentInfoResponse,
-  RestAkashLeaseListResponse,
-  RestAkashDeploymentListResponse,
-  RestGovProposalsTallyResponse,
-  RestCosmosStakingDelegatorsRedelegationsResponse
-} from "@src/types/rest";
-import { Block } from "@akashnetwork/cloudmos-shared/dbSchemas";
-import { CosmosDistributionCommunityPoolResponse } from "@src/types/rest/cosmosDistributionCommunityPoolResponse";
-import { CosmosStakingPoolResponse } from "@src/types/rest/cosmosStakingPoolResponse";
+  RestGovProposalsTallyResponse} from "@src/types/rest";
 import { CosmosBankSupplyResponse } from "@src/types/rest/cosmosBankSupplyResponse";
-import { CosmosMintInflationResponse } from "@src/types/rest/cosmosMintInflationResponse";
+import { CosmosDistributionCommunityPoolResponse } from "@src/types/rest/cosmosDistributionCommunityPoolResponse";
 import { CosmosDistributionParamsResponse } from "@src/types/rest/cosmosDistributionParamsResponse";
 import { CosmosDistributionValidatorsCommissionResponse } from "@src/types/rest/cosmosDistributionValidatorsCommissionResponse";
+import { CosmosMintInflationResponse } from "@src/types/rest/cosmosMintInflationResponse";
+import { CosmosStakingPoolResponse } from "@src/types/rest/cosmosStakingPoolResponse";
+import { coinToAsset } from "@src/utils/coin";
+import { apiNodeUrl, averageBlockCountInAMonth, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/constants";
+import { getDeploymentRelatedMessages } from "../db/deploymentService";
 import { getProviderList } from "../db/providerStatusService";
 
 

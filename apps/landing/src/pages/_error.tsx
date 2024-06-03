@@ -1,13 +1,14 @@
-import Layout from "../components/layout/Layout";
-import PageContainer from "@src/components/shared/PageContainer";
-import { Box, Button, Typography, useTheme } from "@mui/material";
-import { Title } from "@src/components/shared/Title";
-import { NextSeo } from "next-seo";
-import { UrlService } from "@src/utils/urlUtils";
-import Link from "next/link";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import { NextPage, NextPageContext } from "next";
+import { Box, Button, Typography, useTheme } from "@mui/material";
 import * as Sentry from "@sentry/nextjs";
+import { NextPage, NextPageContext } from "next";
+import Link from "next/link";
+import { NextSeo } from "next-seo";
+
+import PageContainer from "@src/components/shared/PageContainer";
+import { Title } from "@src/components/shared/Title";
+import { UrlService } from "@src/utils/urlUtils";
+import Layout from "../components/layout/Layout";
 
 type Props = {
   statusCode: number;

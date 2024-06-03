@@ -1,7 +1,8 @@
+import axios from "axios";
+
 import { ProviderDetail } from "@src/components/providers/ProviderDetail";
 import { ApiProviderDetail } from "@src/types/provider";
 import { getNetworkBaseApiUrl } from "@src/utils/constants";
-import axios from "axios";
 
 
 type Props = {

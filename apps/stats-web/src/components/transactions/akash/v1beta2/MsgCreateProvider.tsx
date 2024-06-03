@@ -1,7 +1,8 @@
-import { TransactionMessage } from "@/types";
-import { AddressLink } from "@/components/AddressLink";
 import { LabelValue } from "../../../LabelValue";
+
+import { AddressLink } from "@/components/AddressLink";
 import { DynamicReactJson } from "@/components/DynamicJsonView";
+import { TransactionMessage } from "@/types";
 
 type TxMessageProps = {
   message: TransactionMessage;

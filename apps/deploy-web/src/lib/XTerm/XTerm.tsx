@@ -1,12 +1,14 @@
 "use client";
-import "xterm/css/xterm.css";
-import { Terminal, ITerminalOptions, ITerminalAddon } from "xterm";
-import { FitAddon } from "xterm-addon-fit";
 import { Ref, useEffect, useRef } from "react";
 import React from "react";
-import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { useTheme } from "next-themes";
+import { ITerminalAddon,ITerminalOptions, Terminal } from "xterm";
+import { FitAddon } from "xterm-addon-fit";
+
+import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { cn } from "@src/utils/styleUtils";
+
+import "xterm/css/xterm.css";
 
 export interface IProps {
   /**

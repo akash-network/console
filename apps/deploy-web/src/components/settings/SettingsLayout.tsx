@@ -1,11 +1,12 @@
 "use client";
 import React, { ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { UrlService } from "@src/utils/urlUtils";
 import { useRouter } from "next/navigation";
+
 import { ErrorFallback } from "@src/components/shared/ErrorFallback";
 import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
 import { cn } from "@src/utils/styleUtils";
+import { UrlService } from "@src/utils/urlUtils";
 import { Title } from "../shared/Title";
 
 export enum SettingsTabs {
