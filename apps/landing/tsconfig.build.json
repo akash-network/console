@@ -1,0 +1,12 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@src/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "extends": "../../tsconfig.base-next.json"
+}

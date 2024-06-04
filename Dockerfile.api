@@ -4,6 +4,8 @@ WORKDIR /app
 
 COPY /apps/api /app/apps/api
 COPY /packages/shared /app/packages/shared
+COPY tsconfig.base-node.json /app
+COPY tsconfig.base.json /app
 COPY package.json /app
 COPY package-lock.json /app
 
