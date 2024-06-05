@@ -151,11 +151,11 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
     <Card className="mb-4">
       <CardHeader className="bg-secondary py-2">
         <div className="flex items-center">
-          <div className="text-muted-foreground inline-flex items-center text-xs">
+          <div className="inline-flex items-center text-xs text-muted-foreground">
             <span>{lease.state}</span>
             <StatusPill state={lease.state} size="small" />
 
-            <span className="text-muted-foreground ml-4">GSEQ:</span>
+            <span className="ml-4 text-muted-foreground">GSEQ:</span>
             <span className="ml-1">{lease.gseq}</span>
 
             <span className="ml-4">OSEQ:</span>
@@ -274,7 +274,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                           </>
                         }
                       >
-                        <InfoCircle className="text-muted-foreground ml-2 text-xs" fontSize="small" />
+                        <InfoCircle className="ml-2 text-xs text-muted-foreground" fontSize="small" />
                       </CustomTooltip>
                     </div>
                   )}
@@ -292,19 +292,19 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                   })}
                 >
                   <div className="flex items-center space-x-1">
-                    <span className="text-muted-foreground text-xs">Available:&nbsp;</span>
+                    <span className="text-xs text-muted-foreground">Available:&nbsp;</span>
                     <Badge variant={service.available > 0 ? "success" : "destructive"} className="h-3 px-1 text-xs leading-3">
                       <small>{service.available}</small>
                     </Badge>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <span className="text-muted-foreground text-xs">Ready Replicas:&nbsp;</span>
+                    <span className="text-xs text-muted-foreground">Ready Replicas:&nbsp;</span>
                     <Badge variant={service.ready_replicas > 0 ? "success" : "destructive"} className="h-3 px-1 text-xs leading-3">
                       <small>{service.ready_replicas}</small>
                     </Badge>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <span className="text-muted-foreground text-xs">Total:&nbsp;</span>
+                    <span className="text-xs text-muted-foreground">Total:&nbsp;</span>
                     <Badge variant={service.total > 0 ? "success" : "destructive"} className="h-3 px-1 text-xs leading-3">
                       <small>{service.total}</small>
                     </Badge>
@@ -321,7 +321,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                             <div key={"port_" + p.externalPort}>
                               {p.host ? (
                                 <Link
-                                  className={cn({ ["text-muted-foreground cursor-none"]: p.available < 1 }, "inline-flex items-center space-x-2 text-sm")}
+                                  className={cn({ ["cursor-none text-muted-foreground"]: p.available < 1 }, "inline-flex items-center space-x-2 text-sm")}
                                   href={`http://${p.host}:${p.externalPort}`}
                                   target="_blank"
                                 >
@@ -405,7 +405,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                         </>
                       }
                     >
-                      <InfoCircle className="text-muted-foreground text-xs" />
+                      <InfoCircle className="text-xs text-muted-foreground" />
                     </CustomTooltip>
                     <Button
                       size="icon"

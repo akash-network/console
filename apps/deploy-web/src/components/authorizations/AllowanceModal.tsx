@@ -117,7 +117,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
     >
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
         <Alert className="mb-4">
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             <LinkTo onClick={ev => handleDocClick(ev, "https://docs.cosmos.network/v0.46/modules/feegrant/")}>Authorized Fee Spend</LinkTo> allows users to
             authorize spend of a set number of tokens on fees from a source wallet to a destination, funded wallet.
           </p>
@@ -206,7 +206,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
 
         {!!amount && granteeAddress && (
           <Alert>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               This address will be able to spend up to {amount} AKT on <b>transaction fees</b> on your behalf ending on{" "}
               <FormattedDate value={expiration} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />.
             </p>

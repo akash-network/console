@@ -148,7 +148,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const drawer = (
     <div
       style={{ width: _isNavOpen ? drawerWidth : closedDrawerWidth }}
-      className="border-muted-foreground/20 bg-popover dark:bg-background box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] transition-[width] duration-300 ease-in-out md:h-[calc(100%-57px)]"
+      className="box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 bg-popover transition-[width] duration-300 ease-in-out md:h-[calc(100%-57px)] dark:bg-background"
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: _isNavOpen, ["pb-2 pt-2"]: !_isNavOpen })}>
         <Link
@@ -219,7 +219,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
             </div>
 
             {publicRuntimeConfig?.version && _isNavOpen && (
-              <div className="text-muted-foreground flex flex-row items-center justify-center space-x-4 text-xs font-bold">
+              <div className="flex flex-row items-center justify-center space-x-4 text-xs font-bold text-muted-foreground">
                 <small>v{publicRuntimeConfig?.version}</small>
                 <Badge className="text-xs leading-3" variant="outline">
                   <small>Beta</small>
@@ -230,7 +230,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         )}
 
         {!smallScreen && (
-          <div className="border-muted-foreground/20 flex items-center justify-between border-t px-3 py-1">
+          <div className="flex items-center justify-between border-t border-muted-foreground/20 px-3 py-1">
             <Button size="icon" variant="ghost" onClick={onToggleMenuClick}>
               {isNavOpen ? <MenuScale /> : <Menu />}
             </Button>
@@ -242,7 +242,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
 
   return (
     <nav
-      className={cn("ease bg-header/95 fixed z-[100] md:flex-shrink-0", {
+      className={cn("ease fixed z-[100] bg-header/95 md:flex-shrink-0", {
         ["md:w-[240px]"]: _isNavOpen || isHovering,
         ["md:w-[57px]"]: !(_isNavOpen || isHovering)
       })}

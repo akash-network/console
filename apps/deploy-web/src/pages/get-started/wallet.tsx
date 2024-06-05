@@ -68,9 +68,9 @@ const GetStartedWallet: React.FunctionComponent = () => {
         <CardContent className="mt-4 space-y-4">
           {!currentSection &&
             sections.map((section, index) => (
-              <Link className="hover:bg-muted block px-4 py-2 hover:no-underline" key={index} href={UrlService.getStartedWallet(section.id)}>
-                <p className="text-secondary-foreground font-bold">{section.title}</p>
-                <p className="text-muted-foreground text-sm">{section.description}</p>
+              <Link className="block px-4 py-2 hover:bg-muted hover:no-underline" key={index} href={UrlService.getStartedWallet(section.id)}>
+                <p className="font-bold text-secondary-foreground">{section.title}</p>
+                <p className="text-sm text-muted-foreground">{section.description}</p>
               </Link>
             ))}
 

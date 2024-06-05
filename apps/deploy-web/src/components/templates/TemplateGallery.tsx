@@ -127,7 +127,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
       <div className="mb-6 text-center sm:mb-8 md:mb-12">
         <Title className="mb-2 text-2xl font-bold sm:text-3xl md:text-4xl">Find your Template</Title>
 
-        <Title subTitle className="text-muted-foreground text-base font-normal sm:text-lg">
+        <Title subTitle className="text-base font-normal text-muted-foreground sm:text-lg">
           Jumpstart your app development process with our pre-built solutions.
         </Title>
       </div>
@@ -170,7 +170,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
                 >
                   All{" "}
                   <span className="text-xs">
-                    <small className="text-muted-foreground ml-2">({templates.length - 1})</small>
+                    <small className="ml-2 text-muted-foreground">({templates.length - 1})</small>
                   </span>
                 </li>
               )}
@@ -189,7 +189,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
                   >
                     {category.title}{" "}
                     <span className="text-xs">
-                      <small className="text-muted-foreground ml-2">({category.templates.length})</small>
+                      <small className="ml-2 text-muted-foreground">({category.templates.length})</small>
                     </span>
                   </li>
                 ))}
@@ -223,7 +223,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
           )}
 
           {!isLoadingTemplates && categories.length > 0 && shownTemplates.length === 0 && (!!searchTerms || !!selectedCategoryTitle) && (
-            <div className="border-muted-foreground flex h-[200px] flex-col items-center justify-center border">
+            <div className="flex h-[200px] flex-col items-center justify-center border border-muted-foreground">
               <MdSearchOff className="mb-4 text-6xl" />
               <p>No search result found. Try adjusting your filters.</p>
             </div>

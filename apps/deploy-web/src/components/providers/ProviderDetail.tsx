@@ -166,7 +166,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                     </CustomNoDivTooltip>
                   ))}
                 </div>
-                <div className="text-muted-foreground mt-1 flex items-center justify-between text-xs">
+                <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
                   <span>24h ago</span>
                   <span>Now</span>
                 </div>
@@ -215,12 +215,12 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                 <CardContent className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
                   <div>
                     <LabelValue label="Akash version" value={provider.akashVersion || "Unknown"} />
-                    <LabelValue label="IP Leases" value={provider.featEndpointIp && <Check className="text-primary ml-0 sm:ml-2" />} />
-                    <LabelValue label="Chia" value={provider.workloadSupportChia && <Check className="text-primary ml-0 sm:ml-2" />} />
+                    <LabelValue label="IP Leases" value={provider.featEndpointIp && <Check className="ml-0 text-primary sm:ml-2" />} />
+                    <LabelValue label="Chia" value={provider.workloadSupportChia && <Check className="ml-0 text-primary sm:ml-2" />} />
                   </div>
                   <div>
                     <LabelValue label="Kube version" value={provider.kube ? `${provider.kube?.major}.${provider.kube?.minor}` : "Unkown"} />
-                    <LabelValue label="Custom domain" value={provider.featEndpointCustomDomain && <Check className="text-primary ml-0 sm:ml-2" />} />
+                    <LabelValue label="Custom domain" value={provider.featEndpointCustomDomain && <Check className="ml-0 text-primary sm:ml-2" />} />
                     <LabelValue label="Chia capabilities" value={provider.workloadSupportChiaCapabilities} />
                   </div>
                 </CardContent>

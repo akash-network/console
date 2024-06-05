@@ -79,14 +79,14 @@ export const RegionSelect: React.FunctionComponent<RegionSelectProps> = ({ contr
                   {...props}
                   className={cn(
                     "flex w-full items-center px-2 py-1",
-                    { ["text-muted pointer-events-none cursor-default"]: option.key !== "any" && option.providers?.length === 0 },
+                    { ["pointer-events-none cursor-default text-muted"]: option.key !== "any" && option.providers?.length === 0 },
                     props.className
                   )}
                 >
                   <span>{option.key}</span>
                   {option.key !== "any" && (
                     <small
-                      className={cn("ml-2", { ["text-primary font-bold"]: option.providers?.length > 0 })}
+                      className={cn("ml-2", { ["font-bold text-primary"]: option.providers?.length > 0 })}
                       // sx={{
                       //   marginLeft: ".5rem",
                       //   color: option.providers?.length === 0 ? "inherit" : theme.palette.secondary.main,
@@ -97,7 +97,7 @@ export const RegionSelect: React.FunctionComponent<RegionSelectProps> = ({ contr
                     </small>
                   )}
                   <CustomTooltip title={option.description}>
-                    <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                    <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                   </CustomTooltip>
                 </li>
               );

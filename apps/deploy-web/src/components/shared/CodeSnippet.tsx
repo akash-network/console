@@ -22,7 +22,7 @@ export const CodeSnippet = ({ code }: React.PropsWithChildren<{ code: string }>)
   };
 
   return (
-    <pre className="bg-popover relative rounded-sm p-4 pt-6 text-sm">
+    <pre className="relative rounded-sm bg-popover p-4 pt-6 text-sm">
       <div className="absolute left-0 top-0 flex w-full justify-end p-2">
         <Button aria-label="copy" aria-haspopup="true" onClick={onCopyClick} size="icon" variant="ghost">
           <Copy />

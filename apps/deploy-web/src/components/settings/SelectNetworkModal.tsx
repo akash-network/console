@@ -64,7 +64,7 @@ export const SelectNetworkModal = ({ onClose }) => {
                 onClick={() => handleSelectNetwork(network)}
                 className={cn(
                   buttonVariants({ variant: "text" }),
-                  { ["text-muted-foreground pointer-events-none"]: !network.enabled },
+                  { ["pointer-events-none text-muted-foreground"]: !network.enabled },
                   "flex h-auto cursor-pointer items-center justify-start"
                 )}
               >
@@ -76,7 +76,7 @@ export const SelectNetworkModal = ({ onClose }) => {
                     <span>
                       <strong>{network.title}</strong>
                       {" - "}
-                      <span className="text-muted-foreground text-xs">{network.version}</span>
+                      <span className="text-xs text-muted-foreground">{network.version}</span>
                     </span>
                     {network.id !== mainnetId && (
                       <Badge className={cn("ml-4 h-4 text-xs font-bold", { ["bg-primary/30"]: !network.enabled })}>Experimental</Badge>

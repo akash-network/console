@@ -90,7 +90,7 @@ export function AccountMenu() {
                     ) : (
                       <div>
                         <CustomDropdownLinkItem
-                          className="bg-primary hover:bg-primary/80 focus:bg-primary/80 !text-white hover:text-white"
+                          className="bg-primary !text-white hover:bg-primary/80 hover:text-white focus:bg-primary/80"
                           onClick={() => router.push(UrlService.signup())}
                         >
                           Sign up

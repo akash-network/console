@@ -54,7 +54,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
             <div className="flex items-start justify-between sm:flex-row sm:items-center">
               <div className="flex items-center">
                 <div className="flex items-center">
-                  <MdStorage className="text-muted-foreground mr-2 text-2xl" />
+                  <MdStorage className="mr-2 text-2xl text-muted-foreground" />
                   <strong className="text-sm">Persistent Storage</strong>
 
                   <CustomTooltip
@@ -72,7 +72,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                       </>
                     }
                   >
-                    <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                    <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                   </CustomTooltip>
                 </div>
 
@@ -182,7 +182,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                           </>
                         }
                       >
-                        <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                        <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                       </CustomTooltip>
                     </div>
                   }
@@ -252,7 +252,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                           </>
                         }
                       >
-                        <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                        <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                       </CustomTooltip>
                     </div>
                   }

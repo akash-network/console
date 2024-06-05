@@ -59,7 +59,7 @@ export const AdvancedConfig: React.FunctionComponent<Props> = ({ control, curren
             <Button
               size="lg"
               variant="ghost"
-              className={cn("flex w-full items-center justify-between p-4 normal-case", { "border-muted border-b": expanded })}
+              className={cn("flex w-full items-center justify-between p-4 normal-case", { "border-b border-muted": expanded })}
               type="button"
             >
               <div>

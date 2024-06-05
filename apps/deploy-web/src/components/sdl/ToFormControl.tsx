@@ -68,7 +68,7 @@ export const ToFormControl = forwardRef<ToRefType, Props>(({ control, serviceInd
                 </>
               }
             >
-              <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+              <InfoCircle className="ml-2 text-xs text-muted-foreground" />
             </CustomTooltip>
           </div>
         </div>
@@ -112,7 +112,7 @@ export const ToFormControl = forwardRef<ToRefType, Props>(({ control, serviceInd
           );
         })}
 
-        {otherServices.length === 0 && <div className="text-muted-foreground mb-4 text-xs">There's no other service to expose to.</div>}
+        {otherServices.length === 0 && <div className="mb-4 text-xs text-muted-foreground">There's no other service to expose to.</div>}
       </div>
 
       <div className="flex items-center">

@@ -87,7 +87,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
 
   return (
     <Collapsible open={expanded} onOpenChange={onExpandClick}>
-      <Card className="border-muted-foreground/20 mt-4 rounded-sm border">
+      <Card className="mt-4 rounded-sm border border-muted-foreground/20">
         <CardContent className="p-0">
           {/** Edit Environment Variables */}
           {_isEditingEnv && (
@@ -122,7 +122,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
             />
           )}
 
-          <div className={cn("flex items-end justify-between p-4", { ["border-muted-foreground/20 border-b"]: expanded })}>
+          <div className={cn("flex items-end justify-between p-4", { ["border-b border-muted-foreground/20"]: expanded })}>
             <Controller
               control={control}
               name={`services.${serviceIndex}.title`}
@@ -162,7 +162,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                           </>
                         }
                       >
-                        <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                        <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                       </CustomTooltip>
                     </div>
                   }
@@ -240,7 +240,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                     </>
                                   }
                                 >
-                                  <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                                 </CustomTooltip>
                               </div>
                             }
@@ -343,7 +343,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                   </>
                                 }
                               >
-                                <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                                <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                               </CustomTooltip>
                             </div>
                           }
@@ -395,10 +395,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                             </>
                           }
                         >
-                          <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                         </CustomTooltip>
 
-                        <span className="text-primary ml-4 cursor-pointer text-sm underline" onClick={() => setIsEditingPlacement(serviceIndex)}>
+                        <span className="ml-4 cursor-pointer text-sm text-primary underline" onClick={() => setIsEditingPlacement(serviceIndex)}>
                           Edit
                         </span>
                       </div>
@@ -410,7 +410,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         </div>
                         <div>
                           <strong>Pricing</strong>&nbsp;&nbsp;
-                          <span className="text-muted-foreground inline-flex items-center">
+                          <span className="inline-flex items-center text-muted-foreground">
                             Max {udenomToDenom(currentService.placement.pricing.amount, 6)} AKT per block
                             <CustomTooltip
                               title={
@@ -431,7 +431,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                 </>
                               }
                             >
-                              <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                              <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                             </CustomTooltip>
                           </span>
                         </div>

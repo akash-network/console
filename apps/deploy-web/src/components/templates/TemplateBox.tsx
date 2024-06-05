@@ -18,7 +18,7 @@ type Props = {
 export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref }) => {
   return (
     <Link
-      className={cn(cardClasses, "hover:bg-secondary/60 dark:hover:bg-secondary/30 min-h-[100px] cursor-pointer !no-underline")}
+      className={cn(cardClasses, "min-h-[100px] cursor-pointer !no-underline hover:bg-secondary/60 dark:hover:bg-secondary/30")}
       href={linkHref ? linkHref : UrlService.templateDetails(template.id as string)}
     >
       <CardHeader>
@@ -34,7 +34,7 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
         </div>
       </CardHeader>
       <CardContent className="pb-4 pt-0">
-        <p className="text-muted-foreground text-xs">{getShortText(template.summary, 128)}</p>
+        <p className="text-xs text-muted-foreground">{getShortText(template.summary, 128)}</p>
       </CardContent>
     </Link>
   );

@@ -27,7 +27,7 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, te
         {tooltip && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <HelpCircle className="text-muted-foreground ml-2 text-xs" />
+              <HelpCircle className="ml-2 text-xs text-muted-foreground" />
             </TooltipTrigger>
             <TooltipContent>{tooltip}</TooltipContent>
           </Tooltip>

@@ -36,7 +36,7 @@ export const ActiveLeasesGraph: React.FunctionComponent<IProps> = ({ provider })
       <div className="mb-1">
         <Title subTitle className="space-x-4 font-normal tracking-tight">
           <span>Active Leases</span>
-          {provider.name && <span className="text-muted-foreground text-sm">({provider.name})</span>}
+          {provider.name && <span className="text-sm text-muted-foreground">({provider.name})</span>}
         </Title>
       </div>
 

@@ -18,7 +18,7 @@ const Maintenance: React.FunctionComponent = () => {
           </Title>
 
           <div className="flex items-center justify-center pt-8">
-            <Tools className="text-primary text-4xl" />
+            <Tools className="text-4xl text-primary" />
           </div>
         </div>
       </div>

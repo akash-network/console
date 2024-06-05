@@ -21,7 +21,7 @@ export const Nav = ({
   const theme = useCookieTheme();
 
   return (
-    <header className="border-border bg-popover dark:bg-background fixed top-0 z-50 w-full border-b">
+    <header className="fixed top-0 z-50 w-full border-b border-border bg-popover dark:bg-background">
       <div className="flex h-14 items-center justify-between pl-4 pr-4">
         {!!theme && (
           <Link className="flex items-center" href="/">

@@ -49,7 +49,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   return (
     <div className="relative h-[400px]">
       <div className="absolute left-1/2 top-1 -translate-x-1/2">
-        <span className="text-md text-muted-foreground font-bold tracking-wide opacity-40">stats.akash.network</span>
+        <span className="text-md font-bold tracking-wide text-muted-foreground opacity-40">stats.akash.network</span>
       </div>
       <ResponsiveLineCanvas
         theme={graphTheme}
@@ -83,7 +83,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
         pointBorderWidth={graphMetadata.border}
         isInteractive={true}
         tooltip={props => (
-          <div className="bg-primary text-primary-foreground rounded-sm px-3 py-2 leading-4">
+          <div className="rounded-sm bg-primary px-3 py-2 leading-4 text-primary-foreground">
             <div className="mb-1 text-xs">
               <FormattedDate value={new Date(props.point.data.x)} day="numeric" month="long" timeZone="UTC" year="2-digit" />
             </div>

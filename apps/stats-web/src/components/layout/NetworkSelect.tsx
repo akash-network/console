@@ -57,7 +57,7 @@ const NetworkSelect: React.FC<NetworkSelectProps> = ({ className }) => {
                   <span>
                     {network.title}
                     {" - "}
-                    <span className="text-muted-foreground text-xs">{network.version}</span>
+                    <span className="text-xs text-muted-foreground">{network.version}</span>
                   </span>
                 </div>
               </SelectItem>

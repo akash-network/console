@@ -58,7 +58,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
   };
 
   return (
-    <TableRow className="provider-list-row hover:bg-muted-foreground/10 cursor-pointer [&>td]:px-2 [&>td]:py-1" onClick={onRowClick}>
+    <TableRow className="provider-list-row cursor-pointer hover:bg-muted-foreground/10 [&>td]:px-2 [&>td]:py-1" onClick={onRowClick}>
       {provider.isOnline ? (
         <TableCell>
           {provider.name?.length > 20 ? (
@@ -102,8 +102,8 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
             <span>{provider.leaseCount}</span>
             {(provider.userActiveLeases || 0) > 0 && (
               <span
-                className={cn("text-muted-foreground text-xs", {
-                  ["text-primary font-bold"]: (provider.userActiveLeases || 0) > 0
+                className={cn("text-xs text-muted-foreground", {
+                  ["font-bold text-primary"]: (provider.userActiveLeases || 0) > 0
                 })}
               >
                 &nbsp;({provider.userActiveLeases})
@@ -208,8 +208,8 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
             </>
           ) : (
             <>
-              <span className="text-muted-foreground text-xs">No</span>
-              <WarningCircle className="text-warning ml-2 text-xs" />
+              <span className="text-xs text-muted-foreground">No</span>
+              <WarningCircle className="ml-2 text-xs text-warning" />
             </>
           )}
         </div>

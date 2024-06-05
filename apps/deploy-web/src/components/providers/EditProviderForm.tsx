@@ -145,7 +145,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
   return (
     <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
       <FormPaper className="mb-4">
-        <p className="text-primary mb-8 text-lg">General info</p>
+        <p className="mb-8 text-lg text-primary">General info</p>
 
         <Controller
           control={control}
@@ -169,7 +169,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               onChange={event => field.onChange(event.target.value || "")}
               endIcon={
                 <CustomTooltip title="Host URI is the URI of the host that is running the provider. It is used to identify the provider.">
-                  <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                 </CustomTooltip>
               }
             />
@@ -301,7 +301,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
       </FormPaper>
 
       <FormPaper className="mb-4">
-        <p className="text-primary mb-8 text-lg">Hardware specifications</p>
+        <p className="mb-8 text-lg text-primary">Hardware specifications</p>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/** LEFT COLUMN */}
@@ -416,7 +416,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
       </FormPaper>
 
       <FormPaper className="mb-4">
-        <p className="text-primary mb-8 text-lg">Features</p>
+        <p className="mb-8 text-lg text-primary">Features</p>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/** LEFT COLUMN */}
@@ -464,7 +464,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
 
       <FormPaper className="mb-4">
         <div className="mb-8 flex items-center">
-          <p className="text-primary text-lg">Unknown attributes</p>
+          <p className="text-lg text-primary">Unknown attributes</p>
 
           <Button size="sm" color="secondary" className="ml-4" onClick={() => appendUnkownAttribute({ id: nanoid(), key: "", value: "" })}>
             Add attribute
@@ -532,7 +532,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               );
             })
           ) : (
-            <p className="text-muted-foreground text-sm">None</p>
+            <p className="text-sm text-muted-foreground">None</p>
           )}
         </div>
       </FormPaper>
@@ -610,7 +610,7 @@ const ProviderTextField: React.FunctionComponent<ProviderTextFieldProps> = ({
                 </div>
               }
             >
-              <InfoCircle className="text-muted-foreground text-xs" />
+              <InfoCircle className="text-xs text-muted-foreground" />
             </CustomTooltip>
           }
         />
@@ -644,7 +644,7 @@ const ProviderCheckbox: React.FunctionComponent<ProviderCheckboxProps> = ({ cont
                 </div>
               }
             >
-              <InfoCircle className="text-muted-foreground text-xs" />
+              <InfoCircle className="text-xs text-muted-foreground" />
             </CustomTooltip>
           </div>
         </div>
@@ -696,7 +696,7 @@ const ProviderSelect: React.FunctionComponent<ProviderSelectProps> = ({
                 </div>
               }
             >
-              <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+              <InfoCircle className="ml-2 text-xs text-muted-foreground" />
             </CustomTooltip>
           </Label>
           <Select value={(field.value as string) || ""} onValueChange={field.onChange}>
@@ -773,7 +773,7 @@ export const ProviderMultiSelect: React.FunctionComponent<ProviderMultiSelectPro
                 </div>
               }
             >
-              <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+              <InfoCircle className="ml-2 text-xs text-muted-foreground" />
             </CustomTooltip>
           </Label>
           <MultipleSelector

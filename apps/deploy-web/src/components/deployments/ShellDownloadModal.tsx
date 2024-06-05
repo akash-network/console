@@ -64,7 +64,7 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
       onClose={onCloseClick}
       maxWidth="xs"
     >
-      <p className="text-muted-foreground text-xs">Enter the path of a file on the server to be downloaded to your computer. Example: /app/logs.txt</p>
+      <p className="text-xs text-muted-foreground">Enter the path of a file on the server to be downloaded to your computer. Example: /app/logs.txt</p>
       <Alert variant="warning" className="my-2 py-2">
         <p className="text-xs">This is an experimental feature and may not work reliably.</p>
       </Alert>

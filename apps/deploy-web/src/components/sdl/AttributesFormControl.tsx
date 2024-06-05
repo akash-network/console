@@ -50,7 +50,7 @@ export const AttributesFormControl = forwardRef<AttributesRefType, Props>(({ con
           <strong className="text-sm">Attributes</strong>
 
           <CustomTooltip title={<>Filter providers that have these attributes.</>}>
-            <InfoCircle className="text-muted-foreground ml-2 text-sm" />
+            <InfoCircle className="ml-2 text-sm text-muted-foreground" />
           </CustomTooltip>
         </div>
 
@@ -111,7 +111,7 @@ export const AttributesFormControl = forwardRef<AttributesRefType, Props>(({ con
           );
         })
       ) : (
-        <div className="text-muted-foreground mb-2 text-xs">None</div>
+        <div className="mb-2 text-xs text-muted-foreground">None</div>
       )}
     </FormPaper>
   );

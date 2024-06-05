@@ -50,7 +50,7 @@ export const AcceptFormControl = forwardRef<AcceptRefType, Props>(({ control, se
         <strong className="text-sm">Accept</strong>
 
         <CustomTooltip title={<>List of hosts/domains to accept connections for.</>}>
-          <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
         </CustomTooltip>
       </div>
 

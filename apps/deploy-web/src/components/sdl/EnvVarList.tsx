@@ -31,11 +31,11 @@ export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, set
             </>
           }
         >
-          <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
         </CustomTooltip>
 
         <span
-          className="text-primary ml-4 cursor-pointer text-sm font-normal underline"
+          className="ml-4 cursor-pointer text-sm font-normal text-primary underline"
           onClick={() => setIsEditingEnv(serviceIndex !== undefined ? serviceIndex : true)}
         >
           Edit
@@ -49,7 +49,7 @@ export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, set
           </div>
         ))
       ) : (
-        <p className="text-muted-foreground text-xs">None</p>
+        <p className="text-xs text-muted-foreground">None</p>
       )}
     </FormPaper>
   );

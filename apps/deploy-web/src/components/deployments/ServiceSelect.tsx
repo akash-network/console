@@ -31,7 +31,7 @@ export const ServiceSelect = ({ defaultValue, services, onSelectedChange }) => {
       >
         {services.map(service => (
           <MenuItem key={service} value={service} dense>
-            <span className="text-muted-foreground text-sm">{service}</span>
+            <span className="text-sm text-muted-foreground">{service}</span>
           </MenuItem>
         ))}
       </Select>

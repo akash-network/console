@@ -31,7 +31,7 @@ export const TransactionModal: React.FunctionComponent<Props> = ({ state, open, 
           <Spinner size="large" className="flex justify-center" />
         </div>
 
-        <div className="text-muted-foreground text-sm">
+        <div className="text-sm text-muted-foreground">
           {state === "waitingForApproval" ? "APPROVE OR REJECT TX TO CONTINUE..." : "BROADCASTING TRANSACTION..."}
         </div>
       </div>

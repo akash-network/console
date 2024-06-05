@@ -48,7 +48,7 @@ Router.events.on("routeChangeError", () => NProgress.done());
 const App: React.FunctionComponent<Props> = props => {
   const { Component, pageProps } = props;
   return (
-    <main className={cn("bg-background h-full font-sans tracking-wide antialiased", GeistSans.variable)}>
+    <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
       <PageHead />
 
       <AppCacheProvider {...props}>

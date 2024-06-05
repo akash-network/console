@@ -13,5 +13,19 @@
   "arrowParens": "avoid",
   "endOfLine": "crlf",
   "htmlWhitespaceSensitivity": "strict",
-  "plugins": ["prettier-plugin-tailwindcss"]
+  "plugins": ["prettier-plugin-tailwindcss"],
+  "overrides": [
+    {
+      "files": "./apps/deploy-web/**",
+      "options": {
+        "tailwindConfig": "./apps/deploy-web/tailwind.config.ts"
+      }
+    },
+    {
+      "files": "./apps/stats-web/**",
+      "options": {
+        "tailwindConfig": "./apps/stats-web/tailwind.config.ts"
+      }
+    }
+  ]
 }

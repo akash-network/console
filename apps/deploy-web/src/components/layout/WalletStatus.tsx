@@ -73,7 +73,7 @@ export function WalletStatus() {
                 </div>
 
                 {walletBalances && (
-                  <div className="text-muted-foreground ml-2 flex items-center whitespace-nowrap font-bold">
+                  <div className="ml-2 flex items-center whitespace-nowrap font-bold text-muted-foreground">
                     <Tooltip>
                       <TooltipTrigger>
                         <Badge className="h-5 text-xs font-bold" variant="secondary">

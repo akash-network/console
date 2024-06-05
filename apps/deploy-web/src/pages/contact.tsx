@@ -24,7 +24,7 @@ const ContactPage: React.FunctionComponent = () => {
             <a
               href="https://discord.gg/akash"
               target="_blank"
-              className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
+              className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
             >
               <Discord className="mx-auto block h-6 w-6 text-5xl" />
             </a>
@@ -33,7 +33,7 @@ const ContactPage: React.FunctionComponent = () => {
             <a
               href="https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1"
               target="_blank"
-              className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
+              className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
             >
               <Youtube className="mx-auto block h-6 w-6 text-5xl" />
             </a>
@@ -42,7 +42,7 @@ const ContactPage: React.FunctionComponent = () => {
             <a
               href="https://twitter.com/akashnet_"
               target="_blank"
-              className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
+              className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
             >
               <TwitterX className="mx-auto block h-6 w-6 text-5xl" />
             </a>
@@ -51,7 +51,7 @@ const ContactPage: React.FunctionComponent = () => {
             <a
               href="https://github.com/akash-network/cloudmos"
               target="_blank"
-              className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
+              className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
             >
               <Github className="mx-auto block h-6 w-6 text-5xl" />
             </a>

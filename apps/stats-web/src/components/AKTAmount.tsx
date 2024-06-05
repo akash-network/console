@@ -47,7 +47,7 @@ export const AKTAmount = ({ uakt, showUSD, showAKTLabel, digits = 6, notation }:
       </FormattedNumberParts>
       {showAKTLabel && <AKTLabel />}
       {isPriceLoaded && showUSD && aktAmount > 0 && (
-        <small className="text-muted-foreground text-sm">
+        <small className="text-sm text-muted-foreground">
           &nbsp;(
           <FormattedNumber style="currency" currency="USD" value={aktToUSD(aktAmount)} notation="compact" />)
         </small>

@@ -54,7 +54,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
           >
             <div className="flex flex-col items-start sm:flex-row sm:items-center">
               <div className="flex items-center">
-                <MdMemory className="text-muted-foreground mr-2 text-2xl" />
+                <MdMemory className="mr-2 text-2xl text-muted-foreground" />
                 <strong className="text-sm">Memory</strong>
 
                 <CustomTooltip
@@ -70,7 +70,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
                     </>
                   }
                 >
-                  <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                 </CustomTooltip>
               </div>
 

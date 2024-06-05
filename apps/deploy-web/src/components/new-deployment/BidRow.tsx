@@ -72,7 +72,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
     <TableRow
       key={bid.id}
       className={cn("bid-list-row [&>td]:px-2 [&>td]:py-1", {
-        ["hover:bg-muted-foreground/10 cursor-pointer"]: bid.state === "open",
+        ["cursor-pointer hover:bg-muted-foreground/10"]: bid.state === "open",
         [`border bg-green-100 dark:bg-green-900`]: isCurrentBid
       })}
       onClick={onRowClick}
@@ -146,14 +146,14 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
       <TableCell align="center">
         {provider.isAudited ? (
           <div className="flex items-center justify-center">
-            <span className="text-muted-foreground text-sm">Yes</span>
+            <span className="text-sm text-muted-foreground">Yes</span>
             <div className="ml-1">
               <AuditorButton provider={provider} />
             </div>
           </div>
         ) : (
           <div className="flex items-center justify-center">
-            <span className="text-muted-foreground text-sm">No</span>
+            <span className="text-sm text-muted-foreground">No</span>
 
             <CustomTooltip title={<>This provider is not audited, which may result in a lesser quality experience.</>}>
               <WarningTriangle className="ml-2 text-sm text-orange-600" />
@@ -171,8 +171,8 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
           )}
           {!isLoadingStatus && error && !isSendingManifest && (
             <div className="mt-2 flex items-center space-x-2">
-              <CloudXmark className="text-primary text-xs" />
-              <span className="text-muted-foreground text-sm">OFFLINE</span>
+              <CloudXmark className="text-xs text-primary" />
+              <span className="text-sm text-muted-foreground">OFFLINE</span>
             </div>
           )}
 

@@ -124,7 +124,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
           className="mb-4"
           // severity="info"
         >
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/network-features/authorized-spend/")}>Authorized Spend</LinkTo> allows users
             to authorize spend of a set number of tokens from a source wallet to a destination, funded wallet. The authorized spend is restricted to Akash
             deployment activities and the recipient of the tokens would not have access to those tokens for other operations.
@@ -235,7 +235,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
           <Alert
           // severity="info"
           >
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               This address will be able to spend up to {amount} {selectedToken?.label} on your behalf ending on{" "}
               <FormattedDate value={expiration} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />.
             </p>

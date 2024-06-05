@@ -200,7 +200,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
               </div>
             )}
 
-            {description ? description : <p className="text-muted-foreground text-sm">No description...</p>}
+            {description ? description : <p className="text-sm text-muted-foreground">No description...</p>}
           </CardContent>
         </Card>
       )}

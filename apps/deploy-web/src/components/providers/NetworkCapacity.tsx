@@ -70,7 +70,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
     <div className="flex flex-col items-start md:flex-row md:items-center">
       <div className="basis-1/4">
         <p className="font-bold leading-4 tracking-tight">CPU</p>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           {Math.round(activeCPU + pendingCPU)}&nbsp;CPU&nbsp;/&nbsp;{Math.round(totalCPU)}&nbsp;CPU
         </p>
         <div className="flex h-[200px] w-[200px] items-center justify-center">
@@ -103,7 +103,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
 
       <div className="basis-1/4">
         <p className="font-bold leading-4 tracking-tight">GPU</p>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           {Math.round(activeGPU + pendingGPU)}&nbsp;GPU&nbsp;/&nbsp;{Math.round(totalGPU)}&nbsp;GPU
         </p>
         <div className="flex h-[200px] w-[200px] items-center justify-center">
@@ -135,7 +135,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
 
       <div className="basis-1/4">
         <p className="font-bold leading-4 tracking-tight">Memory</p>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           {`${roundDecimal(_activeMemory.value, 2)} ${_activeMemory.unit}`}&nbsp;/&nbsp;{`${roundDecimal(_totalMemory.value, 2)} ${_totalMemory.unit}`}
         </p>
         <div className="flex h-[200px] w-[200px] items-center justify-center">
@@ -166,7 +166,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
 
       <div className="basis-1/4">
         <p className="font-bold leading-4 tracking-tight">Storage</p>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           {`${roundDecimal(_activeStorage.value, 2)} ${_activeStorage.unit}`}&nbsp;/&nbsp;{`${roundDecimal(_totalStorage.value, 2)} ${_totalStorage.unit}`}
         </p>
         <div className="flex h-[200px] w-[200px] items-center justify-center">

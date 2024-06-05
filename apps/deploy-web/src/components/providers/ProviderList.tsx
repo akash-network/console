@@ -174,8 +174,8 @@ export const ProviderList: React.FunctionComponent = () => {
       <Title>Network Capacity</Title>
 
       {providers && providers.length > 0 && (
-        <h3 className="text-muted-foreground mb-8 text-base">
-          <span className="text-primary text-2xl font-bold">{providers.filter(x => x.isOnline).length}</span> active providers on {selectedNetwork.title}
+        <h3 className="mb-8 text-base text-muted-foreground">
+          <span className="text-2xl font-bold text-primary">{providers.filter(x => x.isOnline).length}</span> active providers on {selectedNetwork.title}
         </h3>
       )}
 
@@ -270,7 +270,7 @@ export const ProviderList: React.FunctionComponent = () => {
                     <SelectGroup>
                       {sortOptions.map(l => (
                         <SelectItem key={l.id} value={l.id}>
-                          <span className="text-muted-foreground text-sm">{l.title}</span>
+                          <span className="text-sm text-muted-foreground">{l.title}</span>
                         </SelectItem>
                       ))}
                     </SelectGroup>

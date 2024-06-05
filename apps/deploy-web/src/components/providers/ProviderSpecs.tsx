@@ -25,7 +25,7 @@ export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider }) => {
           <LabelValue label="GPU" value={provider.hardwareGpuVendor || "Unknown"} />
           <LabelValue label="CPU" value={provider.hardwareCpu || "Unknown"} />
           <LabelValue label="Memory (RAM)" value={provider.hardwareMemory || "Unknown"} />
-          <LabelValue label="Persistent Storage" value={provider.featPersistentStorage && <Check className="text-primary ml-2" />} />
+          <LabelValue label="Persistent Storage" value={provider.featPersistentStorage && <Check className="ml-2 text-primary" />} />
           <LabelValue label="Download speed" value={provider.networkSpeedDown} />
           <LabelValue label="Network Provider" value={provider.networkProvider} />
         </div>

@@ -94,7 +94,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
               </>
             }
           >
-            <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+            <InfoCircle className="ml-2 text-xs text-muted-foreground" />
           </CustomTooltip>
         </div>
       }
@@ -137,7 +137,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                           <div className="inline-flex items-center">
                             Port
                             <CustomTooltip title={<>Container port to expose.</>}>
-                              <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                              <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                             </CustomTooltip>
                           </div>
                         }
@@ -163,7 +163,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                           <div className="inline-flex items-center">
                             As
                             <CustomTooltip title={<>Port number to expose the container port as.</>}>
-                              <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                              <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                             </CustomTooltip>
                           </div>
                         }
@@ -222,7 +222,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                     />
 
                     <CustomTooltip title={<>Check if you want this service to be accessible from outside the datacenter.</>}>
-                      <InfoCircle className="text-muted-foreground ml-4 text-xs" />
+                      <InfoCircle className="ml-4 text-xs text-muted-foreground" />
                     </CustomTooltip>
                   </div>
                 </div>
@@ -287,7 +287,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                               </>
                             }
                           >
-                            <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                            <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                           </CustomTooltip>
                         </div>
                       }

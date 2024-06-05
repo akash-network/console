@@ -113,7 +113,7 @@ export const TxMessageRow: React.FunctionComponent<Props> = ({ message }) => {
 
   return (
     <div>
-      <div className="border-b-muted-foreground/10 text-muted-foreground mb-4 border-b p-4">{friendlyType}</div>
+      <div className="mb-4 border-b border-b-muted-foreground/10 p-4 text-muted-foreground">{friendlyType}</div>
 
       <div className="break-all px-4 pb-4 pt-0">
         <TxMessage message={message} />

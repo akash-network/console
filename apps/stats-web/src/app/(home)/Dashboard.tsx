@@ -329,7 +329,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
             <>
               <FormattedNumber value={udenomToDenom(dashboardData.chainStats.bondedTokens)} notation="compact" maximumFractionDigits={2} /> /{" "}
               <FormattedNumber value={udenomToDenom(dashboardData.chainStats.totalSupply)} notation="compact" maximumFractionDigits={2} />
-              <span className="text-muted-foreground ml-4 text-sm">
+              <span className="ml-4 text-sm text-muted-foreground">
                 <FormattedNumber
                   value={udenomToDenom(dashboardData.chainStats.bondedTokens) / udenomToDenom(dashboardData.chainStats.totalSupply)}
                   style="percent"

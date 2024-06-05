@@ -22,7 +22,7 @@ export const DashboardContainer: React.FunctionComponent = () => {
           <Title className="mb-4 text-xl font-bold sm:text-2xl md:text-3xl">Akash Network {selectedNetwork.title} Dashboard</Title>
 
           <div className="mb-8">
-            <p className="text-italic text-muted-foreground text-sm italic">
+            <p className="text-italic text-sm italic text-muted-foreground">
               Last updated: <FormattedDate value={dashboardData.now.date} /> <FormattedTime value={dashboardData.now.date} />
             </p>
           </div>

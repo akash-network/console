@@ -235,7 +235,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
                 </p>
               }
             >
-              <InfoCircle className="text-muted-foreground mr-4 text-sm md:ml-4" />
+              <InfoCircle className="mr-4 text-sm text-muted-foreground md:ml-4" />
             </CustomTooltip>
 
             <div className="flex-grow">

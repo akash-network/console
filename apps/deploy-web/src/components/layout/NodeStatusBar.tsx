@@ -19,7 +19,7 @@ export const NodeStatusBar = () => {
   return (
     <div className="mb-4">
       <div className="text-center">
-        <span className="text-primary text-sm font-bold">{selectedNetwork.title}</span>
+        <span className="text-sm font-bold text-primary">{selectedNetwork.title}</span>
       </div>
 
       <LinearLoadingSkeleton isLoading={isRefreshingNodeStatus} />

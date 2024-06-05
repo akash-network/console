@@ -45,7 +45,7 @@ export function CertificateDisplay() {
               {selectedCertificate ? (
                 <span>
                   Current certificate:{" "}
-                  <span className="text-primary inline-flex items-center text-xs font-bold">
+                  <span className="inline-flex items-center text-xs font-bold text-primary">
                     {selectedCertificate.serial} <Check color="secondary" className="ml-2" />
                   </span>
                 </span>
@@ -56,7 +56,7 @@ export function CertificateDisplay() {
 
             {selectedCertificate && !isLocalCertMatching && (
               <CustomTooltip title="The local certificate doesn't match the one on the blockchain. You can revoke it and create a new one.">
-                <WarningTriangle className="text-destructive ml-2 text-sm" />
+                <WarningTriangle className="ml-2 text-sm text-destructive" />
               </CustomTooltip>
             )}
           </div>

@@ -167,7 +167,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
 
   return (
     <>
-      <TableRow className="hover:bg-muted-foreground/10 cursor-pointer [&>td]:p-2" onClick={() => viewDeployment()}>
+      <TableRow className="cursor-pointer hover:bg-muted-foreground/10 [&>td]:p-2" onClick={() => viewDeployment()}>
         <TableCell>
           <div className="flex items-center justify-center">
             <SpecDetailList
@@ -196,7 +196,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                     </>
                   }
                 >
-                  <WarningTriangle className="text-warning text-xs" />
+                  <WarningTriangle className="text-xs text-warning" />
                 </CustomTooltip>
               )}
             </div>
@@ -225,18 +225,18 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                       </strong>
                     </div>
                     <br />
-                    <p className="text-muted-foreground text-xs">
+                    <p className="text-xs text-muted-foreground">
                       The escrow account balance will be fully returned to your wallet balance when the deployment is closed.
                     </p>
                   </div>
                 }
               >
-                <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                <InfoCircle className="ml-2 text-xs text-muted-foreground" />
               </CustomTooltip>
 
               {escrowBalance <= 0 && (
                 <CustomTooltip title="Your deployment is out of funds and can be closed by your provider at any time now. You can add funds to keep active.">
-                  <WarningCircle className="text-destructive-foreground ml-2" />
+                  <WarningCircle className="ml-2 text-destructive-foreground" />
                 </CustomTooltip>
               )}
             </div>
@@ -255,7 +255,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                     </span>
                   }
                 >
-                  <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                 </CustomTooltip>
               </div>
             </div>

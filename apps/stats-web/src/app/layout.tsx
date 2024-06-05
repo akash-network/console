@@ -98,7 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
       <GoogleAnalytics />
 
-      <body className={cn("bg-background min-h-screen font-sans tracking-wide antialiased", GeistSans.variable)}>
+      <body className={cn("min-h-screen bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
         <Providers>
           <Nav />
           <div className="flex min-h-[calc(100vh-60px)] flex-col justify-between">

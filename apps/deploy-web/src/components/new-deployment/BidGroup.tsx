@@ -63,7 +63,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
   }, [deploymentDetail, gseq]);
   return (
     <FormPaper className="mb-4 rounded-none" contentClassName="p-0">
-      <div className="bg-popover sticky top-0 z-[100] -mt-1 flex items-center justify-between border-b border-t px-4 py-2 leading-8">
+      <div className="sticky top-0 z-[100] -mt-1 flex items-center justify-between border-b border-t bg-popover px-4 py-2 leading-8">
         <div className="flex items-center">
           <h6 className="text-xs">
             <LabelValueOld label="GSEQ:" value={gseq} />
@@ -142,7 +142,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
       {isFilteringFavorites && fBids.length === 0 && (
         <div className="px-4 py-2">
           <Alert>
-            <span className="text-muted-foreground text-sm">There are no favorite providers for this group...</span>
+            <span className="text-sm text-muted-foreground">There are no favorite providers for this group...</span>
           </Alert>
         </div>
       )}
@@ -150,7 +150,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
       {isFilteringAudited && fBids.length === 0 && (
         <div className="px-4 py-2">
           <Alert>
-            <span className="text-muted-foreground text-sm">
+            <span className="text-sm text-muted-foreground">
               There are no audited providers for this group... Try unchecking the "Audited" flag or clearing the search.
             </span>
           </Alert>

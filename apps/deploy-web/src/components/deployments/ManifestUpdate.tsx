@@ -205,7 +205,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
                     </div>
                   }
                 >
-                  <InfoCircle className="text-muted-foreground text-xs" />
+                  <InfoCircle className="text-xs text-muted-foreground" />
                 </CustomTooltip>
 
                 {!!deploymentVersion && deploymentVersion !== deployment.version && (
@@ -216,7 +216,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
                       </Alert>
                     }
                   >
-                    <WarningCircle className="text-warning text-xs" />
+                    <WarningCircle className="text-xs text-warning" />
                   </CustomTooltip>
                 )}
               </div>

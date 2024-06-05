@@ -34,7 +34,7 @@ export const LeaseChip: React.FunctionComponent<Props> = ({ lease, providers }) 
         event.stopPropagation();
       }}
     >
-      <Badge variant="outline" className="hover:bg-primary/20 whitespace-nowrap text-xs">
+      <Badge variant="outline" className="whitespace-nowrap text-xs hover:bg-primary/20">
         <span>
           {providerName?.length > 20 ? (
             <CustomTooltip title={providerName}>

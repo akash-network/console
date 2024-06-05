@@ -77,7 +77,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
               <div className="flex items-center">
                 <div className="flex items-center">
                   <div className="flex items-center">
-                    <MdSpeed className="text-muted-foreground mr-2 text-2xl" />
+                    <MdSpeed className="mr-2 text-2xl text-muted-foreground" />
                     <strong>GPU</strong>
 
                     <CustomTooltip
@@ -96,7 +96,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                         </>
                       }
                     >
-                      <InfoCircle className="text-muted-foreground ml-4 text-xs" />
+                      <InfoCircle className="ml-4 text-xs text-muted-foreground" />
                     </CustomTooltip>
                   </div>
 
@@ -158,7 +158,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
       {hasGpu && (
         <>
           <div className="my-4">
-            <p className="text-muted-foreground text-xs">
+            <p className="text-xs text-muted-foreground">
               Picking specific GPU models below, filters out providers that don't have those GPUs and may reduce the number of bids you receive.
             </p>
           </div>
@@ -387,7 +387,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                   ) : (
                     <div className="ml-4 flex items-center">
                       <Spinner />
-                      <span className="text-muted-foreground ml-2 whitespace-nowrap text-sm">Loading GPU models...</span>
+                      <span className="ml-2 whitespace-nowrap text-sm text-muted-foreground">Loading GPU models...</span>
                     </div>
                   )}
                 </div>

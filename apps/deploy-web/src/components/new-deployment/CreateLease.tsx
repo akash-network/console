@@ -346,7 +346,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
             {!maxRequestsReached && !isSendingManifest && (
               <div className="flex items-center self-start text-xs leading-4 sm:self-center">
-                <p className="text-muted-foreground text-xs">Waiting for more bids...</p>
+                <p className="text-xs text-muted-foreground">Waiting for more bids...</p>
                 <div className="ml-2">
                   <Spinner size="small" />
                 </div>

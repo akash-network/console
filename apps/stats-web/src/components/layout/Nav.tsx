@@ -14,7 +14,7 @@ export const Nav = () => {
   const theme = useCookieTheme();
 
   return (
-    <header className="bg-header/95 supports-[backdrop-filter]:bg-header/60 sticky top-0 z-50 w-full border-b backdrop-blur">
+    <header className="sticky top-0 z-50 w-full border-b bg-header/95 backdrop-blur supports-[backdrop-filter]:bg-header/60">
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex">
           {!!theme && (
@@ -57,7 +57,7 @@ export const Nav = () => {
 
             <ModeToggle />
 
-            <Link rel="noreferrer" href="https://akash.network" passHref target="_blank" className="text-foreground ml-4">
+            <Link rel="noreferrer" href="https://akash.network" passHref target="_blank" className="ml-4 text-foreground">
               <Button variant="outline" size="sm" className="h-[30px]">
                 akash.network
               </Button>

@@ -52,7 +52,7 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
           >
             <div className="flex flex-col items-start sm:flex-row sm:items-center">
               <div className="flex items-center">
-                <MdStorage className="text-muted-foreground mr-2 text-2xl" />
+                <MdStorage className="mr-2 text-2xl text-muted-foreground" />
                 <strong className="text-sm">Ephemeral Storage</strong>
 
                 <CustomTooltip
@@ -71,7 +71,7 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
                     </>
                   }
                 >
-                  <InfoCircle className="text-muted-foreground ml-2 text-xs" />
+                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                 </CustomTooltip>
               </div>
 
