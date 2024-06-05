@@ -40,7 +40,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
     name: "services",
     keyName: "id"
   });
-  const { services: _services } = watch();
+  const { services: _services = [] } = watch();
   const { data: gpuModels } = useGpuModels();
   const [serviceCollapsed, setServiceCollapsed] = useState([]);
 
@@ -115,21 +115,22 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
         </div>
       ) : (
         <form ref={formRef} autoComplete="off">
-          {services.map((service, serviceIndex) => (
-            <SimpleServiceFormControl
-              key={service.id}
-              serviceIndex={serviceIndex}
-              gpuModels={gpuModels}
-              setValue={setValue}
-              _services={_services as Service[]}
-              control={control}
-              trigger={trigger}
-              onRemoveService={onRemoveService}
-              serviceCollapsed={serviceCollapsed}
-              setServiceCollapsed={setServiceCollapsed}
-              hasSecretOption={false}
-            />
-          ))}
+          {_services &&
+            services.map((service, serviceIndex) => (
+              <SimpleServiceFormControl
+                key={service.id}
+                serviceIndex={serviceIndex}
+                gpuModels={gpuModels}
+                setValue={setValue}
+                _services={_services as Service[]}
+                control={control}
+                trigger={trigger}
+                onRemoveService={onRemoveService}
+                serviceCollapsed={serviceCollapsed}
+                setServiceCollapsed={setServiceCollapsed}
+                hasSecretOption={false}
+              />
+            ))}
 
           {error && (
             <Alert variant="destructive" className="mt-4">

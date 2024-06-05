@@ -66,7 +66,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   const muiTheme = useMuiTheme();
   const isDesktop = useMediaQuery(muiTheme.breakpoints.up("sm"));
   const expanded = !serviceCollapsed.some(x => x === serviceIndex);
-  const currentService: Service = _services[serviceIndex] || ({} as any);
+  const currentService: Service = _services[serviceIndex];
   const _isEditingEnv = serviceIndex === isEditingEnv;
   const _isEditingCommands = serviceIndex === isEditingCommands;
   const _isEditingExpose = serviceIndex === isEditingExpose;
@@ -81,6 +81,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
       }
     });
   };
+  
+  if (!currentService) return null;
 
   return (
     <Collapsible open={expanded} onOpenChange={onExpandClick}>
