@@ -267,6 +267,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           onClick={() => onModeChange("builder")}
           size="sm"
           className="flex-grow rounded-e-none sm:flex-grow-0"
+          disabled={!!parsingError && selectedSdlEditMode === "yaml"}
         >
           Builder
         </Button>
