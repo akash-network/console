@@ -32,19 +32,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18.20.2
-          cache: npm
-          cache-dependency-path: package-lock.json
 
-      - name: Setup Local Deps
+      - name: Restore root node_modules cache
         if: steps.filter.outputs.api == 'true'
-        uses: actions/setup-node@v4
+        uses: martijnhols/actions-cache@v3
+        id: cache-root
         with:
-          node-version: 18.20.2
-          cache: npm
-          cache-dependency-path: apps/api/package-lock.json
+          path: node_modules
+          key: ${{ runner.os }}-${{ hashFiles('package-lock.json') }}-root
+
+      - name: Restore api node_modules cache
+        if: steps.filter.outputs.api == 'true'
+        uses: martijnhols/actions-cache@v3
+        id: cache-api
+        with:
+          path: apps/api/node_modules
+          key: ${{ runner.os }}-${{ hashFiles('package-lock.json') }}-api
 
       - name: Install dependencies
-        if: steps.filter.outputs.api == 'true'
+        if: steps.filter.outputs.api == 'true' && (steps.cache-root.outputs.cache-hit != 'true' || steps.cache-api.outputs.cache-hit != 'true')
         run: npm ci
 
       - name: Run static code analysis

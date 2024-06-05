@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}"
   },
   "dependencies": {
     "@cosmjs/encoding": "^0.32.0",

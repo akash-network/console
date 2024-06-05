@@ -6,6 +6,8 @@
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "dev": "next -p 3001",
     "build": "next build",
     "start": "next start",
@@ -38,6 +40,7 @@
     "tss-react": "^3.6.0"
   },
   "devDependencies": {
+    "@akashnetwork/dev-config": "*",
     "@types/node": "^12.12.21",
     "@types/nprogress": "^0.2.0",
     "@types/react": "^17.0.2",

@@ -6,6 +6,8 @@
   "license": "Apache-2.0",
   "author": "Akash Network",
   "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "build": "next build",
     "build-analyze": "set ANALYZE=true&& next build",
     "dev": "next -p 3000",
@@ -124,6 +126,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@akashnetwork/dev-config": "*",
     "@keplr-wallet/types": "^0.10.15",
     "@next/bundle-analyzer": "^14.0.1",
     "@tailwindcss/typography": "^0.5.12",

@@ -26,7 +26,7 @@ const moduleExports = {
     tsconfigPath: "./tsconfig.json"
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: true
   },
   transpilePackages: ["geist"],
   // experimental: {

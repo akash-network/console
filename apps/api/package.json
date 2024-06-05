@@ -8,7 +8,8 @@
   "scripts": {
     "start": "webpack --config webpack.dev.js --watch",
     "build": "webpack --config webpack.prod.js",
-    "lint": "eslint --config=../../.eslintrc.json .",
+    "lint": "eslint .",
+    "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "test": "jest --selectProjects unit functional",
     "test:watch": "jest --selectProjects unit functional --watch",
     "test:cov": "jest --selectProjects unit functional --coverage",
@@ -63,6 +64,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@akashnetwork/dev-config": "*",
     "@faker-js/faker": "^8.4.1",
     "@types/jest": "^29.5.12",
     "@types/lodash": "^4.17.0",
