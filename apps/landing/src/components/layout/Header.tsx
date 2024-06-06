@@ -30,17 +30,15 @@ export const Header: React.FunctionComponent = () => {
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <Box sx={{ height: "40px", width: "160px" }}>
               <Link href="/">
-                <a>
-                  <Image
-                    alt="Cloudmos Logo"
-                    src={theme.palette.mode === "dark" ? "/images/cloudmos-logo.png" : "/images/cloudmos-logo-light.png"}
-                    layout="responsive"
-                    quality={100}
-                    width={160}
-                    height={40}
-                    priority
-                  />
-                </a>
+                <Image
+                  alt="Cloudmos Logo"
+                  src={theme.palette.mode === "dark" ? "/images/cloudmos-logo.png" : "/images/cloudmos-logo-light.png"}
+                  layout="responsive"
+                  quality={100}
+                  width={160}
+                  height={40}
+                  priority
+                />
               </Link>
             </Box>
 

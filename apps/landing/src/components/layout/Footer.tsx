@@ -173,25 +173,19 @@ export const Footer: React.FunctionComponent = () => {
           </ul>
 
           <Box sx={{ margin: { xs: ".5rem 0 1rem", sm: 0 }, display: "flex", alignItems: "center" }}>
-            <Link href={UrlService.termsOfService()}>
-              <a className={classes.privacyLink}>
-                <Typography variant="caption">Terms of Service</Typography>
-              </a>
+            <Link href={UrlService.termsOfService()} className={classes.privacyLink}>
+              <Typography variant="caption">Terms of Service</Typography>
             </Link>
 
             <Box sx={{ marginLeft: "1rem" }}>
-              <Link href={UrlService.privacyPolicy()}>
-                <a className={classes.privacyLink}>
-                  <Typography variant="caption">Privacy Policy</Typography>
-                </a>
+              <Link href={UrlService.privacyPolicy()} className={classes.privacyLink}>
+                <Typography variant="caption">Privacy Policy</Typography>
               </Link>
             </Box>
 
             <Box sx={{ marginLeft: "1rem" }}>
-              <Link href={UrlService.contact()}>
-                <a className={classes.privacyLink}>
-                  <Typography variant="caption">Contact</Typography>
-                </a>
+              <Link href={UrlService.contact()} className={classes.privacyLink}>
+                <Typography variant="caption">Contact</Typography>
               </Link>
             </Box>
           </Box>

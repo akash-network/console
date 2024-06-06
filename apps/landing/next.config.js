@@ -5,24 +5,14 @@ const { withSentryConfig } = require("@sentry/nextjs");
 const isDev = process.env.NODE_ENV === "development";
 
 const moduleExports = {
-  pwa: {
-    dest: "public",
-    register: true,
-    skipWaiting: true,
-    disable: isDev
-  },
   reactStrictMode: false,
   compiler: {
-    // Enables the styled-components SWC transform
     styledComponents: true
   },
   images: {
     domains: ["raw.githubusercontent.com"]
   },
-  experimental: {
-    outputStandalone: true,
-    externalDir: true // to make the import from shared parent folder work https://github.com/vercel/next.js/issues/9474#issuecomment-810212174
-  },
+  output: "standalone",
   publicRuntimeConfig: {
     version
   },
@@ -188,4 +178,9 @@ const sentryWebpackPluginOptions = {
 
 // Make sure adding Sentry options is the last code to run before exporting, to
 // ensure that your source maps include changes from all other Webpack plugins
-module.exports = withPWA(withSentryConfig(moduleExports, sentryWebpackPluginOptions));
+module.exports = withPWA({
+  dest: "public",
+  register: true,
+  skipWaiting: true,
+  disable: isDev
+})(withSentryConfig(moduleExports, sentryWebpackPluginOptions));
