@@ -1,0 +1,63 @@
+FROM node:18 AS base
+
+FROM base AS deps
+
+WORKDIR /app
+
+COPY package.json /app
+COPY package-lock.json /app
+COPY apps/deploy-web/patches ./apps/deploy-web/patches
+COPY apps/deploy-web/package.json ./apps/deploy-web/
+COPY packages/dev-config/ ./packages/dev-config/
+
+RUN apt-get update && apt-get install -y libc6-dev && \
+    ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+      npm install @next/swc-linux-x64-gnu; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+      npm install @next/swc-linux-arm64-gnu; \
+    else \
+      echo "Unsupported architecture"; exit 1; \
+    fi
+
+RUN npm ci
+
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/deploy-web/node_modules ./apps/deploy-web/node_modules
+COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED 1
+
+RUN npm run build -w apps/deploy-web
+
+FROM node:18 AS runner
+WORKDIR /app
+
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/apps/deploy-web/public ./apps/deploy-web/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/deploy-web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/deploy-web/.next/static ./apps/deploy-web/.next/static
+
+RUN apt-get update
+RUN apt-get install libcap2-bin -y
+RUN setcap cap_net_bind_service=+ep `readlink -f \`which node\``
+
+RUN apt-get install nginx -y
+RUN mkdir -p /etc/nginx/ssl
+RUN openssl req -x509 -newkey rsa:4096 -sha256 -nodes -keyout /etc/nginx/ssl/my_ssl_key.key -out /etc/nginx/ssl/my_ssl_cert.crt -subj "/CN=cloudmos.io" -days 600
+COPY apps/deploy-web/nginx.conf /etc/nginx/nginx.conf
+RUN nginx -t
+
+EXPOSE 80
+EXPOSE 443
+
+ENV PORT 3001
+
+CMD sed -i "s/127.0.0.1/$(hostname -i)/" /etc/nginx/nginx.conf && service nginx start && node apps/deploy-web/server.js

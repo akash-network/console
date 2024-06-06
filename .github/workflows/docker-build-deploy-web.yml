@@ -24,4 +24,4 @@ jobs:
 
       - name: Build the Docker image
         if: steps.filter.outputs.deploy-web == 'true'
-        run: docker build ./apps/deploy-web
+        run: docker build -f Dockerfile.deploy-web -t cloudmos-deploy-web .
