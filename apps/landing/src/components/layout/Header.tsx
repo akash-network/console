@@ -1,7 +1,7 @@
 import React from "react";
 import LaunchIcon from "@mui/icons-material/RocketLaunch";
 import { AppBar, Box, Button, Container, Toolbar, useTheme } from "@mui/material";
-import Image from "next/image";
+import Image from "next/legacy/image";
 import Link from "next/link";
 import { makeStyles } from "tss-react/mui";
 

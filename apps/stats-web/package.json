@@ -38,13 +38,13 @@
     "iconoir-react": "^7.3.0",
     "jotai": "^2.5.1",
     "lucide-react": "^0.292.0",
-    "next": "^14.2.2",
+    "next": "^14.2.3",
     "next-nprogress-bar": "^2.1.2",
     "next-qrcode": "^2.5.1",
     "next-themes": "^0.2.1",
     "nextjs-google-analytics": "^2.3.3",
-    "react": "^18",
-    "react-dom": "^18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-icons": "^5.0.1",
     "react-intl": "^6.5.5",
     "react-modern-drawer": "^1.2.2",
@@ -58,12 +58,12 @@
   "devDependencies": {
     "@types/json2csv": "^5.0.7",
     "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.31",
     "postcss-nesting": "^12.0.1",
     "tailwindcss": "^3.3.5",
-    "typescript": "^5.2.2"
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "5.1.3"
   }
 }
