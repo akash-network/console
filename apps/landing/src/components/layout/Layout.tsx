@@ -72,20 +72,22 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading }) => {
       >
         <ErrorBoundary FallbackComponent={ErrorFallback}>
           <Box sx={{ width: "100%", zIndex: 100 }}>
-            {isLoading !== undefined && (
-              <Fade
-                in={isLoading}
-                style={{
-                  transitionDelay: isLoading ? "300ms" : "0ms"
-                }}
-              >
-                <LinearProgress color="secondary" />
-              </Fade>
-            )}
+            <>
+              {isLoading !== undefined && (
+                <Fade
+                  in={isLoading}
+                  style={{
+                    transitionDelay: isLoading ? "300ms" : "0ms"
+                  }}
+                >
+                  <LinearProgress color="secondary" />
+                </Fade>
+              )}
 
-            <Header />
+              <Header />
 
-            {children}
+              {children}
+            </>
           </Box>
 
           <Footer />

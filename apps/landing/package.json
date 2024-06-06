@@ -20,7 +20,7 @@
     "@emotion/server": "^11.4.0",
     "@emotion/styled": "^11.8.1",
     "@mui/icons-material": "^5.4.4",
-    "@mui/material": "^5.4.4",
+    "@mui/material": "^5.15.19",
     "@react-spring/web": "^9.3.1",
     "@sentry/nextjs": "^7.80.0",
     "next": "12.1.5",
@@ -28,7 +28,7 @@
     "next-pwa": "^5.4.6",
     "next-seo": "^5.5.0",
     "nextjs-google-analytics": "^2.0.0",
-    "notistack": "^2.0.5",
+    "notistack": "2.0.8",
     "nprogress": "^0.2.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
@@ -43,8 +43,8 @@
     "@akashnetwork/dev-config": "*",
     "@types/node": "^12.12.21",
     "@types/nprogress": "^0.2.0",
-    "@types/react": "^17.0.2",
-    "@types/react-dom": "^17.0.1",
+    "@types/react": "17.0.2",
+    "@types/react-dom": "17.0.2",
     "typescript": "^4.5.5"
   }
 }
