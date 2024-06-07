@@ -5,6 +5,9 @@ const nextConfig = {
   output: "standalone",
   publicRuntimeConfig: {
     version
+  },
+  eslint: {
+    ignoreDuringBuilds: true
   }
 };
 
