@@ -1,6 +1,7 @@
-import { useWallet } from "@src/context/WalletProvider";
 import { useEffect, useState } from "react";
 import { useEventListener } from "usehooks-ts";
+
+import { useWallet } from "@src/context/WalletProvider";
 
 export const useLocalStorage = () => {
   const { address } = useWallet();
@@ -103,4 +104,3 @@ function parseJSON(value: string) {
     return value === "undefined" ? undefined : value;
   }
 }
-

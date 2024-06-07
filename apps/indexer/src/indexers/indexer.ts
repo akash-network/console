@@ -1,8 +1,9 @@
-import { DecodedTxRaw } from "@cosmjs/proto-signing";
-import { IGenesis } from "@src/chain/genesisTypes";
 import { Block, Message, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
-import * as benchmark from "@src/shared/utils/benchmark";
+import { DecodedTxRaw } from "@cosmjs/proto-signing";
 import { Transaction as DbTransaction } from "sequelize";
+
+import { IGenesis } from "@src/chain/genesisTypes";
+import * as benchmark from "@src/shared/utils/benchmark";
 
 export abstract class Indexer {
   name: string;
@@ -10,9 +11,6 @@ export abstract class Indexer {
   runForEveryBlocks: boolean;
   processFailedTxs: boolean;
 
-  public initCache(firstBlockHeight: number): Promise<void> {
-    return Promise.resolve();
-  }
   hasHandlerForType(type: string): boolean {
     return Object.keys(this.msgHandlers).includes(type);
   }
@@ -24,23 +22,21 @@ export abstract class Indexer {
       await this.msgHandlers[msg.type].bind(this)(decodedMessage, height, blockGroupTransaction, msg);
     });
   }
-  dropTables(): Promise<void> {
-    return Promise.resolve();
-  }
-  createTables(): Promise<void> {
-    return Promise.resolve();
-  }
+
   async recreateTables(): Promise<void> {
     await this.dropTables();
     await this.createTables();
   }
-  seed(genesis: IGenesis): Promise<void> {
-    return Promise.resolve();
-  }
-  afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction: DbTransaction): Promise<void> {
-    return Promise.resolve();
-  }
-  afterEveryTransaction(rawTx: DecodedTxRaw, currentTransaction: Transaction, dbTransaction: DbTransaction): Promise<void> {
-    return Promise.resolve();
-  }
+
+  abstract initCache(firstBlockHeight: number): Promise<void>;
+
+  abstract dropTables(): Promise<void>;
+
+  abstract createTables(): Promise<void>;
+
+  abstract seed(genesis: IGenesis): Promise<void>;
+
+  abstract afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction: DbTransaction): Promise<void>;
+
+  abstract afterEveryTransaction(rawTx: DecodedTxRaw, currentTransaction: Transaction, dbTransaction: DbTransaction): Promise<void>;
 }

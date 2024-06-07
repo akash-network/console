@@ -1,17 +1,14 @@
 import React from "react";
+
 import Layout from "@src/components/layout/Layout";
-import { Title } from "@src/components/shared/Title";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
-import { UrlService, domainName } from "@src/utils/urlUtils";
+import { Title } from "@src/components/shared/Title";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 
 export function TermsOfService() {
   return (
     <Layout>
-      <CustomNextSeo
-        title="Terms of service"
-        url={`${domainName}${UrlService.termsOfService()}`}
-        description="Akash Console webiste terms of service."
-      />
+      <CustomNextSeo title="Terms of service" url={`${domainName}${UrlService.termsOfService()}`} description="Akash Console webiste terms of service." />
 
       <div className="mb-8">
         <Title>Terms of Service</Title>
@@ -280,8 +277,8 @@ export function TermsOfService() {
         <li>Sell or otherwise transfer your profile. Use the Site to advertise or offer to sell goods and services.</li>
 
         <li>
-          You are allowed to use Akash Console data and contents solely for your own account and any resale of the Akash Console contents, data, and analytics is
-          prohibited whether modified or not.
+          You are allowed to use Akash Console data and contents solely for your own account and any resale of the Akash Console contents, data, and analytics
+          is prohibited whether modified or not.
         </li>
       </ul>
 
@@ -444,7 +441,8 @@ export function TermsOfService() {
 
       <p>
         Your submission of personal information through the site is governed by our Privacy Policy. Please review our Privacy Policy:
-        https://console.akash.network/privacy-policy. By using the Site, you agree to be bound by our Privacy Policy, which is incorporated into these Terms of Use.
+        https://console.akash.network/privacy-policy. By using the Site, you agree to be bound by our Privacy Policy, which is incorporated into these Terms of
+        Use.
       </p>
 
       <Title subTitle className="my-4">

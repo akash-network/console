@@ -1,8 +1,8 @@
+import axios from "axios";
+
 import { ProviderDetail } from "@src/components/providers/ProviderDetail";
 import { ApiProviderDetail } from "@src/types/provider";
 import { getNetworkBaseApiUrl } from "@src/utils/constants";
-import axios from "axios";
-
 
 type Props = {
   owner: string;
@@ -11,7 +11,7 @@ type Props = {
 
 const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }) => {
   return <ProviderDetail owner={owner} _provider={_provider} />;
-}
+};
 
 export default ProviderDetailPage;
 
@@ -26,4 +26,3 @@ export async function getServerSideProps({ params, query }) {
     }
   };
 }
-

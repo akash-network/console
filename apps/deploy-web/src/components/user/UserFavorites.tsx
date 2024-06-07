@@ -1,16 +1,15 @@
-import { useUserFavoriteTemplates } from "@src/queries/useTemplateQuery";
-import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
-import { useCustomUser } from "@src/hooks/useCustomUser";
-import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
-import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
-import Spinner from "@src/components/shared/Spinner";
 import { NextSeo } from "next-seo";
+import { event } from "nextjs-google-analytics";
+
+import Spinner from "@src/components/shared/Spinner";
+import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
+import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
+import { useCustomUser } from "@src/hooks/useCustomUser";
+import { useUserFavoriteTemplates } from "@src/queries/useTemplateQuery";
+import { AnalyticsEvents } from "@src/utils/analytics";
 import Layout from "../layout/Layout";
 
-type Props = {};
-
-export const UserFavorites: React.FunctionComponent<Props> = () => {
+export const UserFavorites: React.FunctionComponent = () => {
   const { data: favoriteTemplates, isLoading: isLoadingTemplates } = useUserFavoriteTemplates();
   const { user, isLoading } = useCustomUser();
 

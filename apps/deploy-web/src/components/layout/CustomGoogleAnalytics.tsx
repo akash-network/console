@@ -1,7 +1,8 @@
 "use client";
-import { isProd } from "@src/utils/constants";
-import { event, GoogleAnalytics as GAnalytics } from "nextjs-google-analytics";
 import { useReportWebVitals } from "next/web-vitals";
+import { event, GoogleAnalytics as GAnalytics } from "nextjs-google-analytics";
+
+import { isProd } from "@src/utils/constants";
 
 export default function GoogleAnalytics() {
   useReportWebVitals(({ id, name, label, value }) => {

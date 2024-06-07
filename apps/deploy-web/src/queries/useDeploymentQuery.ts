@@ -1,15 +1,16 @@
-import { QueryKey, UseQueryOptions, useQuery } from "react-query";
-import { QueryKeys } from "./queryKeys";
+import { QueryKey, useQuery, UseQueryOptions } from "react-query";
 import axios from "axios";
-import { useSettings } from "../context/SettingsProvider";
+import { z } from "zod";
+
+import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { PaginatedResults } from "@src/types";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
-import { z } from "zod";
-import { DeploymentRowType, deploymentRowSchema } from "@src/utils/zod/deploymentRow";
-import { PaginatedResults } from "@src/types";
-import { removeEmptyFilters } from "@src/utils/urlUtils";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { coinToUDenom } from "@src/utils/priceUtils";
+import { removeEmptyFilters } from "@src/utils/urlUtils";
+import { deploymentRowSchema, DeploymentRowType } from "@src/utils/zod/deploymentRow";
+import { useSettings } from "../context/SettingsProvider";
+import { QueryKeys } from "./queryKeys";
 
 // Deployment list
 async function getDeploymentList(apiEndpoint: string, address: string) {

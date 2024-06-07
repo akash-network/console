@@ -1,5 +1,3 @@
-
-
 export const useDocHeight = () => {
   if (typeof document === "undefined") return 0;
 

@@ -1,18 +1,18 @@
 "use client";
-import React, { useState, useCallback, useEffect } from "react";
-import axios from "axios";
-import { useSnackbar } from "notistack";
+import React, { useCallback, useEffect, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-
-import { useSettings } from "../SettingsProvider";
-import { networkVersion } from "@src/utils/constants";
-import { Snackbar } from "@src/components/shared/Snackbar";
-import { getSelectedStorageWallet, getStorageWallets, updateWallet } from "@src/utils/walletUtils";
-import { useWallet } from "../WalletProvider";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import axios from "axios";
 import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
+import { useSnackbar } from "notistack";
+
+import { Snackbar } from "@src/components/shared/Snackbar";
 import { RestApiCertificatesResponseType } from "@src/types/certificate";
+import { AnalyticsEvents } from "@src/utils/analytics";
+import { networkVersion } from "@src/utils/constants";
+import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import { getSelectedStorageWallet, getStorageWallets, updateWallet } from "@src/utils/walletUtils";
+import { useSettings } from "../SettingsProvider";
+import { useWallet } from "../WalletProvider";
 
 export type LocalCert = {
   certPem: string;
@@ -251,32 +251,28 @@ export const CertificateProvider = ({ children }) => {
    * Revoke certificate
    */
   const revokeCertificate = async (certificate: ChainCertificate) => {
-    try {
-      const message = TransactionMessageData.getRevokeCertificateMsg(address, certificate.serial);
-      const response = await signAndBroadcastTx([message]);
-      if (response) {
-        const validCerts = await loadValidCertificates();
-        const isRevokingOtherCert = validCerts.some(c => c.parsed === localCert?.certPem);
-        updateWallet(address, wallet => {
-          return {
-            ...wallet,
-            cert: isRevokingOtherCert ? wallet.cert : undefined,
-            certKey: isRevokingOtherCert ? wallet.certKey : undefined
-          };
-        });
-        if (validCerts?.length > 0 && certificate.serial === selectedCertificate?.serial) {
-          setSelectedCertificate(validCerts[0]);
-        } else if (validCerts?.length === 0) {
-          setSelectedCertificate(null);
-        }
-
-        event(AnalyticsEvents.REVOKE_CERTIFICATE, {
-          category: "certificates",
-          label: "Revoked certificate"
-        });
+    const message = TransactionMessageData.getRevokeCertificateMsg(address, certificate.serial);
+    const response = await signAndBroadcastTx([message]);
+    if (response) {
+      const validCerts = await loadValidCertificates();
+      const isRevokingOtherCert = validCerts.some(c => c.parsed === localCert?.certPem);
+      updateWallet(address, wallet => {
+        return {
+          ...wallet,
+          cert: isRevokingOtherCert ? wallet.cert : undefined,
+          certKey: isRevokingOtherCert ? wallet.certKey : undefined
+        };
+      });
+      if (validCerts?.length > 0 && certificate.serial === selectedCertificate?.serial) {
+        setSelectedCertificate(validCerts[0]);
+      } else if (validCerts?.length === 0) {
+        setSelectedCertificate(null);
       }
-    } catch (error) {
-      throw error;
+
+      event(AnalyticsEvents.REVOKE_CERTIFICATE, {
+        category: "certificates",
+        label: "Revoked certificate"
+      });
     }
   };
 
@@ -284,29 +280,25 @@ export const CertificateProvider = ({ children }) => {
    * Revoke all certificates
    */
   const revokeAllCertificates = async () => {
-    try {
-      const messages = validCertificates.map(cert => TransactionMessageData.getRevokeCertificateMsg(address, cert.serial));
-      const response = await signAndBroadcastTx(messages);
-      if (response) {
-        await loadValidCertificates();
+    const messages = validCertificates.map(cert => TransactionMessageData.getRevokeCertificateMsg(address, cert.serial));
+    const response = await signAndBroadcastTx(messages);
+    if (response) {
+      await loadValidCertificates();
 
-        updateWallet(address, wallet => {
-          return {
-            ...wallet,
-            cert: undefined,
-            certKey: undefined
-          };
-        });
+      updateWallet(address, wallet => {
+        return {
+          ...wallet,
+          cert: undefined,
+          certKey: undefined
+        };
+      });
 
-        setSelectedCertificate(null);
+      setSelectedCertificate(null);
 
-        event(AnalyticsEvents.REVOKE_ALL_CERTIFICATE, {
-          category: "certificates",
-          label: "Revoked all certificates"
-        });
-      }
-    } catch (error) {
-      throw error;
+      event(AnalyticsEvents.REVOKE_ALL_CERTIFICATE, {
+        category: "certificates",
+        label: "Revoked all certificates"
+      });
     }
   };
 

@@ -11,7 +11,7 @@ export function nFormatter(num: number, digits: number) {
     { value: 1e18, symbol: "E" }
   ];
   const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
-  var item = lookup
+  const item = lookup
     .slice()
     .reverse()
     .find(function (item) {
@@ -34,7 +34,7 @@ export function randomInteger(min: number, max: number) {
 }
 
 export function roundDecimal(value: number, precision = 2) {
-  var multiplier = Math.pow(10, precision || 0);
+  const multiplier = Math.pow(10, precision || 0);
   return Math.round((value + Number.EPSILON) * multiplier) / multiplier;
 }
 

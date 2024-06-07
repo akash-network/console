@@ -1,7 +1,8 @@
-import routeStore from "@src/store/routeStore";
 import { useAtom } from "jotai";
 import { useRouter } from "next/router";
 import { useEffectOnce } from "usehooks-ts";
+
+import routeStore from "@src/store/routeStore";
 
 export const usePreviousRoute = () => {
   const router = useRouter();

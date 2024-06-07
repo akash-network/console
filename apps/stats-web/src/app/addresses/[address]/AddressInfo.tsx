@@ -1,15 +1,16 @@
 "use client";
-import { AddressDetail } from "@/types";
+import React from "react";
+import { QrCode } from "iconoir-react";
+import { useQRCode } from "next-qrcode";
+
+import { Address } from "@/components/Address";
+import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";
 import { Card, CardContent } from "@/components/ui/card";
-import { AKTAmount } from "@/components/AKTAmount";
-import React from "react";
-import { useQRCode } from "next-qrcode";
-import { customColors } from "@/lib/colors";
-import { QrCode } from "iconoir-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Address } from "@/components/Address";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { customColors } from "@/lib/colors";
+import { AddressDetail } from "@/types";
 
 interface IProps {
   address: string;

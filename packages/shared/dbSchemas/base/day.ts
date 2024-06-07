@@ -1,7 +1,8 @@
-import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 import { DataTypes, UUIDV4 } from "sequelize";
-import { Block } from "./block";
+import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
+
 import { Required } from "../decorators/requiredDecorator";
+import { Block } from "./block";
 
 @Table({
   modelName: "day",

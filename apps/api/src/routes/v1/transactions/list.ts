@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { getTransactions } from "@src/services/db/transactionsService";
 
 const defaultLimit = 20;
@@ -66,7 +67,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const limit = parseInt(c.req.query("limit"));
 
   if (isNaN(limit)) {

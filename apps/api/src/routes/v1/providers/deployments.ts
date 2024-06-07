@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { getProviderDeployments, getProviderDeploymentsCount } from "@src/services/db/deploymentService";
 import { openApiExampleProviderAddress } from "@src/utils/constants";
 
@@ -90,7 +91,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const skip = parseInt(c.req.valid("param").skip);
   const limit = Math.min(maxLimit, parseInt(c.req.valid("param").limit));
   const statusParam = c.req.query("status") as "active" | "closed" | undefined;

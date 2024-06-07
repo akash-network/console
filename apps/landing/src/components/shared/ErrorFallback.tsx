@@ -1,16 +1,16 @@
+import { ReactNode } from "react";
+import { FallbackProps } from "react-error-boundary";
 import Alert from "@mui/material/Alert";
 import AlertTitle from "@mui/material/AlertTitle";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
-import { ReactNode } from "react";
-import { FallbackProps } from "react-error-boundary";
 
 interface Props extends FallbackProps {
   children?: ReactNode;
 }
 
-const useStyles = makeStyles()(theme => ({
+const useStyles = makeStyles()(() => ({
   root: {
     width: "100%",
     height: "100%",

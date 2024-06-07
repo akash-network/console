@@ -1,8 +1,9 @@
-import { Column, HasMany, BelongsTo, Model, PrimaryKey, Table, Default } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
+import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
+
+import { Required } from "../decorators/requiredDecorator";
 import { ProviderAttribute } from "./providerAttribute";
 import { ProviderAttributeSignature } from "./providerAttributeSignature";
-import { Required } from "../decorators/requiredDecorator";
 import { ProviderSnapshot } from "./providerSnapshot";
 
 @Table({

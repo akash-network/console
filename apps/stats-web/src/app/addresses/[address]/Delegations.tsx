@@ -1,11 +1,12 @@
 "use client";
+import { SearchX } from "lucide-react";
+import Link from "next/link";
+
 import { AKTAmount } from "@/components/AKTAmount";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getShortText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";
 import { IDelegationDetail } from "@/types";
-import Link from "next/link";
-import { SearchX } from "lucide-react";
 
 type Props = {
   delegations: IDelegationDetail[];

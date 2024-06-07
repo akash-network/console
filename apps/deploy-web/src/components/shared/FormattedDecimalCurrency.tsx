@@ -1,6 +1,6 @@
 "use client";
-import { FormattedNumberParts } from "react-intl";
 import React from "react";
+import { FormattedNumberParts } from "react-intl";
 
 type Props = {
   value: number;

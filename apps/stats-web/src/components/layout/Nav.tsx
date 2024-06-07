@@ -1,12 +1,14 @@
 "use client";
+import { Discord, Github, Rocket, X as TwitterX } from "iconoir-react";
+import Link from "next/link";
+
+import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import { ModeToggle } from "../ModeToggle";
 import { Button } from "../ui/button";
-import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
-import Link from "next/link";
-import NetworkSelect from "./NetworkSelect";
-import useCookieTheme from "@/hooks/useTheme";
 import { MobileNav } from "./MobileNav";
-import { Github, X as TwitterX, Rocket, Discord } from "iconoir-react";
+import NetworkSelect from "./NetworkSelect";
+
+import useCookieTheme from "@/hooks/useTheme";
 
 export const Nav = () => {
   const theme = useCookieTheme();

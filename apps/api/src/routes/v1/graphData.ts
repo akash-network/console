@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { AuthorizedGraphDataNames, getGraphData, isValidGraphDataName } from "@src/services/db/statsService";
 
 const route = createRoute({
@@ -34,7 +35,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const dataName = c.req.valid("param").dataName;
 
   if (!isValidGraphDataName(dataName)) {

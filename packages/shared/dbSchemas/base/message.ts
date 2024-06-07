@@ -1,9 +1,10 @@
-import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 import { DataTypes, UUIDV4 } from "sequelize";
-import { Transaction } from "./transaction";
-import { Block } from "./block";
-import { AddressReference } from "./addressReference";
+import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
+
 import { Required } from "../decorators/requiredDecorator";
+import { AddressReference } from "./addressReference";
+import { Block } from "./block";
+import { Transaction } from "./transaction";
 
 export const tableConfig = {
   modelName: "message",

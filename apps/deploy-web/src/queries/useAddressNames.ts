@@ -1,7 +1,8 @@
-import { UseQueryOptions, useQuery, QueryKey, useMutation, useQueryClient } from "react-query";
+import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions } from "react-query";
 import axios from "axios";
-import { QueryKeys } from "./queryKeys";
+
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { QueryKeys } from "./queryKeys";
 
 type AddressNamesType = { [key: string]: string };
 

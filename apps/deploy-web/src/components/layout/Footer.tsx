@@ -1,7 +1,8 @@
 import React from "react";
-import { UrlService } from "@src/utils/urlUtils";
+import { Copyright, Discord, Github, X as TwitterX, Youtube } from "iconoir-react";
 import Link from "next/link";
-import { Copyright, Youtube, X as TwitterX, Github, Discord } from "iconoir-react";
+
+import { UrlService } from "@src/utils/urlUtils";
 import { Title } from "../shared/Title";
 
 export interface IFooterProps {}
@@ -92,7 +93,7 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
             </div>
           </div>
 
-          <p className="text-balance flex items-center text-center text-sm leading-loose text-muted-foreground md:text-left">
+          <p className="flex items-center text-balance text-center text-sm leading-loose text-muted-foreground md:text-left">
             <Copyright className="text-xs" />
             &nbsp;Akash Network {year}
           </p>

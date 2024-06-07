@@ -23,11 +23,11 @@ export const burningGradientStyle = {
 };
 
 export function HSLToHex(_hsl: string) {
-  let sep = _hsl.indexOf(",") > -1 ? "," : " ";
-  let hsl = _hsl.substring(4).split(")")[0].split(sep);
+  const sep = _hsl.indexOf(",") > -1 ? "," : " ";
+  const hsl = _hsl.substring(4).split(")")[0].split(sep);
 
-  let hString: string = hsl[0],
-    h = parseInt(hsl[0]),
+  const hString: string = hsl[0];
+  let h = parseInt(hsl[0]),
     s = parseInt(hsl[1].substring(0, hsl[1].length - 1)) / 100,
     l = parseInt(hsl[2].substring(0, hsl[2].length - 1)) / 100;
 
@@ -40,10 +40,10 @@ export function HSLToHex(_hsl: string) {
   s /= 100;
   l /= 100;
 
-  let c = (1 - Math.abs(2 * l - 1)) * s,
+  const c = (1 - Math.abs(2 * l - 1)) * s,
     x = c * (1 - Math.abs(((h / 60) % 2) - 1)),
-    m = l - c / 2,
-    r: string | number = 0,
+    m = l - c / 2;
+  let r: string | number = 0,
     g: string | number = 0,
     b: string | number = 0;
 

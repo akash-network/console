@@ -1,10 +1,12 @@
 "use client";
-import { Card, CardContent } from "@/components/ui/card";
 import React, { useState } from "react";
-import { useAddressTransactions } from "@/queries";
 import { SearchX } from "lucide-react";
-import { DataTable } from "@/components/table/data-table";
+
 import { columns } from "./columns";
+
+import { DataTable } from "@/components/table/data-table";
+import { Card, CardContent } from "@/components/ui/card";
+import { useAddressTransactions } from "@/queries";
 
 interface IProps {
   address: string;

@@ -1,17 +1,18 @@
 "use client";
+import { ReactNode } from "react";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import isValid from "date-fns/isValid";
-import { getAvgCostPerMonth, useRealTimeLeft } from "@src/utils/priceUtils";
-import { ReactNode } from "react";
+import { InfoCircle, WarningCircle } from "iconoir-react";
+
+import { CustomTooltip } from "@src/components/shared/CustomTooltip";
+import { LabelValue } from "@src/components/shared/LabelValue";
+import { PricePerMonth } from "@src/components/shared/PricePerMonth";
+import { PriceValue } from "@src/components/shared/PriceValue";
+import { StatusPill } from "@src/components/shared/StatusPill";
+import { useDenomData } from "@src/hooks/useWalletBalance";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { useDenomData } from "@src/hooks/useWalletBalance";
-import { LabelValue } from "@src/components/shared/LabelValue";
-import { PriceValue } from "@src/components/shared/PriceValue";
-import { CustomTooltip } from "@src/components/shared/CustomTooltip";
-import { PricePerMonth } from "@src/components/shared/PricePerMonth";
-import { StatusPill } from "@src/components/shared/StatusPill";
-import { InfoCircle, WarningCircle } from "iconoir-react";
+import { getAvgCostPerMonth, useRealTimeLeft } from "@src/utils/priceUtils";
 
 type Props = {
   deployment: DeploymentDto;

@@ -1,11 +1,12 @@
-import { useWallet } from "@src/context/WalletProvider";
+import { useEffect, useState } from "react";
+
+import { useChainParam } from "@src/context/ChainParamProvider";
 import { usePricing } from "@src/context/PricingProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { txFeeBuffer, uAktDenom } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
-import { useEffect, useState } from "react";
 import { useUsdcDenom } from "./useDenom";
-import { useChainParam } from "@src/context/ChainParamProvider";
 
 export const useTotalWalletBalance = () => {
   const { isLoaded, price } = usePricing();

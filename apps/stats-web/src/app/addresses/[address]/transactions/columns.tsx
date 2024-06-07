@@ -1,14 +1,16 @@
 "use client";
 
-import { DataTableColumnHeader } from "@/components/table/data-table-column-header";
-import { UrlService } from "@/lib/urlUtils";
+import { FormattedRelativeTime } from "react-intl";
 import { AccessorColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { getSplitText } from "@/hooks/useShortText";
-import { AKTAmount } from "@/components/AKTAmount";
-import { FormattedRelativeTime } from "react-intl";
-import { TransactionRowType } from "@/lib/zod/transactionRow";
+
 import { TransactionTypeCell } from "./TransactionTypeCell";
+
+import { AKTAmount } from "@/components/AKTAmount";
+import { DataTableColumnHeader } from "@/components/table/data-table-column-header";
+import { getSplitText } from "@/hooks/useShortText";
+import { UrlService } from "@/lib/urlUtils";
+import { TransactionRowType } from "@/lib/zod/transactionRow";
 
 export const columns: AccessorColumnDef<TransactionRowType>[] = [
   {

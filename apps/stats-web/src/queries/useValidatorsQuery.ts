@@ -1,8 +1,10 @@
-import { UseQueryOptions, useQuery, QueryKey } from "react-query";
+import { QueryKey, useQuery, UseQueryOptions } from "react-query";
 import axios from "axios";
+
 import { QueryKeys } from "./queryKeys";
-import { ValidatorSummaryDetail } from "@/types";
+
 import { ApiUrlService } from "@/lib/apiUtils";
+import { ValidatorSummaryDetail } from "@/types";
 
 async function getValidators(): Promise<ValidatorSummaryDetail[]> {
   const response = await axios.get(ApiUrlService.validators());

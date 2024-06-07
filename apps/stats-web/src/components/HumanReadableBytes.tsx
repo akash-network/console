@@ -1,7 +1,8 @@
 "use client";
-import { bytesToShrink } from "@/lib/unitUtils";
 import React from "react";
 import { FormattedNumber } from "react-intl";
+
+import { bytesToShrink } from "@/lib/unitUtils";
 
 export interface HumanReadableBytesProps {
   value: number;
@@ -15,7 +16,7 @@ export const HumanReadableBytes: React.FunctionComponent<HumanReadableBytesProps
   return (
     <>
       <FormattedNumber value={result.value} maximumFractionDigits={2} />
-      <span className="text-sm pl-2">{result.unit}</span>
+      <span className="pl-2 text-sm">{result.unit}</span>
     </>
   );
 };

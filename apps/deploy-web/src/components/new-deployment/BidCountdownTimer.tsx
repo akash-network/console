@@ -1,11 +1,12 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useBlock } from "@src/queries/useBlocksQuery";
 import { differenceInSeconds } from "date-fns";
+import { InfoCircle } from "iconoir-react";
+
+import { useBlock } from "@src/queries/useBlocksQuery";
+import { cn } from "@src/utils/styleUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { Badge } from "../ui/badge";
-import { InfoCircle } from "iconoir-react";
-import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   height: string | null;

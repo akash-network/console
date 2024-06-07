@@ -1,17 +1,18 @@
 "use client";
 import { useEffect, useState } from "react";
-import { BidRow } from "./BidRow";
-import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploymentDetailUtils";
-import { LabelValueOld } from "../shared/LabelValueOld";
-import { SpecDetail } from "../shared/SpecDetail";
+import { Check } from "iconoir-react";
+
+import { useSettings } from "@src/context/SettingsProvider";
 import { BidDto, DeploymentDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
-import { useSettings } from "@src/context/SettingsProvider";
 import { mainnetId } from "@src/utils/constants";
+import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploymentDetailUtils";
 import { FormPaper } from "../sdl/FormPaper";
+import { LabelValueOld } from "../shared/LabelValueOld";
+import { SpecDetail } from "../shared/SpecDetail";
 import { Alert } from "../ui/alert";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../ui/table";
-import { Check } from "iconoir-react";
+import { BidRow } from "./BidRow";
 
 type Props = {
   bids: Array<BidDto>;

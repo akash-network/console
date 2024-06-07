@@ -1,6 +1,7 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import { getPredictedBlockDate } from "@src/services/db/blocksService";
+import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "zod";
+
+import { getPredictedBlockDate } from "@src/services/db/blocksService";
 
 const defaultBlockWindow = 10_000;
 
@@ -52,7 +53,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const height = parseInt(c.req.valid("param").height);
   const blockWindow = c.req.valid("query").blockWindow ? parseInt(c.req.valid("query").blockWindow) : defaultBlockWindow;
 

@@ -1,14 +1,15 @@
 "use client";
 import React, { ReactNode, useState } from "react";
-import { useAddFavoriteTemplate, useRemoveFavoriteTemplate } from "@src/queries/useTemplateQuery";
-import { useCustomUser } from "@src/hooks/useCustomUser";
-import { MustConnectModal } from "./MustConnectModal";
-import { Button } from "../ui/button";
-import Spinner from "./Spinner";
 import { MdStar, MdStarOutline } from "react-icons/md";
-import { cn } from "@src/utils/styleUtils";
 import { useSnackbar } from "notistack";
+
+import { useCustomUser } from "@src/hooks/useCustomUser";
+import { useAddFavoriteTemplate, useRemoveFavoriteTemplate } from "@src/queries/useTemplateQuery";
+import { cn } from "@src/utils/styleUtils";
+import { Button } from "../ui/button";
+import { MustConnectModal } from "./MustConnectModal";
 import { Snackbar } from "./Snackbar";
+import Spinner from "./Spinner";
 
 type Props = {
   id: string;

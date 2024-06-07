@@ -1,19 +1,20 @@
 "use client";
 import { ReactNode, useState } from "react";
 import { Control } from "react-hook-form";
+
 import { RentGpusFormValues, Service } from "@src/types";
+import { cn } from "@src/utils/styleUtils";
 import { ExpandMore } from "../shared/ExpandMore";
-import { EnvFormModal } from "./EnvFormModal";
+import { Button } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { CommandFormModal } from "./CommandFormModal";
-import { ExposeFormModal } from "./ExposeFormModal";
-import { EnvVarList } from "./EnvVarList";
 import { CommandList } from "./CommandList";
+import { EnvFormModal } from "./EnvFormModal";
+import { EnvVarList } from "./EnvVarList";
+import { ExposeFormModal } from "./ExposeFormModal";
 import { ExposeList } from "./ExposeList";
 import { PersistentStorage } from "./PersistentStorage";
-import { Card, CardContent } from "../ui/card";
-import { Button } from "../ui/button";
-import { cn } from "@src/utils/styleUtils";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 
 type Props = {
   currentService: Service;

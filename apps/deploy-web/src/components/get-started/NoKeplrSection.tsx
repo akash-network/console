@@ -1,19 +1,18 @@
 "use client";
 import React, { useState } from "react";
+import { NavArrowLeft } from "iconoir-react";
 import Link from "next/link";
+
+import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
-import { CreateWalletSection } from "./CreateWalletSection";
 import { LinkTo } from "../shared/LinkTo";
 import { Alert } from "../ui/alert";
-import { NavArrowLeft } from "iconoir-react";
-import { cn } from "@src/utils/styleUtils";
 import { buttonVariants } from "../ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import { CreateWalletSection } from "./CreateWalletSection";
 
-type Props = {};
-
-export const NoKeplrSection: React.FunctionComponent<Props> = ({}) => {
+export const NoKeplrSection: React.FunctionComponent = () => {
   const [isCreateWalletOpen, setIsCreateWalletOpen] = useState(false);
 
   return (

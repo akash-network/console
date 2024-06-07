@@ -1,10 +1,12 @@
 "use client";
 
-import { FormattedNumber } from "react-intl";
 import { ReactNode } from "react";
+import { FormattedNumber } from "react-intl";
+
+import Spinner from "./Spinner";
+
 import { usePricing } from "@/context/PricingProvider";
 import { ceilDecimal } from "@/lib/mathHelpers";
-import Spinner from "./Spinner";
 
 type Props = {
   denom: string;

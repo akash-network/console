@@ -5,21 +5,21 @@ export const getDayStr = (date?: Date) => {
 };
 
 export function getTodayUTC() {
-  let currentDate = toUTC(new Date());
+  const currentDate = toUTC(new Date());
   currentDate.setUTCHours(0, 0, 0, 0);
 
   return currentDate;
 }
 
 export function startOfDay(date: Date) {
-  let currentDate = toUTC(date);
+  const currentDate = toUTC(date);
   currentDate.setUTCHours(0, 0, 0, 0);
 
   return currentDate;
 }
 
 export function endOfDay(date: Date) {
-  let currentDate = toUTC(date);
+  const currentDate = toUTC(date);
   currentDate.setUTCHours(23, 59, 59, 999);
 
   return currentDate;

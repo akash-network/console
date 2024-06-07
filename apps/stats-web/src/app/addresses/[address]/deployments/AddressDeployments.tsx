@@ -1,11 +1,13 @@
 "use client";
 import React, { useState } from "react";
-import { useAddressDeployments } from "@/queries";
-import { DataTable } from "@/components/table/data-table";
-import { columns } from "./columns";
 import { ColumnFiltersState, SortingState } from "@tanstack/table-core";
-import { Card, CardContent } from "@/components/ui/card";
 import { SearchX } from "lucide-react";
+
+import { columns } from "./columns";
+
+import { DataTable } from "@/components/table/data-table";
+import { Card, CardContent } from "@/components/ui/card";
+import { useAddressDeployments } from "@/queries";
 
 interface IProps {
   address: string;

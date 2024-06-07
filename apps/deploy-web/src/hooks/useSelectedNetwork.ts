@@ -1,5 +1,6 @@
-import { useEffectOnce } from "usehooks-ts";
 import { useAtom } from "jotai";
+import { useEffectOnce } from "usehooks-ts";
+
 import networkStore, { networks } from "@src/store/networkStore";
 import { mainnetId } from "@src/utils/constants";
 

@@ -1,10 +1,11 @@
+import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import fs from "fs";
+import { ungzip } from "node-gzip";
+import path from "path";
+
+import { dataFolderPath } from "@src/shared/constants";
 import { download } from "@src/shared/utils/download";
 import { IGenesis } from "./genesisTypes";
-import { dataFolderPath } from "@src/shared/constants";
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import path from "path";
-import { ungzip } from "node-gzip";
 
 export async function getGenesis(): Promise<IGenesis> {
   const ext = path.extname(activeChain.genesisFileUrl);

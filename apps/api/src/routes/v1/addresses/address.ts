@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { getAddressBalance } from "@src/services/external/apiNodeService";
 import { isValidBech32Address } from "@src/utils/addresses";
 import { openApiExampleAddress } from "@src/utils/constants";
@@ -99,7 +100,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   if (!isValidBech32Address(c.req.valid("param").address, "akash")) {
     return c.text("Invalid address", 400);
   }

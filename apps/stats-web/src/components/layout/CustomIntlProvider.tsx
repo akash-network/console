@@ -3,13 +3,10 @@ import { ReactNode, useEffect, useState } from "react";
 import { IntlProvider } from "react-intl";
 
 type Props = {
-  isLoading?: boolean;
-  isUsingSettings?: boolean;
-  isUsingWallet?: boolean;
   children?: ReactNode;
 };
 
-export const CustomIntlProvider: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet }) => {
+export const CustomIntlProvider: React.FunctionComponent<Props> = ({ children }) => {
   const [locale, setLocale] = useState("en-US");
 
   useEffect(() => {

@@ -1,5 +1,6 @@
-import { Expose, ProfileGpuModel, Service } from "@src/types";
 import yaml from "js-yaml";
+
+import { Expose, ProfileGpuModel, Service } from "@src/types";
 import { defaultHttpOptions } from "./data";
 
 export const generateSdl = (services: Service[], region?: string) => {

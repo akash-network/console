@@ -1,25 +1,26 @@
 "use client";
-import { useState, useEffect, useRef, HTMLInputTypeAttribute } from "react";
-import { useWallet } from "@src/context/WalletProvider";
-import { ApiProviderDetail } from "@src/types/provider";
+import { HTMLInputTypeAttribute, useEffect, useRef, useState } from "react";
 import { Control, Controller, FieldPath, RegisterOptions, useFieldArray, useForm } from "react-hook-form";
-import { ProviderAttributeSchemaDetailValue, ProviderAttributesFormValues, ProviderAttributesSchema } from "@src/types/providerAttributes";
-import { defaultProviderAttributes } from "@src/utils/providerAttributes/data";
-import { CustomTooltip } from "@src/components/shared/CustomTooltip";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { getUnknownAttributes, mapFormValuesToAttributes } from "@src/utils/providerAttributes/helpers";
+import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
+
 import { FormPaper } from "@src/components/sdl/FormPaper";
+import { CustomTooltip } from "@src/components/shared/CustomTooltip";
 import { Alert } from "@src/components/ui/alert";
 import { Button } from "@src/components/ui/button";
-import { InputWithIcon } from "@src/components/ui/input";
-import { Bin, InfoCircle } from "iconoir-react";
 import { CheckboxWithLabel } from "@src/components/ui/checkbox";
-import { cn } from "@src/utils/styleUtils";
-import MultipleSelector, { Option } from "@src/components/ui/multiple-selector";
-import { Label } from "@src/components/ui/label";
 import { FormItem } from "@src/components/ui/form";
+import { InputWithIcon } from "@src/components/ui/input";
+import { Label } from "@src/components/ui/label";
+import MultipleSelector, { Option } from "@src/components/ui/multiple-selector";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
+import { useWallet } from "@src/context/WalletProvider";
+import { ApiProviderDetail } from "@src/types/provider";
+import { ProviderAttributeSchemaDetailValue, ProviderAttributesFormValues, ProviderAttributesSchema } from "@src/types/providerAttributes";
+import { defaultProviderAttributes } from "@src/utils/providerAttributes/data";
+import { getUnknownAttributes, mapFormValuesToAttributes } from "@src/utils/providerAttributes/helpers";
+import { cn } from "@src/utils/styleUtils";
+import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 
 type Props = {
   provider: Partial<ApiProviderDetail>;
@@ -31,7 +32,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
   const [error, setError] = useState(null);
   const formRef = useRef<HTMLFormElement>(null);
   const { signAndBroadcastTx } = useWallet();
-  const { handleSubmit, reset, control, trigger, watch, setValue, formState } = useForm<ProviderAttributesFormValues>({
+  const { handleSubmit, control, watch, setValue, formState } = useForm<ProviderAttributesFormValues>({
     defaultValues: {
       ...defaultProviderAttributes
     }
@@ -127,21 +128,15 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
   const onSubmit = async (data: ProviderAttributesFormValues) => {
     setError(null);
 
-    debugger;
-
     try {
       const attributes = mapFormValuesToAttributes(data, providerAttributesSchema);
       console.log(data, attributes);
 
-      try {
-        const message = TransactionMessageData.getUpdateProviderMsg(provider?.owner || "", data["host-uri"], attributes, {
-          email: data.email,
-          website: data.website
-        });
-        await signAndBroadcastTx([message]);
-      } catch (error) {
-        throw error;
-      }
+      const message = TransactionMessageData.getUpdateProviderMsg(provider?.owner || "", data["host-uri"], attributes, {
+        email: data.email,
+        website: data.website
+      });
+      await signAndBroadcastTx([message]);
     } catch (error) {
       setError(error.message);
     }
@@ -687,7 +682,7 @@ const ProviderSelect: React.FunctionComponent<ProviderSelectProps> = ({
       rules={{
         required: required ? requiredMessage : undefined
       }}
-      render={({ field, fieldState }) => (
+      render={({ field }) => (
         <FormItem className={cn("w-full", className)}>
           <Label className="flex items-center">
             {label}

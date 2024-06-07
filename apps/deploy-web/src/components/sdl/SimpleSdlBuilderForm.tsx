@@ -1,41 +1,40 @@
 "use client";
-import { useForm, useFieldArray } from "react-hook-form";
 import { useEffect, useRef, useState } from "react";
-import { nanoid } from "nanoid";
-import { ITemplate, SdlBuilderFormValues, Service } from "@src/types";
-import { generateSdl } from "@src/utils/sdl/sdlGenerator";
-import { defaultService } from "@src/utils/sdl/data";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useFieldArray, useForm } from "react-hook-form";
 import axios from "axios";
-import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
-import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
-import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
-import sdlStore from "@src/store/sdlStore";
-import { RouteStepKeys } from "@src/utils/constants";
-import { useAtom } from "jotai";
-import { useGpuModels } from "@src/queries/useGpuQuery";
-import { memoryUnits, storageUnits } from "@src/components/shared/akash/units";
-import { SimpleServiceFormControl } from "@src/components/sdl/SimpleServiceFormControl";
-import { Button } from "@src/components/ui/button";
-import { Alert } from "@src/components/ui/alert";
-import Spinner from "@src/components/shared/Spinner";
 import { NavArrowRight } from "iconoir-react";
+import { useAtom } from "jotai";
+import { nanoid } from "nanoid";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { event } from "nextjs-google-analytics";
+import { useSnackbar } from "notistack";
+
+import { SimpleServiceFormControl } from "@src/components/sdl/SimpleServiceFormControl";
+import { memoryUnits, storageUnits } from "@src/components/shared/akash/units";
+import Spinner from "@src/components/shared/Spinner";
+import { Alert } from "@src/components/ui/alert";
+import { Button } from "@src/components/ui/button";
+import useFormPersist from "@src/hooks/useFormPersist";
+import { useGpuModels } from "@src/queries/useGpuQuery";
+import sdlStore from "@src/store/sdlStore";
+import { ITemplate, SdlBuilderFormValues, Service } from "@src/types";
+import { AnalyticsEvents } from "@src/utils/analytics";
+import { RouteStepKeys } from "@src/utils/constants";
+import { defaultService } from "@src/utils/sdl/data";
+import { generateSdl } from "@src/utils/sdl/sdlGenerator";
+import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
+import { UrlService } from "@src/utils/urlUtils";
+import { Snackbar } from "../shared/Snackbar";
 import { ImportSdlModal } from "./ImportSdlModal";
 import { PreviewSdl } from "./PreviewSdl";
 import { SaveTemplateModal } from "./SaveTemplateModal";
-import { useSnackbar } from "notistack";
-import { Snackbar } from "../shared/Snackbar";
-import useFormPersist from "@src/hooks/useFormPersist";
-
-type Props = {};
 
 const DEFAULT_SERVICES = {
   services: [{ ...defaultService }]
 };
 
-export const SimpleSDLBuilderForm: React.FunctionComponent<Props> = ({}) => {
+export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
   const [error, setError] = useState(null);
   const [templateMetadata, setTemplateMetadata] = useState<ITemplate | null>(null);
   const [serviceCollapsed, setServiceCollapsed] = useState<number[]>([]);

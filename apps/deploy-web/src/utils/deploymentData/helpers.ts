@@ -1,7 +1,7 @@
-import axios from "axios";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
 import { v2Sdl } from "@akashnetwork/akashjs/build/sdl/types";
 import { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import axios from "axios";
 
 export class CustomValidationError extends Error {
   constructor(message) {

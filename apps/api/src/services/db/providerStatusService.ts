@@ -6,13 +6,14 @@ import {
   ProviderSnapshotNodeGPU
 } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
 import { ProviderSnapshot } from "@akashnetwork/cloudmos-shared/dbSchemas/akash/providerSnapshot";
-import { toUTC } from "@src/utils";
 import { add, sub } from "date-fns";
 import { Op } from "sequelize";
+
+import { ProviderDetail } from "@src/types/provider";
+import { toUTC } from "@src/utils";
+import { env } from "@src/utils/env";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { getAuditors, getProviderAttributesSchema } from "../external/githubService";
-import { ProviderDetail } from "@src/types/provider";
-import { env } from "@src/utils/env";
 
 export async function getNetworkCapacity() {
   const providers = await Provider.findAll({
@@ -30,23 +31,23 @@ export async function getNetworkCapacity() {
   });
 
   const filteredProviders = providers
-    .filter((x) => x.isOnline || x.lastSuccessfulSnapshot)
-    .filter((value, index, self) => self.map((x) => x.hostUri).indexOf(value.hostUri) === index);
+    .filter(x => x.isOnline || x.lastSuccessfulSnapshot)
+    .filter((value, index, self) => self.map(x => x.hostUri).indexOf(value.hostUri) === index);
 
   const stats = {
     activeProviderCount: filteredProviders.length,
-    activeCPU: filteredProviders.map((x) => x.activeCPU).reduce((a, b) => a + b, 0),
-    activeGPU: filteredProviders.map((x) => x.activeGPU).reduce((a, b) => a + b, 0),
-    activeMemory: filteredProviders.map((x) => x.activeMemory).reduce((a, b) => a + b, 0),
-    activeStorage: filteredProviders.map((x) => x.activeStorage).reduce((a, b) => a + b, 0),
-    pendingCPU: filteredProviders.map((x) => x.pendingCPU).reduce((a, b) => a + b, 0),
-    pendingGPU: filteredProviders.map((x) => x.pendingGPU).reduce((a, b) => a + b, 0),
-    pendingMemory: filteredProviders.map((x) => x.pendingMemory).reduce((a, b) => a + b, 0),
-    pendingStorage: filteredProviders.map((x) => x.pendingStorage).reduce((a, b) => a + b, 0),
-    availableCPU: filteredProviders.map((x) => x.availableCPU).reduce((a, b) => a + b, 0),
-    availableGPU: filteredProviders.map((x) => x.availableGPU).reduce((a, b) => a + b, 0),
-    availableMemory: filteredProviders.map((x) => x.availableMemory).reduce((a, b) => a + b, 0),
-    availableStorage: filteredProviders.map((x) => x.availableStorage).reduce((a, b) => a + b, 0)
+    activeCPU: filteredProviders.map(x => x.activeCPU).reduce((a, b) => a + b, 0),
+    activeGPU: filteredProviders.map(x => x.activeGPU).reduce((a, b) => a + b, 0),
+    activeMemory: filteredProviders.map(x => x.activeMemory).reduce((a, b) => a + b, 0),
+    activeStorage: filteredProviders.map(x => x.activeStorage).reduce((a, b) => a + b, 0),
+    pendingCPU: filteredProviders.map(x => x.pendingCPU).reduce((a, b) => a + b, 0),
+    pendingGPU: filteredProviders.map(x => x.pendingGPU).reduce((a, b) => a + b, 0),
+    pendingMemory: filteredProviders.map(x => x.pendingMemory).reduce((a, b) => a + b, 0),
+    pendingStorage: filteredProviders.map(x => x.pendingStorage).reduce((a, b) => a + b, 0),
+    availableCPU: filteredProviders.map(x => x.availableCPU).reduce((a, b) => a + b, 0),
+    availableGPU: filteredProviders.map(x => x.availableGPU).reduce((a, b) => a + b, 0),
+    availableMemory: filteredProviders.map(x => x.availableMemory).reduce((a, b) => a + b, 0),
+    availableStorage: filteredProviders.map(x => x.availableStorage).reduce((a, b) => a + b, 0)
   };
 
   return {
@@ -97,14 +98,14 @@ export const getProviderList = async () => {
     ]
   });
 
-  const distinctProviders = providersWithAttributesAndAuditors.filter((value, index, self) => self.map((x) => x.hostUri).lastIndexOf(value.hostUri) === index);
+  const distinctProviders = providersWithAttributesAndAuditors.filter((value, index, self) => self.map(x => x.hostUri).lastIndexOf(value.hostUri) === index);
   const providerAttributeSchemaQuery = getProviderAttributesSchema();
   const auditorsQuery = getAuditors();
 
   const [auditors, providerAttributeSchema] = await Promise.all([auditorsQuery, providerAttributeSchemaQuery]);
 
-  return distinctProviders.map((x) => {
-    const lastSuccessfulSnapshot = providerWithNodes.find((p) => p.owner === x.owner)?.lastSuccessfulSnapshot;
+  return distinctProviders.map(x => {
+    const lastSuccessfulSnapshot = providerWithNodes.find(p => p.owner === x.owner)?.lastSuccessfulSnapshot;
     return mapProviderToList(x, providerAttributeSchema, auditors, lastSuccessfulSnapshot);
   });
 };
@@ -160,7 +161,7 @@ export const getProviderDetail = async (address: string): Promise<ProviderDetail
 
   return {
     ...mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot),
-    uptime: uptimeSnapshots.map((ps) => ({
+    uptime: uptimeSnapshots.map(ps => ({
       id: ps.id,
       isOnline: ps.isOnline,
       checkDate: ps.checkDate

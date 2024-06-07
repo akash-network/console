@@ -1,16 +1,17 @@
 "use client";
 import { useEffect } from "react";
+import { NavArrowLeft } from "iconoir-react";
+import Link from "next/link";
+import { NextSeo } from "next-seo";
+
+import Spinner from "@src/components/shared/Spinner";
+import { buttonVariants } from "@src/components/ui/button";
 import { useProviderAttributesSchema, useProviderDetail } from "@src/queries/useProvidersQuery";
 import { getProviderNameFromUri } from "@src/utils/providerUtils";
-import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
-import { EditProviderForm } from "./EditProviderForm";
-import { buttonVariants } from "@src/components/ui/button";
-import { NavArrowLeft } from "iconoir-react";
 import { cn } from "@src/utils/styleUtils";
-import Spinner from "@src/components/shared/Spinner";
-import { NextSeo } from "next-seo";
+import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
+import { EditProviderForm } from "./EditProviderForm";
 
 type Props = {
   owner: string;

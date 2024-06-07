@@ -1,13 +1,14 @@
 "use client";
-import { ResponsiveLineCanvas } from "@nivo/line";
-import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@src/types";
 import { FormattedDate, useIntl } from "react-intl";
-import { useTheme } from "next-themes";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
-import { nFormatter, roundDecimal } from "@src/utils/mathHelpers";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { ResponsiveLineCanvas } from "@nivo/line";
+import { useTheme } from "next-themes";
+
+import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@src/types";
 import { customColors } from "@src/utils/colors";
 import { selectedRangeValues } from "@src/utils/constants";
-import useMediaQuery from "@mui/material/useMediaQuery";
+import { nFormatter, roundDecimal } from "@src/utils/mathHelpers";
 
 interface IGraphProps {
   rangedData: SnapshotValue[];
@@ -60,13 +61,11 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
           max: maxValue * 1.02
         }}
         yFormat=" >-1d"
-        // @ts-ignore will be fixed in 0.69.1
         axisBottom={{
           tickRotation: smallScreen ? 45 : 0,
           format: dateStr => intl.formatDate(dateStr, { day: "numeric", month: "short", timeZone: "utc" }),
           tickValues: getTickValues(rangedData, graphMetadata.xModulo)
         }}
-        // @ts-ignore will be fixed in 0.69.1
         axisLeft={{
           format: val => nFormatter(val, 2),
           legend: snapshotMetadata.legend,

@@ -89,7 +89,7 @@ export function appendSearchParams(params: { [key: string]: string | number | bo
 
   const res = urlParams.toString();
 
-  return !!res ? `?${res}` : res;
+  return res ? `?${res}` : res;
 }
 
 export function removeEmptyFilters(obj: { [key: string]: string }) {

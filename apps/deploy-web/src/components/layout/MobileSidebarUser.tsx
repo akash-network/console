@@ -1,57 +1,22 @@
 "use client";
-import { ReactNode } from "react";
+import React from "react";
+import { BookStack, LogOut, MediaImageList, Settings } from "iconoir-react";
 import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
+
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { SidebarRouteButton } from "./SidebarRouteButton";
-import { WalletStatus } from "./WalletStatus";
-import { Separator } from "../ui/separator";
+import { cn } from "@src/utils/styleUtils";
+import { UrlService } from "@src/utils/urlUtils";
 import Spinner from "../shared/Spinner";
 import { Avatar } from "../ui/avatar";
-import { BookStack, MediaImageList, Settings, LogOut } from "iconoir-react";
 import { buttonVariants } from "../ui/button";
-import { cn } from "@src/utils/styleUtils";
+import { Separator } from "../ui/separator";
+import { SidebarRouteButton } from "./SidebarRouteButton";
+import { WalletStatus } from "./WalletStatus";
 
-// const useStyles = makeStyles()(theme => ({
-//   list: {
-//     padding: 0,
-//     overflow: "hidden",
-//     width: "100%",
-//     border: "none"
-//   },
-//   listItem: {
-//     padding: "4px 0"
-//   }
-// }));
-
-type Props = {
-  children?: ReactNode;
-};
-
-export const MobileSidebarUser: React.FunctionComponent<Props> = ({}) => {
-  // const { classes } = useStyles();
-  const { user, error, isLoading } = useCustomUser();
+export const MobileSidebarUser: React.FunctionComponent = () => {
+  const { user, isLoading } = useCustomUser();
 
   return (
-    // <ul role="list" className="-mx-2 space-y-1">
-    //       {!!group.title && isNavOpen && (
-    //         <li
-    //         // sx={{ padding: ".5rem 0 .75rem", color: theme.palette.mode === "dark" ? theme.palette.grey[500] : theme.palette.grey[800] }}
-    //         >
-    //           <span
-    //             className="text-sm font-light"
-    //             // variant="body2" sx={{ fontWeight: "light", fontSize: "1rem" }}
-    //           >
-    //             {group.title}
-    //           </span>
-    //         </li>
-    //       )}
-
-    //       {group.routes.map(route => {
-    //         return <SidebarRouteButton key={route.title} route={route} isNavOpen={isNavOpen} />;
-    //       })}
-    //     </ul>
-
     <ul className="w-full overflow-hidden border-0 p-0">
       <Separator />
 

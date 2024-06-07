@@ -1,28 +1,29 @@
 "use client";
-import { useState, useRef, useEffect, ReactNode } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { ReactNode, useEffect, useRef, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import compareAsc from "date-fns/compareAsc";
-import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
-import { uAktDenom } from "@src/utils/constants";
-import { useWallet } from "@src/context/WalletProvider";
-import { LinkTo } from "../shared/LinkTo";
 import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
-import { useGranteeGrants } from "@src/queries/useGrantsQuery";
-import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
-import { Popup } from "../shared/Popup";
-import { useDenomData } from "@src/hooks/useWalletBalance";
+import { useSnackbar } from "notistack";
+
+import { useSettings } from "@src/context/SettingsProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
+import { useDenomData } from "@src/hooks/useWalletBalance";
+import { useGranteeGrants } from "@src/queries/useGrantsQuery";
+import { AnalyticsEvents } from "@src/utils/analytics";
+import { uAktDenom } from "@src/utils/constants";
+import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
+import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
+import { LinkTo } from "../shared/LinkTo";
+import { Popup } from "../shared/Popup";
+import { Snackbar } from "../shared/Snackbar";
 import { Alert } from "../ui/alert";
+import { CheckboxWithLabel } from "../ui/checkbox";
 import { FormItem } from "../ui/form";
 import { InputWithIcon } from "../ui/input";
-import { CheckboxWithLabel } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { useSettings } from "@src/context/SettingsProvider";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
-import { useSnackbar } from "notistack";
-import { Snackbar } from "../shared/Snackbar";
 
 type Props = {
   infoText?: string | ReactNode;
@@ -42,15 +43,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   const { walletBalances, address } = useWallet();
   const { data: granteeGrants } = useGranteeGrants(address);
   const depositData = useDenomData(denom);
-  const {
-    handleSubmit,
-    control,
-    formState: { errors },
-    watch,
-    setValue,
-    clearErrors,
-    unregister
-  } = useForm({
+  const { handleSubmit, control, watch, setValue, clearErrors, unregister } = useForm({
     defaultValues: {
       amount: 0,
       useDepositor: false,
@@ -104,7 +97,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
         return false;
       }
 
-      let spendLimitUDenom = coinToUDenom(grant.authorization.spend_limit);
+      const spendLimitUDenom = coinToUDenom(grant.authorization.spend_limit);
 
       if (depositAmount > spendLimitUDenom) {
         setError(`Spend limit remaining: ${udenomToDenom(spendLimitUDenom)} ${depositData?.label}`);
@@ -255,7 +248,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
             rules={{
               required: true
             }}
-            render={({ fieldState, field }) => {
+            render={({ field }) => {
               return (
                 <FormItem
                   className="mt-2 w-full"

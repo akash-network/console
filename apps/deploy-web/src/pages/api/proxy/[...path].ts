@@ -1,32 +1,33 @@
 import { getSession } from "@auth0/nextjs-auth0";
-import { BASE_API_MAINNET_URL } from "@src/utils/constants";
 import httpProxy from "http-proxy";
 
-export default (req, res) => {
-  return new Promise(async (resolve, reject) => {
-    // removes the api prefix from url
-    req.url = req.url.replace(/^\/api\/proxy/, "");
+import { BASE_API_MAINNET_URL } from "@src/utils/constants";
 
-    console.log("proxy:", req.url);
-    const session = await getSession(req, res);
+export default async (req, res) => {
+  // removes the api prefix from url
+  req.url = req.url.replace(/^\/api\/proxy/, "");
 
-    // don't forwards the cookies to the target server
-    req.headers.cookie = "";
+  console.log("proxy:", req.url);
+  const session = await getSession(req, res);
 
-    if (session?.accessToken) {
-      req.headers.authorization = `Bearer ${session.accessToken}`;
-    }
+  // don't forward the cookies to the target server
+  req.headers.cookie = "";
 
-    const proxy = httpProxy.createProxyServer({
-      changeOrigin: true,
-      target: BASE_API_MAINNET_URL,
-      // headers: {
-      //   "ngrok-skip-browser-warning": "true"
-      // },
-      secure: false,
-      autoRewrite: false
-    });
+  if (session?.accessToken) {
+    req.headers.authorization = `Bearer ${session.accessToken}`;
+  }
 
+  const proxy = httpProxy.createProxyServer({
+    changeOrigin: true,
+    target: BASE_API_MAINNET_URL,
+    // headers: {
+    //   "ngrok-skip-browser-warning": "true"
+    // },
+    secure: false,
+    autoRewrite: false
+  });
+
+  return new Promise((resolve, reject) => {
     proxy
       .once("proxyRes", () => resolve(undefined))
       .once("error", error => {

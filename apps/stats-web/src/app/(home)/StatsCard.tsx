@@ -1,11 +1,11 @@
 "use client";
 import React from "react";
+import { GraphUp, HelpCircle } from "iconoir-react";
 import Link from "next/link";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { HelpCircle, GraphUp } from "iconoir-react";
+
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
-import { DiffNumber } from "@/components/DiffNumber";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface IStatsCardProps {
@@ -19,16 +19,7 @@ interface IStatsCardProps {
   actionButton?: string | React.ReactNode;
 }
 
-export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({
-  number,
-  text,
-  tooltip,
-  actionButton,
-  graphPath,
-  diffNumber,
-  diffPercent,
-  diffNumberUnit
-}) => {
+export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, text, tooltip, actionButton, graphPath, diffNumber, diffPercent }) => {
   return (
     <Card className="flex flex-col justify-between">
       <CardHeader className="flex flex-row items-center space-y-0 pb-2 pl-4 pr-4">

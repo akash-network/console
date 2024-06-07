@@ -1,6 +1,7 @@
 import humanInterval from "human-interval";
-import { getPrettyTime } from "./shared/utils/date";
 import fetch from "node-fetch";
+
+import { getPrettyTime } from "./shared/utils/date";
 
 class TaskDef {
   name: string;
@@ -107,7 +108,7 @@ export class Scheduler {
           pingStartPromise.finally(() => this.healthchecksPingSuccess(runningTask));
         }
       })
-      .catch((err) => {
+      .catch(err => {
         runningTask.failedRunCount++;
         runningTask.latestError = err;
         this.config.errorHandler(runningTask, err);
@@ -146,7 +147,7 @@ export class Scheduler {
   }
 
   public getTasksStatus() {
-    return Array.from(this.tasks.values()).map((task) => ({
+    return Array.from(this.tasks.values()).map(task => ({
       name: task.name,
       isRunning: !!task.runningPromise,
       function: task.function,

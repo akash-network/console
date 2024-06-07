@@ -1,3 +1,5 @@
+import { AssetList } from "@chain-registry/types";
+
 import { akash, akashAssetList } from "./akash";
 
 export const akashTestnet = {
@@ -12,4 +14,4 @@ export const akashTestnet = {
   }
 };
 
-export const akashTestnetAssetList = { ...akashAssetList, chain_name: "akash-testnet", assets: [...akashAssetList.assets] };
+export const akashTestnetAssetList: AssetList = { ...akashAssetList, chain_name: "akash-testnet", assets: [...akashAssetList.assets] };

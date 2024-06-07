@@ -2,12 +2,13 @@ import * as React from "react";
 import { CheckIcon, PlusCircledIcon } from "@radix-ui/react-icons";
 import { Column } from "@tanstack/react-table";
 
-import { cn } from "@/lib/utils";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Button } from "../ui/button";
-import { Separator } from "../ui/separator";
 import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "../ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Separator } from "../ui/separator";
+
+import { cn } from "@/lib/utils";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;
@@ -20,7 +21,6 @@ interface DataTableFacetedFilterProps<TData, TValue> {
 }
 
 export function DataTableFacetedFilter<TData, TValue>({ column, title, options }: DataTableFacetedFilterProps<TData, TValue>) {
-  const facets = column?.getFacetedUniqueValues();
   const selectedValue = column?.getFilterValue() as string;
 
   return (

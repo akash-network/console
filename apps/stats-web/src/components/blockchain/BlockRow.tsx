@@ -1,11 +1,12 @@
 "use client";
 import { FormattedRelativeTime } from "react-intl";
 import Link from "next/link";
-import { Block } from "@/types";
+
 import { TableCell, TableRow } from "@/components/ui/table";
-import { UrlService } from "@/lib/urlUtils";
 import { getShortText } from "@/hooks/useShortText";
+import { UrlService } from "@/lib/urlUtils";
 import { cn } from "@/lib/utils";
+import { Block } from "@/types";
 
 type Props = {
   errors?: string;

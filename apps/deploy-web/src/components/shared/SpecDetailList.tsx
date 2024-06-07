@@ -1,9 +1,10 @@
 "use client";
-import { bytesToShrink } from "@src/utils/unitUtils";
-import { roundDecimal } from "@src/utils/mathHelpers";
-import { cn } from "@src/utils/styleUtils";
 import { MdDeveloperBoard, MdMemory, MdSpeed, MdStorage } from "react-icons/md";
 import LinearProgress from "@mui/material/LinearProgress";
+
+import { roundDecimal } from "@src/utils/mathHelpers";
+import { cn } from "@src/utils/styleUtils";
+import { bytesToShrink } from "@src/utils/unitUtils";
 
 export function SpecDetailList({ cpuAmount, memoryAmount, storageAmount, gpuAmount = 0, isActive }) {
   const memory = bytesToShrink(memoryAmount);
@@ -18,7 +19,7 @@ export function SpecDetailList({ cpuAmount, memoryAmount, storageAmount, gpuAmou
 
   return (
     <div className="inline-flex flex-col flex-nowrap items-center divide-y overflow-hidden rounded-md border bg-popover p-0">
-      {isActive && <LinearProgress className="w-full opacity-30 h-[2px]" />}
+      {isActive && <LinearProgress className="h-[2px] w-full opacity-30" />}
 
       <div className={cn(serverRowClasses, defaultColorClasses, { [activeColorClasses]: isActive })}>
         <MdSpeed className={cn(specIconClasses, defaultColorClasses, { [activeColorClasses]: isActive, [activeIconClasses]: isActive })} />

@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import Drawer from "react-modern-drawer";
+import { ArrowUpRightSquare, Discord, Github, Menu, Rocket, StatsUpSquare, X as TwitterX } from "iconoir-react";
+import Link from "next/link";
+
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
-import "react-modern-drawer/dist/index.css";
-import useCookieTheme from "@/hooks/useTheme";
-import NetworkSelect from "./NetworkSelect";
 import { ModeToggle } from "../ModeToggle";
 import { NavLinks } from "../NavLinks";
-import { Rocket, StatsUpSquare, ArrowUpRightSquare, Github, X as TwitterX, Discord, Menu } from "iconoir-react";
-import Link from "next/link";
+import NetworkSelect from "./NetworkSelect";
+
+import "react-modern-drawer/dist/index.css";
+
+import { Button } from "@/components/ui/button";
+import useCookieTheme from "@/hooks/useTheme";
 
 export function MobileNav() {
   const theme = useCookieTheme();

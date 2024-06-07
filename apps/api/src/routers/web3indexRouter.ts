@@ -1,10 +1,11 @@
-import { getWeb3IndexRevenue } from "@src/services/db/networkRevenueService";
-import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { Hono } from "hono";
+
+import { cacheKeys, cacheResponse } from "@src/caching/helpers";
+import { getWeb3IndexRevenue } from "@src/services/db/networkRevenueService";
 
 export const web3IndexRouter = new Hono();
 
-web3IndexRouter.get("/revenue", async (c) => {
+web3IndexRouter.get("/revenue", async c => {
   console.log("calculating revenue");
 
   const isDebug = c.req.query("debug") === "true";
