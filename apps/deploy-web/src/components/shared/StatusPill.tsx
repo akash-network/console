@@ -1,6 +1,7 @@
 "use client";
-import { cn } from "@src/utils/styleUtils";
 import { CSSProperties } from "react";
+
+import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   state: "active" | "closed" | string;

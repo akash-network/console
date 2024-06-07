@@ -519,7 +519,7 @@
         "description": "Nvidia Quadro A6000",
         "value": true
       },
-        {
+      {
         "key": "capabilities/gpu/vendor/nvidia/model/4060",
         "description": "Nvidia rtx-4060",
         "value": true

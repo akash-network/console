@@ -1,8 +1,9 @@
 "use client";
+import { SearchX } from "lucide-react";
+
+import { TransactionRow } from "@/components/blockchain/TransactionRow";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AddressDetail } from "@/types";
-import { SearchX } from "lucide-react";
-import { TransactionRow } from "@/components/blockchain/TransactionRow";
 
 type Props = {
   addressDetail: AddressDetail;

@@ -1,3 +1,5 @@
+import { AssetList } from "@chain-registry/types";
+
 import { akash, akashAssetList } from "./akash";
 
 export const akashSandbox = {
@@ -12,4 +14,4 @@ export const akashSandbox = {
   }
 };
 
-export const akashSandboxAssetList = { ...akashAssetList, chain_name: "akash-sandbox", assets: [...akashAssetList.assets] };
+export const akashSandboxAssetList: AssetList = { ...akashAssetList, chain_name: "akash-sandbox", assets: [...akashAssetList.assets] };

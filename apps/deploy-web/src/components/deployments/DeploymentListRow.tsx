@@ -1,36 +1,37 @@
 "use client";
 import { ReactNode, useState } from "react";
-import { useLocalNotes } from "../../context/LocalNoteProvider";
-import { LeaseChip } from "./LeaseChip";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
+import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import isValid from "date-fns/isValid";
-import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
-import { SpecDetailList } from "../shared/SpecDetailList";
-import { useAllLeases } from "@src/queries/useLeaseQuery";
+import { Edit, InfoCircle, MoreHoriz, NavArrowRight, Plus, Upload, WarningCircle, WarningTriangle, XmarkSquare } from "iconoir-react";
 import { useRouter } from "next/navigation";
-import { getAvgCostPerMonth, getTimeLeft, useRealTimeLeft } from "@src/utils/priceUtils";
-import { UrlService } from "@src/utils/urlUtils";
-import { DeploymentDepositModal } from "./DeploymentDepositModal";
-import { useWallet } from "@src/context/WalletProvider";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
+
+import { useWallet } from "@src/context/WalletProvider";
+import { getShortText } from "@src/hooks/useShortText";
+import { useDenomData } from "@src/hooks/useWalletBalance";
+import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { NamedDeploymentDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
-import { PriceValue } from "../shared/PriceValue";
+import { AnalyticsEvents } from "@src/utils/analytics";
+import { udenomToDenom } from "@src/utils/mathHelpers";
+import { getAvgCostPerMonth, getTimeLeft, useRealTimeLeft } from "@src/utils/priceUtils";
+import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import { UrlService } from "@src/utils/urlUtils";
+import { useLocalNotes } from "../../context/LocalNoteProvider";
+import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { PricePerMonth } from "../shared/PricePerMonth";
-import { udenomToDenom } from "@src/utils/mathHelpers";
-import { useDenomData } from "@src/hooks/useWalletBalance";
-import { TableCell, TableRow } from "../ui/table";
-import { WarningCircle, MoreHoriz, InfoCircle, NavArrowRight, Plus, Edit, XmarkSquare, Upload, WarningTriangle } from "iconoir-react";
-import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
+import { PriceValue } from "../shared/PriceValue";
+import { SpecDetailList } from "../shared/SpecDetailList";
+import Spinner from "../shared/Spinner";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
-import Spinner from "../shared/Spinner";
-import ClickAwayListener from "@mui/material/ClickAwayListener";
-import { getShortText, getSplitText } from "@src/hooks/useShortText";
+import { TableCell, TableRow } from "../ui/table";
+import { DeploymentDepositModal } from "./DeploymentDepositModal";
+import { LeaseChip } from "./LeaseChip";
 
 type Props = {
   deployment: NamedDeploymentDto;
@@ -122,48 +123,34 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const onDeploymentDeposit = async (deposit, depositorAddress) => {
     setIsDepositingDeployment(false);
 
-    try {
-      const message = TransactionMessageData.getDepositDeploymentMsg(
-        address,
-        deployment.dseq,
-        deposit,
-        deployment.escrowAccount.balance.denom,
-        depositorAddress
-      );
-      const response = await signAndBroadcastTx([message]);
-      if (response) {
-        refreshDeployments();
+    const message = TransactionMessageData.getDepositDeploymentMsg(address, deployment.dseq, deposit, deployment.escrowAccount.balance.denom, depositorAddress);
+    const response = await signAndBroadcastTx([message]);
+    if (response) {
+      refreshDeployments();
 
-        event(AnalyticsEvents.DEPLOYMENT_DEPOSIT, {
-          category: "deployments",
-          label: "Deposit to deployment from list"
-        });
-      }
-    } catch (error) {
-      throw error;
+      event(AnalyticsEvents.DEPLOYMENT_DEPOSIT, {
+        category: "deployments",
+        label: "Deposit to deployment from list"
+      });
     }
   };
 
   const onCloseDeployment = async () => {
     handleMenuClose();
 
-    try {
-      const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
-      const response = await signAndBroadcastTx([message]);
-      if (response) {
-        if (onSelectDeployment) {
-          onSelectDeployment(false, deployment.dseq);
-        }
-
-        refreshDeployments();
-
-        event(AnalyticsEvents.CLOSE_DEPLOYMENT, {
-          category: "deployments",
-          label: "Close deployment from list"
-        });
+    const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
+    const response = await signAndBroadcastTx([message]);
+    if (response) {
+      if (onSelectDeployment) {
+        onSelectDeployment(false, deployment.dseq);
       }
-    } catch (error) {
-      throw error;
+
+      refreshDeployments();
+
+      event(AnalyticsEvents.CLOSE_DEPLOYMENT, {
+        category: "deployments",
+        label: "Close deployment from list"
+      });
     }
   };
 

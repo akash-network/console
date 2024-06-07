@@ -1,7 +1,8 @@
 "use client";
-import { LocalDeploymentData, getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
+import React, { useEffect, useState } from "react";
+
+import { getDeploymentLocalData, LocalDeploymentData } from "@src/utils/deploymentLocalDataUtils";
 import { getProviderLocalData, updateProviderLocalData } from "@src/utils/providerUtils";
-import React, { useState, useEffect } from "react";
 import { DeploymentNameModal } from "./DeploymentNameModal";
 
 type ContextType = {

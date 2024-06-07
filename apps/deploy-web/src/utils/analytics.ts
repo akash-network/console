@@ -44,7 +44,6 @@ export enum AnalyticsEvents {
   USER_PROFILE_CLICK_TEMPLATE_FAVORITE = "user_profile_click_template_favorite",
   USER_PROFILE_TEMPLATE_TAB = "user_profile_template_tab",
   USER_PROFILE_FAVORITES_TAB = "user_profile_favorites_tab",
-  USER_PROFILE_ADDRESS_BOOK_TAB = "user_profile_favorites_tab",
   USER_PROFILE_SETTINGS_TAB = "user_profile_settings_tab",
   EDIT_ADDRESS_BOOK = "edit_address_book",
   ADDRESS_BOOK_SAVE_ADDRESS = "address_book_save_address",
@@ -65,7 +64,5 @@ export enum AnalyticsEvents {
   VALIDATORS_CLAIM_ALL_REWARDS = "validators_claim_all_rewards",
   VALIDATORS_CLAIM_REWARDS = "validators_all_rewards",
   VALIDATORS_DELEGATE_CLICK = "validators_delegate_click",
-  VALIDATORS_DELEGATE = "validators_delegate",
-  VALIDATORS_REDELEGATE_CLICK = "validators_delegate_click",
-  VALIDATORS_REDELEGATE = "validators_delegate"
+  VALIDATORS_DELEGATE = "validators_delegate"
 }

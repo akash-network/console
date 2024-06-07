@@ -1,20 +1,22 @@
 import React from "react";
+import { ArrowLeft } from "iconoir-react";
+import { Metadata } from "next";
 import Link from "next/link";
-import { Metadata, ResolvingMetadata } from "next";
-import { Snapshots, SnapshotsUrlParam } from "@/types";
-import { urlParamToSnapshot } from "@/lib/snapshotsUrlHelpers";
+
+import GraphContainer from "./GraphContainer";
+
 import PageContainer from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
+import { urlParamToSnapshot } from "@/lib/snapshotsUrlHelpers";
 import { UrlService } from "@/lib/urlUtils";
-import { ArrowLeft } from "iconoir-react";
-import GraphContainer from "./GraphContainer";
+import { Snapshots, SnapshotsUrlParam } from "@/types";
 
 interface IGraphProps {
   params: { snapshot: string };
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export async function generateMetadata({ params: { snapshot: snapshotUrlParam } }: IGraphProps, parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata({ params: { snapshot: snapshotUrlParam } }: IGraphProps): Promise<Metadata> {
   const snapshot = urlParamToSnapshot(snapshotUrlParam as SnapshotsUrlParam);
   const title = getTitle(snapshot as Snapshots);
 

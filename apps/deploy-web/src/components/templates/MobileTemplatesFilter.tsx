@@ -1,9 +1,10 @@
 "use client";
-import Drawer from "@mui/material/Drawer";
 import React, { ReactNode } from "react";
-import { ApiTemplate } from "@src/types";
-import { Button, buttonVariants } from "@src/components/ui/button";
+import Drawer from "@mui/material/Drawer";
 import { Xmark } from "iconoir-react";
+
+import { Button, buttonVariants } from "@src/components/ui/button";
+import { ApiTemplate } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 
 type Props = {

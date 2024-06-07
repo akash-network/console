@@ -1,9 +1,10 @@
-import { makeStyles } from "tss-react/mui";
-import Typography from "@mui/material/Typography";
-import { GradientText } from "./GradientText";
-import { SxProps, Theme, useMediaQuery, useTheme } from "@mui/material";
-import { cx } from "@emotion/css";
 import { ReactNode } from "react";
+import { cx } from "@emotion/css";
+import { SxProps, Theme, useMediaQuery, useTheme } from "@mui/material";
+import Typography from "@mui/material/Typography";
+import { makeStyles } from "tss-react/mui";
+
+import { GradientText } from "./GradientText";
 
 type Props = {
   value: string | ReactNode;

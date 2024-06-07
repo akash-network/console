@@ -1,5 +1,6 @@
-import { ISnapshotMetadata, ProviderSnapshots } from "@/types";
 import { bytesToShrink } from "./unitUtils";
+
+import { ISnapshotMetadata, ProviderSnapshots } from "@/types";
 import { NetworkCapacity } from "@/types";
 
 export type LocalProviderData = {

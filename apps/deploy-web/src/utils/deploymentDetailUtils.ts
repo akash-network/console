@@ -1,4 +1,4 @@
-import { DeploymentDto, DepositParams, LeaseDto, RpcDeployment, RpcDepositParams, RpcLease } from "@src/types/deployment";
+import { DeploymentDto, LeaseDto, RpcDeployment, RpcLease } from "@src/types/deployment";
 import { coinToUDenom } from "./priceUtils";
 
 export function deploymentResourceSum(deployment: RpcDeployment, resourceSelector) {

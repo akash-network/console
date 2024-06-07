@@ -1,12 +1,13 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import isEqual from "lodash/isEqual";
-import { LeaseRow } from "./LeaseRow";
-import { LeaseDto } from "@src/types/deployment";
+
 import { CustomPagination } from "@src/components/shared/CustomPagination";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
 import Spinner from "@src/components/shared/Spinner";
 import { CheckboxWithLabel } from "@src/components/ui/checkbox";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+import { LeaseDto } from "@src/types/deployment";
+import { LeaseRow } from "./LeaseRow";
 
 type Props = {
   leases: LeaseDto[] | null;
@@ -25,7 +26,7 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
 
   useEffect(() => {
     if (leases) {
-      let _filteredLeases = [...leases].sort((a, b) => (a.state === "active" ? -1 : 1));
+      let _filteredLeases = [...leases].sort(a => (a.state === "active" ? -1 : 1));
 
       if (isFilteringActive) {
         _filteredLeases = _filteredLeases.filter(x => x.state === "active");
@@ -75,7 +76,7 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
             </TableHeader>
 
             <TableBody>
-              {currentPageLeases.map((lease, i) => (
+              {currentPageLeases.map(lease => (
                 <LeaseRow key={lease.id} lease={lease} />
               ))}
             </TableBody>

@@ -1,12 +1,13 @@
 "use client";
 import { ReactNode } from "react";
 import Editor from "@monaco-editor/react";
-import { copyTextToClipboard } from "@src/utils/copyClipboard";
-import { Popup } from "@src/components/shared/Popup";
-import { Button } from "@src/components/ui/button";
 import { Copy } from "iconoir-react";
 import { useTheme } from "next-themes";
 import { useSnackbar } from "notistack";
+
+import { Popup } from "@src/components/shared/Popup";
+import { Button } from "@src/components/ui/button";
+import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { Snackbar } from "../shared/Snackbar";
 
 type Props = {

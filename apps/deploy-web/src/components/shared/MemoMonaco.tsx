@@ -1,8 +1,9 @@
 "use client";
 import React from "react";
-import { DynamicMonacoEditor } from "./DynamicMonacoEditor";
-import isEqual from "lodash/isEqual";
 import { OnChange, OnMount } from "@monaco-editor/react";
+import isEqual from "lodash/isEqual";
+
+import { DynamicMonacoEditor } from "./DynamicMonacoEditor";
 
 type Props = {
   value: string;

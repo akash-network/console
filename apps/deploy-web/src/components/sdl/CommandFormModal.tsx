@@ -1,11 +1,12 @@
 "use client";
 import { ReactNode } from "react";
-import { Popup } from "../shared/Popup";
 import { Control, Controller } from "react-hook-form";
+
 import { SdlBuilderFormValues } from "@src/types";
+import { Popup } from "../shared/Popup";
 import { FormInput, Textarea } from "../ui/input";
-import { FormPaper } from "./FormPaper";
 import { Label } from "../ui/label";
+import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;

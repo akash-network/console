@@ -1,11 +1,12 @@
-import { executionMode, ExecutionMode } from "@src/shared/constants";
-import { indexers } from "@src/indexers";
-import { getGenesis } from "@src/chain/genesisImporter";
-import { sequelize } from "./dbConnection";
 import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { Day, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { Block, Message } from "@akashnetwork/cloudmos-shared/dbSchemas";
+import { Day, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { MonitoredValue } from "@akashnetwork/cloudmos-shared/dbSchemas/base/monitoredValue";
+
+import { getGenesis } from "@src/chain/genesisImporter";
+import { indexers } from "@src/indexers";
+import { ExecutionMode, executionMode } from "@src/shared/constants";
+import { sequelize } from "./dbConnection";
 
 /**
  * Initiate database schema

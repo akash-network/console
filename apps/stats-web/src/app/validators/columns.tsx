@@ -1,17 +1,18 @@
 "use client";
 
-import { DataTableColumnHeader } from "@/components/table/data-table-column-header";
-import { UrlService } from "@/lib/urlUtils";
+import { FormattedNumber } from "react-intl";
 import { AccessorColumnDef } from "@tanstack/react-table";
+import { User } from "iconoir-react";
 import Link from "next/link";
 import { z } from "zod";
-import { Badge } from "@/components/ui/badge";
-import { udenomToDenom } from "@/lib/mathHelpers";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User } from "iconoir-react";
-import { getShortText } from "@/hooks/useShortText";
-import { FormattedNumber } from "react-intl";
+
 import { AKTLabel } from "@/components/AKTLabel";
+import { DataTableColumnHeader } from "@/components/table/data-table-column-header";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { getShortText } from "@/hooks/useShortText";
+import { udenomToDenom } from "@/lib/mathHelpers";
+import { UrlService } from "@/lib/urlUtils";
 
 export const validatorRowSchema = z.object({
   rank: z.number(),

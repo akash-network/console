@@ -1,15 +1,15 @@
-import PageContainer from "@/components/PageContainer";
-import { Title } from "@/components/Title";
 import { Metadata } from "next";
+
 import { BlocksTable } from "./BlocksTable";
 
-type Props = {};
+import PageContainer from "@/components/PageContainer";
+import { Title } from "@/components/Title";
 
 export const metadata: Metadata = {
   title: "Blocks"
 };
 
-const BlocksPage: React.FunctionComponent<Props> = ({}) => {
+const BlocksPage: React.FunctionComponent = () => {
   return (
     <PageContainer>
       <Title className="mb-4">Blocks</Title>

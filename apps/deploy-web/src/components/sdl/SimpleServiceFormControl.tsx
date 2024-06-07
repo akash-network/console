@@ -1,38 +1,39 @@
 "use client";
-import { Controller, Control, UseFormTrigger, UseFormSetValue } from "react-hook-form";
 import { Dispatch, SetStateAction, useState } from "react";
-import { SdlBuilderFormValues, Service } from "@src/types";
-import { CommandFormModal } from "./CommandFormModal";
-import { EnvFormModal } from "./EnvFormModal";
-import { ExposeFormModal } from "./ExposeFormModal";
-import { FormPaper } from "./FormPaper";
-import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
-import { PlacementFormModal } from "./PlacementFormModal";
-import { udenomToDenom } from "@src/utils/mathHelpers";
-import Link from "next/link";
-import { PriceValue } from "../shared/PriceValue";
-import { getAvgCostPerMonth } from "@src/utils/priceUtils";
-import Image from "next/legacy/image";
-import { uAktDenom } from "@src/utils/constants";
-import { EnvVarList } from "./EnvVarList";
-import { CommandList } from "./CommandList";
-import { ExposeList } from "./ExposeList";
-import { PersistentStorage } from "./PersistentStorage";
-import { GpuFormControl } from "./GpuFormControl";
-import { CpuFormControl } from "./CpuFormControl";
-import { MemoryFormControl } from "./MemoryFormControl";
-import { StorageFormControl } from "./StorageFormControl";
-import { TokenFormControl } from "./TokenFormControl";
-import { GpuVendor } from "@src/types/gpu";
-import { Card, CardContent } from "../ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
-import { Button, buttonVariants } from "../ui/button";
-import { NavArrowDown, Bin, InfoCircle, OpenInWindow, BinMinusIn } from "iconoir-react";
-import { cn } from "@src/utils/styleUtils";
-import { InputWithIcon } from "../ui/input";
-import { CustomTooltip } from "../shared/CustomTooltip";
+import { Control, Controller, UseFormSetValue, UseFormTrigger } from "react-hook-form";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import { BinMinusIn, InfoCircle, NavArrowDown, OpenInWindow } from "iconoir-react";
+import Image from "next/legacy/image";
+import Link from "next/link";
+
+import { SdlBuilderFormValues, Service } from "@src/types";
+import { GpuVendor } from "@src/types/gpu";
+import { uAktDenom } from "@src/utils/constants";
+import { udenomToDenom } from "@src/utils/mathHelpers";
+import { getAvgCostPerMonth } from "@src/utils/priceUtils";
+import { cn } from "@src/utils/styleUtils";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
+import { PriceValue } from "../shared/PriceValue";
+import { Button, buttonVariants } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import { InputWithIcon } from "../ui/input";
+import { CommandFormModal } from "./CommandFormModal";
+import { CommandList } from "./CommandList";
+import { CpuFormControl } from "./CpuFormControl";
+import { EnvFormModal } from "./EnvFormModal";
+import { EnvVarList } from "./EnvVarList";
+import { ExposeFormModal } from "./ExposeFormModal";
+import { ExposeList } from "./ExposeList";
+import { FormPaper } from "./FormPaper";
+import { GpuFormControl } from "./GpuFormControl";
+import { MemoryFormControl } from "./MemoryFormControl";
+import { PersistentStorage } from "./PersistentStorage";
+import { PlacementFormModal } from "./PlacementFormModal";
+import { StorageFormControl } from "./StorageFormControl";
+import { TokenFormControl } from "./TokenFormControl";
 
 type Props = {
   _services: Service[];
@@ -81,7 +82,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
       }
     });
   };
-  
+
   if (!currentService) return null;
 
   return (
@@ -128,7 +129,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
               rules={{
                 required: "Service name is required.",
                 validate: value => {
-                  const hasValidChars = /^[a-z0-9\-]+$/.test(value);
+                  const hasValidChars = /^[a-z0-9-]+$/.test(value);
                   const hasValidStartingChar = /^[a-z]/.test(value);
                   const hasValidEndingChar = !value.endsWith("-");
 

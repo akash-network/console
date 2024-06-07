@@ -1,8 +1,9 @@
 "use client";
-import { cn } from "@src/utils/styleUtils";
 import React from "react";
 
-export function LinkTo({ children, className = "", ...rest }: React.PropsWithChildren<{ className?: string } & React.ButtonHTMLAttributes<{}>>) {
+import { cn } from "@src/utils/styleUtils";
+
+export function LinkTo({ children, className = "", ...rest }: React.PropsWithChildren<{ className?: string } & React.ButtonHTMLAttributes<object>>) {
   return (
     <button
       type="button"

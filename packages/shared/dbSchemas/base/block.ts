@@ -1,10 +1,11 @@
-import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
-import { Day } from "./day";
-import { Validator } from "./validator";
-import { Transaction } from "./transaction";
-import { Message } from "./message";
+import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
+
 import { Required } from "../decorators/requiredDecorator";
+import { Day } from "./day";
+import { Message } from "./message";
+import { Transaction } from "./transaction";
+import { Validator } from "./validator";
 
 export const tableConfig = {
   modelName: "block",

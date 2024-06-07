@@ -1,25 +1,26 @@
 "use client";
 import { ReactNode } from "react";
+import { Control, Controller, useFieldArray, UseFormSetValue } from "react-hook-form";
+import { MdSpeed } from "react-icons/md";
+import FormControl from "@mui/material/FormControl";
+import IconButton from "@mui/material/IconButton";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import { default as MuiSelect } from "@mui/material/Select";
+import { Bin, InfoCircle, Xmark } from "iconoir-react";
+
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { FormPaper } from "./FormPaper";
-import { Control, Controller, UseFormSetValue, useFieldArray } from "react-hook-form";
+import { GpuVendor } from "@src/types/gpu";
 import { gpuVendors } from "../shared/akash/gpu";
 import { validationConfig } from "../shared/akash/units";
-import { FormDescription, FormItem } from "../ui/form";
-import { Slider } from "../ui/slider";
+import { CustomTooltip } from "../shared/CustomTooltip";
 import Spinner from "../shared/Spinner";
-import { Input } from "../ui/input";
-import { Checkbox } from "../ui/checkbox";
-import { Bin, InfoCircle, Xmark } from "iconoir-react";
-import { MdSpeed } from "react-icons/md";
-import { GpuVendor } from "@src/types/gpu";
 import { Button } from "../ui/button";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import { default as MuiSelect } from "@mui/material/Select";
-import IconButton from "@mui/material/IconButton";
-import MenuItem from "@mui/material/MenuItem";
+import { Checkbox } from "../ui/checkbox";
+import { FormDescription, FormItem } from "../ui/form";
+import { Input } from "../ui/input";
+import { Slider } from "../ui/slider";
+import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;
@@ -230,7 +231,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                     ? () => (
                                         <IconButton
                                           size="small"
-                                          onClick={e => {
+                                          onClick={() => {
                                             field.onChange("");
                                             setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.memory`, "");
                                             setValue(`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.interface`, "");
@@ -276,7 +277,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                     ? () => (
                                         <IconButton
                                           size="small"
-                                          onClick={e => {
+                                          onClick={() => {
                                             field.onChange("");
                                           }}
                                         >
@@ -320,7 +321,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                     ? () => (
                                         <IconButton
                                           size="small"
-                                          onClick={e => {
+                                          onClick={() => {
                                             field.onChange("");
                                           }}
                                         >

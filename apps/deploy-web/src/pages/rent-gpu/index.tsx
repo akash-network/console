@@ -1,9 +1,10 @@
-import { Title } from "@src/components/shared/Title";
 import React from "react";
-import { UrlService, domainName } from "@src/utils/urlUtils";
-import { RentGpusForm } from "@src/components/sdl/RentGpusForm";
+
 import Layout from "@src/components/layout/Layout";
+import { RentGpusForm } from "@src/components/sdl/RentGpusForm";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { Title } from "@src/components/shared/Title";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 
 function RentGpuPage() {
   return (
@@ -27,9 +28,3 @@ function RentGpuPage() {
 }
 
 export default RentGpuPage;
-
-export async function getServerSideProps({ params }) {
-  return {
-    props: {}
-  };
-}

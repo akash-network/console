@@ -1,9 +1,10 @@
 "use client";
+import { useTheme } from "next-themes";
+
+import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
 import { Popup } from "../shared/Popup";
 import { Title } from "../shared/Title";
 import { Card, CardContent } from "../ui/card";
-import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
-import { useTheme } from "next-themes";
 
 export const WelcomeModal = ({ open, onClose }) => {
   const { resolvedTheme } = useTheme();
@@ -25,7 +26,11 @@ export const WelcomeModal = ({ open, onClose }) => {
     >
       <div className="mb-4 flex items-center justify-between">
         <Title>Welcome!</Title>
-        {resolvedTheme === "light" ? <AkashConsoleBetaLogoLight className="h-[19px] max-w-[200px]" /> : <AkashConsoleBetaLogoDark className="h-[19px] max-w-[200px]" />}
+        {resolvedTheme === "light" ? (
+          <AkashConsoleBetaLogoLight className="h-[19px] max-w-[200px]" />
+        ) : (
+          <AkashConsoleBetaLogoDark className="h-[19px] max-w-[200px]" />
+        )}
       </div>
       <Card className="bg-background">
         <CardContent className="pt-4">

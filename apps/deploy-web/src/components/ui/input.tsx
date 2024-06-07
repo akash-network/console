@@ -1,8 +1,9 @@
 "use client";
 import * as React from "react";
-import { cn } from "@src/utils/styleUtils";
-import { FormControl, FormDescription, FormItem, FormLabel } from "./form";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
+
+import { cn } from "@src/utils/styleUtils";
+import { FormDescription, FormItem } from "./form";
 import { Label } from "./label";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
@@ -30,9 +31,7 @@ export interface FormInputProps extends React.InputHTMLAttributes<HTMLInputEleme
 const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ className, type, label, description, ...props }, ref) => {
   return (
     <FormItem>
-      {/** TODO */}
       <Label>{label}</Label>
-      {/* <FormControl> */}
       <input
         type={type}
         className={cn(
@@ -42,7 +41,6 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ classNam
         ref={ref}
         {...props}
       />
-      {/* </FormControl> */}
       {description && <FormDescription>{description}</FormDescription>}
     </FormItem>
   );
@@ -61,7 +59,6 @@ export interface InputWithIconProps extends React.InputHTMLAttributes<HTMLInputE
 
 const InputWithIcon = React.forwardRef<HTMLInputElement, InputWithIconProps>(
   ({ className, inputClassName, type, label, startIcon, endIcon, error, ...props }, ref) => {
-    // @ts-ignore
     const id = React.useId();
 
     return (

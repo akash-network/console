@@ -1,7 +1,8 @@
 "use client";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+
 import { cn } from "@src/utils/styleUtils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
 export function CustomTooltip({ children, className = "", title }: React.PropsWithChildren<{ className?: string; title: string | React.ReactNode }>) {
   return (

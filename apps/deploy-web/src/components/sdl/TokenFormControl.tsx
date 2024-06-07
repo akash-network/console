@@ -1,10 +1,9 @@
 "use client";
 import { ReactElement } from "react";
-import { makeStyles } from "tss-react/mui";
-import { Control, Controller, FieldValues, FieldPathValue, Path } from "react-hook-form";
+import { Control, Controller, FieldPathValue, FieldValues, Path } from "react-hook-form";
 
-import { Service } from "@src/types";
 import { useSdlDenoms } from "@src/hooks/useDenom";
+import { Service } from "@src/types";
 import { FormItem } from "../ui/form";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -30,7 +29,7 @@ export const TokenFormControl = <F extends ServicesFieldValues>({ control, name,
       rules={{
         required: true
       }}
-      render={({ fieldState, field }) => {
+      render={({ field }) => {
         return (
           <FormItem
           // TODO

@@ -1,6 +1,6 @@
 "use client";
-import { FormattedNumberParts } from "react-intl";
 import React from "react";
+import { FormattedNumberParts } from "react-intl";
 
 type Props = {
   value: number;
@@ -23,7 +23,7 @@ export const FormattedDecimal: React.FunctionComponent<Props> = ({ value, precis
               case "decimal":
               case "fraction":
                 return (
-                  <small key={i} className="text-muted-foreground text-xs">
+                  <small key={i} className="text-xs text-muted-foreground">
                     {part.value}
                   </small>
                 );

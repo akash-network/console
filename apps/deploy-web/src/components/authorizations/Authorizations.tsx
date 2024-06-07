@@ -1,35 +1,34 @@
 "use client";
-import { Fieldset } from "@src/components/shared/Fieldset";
 import { useEffect, useState } from "react";
-import { useWallet } from "@src/context/WalletProvider";
-import { Address } from "@src/components/shared/Address";
-import { AllowanceType, GrantType } from "@src/types/grant";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { useAllowancesGranted, useAllowancesIssued, useGranteeGrants, useGranterGrants } from "@src/queries/useGrantsQuery";
-import { Popup } from "@src/components/shared/Popup";
-import { averageBlockTime } from "@src/utils/priceUtils";
-import { Button } from "@src/components/ui/button";
 import { Bank } from "iconoir-react";
+import { NextSeo } from "next-seo";
+
+import { Address } from "@src/components/shared/Address";
+import { Fieldset } from "@src/components/shared/Fieldset";
+import { Popup } from "@src/components/shared/Popup";
 import Spinner from "@src/components/shared/Spinner";
+import { Button } from "@src/components/ui/button";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+import { useWallet } from "@src/context/WalletProvider";
+import { useAllowancesGranted, useAllowancesIssued, useGranteeGrants, useGranterGrants } from "@src/queries/useGrantsQuery";
+import { AllowanceType, GrantType } from "@src/types/grant";
+import { averageBlockTime } from "@src/utils/priceUtils";
+import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import Layout from "../layout/Layout";
 import { SettingsLayout, SettingsTabs } from "../settings/SettingsLayout";
-import { GrantModal } from "./GrantModal";
-import { AllowanceModal } from "./AllowanceModal";
+import { Title } from "../shared/Title";
 import { AllowanceGrantedRow } from "./AllowanceGrantedRow";
 import { AllowanceIssuedRow } from "./AllowanceIssuedRow";
+import { AllowanceModal } from "./AllowanceModal";
 import { GranteeRow } from "./GranteeRow";
 import { GranterRow } from "./GranterRow";
-import { NextSeo } from "next-seo";
-import { Title } from "../shared/Title";
-
-type Props = {};
+import { GrantModal } from "./GrantModal";
 
 type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "allowancesGranted" | null;
 const defaultRefetchInterval = 30 * 1000;
 const refreshingInterval = 1000;
 
-export const Authorizations: React.FunctionComponent<Props> = ({}) => {
+export const Authorizations: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx } = useWallet();
   const [editingGrant, setEditingGrant] = useState<GrantType | null>(null);
   const [editingAllowance, setEditingAllowance] = useState<AllowanceType | null>(null);

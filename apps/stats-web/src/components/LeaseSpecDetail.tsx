@@ -1,8 +1,9 @@
 "use client";
 import React from "react";
+import { MdDeveloperBoard, MdMemory, MdSpeed, MdStorage } from "react-icons/md";
 import { FormattedNumber } from "react-intl";
+
 import { cn } from "@/lib/utils";
-import { MdMemory, MdStorage, MdSpeed, MdDeveloperBoard } from "react-icons/md";
 
 type SpecType = "cpu" | "gpu" | "ram" | "storage";
 type Props = {

@@ -1,12 +1,13 @@
 "use client";
 import { useState } from "react";
-import { Checkbox } from "../ui/checkbox";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+
+import { Checkbox } from "../ui/checkbox";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -19,12 +20,12 @@ const MenuProps = {
   },
   getContentAnchorEl: null,
   anchorOrigin: {
-    vertical: "bottom" as "bottom",
-    horizontal: "center" as "center"
+    vertical: "bottom" as const,
+    horizontal: "center" as const
   },
   transformOrigin: {
-    vertical: "top" as "top",
-    horizontal: "center" as "center"
+    vertical: "top" as const,
+    horizontal: "center" as const
   }
   // variant: "menu"
 };
@@ -64,7 +65,7 @@ interface Props {
   disabled?: boolean;
 }
 
-export const SelectCheckbox = ({ defaultValue, options, onSelectedChange, label, disabled, placeholder }: React.PropsWithChildren<Props>) => {
+export const SelectCheckbox = ({ defaultValue, options, onSelectedChange, label, disabled }: React.PropsWithChildren<Props>) => {
   const [selected, setSelected] = useState(defaultValue);
   const isAllSelected = options.length > 0 && selected.length === options.length;
 

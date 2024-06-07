@@ -1,6 +1,7 @@
-"use client"
-import dynamic from "next/dynamic";
+"use client";
 import { forwardRef } from "react";
+import dynamic from "next/dynamic";
+
 import { IProps, XTermRefType } from "./XTerm";
 
 const _DynamicXTerm = dynamic(() => import("./XTerm"), { ssr: false });

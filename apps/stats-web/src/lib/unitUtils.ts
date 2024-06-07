@@ -5,7 +5,7 @@ export function bytesToShrink(value: number, bibyte?: boolean) {
   const multiplier = bibyte ? 1024 : 1000;
   let finalValue = 0;
   let finalUnit = bibyte ? bibyteUnits[0] : byteUnits[0];
-  let isNegative = value < 0;
+  const isNegative = value < 0;
   const _value = Math.abs(value);
 
   if (_value !== 0) {

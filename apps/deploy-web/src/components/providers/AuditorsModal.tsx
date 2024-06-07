@@ -1,12 +1,13 @@
 "use client";
+import { MouseEventHandler } from "react";
+
+import { useAuditors } from "@src/queries/useProvidersQuery";
 import { Address } from "../shared/Address";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { LinkTo } from "../shared/LinkTo";
 import { Popup } from "../shared/Popup";
-import { MouseEventHandler } from "react";
-import { useAuditors } from "@src/queries/useProvidersQuery";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { Badge } from "../ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 
 type Props = {
   attributes: Array<{ key: string; value: string; auditedBy: Array<string> }>;

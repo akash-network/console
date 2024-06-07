@@ -1,6 +1,7 @@
-import { differenceInSeconds } from "date-fns";
-import MemoryCacheEngine from "./memoryCacheEngine";
 import * as Sentry from "@sentry/node";
+import { differenceInSeconds } from "date-fns";
+
+import MemoryCacheEngine from "./memoryCacheEngine";
 
 export const cacheEngine = new MemoryCacheEngine();
 const pendingRequests: { [key: string]: Promise<unknown> } = {};
@@ -36,11 +37,11 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
   if ((!cachedObject || cacheExpired) && !(key in pendingRequests)) {
     // console.log(`Making request: ${key}`);
     pendingRequests[key] = refreshRequest()
-      .then((data) => {
+      .then(data => {
         cacheEngine.storeInCache(key, { date: new Date(), data: data }, keepData ? undefined : duration);
         return data;
       })
-      .catch((err) => {
+      .catch(err => {
         // console.log(`Error making cache request ${err}`);
         Sentry.captureException(err);
       })

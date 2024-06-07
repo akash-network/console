@@ -1,6 +1,7 @@
 import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { env } from "./utils/env";
 import path from "path";
+
+import { env } from "./utils/env";
 
 export const averageBlockTime = 6.174;
 export const averageDaysInMonth = 30.437;

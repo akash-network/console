@@ -1,13 +1,15 @@
 "use client";
-import { ChainProvider } from "@cosmos-kit/react";
+import { GasPrice } from "@cosmjs/stargate";
+import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
 import { wallets as keplr } from "@cosmos-kit/keplr";
 import { wallets as leap } from "@cosmos-kit/leap-extension";
-import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
-import { customRegistry } from "@src/utils/customRegistry";
-import { GasPrice } from "@cosmjs/stargate";
-import { akash, akashAssetList, akashSandbox, akashSandboxAssetList, akashTestnet, akashTestnetAssetList } from "@src/chains";
-import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { ChainProvider } from "@cosmos-kit/react";
 import { useChain } from "@cosmos-kit/react";
+
+import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
+import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { customRegistry } from "@src/utils/customRegistry";
+
 import "@interchain-ui/react/styles";
 import "@interchain-ui/react/globalStyles";
 
@@ -19,7 +21,7 @@ export function CustomChainProvider({ children }: Props) {
   return (
     <ChainProvider
       chains={[akash, akashSandbox, akashTestnet]}
-      assetLists={[akashAssetList, akashSandboxAssetList, akashTestnetAssetList]}
+      assetLists={assetLists}
       wallets={[...keplr, ...leap, ...cosmostation]}
       sessionOptions={{
         duration: 31_556_926_000, // 1 year
@@ -43,8 +45,8 @@ export function CustomChainProvider({ children }: Props) {
         }
       }}
       signerOptions={{
-        preferredSignType: chain => "direct",
-        signingStargate: chain => ({
+        preferredSignType: () => "direct",
+        signingStargate: () => ({
           registry: customRegistry,
           gasPrice: GasPrice.fromString("0.025uakt")
         })

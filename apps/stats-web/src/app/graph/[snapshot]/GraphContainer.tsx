@@ -1,19 +1,20 @@
 "use client";
 import React, { useState } from "react";
 import { FormattedNumber } from "react-intl";
-import dynamic from "next/dynamic";
 import { Parser } from "@json2csv/plainjs";
-import { ISnapshotMetadata, Snapshots } from "@/types";
-import { selectedRangeValues } from "@/lib/constants";
-import { useGraphSnapshot } from "@/queries";
+import { Download } from "iconoir-react";
+import dynamic from "next/dynamic";
+
+import { DiffNumber } from "@/components/DiffNumber";
+import { DiffPercentageChip } from "@/components/DiffPercentageChip";
+import { TimeRange } from "@/components/graph/TimeRange";
 import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
-import { Download } from "iconoir-react";
-import { DiffPercentageChip } from "@/components/DiffPercentageChip";
-import { DiffNumber } from "@/components/DiffNumber";
+import { selectedRangeValues } from "@/lib/constants";
 import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
-import { TimeRange } from "@/components/graph/TimeRange";
 import { bytesToShrink } from "@/lib/unitUtils";
+import { useGraphSnapshot } from "@/queries";
+import { ISnapshotMetadata, Snapshots } from "@/types";
 
 const Graph = dynamic(() => import("../../../components/graph/Graph"), {
   ssr: false

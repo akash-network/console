@@ -1,20 +1,22 @@
-import { BlockDetail } from "@/types";
-import { getNetworkBaseApiUrl } from "@/lib/constants";
-import { Metadata, ResolvingMetadata } from "next";
+import { SearchX } from "lucide-react";
+import { Metadata } from "next";
+
+import { BlockInfo } from "./BlockInfo";
+
+import { TransactionRow } from "@/components/blockchain/TransactionRow";
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { SearchX } from "lucide-react";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { TransactionRow } from "@/components/blockchain/TransactionRow";
-import { BlockInfo } from "./BlockInfo";
 import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getNetworkBaseApiUrl } from "@/lib/constants";
+import { BlockDetail } from "@/types";
 
 interface IProps {
   params: { height: string };
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export async function generateMetadata({ params: { height } }: IProps, parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata({ params: { height } }: IProps): Promise<Metadata> {
   return {
     title: `Block #${height}`
   };

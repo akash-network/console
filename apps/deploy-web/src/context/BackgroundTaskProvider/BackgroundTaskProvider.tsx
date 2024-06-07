@@ -1,11 +1,12 @@
 "use client";
-import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
 import React from "react";
-import { useCertificate } from "../CertificateProvider";
 import FileSaver from "file-saver";
-import { Button } from "@src/components/ui/button";
 import { useSnackbar } from "notistack";
+
 import { Snackbar } from "@src/components/shared/Snackbar";
+import { Button } from "@src/components/ui/button";
+import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
+import { useCertificate } from "../CertificateProvider";
 
 const getPrintCommand = os => {
   switch (os) {
@@ -54,7 +55,7 @@ export const BackgroundTaskProvider = ({ children }) => {
           }
           showLoading
         />,
-        { variant: "info", persist: true, action: key => null }
+        { variant: "info", persist: true, action: () => null }
       );
 
       const url = isLogs
@@ -143,7 +144,7 @@ export const BackgroundTaskProvider = ({ children }) => {
         }
         showLoading
       />,
-      { variant: "info", persist: true, action: key => null }
+      { variant: "info", persist: true, action: () => null }
     );
 
     const printCommand = getPrintCommand("linux");
@@ -167,7 +168,9 @@ export const BackgroundTaskProvider = ({ children }) => {
           const jsonData = JSON.parse(stringData);
           exitCode = jsonData["exit_code"];
           errorMessage = jsonData["message"];
-        } catch (err) {}
+        } catch (err) {
+          /* empty */
+        }
 
         if (exitCode !== undefined) {
           if (errorMessage) {
@@ -201,7 +204,7 @@ export const BackgroundTaskProvider = ({ children }) => {
       } else if (isFinished && fileContent) {
         closeSnackbar(snackbarKey);
         console.log("Done, downloading file");
-        const filename = filePath.replace(/^.*[\\\/]/, "");
+        const filename = filePath.replace(/^.*[\\/]/, "");
         FileSaver.saveAs(new Blob([fileContent]), filename);
       } else {
         console.log("No file / Failed");

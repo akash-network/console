@@ -1,25 +1,24 @@
 "use client";
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { NodeStatus } from "@src/components/shared/NodeStatus";
-import { isUrl } from "@src/utils/stringUtils";
-import { BlockchainNode, useSettings } from "@src/context/SettingsProvider/SettingsProviderContext";
-import { SwitchWithLabel } from "@src/components/ui/switch";
-import { Label } from "@src/components/ui/label";
-import FormControl from "@mui/material/FormControl";
-import { Button } from "@src/components/ui/button";
-import ClickAwayListener from "@mui/material/ClickAwayListener";
 import Autocomplete from "@mui/material/Autocomplete";
-import TextField from "@mui/material/TextField";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
+import FormControl from "@mui/material/FormControl";
 import FormGroup from "@mui/material/FormGroup";
-import Spinner from "@src/components/shared/Spinner";
-import { NavArrowDown, Refresh } from "iconoir-react";
-import { cn } from "@src/utils/styleUtils";
 import InputAdornment from "@mui/material/InputAdornment";
+import TextField from "@mui/material/TextField";
+import { NavArrowDown, Refresh } from "iconoir-react";
 
-type Props = {};
+import { NodeStatus } from "@src/components/shared/NodeStatus";
+import Spinner from "@src/components/shared/Spinner";
+import { Button } from "@src/components/ui/button";
+import { Label } from "@src/components/ui/label";
+import { SwitchWithLabel } from "@src/components/ui/switch";
+import { BlockchainNode, useSettings } from "@src/context/SettingsProvider/SettingsProviderContext";
+import { isUrl } from "@src/utils/stringUtils";
+import { cn } from "@src/utils/styleUtils";
 
-export const SettingsForm: React.FunctionComponent<Props> = ({}) => {
+export const SettingsForm: React.FunctionComponent = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isNodesOpen, setIsNodesOpen] = useState(false);
   const { settings, setSettings, refreshNodeStatuses, isRefreshingNodeStatus } = useSettings();

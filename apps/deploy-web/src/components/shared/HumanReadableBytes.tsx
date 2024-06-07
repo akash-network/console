@@ -1,7 +1,8 @@
 "use client";
-import { bytesToShrink } from "@src/utils/unitUtils";
 import React from "react";
 import { FormattedNumber } from "react-intl";
+
+import { bytesToShrink } from "@src/utils/unitUtils";
 
 export interface HumanReadableBytesProps {
   value: number;

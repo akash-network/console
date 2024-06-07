@@ -1,39 +1,39 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
 import { createRef, useEffect, useState } from "react";
-import { DeploymentLogs, LOGS_MODE } from "./DeploymentLogs";
-import { useWallet } from "@src/context/WalletProvider";
-import { useSettings } from "@src/context/SettingsProvider";
-import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
-import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
-import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
-import { UrlService } from "@src/utils/urlUtils";
-import { RouteStepKeys } from "@src/utils/constants";
-import { useCertificate } from "@src/context/CertificateProvider";
-import { useProviderList } from "@src/queries/useProvidersQuery";
-import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
+import { ArrowLeft } from "iconoir-react";
 import Link from "next/link";
-import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
-import { DeploymentSubHeader } from "./DeploymentSubHeader";
+import { useRouter, useSearchParams } from "next/navigation";
+import { NextSeo } from "next-seo";
+import { event } from "nextjs-google-analytics";
+
+import Spinner from "@src/components/shared/Spinner";
 import { Alert } from "@src/components/ui/alert";
 import { Button, buttonVariants } from "@src/components/ui/button";
-import Spinner from "@src/components/shared/Spinner";
-import { cn } from "@src/utils/styleUtils";
-import { ArrowLeft } from "iconoir-react";
-import { ManifestUpdate } from "./ManifestUpdate";
-import { LeaseRow } from "./LeaseRow";
-import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
-import Layout from "../layout/Layout";
-import { NextSeo } from "next-seo";
-import { Title } from "../shared/Title";
-import { event } from "nextjs-google-analytics";
+import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
+import { useCertificate } from "@src/context/CertificateProvider";
+import { useSettings } from "@src/context/SettingsProvider";
+import { useWallet } from "@src/context/WalletProvider";
+import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
+import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
+import { useProviderList } from "@src/queries/useProvidersQuery";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { RouteStepKeys } from "@src/utils/constants";
+import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
+import { cn } from "@src/utils/styleUtils";
+import { UrlService } from "@src/utils/urlUtils";
+import Layout from "../layout/Layout";
+import { Title } from "../shared/Title";
+import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
+import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
+import { DeploymentLogs } from "./DeploymentLogs";
+import { DeploymentSubHeader } from "./DeploymentSubHeader";
+import { LeaseRow } from "./LeaseRow";
+import { ManifestUpdate } from "./ManifestUpdate";
 
 export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: string }>) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
-  const [selectedLogsMode, setSelectedLogsMode] = useState<LOGS_MODE>("logs");
   const { address, isWalletLoaded } = useWallet();
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
@@ -103,10 +103,6 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
       if (tabQuery) {
         setActiveTab(tabQuery);
       }
-
-      if (logsModeQuery && (logsModeQuery === "logs" || logsModeQuery === "events")) {
-        setSelectedLogsMode(logsModeQuery);
-      }
     }
   }, [tabQuery, logsModeQuery, leases]);
 
@@ -155,9 +151,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
       {isDeploymentNotFound && (
         <div className="mt-8 text-center">
           <Title className="mb-2">404</Title>
-          <p>
-            This deployment does not exist or it was created using another wallet.
-          </p>
+          <p>This deployment does not exist or it was created using another wallet.</p>
           <div className="pt-4">
             <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center space-x-2")}>
               <ArrowLeft className="text-sm" />
@@ -186,7 +180,6 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
                 leases={leases}
                 closeManifestEditor={() => {
                   setActiveTab("EVENTS");
-                  setSelectedLogsMode("events");
                   loadDeploymentDetail();
                 }}
               />

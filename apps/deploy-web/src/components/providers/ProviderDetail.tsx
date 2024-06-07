@@ -1,28 +1,29 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
-import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { useWallet } from "@src/context/WalletProvider";
-import { ApiProviderDetail, ClientProviderDetailWithStatus } from "@src/types/provider";
-import { useProviderAttributesSchema, useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
-import { LabelValue } from "@src/components/shared/LabelValue";
-import { CustomNoDivTooltip } from "@src/components/shared/CustomTooltip";
+import { useEffect, useMemo, useState } from "react";
 import { FormattedDate } from "react-intl";
-import dynamic from "next/dynamic";
-import ProviderDetailLayout, { ProviderDetailTabs } from "./ProviderDetailLayout";
-import { Alert } from "@src/components/ui/alert";
-import { ActiveLeasesGraph } from "./ActiveLeasesGraph";
-import Spinner from "@src/components/shared/Spinner";
-import { cn } from "@src/utils/styleUtils";
-import { Card, CardContent } from "@src/components/ui/card";
-import { ProviderSpecs } from "./ProviderSpecs";
-import { Check } from "iconoir-react";
-import { CustomNextSeo } from "../shared/CustomNextSeo";
-import Layout from "../layout/Layout";
-import { UrlService, domainName } from "@src/utils/urlUtils";
-import { differenceInMinutes, sub } from "date-fns";
-import { Title } from "../shared/Title";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import { differenceInMinutes, sub } from "date-fns";
+import { Check } from "iconoir-react";
+import dynamic from "next/dynamic";
+
+import { CustomNoDivTooltip } from "@src/components/shared/CustomTooltip";
+import { LabelValue } from "@src/components/shared/LabelValue";
+import Spinner from "@src/components/shared/Spinner";
+import { Alert } from "@src/components/ui/alert";
+import { Card, CardContent } from "@src/components/ui/card";
+import { useWallet } from "@src/context/WalletProvider";
+import { useAllLeases } from "@src/queries/useLeaseQuery";
+import { useProviderAttributesSchema, useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
+import { ApiProviderDetail, ClientProviderDetailWithStatus } from "@src/types/provider";
+import { cn } from "@src/utils/styleUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
+import Layout from "../layout/Layout";
+import { CustomNextSeo } from "../shared/CustomNextSeo";
+import { Title } from "../shared/Title";
+import { ActiveLeasesGraph } from "./ActiveLeasesGraph";
+import ProviderDetailLayout, { ProviderDetailTabs } from "./ProviderDetailLayout";
+import { ProviderSpecs } from "./ProviderSpecs";
 
 const NetworkCapacity = dynamic(() => import("./NetworkCapacity"), {
   ssr: false
@@ -45,11 +46,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
   });
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
   const { data: providerAttributesSchema, isFetching: isLoadingSchema } = useProviderAttributesSchema();
-  const {
-    data: providerStatus,
-    isLoading: isLoadingStatus,
-    refetch: getProviderStatus
-  } = useProviderStatus(provider?.hostUri || "", {
+  const { isLoading: isLoadingStatus, refetch: getProviderStatus } = useProviderStatus(provider?.hostUri || "", {
     enabled: true,
     retry: false,
     onSuccess: _providerStatus => {

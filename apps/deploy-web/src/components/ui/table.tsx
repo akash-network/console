@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+
 import { cn } from "@src/utils/styleUtils";
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(({ className, ...props }, ref) => (
@@ -27,7 +28,7 @@ TableFooter.displayName = "TableFooter";
 const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTMLTableRowElement>>(({ className, ...props }, ref) => (
   <tr
     ref={ref}
-    className={cn("border-b border-b-muted-foreground/20 transition-colors hover:bg-muted/100 data-[state=selected]:bg-muted", className)}
+    className={cn("border-b border-b-muted-foreground/20 transition-colors data-[state=selected]:bg-muted hover:bg-muted/100", className)}
     {...props}
   />
 ));

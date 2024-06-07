@@ -1,8 +1,9 @@
-import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 import { DataTypes, UUIDV4 } from "sequelize";
+import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
+
 import { Required } from "../decorators/requiredDecorator";
-import { UserSetting } from "./userSetting";
 import { TemplateFavorite } from "./templateFavorite";
+import { UserSetting } from "./userSetting";
 
 @Table({ modelName: "template", indexes: [{ fields: ["userId"] }] })
 export class Template extends Model {

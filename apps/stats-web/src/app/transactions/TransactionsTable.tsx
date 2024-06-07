@@ -1,20 +1,17 @@
 "use client";
+import { Metadata } from "next";
+
+import { TransactionRow } from "@/components/blockchain/TransactionRow";
 import Spinner from "@/components/Spinner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useTransactions } from "@/queries";
-import { Metadata } from "next";
-import { TransactionRow } from "@/components/blockchain/TransactionRow";
-
-type Props = {
-  errors?: string;
-};
 
 export const metadata: Metadata = {
   title: "Blocks"
 };
 
-export const TransactionsTable: React.FunctionComponent<Props> = ({}) => {
+export const TransactionsTable: React.FunctionComponent = () => {
   const { data: transactions, isLoading } = useTransactions(20, {
     refetchInterval: 7000
   });

@@ -1,7 +1,8 @@
 // pages/api/auth/[...auth0].js
 import { handleAuth, handleLogin, handleProfile } from "@auth0/nextjs-auth0";
-import { BASE_API_MAINNET_URL } from "@src/utils/constants";
 import axios from "axios";
+
+import { BASE_API_MAINNET_URL } from "@src/utils/constants";
 
 export default handleAuth({
   async login(req, res) {

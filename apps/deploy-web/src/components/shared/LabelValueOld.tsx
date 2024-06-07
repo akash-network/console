@@ -1,6 +1,7 @@
 "use client";
-import { cn } from "@src/utils/styleUtils";
 import { ReactNode } from "react";
+
+import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   label: string;

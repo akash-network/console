@@ -1,7 +1,8 @@
+import { useQuery } from "react-query";
+import axios from "axios";
+
 import { GpuVendor } from "@src/types/gpu";
 import { ApiUrlService } from "@src/utils/apiUtils";
-import axios from "axios";
-import { useQuery } from "react-query";
 import { QueryKeys } from "./queryKeys";
 
 async function getGpuModels() {

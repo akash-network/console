@@ -1,7 +1,7 @@
 [
-   {
-      "id":"rpc.testnet-02.aksh.pw",
-      "api":"https://api.testnet-02.aksh.pw",
-      "rpc":"https://rpc.testnet-02.aksh.pw"
-   }
+  {
+    "id": "rpc.testnet-02.aksh.pw",
+    "api": "https://api.testnet-02.aksh.pw",
+    "rpc": "https://rpc.testnet-02.aksh.pw"
+  }
 ]

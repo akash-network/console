@@ -1,34 +1,33 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useSettings } from "@src/context/SettingsProvider";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { useWallet } from "@src/context/WalletProvider";
-import { useNetworkCapacity, useProviderList } from "@src/queries/useProvidersQuery";
+import { useEffect, useState } from "react";
+import { OpenNewWindow, Refresh, Xmark } from "iconoir-react";
 import dynamic from "next/dynamic";
-import { UrlService, domainName } from "@src/utils/urlUtils";
-import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
-import { ClientProviderList } from "@src/types/provider";
 import { useRouter, useSearchParams } from "next/navigation";
+
+import { CustomPagination } from "@src/components/shared/CustomPagination";
 import Spinner from "@src/components/shared/Spinner";
 import { Button } from "@src/components/ui/button";
-import { OpenNewWindow, Refresh, Xmark } from "iconoir-react";
 import { CheckboxWithLabel } from "@src/components/ui/checkbox";
-import { CustomPagination } from "@src/components/shared/CustomPagination";
 import { InputWithIcon } from "@src/components/ui/input";
 import { Label } from "@src/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
+import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useSettings } from "@src/context/SettingsProvider";
+import { useWallet } from "@src/context/WalletProvider";
+import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { useAllLeases } from "@src/queries/useLeaseQuery";
+import { useNetworkCapacity, useProviderList } from "@src/queries/useProvidersQuery";
+import { ClientProviderList } from "@src/types/provider";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
-import { ProviderMap } from "./ProviderMap";
-import { ProviderTable } from "./ProviderTable";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { Title } from "../shared/Title";
+import { ProviderMap } from "./ProviderMap";
+import { ProviderTable } from "./ProviderTable";
 
 const NetworkCapacity = dynamic(() => import("./NetworkCapacity"), {
   ssr: false
 });
-
-type Props = {};
 
 type SortId = "active-leases-desc" | "active-leases-asc" | "my-leases-desc" | "my-active-leases-desc" | "gpu-available-desc";
 
@@ -40,7 +39,7 @@ const sortOptions: { id: SortId; title: string }[] = [
   { id: "gpu-available-desc", title: "GPUs Available (desc)" }
 ];
 
-export const ProviderList: React.FunctionComponent<Props> = ({}) => {
+export const ProviderList: React.FunctionComponent = () => {
   const { address } = useWallet();
   const [pageIndex, setPageIndex] = useState(0);
   const [isFilteringActive, setIsFilteringActive] = useState(true);
@@ -232,7 +231,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({}) => {
                 </div>
               </div>
 
-              <div className="my-2 flex items-center md:ml-8 md:my-0">
+              <div className="my-2 flex items-center md:my-0 md:ml-8">
                 <div>
                   <CheckboxWithLabel checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} label="Active" />
                 </div>

@@ -1,9 +1,10 @@
-import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
-import { Deployment } from "./deployment";
-import { Lease } from "./lease";
-import { DeploymentGroupResource } from "./deploymentGroupResource";
+import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
+
 import { Required } from "../decorators/requiredDecorator";
+import { Deployment } from "./deployment";
+import { DeploymentGroupResource } from "./deploymentGroupResource";
+import { Lease } from "./lease";
 
 @Table({
   modelName: "deploymentGroup",

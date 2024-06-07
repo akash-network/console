@@ -1,15 +1,17 @@
-import { Box, Button, Grid, Typography, useTheme } from "@mui/material";
 import React from "react";
 import ReactPlayer from "react-player/lazy";
-import { DiscordIcon } from "@src/components/shared/icons";
-import YouTubeIcon from "@mui/icons-material/YouTube";
-import TwitterIcon from "@mui/icons-material/Twitter";
-import Layout from "@src/components/layout/Layout";
-import PageContainer from "@src/components/shared/PageContainer";
-import { GradientText } from "@src/components/shared/GradientText";
-import { makeStyles } from "tss-react/mui";
-import { NextSeo } from "next-seo";
 import LaunchIcon from "@mui/icons-material/RocketLaunch";
+import TwitterIcon from "@mui/icons-material/Twitter";
+import YouTubeIcon from "@mui/icons-material/YouTube";
+import { Box, Button, Grid, Typography } from "@mui/material";
+import { NextSeo } from "next-seo";
+import { makeStyles } from "tss-react/mui";
+
+import Layout from "@src/components/layout/Layout";
+import { GradientText } from "@src/components/shared/GradientText";
+import { DiscordIcon } from "@src/components/shared/icons";
+import PageContainer from "@src/components/shared/PageContainer";
+import { useWindow } from "@src/hooks/useWindow";
 
 const useStyles = makeStyles()(theme => ({
   title: {
@@ -92,11 +94,9 @@ const useStyles = makeStyles()(theme => ({
   }
 }));
 
-type Props = {};
-
-const Index: React.FunctionComponent<Props> = ({}) => {
-  const theme = useTheme();
+const Index: React.FunctionComponent = () => {
   const { classes } = useStyles();
+  const window = useWindow();
 
   return (
     <Layout>
@@ -112,8 +112,7 @@ const Index: React.FunctionComponent<Props> = ({}) => {
             Go above and beyond the traditional cloud
           </Typography>
           <Typography variant="body1" color="textSecondary">
-            Deploy any docker container in a few clicks! Cloudmos greatly simplifies and enhances docker container deployments on the Akash
-            Network.
+            Deploy any docker container in a few clicks! Cloudmos greatly simplifies and enhances docker container deployments on the Akash Network.
           </Typography>
 
           <Box marginTop={3} marginBottom={3}>
@@ -134,7 +133,7 @@ const Index: React.FunctionComponent<Props> = ({}) => {
         </Box>
 
         <Box margin="1rem auto" display="flex" justifyContent="center">
-          <ReactPlayer url="https://www.youtube.com/watch?v=KscVdyESSm4" style={{ backgroundColor: "rgba(0,0,0,0.5)" }} />
+          {!!window && <ReactPlayer url="https://www.youtube.com/watch?v=KscVdyESSm4" style={{ backgroundColor: "rgba(0,0,0,0.5)" }} />}
         </Box>
 
         <Box margin="3rem auto 0rem" maxWidth="640px">
@@ -166,12 +165,5 @@ const Index: React.FunctionComponent<Props> = ({}) => {
     </Layout>
   );
 };
-
-export async function getServerSideProps() {
-  return {
-    props: {}
-    //revalidate: 20
-  };
-}
 
 export default Index;

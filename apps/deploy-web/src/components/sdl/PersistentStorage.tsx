@@ -1,18 +1,19 @@
 "use client";
 import { ReactNode } from "react";
-import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { FormPaper } from "./FormPaper";
 import { Control, Controller } from "react-hook-form";
-import { persistentStorageTypes, storageUnits } from "../shared/akash/units";
-import { FormDescription, FormItem } from "../ui/form";
-import { InfoCircle } from "iconoir-react";
 import { MdStorage } from "react-icons/md";
+import { InfoCircle } from "iconoir-react";
+
+import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
+import { persistentStorageTypes, storageUnits } from "../shared/akash/units";
+import { CustomTooltip } from "../shared/CustomTooltip";
 import { Checkbox } from "../ui/checkbox";
+import { FormDescription, FormItem } from "../ui/form";
 import { Input, InputWithIcon } from "../ui/input";
+import { Label } from "../ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Slider } from "../ui/slider";
-import { Label } from "../ui/label";
+import { FormPaper } from "./FormPaper";
 
 type Props = {
   currentService: Service;
@@ -149,7 +150,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
               rules={{
                 required: "Name is required.",
                 validate: value => {
-                  const hasValidChars = /^[a-z0-9\-]+$/.test(value);
+                  const hasValidChars = /^[a-z0-9-]+$/.test(value);
                   const hasValidStartingChar = /^[a-z]/.test(value);
                   const hasValidEndingChar = !value.endsWith("-");
 

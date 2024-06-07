@@ -1,5 +1,6 @@
-import { Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
+import { Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
+
 import { Required } from "../decorators/requiredDecorator";
 import { ProviderSnapshotNode } from "./providerSnapshotNode";
 

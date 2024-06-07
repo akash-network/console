@@ -1,16 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fromBech32, normalizeBech32 } from "@cosmjs/encoding";
-import { useRouter } from "next/navigation";
 import { Search, Xmark } from "iconoir-react";
-import { UrlService } from "@/lib/urlUtils";
-import { Input } from "./ui/input";
-import { Card, CardContent } from "./ui/card";
-import { Button } from "./ui/button";
-import { breakpoints } from "@/lib/responsiveUtils";
+import { useRouter } from "next/navigation";
 import { useMediaQuery } from "usehooks-ts";
 
-type Props = {};
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { Input } from "./ui/input";
+
+import { breakpoints } from "@/lib/responsiveUtils";
+import { UrlService } from "@/lib/urlUtils";
 
 enum SearchType {
   AccountAddress,
@@ -19,7 +19,7 @@ enum SearchType {
   BlockHeight
 }
 
-const SearchBar: React.FunctionComponent<Props> = ({}) => {
+const SearchBar: React.FunctionComponent = () => {
   const [searchTerms, setSearchTerms] = useState("");
   const [searchType, setSearchType] = useState<SearchType | null>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -147,7 +147,7 @@ const SearchBar: React.FunctionComponent<Props> = ({}) => {
         </label>
 
         {searchType === null && searchTerms.trim() && isFocused && (
-          <div className=" absolute -bottom-14 left-0 w-full">
+          <div className="absolute -bottom-14 left-0 w-full">
             <Card>
               <CardContent className="!p-4">Invalid search term</CardContent>
             </Card>

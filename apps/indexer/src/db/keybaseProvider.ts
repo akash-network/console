@@ -1,6 +1,6 @@
+import { Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import fetch from "node-fetch";
 import { Op } from "sequelize";
-import { Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 
 export async function fetchValidatorKeybaseInfos() {
   const validators = await Validator.findAll({
@@ -9,7 +9,7 @@ export async function fetchValidatorKeybaseInfos() {
     }
   });
 
-  const requests = validators.map(async (validator) => {
+  const requests = validators.map(async validator => {
     try {
       if (!/^[A-F0-9]{16}$/.test(validator.identity)) {
         console.warn("Invalid identity " + validator.identity + " for validator " + validator.operatorAddress);

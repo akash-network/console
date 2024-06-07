@@ -1,16 +1,14 @@
 import { UserFavorites } from "@src/components/user/UserFavorites";
 import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequired";
 
-type Props = {};
-
-const UserFavoritesPage: React.FunctionComponent<Props> = ({}) => {
+const UserFavoritesPage: React.FunctionComponent = () => {
   return <UserFavorites />;
 };
 
 export default UserFavoritesPage;
 
 export const getServerSideProps = withCustomPageAuthRequired({
-  async getServerSideProps({ params, req, res }) {
+  async getServerSideProps() {
     return {
       props: {}
     };

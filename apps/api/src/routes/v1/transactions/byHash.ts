@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { getTransaction } from "@src/services/db/transactionsService";
 import { openApiExampleTransactionHash } from "@src/utils/constants";
 
@@ -50,7 +51,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const txInfo = await getTransaction(c.req.valid("param").hash);
 
   if (txInfo) {

@@ -1,14 +1,16 @@
 "use client";
 
-import { DataTableColumnHeader } from "@/components/table/data-table-column-header";
-import { UrlService } from "@/lib/urlUtils";
 import { AccessorColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
+
 import { statuses } from "./data";
-import { Badge } from "@/components/ui/badge";
+
 import { LeaseSpecDetail } from "@/components/LeaseSpecDetail";
+import { DataTableColumnHeader } from "@/components/table/data-table-column-header";
+import { Badge } from "@/components/ui/badge";
 import { roundDecimal } from "@/lib/mathHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
+import { UrlService } from "@/lib/urlUtils";
 import { DeploymentRowType } from "@/lib/zod/deploymentRow";
 
 export const columns: AccessorColumnDef<DeploymentRowType>[] = [

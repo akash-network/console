@@ -1,8 +1,9 @@
-import { Expose, ImportService, ProfileGpuModel } from "@src/types";
-import { nanoid } from "nanoid";
-import { capitalizeFirstLetter } from "../stringUtils";
 import yaml from "js-yaml";
+import { nanoid } from "nanoid";
+
+import { Expose, ImportService, ProfileGpuModel } from "@src/types";
 import { CustomValidationError } from "../deploymentData";
+import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
 
 export const importSimpleSdl = (yamlStr: string) => {

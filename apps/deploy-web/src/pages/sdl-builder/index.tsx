@@ -1,9 +1,10 @@
 import React from "react";
-import { Title } from "@src/components/shared/Title";
-import { UrlService, domainName } from "@src/utils/urlUtils";
+
 import Layout from "@src/components/layout/Layout";
-import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { SimpleSDLBuilderForm } from "@src/components/sdl/SimpleSdlBuilderForm";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { Title } from "@src/components/shared/Title";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 
 function SDLBuilderPage() {
   return (
@@ -22,9 +23,3 @@ function SDLBuilderPage() {
 }
 
 export default SDLBuilderPage;
-
-export async function getServerSideProps({ params }) {
-  return {
-    props: {}
-  };
-}

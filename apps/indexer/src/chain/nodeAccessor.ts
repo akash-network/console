@@ -1,7 +1,8 @@
+import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import fs from "fs";
+
 import { concurrentNodeQuery, dataFolderPath } from "@src/shared/constants";
 import { sleep } from "@src/shared/utils/delay";
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import { NodeInfo, NodeStatus, SavedNodeInfo } from "./nodeInfo";
 
 interface NodeAccessorSettings {
@@ -16,18 +17,18 @@ class NodeAccessor {
 
   constructor(settings: NodeAccessorSettings) {
     this.settings = settings;
-    this.nodes = activeChain.rpcNodes.map((x) => new NodeInfo(x, settings.maxConcurrentQueryPerNode));
+    this.nodes = activeChain.rpcNodes.map(x => new NodeInfo(x, settings.maxConcurrentQueryPerNode));
   }
 
   private async saveNodeStatus() {
     console.log("Saving node status...");
-    const statuses = this.nodes.map((x) => x.getSavedNodeInfo());
+    const statuses = this.nodes.map(x => x.getSavedNodeInfo());
 
     await fs.promises.writeFile(savedNodeInfoPath, JSON.stringify(statuses, null, 2));
   }
 
   private async refetchNodeStatus() {
-    const promises = this.nodes.map((x) => x.updateStatus());
+    const promises = this.nodes.map(x => x.updateStatus());
 
     await Promise.allSettled(promises);
   }
@@ -45,7 +46,7 @@ class NodeAccessor {
     const savedNodes = JSON.parse(file) as SavedNodeInfo[];
 
     for (const savedNode of savedNodes) {
-      const node = this.nodes.find((x) => x.url === savedNode.url);
+      const node = this.nodes.find(x => x.url === savedNode.url);
 
       if (node) {
         node.loadFromSavedNodeInfo(savedNode);
@@ -66,14 +67,14 @@ class NodeAccessor {
   public async getLatestBlockHeight(): Promise<number> {
     const results = await Promise.allSettled(
       this.nodes
-        .filter((node) => node.status === NodeStatus.OK)
-        .map(async (node) => {
+        .filter(node => node.status === NodeStatus.OK)
+        .map(async node => {
           const response = await node.query("/status");
           return parseInt(response.result.sync_info.latest_block_height);
         })
     );
 
-    const validResults = results.filter((result) => result.status === "fulfilled").map((result) => (result as PromiseFulfilledResult<number>).value);
+    const validResults = results.filter(result => result.status === "fulfilled").map(result => (result as PromiseFulfilledResult<number>).value);
 
     if (validResults.length === 0) {
       throw new Error("No active nodes");
@@ -95,7 +96,7 @@ class NodeAccessor {
   }
 
   public async waitForAllFinished(): Promise<void> {
-    while (this.nodes.some((x) => x.activeQueries.length > 0)) {
+    while (this.nodes.some(x => x.activeQueries.length > 0)) {
       await sleep(5);
     }
   }
@@ -119,30 +120,30 @@ class NodeAccessor {
   }
 
   private getAvailableNode(height?: number): NodeInfo {
-    const availableNodes = this.nodes.filter((x) => x.isAvailable(height));
+    const availableNodes = this.nodes.filter(x => x.isAvailable(height));
 
     if (availableNodes.length === 0) return null;
 
-    const minActiveQueries = Math.min(...availableNodes.map((a, b) => a.activeQueries.length));
-    const bestNodes = availableNodes.filter((x) => x.activeQueries.length === minActiveQueries);
+    const minActiveQueries = Math.min(...availableNodes.map(a => a.activeQueries.length));
+    const bestNodes = availableNodes.filter(x => x.activeQueries.length === minActiveQueries);
 
     return bestNodes[Math.floor(Math.random() * bestNodes.length)];
   }
 
   public getActiveNodeCount() {
-    return this.nodes.filter((x) => x.status === NodeStatus.OK).length;
+    return this.nodes.filter(x => x.status === NodeStatus.OK).length;
   }
 
   public getNodeStatus() {
     return this.nodes
       .sort((a, b) => a.url.localeCompare(b.url))
-      .map((x) => ({
+      .map(x => ({
         endpoint: x.url,
         status: x.status,
         concurrent: x.maxConcurrentQuery,
         delay: x.delayBetweenRequests,
         earliest: x.earliestBlockHeight || null,
-        fetching: x.activeQueries.map((x) => getQueryIdentifier(x)).join(","),
+        fetching: x.activeQueries.map(x => getQueryIdentifier(x)).join(","),
         success: x.successCount,
         failed: x.errorCount,
         latestError: x.latestError || null
@@ -150,7 +151,7 @@ class NodeAccessor {
   }
 
   public displayTable() {
-    console.table(this.getNodeStatus().map((x) => ({ ...x, latestError: x.latestError?.substring(0, 50) })));
+    console.table(this.getNodeStatus().map(x => ({ ...x, latestError: x.latestError?.substring(0, 50) })));
   }
 }
 

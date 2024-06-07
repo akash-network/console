@@ -1,9 +1,10 @@
 "use client";
-import { bytesToShrink } from "@src/utils/unitUtils";
+import { MdDeveloperBoard, MdMemory, MdSpeed, MdStorage } from "react-icons/md";
+
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { cn } from "@src/utils/styleUtils";
+import { bytesToShrink } from "@src/utils/unitUtils";
 import { Badge } from "../ui/badge";
-import { MdDeveloperBoard, MdMemory, MdSpeed, MdStorage } from "react-icons/md";
 
 export function SpecDetail({
   cpuAmount,
@@ -55,7 +56,7 @@ export function SpecDetail({
             <div className={specDetailClasses}>{gpuAmount + " GPU"}</div>
             {gpuModels && gpuModels?.length > 0 && (
               <div className="ml-2 inline-flex items-center space-x-2">
-                {gpuModels.map((gpu, i) => (
+                {gpuModels.map(gpu => (
                   <Badge key={`${gpu.vendor}-${gpu.model}`} className="py-0 text-xs" color="default">
                     {`${gpu.vendor}-${gpu.model}`}
                   </Badge>

@@ -1,5 +1,6 @@
-import { networkVersion, BASE_API_URL } from "./constants";
 import axios from "axios";
+
+import { BASE_API_URL } from "./constants";
 import { appendSearchParams } from "./urlUtils";
 
 export class ApiUrlService {

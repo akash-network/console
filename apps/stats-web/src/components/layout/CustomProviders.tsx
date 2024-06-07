@@ -1,14 +1,16 @@
 "use client";
 import React from "react";
-import { CustomIntlProvider } from "./CustomIntlProvider";
 import { QueryClientProvider } from "react-query";
-import { queryClient } from "@/queries";
 import { Provider } from "jotai";
-import { ThemeProvider } from "next-themes";
-import { PricingProvider } from "@/context/PricingProvider";
-import { TooltipProvider } from "../ui/tooltip";
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
+import { ThemeProvider } from "next-themes";
+
+import { TooltipProvider } from "../ui/tooltip";
+import { CustomIntlProvider } from "./CustomIntlProvider";
+
+import { PricingProvider } from "@/context/PricingProvider";
 import { customColors } from "@/lib/colors";
+import { queryClient } from "@/queries";
 
 function Providers({ children }: React.PropsWithChildren) {
   return (

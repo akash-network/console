@@ -1,11 +1,12 @@
-import { CustomValidationError, DeploymentGroups, getCurrentHeight, getSdl, Manifest, ManifestVersion, parseSizeStr } from "./helpers";
+import { SDL } from "@akashnetwork/akashjs/build/sdl";
+import { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import yaml from "js-yaml";
+import path from "path";
+
+import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { defaultInitialDeposit } from "../constants";
 import { stringToBoolean } from "../stringUtils";
-import path from "path";
-import yaml from "js-yaml";
-import { SDL } from "@akashnetwork/akashjs/build/sdl";
-import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
-import { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import { CustomValidationError, DeploymentGroups, getCurrentHeight, getSdl, Manifest, ManifestVersion, parseSizeStr } from "./helpers";
 
 function validate(yamlStr: string, yamlJson, networkId: NetworkId) {
   let sdl: SDL;

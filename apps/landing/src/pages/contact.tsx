@@ -1,18 +1,15 @@
-import { ReactNode } from "react";
-import PageContainer from "@src/components/shared/PageContainer";
-import { Box, Grid, Typography, useTheme } from "@mui/material";
-import { Title } from "@src/components/shared/Title";
-import { NextSeo } from "next-seo";
-import Layout from "@src/components/layout/Layout";
-import { makeStyles } from "tss-react/mui";
-import { DiscordIcon } from "@src/components/shared/icons";
-import YouTubeIcon from "@mui/icons-material/YouTube";
-import TwitterIcon from "@mui/icons-material/Twitter";
+import React from "react";
 import GitHubIcon from "@mui/icons-material/GitHub";
+import TwitterIcon from "@mui/icons-material/Twitter";
+import YouTubeIcon from "@mui/icons-material/YouTube";
+import { Box, Grid, Typography } from "@mui/material";
+import { NextSeo } from "next-seo";
+import { makeStyles } from "tss-react/mui";
 
-type Props = {
-  children?: ReactNode;
-};
+import Layout from "@src/components/layout/Layout";
+import { DiscordIcon } from "@src/components/shared/icons";
+import PageContainer from "@src/components/shared/PageContainer";
+import { Title } from "@src/components/shared/Title";
 
 export const useStyles = makeStyles()(theme => ({
   socials: {
@@ -43,8 +40,7 @@ export const useStyles = makeStyles()(theme => ({
   }
 }));
 
-const ContactPage: React.FunctionComponent<Props> = ({}) => {
-  const theme = useTheme();
+const ContactPage: React.FunctionComponent = () => {
   const { classes } = useStyles();
 
   return (

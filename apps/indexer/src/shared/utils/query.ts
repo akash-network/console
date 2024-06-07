@@ -24,5 +24,5 @@ export async function loadWithPagination(baseUrl: string, dataKey: string, limit
     console.log(`Got ${items.length} of ${totalCount}`);
   } while (nextKey);
 
-  return items.filter((item) => item);
+  return items.filter(item => item);
 }
