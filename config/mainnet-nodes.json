@@ -1,5 +1,5 @@
 [
-   {
+  {
     "id": "cryptoandcoffee.com",
     "api": "https://akash-api.global.ssl.fastly.net",
     "rpc": "https://akash-rpc.global.ssl.fastly.net"

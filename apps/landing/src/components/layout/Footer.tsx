@@ -1,23 +1,19 @@
 import React from "react";
+import CloseIcon from "@mui/icons-material/Close";
+import CopyrightIcon from "@mui/icons-material/Copyright";
+import FileCopyIcon from "@mui/icons-material/FileCopy";
+import TwitterIcon from "@mui/icons-material/Twitter";
+import YouTubeIcon from "@mui/icons-material/YouTube";
+import { Box, Chip, Grid, IconButton, Typography } from "@mui/material";
+import Link from "next/link";
 import { useSnackbar } from "notistack";
 import { makeStyles } from "tss-react/mui";
-import { copyTextToClipboard } from "@src/utils/copyClipboard";
+
 import { donationAddress } from "@src/utils/constants";
-import { Box, Chip, Grid, IconButton, Typography } from "@mui/material";
-import { DiscordIcon } from "../shared/icons";
-import getConfig from "next/config";
-import CloseIcon from "@mui/icons-material/Close";
-import FileCopyIcon from "@mui/icons-material/FileCopy";
-import CopyrightIcon from "@mui/icons-material/Copyright";
-import YouTubeIcon from "@mui/icons-material/YouTube";
-import TwitterIcon from "@mui/icons-material/Twitter";
+import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { UrlService } from "@src/utils/urlUtils";
-import Link from "next/link";
+import { DiscordIcon } from "../shared/icons";
 import { ColorModeSwitch } from "./ColorModeSwitch";
-
-const { publicRuntimeConfig } = getConfig();
-
-export interface IFooterProps {}
 
 export const useStyles = makeStyles()(theme => ({
   root: {
@@ -95,7 +91,7 @@ export const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const Footer: React.FunctionComponent<IFooterProps> = ({}) => {
+export const Footer: React.FC = () => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { classes } = useStyles();
 
@@ -177,25 +173,19 @@ export const Footer: React.FunctionComponent<IFooterProps> = ({}) => {
           </ul>
 
           <Box sx={{ margin: { xs: ".5rem 0 1rem", sm: 0 }, display: "flex", alignItems: "center" }}>
-            <Link href={UrlService.termsOfService()}>
-              <a className={classes.privacyLink}>
-                <Typography variant="caption">Terms of Service</Typography>
-              </a>
+            <Link href={UrlService.termsOfService()} className={classes.privacyLink}>
+              <Typography variant="caption">Terms of Service</Typography>
             </Link>
 
             <Box sx={{ marginLeft: "1rem" }}>
-              <Link href={UrlService.privacyPolicy()}>
-                <a className={classes.privacyLink}>
-                  <Typography variant="caption">Privacy Policy</Typography>
-                </a>
+              <Link href={UrlService.privacyPolicy()} className={classes.privacyLink}>
+                <Typography variant="caption">Privacy Policy</Typography>
               </Link>
             </Box>
 
             <Box sx={{ marginLeft: "1rem" }}>
-              <Link href={UrlService.contact()}>
-                <a className={classes.privacyLink}>
-                  <Typography variant="caption">Contact</Typography>
-                </a>
+              <Link href={UrlService.contact()} className={classes.privacyLink}>
+                <Typography variant="caption">Contact</Typography>
               </Link>
             </Box>
           </Box>

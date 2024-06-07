@@ -1,10 +1,11 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { sub } from "date-fns";
+import { QueryTypes } from "sequelize";
+
 import { chainDb } from "@src/db/dbConnection";
 import { toUTC } from "@src/utils";
 import { isValidBech32Address } from "@src/utils/addresses";
 import { env } from "@src/utils/env";
-import { sub } from "date-fns";
-import { QueryTypes } from "sequelize";
 
 const route = createRoute({
   method: "get",
@@ -52,7 +53,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const provider = c.req.query("provider");
   const vendor = c.req.query("vendor");
   const model = c.req.query("model");
@@ -122,8 +123,8 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   const response = {
     gpus: {
       total: {
-        allocatable: gpuNodes.map((x) => x.allocatable).reduce((acc, x) => acc + x, 0),
-        allocated: gpuNodes.map((x) => x.allocated).reduce((acc, x) => acc + x, 0)
+        allocatable: gpuNodes.map(x => x.allocatable).reduce((acc, x) => acc + x, 0),
+        allocated: gpuNodes.map(x => x.allocated).reduce((acc, x) => acc + x, 0)
       },
       details: {} as { [key: string]: { model: string; ram: string; interface: string; allocatable: number; allocated: number }[] }
     }
@@ -136,7 +137,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
     }
 
     const existing = response.gpus.details[vendorName].find(
-      (x) => x.model === gpuNode.modelName && x.interface === gpuNode.interface && x.ram === gpuNode.memorySize
+      x => x.model === gpuNode.modelName && x.interface === gpuNode.interface && x.ram === gpuNode.memorySize
     );
 
     if (existing) {

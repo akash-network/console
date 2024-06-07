@@ -1,7 +1,8 @@
 "use client";
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { ArrowUp, ArrowDown } from "iconoir-react";
+import { ArrowDown, ArrowUp } from "iconoir-react";
+
 import { cn } from "@/lib/utils";
 
 export interface DiffPercentageChipProps {

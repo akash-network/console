@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
-import { StatusPill } from "../shared/StatusPill";
 import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
+
+import { getSplitText } from "@src/hooks/useShortText";
 import { LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
-import { Badge } from "../ui/badge";
+import { UrlService } from "@src/utils/urlUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { getSplitText } from "@src/hooks/useShortText";
+import { StatusPill } from "../shared/StatusPill";
+import { Badge } from "../ui/badge";
 
 type Props = {
   lease: LeaseDto;

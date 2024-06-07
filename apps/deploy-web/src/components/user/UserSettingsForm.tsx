@@ -1,27 +1,26 @@
-import { NextSeo } from "next-seo";
-import { LabelValue } from "@src/components/shared/LabelValue";
 import { useEffect, useState } from "react";
-import axios from "axios";
-import { useSaveSettings } from "@src/queries/useSettings";
-import { useCustomUser } from "@src/hooks/useCustomUser";
-import { UserSettings } from "@src/types/user";
 import { Controller, useForm } from "react-hook-form";
-import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
-import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
-import Spinner from "@src/components/shared/Spinner";
-import { FormPaper } from "@src/components/sdl/FormPaper";
-import { Button } from "@src/components/ui/button";
-import { Alert } from "@src/components/ui/alert";
-import { CheckCircle } from "iconoir-react";
 import { MdHighlightOff } from "react-icons/md";
-import { Switch } from "@src/components/ui/switch";
+import axios from "axios";
+import { CheckCircle } from "iconoir-react";
+import { NextSeo } from "next-seo";
+import { event } from "nextjs-google-analytics";
+
+import { FormPaper } from "@src/components/sdl/FormPaper";
+import { LabelValue } from "@src/components/shared/LabelValue";
+import Spinner from "@src/components/shared/Spinner";
+import { Alert } from "@src/components/ui/alert";
+import { Button } from "@src/components/ui/button";
 import { Input, InputWithIcon, Textarea } from "@src/components/ui/input";
+import { Switch } from "@src/components/ui/switch";
+import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
+import { useCustomUser } from "@src/hooks/useCustomUser";
+import { useSaveSettings } from "@src/queries/useSettings";
+import { UserSettings } from "@src/types/user";
+import { AnalyticsEvents } from "@src/utils/analytics";
 import Layout from "../layout/Layout";
 
-type Props = {};
-
-export const UserSettingsForm: React.FunctionComponent<Props> = ({}) => {
+export const UserSettingsForm: React.FunctionComponent = () => {
   const { user, isLoading } = useCustomUser();
   const [isCheckingAvailability, setIsCheckingAvailability] = useState<boolean>(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);

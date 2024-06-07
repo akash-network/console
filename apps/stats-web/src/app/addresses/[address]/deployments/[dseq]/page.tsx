@@ -1,17 +1,19 @@
-import { Metadata, ResolvingMetadata } from "next";
-import { UrlService } from "@/lib/urlUtils";
-import PageContainer from "@/components/PageContainer";
+import { Metadata } from "next";
+
 import { DeploymentInfo } from "./DeploymentInfo";
-import { getNetworkBaseApiUrl } from "@/lib/constants";
-import { DeploymentDetail } from "@/types";
+
+import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
+import { getNetworkBaseApiUrl } from "@/lib/constants";
+import { UrlService } from "@/lib/urlUtils";
+import { DeploymentDetail } from "@/types";
 
 interface IProps {
   params: { address: string; dseq: string };
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export async function generateMetadata({ params: { address, dseq } }: IProps, parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata({ params: { address, dseq } }: IProps): Promise<Metadata> {
   const url = `https://stats.akash.network${UrlService.deployment(address, dseq)}`;
 
   return {

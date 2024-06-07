@@ -1,13 +1,14 @@
+import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import { Message, Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { fromBase64, fromBech32, toBech32, toHex } from "@cosmjs/encoding";
 import { MsgCreateValidator, MsgEditValidator } from "cosmjs-types/cosmos/staking/v1beta1/tx";
+import { Transaction as DbTransaction } from "sequelize";
+
+import { IGenesis, IGenesisValidator, IGentxCreateValidator } from "@src/chain/genesisTypes";
+import { sequelize } from "@src/db/dbConnection";
+import { pubkeyToRawAddress } from "@src/shared/utils/addresses";
 import * as benchmark from "../shared/utils/benchmark";
 import { Indexer } from "./indexer";
-import { fromBase64, fromBech32, toBech32, toHex } from "@cosmjs/encoding";
-import { IGenesis, IGenesisValidator, IGentxCreateValidator } from "@src/chain/genesisTypes";
-import { pubkeyToRawAddress } from "@src/shared/utils/addresses";
-import { sequelize } from "@src/db/dbConnection";
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { Transaction as DbTransaction } from "sequelize";
 
 export class ValidatorIndexer extends Indexer {
   msgHandlers: { [key: string]: (msgSubmitProposal: any, height: number, blockGroupTransaction: DbTransaction, msg: Message) => Promise<void> };
@@ -34,7 +35,7 @@ export class ValidatorIndexer extends Indexer {
   async seed(genesis: IGenesis) {
     const validators = genesis.app_state.staking.validators;
 
-    await sequelize.transaction(async (dbTransaction) => {
+    await sequelize.transaction(async dbTransaction => {
       for (const validator of validators) {
         console.log("Creating validator :" + validator.operator_address);
 
@@ -43,8 +44,8 @@ export class ValidatorIndexer extends Indexer {
 
       // TODO: Handle any gentx txs types
       const msgs = genesis.app_state.genutil.gen_txs
-        .flatMap((tx) => tx.body.messages)
-        .filter((x) => x["@type"] === "/cosmos.staking.v1beta1.MsgCreateValidator") as IGentxCreateValidator[];
+        .flatMap(tx => tx.body.messages)
+        .filter(x => x["@type"] === "/cosmos.staking.v1beta1.MsgCreateValidator") as IGentxCreateValidator[];
 
       for (const msg of msgs) {
         console.log("Creating validator :" + msg.validator_address);
@@ -121,7 +122,7 @@ export class ValidatorIndexer extends Indexer {
     }
   }
 
-  private async handleEditValidator(decodedMessage: MsgEditValidator, height: number, dbTransaction: DbTransaction, msg: Message) {
+  private async handleEditValidator(decodedMessage: MsgEditValidator, height: number, dbTransaction: DbTransaction) {
     const validator = await Validator.findOne({
       where: {
         operatorAddress: decodedMessage.validatorAddress
@@ -154,5 +155,17 @@ export class ValidatorIndexer extends Indexer {
     }
 
     await validator.save({ transaction: dbTransaction });
+  }
+
+  initCache(): Promise<void> {
+    return Promise.resolve(undefined);
+  }
+
+  afterEveryTransaction(): Promise<void> {
+    return Promise.resolve(undefined);
+  }
+
+  afterEveryBlock(): Promise<void> {
+    return Promise.resolve(undefined);
   }
 }

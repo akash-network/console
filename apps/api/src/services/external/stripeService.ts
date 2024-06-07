@@ -1,8 +1,8 @@
 import { UserSetting } from "@akashnetwork/cloudmos-shared/dbSchemas/user";
 import { PlanCode } from "@akashnetwork/cloudmos-shared/plans";
-import { env } from "@src/utils/env";
-
 import Stripe from "stripe";
+
+import { env } from "@src/utils/env";
 
 const stripe = new Stripe(process.env.StripeSecretKey, { apiVersion: "2022-08-01" });
 
@@ -42,7 +42,7 @@ export async function getCheckoutUrl(userId: string, planCode: string, isMonthly
     product: products.data[0].id
   });
 
-  const price = prices.data.find((x) => x.recurring.interval === (isMonthly ? "month" : "year") && x.active === true);
+  const price = prices.data.find(x => x.recurring.interval === (isMonthly ? "month" : "year") && x.active === true);
 
   if (!userSettings.stripeCustomerId) {
     const createdCustomer = await stripe.customers.create({ email: userSettings.email });

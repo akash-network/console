@@ -1,4 +1,5 @@
 import { UserProfile } from "@auth0/nextjs-auth0/client";
+
 import { IPlan, PlanCode } from "@src/utils/plans";
 
 export interface SdlTemplate {

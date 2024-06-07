@@ -1,14 +1,13 @@
 "use client";
 import React from "react";
-import Layout from "@src/components/layout/Layout";
+
 import { GetStartedStepper } from "@src/components/get-started/GetStartedStepper";
+import Layout from "@src/components/layout/Layout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
-import { UrlService, domainName } from "@src/utils/urlUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@src/components/ui/card";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 
-type Props = {};
-
-const GetStarted: React.FunctionComponent<Props> = ({}) => {
+const GetStarted: React.FunctionComponent = () => {
   return (
     <Layout>
       <CustomNextSeo

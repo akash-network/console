@@ -1,11 +1,10 @@
 "use client";
 import React from "react";
+
 import { ExternalLink } from "../shared/ExternalLink";
 import { Alert } from "../ui/alert";
 
-type Props = {};
-
-export const CreateWalletSection: React.FunctionComponent<Props> = ({}) => {
+export const CreateWalletSection: React.FunctionComponent = () => {
   return (
     <ul className="list-[lower-alpha] space-y-2 py-4 pl-8">
       <li>

@@ -1,14 +1,15 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { useWallet } from "@src/context/WalletProvider";
-import { ClientProviderDetailWithStatus } from "@src/types/provider";
-import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
+import { useEffect, useState } from "react";
+
 import { DynamicReactJson } from "@src/components/shared/DynamicJsonView";
-import ProviderDetailLayout, { ProviderDetailTabs } from "./ProviderDetailLayout";
+import { useWallet } from "@src/context/WalletProvider";
+import { useAllLeases } from "@src/queries/useLeaseQuery";
+import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
+import { ClientProviderDetailWithStatus } from "@src/types/provider";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
-import { UrlService, domainName } from "@src/utils/urlUtils";
+import ProviderDetailLayout, { ProviderDetailTabs } from "./ProviderDetailLayout";
 
 type Props = {
   owner: string;
@@ -32,7 +33,7 @@ export const ProviderRawData: React.FunctionComponent<Props> = ({ owner }) => {
   } = useProviderStatus(provider?.hostUri || "", {
     enabled: false,
     retry: false,
-    onSuccess: _providerStatus => {
+    onSuccess: () => {
       setProvider(provider => (provider ? { ...provider, ...providerStatus } : (providerStatus as ClientProviderDetailWithStatus)));
     }
   });

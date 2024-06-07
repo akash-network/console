@@ -1,9 +1,10 @@
 "use client";
 import { ReactNode } from "react";
+
 import { ISidebarGroupMenu } from "@src/types";
-import { SidebarRouteButton } from "./SidebarRouteButton";
-import { Separator } from "../ui/separator";
 import { cn } from "@src/utils/styleUtils";
+import { Separator } from "../ui/separator";
+import { SidebarRouteButton } from "./SidebarRouteButton";
 
 type Props = {
   children?: ReactNode;

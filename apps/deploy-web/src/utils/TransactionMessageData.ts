@@ -1,9 +1,10 @@
-import { networkVersion, networkVersionMarket } from "./constants";
+import { longify } from "@cosmjs/stargate/build/queryclient";
+import Long from "long";
+
 import { BidDto } from "@src/types/deployment";
 import { BasicAllowance, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "./proto/grant";
-import { longify } from "@cosmjs/stargate/build/queryclient";
+import { networkVersion, networkVersionMarket } from "./constants";
 import { protoTypes } from "./proto";
-import Long from "long";
 
 export function setMessageTypes() {
   TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT = `/akash.deployment.${networkVersion}.MsgCloseDeployment`;
@@ -113,7 +114,7 @@ export class TransactionMessageData {
   }
 
   static getDepositDeploymentMsg(address: string, dseq: string, depositAmount: number, denom: string, depositorAddress: string | null = null) {
-    let message = {
+    const message = {
       typeUrl: TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT,
       value: {
         id: {

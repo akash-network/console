@@ -1,16 +1,15 @@
 "use client";
 import { FormattedDate } from "react-intl";
-import { CertificateDisplay } from "./CertificateDisplay";
-import { useWallet } from "@src/context/WalletProvider";
 import { Check } from "iconoir-react";
-import { useCertificate } from "@src/context/CertificateProvider";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+
 import { ConnectWallet } from "@src/components/shared/ConnectWallet";
 import { Button } from "@src/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+import { useCertificate } from "@src/context/CertificateProvider";
+import { useWallet } from "@src/context/WalletProvider";
+import { CertificateDisplay } from "./CertificateDisplay";
 
-type Props = {};
-
-export const CertificateList: React.FunctionComponent<Props> = ({}) => {
+export const CertificateList: React.FunctionComponent = () => {
   const { validCertificates, localCert, selectedCertificate, revokeCertificate, revokeAllCertificates, isLoadingCertificates } = useCertificate();
   const { address } = useWallet();
 

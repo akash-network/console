@@ -1,5 +1,6 @@
-import { Service } from "@src/types";
 import { nanoid } from "nanoid";
+
+import { Service } from "@src/types";
 
 export const protoTypes = [
   { id: 1, name: "http" },

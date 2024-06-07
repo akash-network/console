@@ -1,12 +1,8 @@
-import React, { ReactNode } from "react";
+import React from "react";
 import Head from "next/head";
 import { DefaultSeo } from "next-seo";
 
-type Props = {
-  children?: ReactNode;
-};
-
-const PageHead: React.FunctionComponent<Props> = ({}) => {
+const PageHead: React.FunctionComponent = () => {
   return (
     <>
       <Head>

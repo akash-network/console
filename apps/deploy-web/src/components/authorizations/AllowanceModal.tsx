@@ -1,23 +1,24 @@
 "use client";
 import { useRef, useState } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { addYears, format } from "date-fns";
-import { useWallet } from "@src/context/WalletProvider";
-import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
-import { AllowanceType } from "@src/types/grant";
-import { useDenomData } from "@src/hooks/useWalletBalance";
-import { uAktDenom } from "@src/utils/constants";
+import { Controller, useForm } from "react-hook-form";
 import { FormattedDate } from "react-intl";
+import { EncodeObject } from "@cosmjs/proto-signing";
+import FormControl from "@mui/material/FormControl";
+import InputAdornment from "@mui/material/InputAdornment";
+import TextField from "@mui/material/TextField";
+import { addYears, format } from "date-fns";
+import { event } from "nextjs-google-analytics";
+
+import { LinkTo } from "@src/components/shared/LinkTo";
 import { Popup } from "@src/components/shared/Popup";
 import { Alert } from "@src/components/ui/alert";
-import { LinkTo } from "@src/components/shared/LinkTo";
-import FormControl from "@mui/material/FormControl";
-import TextField from "@mui/material/TextField";
-import InputAdornment from "@mui/material/InputAdornment";
-import { EncodeObject } from "@cosmjs/proto-signing";
+import { useWallet } from "@src/context/WalletProvider";
+import { useDenomData } from "@src/hooks/useWalletBalance";
+import { AllowanceType } from "@src/types/grant";
+import { AnalyticsEvents } from "@src/utils/analytics";
+import { uAktDenom } from "@src/utils/constants";
+import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
+import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 
 type AllowanceFormValues = {
   amount: number;

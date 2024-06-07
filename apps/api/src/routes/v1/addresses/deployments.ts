@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { getAddressDeployments } from "@src/services/external/apiNodeService";
 import { openApiExampleAddress } from "@src/utils/constants";
 
@@ -62,7 +63,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const skip = parseInt(c.req.valid("param").skip);
   const limit = Math.min(maxLimit, parseInt(c.req.valid("param").limit));
 

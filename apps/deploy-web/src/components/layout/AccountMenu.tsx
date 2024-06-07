@@ -1,21 +1,22 @@
 "use client";
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import { UrlService } from "@src/utils/urlUtils";
-import { useCustomUser } from "@src/hooks/useCustomUser";
-import Spinner from "../shared/Spinner";
-import { Button } from "../ui/button";
-import { Avatar, AvatarFallback } from "../ui/avatar";
-import { User } from "iconoir-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator } from "../ui/dropdown-menu";
-import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
-import { Settings, MultiplePages, Star, Bell, Book, LogOut } from "iconoir-react";
-import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
+import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
+import { User } from "iconoir-react";
+import { Bell, Book, LogOut, MultiplePages, Settings, Star } from "iconoir-react";
+import { useRouter } from "next/navigation";
 
-export function AccountMenu({}: React.PropsWithChildren<{}>) {
+import { useCustomUser } from "@src/hooks/useCustomUser";
+import { UrlService } from "@src/utils/urlUtils";
+import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
+import Spinner from "../shared/Spinner";
+import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Button } from "../ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator } from "../ui/dropdown-menu";
+
+export function AccountMenu() {
   const [open, setOpen] = useState(false);
-  const { user, error, isLoading } = useCustomUser();
+  const { user, isLoading } = useCustomUser();
   const username = user?.username;
   const router = useRouter();
 

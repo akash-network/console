@@ -1,14 +1,14 @@
 "use client";
+import { AuditorButton } from "@src/components/providers/AuditorButton";
+import { Uptime } from "@src/components/providers/Uptime";
+import { Address } from "@src/components/shared/Address";
+import { FavoriteButton } from "@src/components/shared/FavoriteButton";
+import { LabelValue } from "@src/components/shared/LabelValue";
+import { StatusPill } from "@src/components/shared/StatusPill";
+import { Card, CardContent } from "@src/components/ui/card";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
 import { ProviderMap } from "./ProviderMap";
-import { Card, CardContent } from "@src/components/ui/card";
-import { LabelValue } from "@src/components/shared/LabelValue";
-import { Address } from "@src/components/shared/Address";
-import { StatusPill } from "@src/components/shared/StatusPill";
-import { Uptime } from "@src/components/providers/Uptime";
-import { FavoriteButton } from "@src/components/shared/FavoriteButton";
-import { AuditorButton } from "@src/components/providers/AuditorButton";
 
 type Props = {
   provider: ClientProviderDetailWithStatus;

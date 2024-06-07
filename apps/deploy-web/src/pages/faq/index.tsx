@@ -1,8 +1,9 @@
-import Layout from "@src/components/layout/Layout";
-import { Title } from "@src/components/shared/Title";
-import { NextSeo } from "next-seo";
 import Image from "next/image";
 import Link from "next/link";
+import { NextSeo } from "next-seo";
+
+import Layout from "@src/components/layout/Layout";
+import { Title } from "@src/components/shared/Title";
 
 const FaqEntries = [
   {

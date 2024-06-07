@@ -1,7 +1,8 @@
 "use client";
 import React, { useState } from "react";
-import { useAddressNames } from "@src/queries/useAddressNames";
+
 import { EditAddressBookmarkModal } from "@src/context/AddressBookProvider/EditAddressBookmarkModal";
+import { useAddressNames } from "@src/queries/useAddressNames";
 
 type ContextType = {
   isLoading: boolean;

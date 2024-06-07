@@ -1,7 +1,8 @@
-import { bytesToHumanReadableSize } from "./files";
-import http from "https";
 import fs from "fs";
+import http from "https";
 import { basename } from "path";
+
+import { bytesToHumanReadableSize } from "./files";
 
 const progressLogThrottle = 1000;
 

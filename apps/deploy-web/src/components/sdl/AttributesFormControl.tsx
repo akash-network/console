@@ -1,14 +1,14 @@
 "use client";
-import { ReactNode, useImperativeHandle, forwardRef } from "react";
+import { forwardRef, ReactNode, useImperativeHandle } from "react";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { PlacementAttribute, SdlBuilderFormValues } from "@src/types";
-import { nanoid } from "nanoid";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { Card, CardContent } from "../ui/card";
-import { Button } from "../ui/button";
 import { Bin, InfoCircle } from "iconoir-react";
+import { nanoid } from "nanoid";
+
+import { PlacementAttribute, SdlBuilderFormValues } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
-import { FormInput, Input } from "../ui/input";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { Button } from "../ui/button";
+import { FormInput } from "../ui/input";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

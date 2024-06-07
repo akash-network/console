@@ -1,9 +1,10 @@
 "use client";
-import { FormattedNumber, FormattedNumberParts } from "react-intl";
 import React from "react";
-import { AKTLabel } from "./AKTLabel";
-import { udenomToDenom } from "@src/utils/mathHelpers";
+import { FormattedNumber, FormattedNumberParts } from "react-intl";
+
 import { usePricing } from "@src/context/PricingProvider";
+import { udenomToDenom } from "@src/utils/mathHelpers";
+import { AKTLabel } from "./AKTLabel";
 
 type Props = {
   uakt: number;

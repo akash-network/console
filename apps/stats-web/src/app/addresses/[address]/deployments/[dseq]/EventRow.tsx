@@ -1,9 +1,10 @@
+import { FormattedTime } from "react-intl";
+import Link from "next/link";
+
 import { TableCell, TableRow } from "@/components/ui/table";
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
 import { getSplitText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";
-import Link from "next/link";
-import { FormattedTime } from "react-intl";
 
 export const EventRow = ({
   event

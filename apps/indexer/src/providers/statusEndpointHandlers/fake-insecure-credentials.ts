@@ -1,5 +1,4 @@
 import { ChannelCredentials } from "@grpc/grpc-js/build/src/channel-credentials";
-import { CallCredentials } from "@grpc/grpc-js/build/src/call-credentials";
 import { ConnectionOptions } from "tls";
 
 // TODO: get rid of it once on-chain certificates validation is implemented
@@ -13,7 +12,7 @@ export class FakeInsecureCredentials extends ChannelCredentials {
     super();
   }
 
-  compose(callCredentials: CallCredentials): ChannelCredentials {
+  compose(): ChannelCredentials {
     throw new Error("Cannot compose insecure credentials");
   }
 

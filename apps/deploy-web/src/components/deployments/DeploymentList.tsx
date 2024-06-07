@@ -1,33 +1,32 @@
 "use client";
+import { useEffect, useState } from "react";
+import { Refresh, Rocket, Xmark } from "iconoir-react";
+import { useAtom } from "jotai";
+import Link from "next/link";
 import { NextSeo } from "next-seo";
+
+import { CustomPagination } from "@src/components/shared/CustomPagination";
+import { LinkTo } from "@src/components/shared/LinkTo";
+import Spinner from "@src/components/shared/Spinner";
+import { Button, buttonVariants } from "@src/components/ui/button";
+import { CheckboxWithLabel } from "@src/components/ui/checkbox";
+import { InputWithIcon } from "@src/components/ui/input";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
-import { useEffect, useState } from "react";
-import { useSettings } from "@src/context/SettingsProvider";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { LinkTo } from "@src/components/shared/LinkTo";
-import { useAtom } from "jotai";
-import sdlStore from "@src/store/sdlStore";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import sdlStore from "@src/store/sdlStore";
 import { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
-import { Button, buttonVariants } from "@src/components/ui/button";
-import { Refresh, Rocket, Xmark } from "iconoir-react";
-import { CheckboxWithLabel } from "@src/components/ui/checkbox";
 import { cn } from "@src/utils/styleUtils";
-import { InputWithIcon } from "@src/components/ui/input";
-import Spinner from "@src/components/shared/Spinner";
-import { CustomPagination } from "@src/components/shared/CustomPagination";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
-import { DeploymentListRow } from "./DeploymentListRow";
 import { Title } from "../shared/Title";
+import { DeploymentListRow } from "./DeploymentListRow";
 
-type Props = {};
-
-export const DeploymentList: React.FunctionComponent<Props> = ({}) => {
+export const DeploymentList: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, isWalletLoaded } = useWallet();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
   const { data: deployments, isFetching: isLoadingDeployments, refetch: getDeployments } = useDeploymentList(address, { enabled: false });

@@ -1,13 +1,7 @@
-import * as benchmark from "../shared/utils/benchmark";
 import * as v1beta1 from "@akashnetwork/akash-api/v1beta1";
 import * as v1beta2 from "@akashnetwork/akash-api/v1beta2";
 import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
 import * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
-import * as uuid from "uuid";
-import { uint8arrayToString } from "@src/shared/utils/protobuf";
-import { accountSettle } from "@src/shared/utils/akashPaymentSettle";
-import { Indexer } from "./indexer";
-import { getAmountFromCoin } from "@src/shared/utils/coin";
 import {
   Bid,
   Deployment,
@@ -24,6 +18,13 @@ import {
 } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
 import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
 import { Op, Transaction as DbTransaction } from "sequelize";
+import * as uuid from "uuid";
+
+import { accountSettle } from "@src/shared/utils/akashPaymentSettle";
+import { getAmountFromCoin } from "@src/shared/utils/coin";
+import { uint8arrayToString } from "@src/shared/utils/protobuf";
+import * as benchmark from "../shared/utils/benchmark";
+import { Indexer } from "./indexer";
 
 class ITotalResources {
   count: number;
@@ -160,13 +161,13 @@ export class AkashStatsIndexer extends Indexer {
       attributes: ["id", "owner", "dseq"]
     });
 
-    existingDeployments.forEach((d) => this.addToDeploymentIdCache(d.owner, d.dseq, d.id));
+    existingDeployments.forEach(d => this.addToDeploymentIdCache(d.owner, d.dseq, d.id));
 
     const existingDeploymentGroups = await DeploymentGroup.findAll({
       attributes: ["id", "owner", "dseq", "gseq"]
     });
 
-    existingDeploymentGroups.forEach((d) => this.addToDeploymentGroupIdCache(d.owner, d.dseq, d.gseq, d.id));
+    existingDeploymentGroups.forEach(d => this.addToDeploymentGroupIdCache(d.owner, d.dseq, d.gseq, d.id));
 
     this.totalLeaseCount = await Lease.count();
     this.activeProviderCount = await Provider.count();
@@ -174,7 +175,7 @@ export class AkashStatsIndexer extends Indexer {
 
   @benchmark.measureMethodAsync
   async afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction: DbTransaction) {
-    const shouldRefreshPredictedHeights = currentBlock.transactions.some((tx) => tx.messages.some((msg) => this.checkShouldRefreshPredictedCloseHeight(msg)));
+    const shouldRefreshPredictedHeights = currentBlock.transactions.some(tx => tx.messages.some(msg => this.checkShouldRefreshPredictedCloseHeight(msg)));
     if (shouldRefreshPredictedHeights) {
       this.predictedClosedHeights = await this.getFuturePredictedCloseHeights(currentBlock.height, dbTransaction);
     }
@@ -205,7 +206,7 @@ export class AkashStatsIndexer extends Indexer {
       transaction: blockGroupTransaction
     });
 
-    return leases.map((x) => x.predictedClosedHeight);
+    return leases.map(x => x.predictedClosedHeight);
   }
 
   @benchmark.measureMethodAsync
@@ -221,18 +222,18 @@ export class AkashStatsIndexer extends Indexer {
 
     return {
       count: totalResources.length,
-      cpuSum: totalResources.map((x) => x.cpuUnits).reduce((a, b) => a + b, 0),
-      gpuSum: totalResources.map((x) => x.gpuUnits).reduce((a, b) => a + b, 0),
-      memorySum: totalResources.map((x) => x.memoryQuantity).reduce((a, b) => a + b, 0),
-      ephemeralStorageSum: totalResources.map((x) => x.ephemeralStorageQuantity).reduce((a, b) => a + b, 0),
-      persistentStorageSum: totalResources.map((x) => x.persistentStorageQuantity).reduce((a, b) => a + b, 0),
+      cpuSum: totalResources.map(x => x.cpuUnits).reduce((a, b) => a + b, 0),
+      gpuSum: totalResources.map(x => x.gpuUnits).reduce((a, b) => a + b, 0),
+      memorySum: totalResources.map(x => x.memoryQuantity).reduce((a, b) => a + b, 0),
+      ephemeralStorageSum: totalResources.map(x => x.ephemeralStorageQuantity).reduce((a, b) => a + b, 0),
+      persistentStorageSum: totalResources.map(x => x.persistentStorageQuantity).reduce((a, b) => a + b, 0),
       priceSumUAKT: totalResources
-        .filter((x) => x.denom === "uakt")
-        .map((x) => x.price)
+        .filter(x => x.denom === "uakt")
+        .map(x => x.price)
         .reduce((a, b) => a + b, 0),
       priceSumUUSDC: totalResources
-        .filter((x) => x.denom === "uusdc")
-        .map((x) => x.price)
+        .filter(x => x.denom === "uusdc")
+        .map(x => x.price)
         .reduce((a, b) => a + b, 0)
     };
   }
@@ -363,12 +364,12 @@ export class AkashStatsIndexer extends Indexer {
             gpuUnits: 0,
             memoryQuantity: parseInt(uint8arrayToString(groupResource.resources.memory.quantity.val)),
             ephemeralStorageQuantity: groupResource.resources.storage
-              .filter((x) => !isPersistentStorage(x))
-              .map((x) => parseInt(uint8arrayToString(x.quantity.val)))
+              .filter(x => !isPersistentStorage(x))
+              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
               .reduce((a, b) => a + b, 0),
             persistentStorageQuantity: groupResource.resources.storage
-              .filter((x) => isPersistentStorage(x))
-              .map((x) => parseInt(uint8arrayToString(x.quantity.val)))
+              .filter(x => isPersistentStorage(x))
+              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
               .reduce((a, b) => a + b, 0),
             count: groupResource.count,
             price: parseFloat(groupResource.price.amount) // TODO: handle denom
@@ -428,12 +429,12 @@ export class AkashStatsIndexer extends Indexer {
             gpuModel: gpuModel,
             memoryQuantity: parseInt(uint8arrayToString(groupResource.resource.memory.quantity.val)),
             ephemeralStorageQuantity: groupResource.resource.storage
-              .filter((x) => !isPersistentStorage(x))
-              .map((x) => parseInt(uint8arrayToString(x.quantity.val)))
+              .filter(x => !isPersistentStorage(x))
+              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
               .reduce((a, b) => a + b, 0),
             persistentStorageQuantity: groupResource.resource.storage
-              .filter((x) => isPersistentStorage(x))
-              .map((x) => parseInt(uint8arrayToString(x.quantity.val)))
+              .filter(x => isPersistentStorage(x))
+              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
               .reduce((a, b) => a + b, 0),
             count: groupResource.count,
             price: parseFloat(groupResource.price.amount) // TODO: handle denom
@@ -468,7 +469,7 @@ export class AkashStatsIndexer extends Indexer {
 
     await accountSettle(deployment, height, blockGroupTransaction);
 
-    for (const lease of deployment.leases.filter((x) => !x.closedHeight)) {
+    for (const lease of deployment.leases.filter(x => !x.closedHeight)) {
       lease.closedHeight = height;
       await lease.save({ transaction: blockGroupTransaction });
     }
@@ -544,11 +545,11 @@ export class AkashStatsIndexer extends Indexer {
         denom: deployment.denom,
 
         // Stats
-        cpuUnits: deploymentGroups.map((x) => x.cpuUnits * x.count).reduce((a, b) => a + b, 0),
-        gpuUnits: deploymentGroups.map((x) => x.gpuUnits * x.count).reduce((a, b) => a + b, 0),
-        memoryQuantity: deploymentGroups.map((x) => x.memoryQuantity * x.count).reduce((a, b) => a + b, 0),
-        ephemeralStorageQuantity: deploymentGroups.map((x) => x.ephemeralStorageQuantity * x.count).reduce((a, b) => a + b, 0),
-        persistentStorageQuantity: deploymentGroups.map((x) => x.persistentStorageQuantity * x.count).reduce((a, b) => a + b, 0)
+        cpuUnits: deploymentGroups.map(x => x.cpuUnits * x.count).reduce((a, b) => a + b, 0),
+        gpuUnits: deploymentGroups.map(x => x.gpuUnits * x.count).reduce((a, b) => a + b, 0),
+        memoryQuantity: deploymentGroups.map(x => x.memoryQuantity * x.count).reduce((a, b) => a + b, 0),
+        ephemeralStorageQuantity: deploymentGroups.map(x => x.ephemeralStorageQuantity * x.count).reduce((a, b) => a + b, 0),
+        persistentStorageQuantity: deploymentGroups.map(x => x.persistentStorageQuantity * x.count).reduce((a, b) => a + b, 0)
       },
       { transaction: blockGroupTransaction }
     );
@@ -581,7 +582,7 @@ export class AkashStatsIndexer extends Indexer {
     });
 
     const lease = deployment.leases.find(
-      (x) => x.oseq === decodedMessage.leaseId.oseq && x.gseq === decodedMessage.leaseId.gseq && x.providerAddress === decodedMessage.leaseId.provider
+      x => x.oseq === decodedMessage.leaseId.oseq && x.gseq === decodedMessage.leaseId.gseq && x.providerAddress === decodedMessage.leaseId.provider
     );
 
     if (!lease) throw new Error("Lease not found");
@@ -593,7 +594,7 @@ export class AkashStatsIndexer extends Indexer {
     lease.closedHeight = height;
     await lease.save({ transaction: blockGroupTransaction });
 
-    if (!deployment.leases.some((x) => !x.closedHeight)) {
+    if (!deployment.leases.some(x => !x.closedHeight)) {
       deployment.closedHeight = height;
       await deployment.save({ transaction: blockGroupTransaction });
     } else {
@@ -693,7 +694,7 @@ export class AkashStatsIndexer extends Indexer {
     msg.relatedDeploymentId = deployment.id;
 
     const lease = deployment.leases.find(
-      (x) => x.oseq === decodedMessage.bidId.oseq && x.gseq === decodedMessage.bidId.gseq && x.providerAddress === decodedMessage.bidId.provider
+      x => x.oseq === decodedMessage.bidId.oseq && x.gseq === decodedMessage.bidId.gseq && x.providerAddress === decodedMessage.bidId.provider
     );
 
     if (lease) {
@@ -702,7 +703,7 @@ export class AkashStatsIndexer extends Indexer {
       lease.closedHeight = height;
       await lease.save({ transaction: blockGroupTransaction });
 
-      if (!deployment.leases.some((x) => !x.closedHeight)) {
+      if (!deployment.leases.some(x => !x.closedHeight)) {
         deployment.closedHeight = height;
         await deployment.save({ transaction: blockGroupTransaction });
       } else {
@@ -754,11 +755,11 @@ export class AkashStatsIndexer extends Indexer {
     await deployment.save({ transaction: blockGroupTransaction });
 
     const blockRate = deployment.leases
-      .filter((x) => !x.closedHeight)
-      .map((x) => x.price)
+      .filter(x => !x.closedHeight)
+      .map(x => x.price)
       .reduce((a, b) => a + b, 0);
 
-    for (const lease of deployment.leases.filter((x) => !x.closedHeight)) {
+    for (const lease of deployment.leases.filter(x => !x.closedHeight)) {
       lease.predictedClosedHeight = Math.ceil((deployment.lastWithdrawHeight || lease.createdHeight) + deployment.balance / blockRate);
       await lease.save({ transaction: blockGroupTransaction });
     }
@@ -789,7 +790,7 @@ export class AkashStatsIndexer extends Indexer {
 
     if (!deployment) throw new Error(`Deployment not found for owner: ${owner} and dseq: ${dseq}`);
 
-    const lease = deployment.leases.find((x) => x.gseq === gseq && x.oseq === oseq && x.providerAddress === provider);
+    const lease = deployment.leases.find(x => x.gseq === gseq && x.oseq === oseq && x.providerAddress === provider);
 
     if (!lease) throw new Error(`Lease not found for gseq: ${gseq}, oseq: ${oseq} and provider: ${provider}`);
 
@@ -801,8 +802,7 @@ export class AkashStatsIndexer extends Indexer {
   private async handleCreateProvider(
     decodedMessage: v1beta1.MsgCreateProvider | v1beta2.MsgCreateProvider | v1beta3.MsgCreateProvider,
     height: number,
-    blockGroupTransaction: DbTransaction,
-    msg: Message
+    blockGroupTransaction: DbTransaction
   ) {
     await Provider.create(
       {
@@ -816,7 +816,7 @@ export class AkashStatsIndexer extends Indexer {
     );
 
     await ProviderAttribute.bulkCreate(
-      decodedMessage.attributes.map((attribute) => ({
+      decodedMessage.attributes.map(attribute => ({
         provider: decodedMessage.owner,
         key: attribute.key,
         value: attribute.value
@@ -830,8 +830,7 @@ export class AkashStatsIndexer extends Indexer {
   private async handleUpdateProvider(
     decodedMessage: v1beta1.MsgUpdateProvider | v1beta2.MsgUpdateProvider | v1beta3.MsgUpdateProvider,
     height: number,
-    blockGroupTransaction: DbTransaction,
-    msg: Message
+    blockGroupTransaction: DbTransaction
   ) {
     await Provider.update(
       {
@@ -855,7 +854,7 @@ export class AkashStatsIndexer extends Indexer {
       transaction: blockGroupTransaction
     });
     await ProviderAttribute.bulkCreate(
-      decodedMessage.attributes.map((attribute) => ({
+      decodedMessage.attributes.map(attribute => ({
         provider: decodedMessage.owner,
         key: attribute.key,
         value: attribute.value
@@ -867,8 +866,7 @@ export class AkashStatsIndexer extends Indexer {
   private async handleDeleteProvider(
     decodedMessage: v1beta1.MsgDeleteProvider | v1beta2.MsgDeleteProvider | v1beta3.MsgDeleteProvider,
     height: number,
-    blockGroupTransaction: DbTransaction,
-    msg: Message
+    blockGroupTransaction: DbTransaction
   ) {
     await Provider.update(
       {
@@ -886,8 +884,7 @@ export class AkashStatsIndexer extends Indexer {
   private async handleSignProviderAttributes(
     decodedMessage: v1beta1.MsgSignProviderAttributes | v1beta2.MsgSignProviderAttributes | v1beta3.MsgSignProviderAttributes,
     height: number,
-    blockGroupTransaction: DbTransaction,
-    msg: Message
+    blockGroupTransaction: DbTransaction
   ) {
     const provider = await Provider.findOne({ where: { owner: decodedMessage.owner }, transaction: blockGroupTransaction });
 
@@ -930,8 +927,7 @@ export class AkashStatsIndexer extends Indexer {
   private async handleDeleteSignProviderAttributes(
     decodedMessage: v1beta1.MsgDeleteProviderAttributes | v1beta2.MsgDeleteProviderAttributes | v1beta3.MsgDeleteProviderAttributes,
     height: number,
-    blockGroupTransaction: DbTransaction,
-    msg: Message
+    blockGroupTransaction: DbTransaction
   ) {
     await ProviderAttributeSignature.destroy({
       where: {
@@ -942,10 +938,18 @@ export class AkashStatsIndexer extends Indexer {
       transaction: blockGroupTransaction
     });
   }
+
+  seed(): Promise<void> {
+    return Promise.resolve(undefined);
+  }
+
+  afterEveryTransaction(): Promise<void> {
+    return Promise.resolve(undefined);
+  }
 }
 
 function isPersistentStorage(storage: v1beta2.Storage | v1beta3.Storage): boolean {
-  return (storage.attributes || []).some((a) => a.key === "persistent" && a.value === "true");
+  return (storage.attributes || []).some(a => a.key === "persistent" && a.value === "true");
 }
 
 function getGPUAttributes(gpu: v1beta3.GPU) {

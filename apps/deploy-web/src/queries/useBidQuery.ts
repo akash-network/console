@@ -1,9 +1,10 @@
 import { useQuery } from "react-query";
-import { QueryKeys } from "./queryKeys";
 import axios from "axios";
-import { useSettings } from "../context/SettingsProvider";
-import { ApiUrlService } from "@src/utils/apiUtils";
+
 import { BidDto, RpcBid } from "@src/types/deployment";
+import { ApiUrlService } from "@src/utils/apiUtils";
+import { useSettings } from "../context/SettingsProvider";
+import { QueryKeys } from "./queryKeys";
 
 async function getBidList(apiEndpoint: string, address: string, dseq: string): Promise<Array<BidDto> | null> {
   if (!address || !dseq) return null;

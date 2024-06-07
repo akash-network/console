@@ -1,14 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { useEffect, useState } from "react";
 import {
-  ColumnDef,
   AccessorColumnDef,
   ColumnFiltersState,
-  PaginationState,
-  SortingState,
-  Updater,
-  VisibilityState,
   flexRender,
   getCoreRowModel,
   getFacetedRowModel,
@@ -16,14 +12,18 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  useReactTable
+  PaginationState,
+  SortingState,
+  Updater,
+  useReactTable,
+  VisibilityState
 } from "@tanstack/react-table";
-import { DataTableToolbar } from "./data-table-toolbar";
+import { SearchX } from "lucide-react";
+
+import Spinner from "../Spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { DataTablePagination } from "./data-table-pagination";
-import { SearchX } from "lucide-react";
-import Spinner from "../Spinner";
-import { useEffect, useState } from "react";
+import { DataTableToolbar } from "./data-table-toolbar";
 
 interface DataTableProps<TData, TValue> {
   columns: AccessorColumnDef<TData, TValue>[];

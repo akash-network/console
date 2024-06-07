@@ -1,15 +1,12 @@
-import { ReactNode } from "react";
-import PageContainer from "@src/components/shared/PageContainer";
-import { Box, Typography, useTheme } from "@mui/material";
-import { Title } from "@src/components/shared/Title";
-import { NextSeo } from "next-seo";
+import React from "react";
 import ConstructionIcon from "@mui/icons-material/Construction";
+import { Box, Typography, useTheme } from "@mui/material";
+import { NextSeo } from "next-seo";
 
-type Props = {
-  children?: ReactNode;
-};
+import PageContainer from "@src/components/shared/PageContainer";
+import { Title } from "@src/components/shared/Title";
 
-const Maintenance: React.FunctionComponent<Props> = ({}) => {
+const Maintenance: React.FunctionComponent = () => {
   const theme = useTheme();
 
   return (

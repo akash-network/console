@@ -1,8 +1,9 @@
-import { Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
+import { Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
+
 import { Required } from "../decorators/requiredDecorator";
-import { ProviderSnapshotNodeGPU } from "./providerSnapshotNodeGPU";
 import { ProviderSnapshotNodeCPU } from "./providerSnapshotNodeCPU";
+import { ProviderSnapshotNodeGPU } from "./providerSnapshotNodeGPU";
 
 @Table({
   modelName: "providerSnapshotNode",

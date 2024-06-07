@@ -1,4 +1,5 @@
 import { Column, Model, Table } from "sequelize-typescript";
+
 import { Required } from "../decorators/requiredDecorator";
 
 @Table({

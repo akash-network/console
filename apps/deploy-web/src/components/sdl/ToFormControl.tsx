@@ -1,17 +1,15 @@
 "use client";
-import { ReactNode, useImperativeHandle, forwardRef } from "react";
+import { forwardRef, ReactNode, useImperativeHandle } from "react";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { SdlBuilderFormValues, Service } from "@src/types";
-import { nanoid } from "nanoid";
-import { Card, CardContent } from "../ui/card";
-import { Button } from "../ui/button";
 import { Bin, InfoCircle } from "iconoir-react";
-import { Tooltip, TooltipTrigger } from "../ui/tooltip";
-import { TooltipContent } from "@radix-ui/react-tooltip";
+import { nanoid } from "nanoid";
+
+import { SdlBuilderFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { Button } from "../ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { FormPaper } from "./FormPaper";
-import { CustomTooltip } from "../shared/CustomTooltip";
 
 type Props = {
   serviceIndex: number;
@@ -52,7 +50,7 @@ export const ToFormControl = forwardRef<ToRefType, Props>(({ control, serviceInd
     <FormPaper className="h-full" contentClassName="h-full flex items-start flex-col justify-between">
       <div>
         <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center mb-4">
+          <div className="mb-4 flex items-center">
             <strong className="text-sm">To</strong>
 
             <CustomTooltip
@@ -70,7 +68,7 @@ export const ToFormControl = forwardRef<ToRefType, Props>(({ control, serviceInd
                 </>
               }
             >
-              <InfoCircle className="ml-2 text-xs text-muted-foreground " />
+              <InfoCircle className="ml-2 text-xs text-muted-foreground" />
             </CustomTooltip>
           </div>
         </div>

@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { getProviderDetail } from "@src/services/db/providerStatusService";
 import { openApiExampleProviderAddress } from "@src/utils/constants";
 
@@ -123,7 +124,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   if (!c.req.valid("param").address) {
     return c.text("Address is undefined.", 400);
   }

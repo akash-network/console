@@ -1,13 +1,14 @@
 import { useQuery } from "react-query";
-import { QueryKeys } from "./queryKeys";
-import { useSettings } from "../context/SettingsProvider";
-import { useCertificate } from "../context/CertificateProvider";
-import { leaseToDto } from "@src/utils/deploymentDetailUtils";
-import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import axios from "axios";
-import { PROVIDER_PROXY_URL } from "@src/utils/constants";
-import { LeaseDto } from "@src/types/deployment";
+
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
+import { LeaseDto } from "@src/types/deployment";
+import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
+import { PROVIDER_PROXY_URL } from "@src/utils/constants";
+import { leaseToDto } from "@src/utils/deploymentDetailUtils";
+import { useCertificate } from "../context/CertificateProvider";
+import { useSettings } from "../context/SettingsProvider";
+import { QueryKeys } from "./queryKeys";
 
 // Leases
 async function getDeploymentLeases(apiEndpoint: string, address: string, deployment) {

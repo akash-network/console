@@ -1,15 +1,7 @@
 import { TemplateGallery } from "@src/components/templates/TemplateGallery";
 
-type Props = {};
-
-const TemplateGalleryPage: React.FunctionComponent<Props> = ({}) => {
+const TemplateGalleryPage: React.FunctionComponent = () => {
   return <TemplateGallery />;
 };
 
 export default TemplateGalleryPage;
-
-export async function getServerSideProps({ params }) {
-  return {
-    props: {}
-  };
-}

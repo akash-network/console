@@ -1,13 +1,14 @@
-import { UseQueryOptions, useQuery, QueryKey, useMutation, useQueryClient } from "react-query";
+import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions } from "react-query";
 import axios from "axios";
-import { QueryKeys } from "./queryKeys";
-import { ITemplate } from "@src/types";
 import { useRouter } from "next/navigation";
-import { UrlService } from "@src/utils/urlUtils";
-import { useCustomUser } from "@src/hooks/useCustomUser";
-import { ApiUrlService } from "@src/utils/apiUtils";
 import { useSnackbar } from "notistack";
+
 import { Snackbar } from "@src/components/shared/Snackbar";
+import { useCustomUser } from "@src/hooks/useCustomUser";
+import { ITemplate } from "@src/types";
+import { ApiUrlService } from "@src/utils/apiUtils";
+import { UrlService } from "@src/utils/urlUtils";
+import { QueryKeys } from "./queryKeys";
 
 async function getUserTemplates(username: string): Promise<ITemplate[]> {
   const response = await axios.get(`/api/proxy/user/templates/${username}`);
@@ -109,7 +110,7 @@ async function getTemplates() {
     return { categories: [], templates: [] };
   }
 
-  let categories = response.data.filter(x => (x.templates || []).length > 0);
+  const categories = response.data.filter(x => (x.templates || []).length > 0);
   categories.forEach(c => {
     c.templates.forEach(t => (t.category = c.title));
   });

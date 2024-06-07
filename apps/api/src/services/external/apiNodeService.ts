@@ -1,36 +1,35 @@
-import fetch from "node-fetch";
-import { getDeploymentRelatedMessages } from "../db/deploymentService";
-import { apiNodeUrl, averageBlockCountInAMonth, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/constants";
-import { coinToAsset } from "@src/utils/coin";
-import { getTransactionByAddress } from "@src/services/db/transactionsService";
-import axios from "axios";
-import { Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
-import { Op } from "sequelize";
+import { Block } from "@akashnetwork/cloudmos-shared/dbSchemas";
 import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import { Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import axios from "axios";
+import fetch from "node-fetch";
+import { Op } from "sequelize";
+
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
+import { getTransactionByAddress } from "@src/services/db/transactionsService";
 import {
   CosmosGovProposalResponse,
   CosmosGovProposalsResponse,
+  RestAkashDeploymentListResponse,
+  RestAkasheploymentInfoResponse,
+  RestAkashLeaseListResponse,
   RestCosmosBankBalancesResponse,
   RestCosmosDistributionDelegatorsRewardsResponse,
   RestCosmosStakingDelegationsResponse,
+  RestCosmosStakingDelegatorsRedelegationsResponse,
   RestCosmosStakingValidatorsResponse,
-  RestAkasheploymentInfoResponse,
-  RestAkashLeaseListResponse,
-  RestAkashDeploymentListResponse,
-  RestGovProposalsTallyResponse,
-  RestCosmosStakingDelegatorsRedelegationsResponse
+  RestGovProposalsTallyResponse
 } from "@src/types/rest";
-import { Block } from "@akashnetwork/cloudmos-shared/dbSchemas";
-import { CosmosDistributionCommunityPoolResponse } from "@src/types/rest/cosmosDistributionCommunityPoolResponse";
-import { CosmosStakingPoolResponse } from "@src/types/rest/cosmosStakingPoolResponse";
 import { CosmosBankSupplyResponse } from "@src/types/rest/cosmosBankSupplyResponse";
-import { CosmosMintInflationResponse } from "@src/types/rest/cosmosMintInflationResponse";
+import { CosmosDistributionCommunityPoolResponse } from "@src/types/rest/cosmosDistributionCommunityPoolResponse";
 import { CosmosDistributionParamsResponse } from "@src/types/rest/cosmosDistributionParamsResponse";
 import { CosmosDistributionValidatorsCommissionResponse } from "@src/types/rest/cosmosDistributionValidatorsCommissionResponse";
+import { CosmosMintInflationResponse } from "@src/types/rest/cosmosMintInflationResponse";
+import { CosmosStakingPoolResponse } from "@src/types/rest/cosmosStakingPoolResponse";
+import { coinToAsset } from "@src/utils/coin";
+import { apiNodeUrl, averageBlockCountInAMonth, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/constants";
+import { getDeploymentRelatedMessages } from "../db/deploymentService";
 import { getProviderList } from "../db/providerStatusService";
-
-
 
 export async function getChainStats() {
   const result = await cacheResponse(
@@ -52,11 +51,11 @@ export async function getChainStats() {
       ]);
 
       return {
-        communityPool: parseFloat(communityPoolResponse.data.pool.find((x) => x.denom === "uakt").amount),
+        communityPool: parseFloat(communityPoolResponse.data.pool.find(x => x.denom === "uakt").amount),
         inflation: parseFloat(inflationResponse.data.inflation),
         communityTax: parseFloat(distributionResponse.data.params.community_tax),
         bondedTokens: parseInt(bondedTokensResponse.data.pool.bonded_tokens),
-        totalSupply: parseInt(supplyResponse.data.supply.find((x) => x.denom === "uakt").amount)
+        totalSupply: parseInt(supplyResponse.data.supply.find(x => x.denom === "uakt").amount)
       };
     },
     true
@@ -89,20 +88,20 @@ export async function getAddressBalance(address: string) {
   ]);
 
   const validatorsFromDb = await Validator.findAll();
-  const validatorFromDb = validatorsFromDb.find((v) => v.accountAddress === address);
+  const validatorFromDb = validatorsFromDb.find(v => v.accountAddress === address);
   let commission = 0;
 
   if (validatorFromDb?.operatorAddress) {
     const commissionData = await axios.get<CosmosDistributionValidatorsCommissionResponse>(
       `${apiNodeUrl}/cosmos/distribution/v1beta1/validators/${validatorFromDb.operatorAddress}/commission`
     );
-    const coin = commissionData.data.commission.commission.find((x) => x.denom === "uakt");
+    const coin = commissionData.data.commission.commission.find(x => x.denom === "uakt");
     commission = coin ? parseFloat(coin.amount) : 0;
   }
 
-  const assets = balancesResponse.data.balances.map((b) => coinToAsset(b));
-  const delegations = delegationsResponse.data.delegation_responses.map((x) => {
-    const validator = validatorsFromDb.find((v) => v.operatorAddress === x.delegation.validator_address);
+  const assets = balancesResponse.data.balances.map(b => coinToAsset(b));
+  const delegations = delegationsResponse.data.delegation_responses.map(x => {
+    const validator = validatorsFromDb.find(v => v.operatorAddress === x.delegation.validator_address);
 
     return {
       validator: {
@@ -117,13 +116,13 @@ export async function getAddressBalance(address: string) {
   });
 
   for (const reward of rewardsResponse.data.rewards) {
-    const delegation = delegations.find((x) => x.validator.operatorAddress === reward.validator_address);
-    const rewardAmount = reward.reward.length > 0 ? parseFloat(reward.reward.find((x) => x.denom === "uakt").amount) : 0;
+    const delegation = delegations.find(x => x.validator.operatorAddress === reward.validator_address);
+    const rewardAmount = reward.reward.length > 0 ? parseFloat(reward.reward.find(x => x.denom === "uakt").amount) : 0;
 
     if (delegation) {
       delegation.reward = rewardAmount;
     } else {
-      const validator = validatorsFromDb.find((v) => v.operatorAddress === reward.validator_address);
+      const validator = validatorsFromDb.find(v => v.operatorAddress === reward.validator_address);
       delegations.push({
         validator: {
           address: validator.accountAddress,
@@ -137,12 +136,12 @@ export async function getAddressBalance(address: string) {
     }
   }
 
-  const available = balancesResponse.data.balances.filter((x) => x.denom === "uakt").reduce((acc, cur) => acc + parseInt(cur.amount), 0);
+  const available = balancesResponse.data.balances.filter(x => x.denom === "uakt").reduce((acc, cur) => acc + parseInt(cur.amount), 0);
   const delegated = delegations.reduce((acc, cur) => acc + cur.amount, 0);
-  const rewards = rewardsResponse.data.total.length > 0 ? parseInt(rewardsResponse.data.total.find((x) => x.denom === "uakt").amount) : 0;
-  const redelegations = redelegationsResponse.data.redelegation_responses.map((x) => {
-    const srcValidator = validatorsFromDb.find((v) => v.operatorAddress === x.redelegation.validator_src_address);
-    const destValidator = validatorsFromDb.find((v) => v.operatorAddress === x.redelegation.validator_dst_address);
+  const rewards = rewardsResponse.data.total.length > 0 ? parseInt(rewardsResponse.data.total.find(x => x.denom === "uakt").amount) : 0;
+  const redelegations = redelegationsResponse.data.redelegation_responses.map(x => {
+    const srcValidator = validatorsFromDb.find(v => v.operatorAddress === x.redelegation.validator_src_address);
+    const destValidator = validatorsFromDb.find(v => v.operatorAddress === x.redelegation.validator_dst_address);
 
     return {
       srcAddress: {
@@ -183,7 +182,7 @@ export async function getValidators() {
     `${apiNodeUrl}/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=1000`
   );
 
-  const validators = response.data.validators.map((x) => ({
+  const validators = response.data.validators.map(x => ({
     operatorAddress: x.operator_address,
     moniker: x.description.moniker.trim(),
     votingPower: parseInt(x.tokens),
@@ -205,7 +204,7 @@ export async function getValidators() {
       ...x,
       votingPowerRatio: x.votingPower / totalVotingPower,
       rank: i + 1,
-      keybaseAvatarUrl: validatorsFromDb.find((y) => y.operatorAddress === x.operatorAddress)?.keybaseAvatarUrl
+      keybaseAvatarUrl: validatorsFromDb.find(y => y.operatorAddress === x.operatorAddress)?.keybaseAvatarUrl
     }));
 
   return sortedValidators;
@@ -226,11 +225,11 @@ export async function getValidator(address: string) {
 
   const validatorFromDb = await Validator.findOne({ where: { operatorAddress: address } });
   const validatorRank = validatorsResponse.data.validators
-    .map((x) => {
+    .map(x => {
       return { votingPower: parseInt(x.tokens), address: x.operator_address };
     })
     .sort((a, b) => b.votingPower - a.votingPower)
-    .findIndex((x) => x.address === address);
+    .findIndex(x => x.address === address);
 
   return {
     operatorAddress: data.validator.operator_address,
@@ -252,7 +251,7 @@ export async function getValidator(address: string) {
 export async function getProposals() {
   const response = await axios.get<CosmosGovProposalsResponse>(`${apiNodeUrl}/cosmos/gov/v1beta1/proposals?pagination.limit=1000`);
 
-  const proposals = response.data.proposals.map((x) => ({
+  const proposals = response.data.proposals.map(x => ({
     id: parseInt(x.proposal_id),
     title: x.content.title,
     status: x.status,
@@ -315,7 +314,7 @@ export async function getProposal(id: number) {
       totalDeposit: parseInt(data.proposal.total_deposit[0].amount),
       //proposer: proposer,
       tally: { ...tally, total: tally.yes + tally.abstain + tally.no + tally.noWithVeto },
-      paramChanges: (data.proposal.content.changes || []).map((change) => ({
+      paramChanges: (data.proposal.content.changes || []).map(change => ({
         subspace: change.subspace,
         key: change.key,
         value: JSON.parse(change.value)
@@ -376,7 +375,7 @@ export async function getDeployment(owner: string, dseq: string) {
 
   const leasesData = (await leasesResponse.json()) as RestAkashLeaseListResponse;
 
-  const providerAddresses = leasesData.leases.map((x) => x.lease.lease_id.provider);
+  const providerAddresses = leasesData.leases.map(x => x.lease.lease_id.provider);
   const providers = await Provider.findAll({
     where: {
       owner: {
@@ -387,10 +386,10 @@ export async function getDeployment(owner: string, dseq: string) {
   });
   const deploymentDenom = deploymentData.escrow_account.balance.denom;
 
-  const leases = leasesData.leases.map((x) => {
-    const provider = providers.find((p) => p.owner === x.lease.lease_id.provider);
-    const group = deploymentData.groups.find((g) => g.group_id.gseq === x.lease.lease_id.gseq);
-    const dbLease = dbDeployment?.leases.find((l) => l.gseq === x.lease.lease_id.gseq && l.oseq === x.lease.lease_id.oseq);
+  const leases = leasesData.leases.map(x => {
+    const provider = providers.find(p => p.owner === x.lease.lease_id.provider);
+    const group = deploymentData.groups.find(g => g.group_id.gseq === x.lease.lease_id.gseq);
+    const dbLease = dbDeployment?.leases.find(l => l.gseq === x.lease.lease_id.gseq && l.oseq === x.lease.lease_id.oseq);
 
     return {
       gseq: x.lease.lease_id.gseq,
@@ -403,18 +402,18 @@ export async function getDeployment(owner: string, dseq: string) {
         address: provider.owner,
         hostUri: provider.hostUri,
         isDeleted: !!provider.deletedHeight,
-        attributes: provider.providerAttributes.map((attr) => ({
+        attributes: provider.providerAttributes.map(attr => ({
           key: attr.key,
           value: attr.value
         }))
       },
       status: x.lease.state,
       monthlyCostUDenom: Math.round(parseFloat(x.lease.price.amount) * averageBlockCountInAMonth),
-      cpuUnits: group.group_spec.resources.map((r) => parseInt(r.resource.cpu.units.val) * r.count).reduce((a, b) => a + b, 0),
-      gpuUnits: group.group_spec.resources.map((r) => parseInt(r.resource.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0),
-      memoryQuantity: group.group_spec.resources.map((r) => parseInt(r.resource.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0),
+      cpuUnits: group.group_spec.resources.map(r => parseInt(r.resource.cpu.units.val) * r.count).reduce((a, b) => a + b, 0),
+      gpuUnits: group.group_spec.resources.map(r => parseInt(r.resource.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0),
+      memoryQuantity: group.group_spec.resources.map(r => parseInt(r.resource.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0),
       storageQuantity: group.group_spec.resources
-        .map((r) => r.resource.storage.map((s) => parseInt(s.quantity.val)).reduce((a, b) => a + b, 0) * r.count)
+        .map(r => r.resource.storage.map(s => parseInt(s.quantity.val)).reduce((a, b) => a + b, 0) * r.count)
         .reduce((a, b) => a + b, 0)
     };
   });
@@ -429,7 +428,7 @@ export async function getDeployment(owner: string, dseq: string) {
     createdDate: dbDeployment?.createdBlock?.datetime,
     closedHeight: dbDeployment?.closedHeight,
     closedDate: dbDeployment?.closedBlock?.datetime,
-    totalMonthlyCostUDenom: leases.map((x) => x.monthlyCostUDenom).reduce((a, b) => a + b, 0),
+    totalMonthlyCostUDenom: leases.map(x => x.monthlyCostUDenom).reduce((a, b) => a + b, 0),
     leases: leases,
     events: relatedMessages || [],
     other: deploymentData
@@ -458,32 +457,30 @@ export async function getAddressDeployments(owner: string, skip: number, limit: 
 
   return {
     count: parseInt(response.data.pagination.total),
-    results: response.data.deployments.map((x) => ({
+    results: response.data.deployments.map(x => ({
       owner: x.deployment.deployment_id.owner,
       dseq: x.deployment.deployment_id.dseq,
       status: x.deployment.state,
       createdHeight: parseInt(x.deployment.created_at),
       escrowAccount: x.escrow_account,
       cpuUnits: x.groups
-        .map((g) => g.group_spec.resources.map((r) => parseInt(r.resource.cpu.units.val) * r.count).reduce((a, b) => a + b, 0))
+        .map(g => g.group_spec.resources.map(r => parseInt(r.resource.cpu.units.val) * r.count).reduce((a, b) => a + b, 0))
         .reduce((a, b) => a + b, 0),
       gpuUnits: x.groups
-        .map((g) => g.group_spec.resources.map((r) => parseInt(r.resource.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0))
+        .map(g => g.group_spec.resources.map(r => parseInt(r.resource.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0))
         .reduce((a, b) => a + b, 0),
       memoryQuantity: x.groups
-        .map((g) => g.group_spec.resources.map((r) => parseInt(r.resource.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0))
+        .map(g => g.group_spec.resources.map(r => parseInt(r.resource.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0))
         .reduce((a, b) => a + b, 0),
       storageQuantity: x.groups
-        .map((g) =>
-          g.group_spec.resources
-            .map((r) => r.resource.storage.map((s) => parseInt(s.quantity.val)).reduce((a, b) => a + b, 0) * r.count)
-            .reduce((a, b) => a + b, 0)
+        .map(g =>
+          g.group_spec.resources.map(r => r.resource.storage.map(s => parseInt(s.quantity.val)).reduce((a, b) => a + b, 0) * r.count).reduce((a, b) => a + b, 0)
         )
         .reduce((a, b) => a + b, 0),
       leases: leaseResponse.data.leases
-        .filter((l) => l.lease.lease_id.dseq === x.deployment.deployment_id.dseq)
-        .map((lease) => {
-          const provider = providers.find((p) => p.owner === lease.lease.lease_id.provider);
+        .filter(l => l.lease.lease_id.dseq === x.deployment.deployment_id.dseq)
+        .map(lease => {
+          const provider = providers.find(p => p.owner === lease.lease.lease_id.provider);
           return {
             id: lease.lease.lease_id.dseq + lease.lease.lease_id.gseq + lease.lease.lease_id.oseq,
             owner: lease.lease.lease_id.owner,

@@ -1,6 +1,7 @@
 import { Provider } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
 import axios from "axios";
 import https from "https";
+
 import { ProviderStatusInfo } from "./types";
 
 export async function fetchProviderStatusFromREST(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
@@ -44,7 +45,7 @@ function sumResources(resources) {
   const resourcesArr = resources?.nodes || resources || [];
 
   return resourcesArr
-    .map((x) => ({
+    .map(x => ({
       cpu: getUnitValue(x.cpu),
       gpu: x.gpu ? getUnitValue(x.gpu) : 0,
       memory: getByteValue(x.memory),

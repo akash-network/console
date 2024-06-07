@@ -2,17 +2,15 @@
 
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Table } from "@tanstack/react-table";
-import { DataTableFacetedFilter } from "./data-table-faceted-filter";
-import { Input } from "../ui/input";
+
 import { Button } from "../ui/button";
 import { DataTableViewOptions } from "./data-table-view-options";
 
 interface DataTableToolbarProps<TData> {
-  hasStatusFilter?: boolean;
   table: Table<TData>;
 }
 
-export function DataTableToolbar<TData>({ table, hasStatusFilter }: DataTableToolbarProps<TData>) {
+export function DataTableToolbar<TData>({ table }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
 
   return (

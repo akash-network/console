@@ -1,10 +1,11 @@
 "use client";
+import { Check } from "iconoir-react";
+
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { Badge } from "@src/components/ui/badge";
 import { Card, CardContent } from "@src/components/ui/card";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { createFilterUnique } from "@src/utils/array";
-import { Check } from "iconoir-react";
 
 type Props = {
   provider: ClientProviderDetailWithStatus;

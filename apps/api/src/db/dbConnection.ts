@@ -1,10 +1,11 @@
-import pg from "pg";
-import { env } from "@src/utils/env";
-import { Transaction as DbTransaction } from "sequelize";
-import { Sequelize } from "sequelize-typescript";
+import { chainDefinitions } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import { chainModels, getChainModels, userModels } from "@akashnetwork/cloudmos-shared/dbSchemas";
 import { Template, TemplateFavorite, UserAddressName, UserSetting } from "@akashnetwork/cloudmos-shared/dbSchemas/user";
-import { chainDefinitions } from "@akashnetwork/cloudmos-shared/chainDefinitions";
+import pg from "pg";
+import { Transaction as DbTransaction } from "sequelize";
+import { Sequelize } from "sequelize-typescript";
+
+import { env } from "@src/utils/env";
 
 function isValidNetwork(network: string): network is keyof typeof csMap {
   return network in csMap;
@@ -37,7 +38,7 @@ export const chainDb = new Sequelize(csMap[env.Network], {
 });
 
 export const chainDbs: { [key: string]: Sequelize } = Object.keys(chainDefinitions)
-  .filter((x) => chainDefinitions[x].connectionString)
+  .filter(x => chainDefinitions[x].connectionString)
   .reduce(
     (obj, chain) => ({
       ...obj,
@@ -74,4 +75,4 @@ export async function syncUserSchema() {
   await TemplateFavorite.sync();
 }
 
-export const closeConnections = async () => await Promise.all([chainDb.close(), userDb.close(), ...Object.values(chainDbs).map((db) => db.close())]);
+export const closeConnections = async () => await Promise.all([chainDb.close(), userDb.close(), ...Object.values(chainDbs).map(db => db.close())]);

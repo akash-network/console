@@ -1,10 +1,12 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { initiateNetworkData, networks } from "@/store/networkStore";
-import { mainnetId, setNetworkVersion } from "@/lib/constants";
+
 import Spinner from "../Spinner";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+
+import { mainnetId, setNetworkVersion } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { initiateNetworkData, networks } from "@/store/networkStore";
 
 interface NetworkSelectProps {
   className?: string;

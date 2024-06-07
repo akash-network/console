@@ -1,6 +1,7 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { round } from "@src/utils/math";
-import { getAWSPricing, getAkashPricing, getAzurePricing, getGCPPricing } from "@src/utils/pricing";
+import { getAkashPricing, getAWSPricing, getAzurePricing, getGCPPricing } from "@src/utils/pricing";
 
 const specsType = z.object({
   cpu: z.number().openapi({ description: "CPU in tousandths of a core. 1000 = 1 core", example: 1000 }),
@@ -47,7 +48,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const body = await c.req.json();
   const isArray = Array.isArray(body);
   const specs = isArray ? body : [body];
