@@ -24,4 +24,4 @@ jobs:
 
       - name: Build the Docker image
         if: steps.filter.outputs.provider-proxy == 'true'
-        run: docker build ./apps/provider-proxy
+        run: docker build -f Dockerfile.provider-proxy -t cloudmos-provider-proxy .

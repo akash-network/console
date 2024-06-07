@@ -39,15 +39,7 @@ jobs:
         id: cache-root
         with:
           path: node_modules
-          key: ${{ runner.os }}-${{ hashFiles('package-lock.json') }}-root
-
-      - name: Restore api node_modules cache
-        if: steps.filter.outputs.api == 'true'
-        uses: martijnhols/actions-cache@v3
-        id: cache-api
-        with:
-          path: apps/api/node_modules
-          key: ${{ runner.os }}-${{ hashFiles('package-lock.json') }}-api
+          key: ${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install dependencies
         if: steps.filter.outputs.api == 'true' && (steps.cache-root.outputs.cache-hit != 'true' || steps.cache-api.outputs.cache-hit != 'true')
