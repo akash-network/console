@@ -1,12 +1,12 @@
 "use client";
 
-import { gt, neq } from "semver";
-import { mainnetId } from "./constants";
 import getConfig from "next/config";
+import { gt, neq } from "semver";
+
+import { mainnetId } from "./constants";
 const { publicRuntimeConfig } = getConfig();
 
 const migrations = {
-  // TODO
   "0.14.0": () => {}
 };
 
@@ -14,27 +14,17 @@ const migrations = {
 // Check if latestUpdatedVersion is < currentVersion
 // If so run all the version > until current is reached.
 export const migrateLocalStorage = () => {
-  const currentVersion = publicRuntimeConfig?.version;
-  let latestUpdatedVersion = localStorage.getItem("latestUpdatedVersion");
+  const currentVersion: string = publicRuntimeConfig.version;
+  const version = getVersion();
+  const hasPreviousVersion = version && neq(currentVersion, version);
 
-  if (!latestUpdatedVersion) {
-    // It's an upgrade from an old version
-    if (Object.keys(localStorage).some(key => key.endsWith(".data") || key.endsWith(".wallet"))) {
-      latestUpdatedVersion = "1.0.0";
-    } else {
-      // It's a brand new installation
-      latestUpdatedVersion = currentVersion;
-    }
-  }
-
-  // Only apply migrations if there was a previous version
-  if (latestUpdatedVersion && neq(currentVersion, latestUpdatedVersion)) {
-    Object.keys(migrations).forEach(version => {
-      if (gt(version, latestUpdatedVersion)) {
+  if (hasPreviousVersion) {
+    Object.keys(migrations).forEach(migrationVersion => {
+      if (gt(migrationVersion, version)) {
         try {
-          console.log(`Applying version ${version}`);
+          console.log(`Applying version ${migrationVersion}`);
           // Execute local storage migration
-          migrations[version]();
+          migrations[migrationVersion]();
         } catch (error) {
           console.log(error);
         }
@@ -42,10 +32,24 @@ export const migrateLocalStorage = () => {
     });
   }
 
-  // Update the latestUpdatedVersion
   localStorage.setItem("latestUpdatedVersion", currentVersion);
 
   if (!localStorage.getItem("selectedNetworkId")) {
     localStorage.setItem("selectedNetworkId", mainnetId);
   }
 };
+
+function getVersion(): string {
+  const latestUpdatedVersion = localStorage.getItem("latestUpdatedVersion");
+
+  if (latestUpdatedVersion) {
+    return latestUpdatedVersion;
+  }
+
+  const isOldVersionUpgrade = Object.keys(localStorage).some(key => key.endsWith(".data") || key.endsWith(".wallet"));
+  if (isOldVersionUpgrade) {
+    return "1.0.0";
+  }
+
+  return publicRuntimeConfig.version;
+}

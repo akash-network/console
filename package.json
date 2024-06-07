@@ -1,6 +1,8 @@
 {
   "name": "@akash-network/cloudmos",
-  "scripts": {},
+  "scripts": {
+    "lint:api": "eslint ./apps/api"
+  },
   "workspaces": [
     "./packages/*",
     "./apps/*"
