@@ -6,7 +6,7 @@ import Link from "next/link";
 import Spinner from "@src/components/shared/Spinner";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { Alert } from "@src/components/ui/alert";
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useCustomWebSocket } from "@src/hooks/useCustomWebSocket";
 import { XTerm } from "@src/lib/XTerm";

@@ -16,7 +16,7 @@ import { helloWorldTemplate, ubuntuTemplate } from "@src/utils/templates";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
-import { Button, buttonVariants } from "../ui/button";
+import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { DeployOptionBox } from "./DeployOptionBox";
 
 const previewTemplateIds = [

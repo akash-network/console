@@ -4,7 +4,7 @@ import FileSaver from "file-saver";
 import { useSnackbar } from "notistack";
 
 import { Snackbar } from "@src/components/shared/Snackbar";
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
 import { useCertificate } from "../CertificateProvider";
 

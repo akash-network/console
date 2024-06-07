@@ -6,7 +6,7 @@ import { useSnackbar } from "notistack";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useAddFavoriteTemplate, useRemoveFavoriteTemplate } from "@src/queries/useTemplateQuery";
 import { cn } from "@src/utils/styleUtils";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { MustConnectModal } from "./MustConnectModal";
 import { Snackbar } from "./Snackbar";
 import Spinner from "./Spinner";

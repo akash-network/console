@@ -11,7 +11,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import Spinner from "../shared/Spinner";
 import { Avatar, AvatarFallback } from "../ui/avatar";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";;
 import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator } from "../ui/dropdown-menu";
 
 export function AccountMenu() {

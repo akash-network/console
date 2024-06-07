@@ -3,7 +3,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import { DialogProps } from "@radix-ui/react-dialog";
 
 import { cn } from "@src/utils/styleUtils";
-import { Button, ButtonProps } from "../ui/button";
+import { Button, ButtonProps } from "@akashnetwork/ui/components";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle as _DialogTitle } from "../ui/dialog";
 import { InputWithIcon } from "../ui/input";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";

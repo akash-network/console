@@ -6,7 +6,7 @@ import Link from "next/link";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
-import { buttonVariants } from "../ui/button";
+import { buttonVariants } from "@akashnetwork/ui/components";
 
 export const WithKeplrSection: React.FunctionComponent = () => {
   return (

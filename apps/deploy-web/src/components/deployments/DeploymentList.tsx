@@ -8,7 +8,7 @@ import { NextSeo } from "next-seo";
 import { CustomPagination } from "@src/components/shared/CustomPagination";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import Spinner from "@src/components/shared/Spinner";
-import { Button, buttonVariants } from "@src/components/ui/button";
+import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { CheckboxWithLabel } from "@src/components/ui/checkbox";
 import { InputWithIcon } from "@src/components/ui/input";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";

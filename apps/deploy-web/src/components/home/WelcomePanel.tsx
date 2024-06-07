@@ -4,7 +4,7 @@ import { Learning, NavArrowDown, Rocket, SearchEngine } from "iconoir-react";
 import Link from "next/link";
 
 import { Avatar, AvatarFallback } from "@src/components/ui/avatar";
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { Card, CardContent, CardHeader, CardTitle } from "@src/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@src/components/ui/collapsible";
 import { cn } from "@src/utils/styleUtils";

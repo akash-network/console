@@ -4,7 +4,7 @@ import { ComposableMap, Geographies, Geography, Marker, Point, ZoomableGroup } f
 import { Minus, Plus, Restart } from "iconoir-react";
 import Link from "next/link";
 
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { CustomNoDivTooltip } from "../shared/CustomTooltip";

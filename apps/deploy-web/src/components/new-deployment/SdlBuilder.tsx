@@ -2,7 +2,6 @@
 import React, { Dispatch, useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { nanoid } from "nanoid";
-
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
@@ -11,7 +10,7 @@ import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
 import Spinner from "../shared/Spinner";
 import { Alert } from "../ui/alert";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 
 interface Props {
   sdlString: string;

@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
 import Spinner from "@src/components/shared/Spinner";
-import { Button, buttonVariants } from "@src/components/ui/button";
+import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { ApiTemplate } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";

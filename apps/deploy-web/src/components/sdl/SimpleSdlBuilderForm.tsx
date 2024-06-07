@@ -14,7 +14,7 @@ import { SimpleServiceFormControl } from "@src/components/sdl/SimpleServiceFormC
 import { memoryUnits, storageUnits } from "@src/components/shared/akash/units";
 import Spinner from "@src/components/shared/Spinner";
 import { Alert } from "@src/components/ui/alert";
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import useFormPersist from "@src/hooks/useFormPersist";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import sdlStore from "@src/store/sdlStore";

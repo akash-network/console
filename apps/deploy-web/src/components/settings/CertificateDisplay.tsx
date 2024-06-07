@@ -7,7 +7,7 @@ import { FormPaper } from "@src/components/sdl/FormPaper";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 import { CustomTooltip } from "@src/components/shared/CustomTooltip";
 import Spinner from "@src/components/shared/Spinner";
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@src/components/ui/dropdown-menu";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCertificate } from "../../context/CertificateProvider";
