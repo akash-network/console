@@ -1,17 +1,23 @@
 {
   "name": "@akash-network/cloudmos",
-  "scripts": {
-    "lint:api": "eslint ./apps/api"
-  },
   "workspaces": [
     "./packages/*",
     "./apps/*"
   ],
-  "volta": {
+  "scripts": {
+    "format": "prettier --write ./*.{js,json} **/*.{ts,tsx,js,json}",
+    "lint": "eslint .",
+    "lint:api": "eslint ./apps/api"
+  },
+  "devDependencies": {
+    "@akashnetwork/dev-config": "*",
+    "@typescript-eslint/eslint-plugin": "^7.12.0"
+  },
+  "engines": {
     "node": "18.20.2",
     "npm": "10.5.0"
   },
-  "engines": {
+  "volta": {
     "node": "18.20.2",
     "npm": "10.5.0"
   }
