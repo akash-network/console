@@ -91,7 +91,7 @@ export const useStyles = makeStyles()(theme => ({
   }
 }));
 
-export const Footer: React.FunctionComponent = () => {
+export const Footer: React.FC = () => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { classes } = useStyles();
 

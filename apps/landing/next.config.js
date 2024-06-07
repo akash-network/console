@@ -10,7 +10,11 @@ const moduleExports = {
     styledComponents: true
   },
   images: {
-    domains: ["raw.githubusercontent.com"]
+    remotePatterns: [
+      {
+        hostname: "raw.githubusercontent.com"
+      }
+    ]
   },
   output: "standalone",
   publicRuntimeConfig: {
@@ -178,9 +182,12 @@ const sentryWebpackPluginOptions = {
 
 // Make sure adding Sentry options is the last code to run before exporting, to
 // ensure that your source maps include changes from all other Webpack plugins
-module.exports = withPWA({
-  dest: "public",
-  register: true,
-  skipWaiting: true,
-  disable: isDev
-})(withSentryConfig(moduleExports, sentryWebpackPluginOptions));
+module.exports = withSentryConfig(
+  withPWA({
+    dest: "public",
+    register: true,
+    skipWaiting: true,
+    disable: isDev
+  })(moduleExports),
+  sentryWebpackPluginOptions
+);

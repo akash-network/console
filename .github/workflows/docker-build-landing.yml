@@ -24,4 +24,4 @@ jobs:
 
       - name: Build the Docker image for LANDING
         if: steps.filter.outputs.landing == 'true'
-        run: docker build ./apps/landing
+        run: docker build -f Dockerfile.landing -t cloudmos-deploy-landing .

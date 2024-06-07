@@ -7,6 +7,7 @@ import Box from "@mui/material/Box";
 import { makeStyles } from "tss-react/mui";
 
 import { useDocHeight } from "@src/hooks/useDocHeight";
+import { useWindowSize } from "@src/hooks/useWindowSize";
 import { headerHeight, mobileHeaderHeight } from "@src/utils/constants";
 import { ErrorFallback } from "../shared/ErrorFallback";
 import { Footer } from "./Footer";
@@ -43,6 +44,7 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading }) => {
+  const { height: windowHeight } = useWindowSize();
   const theme = useTheme();
   const { classes } = useStyles();
   const height = useDocHeight();
@@ -93,7 +95,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading }) => {
           <Footer />
         </ErrorBoundary>
 
-        {typeof window !== "undefined" && (
+        {windowHeight && (
           <Box sx={{ position: "absolute", width: "100%", height: height - (isMobile ? 0 : headerHeight) }}>
             <Wave
               fill={theme.palette.secondary.main}
@@ -101,7 +103,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading }) => {
               opacity={0.1}
               className={classes.wave}
               options={{
-                height: window.innerHeight * 0.6,
+                height: windowHeight * 0.6,
                 amplitude: isMobile ? 12 : 25,
                 speed: 0.1,
                 points: isMobile ? 5 : 10
@@ -114,7 +116,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading }) => {
               opacity={0.1}
               className={classes.wave}
               options={{
-                height: window.innerHeight * 0.5,
+                height: windowHeight * 0.5,
                 amplitude: isMobile ? 15 : 30,
                 speed: 0.15,
                 points: isMobile ? 5 : 11
@@ -127,7 +129,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading }) => {
               opacity={0.1}
               className={classes.wave}
               options={{
-                height: window.innerHeight * 0.45,
+                height: windowHeight * 0.45,
                 amplitude: isMobile ? 20 : 40,
                 speed: 0.2,
                 points: isMobile ? 6 : 12

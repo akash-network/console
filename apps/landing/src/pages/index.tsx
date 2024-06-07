@@ -11,6 +11,7 @@ import Layout from "@src/components/layout/Layout";
 import { GradientText } from "@src/components/shared/GradientText";
 import { DiscordIcon } from "@src/components/shared/icons";
 import PageContainer from "@src/components/shared/PageContainer";
+import { useWindow } from "@src/hooks/useWindow";
 
 const useStyles = makeStyles()(theme => ({
   title: {
@@ -95,6 +96,7 @@ const useStyles = makeStyles()(theme => ({
 
 const Index: React.FunctionComponent = () => {
   const { classes } = useStyles();
+  const window = useWindow();
 
   return (
     <Layout>
@@ -131,7 +133,7 @@ const Index: React.FunctionComponent = () => {
         </Box>
 
         <Box margin="1rem auto" display="flex" justifyContent="center">
-          <ReactPlayer url="https://www.youtube.com/watch?v=KscVdyESSm4" style={{ backgroundColor: "rgba(0,0,0,0.5)" }} />
+          {!!window && <ReactPlayer url="https://www.youtube.com/watch?v=KscVdyESSm4" style={{ backgroundColor: "rgba(0,0,0,0.5)" }} />}
         </Box>
 
         <Box margin="3rem auto 0rem" maxWidth="640px">
