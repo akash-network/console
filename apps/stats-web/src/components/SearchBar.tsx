@@ -5,7 +5,7 @@ import { Search, Xmark } from "iconoir-react";
 import { useRouter } from "next/navigation";
 import { useMediaQuery } from "usehooks-ts";
 
-import { Button } from "./ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { Card, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 

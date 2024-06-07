@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import { ModeToggle } from "../ModeToggle";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { MobileNav } from "./MobileNav";
 import NetworkSelect from "./NetworkSelect";
 
