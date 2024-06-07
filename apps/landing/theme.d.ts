@@ -1,6 +1,6 @@
-import { Theme, ThemeOptions } from '@mui/material/styles';
+import { Theme, ThemeOptions } from "@mui/material/styles";
 
-declare module '@mui/material/styles' {
+declare module "@mui/material/styles" {
   interface CustomTheme extends Theme {
     status: {
       danger: string;

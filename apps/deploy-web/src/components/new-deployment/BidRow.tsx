@@ -168,7 +168,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ bid, selectedBid, handl
               <Spinner size="small" />
             </div>
           )}
-          {!isLoadingStatus && error && !isSendingManifest && (
+          {!isLoadingStatus && !!error && !isSendingManifest && (
             <div className="mt-2 flex items-center space-x-2">
               <CloudXmark className="text-xs text-primary" />
               <span className="text-sm text-muted-foreground">OFFLINE</span>

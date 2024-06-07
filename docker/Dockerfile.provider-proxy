@@ -1,0 +1,26 @@
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+COPY /apps/provider-proxy /app/apps/provider-proxy
+COPY package.json /app
+COPY package-lock.json /app
+
+RUN npm ci
+RUN npm run build --workspace apps/provider-proxy
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/package.json /app/package.json
+COPY --from=builder /app/package-lock.json /app/package-lock.json
+
+COPY --from=builder /app/apps/provider-proxy/build /app/apps/provider-proxy/build
+COPY --from=builder /app/apps/provider-proxy/package.json /app/apps/provider-proxy/package.json
+
+RUN npm ci --workspace apps/provider-proxy --omit=dev
+
+EXPOSE 80
+
+CMD ["node", "apps/provider-proxy/build/main.js"]

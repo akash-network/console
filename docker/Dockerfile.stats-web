@@ -1,0 +1,62 @@
+FROM node:18 AS base
+
+FROM base AS deps
+
+WORKDIR /app
+
+COPY package.json /app
+COPY package-lock.json /app
+COPY apps/stats-web/package.json ./apps/stats-web/
+
+RUN apt-get update && apt-get install -y libc6-dev && \
+    ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+      npm install @next/swc-linux-x64-gnu; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+      npm install @next/swc-linux-arm64-gnu; \
+    else \
+      echo "Unsupported architecture"; exit 1; \
+    fi
+
+RUN npm ci
+
+FROM base AS builder
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/stats-web/node_modules ./apps/stats-web/node_modules
+COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED 1
+
+RUN npm run build -w apps/stats-web
+
+FROM node:18 AS runner
+WORKDIR /app
+
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/package.json .
+COPY --from=builder /app/package-lock.json .
+COPY --from=builder /app/apps/stats-web/public ./apps/stats-web/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/stats-web/.next/standalone ./apps/stats-web
+COPY --from=builder --chown=nextjs:nodejs /app/apps/stats-web/.next/static ./apps/stats-web/.next/static
+
+RUN apt-get update
+RUN apt-get install libcap2-bin -y
+RUN setcap cap_net_bind_service=+ep `readlink -f \`which node\``
+
+RUN npm ci --workspace apps/stats-web --omit=dev
+
+USER nextjs
+
+EXPOSE 3001
+
+ENV PORT 3001
+
+CMD ["node", "apps/stats-web/server.js"]

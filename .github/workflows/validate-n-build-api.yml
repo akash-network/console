@@ -32,24 +32,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18.20.2
-          cache: npm
-          cache-dependency-path: package-lock.json
 
-      - name: Setup Local Deps
+      - name: Restore root node_modules cache
         if: steps.filter.outputs.api == 'true'
-        uses: actions/setup-node@v4
+        uses: martijnhols/actions-cache@v3
+        id: cache-root
         with:
-          node-version: 18.20.2
-          cache: npm
-          cache-dependency-path: apps/api/package-lock.json
+          path: node_modules
+          key: ${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install dependencies
-        if: steps.filter.outputs.api == 'true'
-        run: npm ci --workspace=apps/api
+        if: steps.filter.outputs.api == 'true' && (steps.cache-root.outputs.cache-hit != 'true' || steps.cache-api.outputs.cache-hit != 'true')
+        run: npm ci
 
       - name: Run static code analysis
         if: steps.filter.outputs.api == 'true'
-        run: npm run lint --workspace=apps/api
+        run: npm run lint:api
 
       - name: Run unit tests
         if: steps.filter.outputs.api == 'true'
@@ -57,4 +55,4 @@ jobs:
 
       - name: Build the Docker image for API
         if: steps.filter.outputs.api == 'true'
-        run: docker build -f Dockerfile.api -t cloudmos-api .
+        run: docker build -f docker/Dockerfile.api -t console-api .

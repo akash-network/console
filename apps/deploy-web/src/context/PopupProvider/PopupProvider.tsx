@@ -1,6 +1,7 @@
 import { Popup, PopupProps, CommonProps, ConfirmProps } from "@src/components/shared/Popup";
 import React, { FC, useCallback, useMemo, useState } from "react";
 import { firstValueFrom, Subject } from "rxjs";
+import type { FCWithChildren } from "@src/types/component";
 
 type ConfirmPopupProps = string | (Omit<CommonProps, "onClose" | "open"> & Omit<ConfirmProps, "onValidate" | "onCancel" | "variant">);
 
@@ -10,7 +11,7 @@ type PopupProviderContext = {
 
 const PopupContext = React.createContext<PopupProviderContext | undefined>(undefined);
 
-export const PopupProvider: FC = ({ children }) => {
+export const PopupProvider: FCWithChildren = ({ children }) => {
   const [popupProps, setPopupProps] = useState<PopupProps | undefined>();
 
   const confirm = useCallback(
