@@ -1,10 +1,11 @@
-import { useBlock } from "@src/queries/useBlocksQuery";
-import add from "date-fns/add";
-import { averageDaysInMonth } from "./dateUtils";
 import { Coin } from "@cosmjs/stargate";
-import { denomToUdenom } from "./mathHelpers";
+import add from "date-fns/add";
+
 import { getUsdcDenom } from "@src/hooks/useDenom";
+import { useBlock } from "@src/queries/useBlocksQuery";
 import { readableDenoms, uAktDenom } from "./constants";
+import { averageDaysInMonth } from "./dateUtils";
+import { denomToUdenom } from "./mathHelpers";
 
 export const averageBlockTime = 6.098;
 

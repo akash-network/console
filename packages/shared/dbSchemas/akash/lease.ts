@@ -1,10 +1,11 @@
-import { BelongsTo, Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
 import { DataTypes } from "sequelize";
-import { DeploymentGroup } from "./deploymentGroup";
-import { Deployment } from "./deployment";
-import { Provider } from "./provider";
-import { Required } from "../decorators/requiredDecorator";
+import { BelongsTo, Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
+
 import { Block } from "../base";
+import { Required } from "../decorators/requiredDecorator";
+import { Deployment } from "./deployment";
+import { DeploymentGroup } from "./deploymentGroup";
+import { Provider } from "./provider";
 
 @Table({
   modelName: "lease",

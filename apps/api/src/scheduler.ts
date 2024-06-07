@@ -1,6 +1,7 @@
-import humanInterval from "human-interval";
-import { getPrettyTime } from "@src/utils";
 import axios from "axios";
+import humanInterval from "human-interval";
+
+import { getPrettyTime } from "@src/utils";
 
 class TaskDef {
   name: string;
@@ -107,7 +108,7 @@ export class Scheduler {
           pingStartPromise.finally(() => this.healthchecksPingSuccess(runningTask));
         }
       })
-      .catch((err) => {
+      .catch(err => {
         runningTask.failedRunCount++;
         runningTask.latestError = err;
         this.config.errorHandler(runningTask, err);
@@ -146,7 +147,7 @@ export class Scheduler {
   }
 
   public getTasksStatus() {
-    return Array.from(this.tasks.values()).map((task) => ({
+    return Array.from(this.tasks.values()).map(task => ({
       name: task.name,
       isRunning: !!task.runningPromise,
       interval: getPrettyTime(task.interval),

@@ -1,12 +1,13 @@
 "use client";
-import { ApiProviderList } from "@src/types/provider";
-import { ComposableMap, Geographies, Geography, Marker, Point, ZoomableGroup } from "react-simple-maps";
 import { useEffect, useState } from "react";
-import { CustomNoDivTooltip } from "../shared/CustomTooltip";
-import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
-import { Button } from "@src/components/ui/button";
+import { ComposableMap, Geographies, Geography, Marker, Point, ZoomableGroup } from "react-simple-maps";
 import { Minus, Plus, Restart } from "iconoir-react";
+import Link from "next/link";
+
+import { Button } from "@src/components/ui/button";
+import { ApiProviderList } from "@src/types/provider";
+import { UrlService } from "@src/utils/urlUtils";
+import { CustomNoDivTooltip } from "../shared/CustomTooltip";
 
 type Props = {
   initialZoom?: number;

@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { getProviderGraphData } from "@src/services/db/statsService";
 import { ProviderStatsKey } from "@src/types";
 
@@ -55,7 +56,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const dataName = c.req.valid("param").dataName;
 
   if (!authorizedDataNames.includes(dataName)) {

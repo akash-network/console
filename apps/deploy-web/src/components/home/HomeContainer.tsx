@@ -1,20 +1,21 @@
 "use client";
 import { useEffect, useState } from "react";
 import React from "react";
-import { useDeploymentList } from "@src/queries/useDeploymentQuery";
+
+import { Footer } from "@src/components/layout/Footer";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
-import { useBalances } from "@src/queries/useBalancesQuery";
 import { useWallet } from "@src/context/WalletProvider";
+import { useBalances } from "@src/queries/useBalancesQuery";
+import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { Footer } from "@src/components/layout/Footer";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { DeploymentDto } from "@src/types/deployment";
-import { WelcomePanel } from "./WelcomePanel";
 import Layout from "../layout/Layout";
-import { YourAccount } from "./YourAccount";
 import Spinner from "../shared/Spinner";
 import CloudmosImportPanel from "./CloudmosImportPanel";
+import { WelcomePanel } from "./WelcomePanel";
+import { YourAccount } from "./YourAccount";
 
 export function HomeContainer() {
   const { address, isWalletLoaded } = useWallet();

@@ -1,7 +1,7 @@
 import { ReactNode, useRef, useState } from "react";
-import { Box, useTheme } from "@mui/material";
 import ReactPlayer from "react-player/lazy";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
+import { Box, useTheme } from "@mui/material";
 import { animated, useSpring } from "@react-spring/web";
 
 type Props = {

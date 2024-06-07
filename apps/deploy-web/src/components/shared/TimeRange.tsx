@@ -1,8 +1,9 @@
 "use client";
 import { ReactNode } from "react";
-import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
+
 import { selectedRangeValues } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
+import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 
 type Props = {
   children?: ReactNode;

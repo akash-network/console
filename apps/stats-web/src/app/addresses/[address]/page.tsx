@@ -1,20 +1,22 @@
-import { AddressDetail } from "@/types";
-import { getNetworkBaseApiUrl } from "@/lib/constants";
-import { Metadata, ResolvingMetadata } from "next";
-import AddressLayout from "./AddressLayout";
+import { Metadata } from "next";
+
 import { AddressInfo } from "./AddressInfo";
-import { Title } from "@/components/Title";
-import { UrlService } from "@/lib/urlUtils";
-import { AssetList } from "./AssetList";
+import AddressLayout from "./AddressLayout";
 import { AssetAllocation } from "./AssetAllocation";
+import { AssetList } from "./AssetList";
 import { LatestTransactions } from "./LatestTransactions";
+
+import { Title } from "@/components/Title";
+import { getNetworkBaseApiUrl } from "@/lib/constants";
+import { UrlService } from "@/lib/urlUtils";
+import { AddressDetail } from "@/types";
 
 interface IProps {
   params: { address: string };
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export async function generateMetadata({ params: { address } }: IProps, parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata({ params: { address } }: IProps): Promise<Metadata> {
   const url = `https://stats.akash.network${UrlService.address(address)}`;
 
   return {
@@ -56,7 +58,7 @@ export default async function AddressDetailPage({ params: { address }, searchPar
             <AssetList addressDetail={addressDetail} />
           </div>
           <div className="col-span-1 md:col-span-3">
-            <AssetAllocation address={address} addressDetail={addressDetail} />
+            <AssetAllocation addressDetail={addressDetail} />
           </div>
         </div>
       </div>

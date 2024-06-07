@@ -1,15 +1,17 @@
-import type { Metadata, Viewport } from "next";
-import "./globals.css";
-import { cn } from "@/lib/utils";
-import { Nav } from "@/components/layout/Nav";
-import Providers from "@/components/layout/CustomProviders";
-import { Toaster } from "@/components/ui/toaster";
-import { cookies } from "next/headers";
-import { customColors } from "@/lib/colors";
-import GoogleAnalytics from "@/components/layout/CustomGoogleAnalytics";
-import { Footer } from "@/components/layout/Footer";
-import getConfig from "next/config";
 import { GeistSans } from "geist/font/sans";
+import type { Metadata, Viewport } from "next";
+import getConfig from "next/config";
+import { cookies } from "next/headers";
+
+import "./globals.css";
+
+import GoogleAnalytics from "@/components/layout/CustomGoogleAnalytics";
+import Providers from "@/components/layout/CustomProviders";
+import { Footer } from "@/components/layout/Footer";
+import { Nav } from "@/components/layout/Nav";
+import { Toaster } from "@/components/ui/toaster";
+import { customColors } from "@/lib/colors";
+import { cn } from "@/lib/utils";
 
 const { publicRuntimeConfig } = getConfig();
 
@@ -96,7 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
       <GoogleAnalytics />
 
-      <body className={cn("min-h-screen bg-background tracking-wide antialiased font-sans", GeistSans.variable)}>
+      <body className={cn("min-h-screen bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
         <Providers>
           <Nav />
           <div className="flex min-h-[calc(100vh-60px)] flex-col justify-between">

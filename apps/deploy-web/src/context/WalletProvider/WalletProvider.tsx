@@ -1,26 +1,27 @@
 "use client";
 import React, { useRef } from "react";
-import { useState, useEffect } from "react";
-import { SigningStargateClient } from "@cosmjs/stargate";
-import { STATS_APP_URL, uAktDenom } from "@src/utils/constants";
+import { useEffect, useState } from "react";
 import { EncodeObject } from "@cosmjs/proto-signing";
-import { TransactionModal } from "@src/components/layout/TransactionModal";
-import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
-import { usePathname, useRouter } from "next/navigation";
-import { UrlService } from "@src/utils/urlUtils";
-import { useSettings } from "../SettingsProvider";
+import { SigningStargateClient } from "@cosmjs/stargate";
+import { useManager } from "@cosmos-kit/react";
 import axios from "axios";
+import { OpenNewWindow } from "iconoir-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { event } from "nextjs-google-analytics";
+import { SnackbarKey, useSnackbar } from "notistack";
+
+import { TransactionModal } from "@src/components/layout/TransactionModal";
+import { Snackbar } from "@src/components/shared/Snackbar";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { getSelectedNetwork, useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { AnalyticsEvents } from "@src/utils/analytics";
+import { STATS_APP_URL, uAktDenom } from "@src/utils/constants";
+import { customRegistry } from "@src/utils/customRegistry";
+import { UrlService } from "@src/utils/urlUtils";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
-import { customRegistry } from "@src/utils/customRegistry";
-import { useManager } from "@cosmos-kit/react";
-import { OpenNewWindow } from "iconoir-react";
-import { SnackbarKey, useSnackbar } from "notistack";
-import { Snackbar } from "@src/components/shared/Snackbar";
-import Link from "next/link";
+import { useSettings } from "../SettingsProvider";
 
 type Balances = {
   uakt: number;
@@ -50,7 +51,6 @@ export const WalletProvider = ({ children }) => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const sigingClient = useRef<SigningStargateClient | null>(null);
   const router = useRouter();
-  const pathname = usePathname();
   const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
   const { disconnect, getOfflineSigner, isWalletConnected, address: walletAddress, connect, username, estimateFee, sign, broadcast } = useSelectedChain();

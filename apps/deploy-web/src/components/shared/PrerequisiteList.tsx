@@ -1,16 +1,17 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { CheckCircle, WarningCircle } from "iconoir-react";
+
+import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { denomToUdenom } from "@src/utils/mathHelpers";
+import { aktToUakt } from "@src/utils/priceUtils";
+import { Avatar, AvatarFallback } from "../../components/ui/avatar";
+import { Card, CardContent } from "../ui/card";
 import { ConnectWallet } from "./ConnectWallet";
 import { Popup } from "./Popup";
-import { Card, CardContent } from "../ui/card";
 import Spinner from "./Spinner";
-import { CheckCircle, WarningCircle } from "iconoir-react";
-import { useChainParam } from "@src/context/ChainParamProvider";
-import { Avatar, AvatarFallback } from "../../components/ui/avatar";
 import { Title } from "./Title";
-import { aktToUakt } from "@src/utils/priceUtils";
-import { denomToUdenom } from "@src/utils/mathHelpers";
 
 type Props = {
   onClose: () => void;

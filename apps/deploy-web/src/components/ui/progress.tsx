@@ -15,4 +15,3 @@ const Progress = React.forwardRef<React.ElementRef<typeof ProgressPrimitive.Root
 Progress.displayName = ProgressPrimitive.Root.displayName;
 
 export { Progress };
-

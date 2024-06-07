@@ -1,19 +1,20 @@
 "use client";
 import { Dispatch, ReactNode, SetStateAction, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { EnvironmentVariable, ITemplate, SdlSaveTemplateFormValues, Service } from "@src/types";
-import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
-import { useCustomUser } from "@src/hooks/useCustomUser";
-import { getShortText } from "@src/hooks/useShortText";
+import TextField from "@mui/material/TextField";
 import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
+import { useSnackbar } from "notistack";
+
+import { MustConnect } from "@src/components/shared/MustConnect";
 import { Popup } from "@src/components/shared/Popup";
 import { Alert } from "@src/components/ui/alert";
-import { MustConnect } from "@src/components/shared/MustConnect";
-import TextField from "@mui/material/TextField";
-import { RadioGroup, RadioGroupItem } from "@src/components/ui/radio-group";
 import { Label } from "@src/components/ui/label";
-import { useSnackbar } from "notistack";
+import { RadioGroup, RadioGroupItem } from "@src/components/ui/radio-group";
+import { useCustomUser } from "@src/hooks/useCustomUser";
+import { getShortText } from "@src/hooks/useShortText";
+import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
+import { EnvironmentVariable, ITemplate, SdlSaveTemplateFormValues, Service } from "@src/types";
+import { AnalyticsEvents } from "@src/utils/analytics";
 import { Snackbar } from "../shared/Snackbar";
 
 type Props = {

@@ -1,14 +1,15 @@
 import React, { useCallback, useMemo } from "react";
-import { LiquidityModal as LeapLiquidityModal, Tabs, TxnSummary, defaultBlurs, useInitCachingLayer, AsyncIDBStorage } from "@leapwallet/elements";
-import type { ThemeDefinition, WalletClient, AssetSelector, AllowedDestinationChainConfig, TabsConfig } from "@leapwallet/elements";
 import type { StdSignDoc } from "@cosmjs/amino";
+import type { AllowedDestinationChainConfig, AssetSelector, TabsConfig, ThemeDefinition, WalletClient } from "@leapwallet/elements";
+import { AsyncIDBStorage, defaultBlurs, LiquidityModal as LeapLiquidityModal, Tabs, TxnSummary, useInitCachingLayer } from "@leapwallet/elements";
 import type { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
-import { useWallet } from "@src/context/WalletProvider";
 import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
+
 import { useSelectedChain } from "@src/context/CustomChainProvider";
-import { Button } from "../ui/button";
+import { useWallet } from "@src/context/WalletProvider";
+import { AnalyticsEvents } from "@src/utils/analytics";
 import { customColors } from "@src/utils/colors";
+import { Button } from "../ui/button";
 
 const theme: ThemeDefinition = {
   colors: {

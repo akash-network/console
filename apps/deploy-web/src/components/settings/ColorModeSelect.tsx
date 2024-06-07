@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
+
 import { FormItem } from "@src/components/ui/form";
 import { Label } from "@src/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
 
-type Props = {};
-
-export const ColorModeSelect: React.FunctionComponent<Props> = () => {
+export const ColorModeSelect: React.FunctionComponent = () => {
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 

@@ -37,7 +37,7 @@ const specSuffixes = {
 
 export function parseSizeStr(str: string) {
   try {
-    const suffix = Object.keys(specSuffixes).find((s) => str.toLowerCase().endsWith(s.toLowerCase()));
+    const suffix = Object.keys(specSuffixes).find(s => str.toLowerCase().endsWith(s.toLowerCase()));
 
     if (suffix) {
       const suffixPos = str.length - suffix.length;
@@ -64,7 +64,7 @@ const kubernetesDecimalSuffixes = {
 
 export function parseDecimalKubernetesString(str: string) {
   try {
-    const suffix = Object.keys(kubernetesDecimalSuffixes).find((s) => str.endsWith(s));
+    const suffix = Object.keys(kubernetesDecimalSuffixes).find(s => str.endsWith(s));
 
     if (suffix) {
       const suffixPos = str.length - suffix.length;

@@ -1,8 +1,10 @@
 import { QueryKey, useQuery, UseQueryOptions } from "react-query";
-import { QueryKeys } from "./queryKeys";
 import axios from "axios";
-import { MarketData } from "@/types";
+
+import { QueryKeys } from "./queryKeys";
+
 import { ApiUrlService } from "@/lib/apiUtils";
+import { MarketData } from "@/types";
 
 async function getMarketData(): Promise<MarketData> {
   const response = await axios.get(ApiUrlService.marketData());

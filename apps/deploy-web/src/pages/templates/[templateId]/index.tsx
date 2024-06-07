@@ -1,7 +1,8 @@
+import axios from "axios";
+
 import { TemplateDetail } from "@src/components/templates/TemplateDetail";
 import { ApiTemplate } from "@src/types";
 import { BASE_API_MAINNET_URL } from "@src/utils/constants";
-import axios from "axios";
 
 type Props = {
   templateId: string;
@@ -16,7 +17,7 @@ export default TemplateDetailPage;
 
 export async function getServerSideProps({ params }) {
   const response = await axios.get(`${BASE_API_MAINNET_URL}/templates`);
-  let categories = response.data.filter(x => (x.templates || []).length > 0);
+  const categories = response.data.filter(x => (x.templates || []).length > 0);
   categories.forEach(c => {
     c.templates.forEach(t => (t.category = c.title));
   });

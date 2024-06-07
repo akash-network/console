@@ -1,15 +1,16 @@
 "use client";
-import { FormattedDate, FormattedRelativeTime } from "react-intl";
-import Link from "next/link";
-import { TransactionDetail } from "@/types";
-import { LabelValue } from "@/components/LabelValue";
-import { UrlService } from "@/lib/urlUtils";
-import { Card, CardContent } from "@/components/ui/card";
-import { AKTAmount } from "@/components/AKTAmount";
 import React from "react";
-import { AddressLink } from "@/components/AddressLink";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { FormattedDate, FormattedRelativeTime } from "react-intl";
 import { WarningCircle } from "iconoir-react";
+import Link from "next/link";
+
+import { AddressLink } from "@/components/AddressLink";
+import { AKTAmount } from "@/components/AKTAmount";
+import { LabelValue } from "@/components/LabelValue";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
+import { UrlService } from "@/lib/urlUtils";
+import { TransactionDetail } from "@/types";
 
 interface IProps {
   transaction: TransactionDetail;

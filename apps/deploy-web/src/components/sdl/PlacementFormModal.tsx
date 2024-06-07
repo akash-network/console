@@ -1,23 +1,23 @@
 "use client";
 import { ReactNode, useRef } from "react";
-import { Popup } from "../shared/Popup";
 import { Control, Controller } from "react-hook-form";
+import { FormattedNumber } from "react-intl";
+import { InfoCircle } from "iconoir-react";
+
+import { useSdlDenoms } from "@src/hooks/useDenom";
 import { Placement, SdlBuilderFormValues, Service } from "@src/types";
+import { uAktDenom } from "@src/utils/constants";
+import { udenomToDenom } from "@src/utils/mathHelpers";
+import { getAvgCostPerMonth, toReadableDenom, uaktToAKT } from "@src/utils/priceUtils";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { Popup } from "../shared/Popup";
+import { PriceValue } from "../shared/PriceValue";
+import { USDLabel } from "../shared/UsdLabel";
+import { FormItem } from "../ui/form";
+import { InputWithIcon } from "../ui/input";
+import { AttributesFormControl, AttributesRefType } from "./AttributesFormControl";
 import { FormPaper } from "./FormPaper";
 import { SignedByFormControl, SignedByRefType } from "./SignedByFormControl";
-import { AttributesFormControl, AttributesRefType } from "./AttributesFormControl";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { PriceValue } from "../shared/PriceValue";
-import { getAvgCostPerMonth, toReadableDenom, uaktToAKT } from "@src/utils/priceUtils";
-import { uAktDenom } from "@src/utils/constants";
-import { useSdlDenoms } from "@src/hooks/useDenom";
-import { FormattedNumber } from "react-intl";
-import { USDLabel } from "../shared/UsdLabel";
-import { udenomToDenom } from "@src/utils/mathHelpers";
-import { InfoCircle } from "iconoir-react";
-import { FormControl, FormItem } from "../ui/form";
-import { FormInput, InputWithIcon } from "../ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 type Props = {
   serviceIndex: number;
@@ -27,15 +27,6 @@ type Props = {
   children?: ReactNode;
   placement: Placement;
 };
-
-// const useStyles = makeStyles()(theme => ({
-//   formControl: {
-//     marginBottom: theme.spacing(1.5)
-//   },
-//   textField: {
-//     width: "100%"
-//   }
-// }));
 
 export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, services, serviceIndex, onClose, placement: _placement }) => {
   const signedByRef = useRef<SignedByRefType>(null);
@@ -103,7 +94,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                 rules={{
                   required: "Placement name is required",
                   validate: value => {
-                    const hasValidChars = /^[a-z0-9\-]+$/.test(value);
+                    const hasValidChars = /^[a-z0-9-]+$/.test(value);
                     const hasValidStartingChar = /^[a-z]/.test(value);
                     const hasValidEndingChar = !value.endsWith("-");
 

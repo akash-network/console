@@ -1,19 +1,20 @@
 "use client";
 import React, { ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { UrlService } from "@src/utils/urlUtils";
-import { useRouter } from "next/navigation";
-import { ProviderSummary } from "./ProviderSummary";
-import { ClientProviderDetailWithStatus } from "@src/types/provider";
+import { NavArrowLeft, Refresh } from "iconoir-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import { ErrorFallback } from "@src/components/shared/ErrorFallback";
+import { Button, buttonVariants } from "@src/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
 import { useWallet } from "@src/context/WalletProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
-import { Button, buttonVariants } from "@src/components/ui/button";
-import { NavArrowLeft, Refresh } from "iconoir-react";
+import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { cn } from "@src/utils/styleUtils";
-import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
-import { ErrorFallback } from "@src/components/shared/ErrorFallback";
+import { UrlService } from "@src/utils/urlUtils";
 import { Title } from "../shared/Title";
+import { ProviderSummary } from "./ProviderSummary";
 
 export enum ProviderDetailTabs {
   DETAIL = "1",

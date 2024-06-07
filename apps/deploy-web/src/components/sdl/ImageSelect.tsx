@@ -1,19 +1,20 @@
 "use client";
 import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ApiTemplate, RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
-import { CustomTooltip } from "../shared/CustomTooltip";
 import { Control, Controller } from "react-hook-form";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
+import InputAdornment from "@mui/material/InputAdornment";
+import Popper from "@mui/material/Popper";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
+import TextField from "@mui/material/TextField";
+import { InfoCircle, OpenNewWindow } from "iconoir-react";
 import Image from "next/image";
 import Link from "next/link";
+
 import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
-import { useTheme as useMuiTheme } from "@mui/material/styles";
-import { InfoCircle, OpenNewWindow } from "iconoir-react";
-import ClickAwayListener from "@mui/material/ClickAwayListener";
-import Popper from "@mui/material/Popper";
-import InputAdornment from "@mui/material/InputAdornment";
-import { buttonVariants } from "../ui/button";
+import { ApiTemplate, RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
-import TextField from "@mui/material/TextField";
+import { CustomTooltip } from "../shared/CustomTooltip";
+import { buttonVariants } from "../ui/button";
 
 type Props = {
   children?: ReactNode;

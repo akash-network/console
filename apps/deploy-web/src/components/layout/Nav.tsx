@@ -1,14 +1,15 @@
 "use client";
-import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
+import { Menu, Xmark } from "iconoir-react";
 import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
-import { Button } from "../ui/button";
+
 import useCookieTheme from "@src/hooks/useTheme";
 import { accountBarHeight } from "@src/utils/constants";
+import { UrlService } from "@src/utils/urlUtils";
+import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
 import { Badge } from "../ui/badge";
-import { WalletStatus } from "./WalletStatus";
+import { Button } from "../ui/button";
 import { AccountMenu } from "./AccountMenu";
-import { Menu, Xmark } from "iconoir-react";
+import { WalletStatus } from "./WalletStatus";
 
 export const Nav = ({
   isMobileOpen,
@@ -38,7 +39,7 @@ export const Nav = ({
           </Button>
         </div>
 
-        <div style={{ height: `${accountBarHeight}px` }} className={`hidden items-center md:flex `}>
+        <div style={{ height: `${accountBarHeight}px` }} className={`hidden items-center md:flex`}>
           <div>
             <Link passHref href={UrlService.getStarted()}>
               <Button variant="outline" className="relative">

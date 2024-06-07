@@ -1,20 +1,18 @@
 "use client";
 import { ReactNode } from "react";
 import { Control, Controller } from "react-hook-form";
+import { InfoCircle } from "iconoir-react";
+
 import { SdlBuilderFormValues, Service } from "@src/types";
-import InfoIcon from "@mui/icons-material/Info";
 import { nextCases } from "@src/utils/sdl/data";
-import { CardContent } from "@mui/material";
-import { Card } from "../ui/card";
 import { cn } from "@src/utils/styleUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { InfoCircle } from "iconoir-react";
 import { Checkbox } from "../ui/checkbox";
+import { FormItem } from "../ui/form";
 import { InputWithIcon } from "../ui/input";
+import { Label } from "../ui/label";
 import MultipleSelector from "../ui/multiple-selector";
 import { FormPaper } from "./FormPaper";
-import { FormItem } from "../ui/form";
-import { Label } from "../ui/label";
 
 type Props = {
   serviceIndex: number;

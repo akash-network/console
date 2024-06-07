@@ -1,7 +1,7 @@
-import fetch from "node-fetch";
-import { isSameDay } from "date-fns";
 import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
 import { Day } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { isSameDay } from "date-fns";
+import fetch from "node-fetch";
 
 interface PriceHistoryResponse {
   prices: Array<Array<number>>;
@@ -21,7 +21,7 @@ export const syncPriceHistory = async () => {
 
   const response = await fetch(endpointUrl);
   const data: PriceHistoryResponse = await response.json();
-  const apiPrices = data.prices.map((pDate) => ({
+  const apiPrices = data.prices.map(pDate => ({
     date: pDate[0],
     price: pDate[1]
   }));
@@ -31,7 +31,7 @@ export const syncPriceHistory = async () => {
   const days = await Day.findAll();
 
   for (const day of days) {
-    const priceData = apiPrices.find((x) => isSameDay(new Date(x.date), day.date));
+    const priceData = apiPrices.find(x => isSameDay(new Date(x.date), day.date));
 
     if (priceData && priceData.price != day.aktPrice) {
       day.aktPrice = priceData.price;

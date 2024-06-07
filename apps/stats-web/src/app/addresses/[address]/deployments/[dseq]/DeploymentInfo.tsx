@@ -1,5 +1,10 @@
 "use client";
 
+import { FormattedNumber } from "react-intl";
+import Link from "next/link";
+
+import { EventRow } from "./EventRow";
+
 import { Address } from "@/components/Address";
 import { LabelValue } from "@/components/LabelValue";
 import { LeaseSpecDetail } from "@/components/LeaseSpecDetail";
@@ -7,15 +12,12 @@ import { PriceValue } from "@/components/PriceValue";
 import { Title } from "@/components/Title";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getSplitText } from "@/hooks/useShortText";
 import { roundDecimal, udenomToDenom } from "@/lib/mathHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
 import { UrlService } from "@/lib/urlUtils";
 import { DeploymentDetail } from "@/types";
-import Link from "next/link";
-import { FormattedNumber, FormattedTime } from "react-intl";
-import { EventRow } from "./EventRow";
 
 interface IProps {
   deployment: DeploymentDetail;

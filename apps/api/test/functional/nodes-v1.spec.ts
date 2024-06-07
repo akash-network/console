@@ -1,10 +1,11 @@
+import { faker } from "@faker-js/faker";
+import { NodeSeeder } from "@test/seeders/node-seeder";
+import mcache from "memory-cache";
+import nock from "nock";
+
 import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/db/dbConnection";
-import nock from "nock";
 import { env } from "@src/utils/env";
-import { NodeSeeder } from "@test/seeders/node-seeder";
-import { faker } from "@faker-js/faker";
-import mcache from "memory-cache";
 
 describe("Nodes API", () => {
   const interceptor = nock(env.NODE_API_BASE_PATH);
@@ -23,7 +24,7 @@ describe("Nodes API", () => {
   });
 
   describe("GET /nodes/*", () => {
-    it.each(["mainnet", "sandbox", "testnet"])("should return %s node", async (network) => {
+    it.each(["mainnet", "sandbox", "testnet"])("should return %s node", async network => {
       const node = NodeSeeder.create();
       interceptor.get(`/cloudmos/main/config/${network}-nodes.json`).times(1).reply(200, node);
 
@@ -41,7 +42,7 @@ describe("Nodes API", () => {
     const PATH_REWRITE: Record<string, string> = {
       testnet: "testnet-02"
     };
-    it.each(["mainnet", "sandbox", "testnet"])("should return %s node version", async (network) => {
+    it.each(["mainnet", "sandbox", "testnet"])("should return %s node version", async network => {
       const version = `v${faker.number.int()}.${faker.number.int()}.${faker.number.int()}`;
       interceptor
         .get(`/net/master/${PATH_REWRITE[network] || network}/version.txt`)

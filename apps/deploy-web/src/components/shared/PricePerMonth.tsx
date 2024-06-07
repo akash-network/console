@@ -1,8 +1,9 @@
 "use client";
+import { ReactNode } from "react";
+
 import { averageDaysInMonth } from "@src/utils/dateUtils";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { PriceValue } from "./PriceValue";
-import { ReactNode } from "react";
 
 interface IProps {
   perBlockValue: number;

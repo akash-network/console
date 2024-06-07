@@ -1,10 +1,11 @@
 "use client";
-import { useRouter } from "next/navigation";
-import { UrlService } from "@src/utils/urlUtils";
-import { RouteStepKeys } from "@src/utils/constants";
-import { Check } from "iconoir-react";
 import React from "react";
+import { Check } from "iconoir-react";
+import { useRouter } from "next/navigation";
+
+import { RouteStepKeys } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
+import { UrlService } from "@src/utils/urlUtils";
 
 interface Step {
   id: number;

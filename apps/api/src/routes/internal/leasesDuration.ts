@@ -1,9 +1,10 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { Block } from "@akashnetwork/cloudmos-shared/dbSchemas";
 import { Lease } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { openApiExampleAddress } from "@src/utils/constants";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { differenceInSeconds } from "date-fns";
 import { Op } from "sequelize";
+
+import { openApiExampleAddress } from "@src/utils/constants";
 
 const route = createRoute({
   method: "get",
@@ -53,7 +54,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const dateFormat = /^\d{4}-\d{2}-\d{2}$/;
 
   let startTime: Date = new Date("2000-01-01");
@@ -102,7 +103,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
     ]
   });
 
-  const leases = closedLeases.map((x) => ({
+  const leases = closedLeases.map(x => ({
     dseq: x.dseq,
     oseq: x.oseq,
     gseq: x.gseq,
@@ -116,7 +117,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
     durationInHours: differenceInSeconds(x.closedBlock.datetime, x.createdBlock.datetime) / 3600
   }));
 
-  const totalSeconds = leases.map((x) => x.durationInSeconds).reduce((a, b) => a + b, 0);
+  const totalSeconds = leases.map(x => x.durationInSeconds).reduce((a, b) => a + b, 0);
 
   return c.json({
     leaseCount: leases.length,

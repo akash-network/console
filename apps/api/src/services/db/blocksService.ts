@@ -16,7 +16,7 @@ export async function getBlocks(limit: number) {
     ]
   });
 
-  return blocks.map((block) => ({
+  return blocks.map(block => ({
     height: block.height,
     proposer: {
       address: block.proposerValidator.accountAddress,
@@ -61,15 +61,15 @@ export async function getBlock(height: number) {
       address: block.proposerValidator.accountAddress
     },
     hash: block.hash,
-    gasUsed: block.transactions.map((tx) => tx.gasUsed).reduce((a, b) => a + b, 0),
-    gasWanted: block.transactions.map((tx) => tx.gasWanted).reduce((a, b) => a + b, 0),
-    transactions: block.transactions.map((tx) => ({
+    gasUsed: block.transactions.map(tx => tx.gasUsed).reduce((a, b) => a + b, 0),
+    gasWanted: block.transactions.map(tx => tx.gasWanted).reduce((a, b) => a + b, 0),
+    transactions: block.transactions.map(tx => ({
       hash: tx.hash,
       isSuccess: !tx.hasProcessingError,
       error: tx.hasProcessingError ? tx.log : null,
       fee: tx.fee,
       datetime: block.datetime,
-      messages: tx.messages.map((message) => ({
+      messages: tx.messages.map(message => ({
         id: message.id,
         type: message.type,
         amount: message.amount

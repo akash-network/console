@@ -1,9 +1,10 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { getBlocks } from "@src/services/db/blocksService";
+import { getNetworkCapacity } from "@src/services/db/providerStatusService";
 import { getDashboardData, getProviderGraphData } from "@src/services/db/statsService";
 import { getTransactions } from "@src/services/db/transactionsService";
 import { getChainStats } from "@src/services/external/apiNodeService";
-import { getNetworkCapacity } from "@src/services/db/providerStatusService";
 
 const route = createRoute({
   method: "get",
@@ -142,7 +143,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const chainStatsQuery = await getChainStats();
   const dashboardData = await getDashboardData();
   const networkCapacity = await getNetworkCapacity();

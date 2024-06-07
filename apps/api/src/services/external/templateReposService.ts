@@ -1,14 +1,15 @@
+import { Octokit } from "@octokit/rest";
+import * as fs from "fs";
+import { markdownToTxt } from "markdown-to-txt";
 import fetch from "node-fetch";
 import path from "path";
-import { markdownToTxt } from "markdown-to-txt";
-import { getOctokit } from "./githubService";
-import { isUrlAbsolute } from "@src/utils/urls";
-import { Octokit } from "@octokit/rest";
-import { dataFolderPath } from "@src/utils/constants";
+
 import { GithubChainRegistryChainResponse } from "@src/types";
 import { GithubDirectoryItem } from "@src/types/github";
+import { dataFolderPath } from "@src/utils/constants";
 import { getLogoFromPath } from "@src/utils/templateReposLogos";
-import * as fs from "fs";
+import { isUrlAbsolute } from "@src/utils/urls";
+import { getOctokit } from "./githubService";
 
 const generatingTasks: { [key: string]: Promise<Category[]> } = {};
 let lastServedData: FinalCategory[] | null = null;
@@ -82,7 +83,7 @@ async function getTemplatesFromRepo(
 function mergeTemplateCategories(...categories: Category[]) {
   const mergedCategories: Category[] = [];
   for (const category of categories.flat()) {
-    const existingCategory = mergedCategories.find((c) => c.title.toLowerCase() === category.title.toLowerCase());
+    const existingCategory = mergedCategories.find(c => c.title.toLowerCase() === category.title.toLowerCase());
     if (existingCategory) {
       existingCategory.templates = (existingCategory.templates || []).concat(category.templates);
     } else {
@@ -160,8 +161,8 @@ async function fetchOmnibusTemplates(octokit: Octokit, repoVersion: string) {
 
   if (!Array.isArray(response.data)) throw "Could not fetch list of files from akash-network/cosmos-omnibus";
 
-  const folders = response.data.filter((f) => f.type === "dir" && !f.name.startsWith(".") && !f.name.startsWith("_"));
-  const templateSources: TemplateSource[] = folders.map((x) => ({
+  const folders = response.data.filter(f => f.type === "dir" && !f.name.startsWith(".") && !f.name.startsWith("_"));
+  const templateSources: TemplateSource[] = folders.map(x => ({
     name: x.name,
     path: x.path,
     logoUrl: null,
@@ -231,7 +232,7 @@ async function fetchAwesomeAkashTemplates(octokit: Octokit, repoVersion: string)
     const templatesStr = match[3];
 
     // Ignore duplicate categories
-    if (categories.some((x) => x.title === title)) {
+    if (categories.some(x => x.title === title)) {
       continue;
     }
 
@@ -293,7 +294,7 @@ async function fetchLinuxServerTemplates(octokit: Octokit, repoVersion: string) 
     const templatesStr = match[3];
 
     // Ignore duplicate categories
-    if (categories.some((x) => x.title === title)) {
+    if (categories.some(x => x.title === title)) {
       continue;
     }
 
@@ -357,7 +358,7 @@ export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories
           "Not for public consumption"
         ];
 
-        if (ignoreList.map((x) => x.toLowerCase()).some((x) => readme.toLowerCase().includes(x))) {
+        if (ignoreList.map(x => x.toLowerCase()).some(x => readme.toLowerCase().includes(x))) {
           continue;
         }
 
@@ -403,10 +404,10 @@ export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories
   }
 
   // Remove templates without "README.md" and "deploy.yml"
-  categories.forEach((c) => {
-    c.templates = c.templates.filter((x) => x.readme && x.deploy);
+  categories.forEach(c => {
+    c.templates = c.templates.filter(x => x.readme && x.deploy);
   });
-  categories = categories.filter((x) => x.templates?.length > 0);
+  categories = categories.filter(x => x.templates?.length > 0);
 
   //console.log("Requests remaining: " + reqRemaining);
 
@@ -475,10 +476,10 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
   }
 
   // Remove templates without "README.md" and "deploy.yml"
-  categories.forEach((c) => {
-    c.templates = c.templates.filter((x) => x.readme && x.deploy);
+  categories.forEach(c => {
+    c.templates = c.templates.filter(x => x.readme && x.deploy);
   });
-  categories = categories.filter((x) => x.templates?.length > 0);
+  categories = categories.filter(x => x.templates?.length > 0);
 
   //console.log("Requests remaining: " + reqRemaining);
 
@@ -488,7 +489,7 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
 // Find a github file by name and dowload it
 async function findFileContentAsync(filename: string | string[], fileList: GithubDirectoryItem[]) {
   const filenames = typeof filename === "string" ? [filename] : filename;
-  const fileDef = fileList.find((f) => filenames.some((x) => x.toLowerCase() === f.name.toLowerCase()));
+  const fileDef = fileList.find(f => filenames.some(x => x.toLowerCase() === f.name.toLowerCase()));
 
   if (!fileDef) return null;
 

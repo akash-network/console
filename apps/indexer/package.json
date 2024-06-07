@@ -65,7 +65,7 @@
     "@types/validator": "^13.7.8",
     "alias-hq": "^5.1.6",
     "nodemon": "^2.0.7",
-    "nodemon-webpack-plugin": "^4.5.2",
+    "nodemon-webpack-plugin": "^4.8.2",
     "supertest": "^6.1.5",
     "ts-jest": "^27.0.4",
     "ts-loader": "^9.5.1",

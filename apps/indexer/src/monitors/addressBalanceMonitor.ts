@@ -10,7 +10,7 @@ export class AddressBalanceMonitor {
       }
     });
 
-    await Promise.allSettled(monitoredValues.map((x) => this.updateValue(x)));
+    await Promise.allSettled(monitoredValues.map(x => this.updateValue(x)));
 
     console.log("Refreshed balances for " + monitoredValues.length + " addresses.");
   }
@@ -32,7 +32,7 @@ export class AddressBalanceMonitor {
       timeout: 15_000
     });
 
-    const balance = response.data.balances.find((x) => x.denom === activeChain.denom || x.denom === activeChain.udenom);
+    const balance = response.data.balances.find(x => x.denom === activeChain.denom || x.denom === activeChain.udenom);
 
     if (!balance) {
       return null;

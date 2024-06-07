@@ -1,27 +1,28 @@
 "use client";
 import { useEffect } from "react";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { PricePerMonth } from "../shared/PricePerMonth";
-import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
-import { FavoriteButton } from "../shared/FavoriteButton";
-import { AuditorButton } from "../providers/AuditorButton";
+import { CloudXmark, WarningTriangle } from "iconoir-react";
 import Link from "next/link";
-import { UrlService } from "@src/utils/urlUtils";
+
+import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { getSplitText } from "@src/hooks/useShortText";
+import { useProviderStatus } from "@src/queries/useProvidersQuery";
 import { BidDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
-import { useProviderStatus } from "@src/queries/useProvidersQuery";
-import { Uptime } from "../providers/Uptime";
-import { udenomToDenom } from "@src/utils/mathHelpers";
-import { hasSomeParentTheClass } from "@src/utils/domUtils";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
-import { TableCell, TableRow } from "../ui/table";
+import { hasSomeParentTheClass } from "@src/utils/domUtils";
+import { udenomToDenom } from "@src/utils/mathHelpers";
 import { cn } from "@src/utils/styleUtils";
+import { UrlService } from "@src/utils/urlUtils";
+import { AuditorButton } from "../providers/AuditorButton";
+import { Uptime } from "../providers/Uptime";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { Badge } from "../ui/badge";
-import { WarningTriangle, CloudXmark } from "iconoir-react";
+import { FavoriteButton } from "../shared/FavoriteButton";
+import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
+import { PricePerMonth } from "../shared/PricePerMonth";
 import Spinner from "../shared/Spinner";
+import { Badge } from "../ui/badge";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { TableCell, TableRow } from "../ui/table";
 
 type Props = {
   bid: BidDto;

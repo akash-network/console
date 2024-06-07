@@ -1,8 +1,8 @@
 "use client";
-import { ClientProviderList } from "@src/types/provider";
-import { ProviderListRow } from "./ProviderTableRow";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+import { ClientProviderList } from "@src/types/provider";
 import { cn } from "@src/utils/styleUtils";
+import { ProviderListRow } from "./ProviderTableRow";
 
 type Props = {
   providers: Array<ClientProviderList>;

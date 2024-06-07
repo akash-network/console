@@ -1,6 +1,7 @@
 import { UserAddressName, UserSetting } from "@akashnetwork/cloudmos-shared/dbSchemas/user";
-import { getUserPlan } from "../external/stripeService";
 import { Transaction } from "sequelize";
+
+import { getUserPlan } from "../external/stripeService";
 
 function randomIntFromInterval(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1) + min);

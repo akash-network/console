@@ -1,17 +1,19 @@
-import { Metadata, ResolvingMetadata } from "next";
-import { UrlService } from "@/lib/urlUtils";
-import { getNetworkBaseApiUrl } from "@/lib/constants";
-import { ValidatorDetail } from "@/types";
+import { Metadata } from "next";
+
+import { ValidatorsInfo } from "./ValidatorInfo";
+
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { ValidatorsInfo } from "./ValidatorInfo";
+import { getNetworkBaseApiUrl } from "@/lib/constants";
+import { UrlService } from "@/lib/urlUtils";
+import { ValidatorDetail } from "@/types";
 
 interface IProps {
   params: { address: string };
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export async function generateMetadata({ params: { address }, searchParams: { network } }: IProps, parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata({ params: { address }, searchParams: { network } }: IProps): Promise<Metadata> {
   const url = `https://stats.akash.network${UrlService.validator(address)}`;
   const apiUrl = getNetworkBaseApiUrl(network as string);
   const response = await fetch(`${apiUrl}/v1/validators/${address}`);

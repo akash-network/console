@@ -1,11 +1,12 @@
 "use client";
-import { useSettings } from "../../context/SettingsProvider";
-import { NodeStatus } from "../shared/NodeStatus";
 import { useRouter } from "next/navigation";
-import { UrlService } from "@src/utils/urlUtils";
-import { getSplitText } from "@src/hooks/useShortText";
-import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
+
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { getSplitText } from "@src/hooks/useShortText";
+import { UrlService } from "@src/utils/urlUtils";
+import { useSettings } from "../../context/SettingsProvider";
+import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
+import { NodeStatus } from "../shared/NodeStatus";
 import { Button } from "../ui/button";
 
 export const NodeStatusBar = () => {

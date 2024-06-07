@@ -1,32 +1,33 @@
 "use client";
+import { useEffect, useRef, useState } from "react";
+import useWebSocket from "react-use-websocket";
+import { Monaco } from "@monaco-editor/react";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { Download, MoreHoriz } from "iconoir-react";
+import { editor } from "monaco-editor";
+import { event } from "nextjs-google-analytics";
+
+import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
+import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
+import { MemoMonaco } from "@src/components/shared/MemoMonaco";
+import { SelectCheckbox } from "@src/components/shared/SelectCheckbox";
+import Spinner from "@src/components/shared/Spinner";
+import ViewPanel from "@src/components/shared/ViewPanel";
+import { Alert } from "@src/components/ui/alert";
+import { Button } from "@src/components/ui/button";
+import { Checkbox, CheckboxWithLabel } from "@src/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@src/components/ui/dropdown-menu";
+import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useThrottledCallback } from "@src/hooks/useThrottle";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
-import { useEffect, useRef, useState } from "react";
-import { LeaseSelect } from "./LeaseSelect";
-import useWebSocket from "react-use-websocket";
-import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
-import { event } from "nextjs-google-analytics";
-import { AnalyticsEvents } from "@src/utils/analytics";
-import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
-import { LeaseDto } from "@src/types/deployment";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { useTheme as useMuiTheme } from "@mui/material/styles";
-import { MemoMonaco } from "@src/components/shared/MemoMonaco";
-import { editor } from "monaco-editor";
-import { Monaco } from "@monaco-editor/react";
-import { SelectCheckbox } from "@src/components/shared/SelectCheckbox";
-import { Button } from "@src/components/ui/button";
-import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
-import ViewPanel from "@src/components/shared/ViewPanel";
-import { Alert } from "@src/components/ui/alert";
-import Spinner from "@src/components/shared/Spinner";
-import { Checkbox, CheckboxWithLabel } from "@src/components/ui/checkbox";
+import { LeaseDto } from "@src/types/deployment";
+import { AnalyticsEvents } from "@src/utils/analytics";
+import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
-import { Download, MoreHoriz } from "iconoir-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@src/components/ui/dropdown-menu";
-import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
-import useMediaQuery from "@mui/material/useMediaQuery";
+import { LeaseSelect } from "./LeaseSelect";
 
 export type LOGS_MODE = "logs" | "events";
 
@@ -61,13 +62,10 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     enabled: false
   });
   const { sendJsonMessage } = useWebSocket(PROVIDER_PROXY_URL_WS, {
-    onOpen: () => {
-      // console.log("opened");
-    },
+    onOpen: () => {},
     onMessage: onLogReceived,
     onError: error => console.error("error", error),
-    shouldReconnect: closeEvent => {
-      // console.log(closeEvent);
+    shouldReconnect: () => {
       return true;
     }
   });

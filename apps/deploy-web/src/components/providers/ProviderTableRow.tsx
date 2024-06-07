@@ -1,23 +1,24 @@
 "use client";
-import { ClientProviderList } from "@src/types/provider";
+import React from "react";
+import { WarningCircle } from "iconoir-react";
+import { useRouter } from "next/navigation";
+
+import { Badge } from "@src/components/ui/badge";
+import { TableCell, TableRow } from "@src/components/ui/table";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { getSplitText } from "@src/hooks/useShortText";
+import { ClientProviderList } from "@src/types/provider";
+import { createFilterUnique } from "@src/utils/array";
+import { hasSomeParentTheClass } from "@src/utils/domUtils";
+import { roundDecimal } from "@src/utils/mathHelpers";
+import { cn } from "@src/utils/styleUtils";
+import { bytesToShrink } from "@src/utils/unitUtils";
+import { UrlService } from "@src/utils/urlUtils";
+import { CustomNoDivTooltip, CustomTooltip } from "../shared/CustomTooltip";
 import { FavoriteButton } from "../shared/FavoriteButton";
 import { AuditorButton } from "./AuditorButton";
-import { bytesToShrink } from "@src/utils/unitUtils";
-import { roundDecimal } from "@src/utils/mathHelpers";
 import { CapacityIcon } from "./CapacityIcon";
-import { CustomNoDivTooltip, CustomTooltip } from "../shared/CustomTooltip";
-import { getSplitText } from "@src/hooks/useShortText";
-import { useRouter } from "next/navigation";
-import { UrlService } from "@src/utils/urlUtils";
 import { Uptime } from "./Uptime";
-import React from "react";
-import { hasSomeParentTheClass } from "@src/utils/domUtils";
-import { createFilterUnique } from "@src/utils/array";
-import { TableCell, TableRow } from "@src/components/ui/table";
-import { cn } from "@src/utils/styleUtils";
-import { Badge } from "@src/components/ui/badge";
-import { WarningCircle } from "iconoir-react";
 
 type Props = {
   provider: ClientProviderList;
@@ -132,7 +133,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
               </span>
             </div>
             <div className="mt-1 inline-flex flex-nowrap items-center space-x-1 text-center">
-              {gpuModels.slice(0, 2).map((gpu, i) => (
+              {gpuModels.slice(0, 2).map(gpu => (
                 <Badge key={gpu} className="h-4 px-1 py-0 text-xs">
                   <small>{gpu}</small>
                 </Badge>
@@ -142,7 +143,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
                 <CustomNoDivTooltip
                   title={
                     <div className="space-x-1">
-                      {gpuModels.map((gpu, i) => (
+                      {gpuModels.map(gpu => (
                         <Badge key={gpu} className="px-1 py-0 text-xs">
                           {gpu}
                         </Badge>

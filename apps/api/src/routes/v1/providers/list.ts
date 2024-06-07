@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { getProviderList } from "@src/services/db/providerStatusService";
 
@@ -104,7 +105,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async (c) => {
+export default new OpenAPIHono().openapi(route, async c => {
   const providers = await cacheResponse(60, cacheKeys.getProviderList, getProviderList);
   return c.json(providers);
 });

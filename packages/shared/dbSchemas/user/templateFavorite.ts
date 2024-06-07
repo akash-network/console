@@ -1,5 +1,6 @@
-import { BelongsTo, Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
 import { DataTypes, UUIDV4 } from "sequelize";
+import { BelongsTo, Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
+
 import { Required } from "../decorators/requiredDecorator";
 import { Template } from "./template";
 

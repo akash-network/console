@@ -1,12 +1,12 @@
 "use client";
 import React from "react";
-import { useValidators } from "@/queries";
-import { DataTable } from "@/components/table/data-table";
+
 import { columns } from "./columns";
 
-interface IProps {}
+import { DataTable } from "@/components/table/data-table";
+import { useValidators } from "@/queries";
 
-export function ValidatorsTable({}: IProps) {
+export function ValidatorsTable() {
   const { data: validators, isLoading } = useValidators();
 
   return (

@@ -1,6 +1,6 @@
-import { useTemplates } from "@src/context/TemplatesProvider";
+import yaml from "js-yaml";
 
-const yaml = require("js-yaml");
+import { useTemplates } from "@src/context/TemplatesProvider";
 
 export const useGpuTemplates = () => {
   const { isLoading: isLoadingTemplates, categories } = useTemplates();
@@ -8,7 +8,7 @@ export const useGpuTemplates = () => {
 
   gpuTemplates = gpuTemplates
     .map(x => {
-      const templateSdl = yaml.load(x.deploy);
+      const templateSdl = yaml.load(x.deploy || "") as any;
 
       return {
         ...x,

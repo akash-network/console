@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+
 import type { Node } from "@src/routes/v1/nodes/nodeClient";
 
 export class NodeSeeder {

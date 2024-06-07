@@ -1,13 +1,14 @@
 "use client";
+import { FormattedDate, useIntl } from "react-intl";
 import { ResponsiveLineCanvas } from "@nivo/line";
-import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@/types";
+import { useTheme } from "next-themes";
+import { useMediaQuery } from "usehooks-ts";
+
+import { customColors } from "@/lib/colors";
 import { selectedRangeValues } from "@/lib/constants";
 import { nFormatter, roundDecimal } from "@/lib/mathHelpers";
-import { FormattedDate, useIntl } from "react-intl";
-import { useTheme } from "next-themes";
-import { customColors } from "@/lib/colors";
-import { useMediaQuery } from "usehooks-ts";
 import { breakpoints } from "@/lib/responsiveUtils";
+import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@/types";
 
 interface IGraphProps {
   rangedData: SnapshotValue[];
@@ -62,13 +63,11 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
           max: maxValue * 1.02
         }}
         yFormat=" >-1d"
-        // @ts-ignore will be fixed in 0.69.1
         axisBottom={{
           tickRotation: smallScreen ? 45 : 0,
           format: dateStr => intl.formatDate(dateStr, { day: "numeric", month: "short", timeZone: "utc" }),
           tickValues: getTickValues(rangedData, graphMetadata.xModulo)
         }}
-        // @ts-ignore will be fixed in 0.69.1
         axisLeft={{
           format: val => nFormatter(val, 2),
           legend: snapshotMetadata.legend,

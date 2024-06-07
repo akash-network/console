@@ -39,7 +39,7 @@ export function weightedAverage(values: { value: number; weight: number }[]): nu
     throw new Error("Input array is empty");
   }
 
-  const totalWeight = values.map((x) => x.weight).reduce((acc, x) => acc + x, 0);
+  const totalWeight = values.map(x => x.weight).reduce((acc, x) => acc + x, 0);
 
-  return values.map((x) => x.value * x.weight).reduce((acc, x) => acc + x, 0) / totalWeight;
+  return values.map(x => x.value * x.weight).reduce((acc, x) => acc + x, 0) / totalWeight;
 }

@@ -1,10 +1,11 @@
-import { Day } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { AkashBlock as Block } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import { Day } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
 import { subHours } from "date-fns";
 import { Op, QueryTypes } from "sequelize";
+
+import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
 import { ProviderActiveLeasesStats, ProviderStats, ProviderStatsKey } from "@src/types/graph";
-import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { env } from "@src/utils/env";
 
 type GraphData = {
@@ -161,7 +162,7 @@ export async function getGraphData(dataName: AuthorizedGraphDataName): Promise<G
     order: [["date", "ASC"]]
   });
 
-  let stats = result.map((day) => ({
+  let stats = result.map(day => ({
     date: day.date,
     value: getter(day.lastBlock)
   }));
@@ -235,7 +236,7 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
   const currentValue = result[result.length - 1];
   const compareValue = result[result.length - 2];
 
-  const stats = result.map((day) => ({
+  const stats = result.map(day => ({
     date: day.date,
     value: getter(day)
   }));
@@ -288,7 +289,7 @@ export const getProviderActiveLeasesGraphData = async (providerAddress: string) 
   return {
     currentValue: currentValue.count,
     compareValue: compareValue.count,
-    snapshots: result.map((day) => ({
+    snapshots: result.map(day => ({
       date: day.date,
       value: day.count
     })),

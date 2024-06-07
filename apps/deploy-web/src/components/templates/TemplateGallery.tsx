@@ -1,28 +1,27 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useTemplates } from "../../context/TemplatesProvider";
-import { useRouter, useSearchParams } from "next/navigation";
-import { UrlService, domainName } from "@src/utils/urlUtils";
-import { LinkTo } from "@src/components/shared/LinkTo";
-import { ApiTemplate } from "@src/types";
-import { Button, buttonVariants } from "@src/components/ui/button";
-import { FilterList, Xmark } from "iconoir-react";
+import { useEffect, useState } from "react";
 import { MdSearchOff } from "react-icons/md";
-import Spinner from "@src/components/shared/Spinner";
-import { cn } from "@src/utils/styleUtils";
-import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
-import { CustomNextSeo } from "../shared/CustomNextSeo";
-import Layout from "../layout/Layout";
-import { TemplateBox } from "./TemplateBox";
-import { MobileTemplatesFilter } from "./MobileTemplatesFilter";
-import { Title } from "../shared/Title";
+import TextField from "@mui/material/TextField";
+import { FilterList, Xmark } from "iconoir-react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-type Props = {};
+import { LinkTo } from "@src/components/shared/LinkTo";
+import Spinner from "@src/components/shared/Spinner";
+import { Button, buttonVariants } from "@src/components/ui/button";
+import { ApiTemplate } from "@src/types";
+import { cn } from "@src/utils/styleUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
+import { useTemplates } from "../../context/TemplatesProvider";
+import Layout from "../layout/Layout";
+import { CustomNextSeo } from "../shared/CustomNextSeo";
+import { Title } from "../shared/Title";
+import { MobileTemplatesFilter } from "./MobileTemplatesFilter";
+import { TemplateBox } from "./TemplateBox";
 
 let timeoutId: NodeJS.Timeout | null = null;
 
-export const TemplateGallery: React.FunctionComponent<Props> = ({}) => {
+export const TemplateGallery: React.FunctionComponent = () => {
   const [selectedCategoryTitle, setSelectedCategoryTitle] = useState<string | null>(null);
   const [searchTerms, setSearchTerms] = useState("");
   const [shownTemplates, setShownTemplates] = useState<ApiTemplate[]>([]);
