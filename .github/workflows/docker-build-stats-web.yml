@@ -24,4 +24,4 @@ jobs:
 
       - name: Build the Docker image
         if: steps.filter.outputs.stats-web == 'true'
-        run: docker build ./apps/stats-web
+        run: docker build -f docker/Dockerfile.stats-web -t console-stats-web .

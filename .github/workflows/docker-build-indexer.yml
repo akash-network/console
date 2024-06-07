@@ -25,4 +25,4 @@ jobs:
 
       - name: Build the Docker image
         if: steps.filter.outputs.indexer == 'true'
-        run: docker build -f Dockerfile.indexer -t cloudmos-indexer .
+        run: docker build -f docker/Dockerfile.indexer -t console-indexer .
