@@ -3,7 +3,8 @@ import type { Metadata, Viewport } from "next";
 import getConfig from "next/config";
 import { cookies } from "next/headers";
 
-import "./globals.css";
+import "@akashnetwork/ui/styles/globals.css";
+import "../styles/index.css";
 
 import GoogleAnalytics from "@/components/layout/CustomGoogleAnalytics";
 import Providers from "@/components/layout/CustomProviders";

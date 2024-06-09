@@ -30,7 +30,7 @@ import { queryClient } from "@src/queries";
 import { cn } from "@src/utils/styleUtils";
 
 import "nprogress/nprogress.css"; //styles of nprogress
-import "../styles/globals.css";
+import "@akashnetwork/ui/styles/globals.css";
 import "../styles/index.css";
 import "@leapwallet/elements/styles.css";
 
