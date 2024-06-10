@@ -1,6 +1,7 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { sub } from "date-fns";
 import { QueryTypes } from "sequelize";
+import { URL } from "url";
 
 import { chainDb } from "@src/db/dbConnection";
 import { toUTC } from "@src/utils";

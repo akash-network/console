@@ -1,16 +1,16 @@
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 COPY /apps/indexer /app/apps/indexer
-COPY /packages/shared /app/packages/shared
+COPY /packages /app/packages
 COPY package.json /app
 COPY package-lock.json /app
 
 RUN npm ci --include-workspace-root --workspace=apps/indexer
 RUN npm run build --workspace apps/indexer
 
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 

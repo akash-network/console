@@ -1,25 +1,26 @@
 import { ProviderSnapshots, ProviderSnapshotsUrlParam, Snapshots, SnapshotsUrlParam } from "@/types";
 
-export const NOT_FOUND = "NOT_FOUND";
+export type SNAPSHOT_NOT_FOUND = "NOT_FOUND";
+export const NOT_FOUND: SNAPSHOT_NOT_FOUND = "NOT_FOUND";
+
+const SNAPSHOT_URL = {
+  [SnapshotsUrlParam.activeLeases]: Snapshots.activeLeaseCount,
+  [SnapshotsUrlParam.allTimeDeploymentCount]: Snapshots.totalLeaseCount,
+  [SnapshotsUrlParam.compute]: Snapshots.activeCPU,
+  [SnapshotsUrlParam.graphics]: Snapshots.activeGPU,
+  [SnapshotsUrlParam.memory]: Snapshots.activeMemory,
+  [SnapshotsUrlParam.storage]: Snapshots.activeStorage,
+  [SnapshotsUrlParam.totalAKTSpent]: Snapshots.totalUAktSpent,
+  [SnapshotsUrlParam.totalUSDCSpent]: Snapshots.totalUUsdcSpent,
+  [SnapshotsUrlParam.totalUSDSpent]: Snapshots.totalUUsdSpent,
+  [SnapshotsUrlParam.dailyAktSpent]: Snapshots.dailyUAktSpent,
+  [SnapshotsUrlParam.dailyUsdcSpent]: Snapshots.dailyUUsdcSpent,
+  [SnapshotsUrlParam.dailyUsdSpent]: Snapshots.dailyUUsdSpent,
+  [SnapshotsUrlParam.dailyDeploymentCount]: Snapshots.dailyLeaseCount
+};
 
 export const urlParamToSnapshot = (snapshotsUrlParam: SnapshotsUrlParam) => {
-  const snapshotUrlMapping = {
-    [SnapshotsUrlParam.activeLeases]: Snapshots.activeLeaseCount,
-    [SnapshotsUrlParam.allTimeDeploymentCount]: Snapshots.totalLeaseCount,
-    [SnapshotsUrlParam.compute]: Snapshots.activeCPU,
-    [SnapshotsUrlParam.graphics]: Snapshots.activeGPU,
-    [SnapshotsUrlParam.memory]: Snapshots.activeMemory,
-    [SnapshotsUrlParam.storage]: Snapshots.activeStorage,
-    [SnapshotsUrlParam.totalAKTSpent]: Snapshots.totalUAktSpent,
-    [SnapshotsUrlParam.totalUSDCSpent]: Snapshots.totalUUsdcSpent,
-    [SnapshotsUrlParam.totalUSDSpent]: Snapshots.totalUUsdSpent,
-    [SnapshotsUrlParam.dailyAktSpent]: Snapshots.dailyUAktSpent,
-    [SnapshotsUrlParam.dailyUsdcSpent]: Snapshots.dailyUUsdcSpent,
-    [SnapshotsUrlParam.dailyUsdSpent]: Snapshots.dailyUUsdSpent,
-    [SnapshotsUrlParam.dailyDeploymentCount]: Snapshots.dailyLeaseCount
-  };
-
-  return snapshotUrlMapping[snapshotsUrlParam] ?? NOT_FOUND;
+  return SNAPSHOT_URL[snapshotsUrlParam] ?? NOT_FOUND;
 };
 
 export const urlParamToProviderSnapshot = (snapshotsUrlParam: ProviderSnapshotsUrlParam) => {

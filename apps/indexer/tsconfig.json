@@ -1,26 +1,11 @@
 {
-  "compilerOptions": {
-    "module": "Node16",
-    "noImplicitAny": false,
-    "noEmitOnError": false,
-    "removeComments": false,
-    "sourceMap": true,
-    "downlevelIteration": true,
-    "allowJs": true,
-    "allowSyntheticDefaultImports": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "esModuleInterop": true,
-    "moduleResolution": "Node16",
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "target": "ES6",
-    "baseUrl": "./src",
-    "paths": {
-      "@src/*": ["*"]
-    }
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "compileOnSave": false
+  "compileOnSave": false,
+  "exclude": [
+    "node_modules",
+    "dist"
+  ],
+  "extends": "./tsconfig.build.json",
+  "include": [
+    "src/**/*"
+  ]
 }

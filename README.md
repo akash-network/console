@@ -117,7 +117,7 @@ For convenience, a Docker Compose configuration is provided to automate the data
 
 #### Running Docker Compose
 ```sh
-docker-compose up
+docker-compose up db
 ```
 This command spins up the database service and automatically handles the downloading and importing of the specified data.
 
