@@ -1,12 +1,83 @@
-version: '3.7'
-
 services:
+  api:
+    build:
+      dockerfile: docker/Dockerfile.api
+    restart: always
+    environment:
+      AkashSandboxDatabaseCS: postgres://postgres:password@db:5432/cloudmos-akash-sandbox
+      UserDatabaseCS: postgres://postgres:password@db:5432/cloudmos-users
+    env_file:
+      - apps/api/.env.local
+    ports:
+      - '3080:3080'
+    depends_on:
+      - db
+
+  indexer:
+    build:
+      dockerfile: docker/Dockerfile.indexer
+    restart: always
+    environment:
+      AkashSandboxDatabaseCS: postgres://postgres:password@db:5432/cloudmos-akash-sandbox
+      UserDatabaseCS: postgres://postgres:password@db:5432/cloudmos-users
+    env_file:
+      - apps/indexer/.env.local
+    depends_on:
+      - db
+
+  provider-proxy:
+    build:
+      dockerfile: docker/Dockerfile.provider-proxy
+    restart: always
+    ports:
+      - '3040:3040'
+
+  deploy-web:
+    build:
+      dockerfile: docker/Dockerfile.deploy-web
+    restart: always
+    environment:
+      API_BASE_URL: http://api:3080
+      PROVIDER_PROXY_URL: http://provider-proxy:3040
+    env_file:
+      - apps/deploy-web/.env.local
+    ports:
+      - '3000:3001'
+    depends_on:
+      - api
+      - provider-proxy
+
+  stats-web:
+    build:
+      dockerfile: docker/Dockerfile.stats-web
+    restart: always
+    environment:
+      API_MAINNET_BASE_URL: http://api:3080
+      API_TESTNET_BASE_URL: http://api:3080
+      API_SANDBOX_BASE_URL: http://api:3080
+      API_BASE_URL: http://api:3080
+    ports:
+      - '3001:3001'
+    depends_on:
+      - api
+
+  landing:
+    build:
+      dockerfile: docker/Dockerfile.landing
+    restart: always
+    ports:
+      - '3002:3001'
+
   db:
     build:
-      context: db/postgres
+      context: docker
+      dockerfile: Dockerfile.db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DBS_FOR_IMPORT: cloudmos-akash-sandbox
+      POSTGRES_USERS_DB: cloudmos-users
     restart: always
-    env_file:
-      - .postgres.local.env
     ports:
       - '5432:5432'
     volumes:

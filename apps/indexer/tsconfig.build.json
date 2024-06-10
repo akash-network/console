@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noImplicitAny": false,
+    "paths": {
+      "@src/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "exclude": [
+    "node_modules",
+    "dist"
+  ],
+  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json",
+  "include": [
+    "src/**/*"
+  ]
+}

@@ -110,6 +110,7 @@ function getStatsAppUrl() {
 }
 
 function getProviderProxyHttpUrl() {
+  if (process.env.PROVIDER_PROXY_URL) return process.env.PROVIDER_PROXY_URL;
   if (typeof window === "undefined") return "http://localhost:3040";
   if (window.location?.hostname === "deploybeta.cloudmos.io") return "https://deployproxybeta.cloudmos.io";
   if (productionHostnames.includes(window.location?.hostname)) return "https://providerproxy.cloudmos.io";

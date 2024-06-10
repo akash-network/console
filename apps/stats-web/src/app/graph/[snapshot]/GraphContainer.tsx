@@ -12,6 +12,7 @@ import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
 import { selectedRangeValues } from "@/lib/constants";
 import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
+import { SNAPSHOT_NOT_FOUND } from "@/lib/snapshotsUrlHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
 import { useGraphSnapshot } from "@/queries";
 import { ISnapshotMetadata, Snapshots } from "@/types";
@@ -21,7 +22,7 @@ const Graph = dynamic(() => import("../../../components/graph/Graph"), {
 });
 
 export interface IGraphProps {
-  snapshot: Snapshots;
+  snapshot: Snapshots | SNAPSHOT_NOT_FOUND;
 }
 
 export default function GraphContainer({ snapshot }: IGraphProps) {

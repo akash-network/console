@@ -31,18 +31,18 @@ jobs:
         if: steps.filter.outputs.api == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: 18.20.2
+          node-version: 20.14.0
 
       - name: Restore root node_modules cache
         if: steps.filter.outputs.api == 'true'
         uses: martijnhols/actions-cache@v3
-        id: cache-root
+        id: cache
         with:
           path: node_modules
           key: ${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install dependencies
-        if: steps.filter.outputs.api == 'true' && (steps.cache-root.outputs.cache-hit != 'true' || steps.cache-api.outputs.cache-hit != 'true')
+        if: steps.filter.outputs.api == 'true' && steps.cache.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Run static code analysis

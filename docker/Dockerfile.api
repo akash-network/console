@@ -1,9 +1,9 @@
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 COPY /apps/api /app/apps/api
-COPY /packages/shared /app/packages/shared
+COPY /packages /app/packages
 COPY package.json /app
 COPY package-lock.json /app
 
@@ -12,7 +12,7 @@ RUN apk add --no-cache python3 make g++ libc6-compat postgresql-dev
 RUN npm ci
 RUN npm run build --workspace apps/api
 
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
