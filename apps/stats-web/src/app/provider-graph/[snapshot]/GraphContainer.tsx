@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { selectedRangeValues } from "@/lib/constants";
 import { percIncrease } from "@/lib/mathHelpers";
 import { getProviderSnapshotMetadata } from "@/lib/providerUtils";
+import { SNAPSHOT_NOT_FOUND } from "@/lib/snapshotsUrlHelpers";
 import { useProviderGraphSnapshot } from "@/queries";
 import { ProviderSnapshots } from "@/types";
 
@@ -21,7 +22,7 @@ const Graph = dynamic(() => import("../../../components/graph/Graph"), {
 });
 
 export interface IGraphProps {
-  snapshot: ProviderSnapshots;
+  snapshot: ProviderSnapshots | SNAPSHOT_NOT_FOUND;
 }
 
 export default function GraphContainer({ snapshot }: IGraphProps) {

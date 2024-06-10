@@ -1,15 +1,15 @@
 {
   "name": "cloudmos-block-explorer",
   "version": "2.5.2",
-  "description": "Landing page for Cloudmos",
-  "author": "Cloudmos",
   "private": true,
+  "description": "Landing page for Cloudmos",
   "license": "Apache-2.0",
+  "author": "Cloudmos",
   "scripts": {
-    "lint": "eslint .",
-    "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
-    "dev": "next -p 3001",
     "build": "next build",
+    "dev": "next -p 3001",
+    "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
+    "lint": "eslint .",
     "start": "next start",
     "type-check": "tsc"
   },
@@ -41,10 +41,16 @@
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
-    "@types/node": "^12.12.21",
+    "@types/node": "20.14.0",
     "@types/nprogress": "^0.2.0",
     "@types/react": "18.2.0",
     "@types/react-dom": "18.2.0",
+    "@typescript-eslint/eslint-plugin": "^7.12.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.3",
+    "eslint-plugin-simple-import-sort": "^12.1.0",
+    "prettier": "^3.3.0",
+    "prettier-plugin-tailwindcss": "^0.6.1",
     "typescript": "5.1.3"
   }
 }

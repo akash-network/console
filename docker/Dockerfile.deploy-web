@@ -1,4 +1,4 @@
-FROM node:18 AS base
+FROM node:20 AS base
 
 FROM base AS deps
 
@@ -33,7 +33,7 @@ ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN npm run build -w apps/deploy-web
 
-FROM node:18 AS runner
+FROM node:20 AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
