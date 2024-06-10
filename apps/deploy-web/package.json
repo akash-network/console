@@ -17,6 +17,7 @@
   "dependencies": {
     "@akashnetwork/akash-api": "^1.3.0",
     "@akashnetwork/akashjs": "^0.10.0",
+    "@akashnetwork/ui": "*",
     "@auth0/nextjs-auth0": "^3.5.0",
     "@chain-registry/types": "^0.41.3",
     "@cosmjs/encoding": "^0.32.3",

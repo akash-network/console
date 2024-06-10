@@ -10,6 +10,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@akashnetwork/ui": "*",
     "@cosmjs/encoding": "^0.32.0",
     "@json2csv/plainjs": "^7.0.4",
     "@nivo/line": "^0.84.0",
