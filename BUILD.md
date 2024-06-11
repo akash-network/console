@@ -7,7 +7,7 @@
 - [Api](/apps/api/README.md) - The main Console API
 - [Indexer](/apps/indexer/README.md) - The main indexer process
 - [Database](/packages/database/) - Database shared package
-- [UI](/packages/ui/) - UI components
+- [UI](/packages/ui/) - UI components shared
 
 ## Create docker images
 
