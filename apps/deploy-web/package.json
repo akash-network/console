@@ -129,7 +129,6 @@
     "@akashnetwork/dev-config": "*",
     "@keplr-wallet/types": "^0.10.15",
     "@next/bundle-analyzer": "^14.0.1",
-    "@akashnetwork/tailwind-config": "*",
     "@types/auth0": "^2.35.3",
     "@types/file-saver": "^2.0.5",
     "@types/js-yaml": "^4.0.5",

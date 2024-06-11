@@ -1,1 +1,1 @@
-export default require("../../packages/tailwind-config/tailwind.config");
+export default require("@akashnetwork/ui/tailwind")("stats-web");

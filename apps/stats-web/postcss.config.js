@@ -1,1 +1,1 @@
-module.exports = require('../../packages/tailwind-config/postcss.config')
+module.exports = require('@akashnetwork/ui/postcss')

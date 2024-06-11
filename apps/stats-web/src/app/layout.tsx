@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from "next";
 import getConfig from "next/config";
 import { cookies } from "next/headers";
 
-import "@akashnetwork/ui/styles/globals.css";
+import "@akashnetwork/ui/styles";
 import "../styles/index.css";
 
 import GoogleAnalytics from "@/components/layout/CustomGoogleAnalytics";
@@ -12,7 +12,7 @@ import { Footer } from "@/components/layout/Footer";
 import { Nav } from "@/components/layout/Nav";
 import { Toaster } from "@/components/ui/toaster";
 import { customColors } from "@/lib/colors";
-import { cn } from "@/lib/utils";
+import { cn } from "@akashnetwork/ui/utils";
 
 const { publicRuntimeConfig } = getConfig();
 
