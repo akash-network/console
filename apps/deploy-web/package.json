@@ -8,7 +8,7 @@
   "scripts": {
     "build": "next build",
     "build-analyze": "set ANALYZE=true&& next build",
-    "dev": "next -p 3000",
+    "dev": "next",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
     "start": "next start",
@@ -124,7 +124,6 @@
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.3",
     "eslint-plugin-simple-import-sort": "^12.1.0",
-    "patch-package": "^8.0.0",
     "postcss": "^8.4.31",
     "postcss-nesting": "^12.0.2",
     "prettier": "^3.3.0",

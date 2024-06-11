@@ -15,11 +15,27 @@
   
 </div>
 
+- [Quick Start](#quick-start)
 - [Services](#services)
 - [Monitoring](#monitoring)
 - [Example SQL Queries](#example-sql-queries)
+- [Running the Application](#running-the-application)
 - [How to run](#how-to-run)
 - [Database Structure](#database-structure)
+
+# Quick start
+
+We use `docker` with `docker compose` to run the services. This is the easiest way to get started. For instance to run the deploy-web service:
+
+```bash
+git clone git@github.com:akash-network/cloudmos.git ./console
+cd console
+npm run dc:up:dev -- deploy-web 
+```
+
+This would start the deploy-web service in development mode with all the dependencies (api, indexer, postgres) needed. While spinning up postgres it would also import a backup of the sandbox (by default) database to speed up the process.
+
+For more details on how to run the other services or modes see the [Running the Application](#running-the-application) section.
 
 # Services
 
@@ -86,6 +102,43 @@ See [Example_Queries.md](./doc/Example_Queries.md)
 
 This document provides instructions on how to set up and run the application, including steps for manual database restoration and using Docker Compose for ease of setup.
 
+### Using Docker and Docker Compose
+This project's service are deployed using Docker and Docker Compose. The following sections provide instructions for setting up and running the application using Docker Compose.
+All the Dockerfiles are using multi-stage builds to optimize the image build processes. Same files are used to build both development and production images. There are 3 docker-compose files:
+- **docker-compose.build.yml:** Base file solely building production images for the services. It can be used to verify the same build process as in CICD.
+- **docker-compose.prod.yml:** This file is used to run the services in production mode. It also includes the database service which would fetch a remote backup and import it on init.
+- **docker-compose.yml:** The default file to run all the services in development mode with features like hot-reload.
+
+Some commands are added to package.json for convenience.
+
+```shell
+npm run dc:build # Build the production images
+npm run dc:up:prod # Run the services in production mode
+npm run dc:up:dev # Run the services in development mode
+npm run dc:down # Stop the services referencing any possible service
+```
+
+Note: you may pass any `docker compose` related arguments to the above commands. E.g. to only start `deploy-web` service in development mode:
+```shell
+npm run dc:up:dev -- deploy-web
+```
+This would also properly spin up all the dependencies like the `api`.
+### Using Turbo Repo
+Another way to run apps in dev mode is using turbo repo setup. Some available commands are:
+```shell
+npm run console:dev # run console ui in dev mode with dependencies
+npm run stats:dev # run stats ui in dev mode with dependencies
+npm run api:dev # run api in dev mode with dependencies
+npm run indexer:dev # run indexer in dev mode with dependencies
+```
+
+Note the above commands still depend on docker to run postgres database. If you need to run them without db you can use the following commands:
+```shell
+npm run console:dev:no-db # run console ui in dev mode with dependencies but without postgres in docker
+npm run stats:dev:no-db # run stats ui in dev mode with dependencies but without postgres in docker
+```
+
+
 ## Manual Database Restoration
 
 Due to the extensive time required to index Akash from block #1, it's recommended to initialize your database using an existing backup for efficiency. This approach is particularly beneficial for development purposes.
@@ -107,19 +160,6 @@ For a .sql.gz file:
 gunzip -c /path/to/cloudmos-akash-sandbox.sql.gz | psql --host "localhost" --port "5432" --username "postgres" --dbname "cloudmos-akash"
 ```
 After restoring the database, you can proceed with the specific project's README instructions for further setup and running the application.
-
-### Using Docker Compose
-For convenience, a Docker Compose configuration is provided to automate the database setup, download, and data import process.
-
-#### Configuration
-1. Ensure environment variables are set in .postgres.local.env. This file configures PostgreSQL and import settings.
-2. The `POSTGRES_DBS_FOR_IMPORT` variable should be updated with the databases you wish to import. This is a comma-separated list with potential values including `cloudmos-akash-sandbox` (default) and `cloudmos-akash-2` (mainnet). Leave this variable empty if no import is desired.
-
-#### Running Docker Compose
-```sh
-docker-compose up db
-```
-This command spins up the database service and automatically handles the downloading and importing of the specified data.
 
 # Database Structure
 

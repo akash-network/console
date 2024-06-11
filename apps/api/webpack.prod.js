@@ -1,8 +1,9 @@
 const path = require("path");
-const { NODE_ENV = "production" } = process.env;
+const webpack = require("webpack");
 const nodeExternals = require("webpack-node-externals");
 const hq = require("alias-hq");
-const webpack = require("webpack");
+
+const { NODE_ENV = "production" } = process.env;
 
 module.exports = {
   entry: "./src/index.ts",
@@ -22,10 +23,12 @@ module.exports = {
       {
         test: /\.(ts|js)x?$/,
         exclude: /node_modules/,
-        loader: "ts-loader",
-        options: { configFile: "tsconfig.json" }
+        loader: "ts-loader"
       }
     ]
+  },
+  optimization: {
+    minimize: false
   },
   plugins: [new webpack.IgnorePlugin({ resourceRegExp: /^pg-native$/ })],
   node: {
