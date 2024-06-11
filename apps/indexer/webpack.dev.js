@@ -1,14 +1,16 @@
 const path = require("path");
-const { NODE_ENV = "development" } = process.env;
 const NodemonPlugin = require("nodemon-webpack-plugin");
 const nodeExternals = require("webpack-node-externals");
 const hq = require("alias-hq");
 const webpack = require("webpack");
 
+const { NODE_ENV = "development" } = process.env;
+
 module.exports = {
   entry: "./src/index.ts",
   mode: NODE_ENV,
   target: "node",
+  devtool: "source-map",
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "server.js"

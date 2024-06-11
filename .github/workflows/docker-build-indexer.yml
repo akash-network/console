@@ -25,4 +25,4 @@ jobs:
 
       - name: Build the Docker image
         if: steps.filter.outputs.indexer == 'true'
-        run: docker build -f docker/Dockerfile.indexer -t console-indexer .
+        run: npm run dc:build -- indexer

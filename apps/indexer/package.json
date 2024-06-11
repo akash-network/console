@@ -18,6 +18,7 @@
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "start": "webpack --mode development --config webpack.dev.js --watch",
+    "dev": "npm run start",
     "test": "jest"
   },
   "dependencies": {

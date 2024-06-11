@@ -1,0 +1,48 @@
+FROM node:20-alpine AS base
+
+ARG WORKSPACE
+ENV WORKSPACE $WORKSPACE
+
+WORKDIR /app
+
+FROM base AS development
+
+COPY /$WORKSPACE /app/$WORKSPACE
+COPY /packages /app/packages
+COPY package.json /app
+COPY package-lock.json /app
+
+RUN npm install
+
+CMD ["npm", "run", "dev", "--workspace", "${WORKSPACE}"]
+
+FROM development AS builder
+
+RUN npm run build --workspace $WORKSPACE
+
+FROM base AS production
+
+ENV NODE_ENV production
+ENV APP_GROUP_ID 1001
+ENV APP_GROUP nodejs
+ENV APP_USER app
+
+RUN addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
+    && adduser --system --uid $APP_GROUP_ID --ingroup $APP_GROUP $APP_USER
+
+COPY --from=builder /app/$WORKSPACE/dist /app/$WORKSPACE/dist
+COPY --from=builder /app/packages /app/packages
+COPY --from=builder /app/package.json /app/package.json
+COPY --from=builder /app/package-lock.json /app/package-lock.json
+COPY --from=builder /app/$WORKSPACE/package.json /app/$WORKSPACE/package.json
+
+RUN chown -R $APP_USER:$APP_GROUP /app
+RUN npm ci --workspace $WORKSPACE --omit=dev
+RUN apk add --no-cache libcap; \
+    setcap cap_net_bind_service=+ep `readlink -f \`which node\``
+
+USER $APP_USER
+
+WORKDIR /app/$WORKSPACE
+
+CMD ["node", "dist/server.js"]

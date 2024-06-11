@@ -1,6 +1,3 @@
 {
-  "compilerOptions": {
-    "outDir": "build",
-  },
   "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
 }

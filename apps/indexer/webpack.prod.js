@@ -1,8 +1,9 @@
 const path = require("path");
-const { NODE_ENV = "production" } = process.env;
 const webpack = require("webpack");
 const nodeExternals = require("webpack-node-externals");
 const hq = require("alias-hq");
+
+const { NODE_ENV = "production" } = process.env;
 
 module.exports = {
   entry: "./src/index.ts",

@@ -14,6 +14,7 @@
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "start": "webpack --config webpack.dev.js --watch",
+    "dev": "npm run start",
     "test": "jest --selectProjects unit functional",
     "test:cov": "jest --selectProjects unit functional --coverage",
     "test:functional": "jest --selectProjects functional",
@@ -40,7 +41,6 @@
     "@octokit/rest": "^18.12.0",
     "@sentry/node": "^7.55.2",
     "axios": "^0.27.2",
-    "bufferutil": "^4.0.8",
     "cosmjs-types": "^0.5.0",
     "date-fns": "^2.29.2",
     "date-fns-tz": "^1.3.6",
@@ -59,7 +59,6 @@
     "sequelize": "^6.21.3",
     "sequelize-typescript": "^2.1.5",
     "stripe": "^10.14.0",
-    "utf-8-validate": "^5.0.10",
     "uuid": "^9.0.1",
     "zod": "^3.22.4"
   },

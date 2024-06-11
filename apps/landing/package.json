@@ -1,5 +1,5 @@
 {
-  "name": "cloudmos-block-explorer",
+  "name": "console-landing",
   "version": "2.5.2",
   "private": true,
   "description": "Landing page for Cloudmos",
@@ -7,7 +7,7 @@
   "author": "Cloudmos",
   "scripts": {
     "build": "next build",
-    "dev": "next -p 3001",
+    "dev": "next",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
     "start": "next start",

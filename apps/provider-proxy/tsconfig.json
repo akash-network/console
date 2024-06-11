@@ -1,7 +1,10 @@
 {
+  "compilerOptions": {
+    "outDir": "dist",
+  },
   "exclude": [
     "node_modules",
-    "build"
+    "dist"
   ],
   "extends": "./tsconfig.build.json"
 }

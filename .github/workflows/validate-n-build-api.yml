@@ -55,4 +55,4 @@ jobs:
 
       - name: Build the Docker image for API
         if: steps.filter.outputs.api == 'true'
-        run: docker build -f docker/Dockerfile.api -t console-api .
+        run: npm run dc:build -- api

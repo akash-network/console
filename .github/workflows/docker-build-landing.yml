@@ -24,4 +24,4 @@ jobs:
 
       - name: Build the Docker image for LANDING
         if: steps.filter.outputs.landing == 'true'
-        run: docker build -f docker/Dockerfile.landing -t console-landing .
+        run: npm run dc:build -- landing

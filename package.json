@@ -1,16 +1,32 @@
 {
   "name": "@akash-network/cloudmos",
+  "packageManager": "npm@10.7.0",
   "workspaces": [
     "./packages/*",
     "./apps/*"
   ],
   "scripts": {
+    "dc:build": "docker compose -f docker-compose.build.yml build",
+    "dc:down": "docker compose -p console down",
+    "dc:up:dev": "docker compose -p console -f docker-compose.build.yml -f docker-compose.prod.yml -f docker-compose.prod-with-db.yml -f docker-compose.yml up",
+    "dc:up:dev:no-db": "docker compose -p console -f docker-compose.build.yml -f docker-compose.prod.yml -f docker-compose.yml up",
+    "dc:up:prod": "docker compose -p console -f docker-compose.build.yml -f docker-compose.prod.yml -f docker-compose.prod-with-db.yml up",
+    "dc:up:db": "cross-env-shell '[ \\\"$SKIP_DC_DB\\\" != \\\"true\\\" ] && npm run dc:up:prod -- -d db || echo \\\"Skipping DB setup\\\"'",
+    "dc:up:prod:no-db": "docker compose -p console -f docker-compose.build.yml -f docker-compose.prod.yml up",
+    "console:dev": "turbo dev --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/provider-proxy/\"",
+    "console:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/provider-proxy/\"",
+    "stats:dev": "turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
+    "stats:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
+    "api:dev": "turbo dev --filter=\"./apps/api\"",
+    "indexer:dev": "turbo dev --filter=\"./apps/indexer\"",
     "format": "prettier --write ./*.{js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
     "lint:api": "eslint ./apps/api"
   },
   "devDependencies": {
-    "@akashnetwork/dev-config": "*"
+    "@akashnetwork/dev-config": "*",
+    "cross-env": "^7.0.3",
+    "turbo": "^2.0.3"
   },
   "engines": {
     "node": "20.14.0",
