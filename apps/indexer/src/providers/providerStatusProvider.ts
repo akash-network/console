@@ -4,7 +4,7 @@ import {
   ProviderSnapshotNode,
   ProviderSnapshotNodeCPU,
   ProviderSnapshotNodeGPU
-} from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+} from "@akashnetwork/database/dbSchemas/akash";
 import { asyncify, eachLimit } from "async";
 import axios from "axios";
 import { add, differenceInDays, differenceInHours, differenceInMinutes, isSameDay } from "date-fns";

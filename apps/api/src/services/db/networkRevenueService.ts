@@ -1,5 +1,5 @@
-import { AkashBlock as Block } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { Day } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { AkashBlock as Block } from "@akashnetwork/database/dbSchemas/akash";
+import { Day } from "@akashnetwork/database/dbSchemas/base";
 import { add } from "date-fns";
 import { Op } from "sequelize";
 

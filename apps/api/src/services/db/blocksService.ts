@@ -1,5 +1,5 @@
-import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { Transaction, Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
+import { Transaction, Validator } from "@akashnetwork/database/dbSchemas/base";
 import { addSeconds, differenceInSeconds } from "date-fns";
 
 export async function getBlocks(limit: number) {

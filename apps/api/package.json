@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "@akashnetwork/akash-api": "^1.3.0",
-    "@akashnetwork/cloudmos-shared": "*",
+    "@akashnetwork/database": "*",
     "@chain-registry/assets": "^0.7.1",
     "@cosmjs/crypto": "^0.28.11",
     "@cosmjs/encoding": "^0.28.11",

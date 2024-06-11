@@ -1,5 +1,5 @@
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { MonitoredValue } from "@akashnetwork/cloudmos-shared/dbSchemas/base/monitoredValue";
+import { activeChain } from "@akashnetwork/database/chainDefinitions";
+import { MonitoredValue } from "@akashnetwork/database/dbSchemas/base/monitoredValue";
 import axios from "axios";
 
 export class AddressBalanceMonitor {

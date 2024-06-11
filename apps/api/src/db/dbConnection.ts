@@ -1,6 +1,6 @@
-import { chainDefinitions } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { chainModels, getChainModels, userModels } from "@akashnetwork/cloudmos-shared/dbSchemas";
-import { Template, TemplateFavorite, UserAddressName, UserSetting } from "@akashnetwork/cloudmos-shared/dbSchemas/user";
+import { chainDefinitions } from "@akashnetwork/database/chainDefinitions";
+import { chainModels, getChainModels, userModels } from "@akashnetwork/database/dbSchemas";
+import { Template, TemplateFavorite, UserAddressName, UserSetting } from "@akashnetwork/database/dbSchemas/user";
 import pg from "pg";
 import { Transaction as DbTransaction } from "sequelize";
 import { Sequelize } from "sequelize-typescript";

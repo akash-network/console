@@ -1,4 +1,4 @@
-import { Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { Validator } from "@akashnetwork/database/dbSchemas/base";
 import fetch from "node-fetch";
 import { Op } from "sequelize";
 

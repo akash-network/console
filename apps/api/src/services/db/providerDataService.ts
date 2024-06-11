@@ -1,4 +1,4 @@
-import { Provider, ProviderAttribute } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import { Provider, ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
 
 import { getProviderAttributesSchema } from "@src/services/external/githubService";
 

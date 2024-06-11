@@ -1,5 +1,5 @@
-import { Block } from "@akashnetwork/cloudmos-shared/dbSchemas";
-import { Lease } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import { Block } from "@akashnetwork/database/dbSchemas";
+import { Lease } from "@akashnetwork/database/dbSchemas/akash";
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { differenceInSeconds } from "date-fns";
 import { Op } from "sequelize";

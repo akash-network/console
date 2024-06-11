@@ -1,5 +1,5 @@
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { AddressReference, Message, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { activeChain } from "@akashnetwork/database/chainDefinitions";
+import { AddressReference, Message, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { toBech32 } from "@cosmjs/encoding";
 import { DecodedTxRaw, decodePubkey } from "@cosmjs/proto-signing";
 import { MsgMultiSend, MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";

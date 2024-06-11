@@ -1,4 +1,4 @@
-import { Template, TemplateFavorite, UserSetting } from "@akashnetwork/cloudmos-shared/dbSchemas/user";
+import { Template, TemplateFavorite, UserSetting } from "@akashnetwork/database/dbSchemas/user";
 import { Op } from "sequelize";
 import * as uuid from "uuid";
 

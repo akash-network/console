@@ -1,8 +1,8 @@
 import * as v2beta2 from "@akashnetwork/akash-api/akash/market/v1beta2";
 import * as v1beta1 from "@akashnetwork/akash-api/deprecated/akash/market/v1beta1";
-import { Block, Message } from "@akashnetwork/cloudmos-shared/dbSchemas";
-import { Deployment, Lease } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { Block, Message } from "@akashnetwork/database/dbSchemas";
+import { Deployment, Lease } from "@akashnetwork/database/dbSchemas/akash";
+import { Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { Op, WhereOptions } from "sequelize";
 
 import { decodeMsg } from "@src/utils/protobuf";

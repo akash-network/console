@@ -1,5 +1,5 @@
-import { AkashBlock } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { Day } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { AkashBlock } from "@akashnetwork/database/dbSchemas/akash";
+import { Day } from "@akashnetwork/database/dbSchemas/base";
 import { Op } from "sequelize";
 
 import { sequelize } from "@src/db/dbConnection";

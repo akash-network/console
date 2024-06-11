@@ -1,7 +1,7 @@
 import { MsgCreateBid } from "@akashnetwork/akash-api/akash/market/v1beta4";
-import { Block } from "@akashnetwork/cloudmos-shared/dbSchemas";
-import { AkashMessage, Deployment, DeploymentGroup, DeploymentGroupResource } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { Day, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { Block } from "@akashnetwork/database/dbSchemas";
+import { AkashMessage, Deployment, DeploymentGroup, DeploymentGroupResource } from "@akashnetwork/database/dbSchemas/akash";
+import { Day, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { addDays, sub } from "date-fns";
 import { Op, QueryTypes } from "sequelize";
