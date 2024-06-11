@@ -1,9 +1,10 @@
 const path = require("path");
-const { NODE_ENV = "development" } = process.env;
 const NodemonPlugin = require("nodemon-webpack-plugin");
 const nodeExternals = require("webpack-node-externals");
 const hq = require("alias-hq");
 const webpack = require("webpack");
+
+const { NODE_ENV = "development" } = process.env;
 
 module.exports = {
   entry: "./src/index.ts",
@@ -24,8 +25,7 @@ module.exports = {
       {
         test: /\.(ts|js)x?$/,
         exclude: /node_modules/,
-        loader: "ts-loader",
-        options: { configFile: "tsconfig.json" }
+        loader: "ts-loader"
       }
     ]
   },

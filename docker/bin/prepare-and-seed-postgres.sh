@@ -49,4 +49,5 @@ done
 
 IFS=$old_IFS
 
+touch /var/lib/postgresql/data/init-complete
 echo "DB_SEEDER: Done."
