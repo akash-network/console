@@ -11,7 +11,7 @@ import { LeaseSpecDetail } from "@src/components/shared/LeaseSpecDetail";
 import { Popup } from "@src/components/shared/Popup";
 import { Title } from "@src/components/shared/Title";
 import { UserFavoriteButton } from "@src/components/shared/UserFavoriteButton";
-import { Button, buttonVariants } from "@src/components/ui/button";
+import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { Card, CardContent } from "@src/components/ui/card";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";

@@ -25,7 +25,7 @@ jobs:
           filters: |
             api:
               - 'apps/api/**'
-              - 'packages/shared/**'
+              - 'packages/database/**'
 
       - name: Setup Node.js
         if: steps.filter.outputs.api == 'true'

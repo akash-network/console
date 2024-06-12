@@ -18,7 +18,7 @@ import Spinner from "@src/components/shared/Spinner";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { Alert } from "@src/components/ui/alert";
 import { Badge } from "@src/components/ui/badge";
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { Card, CardContent, CardHeader } from "@src/components/ui/card";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";

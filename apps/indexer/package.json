@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@akashnetwork/akash-api": "^1.3.0",
-    "@akashnetwork/cloudmos-shared": "*",
+    "@akashnetwork/database": "*",
     "@cosmjs/crypto": "^0.31.1",
     "@cosmjs/encoding": "^0.32.3",
     "@cosmjs/math": "^0.31.1",

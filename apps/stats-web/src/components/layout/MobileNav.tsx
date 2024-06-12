@@ -10,7 +10,7 @@ import NetworkSelect from "./NetworkSelect";
 
 import "react-modern-drawer/dist/index.css";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import useCookieTheme from "@/hooks/useTheme";
 
 export function MobileNav() {

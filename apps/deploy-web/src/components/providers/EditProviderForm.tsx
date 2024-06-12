@@ -7,7 +7,7 @@ import { nanoid } from "nanoid";
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { CustomTooltip } from "@src/components/shared/CustomTooltip";
 import { Alert } from "@src/components/ui/alert";
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { CheckboxWithLabel } from "@src/components/ui/checkbox";
 import { FormItem } from "@src/components/ui/form";
 import { InputWithIcon } from "@src/components/ui/input";

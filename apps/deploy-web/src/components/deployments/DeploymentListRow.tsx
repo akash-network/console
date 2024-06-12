@@ -26,7 +26,7 @@ import { PricePerMonth } from "../shared/PricePerMonth";
 import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
 import Spinner from "../shared/Spinner";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { Checkbox } from "../ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { TableCell, TableRow } from "../ui/table";

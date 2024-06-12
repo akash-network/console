@@ -1,4 +1,4 @@
-import { Provider, ProviderSnapshot, ProviderSnapshotNode } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import { Provider, ProviderSnapshot, ProviderSnapshotNode } from "@akashnetwork/database/dbSchemas/akash";
 import semver from "semver";
 
 import { Auditor, ProviderAttributesSchema, ProviderList } from "@src/types/provider";

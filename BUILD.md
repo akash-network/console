@@ -2,9 +2,12 @@
 
 ## Projects
 
-- [Explorer](/explorer/README.md) - Website API + NextJS frontend
-- [Indexer](/indexer/) - The main indexer process
-- [Shared](/shared/) - Shared project
+- [Deploy](/apps/deploy-web/README.md) - NextJS frontend for Console
+- [Stats](/apps/stats-web/README.md) - NextJS frontend for Stats
+- [Api](/apps/api/README.md) - The main Console API
+- [Indexer](/apps/indexer/README.md) - The main indexer process
+- [Database](/packages/database/) - Database shared package
+- [UI](/packages/ui/) - UI components shared
 
 ## Create docker images
 

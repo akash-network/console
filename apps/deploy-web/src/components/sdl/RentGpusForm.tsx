@@ -32,7 +32,7 @@ import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import Spinner from "../shared/Spinner";
 import { Alert } from "../ui/alert";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { AdvancedConfig } from "./AdvancedConfig";
 import { CpuFormControl } from "./CpuFormControl";
 import { FormPaper } from "./FormPaper";

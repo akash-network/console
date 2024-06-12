@@ -7,7 +7,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { useSettings } from "../../context/SettingsProvider";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { NodeStatus } from "../shared/NodeStatus";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 
 export const NodeStatusBar = () => {
   const { settings, isRefreshingNodeStatus } = useSettings();

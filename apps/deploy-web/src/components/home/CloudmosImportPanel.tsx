@@ -3,7 +3,7 @@ import { Import } from "iconoir-react";
 import { z } from "zod";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@src/components/ui/card";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 
 const autoImportOrigin = "https://deploy.cloudmos.io";
 

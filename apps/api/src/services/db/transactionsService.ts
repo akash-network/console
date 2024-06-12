@@ -1,5 +1,5 @@
-import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { AddressReference, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
+import { AddressReference, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { QueryTypes } from "sequelize";
 
 import { chainDb } from "@src/db/dbConnection";

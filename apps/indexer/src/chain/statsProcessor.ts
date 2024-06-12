@@ -1,7 +1,7 @@
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { Block, Message } from "@akashnetwork/cloudmos-shared/dbSchemas";
-import { AkashMessage } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { activeChain } from "@akashnetwork/database/chainDefinitions";
+import { Block, Message } from "@akashnetwork/database/dbSchemas";
+import { AkashMessage } from "@akashnetwork/database/dbSchemas/akash";
+import { Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { fromBase64 } from "@cosmjs/encoding";
 import { decodeTxRaw } from "@cosmjs/proto-signing";
 import { sha256 } from "js-sha256";

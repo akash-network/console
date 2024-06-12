@@ -1,5 +1,5 @@
-import { UserSetting } from "@akashnetwork/cloudmos-shared/dbSchemas/user";
-import { PlanCode } from "@akashnetwork/cloudmos-shared/plans";
+import { UserSetting } from "@akashnetwork/database/dbSchemas/user";
+import { PlanCode } from "@akashnetwork/database/plans";
 import Stripe from "stripe";
 
 import { env } from "@src/utils/env";

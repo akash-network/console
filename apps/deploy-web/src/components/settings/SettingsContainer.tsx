@@ -6,7 +6,7 @@ import { NextSeo } from "next-seo";
 import { LocalDataManager } from "@src/components/settings/LocalDataManager";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { LabelValue } from "@src/components/shared/LabelValue";
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import Layout from "../layout/Layout";
 import { CertificateList } from "./CertificateList";

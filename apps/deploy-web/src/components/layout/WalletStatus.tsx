@@ -12,7 +12,7 @@ import { Address } from "../shared/Address";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import Spinner from "../shared/Spinner";
 import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";

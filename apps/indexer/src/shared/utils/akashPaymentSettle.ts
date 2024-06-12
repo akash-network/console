@@ -1,4 +1,4 @@
-import { Deployment, Lease } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import { Deployment, Lease } from "@akashnetwork/database/dbSchemas/akash";
 
 // This copies the logic of the akash node
 

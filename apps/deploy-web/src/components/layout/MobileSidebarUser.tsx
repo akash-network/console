@@ -8,7 +8,7 @@ import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Spinner from "../shared/Spinner";
 import { Avatar } from "../ui/avatar";
-import { buttonVariants } from "../ui/button";
+import { buttonVariants } from "@akashnetwork/ui/components";
 import { Separator } from "../ui/separator";
 import { SidebarRouteButton } from "./SidebarRouteButton";
 import { WalletStatus } from "./WalletStatus";

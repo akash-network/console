@@ -13,5 +13,6 @@ module.exports = {
   arrowParens: "avoid",
   endOfLine: "crlf",
   htmlWhitespaceSensitivity: "strict",
-  plugins: ["prettier-plugin-tailwindcss"]
+  plugins: ["prettier-plugin-tailwindcss"],
+  tailwindFunctions: ["cva"]
 };

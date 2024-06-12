@@ -6,7 +6,7 @@ import Link from "next/link";
 import GraphContainer from "./GraphContainer";
 
 import PageContainer from "@/components/PageContainer";
-import { Button } from "@/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { urlParamToSnapshot } from "@/lib/snapshotsUrlHelpers";
 import { UrlService } from "@/lib/urlUtils";
 import { Snapshots, SnapshotsUrlParam } from "@/types";

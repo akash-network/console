@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 
-import { buttonVariants } from "./ui/button";
+import { buttonVariants } from "@akashnetwork/ui/components";
 
 import { cn } from "@/lib/utils";
 

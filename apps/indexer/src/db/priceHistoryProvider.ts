@@ -1,5 +1,5 @@
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { Day } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { activeChain } from "@akashnetwork/database/chainDefinitions";
+import { Day } from "@akashnetwork/database/dbSchemas/base";
 import { isSameDay } from "date-fns";
 import fetch from "node-fetch";
 

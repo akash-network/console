@@ -1,4 +1,4 @@
-import { Provider } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import axios from "axios";
 import dns from "dns/promises";
 

@@ -28,7 +28,7 @@ const moduleExports = {
   eslint: {
     ignoreDuringBuilds: true
   },
-  transpilePackages: ["geist"],
+  transpilePackages: ["geist", "@akashnetwork/ui"],
   // experimental: {
   //   // outputStandalone: true,
   //   externalDir: true // to make the import from shared parent folder work https://github.com/vercel/next.js/issues/9474#issuecomment-810212174

@@ -1,6 +1,6 @@
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { Block, Message } from "@akashnetwork/cloudmos-shared/dbSchemas";
-import { Day, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { activeChain } from "@akashnetwork/database/chainDefinitions";
+import { Block, Message } from "@akashnetwork/database/dbSchemas";
+import { Day, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { fromBase64 } from "@cosmjs/encoding";
 import { decodeTxRaw } from "@cosmjs/proto-signing";
 import { asyncify, eachLimit } from "async";
