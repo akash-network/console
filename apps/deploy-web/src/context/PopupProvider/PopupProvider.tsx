@@ -1,13 +1,15 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { firstValueFrom, Subject } from "rxjs";
 
-import { CommonProps, ConfirmProps, Popup, PopupProps } from "@src/components/shared/Popup";
+import { CommonProps, ConfirmProps, Popup, PopupProps, SelectOption, SelectProps } from "@src/components/shared/Popup";
 import type { FCWithChildren } from "@src/types/component";
 
 type ConfirmPopupProps = string | (Omit<CommonProps, "onClose" | "open"> & Omit<ConfirmProps, "onValidate" | "onCancel" | "variant">);
+type SelectPopupProps = Omit<CommonProps, "onClose" | "open"> & Omit<SelectProps, "onValidate" | "onCancel" | "variant">;
 
 type PopupProviderContext = {
   confirm: (messageOrProps: ConfirmPopupProps) => Promise<boolean>;
+  select: (props: SelectPopupProps) => Promise<string | undefined>;
 };
 
 const PopupContext = React.createContext<PopupProviderContext | undefined>(undefined);
@@ -15,7 +17,7 @@ const PopupContext = React.createContext<PopupProviderContext | undefined>(undef
 export const PopupProvider: FCWithChildren = ({ children }) => {
   const [popupProps, setPopupProps] = useState<PopupProps | undefined>();
 
-  const confirm = useCallback(
+  const confirm: PopupProviderContext["confirm"] = useCallback(
     (messageOrProps: ConfirmPopupProps) => {
       let subject: Subject<boolean> | undefined = new Subject<boolean>();
 
@@ -45,7 +47,42 @@ export const PopupProvider: FCWithChildren = ({ children }) => {
     [setPopupProps]
   );
 
-  const context = useMemo(() => ({ confirm }), [confirm]);
+  const select: PopupProviderContext["select"] = useCallback(
+    props => {
+      let subject: Subject<SelectOption["value"] | undefined> | undefined = new Subject<SelectOption["value"] | undefined>();
+
+      const reject = () => {
+        if (subject) {
+          subject.next(undefined);
+          subject.complete();
+          setPopupProps(undefined);
+          subject = undefined;
+        }
+      };
+
+      setPopupProps({
+        title: "Confirm",
+        ...props,
+        open: true,
+        variant: "select",
+        onValidate: value => {
+          if (subject) {
+            subject.next(value);
+            subject.complete();
+            setPopupProps(undefined);
+            subject = undefined;
+          }
+        },
+        onCancel: reject,
+        onClose: reject
+      });
+
+      return firstValueFrom(subject);
+    },
+    [setPopupProps]
+  );
+
+  const context = useMemo(() => ({ confirm, select }), [confirm]);
 
   return (
     <PopupContext.Provider value={context}>
