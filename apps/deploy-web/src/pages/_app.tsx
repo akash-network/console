@@ -64,22 +64,22 @@ const App: React.FunctionComponent<Props> = props => {
                           <TooltipProvider>
                             <SettingsProvider>
                               <CustomChainProvider>
-                                <WalletProvider>
-                                  <ChainParamProvider>
-                                    <CertificateProvider>
-                                      <BackgroundTaskProvider>
-                                        <TemplatesProvider>
-                                          <LocalNoteProvider>
-                                            <GoogleAnalytics />
-                                            <PopupProvider>
+                                <PopupProvider>
+                                  <WalletProvider>
+                                    <ChainParamProvider>
+                                      <CertificateProvider>
+                                        <BackgroundTaskProvider>
+                                          <TemplatesProvider>
+                                            <LocalNoteProvider>
+                                              <GoogleAnalytics />
                                               <Component {...pageProps} />
-                                            </PopupProvider>
-                                          </LocalNoteProvider>
-                                        </TemplatesProvider>
-                                      </BackgroundTaskProvider>
-                                    </CertificateProvider>
-                                  </ChainParamProvider>
-                                </WalletProvider>
+                                            </LocalNoteProvider>
+                                          </TemplatesProvider>
+                                        </BackgroundTaskProvider>
+                                      </CertificateProvider>
+                                    </ChainParamProvider>
+                                  </WalletProvider>
+                                </PopupProvider>
                               </CustomChainProvider>
                             </SettingsProvider>
                           </TooltipProvider>

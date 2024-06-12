@@ -1,7 +1,9 @@
 import * as React from "react";
+import { useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { DialogProps } from "@radix-ui/react-dialog";
 
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
 import { cn } from "@src/utils/styleUtils";
 import { Button, ButtonProps } from "@akashnetwork/ui/components";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle as _DialogTitle } from "../ui/dialog";
@@ -32,6 +34,21 @@ type CustomPrompt = {
   actions: ActionButton[];
 };
 
+export type SelectOption = {
+  text: string;
+  value: string;
+  selected?: boolean;
+  disabled?: boolean;
+};
+
+export type SelectProps = {
+  variant: "select";
+  options: SelectOption[];
+  placeholder?: string;
+  onValidate: (value: string | undefined) => void;
+  onCancel: () => void;
+};
+
 export type TOnCloseHandler = {
   (event: any, reason: "backdropClick" | "escapeKeyDown" | "action"): void;
 };
@@ -58,7 +75,7 @@ export type ActionButton = ButtonProps & {
   isLoading?: boolean;
 };
 
-export type PopupProps = (MessageProps | ConfirmProps | PromptProps | CustomPrompt) & CommonProps;
+export type PopupProps = (MessageProps | ConfirmProps | PromptProps | CustomPrompt | SelectProps) & CommonProps;
 
 export interface DialogTitleProps {
   children: React.ReactNode;
@@ -78,6 +95,8 @@ export const DialogTitle = (props: DialogTitleProps) => {
 
 export function Popup(props: React.PropsWithChildren<PopupProps>) {
   const [promptInput, setPromptInput] = React.useState("");
+  const initialOption = useMemo(() => (props.variant === "select" ? props.options.find(option => option.selected)?.value : undefined), [props]);
+  const [selectOption, setSelectOption] = React.useState<SelectOption["value"] | undefined>(initialOption);
   const component = [] as JSX.Element[];
 
   const onClose: TOnCloseHandler = (event, reason) => {
@@ -97,7 +116,30 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
     component.push(<DialogTitle key="dialog-title">{props.title}</DialogTitle>);
   }
 
-  if (props.message && props.variant !== "prompt") {
+  if (props.variant === "select") {
+    component.push(
+      <ScrollArea className="max-h-[75vh]" key="dialog-content">
+        {props.message}
+        {props.variant === "select" ? (
+          <Select value={selectOption} onValueChange={setSelectOption}>
+            <SelectTrigger>
+              <SelectValue placeholder={props.placeholder} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {props.options.map((option: SelectOption) => (
+                  <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
+                    {option.text}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        ) : null}
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
+    );
+  } else if (props.message && props.variant !== "prompt") {
     component.push(
       <ScrollArea className="max-h-[75vh]" key="dialog-content">
         {props.message}
@@ -211,6 +253,32 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
         <DialogFooter className="flex flex-row justify-between space-x-2 sm:justify-between" key="DialogCustomActions">
           <div className="space-x-2">{leftButtons}</div>
           <div className="space-x-2">{rightButtons}</div>
+        </DialogFooter>
+      );
+      break;
+    }
+    case "select": {
+      component.push(
+        <DialogFooter key="DialogActions" className="justify-between">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              props.onCancel();
+              onClose(null, "action");
+            }}
+          >
+            {CancelButtonLabel}
+          </Button>
+          <Button
+            variant="default"
+            color="primary"
+            onClick={() => {
+              props.onValidate(selectOption);
+              onClose(null, "action");
+            }}
+          >
+            {ConfirmButtonLabel}
+          </Button>
         </DialogFooter>
       );
       break;

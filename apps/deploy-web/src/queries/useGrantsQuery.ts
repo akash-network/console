@@ -1,7 +1,9 @@
-import { useQuery } from "react-query";
+import { QueryObserverResult, useQuery } from "react-query";
 import axios from "axios";
 
 import { useSettings } from "@src/context/SettingsProvider";
+import { Coin } from "@src/types";
+import { AllowanceType } from "@src/types/grant";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
@@ -67,8 +69,11 @@ async function getAllowancesGranted(apiEndpoint: string, address: string) {
   return response.data.allowances;
 }
 
-export function useAllowancesGranted(address: string, options = {}) {
+export function useAllowancesGranted(address?: string, options = {}): QueryObserverResult<AllowanceType[]> {
   const { settings } = useSettings();
 
-  return useQuery(QueryKeys.getAllowancesGranted(address), () => getAllowancesGranted(settings.apiEndpoint, address), options);
+  return useQuery(address ? QueryKeys.getAllowancesGranted(address) : "", () => (address ? getAllowancesGranted(settings.apiEndpoint, address) : undefined), {
+    ...options,
+    enabled: !!address
+  });
 }
