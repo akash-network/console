@@ -1,5 +1,5 @@
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { chainModels } from "@akashnetwork/cloudmos-shared/dbSchemas";
+import { activeChain } from "@akashnetwork/database/chainDefinitions";
+import { chainModels } from "@akashnetwork/database/dbSchemas";
 import pg from "pg";
 import { Transaction as DbTransaction } from "sequelize";
 import { Sequelize } from "sequelize-typescript";

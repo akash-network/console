@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { CustomPagination } from "@src/components/shared/CustomPagination";
 import Spinner from "@src/components/shared/Spinner";
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { CheckboxWithLabel } from "@src/components/ui/checkbox";
 import { InputWithIcon } from "@src/components/ui/input";
 import { Label } from "@src/components/ui/label";

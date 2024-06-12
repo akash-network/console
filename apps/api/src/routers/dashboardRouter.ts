@@ -1,4 +1,4 @@
-import { Template, UserSetting } from "@akashnetwork/cloudmos-shared/dbSchemas/user";
+import { Template, UserSetting } from "@akashnetwork/database/dbSchemas/user";
 import { Hono } from "hono";
 
 import { privateMiddleware } from "@src/middlewares/privateMiddleware";

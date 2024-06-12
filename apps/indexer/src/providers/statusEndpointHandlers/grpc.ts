@@ -2,7 +2,7 @@ import { NodeResources } from "@akashnetwork/akash-api/akash/inventory/v1";
 import { ResourcesMetric, Status } from "@akashnetwork/akash-api/akash/provider/v1";
 import { ProviderRPCClient } from "@akashnetwork/akash-api/akash/provider/v1/grpc-js";
 import { Empty } from "@akashnetwork/akash-api/google/protobuf";
-import { Provider } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import memoize from "lodash/memoize";
 import { promisify } from "util";
 

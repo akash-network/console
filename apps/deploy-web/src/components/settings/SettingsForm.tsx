@@ -11,7 +11,7 @@ import { NavArrowDown, Refresh } from "iconoir-react";
 
 import { NodeStatus } from "@src/components/shared/NodeStatus";
 import Spinner from "@src/components/shared/Spinner";
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { Label } from "@src/components/ui/label";
 import { SwitchWithLabel } from "@src/components/ui/switch";
 import { BlockchainNode, useSettings } from "@src/context/SettingsProvider/SettingsProviderContext";

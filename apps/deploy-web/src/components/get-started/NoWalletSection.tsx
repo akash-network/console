@@ -8,7 +8,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
 import { LinkTo } from "../shared/LinkTo";
 import { Alert } from "../ui/alert";
-import { buttonVariants } from "../ui/button";
+import { buttonVariants } from "@akashnetwork/ui/components";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { CreateWalletSection } from "./CreateWalletSection";
 

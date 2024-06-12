@@ -7,7 +7,7 @@ import { Address } from "@src/components/shared/Address";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { Popup } from "@src/components/shared/Popup";
 import Spinner from "@src/components/shared/Spinner";
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllowancesGranted, useAllowancesIssued, useGranteeGrants, useGranterGrants } from "@src/queries/useGrantsQuery";

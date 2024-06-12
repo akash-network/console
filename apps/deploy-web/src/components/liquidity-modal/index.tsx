@@ -9,7 +9,7 @@ import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { customColors } from "@src/utils/colors";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 
 const theme: ThemeDefinition = {
   colors: {

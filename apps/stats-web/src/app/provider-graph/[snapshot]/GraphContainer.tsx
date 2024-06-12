@@ -9,7 +9,7 @@ import { DiffNumber } from "@/components/DiffNumber";
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { TimeRange } from "@/components/graph/TimeRange";
 import Spinner from "@/components/Spinner";
-import { Button } from "@/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { selectedRangeValues } from "@/lib/constants";
 import { percIncrease } from "@/lib/mathHelpers";
 import { getProviderSnapshotMetadata } from "@/lib/providerUtils";

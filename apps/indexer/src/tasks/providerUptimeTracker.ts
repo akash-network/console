@@ -1,4 +1,4 @@
-import { Provider } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+import { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { secondsInDay } from "date-fns";
 import { QueryTypes } from "sequelize";
 

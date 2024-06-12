@@ -4,7 +4,7 @@ import { event } from "nextjs-google-analytics";
 
 import { AddressLink } from "@src/components/shared/AddressLink";
 import Spinner from "@src/components/shared/Spinner";
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { Card, CardContent } from "@src/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";

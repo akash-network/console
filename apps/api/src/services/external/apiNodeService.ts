@@ -1,6 +1,6 @@
-import { Block } from "@akashnetwork/cloudmos-shared/dbSchemas";
-import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { Block } from "@akashnetwork/database/dbSchemas";
+import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
+import { Validator } from "@akashnetwork/database/dbSchemas/base";
 import axios from "axios";
 import fetch from "node-fetch";
 import { Op } from "sequelize";

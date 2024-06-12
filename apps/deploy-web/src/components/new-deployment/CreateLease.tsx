@@ -30,7 +30,7 @@ import { Snackbar } from "../shared/Snackbar";
 import Spinner from "../shared/Spinner";
 import ViewPanel from "../shared/ViewPanel";
 import { Alert } from "../ui/alert";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { Checkbox } from "../ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { InputWithIcon } from "../ui/input";

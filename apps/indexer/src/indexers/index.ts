@@ -1,4 +1,4 @@
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
+import { activeChain } from "@akashnetwork/database/chainDefinitions";
 
 import { AkashStatsIndexer } from "./akashStatsIndexer";
 import { Indexer } from "./indexer";

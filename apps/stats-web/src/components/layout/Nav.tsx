@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import { ModeToggle } from "../ModeToggle";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { MobileNav } from "./MobileNav";
 import NetworkSelect from "./NetworkSelect";
 
@@ -14,7 +14,7 @@ export const Nav = () => {
   const theme = useCookieTheme();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-header/95 backdrop-blur supports-[backdrop-filter]:bg-header/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-background backdrop-blur supports-[backdrop-filter]:bg-background">
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex">
           {!!theme && (

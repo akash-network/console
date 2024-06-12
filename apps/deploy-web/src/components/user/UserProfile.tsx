@@ -4,7 +4,7 @@ import { event } from "nextjs-google-analytics";
 
 import Spinner from "@src/components/shared/Spinner";
 import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
-import { buttonVariants } from "@src/components/ui/button";
+import { buttonVariants } from "@akashnetwork/ui/components";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUserTemplates } from "@src/queries/useTemplateQuery";

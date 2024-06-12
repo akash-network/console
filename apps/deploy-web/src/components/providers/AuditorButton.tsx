@@ -3,7 +3,7 @@ import { MouseEvent, useState } from "react";
 import { BadgeCheck } from "iconoir-react";
 
 import { ClientProviderDetailWithStatus, ClientProviderList } from "@src/types/provider";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { AuditorsModal } from "./AuditorsModal";
 
 type Props = {

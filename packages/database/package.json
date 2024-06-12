@@ -1,5 +1,5 @@
 {
-  "name": "@akashnetwork/cloudmos-shared",
+  "name": "@akashnetwork/database",
   "version": "1.0.0",
   "description": "Code that is shared between multiple cloudmos project",
   "license": "Apache-2.0",

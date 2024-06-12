@@ -1,5 +1,5 @@
-import { activeChain } from "@akashnetwork/cloudmos-shared/chainDefinitions";
-import { Message, Validator } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { activeChain } from "@akashnetwork/database/chainDefinitions";
+import { Message, Validator } from "@akashnetwork/database/dbSchemas/base";
 import { fromBase64, fromBech32, toBech32, toHex } from "@cosmjs/encoding";
 import { MsgCreateValidator, MsgEditValidator } from "cosmjs-types/cosmos/staking/v1beta1/tx";
 import { Transaction as DbTransaction } from "sequelize";

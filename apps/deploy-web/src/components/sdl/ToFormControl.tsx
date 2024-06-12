@@ -7,7 +7,7 @@ import { nanoid } from "nanoid";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { FormPaper } from "./FormPaper";
 

@@ -4,17 +4,13 @@
     "incremental": true,
     "isolatedModules": true,
     "jsx": "preserve",
-    "lib": [
-      "es6",
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["es6", "dom", "dom.iterable", "esnext"],
     "module": "esnext",
     "moduleResolution": "node",
     "noEmit": true,
     "strict": false,
-    "target": "es5"
+    "target": "es5",
+    "plugins": [{ "name": "next" }]
   },
   "extends": "./tsconfig.base.json"
 }

@@ -4,8 +4,8 @@ import {
   ProviderAttributeSignature,
   ProviderSnapshotNode,
   ProviderSnapshotNodeGPU
-} from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { ProviderSnapshot } from "@akashnetwork/cloudmos-shared/dbSchemas/akash/providerSnapshot";
+} from "@akashnetwork/database/dbSchemas/akash";
+import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
 import { add, sub } from "date-fns";
 import { Op } from "sequelize";
 

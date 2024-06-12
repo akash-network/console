@@ -16,7 +16,7 @@ import { cn } from "@src/utils/styleUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
-import { Button, buttonVariants } from "../ui/button";
+import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { Card, CardContent } from "../ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { InputWithIcon } from "../ui/input";

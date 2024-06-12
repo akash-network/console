@@ -5,7 +5,7 @@ import { useSnackbar } from "notistack";
 
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { selectText } from "@src/utils/stringUtils";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { Snackbar } from "./Snackbar";
 
 export const CodeSnippet = ({ code }: React.PropsWithChildren<{ code: string }>) => {

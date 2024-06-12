@@ -8,7 +8,7 @@ import { EnvironmentVariable, RentGpusFormValues, SdlBuilderFormValues } from "@
 import { cn } from "@src/utils/styleUtils";
 import { CustomNoDivTooltip } from "../shared/CustomTooltip";
 import { Popup } from "../shared/Popup";
-import { Button } from "../ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { FormInput } from "../ui/input";
 import { Switch } from "../ui/switch";
 import { FormPaper } from "./FormPaper";

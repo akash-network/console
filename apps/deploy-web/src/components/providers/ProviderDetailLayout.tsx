@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { ErrorFallback } from "@src/components/shared/ErrorFallback";
-import { Button, buttonVariants } from "@src/components/ui/button";
+import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
 import { useWallet } from "@src/context/WalletProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";

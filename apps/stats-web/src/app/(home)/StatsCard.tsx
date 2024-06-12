@@ -2,9 +2,8 @@
 import React from "react";
 import { GraphUp, HelpCircle } from "iconoir-react";
 import Link from "next/link";
-
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
-import { Button } from "@/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 

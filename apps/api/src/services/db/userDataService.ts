@@ -1,4 +1,4 @@
-import { UserAddressName, UserSetting } from "@akashnetwork/cloudmos-shared/dbSchemas/user";
+import { UserAddressName, UserSetting } from "@akashnetwork/database/dbSchemas/user";
 import { Transaction } from "sequelize";
 
 import { getUserPlan } from "../external/stripeService";

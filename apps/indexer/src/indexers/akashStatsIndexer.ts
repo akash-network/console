@@ -15,8 +15,8 @@ import {
   ProviderSnapshotNode,
   ProviderSnapshotNodeCPU,
   ProviderSnapshotNodeGPU
-} from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
-import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/cloudmos-shared/dbSchemas/akash";
+} from "@akashnetwork/database/dbSchemas/akash";
+import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
 import { Op, Transaction as DbTransaction } from "sequelize";
 import * as uuid from "uuid";
 

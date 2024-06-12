@@ -1,4 +1,4 @@
-import { Block, Message, Transaction } from "@akashnetwork/cloudmos-shared/dbSchemas/base";
+import { Block, Message, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { DecodedTxRaw } from "@cosmjs/proto-signing";
 import { Transaction as DbTransaction } from "sequelize";
 

@@ -10,7 +10,7 @@ import { FormPaper } from "@src/components/sdl/FormPaper";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import Spinner from "@src/components/shared/Spinner";
 import { Alert } from "@src/components/ui/alert";
-import { Button } from "@src/components/ui/button";
+import { Button } from "@akashnetwork/ui/components";
 import { Input, InputWithIcon, Textarea } from "@src/components/ui/input";
 import { Switch } from "@src/components/ui/switch";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
