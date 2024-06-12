@@ -1,4 +1,3 @@
-import { longify } from "@cosmjs/stargate/build/queryclient";
 import Long from "long";
 
 import { BidDto } from "@src/types/deployment";
@@ -222,7 +221,7 @@ export class TransactionMessageData {
           ],
           expiration: expiration
             ? {
-                seconds: longify(Math.floor(expiration.getTime() / 1_000)) as unknown as Long,
+                seconds: Long.fromInt(Math.floor(expiration.getTime() / 1_000)) as unknown as Long,
                 nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
               }
             : undefined
