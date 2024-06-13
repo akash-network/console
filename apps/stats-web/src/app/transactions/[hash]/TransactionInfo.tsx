@@ -7,7 +7,7 @@ import Link from "next/link";
 import { AddressLink } from "@/components/AddressLink";
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@akashnetwork/ui/components";
 import { Card, CardContent } from "@/components/ui/card";
 import { UrlService } from "@/lib/urlUtils";
 import { TransactionDetail } from "@/types";

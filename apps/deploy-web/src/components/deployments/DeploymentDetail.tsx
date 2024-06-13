@@ -8,8 +8,7 @@ import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
 
 import Spinner from "@src/components/shared/Spinner";
-import { Alert } from "@src/components/ui/alert";
-import { Button, buttonVariants } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Alert } from "@akashnetwork/ui/components";
 import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";

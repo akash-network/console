@@ -11,8 +11,7 @@ import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkele
 import { LinkTo } from "@src/components/shared/LinkTo";
 import Spinner from "@src/components/shared/Spinner";
 import ViewPanel from "@src/components/shared/ViewPanel";
-import { Alert } from "@src/components/ui/alert";
-import { Button } from "@akashnetwork/ui/components";
+import { Button, Alert } from "@akashnetwork/ui/components";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useSettings } from "@src/context/SettingsProvider";

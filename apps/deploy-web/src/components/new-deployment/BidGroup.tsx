@@ -10,7 +10,7 @@ import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploym
 import { FormPaper } from "../sdl/FormPaper";
 import { LabelValueOld } from "../shared/LabelValueOld";
 import { SpecDetail } from "../shared/SpecDetail";
-import { Alert } from "../ui/alert";
+import { Alert } from "@akashnetwork/ui/components";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../ui/table";
 import { BidRow } from "./BidRow";
 

@@ -17,7 +17,7 @@ import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { LinkTo } from "../shared/LinkTo";
 import { Popup } from "../shared/Popup";
 import { Snackbar } from "../shared/Snackbar";
-import { Alert } from "../ui/alert";
+import { Alert } from "@akashnetwork/ui/components";
 import { CheckboxWithLabel } from "../ui/checkbox";
 import { FormItem } from "../ui/form";
 import { InputWithIcon } from "../ui/input";

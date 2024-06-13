@@ -9,9 +9,9 @@ import TextField from "@mui/material/TextField";
 import { addYears, format } from "date-fns";
 import { event } from "nextjs-google-analytics";
 
+import { Alert } from "@akashnetwork/ui/components";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { Popup } from "@src/components/shared/Popup";
-import { Alert } from "@src/components/ui/alert";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { AllowanceType } from "@src/types/grant";
