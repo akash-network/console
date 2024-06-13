@@ -6,7 +6,8 @@ export const getAllowanceTitleByType = (allowance: AllowanceType) => {
       return "Basic";
     case "/cosmos.feegrant.v1beta1.PeriodicAllowance":
       return "Periodic";
-
+    case "$CONNECTED_WALLET":
+      return "Connected Wallet";
     default:
       return "Unknown";
   }

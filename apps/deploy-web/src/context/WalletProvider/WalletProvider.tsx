@@ -1,12 +1,10 @@
 "use client";
-import React, { useMemo, useRef } from "react";
+import React, { useRef } from "react";
 import { useEffect, useState } from "react";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { useManager } from "@cosmos-kit/react";
 import axios from "axios";
-import isAfter from "date-fns/isAfter";
-import parseISO from "date-fns/parseISO";
 import { OpenNewWindow } from "iconoir-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,17 +12,13 @@ import { event } from "nextjs-google-analytics";
 import { SnackbarKey, useSnackbar } from "notistack";
 
 import { TransactionModal } from "@src/components/layout/TransactionModal";
-import { SelectOption } from "@src/components/shared/Popup";
 import { Snackbar } from "@src/components/shared/Snackbar";
-import { usePopup } from "@src/context/PopupProvider/PopupProvider";
+import { useAllowance } from "@src/hooks/useAllowance";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { getSelectedNetwork, useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
-import { useAllowancesGranted } from "@src/queries/useGrantsQuery";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { STATS_APP_URL, uAktDenom } from "@src/utils/constants";
 import { customRegistry } from "@src/utils/customRegistry";
-import { udenomToDenom } from "@src/utils/mathHelpers";
-import { coinToUDenom } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
@@ -62,32 +56,9 @@ export const WalletProvider = ({ children }) => {
   const usdcIbcDenom = useUsdcDenom();
   const { disconnect, getOfflineSigner, isWalletConnected, address: walletAddress, connect, username, estimateFee, sign, broadcast } = useSelectedChain();
   const { addEndpoints } = useManager();
-  const { data: allowancesGranted } = useAllowancesGranted(walletAddress);
-
-  const feeGranters = useMemo(() => {
-    if (!walletAddress || !allowancesGranted) {
-      return;
-    }
-
-    const connectedWallet: SelectOption = { text: "Connected Wallet", value: walletAddress };
-    const options: SelectOption[] = allowancesGranted.reduce(
-      (acc, grant, index) => {
-        if (isAfter(parseISO(grant.allowance.expiration), new Date())) {
-          acc.push({
-            text: `${grant.granter} (${udenomToDenom(coinToUDenom(grant.allowance.spend_limit[0]), 6)} AKT)`,
-            value: grant.granter,
-            selected: index === 0
-          });
-        }
-
-        return acc;
-      },
-      [connectedWallet]
-    );
-
-    return options?.length > 1 ? options : undefined;
-  }, [allowancesGranted, walletAddress]);
-  const { select } = usePopup();
+  const {
+    fee: { default: feeGranter }
+  } = useAllowance();
 
   useEffect(() => {
     if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
@@ -193,7 +164,6 @@ export const WalletProvider = ({ children }) => {
     let pendingSnackbarKey: SnackbarKey | null = null;
     try {
       const estimatedFees = await estimateFee(msgs);
-      const feeGranter = feeGranters && (await select({ title: "Select fee granter", options: feeGranters }));
       const txRaw = await sign(msgs, {
         ...estimatedFees,
         granter: feeGranter

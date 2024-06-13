@@ -10,7 +10,8 @@ import Spinner from "@src/components/shared/Spinner";
 import { Button } from "@akashnetwork/ui/components";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
 import { useWallet } from "@src/context/WalletProvider";
-import { useAllowancesGranted, useAllowancesIssued, useGranteeGrants, useGranterGrants } from "@src/queries/useGrantsQuery";
+import { useAllowance } from "@src/hooks/useAllowance";
+import { useAllowancesIssued, useGranteeGrants, useGranterGrants } from "@src/queries/useGrantsQuery";
 import { AllowanceType, GrantType } from "@src/types/grant";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -46,9 +47,9 @@ export const Authorizations: React.FunctionComponent = () => {
   const { data: allowancesIssued, isLoading: isLoadingAllowancesIssued } = useAllowancesIssued(address, {
     refetchInterval: isRefreshing === "allowancesIssued" ? refreshingInterval : defaultRefetchInterval
   });
-  const { data: allowancesGranted, isLoading: isLoadingAllowancesGranted } = useAllowancesGranted(address, {
-    refetchInterval: isRefreshing === "allowancesGranted" ? refreshingInterval : defaultRefetchInterval
-  });
+  const {
+    fee: { all: allowancesGranted, isLoading: isLoadingAllowancesGranted, setDefault, default: defaultAllowance }
+  } = useAllowance();
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
@@ -261,6 +262,7 @@ export const Authorizations: React.FunctionComponent = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Default</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Grantee</TableHead>
                       <TableHead>Spending Limit</TableHead>
@@ -269,8 +271,25 @@ export const Authorizations: React.FunctionComponent = () => {
                   </TableHeader>
 
                   <TableBody>
+                    {!!allowancesGranted && (
+                      <AllowanceGrantedRow
+                        key={address}
+                        allowance={{
+                          granter: "",
+                          grantee: "",
+                          allowance: { "@type": "$CONNECTED_WALLET", expiration: "", spend_limit: [] }
+                        }}
+                        onSelect={() => setDefault(undefined)}
+                        selected={!defaultAllowance}
+                      />
+                    )}
                     {allowancesGranted.map(allowance => (
-                      <AllowanceGrantedRow key={allowance.granter} allowance={allowance} />
+                      <AllowanceGrantedRow
+                        key={allowance.granter}
+                        allowance={allowance}
+                        onSelect={() => setDefault(allowance.granter)}
+                        selected={defaultAllowance === allowance.granter}
+                      />
                     ))}
                   </TableBody>
                 </Table>
