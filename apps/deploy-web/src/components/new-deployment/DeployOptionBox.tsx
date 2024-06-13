@@ -1,7 +1,7 @@
 "use client";
 import { MediaImage } from "iconoir-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@akashnetwork/ui/components";
 import { Card, CardContent, CardHeader } from "../ui/card";
 
 type Props = {

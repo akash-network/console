@@ -6,7 +6,7 @@ import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt } from "@src/utils/priceUtils";
-import { Avatar, AvatarFallback } from "../../components/ui/avatar";
+import { Avatar, AvatarFallback } from "@akashnetwork/ui/components";
 import { Card, CardContent } from "../ui/card";
 import { ConnectWallet } from "./ConnectWallet";
 import { Popup } from "./Popup";
