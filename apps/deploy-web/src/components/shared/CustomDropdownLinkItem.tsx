@@ -2,7 +2,7 @@
 import React from "react";
 
 import { cn } from "@src/utils/styleUtils";
-import { DropdownMenuIconItem } from "../ui/dropdown-menu";
+import { DropdownMenuIconItem } from "@akashnetwork/ui/components";
 
 type Props = {
   icon?: string | React.ReactNode;

@@ -9,3 +9,5 @@ export * from "./collapsible";
 export * from "./command";
 export * from "./dialog";
 export * from "./multiple-selector";
+export * from "./drawer";
+export * from "./dropdown-menu";

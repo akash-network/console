@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
-import { Button } from "@akashnetwork/ui/components";
-import { DropdownMenu, DropdownMenuContent } from "@src/components/ui/dropdown-menu";
+import { Button, DropdownMenu, DropdownMenuContent } from "@akashnetwork/ui/components";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";

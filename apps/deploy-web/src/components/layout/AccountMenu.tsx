@@ -10,8 +10,7 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import { UrlService } from "@src/utils/urlUtils";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import Spinner from "../shared/Spinner";
-import { Button, Avatar, AvatarFallback } from "@akashnetwork/ui/components";;
-import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator } from "../ui/dropdown-menu";
+import { Button, Avatar, AvatarFallback, DropdownMenu, DropdownMenuContent, DropdownMenuSeparator } from "@akashnetwork/ui/components";
 
 export function AccountMenu() {
   const [open, setOpen] = useState(false);
