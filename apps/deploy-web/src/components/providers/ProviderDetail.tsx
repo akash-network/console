@@ -10,7 +10,7 @@ import dynamic from "next/dynamic";
 import { CustomNoDivTooltip } from "@src/components/shared/CustomTooltip";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import Spinner from "@src/components/shared/Spinner";
-import { Alert } from "@src/components/ui/alert";
+import { Alert } from "@akashnetwork/ui/components";
 import { Card, CardContent } from "@src/components/ui/card";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";

@@ -12,7 +12,7 @@ import { event } from "nextjs-google-analytics";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { Popup } from "@src/components/shared/Popup";
-import { Alert } from "@src/components/ui/alert";
+import { Alert } from "@akashnetwork/ui/components";
 import { useWallet } from "@src/context/WalletProvider";
 import { getUsdcDenom, useUsdcDenom } from "@src/hooks/useDenom";
 import { useDenomData } from "@src/hooks/useWalletBalance";
