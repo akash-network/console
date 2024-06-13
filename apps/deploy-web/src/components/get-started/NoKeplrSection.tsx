@@ -7,8 +7,7 @@ import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
 import { LinkTo } from "../shared/LinkTo";
-import { buttonVariants, Alert } from "@akashnetwork/ui/components";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import { buttonVariants, Alert, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
 import { CreateWalletSection } from "./CreateWalletSection";
 
 export const NoKeplrSection: React.FunctionComponent = () => {
