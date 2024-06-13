@@ -9,6 +9,7 @@ import Router from "next/router";
 import { ThemeProvider } from "next-themes";
 import NProgress from "nprogress"; //nprogress module
 
+import { AllowanceWatcher } from "@src/components/authorizations/AllowanceWatcher";
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
@@ -71,6 +72,7 @@ const App: React.FunctionComponent<Props> = props => {
                                         <BackgroundTaskProvider>
                                           <TemplatesProvider>
                                             <LocalNoteProvider>
+                                              <AllowanceWatcher />
                                               <GoogleAnalytics />
                                               <Component {...pageProps} />
                                             </LocalNoteProvider>
