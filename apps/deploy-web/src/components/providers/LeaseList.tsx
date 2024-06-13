@@ -4,7 +4,7 @@ import isEqual from "lodash/isEqual";
 
 import { CustomPagination } from "@src/components/shared/CustomPagination";
 import Spinner from "@src/components/shared/Spinner";
-import { CheckboxWithLabel } from "@src/components/ui/checkbox";
+import { CheckboxWithLabel } from "@akashnetwork/ui/components";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
 import { LeaseDto } from "@src/types/deployment";
 import { LeaseRow } from "./LeaseRow";

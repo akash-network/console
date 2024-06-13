@@ -7,7 +7,7 @@ import ListItemText from "@mui/material/ListItemText";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 
-import { Checkbox } from "../ui/checkbox";
+import { Checkbox } from "@akashnetwork/ui/components";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;

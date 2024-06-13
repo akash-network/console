@@ -7,7 +7,7 @@ import { InfoCircle } from "iconoir-react";
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { persistentStorageTypes, storageUnits } from "../shared/akash/units";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { Checkbox } from "../ui/checkbox";
+import { Checkbox } from "@akashnetwork/ui/components";
 import { FormDescription, FormItem } from "../ui/form";
 import { Input, InputWithIcon } from "../ui/input";
 import { Label } from "../ui/label";
