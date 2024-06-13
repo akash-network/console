@@ -1,7 +1,7 @@
 <div align="left">
   
   <a href="https://aimeos.org/">
-    <img src="./deploy-web/public/android-chrome-192x192.png" alt="Cloudmos logo" title="Cloudmos" align="left" height="40" />
+    <img src="./apps/deploy-web/public/android-chrome-192x192.png" alt="Cloudmos logo" title="Cloudmos" align="left" height="40" />
 </a>
   
   # Cloudmos
