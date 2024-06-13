@@ -27,8 +27,7 @@ import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
 import Spinner from "../shared/Spinner";
 import { StatusPill } from "../shared/StatusPill";
-import { Badge } from "../ui/badge";
-import { buttonVariants } from "@akashnetwork/ui/components";
+import { buttonVariants, Badge } from "@akashnetwork/ui/components";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
 // const LiquidityModal = dynamic(() => import("../liquidity-modal"), {

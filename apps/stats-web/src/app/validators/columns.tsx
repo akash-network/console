@@ -8,8 +8,7 @@ import { z } from "zod";
 
 import { AKTLabel } from "@/components/AKTLabel";
 import { DataTableColumnHeader } from "@/components/table/data-table-column-header";
-import { Avatar, AvatarFallback, AvatarImage } from "@akashnetwork/ui/components";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage, Badge } from "@akashnetwork/ui/components";
 import { getShortText } from "@/hooks/useShortText";
 import { udenomToDenom } from "@/lib/mathHelpers";
 import { UrlService } from "@/lib/urlUtils";

@@ -8,7 +8,7 @@ import { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { StatusPill } from "../shared/StatusPill";
-import { Badge } from "../ui/badge";
+import { Badge } from "@akashnetwork/ui/components"
 
 type Props = {
   lease: LeaseDto;

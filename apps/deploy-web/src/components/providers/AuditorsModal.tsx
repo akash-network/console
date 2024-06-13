@@ -6,7 +6,7 @@ import { Address } from "../shared/Address";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { LinkTo } from "../shared/LinkTo";
 import { Popup } from "../shared/Popup";
-import { Badge } from "../ui/badge";
+import { Badge } from "@akashnetwork/ui/components"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 
 type Props = {

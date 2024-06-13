@@ -1,6 +1,6 @@
 import { Row } from "@tanstack/react-table";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@akashnetwork/ui/components"
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
 import { TransactionRowType } from "@/lib/zod/transactionRow";
 

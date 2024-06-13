@@ -3,7 +3,7 @@ import { FormattedRelativeTime } from "react-intl";
 import Link from "next/link";
 
 import { AKTAmount } from "@/components/AKTAmount";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@akashnetwork/ui/components";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
 import { getSplitText } from "@/hooks/useShortText";

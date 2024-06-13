@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { X } from "lucide-react";
 
-import { Badge } from "@src/components/ui/badge";
+import { Badge } from "@akashnetwork/ui/components"
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@src/components/ui/command";
 import { cn } from "@src/utils/styleUtils";
 

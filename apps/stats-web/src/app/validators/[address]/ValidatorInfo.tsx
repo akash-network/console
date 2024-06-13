@@ -5,8 +5,7 @@ import { User } from "iconoir-react";
 
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";
-import { Avatar, AvatarFallback, AvatarImage } from "@akashnetwork/ui/components";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage, Badge } from "@akashnetwork/ui/components";
 import { Card, CardContent } from "@/components/ui/card";
 import { isValidHttpUrl } from "@/lib/urlUtils";
 import { ValidatorDetail } from "@/types";

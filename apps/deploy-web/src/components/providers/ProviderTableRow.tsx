@@ -3,7 +3,7 @@ import React from "react";
 import { WarningCircle } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
-import { Badge } from "@src/components/ui/badge";
+import { Badge } from "@akashnetwork/ui/components"
 import { TableCell, TableRow } from "@src/components/ui/table";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { getSplitText } from "@src/hooks/useShortText";

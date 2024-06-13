@@ -2,8 +2,7 @@ import * as React from "react";
 import { CheckIcon, PlusCircledIcon } from "@radix-ui/react-icons";
 import { Column } from "@tanstack/react-table";
 
-import { Badge } from "../ui/badge";
-import { Button } from "@akashnetwork/ui/components";
+import { Button, Badge } from "@akashnetwork/ui/components";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "../ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Separator } from "../ui/separator";

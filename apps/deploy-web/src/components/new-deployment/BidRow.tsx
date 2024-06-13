@@ -20,7 +20,7 @@ import { FavoriteButton } from "../shared/FavoriteButton";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import Spinner from "../shared/Spinner";
-import { Badge } from "../ui/badge";
+import { Badge } from "@akashnetwork/ui/components"
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { TableCell, TableRow } from "../ui/table";
 
