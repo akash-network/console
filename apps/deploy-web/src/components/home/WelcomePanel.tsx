@@ -3,8 +3,7 @@ import React, { useState } from "react";
 import { Learning, NavArrowDown, Rocket, SearchEngine } from "iconoir-react";
 import Link from "next/link";
 
-import { Button, Avatar, AvatarFallback } from "@akashnetwork/ui/components";
-import { Card, CardContent, CardHeader, CardTitle } from "@src/components/ui/card";
+import { Button, Avatar, AvatarFallback, Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@src/components/ui/collapsible";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";

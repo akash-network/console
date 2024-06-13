@@ -10,8 +10,7 @@ import { LabelValue } from "@/components/LabelValue";
 import { LeaseSpecDetail } from "@/components/LeaseSpecDetail";
 import { PriceValue } from "@/components/PriceValue";
 import { Title } from "@/components/Title";
-import { Badge } from "@akashnetwork/ui/components"
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge, Card, CardContent } from "@akashnetwork/ui/components";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getSplitText } from "@/hooks/useShortText";
 import { roundDecimal, udenomToDenom } from "@/lib/mathHelpers";

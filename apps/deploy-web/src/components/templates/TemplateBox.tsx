@@ -2,8 +2,7 @@
 import { MediaImage } from "iconoir-react";
 import Link from "next/link";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@akashnetwork/ui/components";
-import { cardClasses, CardContent, CardHeader } from "@src/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage, cardClasses, CardContent, CardHeader } from "@akashnetwork/ui/components";
 import { ApiTemplate } from "@src/types";
 import { getShortText } from "@src/utils/stringUtils";
 import { cn } from "@src/utils/styleUtils";

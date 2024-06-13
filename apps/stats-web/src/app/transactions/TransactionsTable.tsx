@@ -3,7 +3,7 @@ import { Metadata } from "next";
 
 import { TransactionRow } from "@/components/blockchain/TransactionRow";
 import Spinner from "@/components/Spinner";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@akashnetwork/ui/components";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useTransactions } from "@/queries";
 

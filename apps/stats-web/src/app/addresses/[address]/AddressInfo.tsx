@@ -6,7 +6,7 @@ import { useQRCode } from "next-qrcode";
 import { Address } from "@/components/Address";
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@akashnetwork/ui/components";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { customColors } from "@/lib/colors";

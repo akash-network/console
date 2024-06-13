@@ -4,8 +4,7 @@ import { MdMoneyOff } from "react-icons/md";
 import { HelpCircle } from "iconoir-react";
 
 import { FormattedDecimal } from "@/components/FormattedDecimal";
-import { Avatar, AvatarFallback, AvatarImage } from "@akashnetwork/ui/components";
-import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage, Card, CardContent } from "@akashnetwork/ui/components";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getSplitText } from "@/hooks/useShortText";
