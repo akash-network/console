@@ -7,11 +7,10 @@ import { SdlBuilderFormValues, Service } from "@src/types";
 import { nextCases } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { Checkbox } from "@akashnetwork/ui/components";
+import { Checkbox, MultipleSelector } from "@akashnetwork/ui/components";
 import { FormItem } from "../ui/form";
 import { InputWithIcon } from "../ui/input";
 import { Label } from "../ui/label";
-import MultipleSelector from "../ui/multiple-selector";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

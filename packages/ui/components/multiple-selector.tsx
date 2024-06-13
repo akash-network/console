@@ -5,11 +5,11 @@ import { useEffect } from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { X } from "lucide-react";
 
-import { Badge } from "@akashnetwork/ui/components"
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@src/components/ui/command";
-import { cn } from "@src/utils/styleUtils";
+import { Badge } from "./badge";
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "./command";
+import { cn } from "../utils";
 
-export interface Option {
+export interface MultiSelectorOption {
   value: string;
   label: string | React.ReactNode;
   disable?: boolean;
@@ -19,14 +19,14 @@ export interface Option {
   [key: string]: string | boolean | undefined | React.ReactNode;
 }
 interface GroupOption {
-  [key: string]: Option[];
+  [key: string]: MultiSelectorOption[];
 }
 
 interface MultipleSelectorProps {
-  value?: Option[];
-  defaultOptions?: Option[];
+  value?: MultiSelectorOption[];
+  defaultOptions?: MultiSelectorOption[];
   /** manually controlled options */
-  options?: Option[];
+  options?: MultiSelectorOption[];
   placeholder?: string;
   /** Loading component. */
   loadingIndicator?: React.ReactNode;
@@ -40,8 +40,8 @@ interface MultipleSelectorProps {
    **/
   triggerSearchOnFocus?: boolean;
   /** async search */
-  onSearch?: (value: string) => Promise<Option[]>;
-  onChange?: (options: Option[]) => void;
+  onSearch?: (value: string) => Promise<MultiSelectorOption[]>;
+  onChange?: (options: MultiSelectorOption[]) => void;
   /** Limit the maximum number of selected options. */
   maxSelected?: number;
   /** When the number of selected options exceeds the limit, the onMaxSelected will be called. */
@@ -69,7 +69,7 @@ interface MultipleSelectorProps {
 }
 
 export interface MultipleSelectorRef {
-  selectedValue: Option[];
+  selectedValue: MultiSelectorOption[];
   input: HTMLInputElement;
 }
 
@@ -87,7 +87,7 @@ export function useDebounce<T>(value: T, delay?: number): T {
   return debouncedValue;
 }
 
-function transToGroupOption(options: Option[], groupBy?: string) {
+function transToGroupOption(options: MultiSelectorOption[], groupBy?: string) {
   if (options.length === 0) {
     return {};
   }
@@ -108,7 +108,7 @@ function transToGroupOption(options: Option[], groupBy?: string) {
   return groupOption;
 }
 
-function removePickedOption(groupOption: GroupOption, picked: Option[]) {
+function removePickedOption(groupOption: GroupOption, picked: MultiSelectorOption[]) {
   const cloneOption = JSON.parse(JSON.stringify(groupOption)) as GroupOption;
 
   for (const [key, value] of Object.entries(cloneOption)) {
@@ -117,7 +117,7 @@ function removePickedOption(groupOption: GroupOption, picked: Option[]) {
   return cloneOption;
 }
 
-const MultipleSelector = React.forwardRef<MultipleSelectorRef, MultipleSelectorProps>(
+export const MultipleSelector = React.forwardRef<MultipleSelectorRef, MultipleSelectorProps>(
   (
     {
       value,
@@ -148,7 +148,7 @@ const MultipleSelector = React.forwardRef<MultipleSelectorRef, MultipleSelectorP
     const [open, setOpen] = React.useState(false);
     const [isLoading, setIsLoading] = React.useState(false);
 
-    const [selected, setSelected] = React.useState<Option[]>(value || []);
+    const [selected, setSelected] = React.useState<MultiSelectorOption[]>(value || []);
     const [options, setOptions] = React.useState<GroupOption>(transToGroupOption(arrayDefaultOptions, groupBy));
     const [inputValue, setInputValue] = React.useState("");
     const debouncedSearchTerm = useDebounce(inputValue, delay || 500);
@@ -163,7 +163,7 @@ const MultipleSelector = React.forwardRef<MultipleSelectorRef, MultipleSelectorP
     );
 
     const handleUnselect = React.useCallback(
-      (option: Option) => {
+      (option: MultiSelectorOption) => {
         const newOptions = selected.filter(s => s.value !== option.value);
         setSelected(newOptions);
         onChange?.(newOptions);
@@ -311,7 +311,7 @@ const MultipleSelector = React.forwardRef<MultipleSelectorRef, MultipleSelectorP
       >
         <div
           className={cn(
-            "group rounded-md border border-input bg-popover px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+            "border-input bg-popover ring-offset-background focus-within:ring-ring group rounded-md border px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-offset-2",
             className
           )}
         >
@@ -331,7 +331,7 @@ const MultipleSelector = React.forwardRef<MultipleSelectorRef, MultipleSelectorP
                   {option.label}
                   <button
                     className={cn(
-                      "ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                      "ring-offset-background focus:ring-ring ml-1 rounded-full outline-none focus:ring-2 focus:ring-offset-2",
                       (disabled || option.fixed) && "hidden"
                     )}
                     onKeyDown={e => {
@@ -370,13 +370,13 @@ const MultipleSelector = React.forwardRef<MultipleSelectorRef, MultipleSelectorP
                 inputProps?.onFocus?.(event);
               }}
               placeholder={hidePlaceholderWhenSelected && selected.length !== 0 ? "" : placeholder}
-              className={cn("ml-2 flex-1 bg-transparent outline-none placeholder:text-muted-foreground", inputProps?.className)}
+              className={cn("placeholder:text-muted-foreground ml-2 flex-1 bg-transparent outline-none", inputProps?.className)}
             />
           </div>
         </div>
         <div className="relative">
           {open && (
-            <CommandList className="absolute top-2 z-10 w-full rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in">
+            <CommandList className="bg-popover text-popover-foreground animate-in absolute top-2 z-10 w-full rounded-md border shadow-md outline-none">
               {isLoading ? (
                 <>{loadingIndicator}</>
               ) : (
@@ -407,7 +407,7 @@ const MultipleSelector = React.forwardRef<MultipleSelectorRef, MultipleSelectorP
                                 setSelected(newOptions);
                                 onChange?.(newOptions);
                               }}
-                              className={cn("cursor-pointer", option.disable && "cursor-default text-muted-foreground")}
+                              className={cn("cursor-pointer", option.disable && "text-muted-foreground cursor-default")}
                             >
                               {option.label}
                             </CommandItem>
@@ -425,6 +425,3 @@ const MultipleSelector = React.forwardRef<MultipleSelectorRef, MultipleSelectorP
     );
   }
 );
-
-MultipleSelector.displayName = "MultipleSelector";
-export default MultipleSelector;
