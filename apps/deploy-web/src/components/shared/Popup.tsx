@@ -5,8 +5,16 @@ import { DialogProps } from "@radix-ui/react-dialog";
 
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
 import { cn } from "@src/utils/styleUtils";
-import { Button, ButtonProps, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle as _DialogTitle } from "@akashnetwork/ui/components";
-import { InputWithIcon } from "../ui/input";
+import {
+  Button,
+  ButtonProps,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle as _DialogTitle,
+  InputWithIcon
+} from "@akashnetwork/ui/components";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 import { ErrorFallback } from "./ErrorFallback";
 import Spinner from "./Spinner";

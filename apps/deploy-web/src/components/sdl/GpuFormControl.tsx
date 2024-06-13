@@ -15,9 +15,7 @@ import { gpuVendors } from "../shared/akash/gpu";
 import { validationConfig } from "../shared/akash/units";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import Spinner from "../shared/Spinner";
-import { Button, Checkbox } from "@akashnetwork/ui/components";
-import { FormDescription, FormItem } from "../ui/form";
-import { Input } from "../ui/input";
+import { Button, Checkbox, FormDescription, FormItem, Input } from "@akashnetwork/ui/components";
 import { Slider } from "../ui/slider";
 import { FormPaper } from "./FormPaper";
 

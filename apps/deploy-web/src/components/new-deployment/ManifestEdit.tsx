@@ -33,8 +33,7 @@ import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import Spinner from "../shared/Spinner";
 import ViewPanel from "../shared/ViewPanel";
-import { Button, Alert } from "@akashnetwork/ui/components";
-import { InputWithIcon } from "../ui/input";
+import { Button, Alert, InputWithIcon } from "@akashnetwork/ui/components";
 import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
 
 type Props = {

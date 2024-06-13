@@ -17,10 +17,7 @@ import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { LinkTo } from "../shared/LinkTo";
 import { Popup } from "../shared/Popup";
 import { Snackbar } from "../shared/Snackbar";
-import { Alert, CheckboxWithLabel } from "@akashnetwork/ui/components";
-import { FormItem } from "../ui/form";
-import { InputWithIcon } from "../ui/input";
-import { Label } from "../ui/label";
+import { Alert, CheckboxWithLabel, FormItem, Label, InputWithIcon } from "@akashnetwork/ui/components";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
 

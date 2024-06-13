@@ -8,8 +8,7 @@ import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { validationConfig } from "../shared/akash/units";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { FormDescription, FormItem } from "../ui/form";
-import { Input } from "../ui/input";
+import { FormDescription, FormItem, Input } from "@akashnetwork/ui/components";
 import { Slider } from "../ui/slider";
 import { FormPaper } from "./FormPaper";
 

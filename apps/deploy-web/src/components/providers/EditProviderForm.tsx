@@ -6,10 +6,7 @@ import { nanoid } from "nanoid";
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { CustomTooltip } from "@src/components/shared/CustomTooltip";
-import { Button, Alert, CheckboxWithLabel, MultipleSelector, MultiSelectorOption } from "@akashnetwork/ui/components";
-import { FormItem } from "@src/components/ui/form";
-import { InputWithIcon } from "@src/components/ui/input";
-import { Label } from "@src/components/ui/label";
+import { Button, Alert, CheckboxWithLabel, MultipleSelector, MultiSelectorOption, FormItem, Label, InputWithIcon } from "@akashnetwork/ui/components";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
 import { useWallet } from "@src/context/WalletProvider";
 import { ApiProviderDetail } from "@src/types/provider";

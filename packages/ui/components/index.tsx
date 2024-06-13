@@ -11,3 +11,6 @@ export * from "./dialog";
 export * from "./multiple-selector";
 export * from "./drawer";
 export * from "./dropdown-menu";
+export * from "./form";
+export * from "./label";
+export * from "./input";

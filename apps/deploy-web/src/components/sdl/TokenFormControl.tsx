@@ -4,8 +4,7 @@ import { Control, Controller, FieldPathValue, FieldValues, Path } from "react-ho
 
 import { useSdlDenoms } from "@src/hooks/useDenom";
 import { Service } from "@src/types";
-import { FormItem } from "../ui/form";
-import { Label } from "../ui/label";
+import { FormItem, Label } from "@akashnetwork/ui/components";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 interface ServicesFieldValues extends FieldValues {

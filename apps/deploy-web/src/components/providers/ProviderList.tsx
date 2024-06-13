@@ -6,9 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { CustomPagination } from "@src/components/shared/CustomPagination";
 import Spinner from "@src/components/shared/Spinner";
-import { Button, CheckboxWithLabel } from "@akashnetwork/ui/components";
-import { InputWithIcon } from "@src/components/ui/input";
-import { Label } from "@src/components/ui/label";
+import { Button, CheckboxWithLabel, Label, InputWithIcon } from "@akashnetwork/ui/components";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
