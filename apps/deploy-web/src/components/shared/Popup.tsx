@@ -18,9 +18,10 @@ import {
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  ScrollArea,
+  ScrollBar
 } from "@akashnetwork/ui/components";
-import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 import { ErrorFallback } from "./ErrorFallback";
 import Spinner from "./Spinner";
 
