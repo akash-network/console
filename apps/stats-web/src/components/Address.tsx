@@ -2,10 +2,9 @@
 import React, { ReactNode, useState } from "react";
 import { Copy } from "iconoir-react";
 
-import { useToast } from "./ui/use-toast";
 import { copyTextToClipboard } from "@/lib/copyClipboard";
 import { cn } from "@/lib/utils";
-import { CustomTooltip } from "@akashnetwork/ui/components";
+import { CustomTooltip, useToast } from "@akashnetwork/ui/components";
 
 type Props = {
   address: string;

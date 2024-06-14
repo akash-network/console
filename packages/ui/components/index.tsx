@@ -31,3 +31,4 @@ export * from "./tabs";
 export * from "./toggle";
 export * from "./toggle-group";
 export * from "./tooltip";
+export * from "./toast";
