@@ -21,3 +21,4 @@ export * from "./custom-pagination";
 export * from "./select";
 export * from "./popover";
 export * from "./progress";
+export * from "./radio-group";
