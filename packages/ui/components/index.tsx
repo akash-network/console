@@ -27,3 +27,4 @@ export * from "./separator";
 export * from "./slider";
 export * from "./switch";
 export * from "./table";
+export * from "./tabs";

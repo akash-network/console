@@ -4,7 +4,7 @@ import { useRouter } from "next/router";
 import { event } from "nextjs-google-analytics";
 
 import { ErrorFallback } from "@src/components/shared/ErrorFallback";
-import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { UrlService } from "@src/utils/urlUtils";
