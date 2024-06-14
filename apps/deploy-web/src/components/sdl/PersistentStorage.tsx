@@ -6,7 +6,6 @@ import { InfoCircle } from "iconoir-react";
 
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { persistentStorageTypes, storageUnits } from "../shared/akash/units";
-import { CustomTooltip } from "../shared/CustomTooltip";
 import {
   Checkbox,
   FormDescription,
@@ -20,7 +19,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Slider
+  Slider,
+  CustomTooltip
 } from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 

@@ -6,9 +6,8 @@ import { getSplitText } from "@src/hooks/useShortText";
 import { LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
-import { CustomTooltip } from "../shared/CustomTooltip";
 import { StatusPill } from "../shared/StatusPill";
-import { Badge } from "@akashnetwork/ui/components"
+import { Badge, CustomTooltip } from "@akashnetwork/ui/components";
 
 type Props = {
   lease: LeaseDto;

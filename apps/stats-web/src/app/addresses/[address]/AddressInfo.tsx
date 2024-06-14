@@ -6,8 +6,7 @@ import { useQRCode } from "next-qrcode";
 import { Address } from "@/components/Address";
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";
-import { Card, CardContent, Separator } from "@akashnetwork/ui/components";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Card, CardContent, Separator, CustomTooltip } from "@akashnetwork/ui/components";
 import { customColors } from "@/lib/colors";
 import { AddressDetail } from "@/types";
 
@@ -42,12 +41,9 @@ export function AddressInfo({ address, addressDetail }: IProps) {
         <div className="flex flex-col items-start sm:flex-row">
           <div className="hidden sm:block">{QRcode}</div>
           <div className="block sm:hidden">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <QrCode />
-              </TooltipTrigger>
-              <TooltipContent>{QRcode}</TooltipContent>
-            </Tooltip>
+            <CustomTooltip title={QRcode}>
+              <QrCode />
+            </CustomTooltip>
           </div>
 
           <div className="flex-grow pt-2 sm:pl-4 sm:pt-0">

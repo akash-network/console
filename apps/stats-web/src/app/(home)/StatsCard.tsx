@@ -3,8 +3,7 @@ import React from "react";
 import { GraphUp, HelpCircle } from "iconoir-react";
 import Link from "next/link";
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
-import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle } from "@akashnetwork/ui/components";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, CustomTooltip } from "@akashnetwork/ui/components";
 
 interface IStatsCardProps {
   number: React.ReactNode;
@@ -23,12 +22,9 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, te
       <CardHeader className="flex flex-row items-center space-y-0 pb-2 pl-4 pr-4">
         <CardTitle className="text-sm font-medium">{text}</CardTitle>
         {tooltip && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <HelpCircle className="ml-2 text-xs text-muted-foreground" />
-            </TooltipTrigger>
-            <TooltipContent>{tooltip}</TooltipContent>
-          </Tooltip>
+          <CustomTooltip title={tooltip}>
+            <HelpCircle className="ml-2 text-xs text-muted-foreground" />
+          </CustomTooltip>
         )}
       </CardHeader>
       <CardContent className="pl-4 pr-4">

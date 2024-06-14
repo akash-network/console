@@ -8,7 +8,6 @@ import { Expose, SdlBuilderFormValues, Service } from "@src/types";
 import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 import { protoTypes } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
-import { CustomTooltip } from "../shared/CustomTooltip";
 import { Popup } from "../shared/Popup";
 import {
   Button,
@@ -21,7 +20,8 @@ import {
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  CustomTooltip
 } from "@akashnetwork/ui/components";
 import { AcceptFormControl, AcceptRefType } from "./AcceptFormControl";
 import { FormPaper } from "./FormPaper";

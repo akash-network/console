@@ -11,8 +11,17 @@ import { UrlService } from "@src/utils/urlUtils";
 import { Address } from "../shared/Address";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import Spinner from "../shared/Spinner";
-import { Button, Badge, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@akashnetwork/ui/components";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import {
+  Button,
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@akashnetwork/ui/components";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 
 export function WalletStatus() {

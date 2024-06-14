@@ -6,8 +6,7 @@ import { InfoCircle } from "iconoir-react";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { nextCases } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { Checkbox, MultipleSelector, FormItem, Label, InputWithIcon } from "@akashnetwork/ui/components";
+import { Checkbox, MultipleSelector, FormItem, Label, InputWithIcon, CustomTooltip } from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

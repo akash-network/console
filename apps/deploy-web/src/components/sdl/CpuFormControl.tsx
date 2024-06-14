@@ -7,8 +7,7 @@ import { InfoCircle } from "iconoir-react";
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { validationConfig } from "../shared/akash/units";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { FormDescription, FormItem, Input, Slider } from "@akashnetwork/ui/components";
+import { FormDescription, FormItem, Input, Slider, CustomTooltip } from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

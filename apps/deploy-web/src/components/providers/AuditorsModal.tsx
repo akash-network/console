@@ -3,10 +3,9 @@ import { MouseEventHandler } from "react";
 
 import { useAuditors } from "@src/queries/useProvidersQuery";
 import { Address } from "../shared/Address";
-import { CustomTooltip } from "../shared/CustomTooltip";
 import { LinkTo } from "../shared/LinkTo";
 import { Popup } from "../shared/Popup";
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, CustomTooltip } from "@akashnetwork/ui/components";
 
 type Props = {
   attributes: Array<{ key: string; value: string; auditedBy: Array<string> }>;

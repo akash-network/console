@@ -10,20 +10,12 @@ import { useProviderRegions } from "@src/queries/useProvidersQuery";
 import { RentGpusFormValues } from "@src/types";
 import { ProviderAttributeSchemaDetailValue, ProviderRegionValue } from "@src/types/providerAttributes";
 import { cn } from "@src/utils/styleUtils";
-import { CustomTooltip } from "../shared/CustomTooltip";
+import { CustomTooltip } from "@akashnetwork/ui/components";
 
 type RegionSelectProps = {
   control: Control<RentGpusFormValues, any>;
   className?: string;
 };
-
-// const useStyles = makeStyles()(theme => ({
-//   disabled: {
-//     color: theme.palette.mode === "dark" ? theme.palette.grey[600] : theme.palette.grey[400],
-//     pointerEvents: "none",
-//     cursor: "default"
-//   }
-// }));
 
 export const RegionSelect: React.FunctionComponent<RegionSelectProps> = ({ control, className }) => {
   const [isOpen, setIsOpen] = useState(false);

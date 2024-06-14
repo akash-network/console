@@ -15,9 +15,9 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
+  CustomTooltip
 } from "@akashnetwork/ui/components";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getSplitText } from "@/hooks/useShortText";
 import { AddressDetail } from "@/types";
 
@@ -51,25 +51,19 @@ export function AssetList({ addressDetail }: IProps) {
                       </Avatar>
                     </div>
                     <div>
-                      <div style={{ display: "flex", alignItems: "center" }}>
+                      <div className="flex items-center">
                         {asset.symbol || "Unknown"}
                         {asset.description && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <HelpCircle style={{ marginLeft: "4px", fontSize: "15px" }} />
-                            </TooltipTrigger>
-                            <TooltipContent>{asset.description}</TooltipContent>
-                          </Tooltip>
+                          <CustomTooltip title={asset.description}>
+                            <HelpCircle className="ml-2" />
+                          </CustomTooltip>
                         )}
                       </div>
                       {asset.ibcToken && (
                         <div>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <small>{getSplitText(asset.ibcToken, 10, 10)}</small>
-                            </TooltipTrigger>
-                            <TooltipContent>{asset.ibcToken}</TooltipContent>
-                          </Tooltip>
+                          <CustomTooltip title={asset.ibcToken}>
+                            <small>{getSplitText(asset.ibcToken, 10, 10)}</small>
+                          </CustomTooltip>
                         </div>
                       )}
                     </div>

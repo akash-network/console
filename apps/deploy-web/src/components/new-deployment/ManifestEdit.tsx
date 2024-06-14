@@ -27,13 +27,12 @@ import { updateWallet } from "@src/utils/walletUtils";
 import { useSettings } from "../../context/SettingsProvider";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
-import { CustomTooltip } from "../shared/CustomTooltip";
 import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
 import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import Spinner from "../shared/Spinner";
 import ViewPanel from "../shared/ViewPanel";
-import { Button, Alert, InputWithIcon } from "@akashnetwork/ui/components";
+import { Button, Alert, InputWithIcon, CustomTooltip } from "@akashnetwork/ui/components";
 import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
 
 type Props = {

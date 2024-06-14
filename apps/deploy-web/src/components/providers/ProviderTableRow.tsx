@@ -3,7 +3,7 @@ import React from "react";
 import { WarningCircle } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
-import { Badge, TableCell, TableRow } from "@akashnetwork/ui/components";
+import { Badge, TableCell, TableRow, CustomNoDivTooltip, CustomTooltip } from "@akashnetwork/ui/components";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { getSplitText } from "@src/hooks/useShortText";
 import { ClientProviderList } from "@src/types/provider";
@@ -13,7 +13,6 @@ import { roundDecimal } from "@src/utils/mathHelpers";
 import { cn } from "@src/utils/styleUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { UrlService } from "@src/utils/urlUtils";
-import { CustomNoDivTooltip, CustomTooltip } from "../shared/CustomTooltip";
 import { FavoriteButton } from "../shared/FavoriteButton";
 import { AuditorButton } from "./AuditorButton";
 import { CapacityIcon } from "./CapacityIcon";

@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useSnackbar } from "notistack";
 
 import { AuditorButton } from "@src/components/providers/AuditorButton";
-import { CustomTooltip } from "@src/components/shared/CustomTooltip";
 import { FavoriteButton } from "@src/components/shared/FavoriteButton";
 import { LabelValueOld } from "@src/components/shared/LabelValueOld";
 import { LinkTo } from "@src/components/shared/LinkTo";
@@ -16,7 +15,7 @@ import { PricePerMonth } from "@src/components/shared/PricePerMonth";
 import { SpecDetail } from "@src/components/shared/SpecDetail";
 import Spinner from "@src/components/shared/Spinner";
 import { StatusPill } from "@src/components/shared/StatusPill";
-import { Button, Alert, Badge, Card, CardContent, CardHeader } from "@akashnetwork/ui/components";
+import { Button, Alert, Badge, Card, CardContent, CardHeader, CustomTooltip } from "@akashnetwork/ui/components";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";

@@ -13,10 +13,19 @@ import { uAktDenom } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { cn } from "@src/utils/styleUtils";
-import { CustomTooltip } from "../shared/CustomTooltip";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
-import { Button, buttonVariants, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger, InputWithIcon } from "@akashnetwork/ui/components";
+import {
+  Button,
+  buttonVariants,
+  Card,
+  CardContent,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  InputWithIcon,
+  CustomTooltip
+} from "@akashnetwork/ui/components";
 import { CommandFormModal } from "./CommandFormModal";
 import { CommandList } from "./CommandList";
 import { CpuFormControl } from "./CpuFormControl";

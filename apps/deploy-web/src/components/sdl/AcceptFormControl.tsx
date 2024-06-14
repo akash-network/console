@@ -6,8 +6,7 @@ import { nanoid } from "nanoid";
 
 import { Accept, SdlBuilderFormValues } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { Button, FormInput } from "@akashnetwork/ui/components";
+import { Button, FormInput, CustomTooltip } from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

@@ -13,7 +13,7 @@ import { AllowanceWatcher } from "@src/components/authorizations/AllowanceWatche
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
-import { TooltipProvider } from "@src/components/ui/tooltip";
+import { TooltipProvider } from "@akashnetwork/ui/components";
 import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 import { CertificateProvider } from "@src/context/CertificateProvider";

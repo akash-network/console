@@ -5,7 +5,7 @@ import { useSnackbar } from "notistack";
 
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { cn } from "@src/utils/styleUtils";
-import { CustomTooltip } from "./CustomTooltip";
+import { CustomTooltip } from "@akashnetwork/ui/components";
 import { Snackbar } from "./Snackbar";
 
 type Props = {

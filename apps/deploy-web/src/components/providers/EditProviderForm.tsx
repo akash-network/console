@@ -5,7 +5,6 @@ import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
-import { CustomTooltip } from "@src/components/shared/CustomTooltip";
 import {
   Button,
   Alert,
@@ -20,7 +19,8 @@ import {
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  CustomTooltip
 } from "@akashnetwork/ui/components";
 import { useWallet } from "@src/context/WalletProvider";
 import { ApiProviderDetail } from "@src/types/provider";

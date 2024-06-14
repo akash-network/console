@@ -6,9 +6,8 @@ import { nanoid } from "nanoid";
 
 import { EnvironmentVariable, RentGpusFormValues, SdlBuilderFormValues } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
-import { CustomNoDivTooltip } from "../shared/CustomTooltip";
 import { Popup } from "../shared/Popup";
-import { Button, FormInput, Switch } from "@akashnetwork/ui/components";
+import { Button, FormInput, Switch, CustomNoDivTooltip } from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
