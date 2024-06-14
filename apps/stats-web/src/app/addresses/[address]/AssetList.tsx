@@ -4,8 +4,19 @@ import { MdMoneyOff } from "react-icons/md";
 import { HelpCircle } from "iconoir-react";
 
 import { FormattedDecimal } from "@/components/FormattedDecimal";
-import { Avatar, AvatarFallback, AvatarImage, Card, CardContent } from "@akashnetwork/ui/components";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Card,
+  CardContent,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@akashnetwork/ui/components";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getSplitText } from "@/hooks/useShortText";
 import { AddressDetail } from "@/types";

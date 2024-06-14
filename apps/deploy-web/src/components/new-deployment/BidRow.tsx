@@ -20,8 +20,7 @@ import { FavoriteButton } from "../shared/FavoriteButton";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import Spinner from "../shared/Spinner";
-import { Badge, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
-import { TableCell, TableRow } from "../ui/table";
+import { Badge, RadioGroup, RadioGroupItem, TableCell, TableRow } from "@akashnetwork/ui/components";
 
 type Props = {
   bid: BidDto;

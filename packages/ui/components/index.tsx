@@ -26,3 +26,4 @@ export * from "./scroll-area";
 export * from "./separator";
 export * from "./slider";
 export * from "./switch";
+export * from "./table";

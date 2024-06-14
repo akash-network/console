@@ -6,8 +6,7 @@ import { BlockInfo } from "./BlockInfo";
 import { TransactionRow } from "@/components/blockchain/TransactionRow";
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { Card, CardContent } from "@akashnetwork/ui/components";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { getNetworkBaseApiUrl } from "@/lib/constants";
 import { BlockDetail } from "@/types";
 

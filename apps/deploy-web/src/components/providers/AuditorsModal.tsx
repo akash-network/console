@@ -6,8 +6,7 @@ import { Address } from "../shared/Address";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { LinkTo } from "../shared/LinkTo";
 import { Popup } from "../shared/Popup";
-import { Badge } from "@akashnetwork/ui/components"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 
 type Props = {
   attributes: Array<{ key: string; value: string; auditedBy: Array<string> }>;

@@ -3,8 +3,7 @@ import { FormattedDate } from "react-intl";
 import { Check } from "iconoir-react";
 
 import { ConnectWallet } from "@src/components/shared/ConnectWallet";
-import { Button } from "@akashnetwork/ui/components";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { CertificateDisplay } from "./CertificateDisplay";

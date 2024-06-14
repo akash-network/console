@@ -7,8 +7,18 @@ import { NextSeo } from "next-seo";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
 import Spinner from "@src/components/shared/Spinner";
-import { Button, buttonVariants, CheckboxWithLabel, InputWithIcon, CustomPagination } from "@akashnetwork/ui/components";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+import {
+  Button,
+  buttonVariants,
+  CheckboxWithLabel,
+  InputWithIcon,
+  CustomPagination,
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@akashnetwork/ui/components";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";

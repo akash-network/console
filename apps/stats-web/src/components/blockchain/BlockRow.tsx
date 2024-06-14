@@ -2,7 +2,7 @@
 import { FormattedRelativeTime } from "react-intl";
 import Link from "next/link";
 
-import { TableCell, TableRow } from "@/components/ui/table";
+import { TableCell, TableRow } from "@akashnetwork/ui/components";
 import { getShortText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";
 import { cn } from "@/lib/utils";

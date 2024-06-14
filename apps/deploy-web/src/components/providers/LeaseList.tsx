@@ -3,8 +3,7 @@ import React, { useEffect, useState } from "react";
 import isEqual from "lodash/isEqual";
 
 import Spinner from "@src/components/shared/Spinner";
-import { CheckboxWithLabel, CustomPagination } from "@akashnetwork/ui/components";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
+import { CheckboxWithLabel, CustomPagination, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { LeaseDto } from "@src/types/deployment";
 import { LeaseRow } from "./LeaseRow";
 
