@@ -9,7 +9,8 @@ module.exports = function (app: string) {
       "./stories/**/*.{ts,tsx}",
       "./app/**/*.{ts,tsx}",
       "./src/**/*.{ts,tsx}",
-      `../../apps/${app}/src/**/*.{ts,tsx}`
+      `../../apps/${app}/src/**/*.{ts,tsx}`,
+      "../../packages/ui/**/*.{ts,tsx,html,stories.tsx}"
     ],
     theme: {
       container: {
