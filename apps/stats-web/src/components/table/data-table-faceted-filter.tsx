@@ -14,9 +14,9 @@ import {
   CommandSeparator,
   Popover,
   PopoverContent,
-  PopoverTrigger
+  PopoverTrigger,
+  Separator
 } from "@akashnetwork/ui/components";
-import { Separator } from "../ui/separator";
 
 import { cn } from "@/lib/utils";
 
