@@ -24,8 +24,17 @@ import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
-import Spinner from "../shared/Spinner";
-import { Button, Checkbox, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, TableCell, TableRow, CustomTooltip } from "@akashnetwork/ui/components";
+import {
+  Button,
+  Checkbox,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  TableCell,
+  TableRow,
+  CustomTooltip,
+  Spinner
+} from "@akashnetwork/ui/components";
 import { DeploymentDepositModal } from "./DeploymentDepositModal";
 import { LeaseChip } from "./LeaseChip";
 

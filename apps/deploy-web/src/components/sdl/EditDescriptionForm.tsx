@@ -5,8 +5,7 @@ import axios from "axios";
 import { useSnackbar } from "notistack";
 
 import { Snackbar } from "../shared/Snackbar";
-import Spinner from "../shared/Spinner";
-import { Button, Label, Textarea } from "@akashnetwork/ui/components";
+import { Button, Label, Textarea, Spinner } from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

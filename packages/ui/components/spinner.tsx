@@ -1,5 +1,5 @@
 "use client";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "../utils";
 
 type SpinnerProps = {
   className?: string;
@@ -7,7 +7,7 @@ type SpinnerProps = {
   variant?: "primary" | "dark";
 };
 
-export default function Spinner({ className, size = "medium", variant = "primary" }: SpinnerProps) {
+export function Spinner({ className, size = "medium", variant = "primary" }: SpinnerProps) {
   return (
     <div role="status" className={className}>
       <svg

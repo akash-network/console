@@ -26,9 +26,18 @@ import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import { Snackbar } from "../shared/Snackbar";
-import Spinner from "../shared/Spinner";
 import ViewPanel from "../shared/ViewPanel";
-import { Button, Alert, Checkbox, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, InputWithIcon, CustomTooltip } from "@akashnetwork/ui/components";
+import {
+  Button,
+  Alert,
+  Checkbox,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  InputWithIcon,
+  CustomTooltip,
+  Spinner
+} from "@akashnetwork/ui/components";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { BidGroup } from "./BidGroup";
 

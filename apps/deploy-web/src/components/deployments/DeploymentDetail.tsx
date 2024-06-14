@@ -7,8 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
 
-import Spinner from "@src/components/shared/Spinner";
-import { Button, buttonVariants, Alert, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Alert, Tabs, TabsList, TabsTrigger, Spinner } from "@akashnetwork/ui/components";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";

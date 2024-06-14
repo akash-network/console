@@ -4,7 +4,6 @@ import { OpenNewWindow, Refresh, Xmark } from "iconoir-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import Spinner from "@src/components/shared/Spinner";
 import {
   Button,
   CheckboxWithLabel,
@@ -16,7 +15,8 @@ import {
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  Spinner
 } from "@akashnetwork/ui/components";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";

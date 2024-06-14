@@ -6,10 +6,9 @@ import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt } from "@src/utils/priceUtils";
-import { Avatar, AvatarFallback, Card, CardContent } from "@akashnetwork/ui/components";
+import { Avatar, AvatarFallback, Card, CardContent, Spinner } from "@akashnetwork/ui/components";
 import { ConnectWallet } from "./ConnectWallet";
 import { Popup } from "./Popup";
-import Spinner from "./Spinner";
 import { Title } from "./Title";
 
 type Props = {

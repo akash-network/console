@@ -6,8 +6,7 @@ import Link from "next/link";
 import { statuses } from "./data";
 
 import { LeaseSpecDetail } from "@/components/LeaseSpecDetail";
-import { DataTableColumnHeader } from "@/components/table/data-table-column-header";
-import { Badge } from "@akashnetwork/ui/components"
+import { Badge, DataTableColumnHeader } from "@akashnetwork/ui/components";
 import { roundDecimal } from "@/lib/mathHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
 import { UrlService } from "@/lib/urlUtils";

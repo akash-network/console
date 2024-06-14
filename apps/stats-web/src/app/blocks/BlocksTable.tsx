@@ -3,8 +3,7 @@ import { Metadata } from "next";
 
 import { BlockRow } from "../../components/blockchain/BlockRow";
 
-import Spinner from "@/components/Spinner";
-import { Card, CardContent, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { Card, CardContent, Table, TableBody, TableHead, TableHeader, TableRow, Spinner } from "@akashnetwork/ui/components";
 import { useBlocks } from "@/queries";
 
 export const metadata: Metadata = {

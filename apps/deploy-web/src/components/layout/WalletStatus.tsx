@@ -10,7 +10,6 @@ import { udenomToDenom } from "@src/utils/mathHelpers";
 import { UrlService } from "@src/utils/urlUtils";
 import { Address } from "../shared/Address";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
-import Spinner from "../shared/Spinner";
 import {
   Button,
   Badge,
@@ -20,7 +19,8 @@ import {
   DropdownMenuTrigger,
   Tooltip,
   TooltipContent,
-  TooltipTrigger
+  TooltipTrigger,
+  Spinner
 } from "@akashnetwork/ui/components";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 

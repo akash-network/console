@@ -5,8 +5,7 @@ import { BinMinusIn, Check, MoreHoriz, PlusCircle, Refresh, WarningTriangle } fr
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
-import Spinner from "@src/components/shared/Spinner";
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, CustomTooltip } from "@akashnetwork/ui/components";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCertificate } from "../../context/CertificateProvider";
 import { ExportCertificate } from "./ExportCertificate";

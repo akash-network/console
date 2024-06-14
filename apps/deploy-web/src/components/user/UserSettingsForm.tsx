@@ -8,8 +8,7 @@ import { event } from "nextjs-google-analytics";
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { LabelValue } from "@src/components/shared/LabelValue";
-import Spinner from "@src/components/shared/Spinner";
-import { Button, Alert, Input, InputWithIcon, Textarea, Switch } from "@akashnetwork/ui/components";
+import { Button, Alert, Input, InputWithIcon, Textarea, Switch, Spinner } from "@akashnetwork/ui/components";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useSaveSettings } from "@src/queries/useSettings";

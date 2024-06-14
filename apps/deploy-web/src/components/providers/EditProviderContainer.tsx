@@ -4,8 +4,7 @@ import { NavArrowLeft } from "iconoir-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
-import Spinner from "@src/components/shared/Spinner";
-import { buttonVariants } from "@akashnetwork/ui/components";
+import { buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import { useProviderAttributesSchema, useProviderDetail } from "@src/queries/useProvidersQuery";
 import { getProviderNameFromUri } from "@src/utils/providerUtils";
 import { cn } from "@src/utils/styleUtils";

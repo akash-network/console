@@ -5,8 +5,7 @@ import { SearchX } from "lucide-react";
 
 import { columns } from "./columns";
 
-import { DataTable } from "@/components/table/data-table";
-import { Card, CardContent } from "@akashnetwork/ui/components";
+import { Card, CardContent, DataTable } from "@akashnetwork/ui/components";
 import { useAddressDeployments } from "@/queries";
 
 interface IProps {

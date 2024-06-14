@@ -20,8 +20,7 @@ import {
 } from "@tanstack/react-table";
 import { SearchX } from "lucide-react";
 
-import Spinner from "../shared/Spinner";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Spinner } from "../index";
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
 
@@ -38,6 +37,7 @@ interface DataTableProps<TData, TValue> {
   hasRowSelection?: boolean;
   initialPageSize?: number;
   hasStatusFilter?: boolean;
+  statusData?: { value: string; label: string }[];
   onColumnFiltersChange?: (columnFilters: ColumnFiltersState) => void;
   onColumnSortingChange?: (sorting: SortingState) => void;
   setPageSize?: (pageSize: number) => void;
@@ -54,6 +54,8 @@ export function DataTable<TData, TValue>({
   isLoading,
   noResultsText,
   hasRowSelection,
+  hasStatusFilter,
+  statusData,
   initialPageSize = 10,
   onColumnFiltersChange,
   onColumnSortingChange,
@@ -117,6 +119,7 @@ export function DataTable<TData, TValue>({
 
       table.resetPageIndex();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sorting]);
 
   useEffect(() => {
@@ -125,11 +128,12 @@ export function DataTable<TData, TValue>({
 
       table.resetPageIndex();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columnFilters]);
 
   return (
     <div className="space-y-4">
-      <DataTableToolbar table={table} />
+      <DataTableToolbar table={table} hasStatusFilter={hasStatusFilter} statusData={statusData} />
       <div className="rounded-md border">
         <Table>
           <TableHeader>

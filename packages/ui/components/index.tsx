@@ -32,3 +32,5 @@ export * from "./toggle";
 export * from "./toggle-group";
 export * from "./tooltip";
 export * from "./toast";
+export * from "./data-table";
+export * from "./spinner";

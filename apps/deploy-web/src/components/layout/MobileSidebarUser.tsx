@@ -6,8 +6,7 @@ import Link from "next/link";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
-import Spinner from "../shared/Spinner";
-import { buttonVariants, Avatar, Separator } from "@akashnetwork/ui/components";
+import { buttonVariants, Avatar, Separator, Spinner } from "@akashnetwork/ui/components";
 import { SidebarRouteButton } from "./SidebarRouteButton";
 import { WalletStatus } from "./WalletStatus";
 

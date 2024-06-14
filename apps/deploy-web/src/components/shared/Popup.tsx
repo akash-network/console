@@ -20,10 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
   ScrollArea,
-  ScrollBar
+  ScrollBar,
+  Spinner
 } from "@akashnetwork/ui/components";
 import { ErrorFallback } from "./ErrorFallback";
-import Spinner from "./Spinner";
 
 type MessageProps = {
   variant: "message";

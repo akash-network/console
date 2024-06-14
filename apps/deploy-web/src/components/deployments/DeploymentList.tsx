@@ -6,7 +6,6 @@ import Link from "next/link";
 import { NextSeo } from "next-seo";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
-import Spinner from "@src/components/shared/Spinner";
 import {
   Button,
   buttonVariants,
@@ -17,7 +16,8 @@ import {
   TableBody,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
+  Spinner
 } from "@akashnetwork/ui/components";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";

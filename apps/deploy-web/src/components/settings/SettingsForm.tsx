@@ -10,8 +10,7 @@ import TextField from "@mui/material/TextField";
 import { NavArrowDown, Refresh } from "iconoir-react";
 
 import { NodeStatus } from "@src/components/shared/NodeStatus";
-import Spinner from "@src/components/shared/Spinner";
-import { Button, Label, SwitchWithLabel } from "@akashnetwork/ui/components";
+import { Button, Label, SwitchWithLabel, Spinner } from "@akashnetwork/ui/components";
 import { BlockchainNode, useSettings } from "@src/context/SettingsProvider/SettingsProviderContext";
 import { isUrl } from "@src/utils/stringUtils";
 import { cn } from "@src/utils/styleUtils";

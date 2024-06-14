@@ -1,7 +1,7 @@
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
 
-import Spinner from "@src/components/shared/Spinner";
+import { Spinner } from "@akashnetwork/ui/components";
 import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useCustomUser } from "@src/hooks/useCustomUser";
