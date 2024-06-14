@@ -1,7 +1,7 @@
 "use client";
 import { ReactNode } from "react";
 
-import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@akashnetwork/ui/components";
 
 import { selectedRangeValues } from "@/lib/constants";
 import { cn } from "@/lib/utils";
