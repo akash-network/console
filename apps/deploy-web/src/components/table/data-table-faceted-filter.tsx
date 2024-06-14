@@ -3,8 +3,20 @@ import { CheckIcon, PlusCircledIcon } from "@radix-ui/react-icons";
 import { Column } from "@tanstack/react-table";
 
 import { cn } from "@src/utils/styleUtils";
-import { Button, Badge, Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@akashnetwork/ui/components";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import {
+  Button,
+  Badge,
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from "@akashnetwork/ui/components";
 import { Separator } from "../ui/separator";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
