@@ -19,9 +19,9 @@ import {
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  Slider
 } from "@akashnetwork/ui/components";
-import { Slider } from "../ui/slider";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

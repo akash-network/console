@@ -8,8 +8,18 @@ import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { storageUnits, validationConfig } from "../shared/akash/units";
 import { CustomTooltip } from "../shared/CustomTooltip";
-import { FormDescription, FormItem, Input, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
-import { Slider } from "../ui/slider";
+import {
+  FormDescription,
+  FormItem,
+  Input,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Slider
+} from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
