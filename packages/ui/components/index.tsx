@@ -20,3 +20,4 @@ export * from "./pagninator";
 export * from "./custom-pagination";
 export * from "./select";
 export * from "./popover";
+export * from "./progress";
