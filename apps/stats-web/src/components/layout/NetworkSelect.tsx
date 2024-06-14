@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 
 import Spinner from "../Spinner";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
 
 import { mainnetId, setNetworkVersion } from "@/lib/constants";
 import { cn } from "@/lib/utils";

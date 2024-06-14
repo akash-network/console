@@ -3,7 +3,6 @@ import { useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { DialogProps } from "@radix-ui/react-dialog";
 
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
 import { cn } from "@src/utils/styleUtils";
 import {
   Button,
@@ -13,7 +12,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle as _DialogTitle,
-  InputWithIcon
+  InputWithIcon,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@akashnetwork/ui/components";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 import { ErrorFallback } from "./ErrorFallback";

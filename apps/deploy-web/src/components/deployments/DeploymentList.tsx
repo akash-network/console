@@ -5,10 +5,9 @@ import { useAtom } from "jotai";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
-import { CustomPagination } from "@src/components/shared/CustomPagination";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import Spinner from "@src/components/shared/Spinner";
-import { Button, buttonVariants, CheckboxWithLabel, InputWithIcon } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, CheckboxWithLabel, InputWithIcon, CustomPagination } from "@akashnetwork/ui/components";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@src/components/ui/table";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";

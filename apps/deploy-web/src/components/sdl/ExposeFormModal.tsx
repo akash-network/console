@@ -10,8 +10,19 @@ import { protoTypes } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
 import { CustomTooltip } from "../shared/CustomTooltip";
 import { Popup } from "../shared/Popup";
-import { Button, Checkbox, FormItem, Label, InputWithIcon } from "@akashnetwork/ui/components";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import {
+  Button,
+  Checkbox,
+  FormItem,
+  Label,
+  InputWithIcon,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@akashnetwork/ui/components";
 import { AcceptFormControl, AcceptRefType } from "./AcceptFormControl";
 import { FormPaper } from "./FormPaper";
 import { HttpOptionsFormControl } from "./HttpOptionsFormControl";
