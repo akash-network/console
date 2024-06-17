@@ -84,7 +84,7 @@
   }
 
   header {
-    padding-right: calc(0 - var(--removed-body-scroll-bar-size)) !important;
+    width: calc(100% - var(--removed-body-scroll-bar-size, 0px)) !important;
   }
 
   a {

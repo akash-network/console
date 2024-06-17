@@ -1,5 +1,3 @@
-
-
 html {
   scroll-padding-top: 57px;
   -webkit-font-smoothing: auto;
@@ -9,7 +7,6 @@ html {
 
 body {
   height: calc(100% - 57px) !important;
-  width: 100%;
   padding: 0 !important;
 }
 
