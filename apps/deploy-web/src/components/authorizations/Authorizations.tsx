@@ -22,6 +22,7 @@ import { AllowanceModal } from "./AllowanceModal";
 import { GranteeRow } from "./GranteeRow";
 import { GranterRow } from "./GranterRow";
 import { GrantModal } from "./GrantModal";
+import { ConnectWallet } from "../shared/ConnectWallet";
 
 type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "allowancesGranted" | null;
 const defaultRefetchInterval = 30 * 1000;
@@ -126,177 +127,201 @@ export const Authorizations: React.FunctionComponent = () => {
         title="Deployment Authorizations"
         page={SettingsTabs.AUTHORIZATIONS}
         headerActions={
-          <div className="md:ml-4">
-            <Button onClick={onCreateNewGrant} color="secondary" variant="default" type="button" size="sm">
-              <Bank />
-              &nbsp;Authorize Spend
-            </Button>
-          </div>
+          address && (
+            <div className="md:ml-4">
+              <Button onClick={onCreateNewGrant} color="secondary" variant="default" type="button" size="sm">
+                <Bank />
+                &nbsp;Authorize Spend
+              </Button>
+            </div>
+          )
         }
       >
-        <h3 className="mb-4 text-muted-foreground">
-          These authorizations allow you authorize other addresses to spend on deployments or deployment deposits using your funds. You can revoke these
-          authorizations at any time.
-        </h3>
-        <Fieldset label="Authorizations Given" className="mb-4">
-          {isLoadingGranterGrants || !granterGrants ? (
-            <div className="flex items-center justify-center">
-              <Spinner size="large" />
-            </div>
-          ) : (
-            <>
-              {granterGrants.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Grantee</TableHead>
-                      <TableHead className="text-right">Spending Limit</TableHead>
-                      <TableHead className="text-right">Expiration</TableHead>
-                      <TableHead className="text-right"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-
-                  <TableBody>
-                    {granterGrants.map(grant => (
-                      <GranterRow key={grant.grantee} grant={grant} onEditGrant={onEditGrant} setDeletingGrant={setDeletingGrant} />
-                    ))}
-                  </TableBody>
-                </Table>
+        {!address ? (
+          <>
+            <Fieldset label="" className="mb-4">
+              <ConnectWallet text="Connect your wallet to create a deployment authorization." />
+            </Fieldset>
+          </>
+        ) : (
+          <>
+            <h3 className="mb-4 text-muted-foreground">
+              These authorizations allow you authorize other addresses to spend on deployments or deployment deposits using your funds. You can revoke these
+              authorizations at any time.
+            </h3>
+            <Fieldset label="Authorizations Given" className="mb-4">
+              {isLoadingGranterGrants || !granterGrants ? (
+                <div className="flex items-center justify-center">
+                  <Spinner size="large" />
+                </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No authorizations given.</p>
+                <>
+                  {granterGrants.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Grantee</TableHead>
+                          <TableHead className="text-right">Spending Limit</TableHead>
+                          <TableHead className="text-right">Expiration</TableHead>
+                          <TableHead className="text-right"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+
+                      <TableBody>
+                        {granterGrants.map(grant => (
+                          <GranterRow key={grant.grantee} grant={grant} onEditGrant={onEditGrant} setDeletingGrant={setDeletingGrant} />
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No authorizations given.</p>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </Fieldset>
+            </Fieldset>
 
-        <Fieldset label="Authorizations Received" className="mb-4">
-          {isLoadingGranteeGrants || !granteeGrants ? (
-            <div className="flex items-center justify-center">
-              <Spinner size="large" />
-            </div>
-          ) : (
-            <>
-              {granteeGrants.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Granter</TableHead>
-                      <TableHead className="text-right">Spending Limit</TableHead>
-                      <TableHead className="text-right">Expiration</TableHead>
-                    </TableRow>
-                  </TableHeader>
-
-                  <TableBody>
-                    {granteeGrants.map(grant => (
-                      <GranteeRow key={grant.granter} grant={grant} />
-                    ))}
-                  </TableBody>
-                </Table>
+            <Fieldset label="Authorizations Received" className="mb-4">
+              {isLoadingGranteeGrants || !granteeGrants ? (
+                <div className="flex items-center justify-center">
+                  <Spinner size="large" />
+                </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No authorizations received.</p>
+                <>
+                  {granteeGrants.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Granter</TableHead>
+                          <TableHead className="text-right">Spending Limit</TableHead>
+                          <TableHead className="text-right">Expiration</TableHead>
+                        </TableRow>
+                      </TableHeader>
+
+                      <TableBody>
+                        {granteeGrants.map(grant => (
+                          <GranteeRow key={grant.granter} grant={grant} />
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No authorizations received.</p>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </Fieldset>
+            </Fieldset>
+          </>
+        )}
 
         <div className="flex flex-wrap items-center py-4">
           <Title>Tx Fee Authorizations</Title>
-          <Button onClick={onCreateNewAllowance} color="secondary" variant="default" className="md:ml-4" type="button" size="sm">
-            <Bank />
-            &nbsp;Authorize Fee Spend
-          </Button>
+          {address && (
+            <Button onClick={onCreateNewAllowance} color="secondary" variant="default" className="md:ml-4" type="button" size="sm">
+              <Bank />
+              &nbsp;Authorize Fee Spend
+            </Button>
+          )}
         </div>
 
-        <h3 className="mb-4 text-muted-foreground">
-          These authorizations allow you authorize other addresses to spend on transaction fees using your funds. You can revoke these authorizations at any
-          time.
-        </h3>
+        {!address ? (
+          <>
+            <Fieldset label="" className="mb-4">
+              <ConnectWallet text="Connect your wallet to create a tx fee authorization." />
+            </Fieldset>
+          </>
+        ) : (
+          <>
+            <h3 className="mb-4 text-muted-foreground">
+              These authorizations allow you authorize other addresses to spend on transaction fees using your funds. You can revoke these authorizations at any
+              time.
+            </h3>
 
-        <Fieldset label="Authorizations Given" className="mb-4">
-          {isLoadingAllowancesIssued || !allowancesIssued ? (
-            <div className="flex items-center justify-center">
-              <Spinner size="large" />
-            </div>
-          ) : (
-            <>
-              {allowancesIssued.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Grantee</TableHead>
-                      <TableHead className="text-right">Spending Limit</TableHead>
-                      <TableHead className="text-right">Expiration</TableHead>
-                      <TableHead className="text-right"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-
-                  <TableBody>
-                    {allowancesIssued.map(allowance => (
-                      <AllowanceIssuedRow
-                        key={allowance.grantee}
-                        allowance={allowance}
-                        onEditAllowance={onEditAllowance}
-                        setDeletingAllowance={setDeletingAllowance}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
+            <Fieldset label="Authorizations Given" className="mb-4">
+              {isLoadingAllowancesIssued || !allowancesIssued ? (
+                <div className="flex items-center justify-center">
+                  <Spinner size="large" />
+                </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No allowances issued.</p>
+                <>
+                  {allowancesIssued.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Grantee</TableHead>
+                          <TableHead className="text-right">Spending Limit</TableHead>
+                          <TableHead className="text-right">Expiration</TableHead>
+                          <TableHead className="text-right"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+
+                      <TableBody>
+                        {allowancesIssued.map(allowance => (
+                          <AllowanceIssuedRow
+                            key={allowance.grantee}
+                            allowance={allowance}
+                            onEditAllowance={onEditAllowance}
+                            setDeletingAllowance={setDeletingAllowance}
+                          />
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No allowances issued.</p>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </Fieldset>
+            </Fieldset>
 
-        <Fieldset label="Authorizations Received" className="mb-4">
-          {isLoadingAllowancesGranted || !allowancesGranted ? (
-            <div className="flex items-center justify-center">
-              <Spinner size="large" />
-            </div>
-          ) : (
-            <>
-              {allowancesGranted.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Default</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Grantee</TableHead>
-                      <TableHead>Spending Limit</TableHead>
-                      <TableHead className="text-right">Expiration</TableHead>
-                    </TableRow>
-                  </TableHeader>
-
-                  <TableBody>
-                    {!!allowancesGranted && (
-                      <AllowanceGrantedRow
-                        key={address}
-                        allowance={{
-                          granter: "",
-                          grantee: "",
-                          allowance: { "@type": "$CONNECTED_WALLET", expiration: "", spend_limit: [] }
-                        }}
-                        onSelect={() => setDefault(undefined)}
-                        selected={!defaultAllowance}
-                      />
-                    )}
-                    {allowancesGranted.map(allowance => (
-                      <AllowanceGrantedRow
-                        key={allowance.granter}
-                        allowance={allowance}
-                        onSelect={() => setDefault(allowance.granter)}
-                        selected={defaultAllowance === allowance.granter}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
+            <Fieldset label="Authorizations Received" className="mb-4">
+              {isLoadingAllowancesGranted || !allowancesGranted ? (
+                <div className="flex items-center justify-center">
+                  <Spinner size="large" />
+                </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No allowances received.</p>
+                <>
+                  {allowancesGranted.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Default</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Grantee</TableHead>
+                          <TableHead>Spending Limit</TableHead>
+                          <TableHead className="text-right">Expiration</TableHead>
+                        </TableRow>
+                      </TableHeader>
+
+                      <TableBody>
+                        {!!allowancesGranted && (
+                          <AllowanceGrantedRow
+                            key={address}
+                            allowance={{
+                              granter: "",
+                              grantee: "",
+                              allowance: { "@type": "$CONNECTED_WALLET", expiration: "", spend_limit: [] }
+                            }}
+                            onSelect={() => setDefault(undefined)}
+                            selected={!defaultAllowance}
+                          />
+                        )}
+                        {allowancesGranted.map(allowance => (
+                          <AllowanceGrantedRow
+                            key={allowance.granter}
+                            allowance={allowance}
+                            onSelect={() => setDefault(allowance.granter)}
+                            selected={defaultAllowance === allowance.granter}
+                          />
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No allowances received.</p>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </Fieldset>
+            </Fieldset>
+          </>
+        )}
 
         {!!deletingGrant && (
           <Popup
