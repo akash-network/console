@@ -2,7 +2,7 @@
 import { ReactNode } from "react";
 
 import { Popup } from "../shared/Popup";
-import Spinner from "../shared/Spinner";
+import { Spinner } from "@akashnetwork/ui/components";
 
 type Props = {
   state: "waitingForApproval" | "broadcasting";

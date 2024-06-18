@@ -2,10 +2,7 @@
 import { useState } from "react";
 
 import { Popup } from "@src/components/shared/Popup";
-import { Alert, AlertDescription, AlertTitle } from "@src/components/ui/alert";
-import { Badge } from "@src/components/ui/badge";
-import { buttonVariants } from "@akashnetwork/ui/components";
-import { RadioGroup, RadioGroupItem } from "@src/components/ui/radio-group";
+import { buttonVariants, Alert, AlertDescription, AlertTitle, Badge, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
 import { useSettings } from "@src/context/SettingsProvider";
 import { networks } from "@src/store/networkStore";
 import { mainnetId } from "@src/utils/constants";

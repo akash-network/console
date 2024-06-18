@@ -2,11 +2,9 @@
 import React, { ReactNode, useState } from "react";
 import { Copy } from "iconoir-react";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { useToast } from "./ui/use-toast";
-
 import { copyTextToClipboard } from "@/lib/copyClipboard";
 import { cn } from "@/lib/utils";
+import { CustomTooltip, useToast } from "@akashnetwork/ui/components";
 
 type Props = {
   address: string;
@@ -47,12 +45,5 @@ export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, d
     </span>
   );
 
-  return disableTruncate ? (
-    content
-  ) : (
-    <Tooltip>
-      <TooltipTrigger asChild>{content}</TooltipTrigger>
-      <TooltipContent>{address}</TooltipContent>
-    </Tooltip>
-  );
+  return disableTruncate ? content : <CustomTooltip title={address}>{content}</CustomTooltip>;
 };

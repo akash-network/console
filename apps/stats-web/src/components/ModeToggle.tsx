@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { HalfMoon, SunLight } from "iconoir-react";
 import { useTheme } from "next-themes";
 
-import { Button } from "@akashnetwork/ui/components";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@/lib/utils";
 
 export function ModeToggle() {

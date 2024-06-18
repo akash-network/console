@@ -5,7 +5,7 @@ import { getShortText } from "@src/hooks/useShortText";
 import { ITemplate } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
-import { cardClasses, CardContent, CardHeader } from "../ui/card";
+import { cardClasses, CardContent, CardHeader } from "@akashnetwork/ui/components";
 
 type Props = {
   template: Partial<ITemplate>;

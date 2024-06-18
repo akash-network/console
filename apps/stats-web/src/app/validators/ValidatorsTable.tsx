@@ -3,7 +3,7 @@ import React from "react";
 
 import { columns } from "./columns";
 
-import { DataTable } from "@/components/table/data-table";
+import { DataTable } from "@akashnetwork/ui/components";
 import { useValidators } from "@/queries";
 
 export function ValidatorsTable() {

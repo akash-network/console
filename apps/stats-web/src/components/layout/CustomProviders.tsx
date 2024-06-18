@@ -5,7 +5,7 @@ import { Provider } from "jotai";
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
 import { ThemeProvider } from "next-themes";
 
-import { TooltipProvider } from "../ui/tooltip";
+import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomIntlProvider } from "./CustomIntlProvider";
 
 import { PricingProvider } from "@/context/PricingProvider";

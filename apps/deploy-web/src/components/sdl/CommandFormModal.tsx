@@ -4,8 +4,7 @@ import { Control, Controller } from "react-hook-form";
 
 import { SdlBuilderFormValues } from "@src/types";
 import { Popup } from "../shared/Popup";
-import { FormInput, Textarea } from "../ui/input";
-import { Label } from "../ui/label";
+import { Label, FormInput, Textarea } from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

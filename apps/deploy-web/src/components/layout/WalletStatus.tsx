@@ -10,11 +10,18 @@ import { udenomToDenom } from "@src/utils/mathHelpers";
 import { UrlService } from "@src/utils/urlUtils";
 import { Address } from "../shared/Address";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
-import Spinner from "../shared/Spinner";
-import { Badge } from "../ui/badge";
-import { Button } from "@akashnetwork/ui/components";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import {
+  Button,
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  Spinner
+} from "@akashnetwork/ui/components";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 
 export function WalletStatus() {

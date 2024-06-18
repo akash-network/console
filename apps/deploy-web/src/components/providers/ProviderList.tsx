@@ -4,13 +4,20 @@ import { OpenNewWindow, Refresh, Xmark } from "iconoir-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { CustomPagination } from "@src/components/shared/CustomPagination";
-import Spinner from "@src/components/shared/Spinner";
-import { Button } from "@akashnetwork/ui/components";
-import { CheckboxWithLabel } from "@src/components/ui/checkbox";
-import { InputWithIcon } from "@src/components/ui/input";
-import { Label } from "@src/components/ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
+import {
+  Button,
+  CheckboxWithLabel,
+  Label,
+  InputWithIcon,
+  CustomPagination,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Spinner
+} from "@akashnetwork/ui/components";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";

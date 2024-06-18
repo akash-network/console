@@ -4,7 +4,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import { useRouter } from "next/navigation";
 
 import { ErrorFallback } from "@src/components/shared/ErrorFallback";
-import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { Title } from "../shared/Title";

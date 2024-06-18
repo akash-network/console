@@ -6,7 +6,7 @@ import { useDenomData } from "@src/hooks/useWalletBalance";
 import { averageDaysInMonth } from "@src/utils/dateUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { averageBlockTime, getAvgCostPerMonth } from "@src/utils/priceUtils";
-import { CustomTooltip } from "./CustomTooltip";
+import { CustomTooltip } from "@akashnetwork/ui/components";
 import { PriceValue } from "./PriceValue";
 
 type Props = {

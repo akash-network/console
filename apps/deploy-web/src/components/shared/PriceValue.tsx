@@ -4,7 +4,7 @@ import { FormattedNumber } from "react-intl";
 
 import { usePricing } from "@src/context/PricingProvider";
 import { ceilDecimal } from "@src/utils/mathHelpers";
-import Spinner from "./Spinner";
+import { Spinner } from "@akashnetwork/ui/components";
 
 type Props = {
   denom: string;

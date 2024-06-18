@@ -9,8 +9,7 @@ import { DynamicMonacoEditor } from "@src/components/shared/DynamicMonacoEditor"
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
 import Markdown from "@src/components/shared/Markdown";
 import ViewPanel from "@src/components/shared/ViewPanel";
-import { Button, buttonVariants } from "@akashnetwork/ui/components";
-import { Tabs, TabsList, TabsTrigger } from "@src/components/ui/tabs";
+import { Button, buttonVariants, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { getShortText } from "@src/hooks/useShortText";

@@ -3,14 +3,27 @@ import { useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { DialogProps } from "@radix-ui/react-dialog";
 
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
 import { cn } from "@src/utils/styleUtils";
-import { Button, ButtonProps } from "@akashnetwork/ui/components";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle as _DialogTitle } from "../ui/dialog";
-import { InputWithIcon } from "../ui/input";
-import { ScrollArea, ScrollBar } from "../ui/scroll-area";
+import {
+  Button,
+  ButtonProps,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle as _DialogTitle,
+  InputWithIcon,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  ScrollArea,
+  ScrollBar,
+  Spinner
+} from "@akashnetwork/ui/components";
 import { ErrorFallback } from "./ErrorFallback";
-import Spinner from "./Spinner";
 
 type MessageProps = {
   variant: "message";

@@ -7,9 +7,7 @@ import { useSnackbar } from "notistack";
 
 import { MustConnect } from "@src/components/shared/MustConnect";
 import { Popup } from "@src/components/shared/Popup";
-import { Alert } from "@src/components/ui/alert";
-import { Label } from "@src/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@src/components/ui/radio-group";
+import { Alert, Label, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";

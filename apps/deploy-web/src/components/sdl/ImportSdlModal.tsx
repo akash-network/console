@@ -8,7 +8,7 @@ import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
 import { Popup } from "@src/components/shared/Popup";
-import { Alert } from "@src/components/ui/alert";
+import { Alert } from "@akashnetwork/ui/components";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";

@@ -7,8 +7,18 @@ import { NoWalletSection } from "@src/components/get-started/NoWalletSection";
 import { WithKeplrSection } from "@src/components/get-started/WithKeplrSection";
 import Layout from "@src/components/layout/Layout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@src/components/ui/breadcrumb";
-import { Card, CardContent, CardHeader, CardTitle } from "@src/components/ui/card";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
+} from "@akashnetwork/ui/components";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 
 enum GetWalletSection {

@@ -15,9 +15,8 @@ import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
-import { CustomTooltip } from "../shared/CustomTooltip";
 import { ExternalLink } from "../shared/ExternalLink";
-import { Button, buttonVariants } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
 

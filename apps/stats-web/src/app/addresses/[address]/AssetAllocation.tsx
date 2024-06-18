@@ -4,8 +4,7 @@ import React, { useState } from "react";
 import { Delegations } from "./Delegations";
 import { Redelegations } from "./Redelegations";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { AddressDetail } from "@/types";
 
 interface IProps {

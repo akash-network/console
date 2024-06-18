@@ -4,7 +4,7 @@ import { FormattedTime } from "react-intl";
 
 import { Address } from "@src/components/shared/Address";
 import { AKTAmount } from "@src/components/shared/AKTAmount";
-import { TableCell, TableRow } from "@src/components/ui/table";
+import { TableCell, TableRow } from "@akashnetwork/ui/components";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { GrantType } from "@src/types/grant";
 import { coinToUDenom } from "@src/utils/priceUtils";

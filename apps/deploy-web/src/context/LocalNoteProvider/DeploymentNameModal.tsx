@@ -5,7 +5,7 @@ import { useSnackbar } from "notistack";
 
 import { Popup } from "@src/components/shared/Popup";
 import { Snackbar } from "@src/components/shared/Snackbar";
-import { InputWithIcon } from "@src/components/ui/input";
+import { InputWithIcon } from "@akashnetwork/ui/components";
 import { updateDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 
 export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName }) => {

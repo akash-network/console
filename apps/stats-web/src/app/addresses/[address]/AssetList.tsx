@@ -4,10 +4,20 @@ import { MdMoneyOff } from "react-icons/md";
 import { HelpCircle } from "iconoir-react";
 
 import { FormattedDecimal } from "@/components/FormattedDecimal";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Card,
+  CardContent,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  CustomTooltip
+} from "@akashnetwork/ui/components";
 import { getSplitText } from "@/hooks/useShortText";
 import { AddressDetail } from "@/types";
 
@@ -41,25 +51,19 @@ export function AssetList({ addressDetail }: IProps) {
                       </Avatar>
                     </div>
                     <div>
-                      <div style={{ display: "flex", alignItems: "center" }}>
+                      <div className="flex items-center">
                         {asset.symbol || "Unknown"}
                         {asset.description && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <HelpCircle style={{ marginLeft: "4px", fontSize: "15px" }} />
-                            </TooltipTrigger>
-                            <TooltipContent>{asset.description}</TooltipContent>
-                          </Tooltip>
+                          <CustomTooltip title={asset.description}>
+                            <HelpCircle className="ml-2" />
+                          </CustomTooltip>
                         )}
                       </div>
                       {asset.ibcToken && (
                         <div>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <small>{getSplitText(asset.ibcToken, 10, 10)}</small>
-                            </TooltipTrigger>
-                            <TooltipContent>{asset.ibcToken}</TooltipContent>
-                          </Tooltip>
+                          <CustomTooltip title={asset.ibcToken}>
+                            <small>{getSplitText(asset.ibcToken, 10, 10)}</small>
+                          </CustomTooltip>
                         </div>
                       )}
                     </div>

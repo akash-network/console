@@ -4,8 +4,7 @@ import { FormattedTime } from "react-intl";
 
 import { Address } from "@src/components/shared/Address";
 import { AKTAmount } from "@src/components/shared/AKTAmount";
-import { Checkbox } from "@src/components/ui/checkbox";
-import { TableCell, TableRow } from "@src/components/ui/table";
+import { Checkbox, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { AllowanceType } from "@src/types/grant";
 import { getAllowanceTitleByType } from "@src/utils/grants";
 import { coinToUDenom } from "@src/utils/priceUtils";

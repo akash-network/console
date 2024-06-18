@@ -10,7 +10,7 @@ import { accountBarHeight } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { ErrorFallback } from "../shared/ErrorFallback";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
-import Spinner from "../shared/Spinner";
+import { Spinner } from "@akashnetwork/ui/components";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
 import { WelcomeModal } from "./WelcomeModal";
