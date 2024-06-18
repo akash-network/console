@@ -3,10 +3,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { OpenInWindow, OpenNewWindow } from "iconoir-react";
 import Link from "next/link";
 
-import Spinner from "@src/components/shared/Spinner";
 import ViewPanel from "@src/components/shared/ViewPanel";
-import { Alert } from "@src/components/ui/alert";
-import { Button } from "@akashnetwork/ui/components";
+import { Button, Alert, Spinner } from "@akashnetwork/ui/components";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useCustomWebSocket } from "@src/hooks/useCustomWebSocket";
 import { XTerm } from "@src/lib/XTerm";

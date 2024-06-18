@@ -4,7 +4,7 @@ import { useTheme } from "next-themes";
 import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
 import { Popup } from "../shared/Popup";
 import { Title } from "../shared/Title";
-import { Card, CardContent } from "../ui/card";
+import { Card, CardContent } from "@akashnetwork/ui/components";
 
 export const WelcomeModal = ({ open, onClose }) => {
   const { resolvedTheme } = useTheme();

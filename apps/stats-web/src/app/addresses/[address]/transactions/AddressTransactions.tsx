@@ -4,8 +4,7 @@ import { SearchX } from "lucide-react";
 
 import { columns } from "./columns";
 
-import { DataTable } from "@/components/table/data-table";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, DataTable } from "@akashnetwork/ui/components";
 import { useAddressTransactions } from "@/queries";
 
 interface IProps {

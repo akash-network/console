@@ -13,8 +13,7 @@ import Link from "next/link";
 import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
 import { ApiTemplate, RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { buttonVariants } from "@akashnetwork/ui/components";
+import { buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
 
 type Props = {
   children?: ReactNode;

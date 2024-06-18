@@ -21,15 +21,20 @@ import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { useLocalNotes } from "../../context/LocalNoteProvider";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
-import { CustomTooltip } from "../shared/CustomTooltip";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
-import Spinner from "../shared/Spinner";
-import { Button } from "@akashnetwork/ui/components";
-import { Checkbox } from "../ui/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
-import { TableCell, TableRow } from "../ui/table";
+import {
+  Button,
+  Checkbox,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  TableCell,
+  TableRow,
+  CustomTooltip,
+  Spinner
+} from "@akashnetwork/ui/components";
 import { DeploymentDepositModal } from "./DeploymentDepositModal";
 import { LeaseChip } from "./LeaseChip";
 

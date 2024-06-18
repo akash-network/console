@@ -2,7 +2,7 @@
 import React from "react";
 
 import { ExternalLink } from "../shared/ExternalLink";
-import { Alert } from "../ui/alert";
+import { Alert } from "@akashnetwork/ui/components";
 
 export const CreateWalletSection: React.FunctionComponent = () => {
   return (

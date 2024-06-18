@@ -4,7 +4,7 @@ import { InfoCircle } from "iconoir-react";
 
 import { Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
-import { CustomTooltip } from "../shared/CustomTooltip";
+import { CustomTooltip } from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

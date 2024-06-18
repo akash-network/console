@@ -3,7 +3,7 @@ import React from "react";
 import Link from "next/link";
 
 import { UrlService } from "@src/utils/urlUtils";
-import { Alert } from "../ui/alert";
+import { Alert } from "@akashnetwork/ui/components";
 
 export type Props = {
   message: string;

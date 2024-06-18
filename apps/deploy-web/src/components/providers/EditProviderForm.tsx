@@ -5,15 +5,23 @@ import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
-import { CustomTooltip } from "@src/components/shared/CustomTooltip";
-import { Alert } from "@src/components/ui/alert";
-import { Button } from "@akashnetwork/ui/components";
-import { CheckboxWithLabel } from "@src/components/ui/checkbox";
-import { FormItem } from "@src/components/ui/form";
-import { InputWithIcon } from "@src/components/ui/input";
-import { Label } from "@src/components/ui/label";
-import MultipleSelector, { Option } from "@src/components/ui/multiple-selector";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@src/components/ui/select";
+import {
+  Button,
+  Alert,
+  CheckboxWithLabel,
+  MultipleSelector,
+  MultiSelectorOption,
+  FormItem,
+  Label,
+  InputWithIcon,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  CustomTooltip
+} from "@akashnetwork/ui/components";
 import { useWallet } from "@src/context/WalletProvider";
 import { ApiProviderDetail } from "@src/types/provider";
 import { ProviderAttributeSchemaDetailValue, ProviderAttributesFormValues, ProviderAttributesSchema } from "@src/types/providerAttributes";
@@ -789,7 +797,7 @@ export const ProviderMultiSelect: React.FunctionComponent<ProviderMultiSelectPro
             emptyIndicator={<p className="text-center text-lg leading-10 text-gray-600 dark:text-gray-400">no results found.</p>}
             disabled={disabled}
             className="mt-2"
-            onChange={(newValue: Option[]) => {
+            onChange={(newValue: MultiSelectorOption[]) => {
               field.onChange(newValue.map(v => ({ key: v.value, description: v.label })));
             }}
           />

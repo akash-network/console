@@ -12,12 +12,8 @@ import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLin
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
 import { MemoMonaco } from "@src/components/shared/MemoMonaco";
 import { SelectCheckbox } from "@src/components/shared/SelectCheckbox";
-import Spinner from "@src/components/shared/Spinner";
 import ViewPanel from "@src/components/shared/ViewPanel";
-import { Alert } from "@src/components/ui/alert";
-import { Button } from "@akashnetwork/ui/components";
-import { Checkbox, CheckboxWithLabel } from "@src/components/ui/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@src/components/ui/dropdown-menu";
+import { Button, Alert, Checkbox, CheckboxWithLabel, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useThrottledCallback } from "@src/hooks/useThrottle";

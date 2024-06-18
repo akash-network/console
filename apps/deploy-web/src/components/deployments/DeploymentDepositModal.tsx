@@ -17,12 +17,19 @@ import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { LinkTo } from "../shared/LinkTo";
 import { Popup } from "../shared/Popup";
 import { Snackbar } from "../shared/Snackbar";
-import { Alert } from "../ui/alert";
-import { CheckboxWithLabel } from "../ui/checkbox";
-import { FormItem } from "../ui/form";
-import { InputWithIcon } from "../ui/input";
-import { Label } from "../ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import {
+  Alert,
+  CheckboxWithLabel,
+  FormItem,
+  Label,
+  InputWithIcon,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@akashnetwork/ui/components";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
 
 type Props = {

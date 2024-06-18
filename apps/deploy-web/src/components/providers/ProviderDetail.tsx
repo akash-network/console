@@ -7,11 +7,8 @@ import { differenceInMinutes, sub } from "date-fns";
 import { Check } from "iconoir-react";
 import dynamic from "next/dynamic";
 
-import { CustomNoDivTooltip } from "@src/components/shared/CustomTooltip";
 import { LabelValue } from "@src/components/shared/LabelValue";
-import Spinner from "@src/components/shared/Spinner";
-import { Alert } from "@src/components/ui/alert";
-import { Card, CardContent } from "@src/components/ui/card";
+import { Alert, Card, CardContent, CustomNoDivTooltip, Spinner } from "@akashnetwork/ui/components";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderAttributesSchema, useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";

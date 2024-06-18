@@ -7,11 +7,19 @@ import { InfoCircle } from "iconoir-react";
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { memoryUnits, validationConfig } from "../shared/akash/units";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { FormDescription, FormItem } from "../ui/form";
-import { Input } from "../ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Slider } from "../ui/slider";
+import {
+  FormDescription,
+  FormItem,
+  Input,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Slider,
+  CustomTooltip
+} from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

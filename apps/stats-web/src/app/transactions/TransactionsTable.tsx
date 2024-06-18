@@ -2,9 +2,7 @@
 import { Metadata } from "next";
 
 import { TransactionRow } from "@/components/blockchain/TransactionRow";
-import Spinner from "@/components/Spinner";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, Table, TableBody, TableHead, TableHeader, TableRow, Spinner } from "@akashnetwork/ui/components";
 import { useTransactions } from "@/queries";
 
 export const metadata: Metadata = {

@@ -6,13 +6,22 @@ import { InfoCircle } from "iconoir-react";
 
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { persistentStorageTypes, storageUnits } from "../shared/akash/units";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { Checkbox } from "../ui/checkbox";
-import { FormDescription, FormItem } from "../ui/form";
-import { Input, InputWithIcon } from "../ui/input";
-import { Label } from "../ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Slider } from "../ui/slider";
+import {
+  Checkbox,
+  FormDescription,
+  FormItem,
+  Label,
+  Input,
+  InputWithIcon,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Slider,
+  CustomTooltip
+} from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
@@ -21,15 +30,6 @@ type Props = {
   children?: ReactNode;
   control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
 };
-
-// const useStyles = makeStyles()(theme => ({
-//   formControl: {
-//     marginBottom: theme.spacing(1.5)
-//   },
-//   textField: {
-//     width: "100%"
-//   }
-// }));
 
 export const PersistentStorage: React.FunctionComponent<Props> = ({ currentService, serviceIndex, control }) => {
   return (

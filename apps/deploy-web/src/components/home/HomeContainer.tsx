@@ -12,7 +12,7 @@ import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { DeploymentDto } from "@src/types/deployment";
 import Layout from "../layout/Layout";
-import Spinner from "../shared/Spinner";
+import { Spinner } from "@akashnetwork/ui/components";
 import CloudmosImportPanel from "./CloudmosImportPanel";
 import { WelcomePanel } from "./WelcomePanel";
 import { YourAccount } from "./YourAccount";

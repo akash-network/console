@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@src/utils/styleUtils";
-import { Card, CardContent } from "../ui/card";
+import { Card, CardContent } from "@akashnetwork/ui/components";
 
 export function FormPaper({ children, className = "", contentClassName = "" }: React.PropsWithChildren<{ className?: string; contentClassName?: string }>) {
   return (

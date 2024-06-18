@@ -4,8 +4,7 @@ import { Controller, useForm } from "react-hook-form";
 import { event } from "nextjs-google-analytics";
 
 import { Popup } from "@src/components/shared/Popup";
-import { Alert } from "@src/components/ui/alert";
-import { InputWithIcon } from "@src/components/ui/input";
+import { Alert, InputWithIcon } from "@akashnetwork/ui/components";
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { AnalyticsEvents } from "@src/utils/analytics";
 

@@ -5,7 +5,7 @@ import { Address } from "@src/components/shared/Address";
 import { FavoriteButton } from "@src/components/shared/FavoriteButton";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { StatusPill } from "@src/components/shared/StatusPill";
-import { Card, CardContent } from "@src/components/ui/card";
+import { Card, CardContent } from "@akashnetwork/ui/components";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
 import { ProviderMap } from "./ProviderMap";

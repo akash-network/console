@@ -8,9 +8,7 @@ import { defaultService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
-import Spinner from "../shared/Spinner";
-import { Alert } from "../ui/alert";
-import { Button } from "@akashnetwork/ui/components";
+import { Button, Alert, Spinner } from "@akashnetwork/ui/components";
 
 interface Props {
   sdlString: string;

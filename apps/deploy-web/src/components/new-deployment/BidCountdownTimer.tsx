@@ -5,8 +5,7 @@ import { InfoCircle } from "iconoir-react";
 
 import { useBlock } from "@src/queries/useBlocksQuery";
 import { cn } from "@src/utils/styleUtils";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import { Badge } from "../ui/badge";
+import { Badge, CustomTooltip } from "@akashnetwork/ui/components";
 
 type Props = {
   height: string | null;

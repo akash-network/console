@@ -12,10 +12,20 @@ import { AKTLabel } from "@/components/AKTLabel";
 import { HumanReadableBytes } from "@/components/HumanReadableBytes";
 import SearchBar from "@/components/SearchBar";
 import { Title } from "@/components/Title";
-import { Button } from "@akashnetwork/ui/components";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Separator,
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@akashnetwork/ui/components";
 import { USDCLabel } from "@/components/UsdLabel";
 import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";

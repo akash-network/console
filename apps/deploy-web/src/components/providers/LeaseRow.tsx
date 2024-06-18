@@ -6,7 +6,7 @@ import Link from "next/link";
 import { PriceEstimateTooltip } from "@src/components/shared/PriceEstimateTooltip";
 import { PricePerMonth } from "@src/components/shared/PricePerMonth";
 import { StatusPill } from "@src/components/shared/StatusPill";
-import { TableCell, TableRow } from "@src/components/ui/table";
+import { TableCell, TableRow } from "@akashnetwork/ui/components";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { LeaseDto } from "@src/types/deployment";
 import { uaktToAKT } from "@src/utils/priceUtils";

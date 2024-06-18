@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 
 import { selectedRangeValues } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
-import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@akashnetwork/ui/components";
 
 type Props = {
   children?: ReactNode;

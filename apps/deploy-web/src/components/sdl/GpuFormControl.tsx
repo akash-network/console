@@ -13,13 +13,7 @@ import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { GpuVendor } from "@src/types/gpu";
 import { gpuVendors } from "../shared/akash/gpu";
 import { validationConfig } from "../shared/akash/units";
-import { CustomTooltip } from "../shared/CustomTooltip";
-import Spinner from "../shared/Spinner";
-import { Button } from "@akashnetwork/ui/components";
-import { Checkbox } from "../ui/checkbox";
-import { FormDescription, FormItem } from "../ui/form";
-import { Input } from "../ui/input";
-import { Slider } from "../ui/slider";
+import { Button, Checkbox, FormDescription, FormItem, Input, Slider, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

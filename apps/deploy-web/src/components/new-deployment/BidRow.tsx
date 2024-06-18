@@ -15,14 +15,10 @@ import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { AuditorButton } from "../providers/AuditorButton";
 import { Uptime } from "../providers/Uptime";
-import { CustomTooltip } from "../shared/CustomTooltip";
 import { FavoriteButton } from "../shared/FavoriteButton";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { PricePerMonth } from "../shared/PricePerMonth";
-import Spinner from "../shared/Spinner";
-import { Badge } from "../ui/badge";
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { TableCell, TableRow } from "../ui/table";
+import { Badge, RadioGroup, RadioGroupItem, TableCell, TableRow, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
 
 type Props = {
   bid: BidDto;
