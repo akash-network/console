@@ -24,4 +24,4 @@ jobs:
 
       - name: Build the Docker image
         if: steps.filter.outputs.deploy-web == 'true'
-        run: docker build -f docker/Dockerfile.deploy-web -t console-deploy-web .
+        run: docker build -f docker/Dockerfile.nextjs --build-arg WORKSPACE=apps/deploy-web -t console-deploy-web .
