@@ -1,5 +1,17 @@
 "use client";
 import { FormattedNumber } from "react-intl";
+import {
+  Badge,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Spinner,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@akashnetwork/ui/components";
 import { Bank, LogOut, MoreHoriz, Wallet } from "iconoir-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,18 +22,6 @@ import { udenomToDenom } from "@src/utils/mathHelpers";
 import { UrlService } from "@src/utils/urlUtils";
 import { Address } from "../shared/Address";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
-import {
-  Button,
-  Badge,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  Spinner
-} from "@akashnetwork/ui/components";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 
 export function WalletStatus() {

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { MdRestartAlt } from "react-icons/md";
+import { Button, buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
 import Step from "@mui/material/Step";
 import StepContent from "@mui/material/StepContent";
 import StepLabel from "@mui/material/StepLabel";
@@ -16,7 +17,6 @@ import { uaktToAKT } from "@src/utils/priceUtils";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
-import { Button, buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
 

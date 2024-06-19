@@ -2,6 +2,7 @@
 import { ReactNode } from "react";
 import { Control, Controller, useFieldArray, UseFormSetValue } from "react-hook-form";
 import { MdSpeed } from "react-icons/md";
+import { Button, Checkbox, CustomTooltip, FormDescription, FormItem, Input, Slider, Spinner } from "@akashnetwork/ui/components";
 import FormControl from "@mui/material/FormControl";
 import IconButton from "@mui/material/IconButton";
 import InputLabel from "@mui/material/InputLabel";
@@ -13,7 +14,6 @@ import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { GpuVendor } from "@src/types/gpu";
 import { gpuVendors } from "../shared/akash/gpu";
 import { validationConfig } from "../shared/akash/units";
-import { Button, Checkbox, FormDescription, FormItem, Input, Slider, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { MdHighlightOff } from "react-icons/md";
+import { Alert, Button, Input, InputWithIcon, Spinner, Switch, Textarea } from "@akashnetwork/ui/components";
 import axios from "axios";
 import { CheckCircle } from "iconoir-react";
 import { NextSeo } from "next-seo";
@@ -8,7 +9,6 @@ import { event } from "nextjs-google-analytics";
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { LabelValue } from "@src/components/shared/LabelValue";
-import { Button, Alert, Input, InputWithIcon, Textarea, Switch, Spinner } from "@akashnetwork/ui/components";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useSaveSettings } from "@src/queries/useSettings";

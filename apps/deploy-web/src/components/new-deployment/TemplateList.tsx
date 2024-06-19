@@ -1,5 +1,6 @@
 "use client";
-import React, { Dispatch, useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { ArrowRight, Cpu, Page, Rocket, Wrench } from "iconoir-react";
 import { NavArrowLeft } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -16,7 +17,6 @@ import { helloWorldTemplate, ubuntuTemplate } from "@src/utils/templates";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
-import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { DeployOptionBox } from "./DeployOptionBox";
 
 const previewTemplateIds = [
@@ -32,9 +32,7 @@ const previewTemplateIds = [
   "akash-network-awesome-akash-minecraft"
 ];
 
-type Props = {};
-
-export const TemplateList: React.FunctionComponent<Props> = () => {
+export const TemplateList: React.FunctionComponent = () => {
   const { templates } = useTemplates();
   const router = useRouter();
   const [previewTemplates, setPreviewTemplates] = useState<ApiTemplate[]>([]);
@@ -91,19 +89,18 @@ export const TemplateList: React.FunctionComponent<Props> = () => {
           />
 
           <DeployOptionBox
-            title={"Build your template"}
-            description={"With our new SDL Builder, you can create your own SDL from scratch in a few clicks!"}
+            title="Build your template"
+            description="With our new SDL Builder, you can create your own SDL from scratch in a few clicks!"
             icon={<Wrench />}
             onClick={onSDLBuilderClick}
           />
 
           <DeployOptionBox
-            title={"Plain Linux"}
-            description={"Choose from multiple linux distros. Deploy and SSH into it. Install and run what you want after that."}
+            title="Plain Linux"
+            description="Choose from multiple linux distros. Deploy and SSH into it. Install and run what you want after that."
             icon={<Page />}
             onClick={() => router.push(UrlService.plainLinux())}
           />
-
         </div>
       </div>
 

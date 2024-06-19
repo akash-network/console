@@ -117,7 +117,12 @@ export function NewDeploymentContainer() {
 
       {activeStep === 0 && <TemplateList />}
       {activeStep === 1 && (
-        <ManifestEdit selectedTemplate={selectedTemplate as TemplateCreation} setSelectedTemplate={setSelectedTemplate} editedManifest={editedManifest as string} setEditedManifest={setEditedManifest} />
+        <ManifestEdit
+          selectedTemplate={selectedTemplate}
+          onTemplateSelected={setSelectedTemplate}
+          editedManifest={editedManifest}
+          setEditedManifest={setEditedManifest}
+        />
       )}
       {activeStep === 2 && <CreateLease dseq={dseq as string} />}
     </Layout>

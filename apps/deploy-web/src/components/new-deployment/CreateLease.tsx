@@ -1,5 +1,16 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import {
+  Alert,
+  Button,
+  Checkbox,
+  CustomTooltip,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  InputWithIcon,
+  Spinner
+} from "@akashnetwork/ui/components";
 import { ArrowRight, BadgeCheck, Bin, InfoCircle, MoreHoriz, Xmark } from "iconoir-react";
 import yaml from "js-yaml";
 import { useRouter } from "next/navigation";
@@ -27,17 +38,6 @@ import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import { Snackbar } from "../shared/Snackbar";
 import ViewPanel from "../shared/ViewPanel";
-import {
-  Button,
-  Alert,
-  Checkbox,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  InputWithIcon,
-  CustomTooltip,
-  Spinner
-} from "@akashnetwork/ui/components";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { BidGroup } from "./BidGroup";
 

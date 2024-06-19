@@ -1,7 +1,7 @@
 import React from "react";
 
 import Layout from "@src/components/layout/Layout";
-import { PlainLinuxForm } from "@src/components/sdl/PlainLinuxForm";
+import { PlainVMForm } from "@src/components/sdl/PlainVMForm";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { Title } from "@src/components/shared/Title";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -17,11 +17,9 @@ function PlainLinuxPage() {
 
       <Title>Plain Linux</Title>
 
-      <p className="mb-8 text-muted-foreground">
-        Choose from multiple linux distros. Deploy and SSH into it. Install and run what you want after that.
-      </p>
+      <p className="mb-8 text-muted-foreground">Choose from multiple linux distros. Deploy and SSH into it. Install and run what you want after that.</p>
 
-      <PlainLinuxForm />
+      <PlainVMForm />
     </Layout>
   );
 }

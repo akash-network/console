@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import React from "react";
+import { Spinner } from "@akashnetwork/ui/components";
 
 import { Footer } from "@src/components/layout/Footer";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
@@ -12,7 +13,6 @@ import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { DeploymentDto } from "@src/types/deployment";
 import Layout from "../layout/Layout";
-import { Spinner } from "@akashnetwork/ui/components";
 import CloudmosImportPanel from "./CloudmosImportPanel";
 import { WelcomePanel } from "./WelcomePanel";
 import { YourAccount } from "./YourAccount";

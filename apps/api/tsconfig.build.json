@@ -3,12 +3,8 @@
     "baseUrl": ".",
     "noImplicitAny": true,
     "paths": {
-      "@src/*": [
-        "./src/*"
-      ],
-      "@test/*": [
-        "./test/*"
-      ]
+      "@src/*": ["./src/*"],
+      "@test/*": ["./test/*"]
     }
   },
   "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"

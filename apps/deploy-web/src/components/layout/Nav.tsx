@@ -1,11 +1,12 @@
 "use client";
+import { Badge, Button } from "@akashnetwork/ui/components";
 import { Menu, Xmark } from "iconoir-react";
 import Link from "next/link";
+
 import useCookieTheme from "@src/hooks/useTheme";
 import { accountBarHeight } from "@src/utils/constants";
 import { UrlService } from "@src/utils/urlUtils";
 import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
-import { Button, Badge } from "@akashnetwork/ui/components";
 import { AccountMenu } from "./AccountMenu";
 import { WalletStatus } from "./WalletStatus";
 

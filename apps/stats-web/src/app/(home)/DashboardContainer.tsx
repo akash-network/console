@@ -1,9 +1,9 @@
 "use client";
 import { FormattedDate, FormattedTime } from "react-intl";
+import { Spinner } from "@akashnetwork/ui/components";
 
 import { Dashboard } from "./Dashboard";
 
-import { Spinner } from "@akashnetwork/ui/components";
 import { Title } from "@/components/Title";
 import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
 import { useMarketData } from "@/queries";

@@ -1,4 +1,5 @@
 import React from "react";
+import { Button } from "@akashnetwork/ui/components";
 import { ArrowLeft } from "iconoir-react";
 import { Metadata } from "next";
 import Link from "next/link";
@@ -6,7 +7,6 @@ import Link from "next/link";
 import GraphContainer from "./GraphContainer";
 
 import PageContainer from "@/components/PageContainer";
-import { Button } from "@akashnetwork/ui/components";
 import { urlParamToProviderSnapshot } from "@/lib/snapshotsUrlHelpers";
 import { UrlService } from "@/lib/urlUtils";
 import { ProviderSnapshots, ProviderSnapshotsUrlParam } from "@/types";

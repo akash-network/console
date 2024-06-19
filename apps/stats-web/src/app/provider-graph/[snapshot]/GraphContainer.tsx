@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { FormattedNumber } from "react-intl";
+import { Button, Spinner } from "@akashnetwork/ui/components";
 import { Parser } from "@json2csv/plainjs";
 import { Download } from "iconoir-react";
 import dynamic from "next/dynamic";
@@ -8,7 +9,6 @@ import dynamic from "next/dynamic";
 import { DiffNumber } from "@/components/DiffNumber";
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { TimeRange } from "@/components/graph/TimeRange";
-import { Button, Spinner } from "@akashnetwork/ui/components";
 import { selectedRangeValues } from "@/lib/constants";
 import { percIncrease } from "@/lib/mathHelpers";
 import { getProviderSnapshotMetadata } from "@/lib/providerUtils";

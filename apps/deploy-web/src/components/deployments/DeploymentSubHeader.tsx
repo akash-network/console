@@ -1,10 +1,10 @@
 "use client";
 import { ReactNode } from "react";
+import { CustomTooltip } from "@akashnetwork/ui/components";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import isValid from "date-fns/isValid";
 import { InfoCircle, WarningCircle } from "iconoir-react";
 
-import { CustomTooltip } from "@akashnetwork/ui/components";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { PricePerMonth } from "@src/components/shared/PricePerMonth";
 import { PriceValue } from "@src/components/shared/PriceValue";

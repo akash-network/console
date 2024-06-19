@@ -1,10 +1,10 @@
 "use client";
 import { MdDeveloperBoard, MdMemory, MdSpeed, MdStorage } from "react-icons/md";
+import { Badge } from "@akashnetwork/ui/components";
 
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { cn } from "@src/utils/styleUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
-import { Badge } from "@akashnetwork/ui/components"
 
 export function SpecDetail({
   cpuAmount,

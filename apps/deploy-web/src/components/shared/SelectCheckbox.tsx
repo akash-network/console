@@ -1,13 +1,12 @@
 "use client";
 import { useState } from "react";
+import { Checkbox } from "@akashnetwork/ui/components";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
-
-import { Checkbox } from "@akashnetwork/ui/components";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;

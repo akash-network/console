@@ -2,9 +2,10 @@ import * as React from "react";
 import { CheckIcon, PlusCircledIcon } from "@radix-ui/react-icons";
 import { Column } from "@tanstack/react-table";
 
+import { cn } from "../../utils";
 import {
-  Button,
   Badge,
+  Button,
   Command,
   CommandEmpty,
   CommandGroup,
@@ -17,8 +18,6 @@ import {
   PopoverTrigger,
   Separator
 } from "../index";
-
-import { cn } from "../../utils";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;

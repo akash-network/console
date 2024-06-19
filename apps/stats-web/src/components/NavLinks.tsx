@@ -1,9 +1,8 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-
 import { buttonVariants } from "@akashnetwork/ui/components";
+import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 

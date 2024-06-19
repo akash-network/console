@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { ComposableMap, Geographies, Geography, Marker, Point, ZoomableGroup } from "react-simple-maps";
+import { Button, CustomNoDivTooltip } from "@akashnetwork/ui/components";
 import { Minus, Plus, Restart } from "iconoir-react";
 import Link from "next/link";
 
-import { Button, CustomNoDivTooltip } from "@akashnetwork/ui/components";
 import { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 

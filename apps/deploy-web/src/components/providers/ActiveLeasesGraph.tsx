@@ -1,11 +1,11 @@
 "use client";
 import React, { useState } from "react";
 import { FormattedNumber } from "react-intl";
+import { Spinner } from "@akashnetwork/ui/components";
 import dynamic from "next/dynamic";
 
 import { DiffNumber } from "@src/components/shared/DiffNumber";
 import { DiffPercentageChip } from "@src/components/shared/DiffPercentageChip";
-import { Spinner } from "@akashnetwork/ui/components";
 import { TimeRange } from "@src/components/shared/TimeRange";
 import { useProviderActiveLeasesGraph } from "@src/queries/useProvidersQuery";
 import { ProviderSnapshots } from "@src/types";

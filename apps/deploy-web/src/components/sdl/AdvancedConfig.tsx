@@ -1,11 +1,11 @@
 "use client";
 import { ReactNode, useState } from "react";
 import { Control } from "react-hook-form";
+import { Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
 
 import { RentGpusFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { ExpandMore } from "../shared/ExpandMore";
-import { Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
 import { CommandFormModal } from "./CommandFormModal";
 import { CommandList } from "./CommandList";
 import { EnvFormModal } from "./EnvFormModal";

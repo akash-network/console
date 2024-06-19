@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { FormattedNumber, FormattedPlural } from "react-intl";
+import { Badge, buttonVariants, Card, CardContent, CardHeader, CardTitle, Spinner } from "@akashnetwork/ui/components";
 import { ResponsivePie } from "@nivo/pie";
 import { Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -26,7 +27,6 @@ import { ConnectWallet } from "../shared/ConnectWallet";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
 import { StatusPill } from "../shared/StatusPill";
-import { buttonVariants, Badge, Card, CardContent, CardHeader, CardTitle, Spinner } from "@akashnetwork/ui/components";
 
 // const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
 //   ssr: false,

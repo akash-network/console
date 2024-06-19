@@ -1,3 +1,5 @@
+import { Toaster } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { GeistSans } from "geist/font/sans";
 import type { Metadata, Viewport } from "next";
 import getConfig from "next/config";
@@ -11,8 +13,6 @@ import Providers from "@/components/layout/CustomProviders";
 import { Footer } from "@/components/layout/Footer";
 import { Nav } from "@/components/layout/Nav";
 import { customColors } from "@/lib/colors";
-import { cn } from "@akashnetwork/ui/utils";
-import { Toaster } from "@akashnetwork/ui/components";
 
 const { publicRuntimeConfig } = getConfig();
 

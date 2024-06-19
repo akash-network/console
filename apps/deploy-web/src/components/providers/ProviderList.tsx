@@ -1,15 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import { OpenNewWindow, Refresh, Xmark } from "iconoir-react";
-import dynamic from "next/dynamic";
-import { useRouter, useSearchParams } from "next/navigation";
-
 import {
   Button,
   CheckboxWithLabel,
-  Label,
-  InputWithIcon,
   CustomPagination,
+  InputWithIcon,
+  Label,
   Select,
   SelectContent,
   SelectGroup,
@@ -18,6 +14,10 @@ import {
   SelectValue,
   Spinner
 } from "@akashnetwork/ui/components";
+import { OpenNewWindow, Refresh, Xmark } from "iconoir-react";
+import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
+
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";

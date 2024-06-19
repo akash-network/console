@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { MdSearchOff } from "react-icons/md";
+import { Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import { FilterList, Xmark } from "iconoir-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
-import { Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import { ApiTemplate } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";

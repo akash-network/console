@@ -1,10 +1,10 @@
 "use client";
 import React, { ReactNode } from "react";
+import { Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useRouter } from "next-nprogress-bar";
 
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { UrlService } from "@/lib/urlUtils";
 
 type AddressTab = "address" | "transactions" | "deployments";

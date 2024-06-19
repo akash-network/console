@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Drawer from "react-modern-drawer";
+import { Button } from "@akashnetwork/ui/components";
 import { ArrowUpRightSquare, Discord, Github, Menu, Rocket, StatsUpSquare, X as TwitterX } from "iconoir-react";
 import Link from "next/link";
 
@@ -10,7 +11,6 @@ import NetworkSelect from "./NetworkSelect";
 
 import "react-modern-drawer/dist/index.css";
 
-import { Button } from "@akashnetwork/ui/components";
 import useCookieTheme from "@/hooks/useTheme";
 
 export function MobileNav() {

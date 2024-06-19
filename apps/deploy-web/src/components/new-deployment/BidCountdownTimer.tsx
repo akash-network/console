@@ -1,11 +1,11 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { Badge, CustomTooltip } from "@akashnetwork/ui/components";
 import { differenceInSeconds } from "date-fns";
 import { InfoCircle } from "iconoir-react";
 
 import { useBlock } from "@src/queries/useBlocksQuery";
 import { cn } from "@src/utils/styleUtils";
-import { Badge, CustomTooltip } from "@akashnetwork/ui/components";
 
 type Props = {
   height: string | null;

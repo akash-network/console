@@ -1,5 +1,6 @@
 "use client";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+
 import { ClientProviderList } from "@src/types/provider";
 import { cn } from "@src/utils/styleUtils";
 import { ProviderListRow } from "./ProviderTableRow";

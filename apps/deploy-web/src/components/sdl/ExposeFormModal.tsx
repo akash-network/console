@@ -1,6 +1,20 @@
 "use client";
 import { ReactNode, useRef } from "react";
 import { Control, Controller, useFieldArray } from "react-hook-form";
+import {
+  Button,
+  Checkbox,
+  CustomTooltip,
+  FormItem,
+  InputWithIcon,
+  Label,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@akashnetwork/ui/components";
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
 
@@ -9,20 +23,6 @@ import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 import { protoTypes } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
 import { Popup } from "../shared/Popup";
-import {
-  Button,
-  Checkbox,
-  FormItem,
-  Label,
-  InputWithIcon,
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  CustomTooltip
-} from "@akashnetwork/ui/components";
 import { AcceptFormControl, AcceptRefType } from "./AcceptFormControl";
 import { FormPaper } from "./FormPaper";
 import { HttpOptionsFormControl } from "./HttpOptionsFormControl";

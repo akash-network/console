@@ -1,5 +1,16 @@
 "use client";
 import { ReactNode, useState } from "react";
+import {
+  Button,
+  Checkbox,
+  CustomTooltip,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  Spinner,
+  TableCell,
+  TableRow
+} from "@akashnetwork/ui/components";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
@@ -24,17 +35,6 @@ import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
-import {
-  Button,
-  Checkbox,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  TableCell,
-  TableRow,
-  CustomTooltip,
-  Spinner
-} from "@akashnetwork/ui/components";
 import { DeploymentDepositModal } from "./DeploymentDepositModal";
 import { LeaseChip } from "./LeaseChip";
 

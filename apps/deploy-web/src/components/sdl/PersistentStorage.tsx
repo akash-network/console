@@ -2,26 +2,26 @@
 import { ReactNode } from "react";
 import { Control, Controller } from "react-hook-form";
 import { MdStorage } from "react-icons/md";
-import { InfoCircle } from "iconoir-react";
-
-import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
-import { persistentStorageTypes, storageUnits } from "../shared/akash/units";
 import {
   Checkbox,
+  CustomTooltip,
   FormDescription,
   FormItem,
-  Label,
   Input,
   InputWithIcon,
+  Label,
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Slider,
-  CustomTooltip
+  Slider
 } from "@akashnetwork/ui/components";
+import { InfoCircle } from "iconoir-react";
+
+import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
+import { persistentStorageTypes, storageUnits } from "../shared/akash/units";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

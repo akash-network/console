@@ -1,7 +1,6 @@
 "use client";
-import { Star, StarSolid } from "iconoir-react";
-
 import { Button } from "@akashnetwork/ui/components";
+import { Star, StarSolid } from "iconoir-react";
 
 export const FavoriteButton = ({ onClick, isFavorite }) => {
   return (

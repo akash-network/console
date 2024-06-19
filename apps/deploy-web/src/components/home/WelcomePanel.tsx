@@ -1,12 +1,9 @@
 "use client";
 import React, { useState } from "react";
-import { Learning, NavArrowDown, Rocket, SearchEngine } from "iconoir-react";
-import Link from "next/link";
-
 import {
-  Button,
   Avatar,
   AvatarFallback,
+  Button,
   Card,
   CardContent,
   CardHeader,
@@ -15,6 +12,9 @@ import {
   CollapsibleContent,
   CollapsibleTrigger
 } from "@akashnetwork/ui/components";
+import { Learning, NavArrowDown, Rocket, SearchEngine } from "iconoir-react";
+import Link from "next/link";
+
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 
