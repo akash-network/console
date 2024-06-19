@@ -115,9 +115,9 @@ export function NewDeploymentContainer() {
     <Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet containerClassName="pb-0">
       <div className="flex w-full items-center">{activeStep !== null && <CustomizedSteppers activeStep={activeStep} />}</div>
 
-      {activeStep === 0 && <TemplateList setSelectedTemplate={setSelectedTemplate} setEditedManifest={setEditedManifest} />}
+      {activeStep === 0 && <TemplateList />}
       {activeStep === 1 && (
-        <ManifestEdit selectedTemplate={selectedTemplate as TemplateCreation} editedManifest={editedManifest as string} setEditedManifest={setEditedManifest} />
+        <ManifestEdit selectedTemplate={selectedTemplate as TemplateCreation} setSelectedTemplate={setSelectedTemplate} editedManifest={editedManifest as string} setEditedManifest={setEditedManifest} />
       )}
       {activeStep === 2 && <CreateLease dseq={dseq as string} />}
     </Layout>
