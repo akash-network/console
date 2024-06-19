@@ -27,6 +27,7 @@ export class UrlService {
 
   static sdlBuilder = (id?: string) => `/sdl-builder${appendSearchParams({ id })}`;
   static rentGpus = () => `/rent-gpu`;
+  static plainLinux = () => `/plain-linux`;
   static priceCompare = () => "/price-compare";
   static analytics = () => "/analytics";
   static graph = (snapshot: string) => `/graph/${snapshot}`;
