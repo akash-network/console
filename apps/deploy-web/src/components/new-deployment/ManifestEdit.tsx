@@ -35,12 +35,13 @@ import { Button, Alert, InputWithIcon, CustomTooltip, Spinner } from "@akashnetw
 import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
 
 type Props = {
+  setSelectedTemplate: Dispatch<TemplateCreation>;
   selectedTemplate: TemplateCreation;
   editedManifest: string;
   setEditedManifest: Dispatch<string>;
 };
 
-export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, setEditedManifest, selectedTemplate }) => {
+export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, setEditedManifest, setSelectedTemplate, selectedTemplate }) => {
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentName, setDeploymentName] = useState("");
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
@@ -57,6 +58,31 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
   const { minDeposit } = useChainParam();
+
+  const fileUploadRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = event => {
+    const fileUploaded = event.target.files[0];
+    const reader = new FileReader();
+
+    reader.onload = event => {
+      setSelectedTemplate({
+        title: "From file",
+        code: "from-file",
+        category: "General",
+        description: "Custom uploaded file",
+        content: event.target?.result as string
+      });
+      setEditedManifest(event.target?.result as string);
+      router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
+    };
+
+    reader.readAsText(fileUploaded);
+  };
+
+  async function fromFile() {
+    fileUploadRef.current?.click();
+  }
 
   useEffect(() => {
     if (selectedTemplate?.name) {
@@ -257,24 +283,37 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
         </div>
       </div>
 
-      <div className="mb-2 flex items-center">
+      <div className="flex gap-2 mb-2">
+        <div className="flex items-center">
+          <Button
+            variant={selectedSdlEditMode === "builder" ? "default" : "outline"}
+            onClick={() => onModeChange("builder")}
+            size="sm"
+            className="flex-grow rounded-e-none sm:flex-grow-0"
+            disabled={!!parsingError && selectedSdlEditMode === "yaml"}
+          >
+            Builder
+          </Button>
+          <Button
+            variant={selectedSdlEditMode === "yaml" ? "default" : "outline"}
+            color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
+            onClick={() => onModeChange("yaml")}
+            size="sm"
+            className="flex-grow rounded-s-none sm:flex-grow-0"
+          >
+            YAML
+          </Button>
+        </div>
+
+        <input type="file" ref={fileUploadRef} onChange={handleFileChange} style={{ display: "none" }} accept=".yml,.yaml,.txt" />
         <Button
-          variant={selectedSdlEditMode === "builder" ? "default" : "outline"}
-          onClick={() => onModeChange("builder")}
+          variant={"outline"}
+          color={"secondary"}
+          onClick={() => fromFile()}
           size="sm"
-          className="flex-grow rounded-e-none sm:flex-grow-0"
-          disabled={!!parsingError && selectedSdlEditMode === "yaml"}
+          className="flex-grow sm:flex-grow-0 hover:bg-primary hover:text-white"
         >
-          Builder
-        </Button>
-        <Button
-          variant={selectedSdlEditMode === "yaml" ? "default" : "outline"}
-          color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
-          onClick={() => onModeChange("yaml")}
-          size="sm"
-          className="flex-grow rounded-s-none sm:flex-grow-0"
-        >
-          YAML
+          Upload SDL
         </Button>
       </div>
 
