@@ -6,9 +6,13 @@ import Link from "next/link";
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import { ModeToggle } from "../ModeToggle";
 import { MobileNav } from "./MobileNav";
-import NetworkSelect from "./NetworkSelect";
+
+const NetworkSelect = dynamic(() => import("./NetworkSelect"), {
+  ssr: false
+});
 
 import useCookieTheme from "@/hooks/useTheme";
+import dynamic from "next/dynamic";
 
 export const Nav = () => {
   const theme = useCookieTheme();

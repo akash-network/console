@@ -15,7 +15,11 @@ import { DeploymentDto } from "@src/types/deployment";
 import Layout from "../layout/Layout";
 import CloudmosImportPanel from "./CloudmosImportPanel";
 import { WelcomePanel } from "./WelcomePanel";
-import { YourAccount } from "./YourAccount";
+import dynamic from "next/dynamic";
+
+const YourAccount = dynamic(() => import("./YourAccount"), {
+  ssr: false
+});
 
 export function HomeContainer() {
   const { address, isWalletLoaded } = useWallet();

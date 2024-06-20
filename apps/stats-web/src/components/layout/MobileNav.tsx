@@ -7,11 +7,15 @@ import Link from "next/link";
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import { ModeToggle } from "../ModeToggle";
 import { NavLinks } from "../NavLinks";
-import NetworkSelect from "./NetworkSelect";
 
 import "react-modern-drawer/dist/index.css";
 
 import useCookieTheme from "@/hooks/useTheme";
+import dynamic from "next/dynamic";
+
+const NetworkSelect = dynamic(() => import("./NetworkSelect"), {
+  ssr: false
+});
 
 export function MobileNav() {
   const theme = useCookieTheme();
