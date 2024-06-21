@@ -1,24 +1,24 @@
 "use client";
 import { useEffect, useState } from "react";
+import {
+  Button,
+  buttonVariants,
+  CheckboxWithLabel,
+  CustomPagination,
+  InputWithIcon,
+  Spinner,
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@akashnetwork/ui/components";
 import { Refresh, Rocket, Xmark } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
-import {
-  Button,
-  buttonVariants,
-  CheckboxWithLabel,
-  InputWithIcon,
-  CustomPagination,
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Spinner
-} from "@akashnetwork/ui/components";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";

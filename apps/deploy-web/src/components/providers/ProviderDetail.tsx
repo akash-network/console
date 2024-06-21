@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { FormattedDate } from "react-intl";
+import { Alert, Card, CardContent, CustomNoDivTooltip, Spinner } from "@akashnetwork/ui/components";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { differenceInMinutes, sub } from "date-fns";
@@ -8,7 +9,6 @@ import { Check } from "iconoir-react";
 import dynamic from "next/dynamic";
 
 import { LabelValue } from "@src/components/shared/LabelValue";
-import { Alert, Card, CardContent, CustomNoDivTooltip, Spinner } from "@akashnetwork/ui/components";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderAttributesSchema, useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";

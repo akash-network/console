@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
+import { Alert } from "@akashnetwork/ui/components";
 
 import { ExternalLink } from "../shared/ExternalLink";
-import { Alert } from "@akashnetwork/ui/components";
 
 export const CreateWalletSection: React.FunctionComponent = () => {
   return (

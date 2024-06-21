@@ -1,9 +1,9 @@
 "use client";
+import { buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import Link from "next/link";
 import { event } from "nextjs-google-analytics";
 
 import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
-import { buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUserTemplates } from "@src/queries/useTemplateQuery";

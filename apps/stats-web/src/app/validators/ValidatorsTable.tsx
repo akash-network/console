@@ -1,9 +1,9 @@
 "use client";
 import React from "react";
+import { DataTable } from "@akashnetwork/ui/components";
 
 import { columns } from "./columns";
 
-import { DataTable } from "@akashnetwork/ui/components";
 import { useValidators } from "@/queries";
 
 export function ValidatorsTable() {

@@ -1,11 +1,11 @@
 "use client";
+import { cardClasses, CardContent, CardHeader } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
 import { getShortText } from "@src/hooks/useShortText";
 import { ITemplate } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
-import { cardClasses, CardContent, CardHeader } from "@akashnetwork/ui/components";
 
 type Props = {
   template: Partial<ITemplate>;

@@ -1,10 +1,10 @@
 "use client";
 import { ReactElement } from "react";
 import { Control, Controller, FieldPathValue, FieldValues, Path } from "react-hook-form";
+import { FormItem, Label, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
 
 import { useSdlDenoms } from "@src/hooks/useDenom";
 import { Service } from "@src/types";
-import { FormItem, Label, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
 
 interface ServicesFieldValues extends FieldValues {
   services: Service[];

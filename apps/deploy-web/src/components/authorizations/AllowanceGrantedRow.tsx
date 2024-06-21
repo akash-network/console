@@ -1,10 +1,10 @@
 "use client";
 import React, { ReactNode } from "react";
 import { FormattedTime } from "react-intl";
+import { Checkbox, TableCell, TableRow } from "@akashnetwork/ui/components";
 
 import { Address } from "@src/components/shared/Address";
 import { AKTAmount } from "@src/components/shared/AKTAmount";
-import { Checkbox, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { AllowanceType } from "@src/types/grant";
 import { getAllowanceTitleByType } from "@src/utils/grants";
 import { coinToUDenom } from "@src/utils/priceUtils";

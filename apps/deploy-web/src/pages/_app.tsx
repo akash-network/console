@@ -1,5 +1,6 @@
 import React from "react";
 import { QueryClientProvider } from "react-query";
+import { TooltipProvider } from "@akashnetwork/ui/components";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
 import { GeistSans } from "geist/font/sans";
@@ -13,7 +14,6 @@ import { AllowanceWatcher } from "@src/components/authorizations/AllowanceWatche
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
-import { TooltipProvider } from "@akashnetwork/ui/components";
 import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 import { CertificateProvider } from "@src/context/CertificateProvider";

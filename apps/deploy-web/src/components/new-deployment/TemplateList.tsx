@@ -1,5 +1,6 @@
 "use client";
-import React, { Dispatch, useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { ArrowRight, Cpu, Page, Rocket, Wrench } from "iconoir-react";
 import { NavArrowLeft } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -16,7 +17,6 @@ import { helloWorldTemplate, ubuntuTemplate } from "@src/utils/templates";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
-import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { DeployOptionBox } from "./DeployOptionBox";
 
 const previewTemplateIds = [
@@ -32,15 +32,9 @@ const previewTemplateIds = [
   "akash-network-awesome-akash-minecraft"
 ];
 
-type Props = {
-  setSelectedTemplate: Dispatch<TemplateCreation>;
-  setEditedManifest: Dispatch<string>;
-};
-
-export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTemplate, setEditedManifest }) => {
+export const TemplateList: React.FunctionComponent = () => {
   const { templates } = useTemplates();
   const router = useRouter();
-  const fileUploadRef = useRef<HTMLInputElement>(null);
   const [previewTemplates, setPreviewTemplates] = useState<ApiTemplate[]>([]);
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const previousRoute = usePreviousRoute();
@@ -51,29 +45,6 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
       setPreviewTemplates(_previewTemplates);
     }
   }, [templates]);
-
-  async function fromFile() {
-    fileUploadRef.current?.click();
-  }
-
-  const handleFileChange = event => {
-    const fileUploaded = event.target.files[0];
-    const reader = new FileReader();
-
-    reader.onload = event => {
-      setSelectedTemplate({
-        title: "From file",
-        code: "from-file",
-        category: "General",
-        description: "Custom uploaded file",
-        content: event.target?.result as string
-      });
-      setEditedManifest(event.target?.result as string);
-      router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
-    };
-
-    reader.readAsText(fileUploaded);
-  };
 
   function onSDLBuilderClick() {
     setSdlEditMode("builder");
@@ -118,14 +89,19 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setSelectedTempla
           />
 
           <DeployOptionBox
-            title={"Build your template"}
-            description={"With our new SDL Builder, you can create your own SDL from scratch in a few clicks!"}
+            title="Build your template"
+            description="With our new SDL Builder, you can create your own SDL from scratch in a few clicks!"
             icon={<Wrench />}
             onClick={onSDLBuilderClick}
           />
 
-          <input type="file" ref={fileUploadRef} onChange={handleFileChange} style={{ display: "none" }} accept=".yml,.yaml,.txt" />
-          <DeployOptionBox title={"Upload SDL"} description={"Upload a deploy.yml file from the computer."} icon={<Page />} onClick={() => fromFile()} />
+          {/* TODO: Coming soon - Plain Linux option will be available in future updates */}
+          {/* <DeployOptionBox
+            title="Plain Linux"
+            description="Choose from multiple linux distros. Deploy and SSH into it. Install and run what you want after that."
+            icon={<Page />}
+            onClick={() => router.push(UrlService.plainLinux())}
+          /> */}
         </div>
       </div>
 

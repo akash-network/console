@@ -1,10 +1,10 @@
 "use client";
 import React, { useState } from "react";
+import { Card, CardContent, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 
 import { Delegations } from "./Delegations";
 import { Redelegations } from "./Redelegations";
 
-import { Card, CardContent, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { AddressDetail } from "@/types";
 
 interface IProps {

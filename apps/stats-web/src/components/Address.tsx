@@ -1,10 +1,10 @@
 "use client";
 import React, { ReactNode, useState } from "react";
+import { CustomTooltip, useToast } from "@akashnetwork/ui/components";
 import { Copy } from "iconoir-react";
 
 import { copyTextToClipboard } from "@/lib/copyClipboard";
 import { cn } from "@/lib/utils";
-import { CustomTooltip, useToast } from "@akashnetwork/ui/components";
 
 type Props = {
   address: string;

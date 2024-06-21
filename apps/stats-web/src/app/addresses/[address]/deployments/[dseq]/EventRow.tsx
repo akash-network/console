@@ -1,7 +1,7 @@
 import { FormattedTime } from "react-intl";
+import { TableCell, TableRow } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
-import { TableCell, TableRow } from "@akashnetwork/ui/components";
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
 import { getSplitText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";

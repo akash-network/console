@@ -1,7 +1,6 @@
+import { Spinner } from "@akashnetwork/ui/components";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
-
-import { Spinner } from "@akashnetwork/ui/components";
 
 const _DynamicReactJson = dynamic(() => import("@textea/json-viewer").then(module => module.JsonViewer), {
   ssr: false,

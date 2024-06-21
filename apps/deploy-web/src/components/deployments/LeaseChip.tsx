@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Badge, CustomTooltip } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
 import { getSplitText } from "@src/hooks/useShortText";
@@ -7,7 +8,6 @@ import { LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { StatusPill } from "../shared/StatusPill";
-import { Badge, CustomTooltip } from "@akashnetwork/ui/components";
 
 type Props = {
   lease: LeaseDto;

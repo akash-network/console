@@ -1,8 +1,8 @@
 "use client";
+import { Card, CardContent, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Metadata } from "next";
 
 import { TransactionRow } from "@/components/blockchain/TransactionRow";
-import { Card, CardContent, Table, TableBody, TableHead, TableHeader, TableRow, Spinner } from "@akashnetwork/ui/components";
 import { useTransactions } from "@/queries";
 
 export const metadata: Metadata = {

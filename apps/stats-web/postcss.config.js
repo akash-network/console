@@ -1,1 +1,1 @@
-module.exports = require('@akashnetwork/ui/postcss')
+module.exports = require("@akashnetwork/ui/postcss");

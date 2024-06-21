@@ -2,6 +2,7 @@
 import { ReactNode, useRef } from "react";
 import { Control, Controller } from "react-hook-form";
 import { FormattedNumber } from "react-intl";
+import { CustomTooltip, FormItem, InputWithIcon } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
 import { useSdlDenoms } from "@src/hooks/useDenom";
@@ -12,7 +13,6 @@ import { getAvgCostPerMonth, toReadableDenom, uaktToAKT } from "@src/utils/price
 import { Popup } from "../shared/Popup";
 import { PriceValue } from "../shared/PriceValue";
 import { USDLabel } from "../shared/UsdLabel";
-import { FormItem, InputWithIcon, CustomTooltip } from "@akashnetwork/ui/components";
 import { AttributesFormControl, AttributesRefType } from "./AttributesFormControl";
 import { FormPaper } from "./FormPaper";
 import { SignedByFormControl, SignedByRefType } from "./SignedByFormControl";

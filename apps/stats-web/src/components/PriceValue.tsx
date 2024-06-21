@@ -2,7 +2,6 @@
 
 import { ReactNode } from "react";
 import { FormattedNumber } from "react-intl";
-
 import { Spinner } from "@akashnetwork/ui/components";
 
 import { usePricing } from "@/context/PricingProvider";

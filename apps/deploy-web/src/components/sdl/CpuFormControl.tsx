@@ -2,12 +2,12 @@
 import { ReactNode } from "react";
 import { Control, Controller } from "react-hook-form";
 import { MdSpeed } from "react-icons/md";
+import { CustomTooltip, FormDescription, FormItem, Input, Slider } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { validationConfig } from "../shared/akash/units";
-import { FormDescription, FormItem, Input, Slider, CustomTooltip } from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

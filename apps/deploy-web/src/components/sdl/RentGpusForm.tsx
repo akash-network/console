@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
+import { Alert, Button, Spinner } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -30,7 +31,6 @@ import { updateWallet } from "@src/utils/walletUtils";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
-import { Button, Alert, Spinner } from "@akashnetwork/ui/components";
 import { AdvancedConfig } from "./AdvancedConfig";
 import { CpuFormControl } from "./CpuFormControl";
 import { FormPaper } from "./FormPaper";

@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
+import { Button, Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
 import { Import } from "iconoir-react";
 import { z } from "zod";
-
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
 
 const autoImportOrigin = "https://deploy.cloudmos.io";
 

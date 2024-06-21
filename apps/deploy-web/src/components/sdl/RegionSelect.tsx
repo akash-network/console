@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Control, Controller } from "react-hook-form";
+import { CustomTooltip } from "@akashnetwork/ui/components";
 import Autocomplete from "@mui/material/Autocomplete";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import TextField from "@mui/material/TextField";
@@ -10,7 +11,6 @@ import { useProviderRegions } from "@src/queries/useProvidersQuery";
 import { RentGpusFormValues } from "@src/types";
 import { ProviderAttributeSchemaDetailValue, ProviderRegionValue } from "@src/types/providerAttributes";
 import { cn } from "@src/utils/styleUtils";
-import { CustomTooltip } from "@akashnetwork/ui/components";
 
 type RegionSelectProps = {
   control: Control<RentGpusFormValues, any>;

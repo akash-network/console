@@ -1,10 +1,10 @@
 import React from "react";
+import { buttonVariants } from "@akashnetwork/ui/components";
 import { ArrowLeft } from "iconoir-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
 import { Title } from "@src/components/shared/Title";
-import { buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../components/layout/Layout";

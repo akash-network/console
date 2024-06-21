@@ -1,10 +1,10 @@
 "use client";
 import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
 
 import { GetStartedStepper } from "@src/components/get-started/GetStartedStepper";
 import Layout from "@src/components/layout/Layout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
-import { Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 
 const GetStarted: React.FunctionComponent = () => {

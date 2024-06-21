@@ -1,5 +1,6 @@
 "use client";
 import { useEffect } from "react";
+import { Badge, CustomTooltip, RadioGroup, RadioGroupItem, Spinner, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { CloudXmark, WarningTriangle } from "iconoir-react";
 import Link from "next/link";
 
@@ -18,7 +19,6 @@ import { Uptime } from "../providers/Uptime";
 import { FavoriteButton } from "../shared/FavoriteButton";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { PricePerMonth } from "../shared/PricePerMonth";
-import { Badge, RadioGroup, RadioGroupItem, TableCell, TableRow, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
 
 type Props = {
   bid: BidDto;

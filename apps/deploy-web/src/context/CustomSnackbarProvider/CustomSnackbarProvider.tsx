@@ -1,10 +1,10 @@
 "use client";
 import React, { useRef } from "react";
+import { Button } from "@akashnetwork/ui/components";
 import { styled } from "@mui/material/styles";
 import { Xmark } from "iconoir-react";
 import { MaterialDesignContent, SnackbarKey, SnackbarProvider } from "notistack";
 
-import { Button } from "@akashnetwork/ui/components";
 import useTailwind from "@src/hooks/useTailwind";
 
 const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => {

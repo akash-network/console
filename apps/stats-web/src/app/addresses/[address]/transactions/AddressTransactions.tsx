@@ -1,10 +1,10 @@
 "use client";
 import React, { useState } from "react";
+import { Card, CardContent, DataTable } from "@akashnetwork/ui/components";
 import { SearchX } from "lucide-react";
 
 import { columns } from "./columns";
 
-import { Card, CardContent, DataTable } from "@akashnetwork/ui/components";
 import { useAddressTransactions } from "@/queries";
 
 interface IProps {

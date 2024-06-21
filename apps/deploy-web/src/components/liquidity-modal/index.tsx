@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from "react";
+import { Button } from "@akashnetwork/ui/components";
 import type { StdSignDoc } from "@cosmjs/amino";
 import type { AllowedDestinationChainConfig, AssetSelector, TabsConfig, ThemeDefinition, WalletClient } from "@leapwallet/elements";
 import { AsyncIDBStorage, defaultBlurs, LiquidityModal as LeapLiquidityModal, Tabs, TxnSummary, useInitCachingLayer } from "@leapwallet/elements";
@@ -9,7 +10,6 @@ import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { customColors } from "@src/utils/colors";
-import { Button } from "@akashnetwork/ui/components";
 
 const theme: ThemeDefinition = {
   colors: {

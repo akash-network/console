@@ -1,9 +1,9 @@
+import { Button, Card, CardContent, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Edit } from "iconoir-react";
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
 
 import { AddressLink } from "@src/components/shared/AddressLink";
-import { Button, Card, CardContent, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Spinner } from "@akashnetwork/ui/components";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useAddressBook } from "@src/context/AddressBookProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";

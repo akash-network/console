@@ -1,6 +1,19 @@
 "use client";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import {
+  Alert,
+  CheckboxWithLabel,
+  FormItem,
+  InputWithIcon,
+  Label,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@akashnetwork/ui/components";
 import compareAsc from "date-fns/compareAsc";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
@@ -17,19 +30,6 @@ import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { LinkTo } from "../shared/LinkTo";
 import { Popup } from "../shared/Popup";
 import { Snackbar } from "../shared/Snackbar";
-import {
-  Alert,
-  CheckboxWithLabel,
-  FormItem,
-  Label,
-  InputWithIcon,
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@akashnetwork/ui/components";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
 
 type Props = {

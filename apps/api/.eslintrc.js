@@ -1,1 +1,1 @@
-module.exports = require('@akashnetwork/dev-config/.eslintrc.ts');
+module.exports = require("@akashnetwork/dev-config/.eslintrc.ts");

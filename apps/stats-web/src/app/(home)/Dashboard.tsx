@@ -1,17 +1,6 @@
 "use client";
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import Link from "next/link";
-
-import { BlockRow } from "../../components/blockchain/BlockRow";
-import { TransactionRow } from "../../components/blockchain/TransactionRow";
-import { StatsCard } from "./StatsCard";
-
-import { AKTAmount } from "@/components/AKTAmount";
-import { AKTLabel } from "@/components/AKTLabel";
-import { HumanReadableBytes } from "@/components/HumanReadableBytes";
-import SearchBar from "@/components/SearchBar";
-import { Title } from "@/components/Title";
 import {
   Button,
   Card,
@@ -26,6 +15,17 @@ import {
   TableHeader,
   TableRow
 } from "@akashnetwork/ui/components";
+import Link from "next/link";
+
+import { BlockRow } from "../../components/blockchain/BlockRow";
+import { TransactionRow } from "../../components/blockchain/TransactionRow";
+import { StatsCard } from "./StatsCard";
+
+import { AKTAmount } from "@/components/AKTAmount";
+import { AKTLabel } from "@/components/AKTLabel";
+import { HumanReadableBytes } from "@/components/HumanReadableBytes";
+import SearchBar from "@/components/SearchBar";
+import { Title } from "@/components/Title";
 import { USDCLabel } from "@/components/UsdLabel";
 import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";

@@ -1,10 +1,4 @@
-import {
-  Provider,
-  ProviderSnapshot,
-  ProviderSnapshotNode,
-  ProviderSnapshotNodeCPU,
-  ProviderSnapshotNodeGPU
-} from "@akashnetwork/database/dbSchemas/akash";
+import { Provider, ProviderSnapshot, ProviderSnapshotNode, ProviderSnapshotNodeCPU, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import { asyncify, eachLimit } from "async";
 import axios from "axios";
 import { add, differenceInDays, differenceInHours, differenceInMinutes, isSameDay } from "date-fns";

@@ -1,11 +1,11 @@
 "use client";
 import React from "react";
 import { FormattedNumber } from "react-intl";
+import { Avatar, AvatarFallback, AvatarImage, Badge, Card, CardContent } from "@akashnetwork/ui/components";
 import { User } from "iconoir-react";
 
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";
-import { Avatar, AvatarFallback, AvatarImage, Badge, Card, CardContent } from "@akashnetwork/ui/components";
 import { isValidHttpUrl } from "@/lib/urlUtils";
 import { ValidatorDetail } from "@/types";
 

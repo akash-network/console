@@ -1,9 +1,9 @@
 "use client";
 import { FormattedRelativeTime } from "react-intl";
+import { Badge, TableCell, TableRow } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
 import { AKTAmount } from "@/components/AKTAmount";
-import { Badge, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
 import { getSplitText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";

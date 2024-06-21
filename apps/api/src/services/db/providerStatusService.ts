@@ -1,10 +1,4 @@
-import {
-  Provider,
-  ProviderAttribute,
-  ProviderAttributeSignature,
-  ProviderSnapshotNode,
-  ProviderSnapshotNodeGPU
-} from "@akashnetwork/database/dbSchemas/akash";
+import { Provider, ProviderAttribute, ProviderAttributeSignature, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
 import { add, sub } from "date-fns";
 import { Op } from "sequelize";

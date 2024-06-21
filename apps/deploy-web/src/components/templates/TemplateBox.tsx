@@ -1,8 +1,8 @@
 "use client";
+import { Avatar, AvatarFallback, AvatarImage, cardClasses, CardContent, CardHeader } from "@akashnetwork/ui/components";
 import { MediaImage } from "iconoir-react";
 import Link from "next/link";
 
-import { Avatar, AvatarFallback, AvatarImage, cardClasses, CardContent, CardHeader } from "@akashnetwork/ui/components";
 import { ApiTemplate } from "@src/types";
 import { getShortText } from "@src/utils/stringUtils";
 import { cn } from "@src/utils/styleUtils";

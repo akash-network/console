@@ -1,6 +1,7 @@
 "use client";
 import React, { SetStateAction, useCallback } from "react";
 import { useEffect, useState } from "react";
+import { Alert, Badge, Button, Card, CardContent, CardHeader, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
 import { Check, Copy, InfoCircle, OpenInWindow } from "iconoir-react";
 import yaml from "js-yaml";
 import Link from "next/link";
@@ -14,7 +15,6 @@ import { PriceEstimateTooltip } from "@src/components/shared/PriceEstimateToolti
 import { PricePerMonth } from "@src/components/shared/PricePerMonth";
 import { SpecDetail } from "@src/components/shared/SpecDetail";
 import { StatusPill } from "@src/components/shared/StatusPill";
-import { Button, Alert, Badge, Card, CardContent, CardHeader, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";

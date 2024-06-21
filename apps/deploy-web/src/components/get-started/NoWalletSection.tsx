@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { Alert, buttonVariants, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
 import { NavArrowLeft } from "iconoir-react";
 import Link from "next/link";
 
@@ -7,7 +8,6 @@ import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
 import { LinkTo } from "../shared/LinkTo";
-import { buttonVariants, Alert, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
 import { CreateWalletSection } from "./CreateWalletSection";
 
 export const NoWalletSection: React.FunctionComponent = () => {

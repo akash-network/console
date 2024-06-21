@@ -1,1 +1,1 @@
-module.exports = require('@akashnetwork/dev-config/.eslintrc.next');
+module.exports = require("@akashnetwork/dev-config/.eslintrc.next");

@@ -20,7 +20,7 @@ import {
 } from "@tanstack/react-table";
 import { SearchX } from "lucide-react";
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Spinner } from "../index";
+import { Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../index";
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
 

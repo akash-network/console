@@ -1,9 +1,9 @@
 "use client";
 import React from "react";
+import { Badge, CustomNoDivTooltip, CustomTooltip, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { WarningCircle } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
-import { Badge, TableCell, TableRow, CustomNoDivTooltip, CustomTooltip } from "@akashnetwork/ui/components";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { getSplitText } from "@src/hooks/useShortText";
 import { ClientProviderList } from "@src/types/provider";

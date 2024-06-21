@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Button, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Bank } from "iconoir-react";
 import { NextSeo } from "next-seo";
 
 import { Address } from "@src/components/shared/Address";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { Popup } from "@src/components/shared/Popup";
-import { Button, Table, TableBody, TableHead, TableHeader, TableRow, Spinner } from "@akashnetwork/ui/components";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllowance } from "@src/hooks/useAllowance";
 import { useAllowancesIssued, useGranteeGrants, useGranterGrants } from "@src/queries/useGrantsQuery";

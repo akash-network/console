@@ -3,9 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@src/*": [
-        "./src/*"
-      ]
+      "@src/*": ["./src/*"]
     }
   },
   "extends": "@akashnetwork/dev-config/tsconfig.base-next.json"

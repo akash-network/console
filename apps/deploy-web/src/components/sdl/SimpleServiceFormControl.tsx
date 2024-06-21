@@ -1,6 +1,17 @@
 "use client";
 import { Dispatch, SetStateAction, useState } from "react";
 import { Control, Controller, UseFormSetValue, UseFormTrigger } from "react-hook-form";
+import {
+  Button,
+  buttonVariants,
+  Card,
+  CardContent,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  CustomTooltip,
+  InputWithIcon
+} from "@akashnetwork/ui/components";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { BinMinusIn, InfoCircle, NavArrowDown, OpenInWindow } from "iconoir-react";
@@ -15,17 +26,6 @@ import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { cn } from "@src/utils/styleUtils";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
-import {
-  Button,
-  buttonVariants,
-  Card,
-  CardContent,
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-  InputWithIcon,
-  CustomTooltip
-} from "@akashnetwork/ui/components";
 import { CommandFormModal } from "./CommandFormModal";
 import { CommandList } from "./CommandList";
 import { CpuFormControl } from "./CpuFormControl";

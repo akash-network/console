@@ -5,9 +5,9 @@ import { useEffect } from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { X } from "lucide-react";
 
+import { cn } from "../utils";
 import { Badge } from "./badge";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "./command";
-import { cn } from "../utils";
 
 export interface MultiSelectorOption {
   value: string;

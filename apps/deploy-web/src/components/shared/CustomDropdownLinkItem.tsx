@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
+import { DropdownMenuIconItem } from "@akashnetwork/ui/components";
 
 import { cn } from "@src/utils/styleUtils";
-import { DropdownMenuIconItem } from "@akashnetwork/ui/components";
 
 type Props = {
   icon?: string | React.ReactNode;
