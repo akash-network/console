@@ -11,8 +11,9 @@ const NetworkSelect = dynamic(() => import("./NetworkSelect"), {
   ssr: false
 });
 
-import useCookieTheme from "@/hooks/useTheme";
 import dynamic from "next/dynamic";
+
+import useCookieTheme from "@/hooks/useTheme";
 
 export const Nav = () => {
   const theme = useCookieTheme();

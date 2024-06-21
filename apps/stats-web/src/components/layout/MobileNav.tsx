@@ -2,6 +2,7 @@ import { useState } from "react";
 import Drawer from "react-modern-drawer";
 import { Button } from "@akashnetwork/ui/components";
 import { ArrowUpRightSquare, Discord, Github, Menu, Rocket, StatsUpSquare, X as TwitterX } from "iconoir-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
@@ -11,7 +12,6 @@ import { NavLinks } from "../NavLinks";
 import "react-modern-drawer/dist/index.css";
 
 import useCookieTheme from "@/hooks/useTheme";
-import dynamic from "next/dynamic";
 
 const NetworkSelect = dynamic(() => import("./NetworkSelect"), {
   ssr: false
