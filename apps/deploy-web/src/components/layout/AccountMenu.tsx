@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { Avatar, AvatarFallback, Button, DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, Spinner } from "@akashnetwork/ui/components";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { User } from "iconoir-react";
@@ -9,7 +10,6 @@ import { useRouter } from "next/navigation";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { UrlService } from "@src/utils/urlUtils";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
-import { Button, Avatar, AvatarFallback, DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, Spinner } from "@akashnetwork/ui/components";
 
 export function AccountMenu() {
   const [open, setOpen] = useState(false);

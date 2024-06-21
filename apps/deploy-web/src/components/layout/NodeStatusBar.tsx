@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@akashnetwork/ui/components";
 import { useRouter } from "next/navigation";
 
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
@@ -7,7 +8,6 @@ import { UrlService } from "@src/utils/urlUtils";
 import { useSettings } from "../../context/SettingsProvider";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { NodeStatus } from "../shared/NodeStatus";
-import { Button } from "@akashnetwork/ui/components";
 
 export const NodeStatusBar = () => {
   const { settings, isRefreshingNodeStatus } = useSettings();

@@ -1,23 +1,23 @@
 "use client";
 import React from "react";
 import { MdMoneyOff } from "react-icons/md";
-import { HelpCircle } from "iconoir-react";
-
-import { FormattedDecimal } from "@/components/FormattedDecimal";
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
   Card,
   CardContent,
+  CustomTooltip,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-  CustomTooltip
+  TableRow
 } from "@akashnetwork/ui/components";
+import { HelpCircle } from "iconoir-react";
+
+import { FormattedDecimal } from "@/components/FormattedDecimal";
 import { getSplitText } from "@/hooks/useShortText";
 import { AddressDetail } from "@/types";
 

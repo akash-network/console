@@ -1,13 +1,13 @@
 "use client";
 import React from "react";
 import { FormattedDate, FormattedRelativeTime } from "react-intl";
+import { Alert, AlertDescription, AlertTitle, Card, CardContent } from "@akashnetwork/ui/components";
 import { WarningCircle } from "iconoir-react";
 import Link from "next/link";
 
 import { AddressLink } from "@/components/AddressLink";
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";
-import { Alert, AlertDescription, AlertTitle, Card, CardContent } from "@akashnetwork/ui/components";
 import { UrlService } from "@/lib/urlUtils";
 import { TransactionDetail } from "@/types";
 

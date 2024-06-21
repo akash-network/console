@@ -15,7 +15,7 @@ module.exports = {
       }
     ],
     "space-infix-ops": ["error", { int32Hint: false }],
-    "object-curly-spacing": ["error", "always"],
+    "object-curly-spacing": ["error", "always"]
   },
   overrides: [
     {

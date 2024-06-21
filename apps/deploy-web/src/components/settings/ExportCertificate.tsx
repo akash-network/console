@@ -1,10 +1,10 @@
 "use client";
 import { useEffect } from "react";
+import { Alert } from "@akashnetwork/ui/components";
 import { event } from "nextjs-google-analytics";
 
 import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import { Popup } from "@src/components/shared/Popup";
-import { Alert } from "@akashnetwork/ui/components";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { useSelectedWalletFromStorage } from "@src/utils/walletUtils";
 

@@ -1,17 +1,18 @@
 "use client";
 import React, { Dispatch, useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
+import { Alert, Button, Spinner } from "@akashnetwork/ui/components";
 import { nanoid } from "nanoid";
+
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
-import { Button, Alert, Spinner } from "@akashnetwork/ui/components";
 
 interface Props {
-  sdlString: string;
+  sdlString: string | null;
   setEditedManifest: Dispatch<string>;
 }
 

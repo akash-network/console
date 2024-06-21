@@ -1,10 +1,10 @@
 "use client";
 import { ReactNode } from "react";
 import { Control, Controller } from "react-hook-form";
+import { FormInput, Label, Textarea } from "@akashnetwork/ui/components";
 
 import { SdlBuilderFormValues } from "@src/types";
 import { Popup } from "../shared/Popup";
-import { Label, FormInput, Textarea } from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

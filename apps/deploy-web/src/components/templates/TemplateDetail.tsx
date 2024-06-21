@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Button, buttonVariants, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import { NavArrowLeft, Rocket } from "iconoir-react";
 import Link from "next/link";
@@ -9,7 +10,6 @@ import { DynamicMonacoEditor } from "@src/components/shared/DynamicMonacoEditor"
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
 import Markdown from "@src/components/shared/Markdown";
 import ViewPanel from "@src/components/shared/ViewPanel";
-import { Button, buttonVariants, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { getShortText } from "@src/hooks/useShortText";

@@ -1,11 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Button, Card, CardContent, Input } from "@akashnetwork/ui/components";
 import { fromBech32, normalizeBech32 } from "@cosmjs/encoding";
 import { Search, Xmark } from "iconoir-react";
 import { useRouter } from "next/navigation";
 import { useMediaQuery } from "usehooks-ts";
-
-import { Button, Card, CardContent, Input } from "@akashnetwork/ui/components";
 
 import { breakpoints } from "@/lib/responsiveUtils";
 import { UrlService } from "@/lib/urlUtils";

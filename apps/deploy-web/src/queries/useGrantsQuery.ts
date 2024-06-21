@@ -2,7 +2,6 @@ import { QueryObserverResult, useQuery } from "react-query";
 import axios from "axios";
 
 import { useSettings } from "@src/context/SettingsProvider";
-import { Coin } from "@src/types";
 import { AllowanceType } from "@src/types/grant";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";

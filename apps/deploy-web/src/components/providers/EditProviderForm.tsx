@@ -1,27 +1,27 @@
 "use client";
 import { HTMLInputTypeAttribute, useEffect, useRef, useState } from "react";
 import { Control, Controller, FieldPath, RegisterOptions, useFieldArray, useForm } from "react-hook-form";
-import { Bin, InfoCircle } from "iconoir-react";
-import { nanoid } from "nanoid";
-
-import { FormPaper } from "@src/components/sdl/FormPaper";
 import {
-  Button,
   Alert,
+  Button,
   CheckboxWithLabel,
+  CustomTooltip,
+  FormItem,
+  InputWithIcon,
+  Label,
   MultipleSelector,
   MultiSelectorOption,
-  FormItem,
-  Label,
-  InputWithIcon,
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-  CustomTooltip
+  SelectValue
 } from "@akashnetwork/ui/components";
+import { Bin, InfoCircle } from "iconoir-react";
+import { nanoid } from "nanoid";
+
+import { FormPaper } from "@src/components/sdl/FormPaper";
 import { useWallet } from "@src/context/WalletProvider";
 import { ApiProviderDetail } from "@src/types/provider";
 import { ProviderAttributeSchemaDetailValue, ProviderAttributesFormValues, ProviderAttributesSchema } from "@src/types/providerAttributes";

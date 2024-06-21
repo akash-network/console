@@ -1,12 +1,4 @@
 import React from "react";
-import Link from "next/link";
-import { useRouter } from "next/router";
-
-import { NoKeplrSection } from "@src/components/get-started/NoKeplrSection";
-import { NoWalletSection } from "@src/components/get-started/NoWalletSection";
-import { WithKeplrSection } from "@src/components/get-started/WithKeplrSection";
-import Layout from "@src/components/layout/Layout";
-import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -19,6 +11,14 @@ import {
   CardHeader,
   CardTitle
 } from "@akashnetwork/ui/components";
+import Link from "next/link";
+import { useRouter } from "next/router";
+
+import { NoKeplrSection } from "@src/components/get-started/NoKeplrSection";
+import { NoWalletSection } from "@src/components/get-started/NoWalletSection";
+import { WithKeplrSection } from "@src/components/get-started/WithKeplrSection";
+import Layout from "@src/components/layout/Layout";
+import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 
 enum GetWalletSection {

@@ -1,9 +1,10 @@
 "use client";
 import React from "react";
+import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, CustomTooltip } from "@akashnetwork/ui/components";
 import { GraphUp, HelpCircle } from "iconoir-react";
 import Link from "next/link";
+
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
-import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, CustomTooltip } from "@akashnetwork/ui/components";
 
 interface IStatsCardProps {
   number: React.ReactNode;

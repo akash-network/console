@@ -1,10 +1,10 @@
 "use client";
 import { FormattedRelativeTime } from "react-intl";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { SearchX } from "lucide-react";
 import Link from "next/link";
 
 import { AKTAmount } from "@/components/AKTAmount";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { getShortText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";
 import { IRedelegationDetail } from "@/types";

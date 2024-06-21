@@ -1,10 +1,10 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Button, Spinner } from "@akashnetwork/ui/components";
 import { OpenInWindow, OpenNewWindow } from "iconoir-react";
 import Link from "next/link";
 
 import ViewPanel from "@src/components/shared/ViewPanel";
-import { Button, Alert, Spinner } from "@akashnetwork/ui/components";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useCustomWebSocket } from "@src/hooks/useCustomWebSocket";
 import { XTerm } from "@src/lib/XTerm";

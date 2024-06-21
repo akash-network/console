@@ -1,12 +1,12 @@
 "use client";
 import { Dispatch, ReactNode, SetStateAction, useState } from "react";
+import { Button, DropdownMenu, DropdownMenuContent } from "@akashnetwork/ui/components";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { Edit, MoreHoriz, NavArrowLeft, Refresh, Upload, XmarkSquare } from "iconoir-react";
 import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
-import { Button, DropdownMenu, DropdownMenuContent } from "@akashnetwork/ui/components";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";

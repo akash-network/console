@@ -1,9 +1,9 @@
 "use client";
 import { FormattedDate } from "react-intl";
+import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Check } from "iconoir-react";
 
 import { ConnectWallet } from "@src/components/shared/ConnectWallet";
-import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { CertificateDisplay } from "./CertificateDisplay";

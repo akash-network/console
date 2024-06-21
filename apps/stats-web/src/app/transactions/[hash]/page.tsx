@@ -1,4 +1,5 @@
 import React from "react";
+import { Alert, Card, CardContent } from "@akashnetwork/ui/components";
 import { Metadata } from "next";
 
 import { TransactionInfo } from "./TransactionInfo";
@@ -6,7 +7,6 @@ import { TransactionInfo } from "./TransactionInfo";
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { TxMessageRow } from "@/components/transactions/TxMessageRow";
-import { Alert, Card, CardContent } from "@akashnetwork/ui/components";
 import { getSplitText } from "@/hooks/useShortText";
 import { getNetworkBaseApiUrl } from "@/lib/constants";
 import { TransactionDetail } from "@/types";

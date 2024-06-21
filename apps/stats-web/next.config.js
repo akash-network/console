@@ -9,7 +9,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true
   },
-  transpilePackages: ["geist", "@akashnetwork/ui"],
+  transpilePackages: ["geist", "@akashnetwork/ui"]
 };
 
 module.exports = nextConfig;

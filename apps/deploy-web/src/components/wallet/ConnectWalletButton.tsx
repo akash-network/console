@@ -1,10 +1,10 @@
 "use client";
 import React, { ReactNode } from "react";
+import { Button, ButtonProps } from "@akashnetwork/ui/components";
 import { Wallet } from "iconoir-react";
 
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { cn } from "@src/utils/styleUtils";
-import { Button, ButtonProps } from "@akashnetwork/ui/components";
 
 interface Props extends ButtonProps {
   children?: ReactNode;

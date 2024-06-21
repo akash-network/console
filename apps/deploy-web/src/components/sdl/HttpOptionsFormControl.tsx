@@ -1,12 +1,12 @@
 "use client";
 import { ReactNode } from "react";
 import { Control, Controller } from "react-hook-form";
+import { Checkbox, CustomTooltip, FormItem, InputWithIcon, Label, MultipleSelector } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { nextCases } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
-import { Checkbox, MultipleSelector, FormItem, Label, InputWithIcon, CustomTooltip } from "@akashnetwork/ui/components";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

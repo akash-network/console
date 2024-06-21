@@ -1,6 +1,6 @@
 "use client";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
 import Paginator from "./pagninator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
 
 interface Props {
   pageIndex: number;

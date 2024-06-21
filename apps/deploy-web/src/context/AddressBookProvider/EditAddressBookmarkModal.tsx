@@ -1,5 +1,6 @@
 "use client";
 import { ReactNode, useEffect, useState } from "react";
+import { InputWithIcon } from "@akashnetwork/ui/components";
 import { Bin, Check } from "iconoir-react";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
@@ -7,7 +8,6 @@ import { useSnackbar } from "notistack";
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { Popup } from "@src/components/shared/Popup";
 import { Snackbar } from "@src/components/shared/Snackbar";
-import { InputWithIcon } from "@akashnetwork/ui/components";
 import { getSplitText } from "@src/hooks/useShortText";
 import { useRemoveAddressName, useSaveAddressName } from "@src/queries/useAddressNames";
 import { AnalyticsEvents } from "@src/utils/analytics";

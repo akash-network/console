@@ -1,8 +1,8 @@
 "use client";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { SearchX } from "lucide-react";
 
 import { TransactionRow } from "@/components/blockchain/TransactionRow";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { AddressDetail } from "@/types";
 
 type Props = {

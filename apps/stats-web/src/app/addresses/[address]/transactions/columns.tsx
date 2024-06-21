@@ -1,13 +1,13 @@
 "use client";
 
 import { FormattedRelativeTime } from "react-intl";
+import { DataTableColumnHeader } from "@akashnetwork/ui/components";
 import { AccessorColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 
 import { TransactionTypeCell } from "./TransactionTypeCell";
 
 import { AKTAmount } from "@/components/AKTAmount";
-import { DataTableColumnHeader } from "@akashnetwork/ui/components";
 import { getSplitText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";
 import { TransactionRowType } from "@/lib/zod/transactionRow";

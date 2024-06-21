@@ -1,11 +1,11 @@
 "use client";
 import React, { useState } from "react";
+import { Card, CardContent, DataTable } from "@akashnetwork/ui/components";
 import { ColumnFiltersState, SortingState } from "@tanstack/table-core";
 import { SearchX } from "lucide-react";
 
 import { columns } from "./columns";
 
-import { Card, CardContent, DataTable } from "@akashnetwork/ui/components";
 import { useAddressDeployments } from "@/queries";
 
 interface IProps {

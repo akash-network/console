@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { CheckboxWithLabel, CustomPagination, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import isEqual from "lodash/isEqual";
 
-import { CheckboxWithLabel, CustomPagination, Table, TableBody, TableHead, TableHeader, TableRow, Spinner } from "@akashnetwork/ui/components";
 import { LeaseDto } from "@src/types/deployment";
 import { LeaseRow } from "./LeaseRow";
 

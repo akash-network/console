@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Alert, Table, TableBody, TableCell, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Check } from "iconoir-react";
 
 import { useSettings } from "@src/context/SettingsProvider";
@@ -10,7 +11,6 @@ import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploym
 import { FormPaper } from "../sdl/FormPaper";
 import { LabelValueOld } from "../shared/LabelValueOld";
 import { SpecDetail } from "../shared/SpecDetail";
-import { Alert, Table, TableBody, TableCell, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { BidRow } from "./BidRow";
 
 type Props = {

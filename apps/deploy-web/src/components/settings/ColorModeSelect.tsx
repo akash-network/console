@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
-
 import { FormItem, Label, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
+import { useTheme } from "next-themes";
 
 export const ColorModeSelect: React.FunctionComponent = () => {
   const { setTheme, theme } = useTheme();

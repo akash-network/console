@@ -1,5 +1,6 @@
 "use client";
 import React, { ReactNode, useState } from "react";
+import { Badge, Button, buttonVariants } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -15,7 +16,6 @@ import { ISidebarGroupMenu } from "@src/types";
 import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
-import { Button, buttonVariants, Badge } from "@akashnetwork/ui/components";
 import { MobileSidebarUser } from "./MobileSidebarUser";
 import { ModeToggle } from "./ModeToggle";
 import { NodeStatusBar } from "./NodeStatusBar";

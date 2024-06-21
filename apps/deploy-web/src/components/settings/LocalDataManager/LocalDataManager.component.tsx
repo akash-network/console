@@ -1,7 +1,7 @@
 import React, { FC, useCallback, useRef } from "react";
+import { Button } from "@akashnetwork/ui/components";
 import { Download, Upload } from "iconoir-react";
 
-import { Button } from "@akashnetwork/ui/components";
 import { usePopup } from "@src/context/PopupProvider/PopupProvider";
 
 export type LocalData = Record<string, any>;

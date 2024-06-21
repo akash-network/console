@@ -1,8 +1,8 @@
 "use client";
+import { Badge, Card, CardContent } from "@akashnetwork/ui/components";
 import { Check } from "iconoir-react";
 
 import { LabelValue } from "@src/components/shared/LabelValue";
-import { Badge, Card, CardContent } from "@akashnetwork/ui/components";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { createFilterUnique } from "@src/utils/array";
 

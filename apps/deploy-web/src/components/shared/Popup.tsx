@@ -1,9 +1,6 @@
 import * as React from "react";
 import { useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { DialogProps } from "@radix-ui/react-dialog";
-
-import { cn } from "@src/utils/styleUtils";
 import {
   Button,
   ButtonProps,
@@ -13,16 +10,19 @@ import {
   DialogHeader,
   DialogTitle as _DialogTitle,
   InputWithIcon,
+  ScrollArea,
+  ScrollBar,
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  ScrollArea,
-  ScrollBar,
   Spinner
 } from "@akashnetwork/ui/components";
+import { DialogProps } from "@radix-ui/react-dialog";
+
+import { cn } from "@src/utils/styleUtils";
 import { ErrorFallback } from "./ErrorFallback";
 
 type MessageProps = {
