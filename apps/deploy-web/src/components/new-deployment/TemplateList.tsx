@@ -95,12 +95,13 @@ export const TemplateList: React.FunctionComponent = () => {
             onClick={onSDLBuilderClick}
           />
 
-          <DeployOptionBox
+          {/* TODO: Coming soon - Plain Linux option will be available in future updates */}
+          {/* <DeployOptionBox
             title="Plain Linux"
             description="Choose from multiple linux distros. Deploy and SSH into it. Install and run what you want after that."
             icon={<Page />}
             onClick={() => router.push(UrlService.plainLinux())}
-          />
+          /> */}
         </div>
       </div>
 
