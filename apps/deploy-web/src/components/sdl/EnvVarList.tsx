@@ -15,7 +15,7 @@ type Props = {
 
 export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, setIsEditingEnv, serviceIndex }) => {
   return (
-    <FormPaper>
+    <FormPaper className="whitespace-break-spaces break-all">
       <div className="mb-2 flex items-center">
         <strong className="text-sm">Environment Variables</strong>
 

@@ -223,8 +223,10 @@ const usePieTheme = () => {
   const { resolvedTheme } = useTheme();
   const tw = useTailwind();
   return {
-    textColor: "#fff",
-    fontSize: 12,
+    text: {
+      fill: "#fff",
+      fontSize: 12
+    },
     tooltip: {
       basic: {
         color: resolvedTheme === "dark" ? tw.theme.colors.white : tw.theme.colors.current

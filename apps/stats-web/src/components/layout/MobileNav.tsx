@@ -2,16 +2,20 @@ import { useState } from "react";
 import Drawer from "react-modern-drawer";
 import { Button } from "@akashnetwork/ui/components";
 import { ArrowUpRightSquare, Discord, Github, Menu, Rocket, StatsUpSquare, X as TwitterX } from "iconoir-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import { ModeToggle } from "../ModeToggle";
 import { NavLinks } from "../NavLinks";
-import NetworkSelect from "./NetworkSelect";
 
 import "react-modern-drawer/dist/index.css";
 
 import useCookieTheme from "@/hooks/useTheme";
+
+const NetworkSelect = dynamic(() => import("./NetworkSelect"), {
+  ssr: false
+});
 
 export function MobileNav() {
   const theme = useCookieTheme();
