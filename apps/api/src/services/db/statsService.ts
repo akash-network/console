@@ -167,6 +167,11 @@ export async function getGraphData(dataName: AuthorizedGraphDataName): Promise<G
     value: getter(day.lastBlock)
   }));
 
+  if (dataName === "activeGPU") {
+    const firstWithValue = stats.findIndex(x => x.value > 0);
+    stats = stats.filter((_, i) => i >= firstWithValue);
+  }
+
   if (isRelative) {
     const relativeStats = stats.reduce((arr, dataPoint, index) => {
       arr[index] = {
@@ -275,6 +280,9 @@ export const getProviderActiveLeasesGraphData = async (providerAddress: string) 
         AND l."createdHeight" <= d."lastBlockHeightYet"
         AND (l."closedHeight" IS NULL OR l."closedHeight" > d."lastBlockHeightYet")
         AND (l."predictedClosedHeight" IS NULL OR l."predictedClosedHeight" > d."lastBlockHeightYet")
+    INNER JOIN "provider" p
+        ON p."owner" = l."providerAddress"
+    WHERE d."lastBlockHeightYet" >= p."createdHeight"
     GROUP BY "date"
     ORDER BY "date" ASC`,
     {

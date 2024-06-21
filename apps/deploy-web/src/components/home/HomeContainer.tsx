@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import React from "react";
 import { Spinner } from "@akashnetwork/ui/components";
+import dynamic from "next/dynamic";
 
 import { Footer } from "@src/components/layout/Footer";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
@@ -15,7 +16,10 @@ import { DeploymentDto } from "@src/types/deployment";
 import Layout from "../layout/Layout";
 import CloudmosImportPanel from "./CloudmosImportPanel";
 import { WelcomePanel } from "./WelcomePanel";
-import { YourAccount } from "./YourAccount";
+
+const YourAccount = dynamic(() => import("./YourAccount"), {
+  ssr: false
+});
 
 export function HomeContainer() {
   const { address, isWalletLoaded } = useWallet();

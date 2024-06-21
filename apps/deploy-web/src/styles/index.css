@@ -10,6 +10,10 @@ body {
   padding: 0 !important;
 }
 
+header {
+  width: calc(100% - var(--removed-body-scroll-bar-size, 0px)) !important;
+}
+
 .text-truncate {
   overflow: hidden;
   text-overflow: ellipsis;

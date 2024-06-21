@@ -378,8 +378,10 @@ const BalancePie: React.FunctionComponent<BalancePieProps> = ({ label, data, get
         arcLabelsSkipAngle={10}
         theme={{
           // background: theme === "dark" ? lighten(theme.palette.background.paper, 0.0525) : theme.palette.background.paper,
-          textColor: "#fff",
-          fontSize: 12,
+          text: {
+            fill: "#fff",
+            fontSize: 12
+          },
           tooltip: {
             basic: {
               color: resolvedTheme === "dark" ? "#fff" : customColors.main
@@ -393,3 +395,5 @@ const BalancePie: React.FunctionComponent<BalancePieProps> = ({ label, data, get
     </div>
   );
 };
+
+export default YourAccount;

@@ -83,10 +83,6 @@
     }
   }
 
-  header {
-    width: calc(100% - var(--removed-body-scroll-bar-size, 0px)) !important;
-  }
-
   a {
     text-decoration: none;
     color: hsl(var(--primary));

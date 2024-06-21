@@ -15,6 +15,7 @@
     "dc:up:prod:no-db": "docker compose -p console -f docker-compose.build.yml -f docker-compose.prod.yml up",
     "console:dev": "turbo dev --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/provider-proxy/\"",
     "console:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/provider-proxy/\"",
+    "console:dev:full-no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/indexer\" --filter=\"./apps/provider-proxy/\"",
     "stats:dev": "turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
     "stats:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
     "api:dev": "turbo dev --filter=\"./apps/api\"",
