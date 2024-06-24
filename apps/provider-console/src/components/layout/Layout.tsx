@@ -1,20 +1,12 @@
 "use client";
 import React, { ReactNode, useEffect, useState } from "react";
-import { ErrorBoundary } from "react-error-boundary";
 import { IntlProvider } from "react-intl";
 import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
-
-// import { useSettings } from "@src/context/SettingsProvider";
-// import { useWallet } from "@src/context/WalletProvider";
 import { accountBarHeight } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
-import { ErrorFallback } from "../shared/ErrorFallback";
-import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import Spinner from "../shared/Spinner";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
-// import { Sidebar } from "./Sidebar";
-// import { WelcomeModal } from "./WelcomeModal";
 
 type Props = {
   isLoading?: boolean;
@@ -54,8 +46,6 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   const [isShowingWelcome, setIsShowingWelcome] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  // const { refreshNodeStatuses, isSettingsInit } = useSettings();
-  // const { isWalletLoaded } = useWallet();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   useEffect(() => {
@@ -64,10 +54,6 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
     if (_isNavOpen !== null && !smallScreen) {
       setIsNavOpen(_isNavOpen === "true");
     }
-
-    // const refreshNodeIntervalId = setInterval(async () => {
-    //   await refreshNodeStatuses();
-    // }, 60_000); // refresh every 1min
   });
 
   useEffect(() => {
@@ -76,8 +62,6 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
     if (!agreedToTerms) {
       setIsShowingWelcome(true);
     }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onWelcomeClose = () => {
@@ -101,8 +85,6 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
 
   return (
     <>
-      {/* <WelcomeModal open={isShowingWelcome} onClose={onWelcomeClose} /> */}
-
       <div className="h-full">
         <div className="h-full w-full" style={{ marginTop: `${accountBarHeight}px` }}>
           <div className="h-full">
@@ -117,20 +99,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
                   ["md:ml-[57px]"]: !isNavOpen
                 })}
               >
-                {/* {children} */}
-                {/* {isLoading !== undefined && <LinearLoadingSkeleton isLoading={isLoading} />} */}
                 <div className={cn({ ["container pb-8 pt-4 sm:pt-8"]: !disableContainer }, containerClassName)}>{children}</div>
-                {/* <ErrorBoundary FallbackComponent={ErrorFallback}>
-                  {!isUsingSettings || isSettingsInit ? (
-                    !isUsingWallet || isWalletLoaded ? (
-                      <div className={cn({ ["container pb-8 pt-4 sm:pt-8"]: !disableContainer }, containerClassName)}>{children}</div>
-                    ) : (
-                      <Loading text="Loading wallet..." />
-                    )
-                  ) : (
-                    <Loading text="Loading settings..." />
-                  )}
-                </ErrorBoundary> */}
               </div>
             </div>
           </div>

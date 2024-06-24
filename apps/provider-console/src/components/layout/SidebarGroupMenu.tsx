@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 
 import { ISidebarGroupMenu } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
-import { Separator } from "../ui/separator";
+import { Separator } from "@akashnetwork/ui/components";
 import { SidebarRouteButton } from "./SidebarRouteButton";
 
 type Props = {
@@ -34,3 +34,4 @@ export const SidebarGroupMenu: React.FunctionComponent<Props> = ({ group, hasDiv
     </div>
   );
 };
+
