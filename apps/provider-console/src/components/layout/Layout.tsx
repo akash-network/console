@@ -12,6 +12,7 @@ import { ErrorFallback } from "../shared/ErrorFallback";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import Spinner from "../shared/Spinner";
 import { Nav } from "./Nav";
+import { Sidebar } from "./Sidebar";
 // import { Sidebar } from "./Sidebar";
 // import { WelcomeModal } from "./WelcomeModal";
 
@@ -57,21 +58,17 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   // const { isWalletLoaded } = useWallet();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
-  // useEffect(() => {
-  //   const _isNavOpen = localStorage.getItem("isNavOpen");
+  useEffect(() => {
+    const _isNavOpen = localStorage.getItem("isNavOpen");
 
-  //   if (_isNavOpen !== null && !smallScreen) {
-  //     setIsNavOpen(_isNavOpen === "true");
-  //   }
+    if (_isNavOpen !== null && !smallScreen) {
+      setIsNavOpen(_isNavOpen === "true");
+    }
 
-  //   const refreshNodeIntervalId = setInterval(async () => {
-  //     await refreshNodeStatuses();
-  //   }, 60_000); // refresh every 1min
-
-  //   return () => {
-  //     clearInterval(refreshNodeIntervalId);
-  //   };
-  // }, [refreshNodeStatuses]);
+    // const refreshNodeIntervalId = setInterval(async () => {
+    //   await refreshNodeStatuses();
+    // }, 60_000); // refresh every 1min
+  });
 
   useEffect(() => {
     const agreedToTerms = localStorage.getItem("agreedToTerms") === "true";
@@ -112,7 +109,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
             <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} />
 
             <div className="block h-full w-full flex-grow rounded-none md:flex">
-              {/* <Sidebar onOpenMenuClick={onOpenMenuClick} isNavOpen={isNavOpen} handleDrawerToggle={handleDrawerToggle} isMobileOpen={isMobileOpen} /> */}
+              <Sidebar onOpenMenuClick={onOpenMenuClick} isNavOpen={isNavOpen} handleDrawerToggle={handleDrawerToggle} isMobileOpen={isMobileOpen} />
 
               <div
                 className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300", {

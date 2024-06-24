@@ -4,11 +4,8 @@ import Link from "next/link";
 import useCookieTheme from "@src/hooks/useTheme";
 import { accountBarHeight } from "@src/utils/constants";
 import { UrlService } from "@src/utils/urlUtils";
-// import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
-// import { Badge } from "../ui/badge";
+import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
 import { Button } from "@akashnetwork/ui/components";
-// import { AccountMenu } from "./AccountMenu";
-// import { WalletStatus } from "./WalletStatus";
 
 export const Nav = ({
   isMobileOpen,
@@ -25,38 +22,21 @@ export const Nav = ({
         {!!theme && (
           <Link className="flex items-center" href="/">
             {theme === "light" ? (
-              <div></div>
+              <AkashConsoleBetaLogoLight className="h-[19px] max-w-[200px]" />
             ) : (
-              // <AkashConsoleBetaLogoLight className="h-[19px] max-w-[200px]" />
-              <div></div>
-              // <AkashConsoleBetaLogoDark className="h-[19px] max-w-[200px]" />
+              <AkashConsoleBetaLogoDark className="h-[19px] max-w-[200px]" />
             )}
           </Link>
         )}
-
-        <div>
-          {/* <Button size="icon" className="rounded-full md:hidden" variant="ghost" onClick={handleDrawerToggle}>
-            {isMobileOpen ? <Xmark /> : <Menu />}
-          </Button> */}
-        </div>
 
         <div style={{ height: `${accountBarHeight}px` }} className={`hidden items-center md:flex`}>
           <div>
             <Link passHref href={UrlService.getStarted()}>
               <Button variant="outline" className="relative">
                 Get Started
-                </Button>
-                </Link>
-                {/* <Badge className="absolute -right-1 -top-1 h-2 w-2 rounded-full p-0" /> */}
-              {/*</Button>
+              </Button>
             </Link>
           </div>
-
-          <div className="flex items-center">
-            <div className="ml-4">{/* <WalletStatus /> */}</div>
-
-            {/* <AccountMenu /> */}
-          {/* </div> */}
         </div>
       </div>
     </header>

@@ -1,1 +1,1 @@
-export default require("@akashnetwork/ui/tailwind")("provider-console");
+export default require("@akashnetwork/ui/tailwind")("deploy-web");
