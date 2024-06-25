@@ -100,7 +100,7 @@ export const TemplateList: React.FunctionComponent = () => {
               title="Plain Linux"
               description="Choose from multiple linux distros. Deploy and SSH into it. Install and run what you want after."
               icon={<Page />}
-              onClick={() => onSDLBuilderClick("plain-linux")}
+              onClick={() => onSDLBuilderClick("deploy-linux")}
             />
           }
         </div>

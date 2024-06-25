@@ -1,5 +1,5 @@
 import cloneDeep from "lodash/cloneDeep";
-import flowRight from "lodash/flowRight";
+import flow from "lodash/flow";
 import isMatch from "lodash/isMatch";
 
 import { Service } from "@src/types";
@@ -17,7 +17,7 @@ export const transformCustomSdlFields = (services: Service[], options?: Transfor
     pipeline.push(mapImage);
   }
 
-  const transform = flowRight(pipeline);
+  const transform = flow(pipeline);
 
   return services.map(service => transform(service));
 };

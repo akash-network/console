@@ -20,15 +20,17 @@ import {
 } from "@akashnetwork/ui/components";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { BinMinusIn, InfoCircle, Key, NavArrowDown, OpenInWindow } from "iconoir-react";
+import { BinMinusIn, InfoCircle, NavArrowDown, OpenInWindow } from "iconoir-react";
 import Image from "next/legacy/image";
 import Link from "next/link";
 
+import { SSHKeyFormControl } from "@src/components/sdl/SSHKeyFromControl";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { GpuVendor } from "@src/types/gpu";
 import { uAktDenom } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
+import { SSH_VM_IMAGES } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
@@ -229,7 +231,20 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         control={control}
                         name={`services.${serviceIndex}.image`}
                         rules={{
-                          required: "Docker image name is required."
+                          required: "Docker image name is required.",
+                          validate: value => {
+                            if (ssh) {
+                              return !!SSH_VM_IMAGES[value];
+                            }
+
+                            const hasValidChars = /^[a-z0-9\-_/:.]+$/.test(value);
+
+                            if (!hasValidChars) {
+                              return "Invalid docker image name.";
+                            }
+
+                            return true;
+                          }
                         }}
                         render={({ field, fieldState }) =>
                           imageList?.length ? (
@@ -286,7 +301,13 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                               endIcon={
                                 <Link
                                   href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`}
-                                  className={cn(buttonVariants({ variant: "text", size: "icon" }), "text-muted-foreground")}
+                                  className={cn(
+                                    buttonVariants({
+                                      variant: "text",
+                                      size: "icon"
+                                    }),
+                                    "text-muted-foreground"
+                                  )}
                                   target="_blank"
                                 >
                                   <OpenInWindow />
@@ -297,47 +318,6 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         }
                       />
                     </div>
-
-                    {ssh && (
-                      <div>
-                        <Controller
-                          control={control}
-                          name={`services.${serviceIndex}.sshPubKey`}
-                          rules={{
-                            required: "SSH Public key is required."
-                          }}
-                          render={({ field, fieldState }) => (
-                            <InputWithIcon
-                              type="text"
-                              label={
-                                <div className="inline-flex items-center">
-                                  SSH Public Key
-                                  <CustomTooltip
-                                    title={
-                                      <>
-                                        SSH Public Key
-                                        <br />
-                                        <br />
-                                        The key is added to environment variables of the container and then to ~/.ssh/authorized_keys on startup.
-                                      </>
-                                    }
-                                  >
-                                    <InfoCircle className="ml-2 text-xs text-muted-foreground" />
-                                  </CustomTooltip>
-                                </div>
-                              }
-                              placeholder="ssh-..."
-                              color="secondary"
-                              error={fieldState.error?.message}
-                              className="flex-grow"
-                              value={field.value}
-                              onChange={event => field.onChange(event.target.value || "")}
-                              startIcon={<Key className="ml-2 text-xs text-muted-foreground" />}
-                            />
-                          )}
-                        />
-                      </div>
-                    )}
 
                     <div>
                       <CpuFormControl control={control as any} currentService={currentService} serviceIndex={serviceIndex} />
@@ -370,6 +350,12 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
 
                 <div>
                   <div className="grid gap-4">
+                    {ssh && (
+                      <FormPaper className="whitespace-break-spaces break-all">
+                        <SSHKeyFormControl control={control} serviceIndex={serviceIndex} setValue={setValue} />
+                      </FormPaper>
+                    )}
+
                     <div>
                       <EnvVarList currentService={currentService} setIsEditingEnv={setIsEditingEnv} serviceIndex={serviceIndex} ssh={ssh} />
                     </div>

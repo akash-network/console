@@ -1,6 +1,5 @@
 "use client";
-import React, { SetStateAction, useCallback, useMemo } from "react";
-import { useEffect, useState } from "react";
+import React, { SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Button, Card, CardContent, CardHeader, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
 import { Check, Copy, InfoCircle, OpenInWindow } from "iconoir-react";
 import yaml from "js-yaml";
@@ -79,7 +78,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
     retry: false
   });
   const isLeaseNotFound = error && (error as string).includes && (error as string).includes("lease not found") && isLeaseActive;
-  const servicesNames = leaseStatus ? Object.keys(leaseStatus.services) : [];
+  const servicesNames = useMemo(() => (leaseStatus ? Object.keys(leaseStatus.services) : []), [leaseStatus]);
   const [isSendingManifest, setIsSendingManifest] = useState(false);
   const { data: bid } = useBidInfo(lease.owner, lease.dseq, lease.gseq, lease.oseq, lease.provider);
   const { enqueueSnackbar } = useSnackbar();
@@ -122,8 +121,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
   async function sendManifest() {
     setIsSendingManifest(true);
     try {
-      const doc = parsedManifest;
-      const manifest = deploymentData.getManifest(doc, true);
+      const manifest = deploymentData.getManifest(parsedManifest, true);
 
       await sendManifestToProvider(provider as ApiProviderList, manifest, dseq, localCert as LocalCert);
 
@@ -452,11 +450,16 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
         {sshInstructions && (
           <div className="mt-4">
             <h5 className="font-bold dark:text-neutral-500">SSH Instructions:</h5>
-            <p>
-              Use this command in your terminal to access your VM via SSH. Make sure to pass the correct path to the private key corresponding to the public one
-              provided during this deployment creation.
-            </p>
-            <CodeSnippet code={sshInstructions} />
+            <ul className="list-inside list-disc space-y-1">
+              <li>
+                Open a command terminal on your machine and copy this command into it:
+                <CodeSnippet code={sshInstructions} />
+              </li>
+              <li>
+                Replace ~/.ssh/id_rsa with the path to the private key (stored on your local machine) corresponding to the public key you provided earlier
+              </li>
+              <li>Run the command</li>
+            </ul>
           </div>
         )}
       </CardContent>
