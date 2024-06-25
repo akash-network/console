@@ -7,10 +7,10 @@ import { Template, TemplateFavorite, UserAddressName, UserSetting } from "./user
 function getFilteredBaseModel(): ModelCtor<Model<any, any>>[] {
   let models: ModelCtor<Model<any, any>>[] = baseModels;
   if (activeChain.customBlockModel) {
-    models = models.filter((model) => model !== BaseBlock);
+    models = models.filter(model => model !== BaseBlock);
   }
   if (activeChain.customMessageModel) {
-    models = models.filter((model) => model !== BaseMessage);
+    models = models.filter(model => model !== BaseMessage);
   }
 
   return models;
@@ -21,10 +21,10 @@ const baseModels: ModelCtor<Model<any, any>>[] = [AddressReference, BaseBlock, D
 export function getChainModels(chainName: string) {
   let models: ModelCtor<Model<any, any>>[] = baseModels;
   if (chainDefinitions[chainName].customBlockModel) {
-    models = models.filter((model) => model !== BaseBlock);
+    models = models.filter(model => model !== BaseBlock);
   }
   if (chainDefinitions[chainName].customMessageModel) {
-    models = models.filter((model) => model !== BaseMessage);
+    models = models.filter(model => model !== BaseMessage);
   }
 
   return [...models, ...(chainDefinitions[chainName].customModels ?? [])];

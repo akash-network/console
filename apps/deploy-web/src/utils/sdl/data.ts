@@ -21,6 +21,7 @@ export const defaultService: Service = {
   id: nanoid(),
   title: "service-1",
   image: "",
+  sshPubKey: "",
   profile: {
     cpu: 0.1,
     gpu: 1,
@@ -74,6 +75,27 @@ export const defaultService: Service = {
     attributes: []
   },
   count: 1
+};
+
+export const SSH_VM_IMAGES = {
+  "Ubuntu 24.04": "ghcr.io/akash-network/ubuntu-2404-ssh:1",
+  "CentOS Stream 9": "ghcr.io/akash-network/centos-stream9-ssh:1",
+  "Debian 11": "ghcr.io/akash-network/debian-11-ssh:1",
+  "SuSE Leap 15.5": "ghcr.io/akash-network/opensuse-leap-155-ssh:1"
+};
+export const sshVmDistros: string[] = Object.keys(SSH_VM_IMAGES);
+export const sshVmImages: Set<string> = new Set(Object.values(SSH_VM_IMAGES));
+export const SSH_EXPOSE = {
+  port: 22,
+  as: 22,
+  global: true,
+  to: []
+};
+
+export const defaultSshVMService: Service = {
+  ...defaultService,
+  image: sshVmDistros[0],
+  expose: []
 };
 
 export const defaultRentGpuService: Service = {
