@@ -1,13 +1,14 @@
 "use client";
-import React, { SetStateAction, useCallback } from "react";
-import { useEffect, useState } from "react";
+import React, { SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Button, Card, CardContent, CardHeader, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
 import { Check, Copy, InfoCircle, OpenInWindow } from "iconoir-react";
 import yaml from "js-yaml";
+import get from "lodash/get";
 import Link from "next/link";
 import { useSnackbar } from "notistack";
 
 import { AuditorButton } from "@src/components/providers/AuditorButton";
+import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import { FavoriteButton } from "@src/components/shared/FavoriteButton";
 import { LabelValueOld } from "@src/components/shared/LabelValueOld";
 import { LinkTo } from "@src/components/shared/LinkTo";
@@ -28,6 +29,7 @@ import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { deploymentData } from "@src/utils/deploymentData";
 import { getGpusFromAttributes, sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
+import { sshVmImages } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
@@ -76,7 +78,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
     retry: false
   });
   const isLeaseNotFound = error && (error as string).includes && (error as string).includes("lease not found") && isLeaseActive;
-  const servicesNames = leaseStatus ? Object.keys(leaseStatus.services) : [];
+  const servicesNames = useMemo(() => (leaseStatus ? Object.keys(leaseStatus.services) : []), [leaseStatus]);
   const [isSendingManifest, setIsSendingManifest] = useState(false);
   const { data: bid } = useBidInfo(lease.owner, lease.dseq, lease.gseq, lease.oseq, lease.provider);
   const { enqueueSnackbar } = useSnackbar();
@@ -91,6 +93,8 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
       getProviderStatus();
     }
   }, [isLeaseActive, provider, localCert, getLeaseStatus, getProviderStatus]);
+
+  const parsedManifest = useMemo(() => yaml.load(deploymentManifest), [deploymentManifest]);
 
   const checkIfServicesAreAvailable = leaseStatus => {
     const servicesNames = leaseStatus ? Object.keys(leaseStatus.services) : [];
@@ -117,8 +121,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
   async function sendManifest() {
     setIsSendingManifest(true);
     try {
-      const doc = yaml.load(deploymentManifest);
-      const manifest = deploymentData.getManifest(doc, true);
+      const manifest = deploymentData.getManifest(parsedManifest, true);
 
       await sendManifestToProvider(provider as ApiProviderList, manifest, dseq, localCert as LocalCert);
 
@@ -141,6 +144,28 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
   };
 
   const gpuModels = bid && bid.bid.resources_offer.flatMap(x => getGpusFromAttributes(x.resources.gpu.attributes));
+
+  const sshInstructions = useMemo(() => {
+    return servicesNames.reduce((acc, serviceName) => {
+      if (!sshVmImages.has(get(parsedManifest, ["services", serviceName, "image"]))) {
+        return acc;
+      }
+
+      const exposes = leaseStatus.forwarded_ports[serviceName];
+
+      return exposes.reduce((exposesAcc, expose) => {
+        if (expose.port !== 22) {
+          return exposesAcc;
+        }
+
+        if (exposesAcc) {
+          exposesAcc += "\n";
+        }
+
+        return exposesAcc.concat(`ssh root@${expose.host} -p ${expose.externalPort} -i ~/.ssh/id_rsa`);
+      }, acc);
+    }, "");
+  }, [parsedManifest, servicesNames, leaseStatus]);
 
   return (
     <Card className="mb-4">
@@ -418,6 +443,22 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
                     </Button>
                   </li>
                 ))}
+            </ul>
+          </div>
+        )}
+
+        {sshInstructions && (
+          <div className="mt-4">
+            <h5 className="font-bold dark:text-neutral-500">SSH Instructions:</h5>
+            <ul className="list-inside list-disc space-y-1">
+              <li>
+                Open a command terminal on your machine and copy this command into it:
+                <CodeSnippet code={sshInstructions} />
+              </li>
+              <li>
+                Replace ~/.ssh/id_rsa with the path to the private key (stored on your local machine) corresponding to the public key you provided earlier
+              </li>
+              <li>Run the command</li>
             </ul>
           </div>
         )}

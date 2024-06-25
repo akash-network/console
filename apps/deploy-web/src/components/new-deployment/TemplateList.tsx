@@ -10,11 +10,11 @@ import { useRouter } from "next/navigation";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import sdlStore from "@src/store/sdlStore";
-import { ApiTemplate, TemplateCreation } from "@src/types";
+import { ApiTemplate } from "@src/types";
 import { RouteStepKeys } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { helloWorldTemplate, ubuntuTemplate } from "@src/utils/templates";
-import { domainName, UrlService } from "@src/utils/urlUtils";
+import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";
@@ -46,9 +46,9 @@ export const TemplateList: React.FunctionComponent = () => {
     }
   }, [templates]);
 
-  function onSDLBuilderClick() {
+  function onSDLBuilderClick(page: NewDeploymentParams["page"] = "new-deployment") {
     setSdlEditMode("builder");
-    router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
+    router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, page }));
   }
 
   function handleBackClick() {
@@ -73,7 +73,7 @@ export const TemplateList: React.FunctionComponent = () => {
       </div>
 
       <div className="mb-8">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-3 md:gap-4">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-4 md:gap-4">
           <DeployOptionBox
             title={helloWorldTemplate.title}
             description={helloWorldTemplate.description}
@@ -92,16 +92,17 @@ export const TemplateList: React.FunctionComponent = () => {
             title="Build your template"
             description="With our new SDL Builder, you can create your own SDL from scratch in a few clicks!"
             icon={<Wrench />}
-            onClick={onSDLBuilderClick}
+            onClick={() => onSDLBuilderClick()}
           />
 
-          {/* TODO: Coming soon - Plain Linux option will be available in future updates */}
-          {/* <DeployOptionBox
-            title="Plain Linux"
-            description="Choose from multiple linux distros. Deploy and SSH into it. Install and run what you want after that."
-            icon={<Page />}
-            onClick={() => router.push(UrlService.plainLinux())}
-          /> */}
+          {
+            <DeployOptionBox
+              title="Plain Linux"
+              description="Choose from multiple linux distros. Deploy and SSH into it. Install and run what you want after."
+              icon={<Page />}
+              onClick={() => onSDLBuilderClick("deploy-linux")}
+            />
+          }
         </div>
       </div>
 

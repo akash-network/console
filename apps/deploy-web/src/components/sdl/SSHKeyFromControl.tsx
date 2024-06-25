@@ -1,0 +1,104 @@
+import { FC, useCallback, useState } from "react";
+import { Control, Controller, UseFormSetValue } from "react-hook-form";
+import { Button, CustomTooltip, InputWithIcon } from "@akashnetwork/ui/components";
+import { saveAs } from "file-saver";
+import { InfoCircle, Key } from "iconoir-react";
+import JSZip from "jszip";
+import forge from "node-forge";
+
+import { CodeSnippet } from "@src/components/shared/CodeSnippet";
+import { SdlBuilderFormValues } from "@src/types";
+
+interface SSHKeyInputProps {
+  control: Control<SdlBuilderFormValues, any>;
+  serviceIndex: number;
+  setValue: UseFormSetValue<SdlBuilderFormValues>;
+}
+
+export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex, setValue }) => {
+  const [hasGenerated, setHasGenerated] = useState(false);
+  const generateSSHKeys = useCallback(async () => {
+    const keys = forge.pki.rsa.generateKeyPair({ bits: 2048 });
+    const publicKey = forge.ssh.publicKeyToOpenSSH(keys.publicKey);
+
+    setValue(`services.${serviceIndex}.sshPubKey`, publicKey);
+
+    const zip = new JSZip();
+    zip.file("id_rsa.pub", publicKey);
+    zip.file("id_rsa", forge.ssh.privateKeyToOpenSSH(keys.privateKey));
+    const content = await zip.generateAsync({ type: "blob" });
+
+    saveAs(content, "keypair.zip");
+
+    setHasGenerated(true);
+  }, [serviceIndex, setValue]);
+
+  return (
+    <div>
+      <Controller
+        control={control}
+        name={`services.${serviceIndex}.sshPubKey`}
+        rules={{
+          required: "SSH Public key is required."
+        }}
+        render={({ field, fieldState }) => (
+          <InputWithIcon
+            type="text"
+            label={
+              <div className="inline-flex items-center">
+                <strong>SSH Public Key</strong>
+                <CustomTooltip
+                  title={
+                    <>
+                      SSH Public Key
+                      <br />
+                      <br />
+                      The key is added to environment variables of the container and then to ~/.ssh/authorized_keys on startup.
+                    </>
+                  }
+                >
+                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                </CustomTooltip>
+              </div>
+            }
+            placeholder="ssh-..."
+            color="secondary"
+            error={fieldState.error?.message}
+            className="flex-grow"
+            value={field.value}
+            onChange={event => field.onChange(event.target.value || "")}
+            startIcon={<Key className="ml-2 text-xs text-muted-foreground" />}
+            endIcon={
+              <Button onClick={generateSSHKeys} type="button" size="sm" className="-mr-2.5">
+                Generate
+              </Button>
+            }
+          />
+        )}
+      />
+
+      {hasGenerated && (
+        <div className="mt-2 text-sm text-muted-foreground">
+          <h4 className="text-lg">How to use</h4>
+          <p className="mt-2">The generated SSH key pair is used to access the container via SSH. Here are generalized steps to use them:</p>
+          <ul className="list-inside list-disc space-y-1 text-gray-500 dark:text-gray-400">
+            <li>
+              Download the key pair and extract it.
+              <CodeSnippet code="unzip ~/Downloads/keypair.zip" />
+            </li>
+            <li>
+              Copy the private key file to <code>~/.ssh/id_rsa</code> on your local machine.
+              <CodeSnippet code="mv ~/Downloads/keypair/* ~/.ssh/" />
+            </li>
+            <li>
+              Make sure to set the correct permissions on the private key file:
+              <CodeSnippet code="chmod 600 ~/.ssh/id_rsa" />
+            </li>
+            <li>Check out more instructions on deployment page in the Lease tab.</li>
+          </ul>
+          <p className="mt-2">Note: the above is valid for unix operating system</p>
+        </div>
+      )}
+    </div>
+  );
+};

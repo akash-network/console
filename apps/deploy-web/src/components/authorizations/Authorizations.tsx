@@ -15,6 +15,7 @@ import { averageBlockTime } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import Layout from "../layout/Layout";
 import { SettingsLayout, SettingsTabs } from "../settings/SettingsLayout";
+import { ConnectWallet } from "../shared/ConnectWallet";
 import { Title } from "../shared/Title";
 import { AllowanceGrantedRow } from "./AllowanceGrantedRow";
 import { AllowanceIssuedRow } from "./AllowanceIssuedRow";
@@ -22,7 +23,6 @@ import { AllowanceModal } from "./AllowanceModal";
 import { GranteeRow } from "./GranteeRow";
 import { GranterRow } from "./GranterRow";
 import { GrantModal } from "./GrantModal";
-import { ConnectWallet } from "../shared/ConnectWallet";
 
 type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "allowancesGranted" | null;
 const defaultRefetchInterval = 30 * 1000;
