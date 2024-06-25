@@ -12,9 +12,10 @@ type Props = {
   serviceIndex?: number;
   children?: ReactNode;
   setIsEditingExpose: Dispatch<SetStateAction<boolean | number>>;
+  ssh?: boolean;
 };
 
-export const ExposeList: React.FunctionComponent<Props> = ({ currentService, setIsEditingExpose, serviceIndex }) => {
+export const ExposeList: React.FunctionComponent<Props> = ({ currentService, setIsEditingExpose, serviceIndex, ssh }) => {
   return (
     <FormPaper>
       <div className="mb-2 flex items-center">
@@ -24,6 +25,13 @@ export const ExposeList: React.FunctionComponent<Props> = ({ currentService, set
           title={
             <>
               Expose is a list of port settings describing what can connect to the service.
+              {ssh && (
+                <>
+                  <br />
+                  <br />
+                  Note: Port 22 is reserved for SSH and is going to be exposed by default.
+                </>
+              )}
               <br />
               <br />
               <a href="https://akash.network/docs/getting-started/stack-definition-language/#servicesexpose" target="_blank" rel="noopener">

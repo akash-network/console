@@ -2,32 +2,36 @@
 import React, { Dispatch, useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Alert, Button, Spinner } from "@akashnetwork/ui/components";
+import cloneDeep from "lodash/cloneDeep";
 import { nanoid } from "nanoid";
 
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import { SdlBuilderFormValues, Service } from "@src/types";
-import { defaultService } from "@src/utils/sdl/data";
+import { defaultService, defaultSshVMService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
+import { transformCustomSdlFields, TransformError } from "@src/utils/sdl/transformCustomSdlFields";
 import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
 
 interface Props {
   sdlString: string | null;
   setEditedManifest: Dispatch<string>;
+  imageList?: string[];
+  ssh?: boolean;
 }
 
 export type SdlBuilderRefType = {
-  getSdl: () => string;
+  getSdl: () => string | undefined;
   validate: () => Promise<boolean>;
 };
 
-export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlString, setEditedManifest }, ref) => {
+export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlString, setEditedManifest, imageList, ssh }, ref) => {
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [isInit, setIsInit] = useState(false);
   const { control, trigger, watch, setValue } = useForm<SdlBuilderFormValues>({
     defaultValues: {
-      services: [{ ...defaultService }]
+      services: [cloneDeep(ssh ? defaultSshVMService : defaultService)]
     }
   });
   const {
@@ -73,7 +77,13 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   }, [watch]);
 
   const getSdl = () => {
-    return generateSdl(_services as Service[]);
+    try {
+      return generateSdl(transformCustomSdlFields(_services, { withSSH: ssh }));
+    } catch (err) {
+      if (err instanceof TransformError) {
+        setError(err.message);
+      }
+    }
   };
 
   const createAndValidateSdl = (yamlStr: string) => {
@@ -92,7 +102,6 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
         setError(err.message);
       } else {
         setError("Error while parsing SDL file");
-        // setParsingError(err.message);
         console.error(err);
       }
     }
@@ -128,6 +137,8 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
                 serviceCollapsed={serviceCollapsed}
                 setServiceCollapsed={setServiceCollapsed}
                 hasSecretOption={false}
+                imageList={imageList}
+                ssh={ssh}
               />
             ))}
 
@@ -137,13 +148,15 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
             </Alert>
           )}
 
-          <div className="flex items-center justify-end pt-4">
-            <div>
-              <Button variant="default" size="sm" type="button" onClick={onAddService}>
-                Add Service
-              </Button>
+          {!ssh && (
+            <div className="flex items-center justify-end pt-4">
+              <div>
+                <Button variant="default" size="sm" type="button" onClick={onAddService}>
+                  Add Service
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </form>
       )}
     </div>

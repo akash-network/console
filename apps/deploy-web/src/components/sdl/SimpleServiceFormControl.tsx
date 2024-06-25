@@ -10,7 +10,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   CustomTooltip,
-  InputWithIcon
+  InputWithIcon,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@akashnetwork/ui/components";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -18,11 +24,13 @@ import { BinMinusIn, InfoCircle, NavArrowDown, OpenInWindow } from "iconoir-reac
 import Image from "next/legacy/image";
 import Link from "next/link";
 
+import { SSHKeyFormControl } from "@src/components/sdl/SSHKeyFromControl";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { GpuVendor } from "@src/types/gpu";
 import { uAktDenom } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
+import { SSH_VM_IMAGES } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
@@ -52,6 +60,8 @@ type Props = {
   setValue: UseFormSetValue<SdlBuilderFormValues>;
   gpuModels: GpuVendor[] | undefined;
   hasSecretOption?: boolean;
+  imageList?: string[];
+  ssh?: boolean;
 };
 
 export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
@@ -64,7 +74,9 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   setServiceCollapsed,
   setValue,
   gpuModels,
-  hasSecretOption
+  hasSecretOption,
+  imageList,
+  ssh
 }) => {
   const [isEditingCommands, setIsEditingCommands] = useState<number | boolean | null>(null);
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(null);
@@ -221,6 +233,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         rules={{
                           required: "Docker image name is required.",
                           validate: value => {
+                            if (ssh) {
+                              return !!SSH_VM_IMAGES[value];
+                            }
+
                             const hasValidChars = /^[a-z0-9\-_/:.]+$/.test(value);
 
                             if (!hasValidChars) {
@@ -230,45 +246,76 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                             return true;
                           }
                         }}
-                        render={({ field, fieldState }) => (
-                          <InputWithIcon
-                            type="text"
-                            label={
-                              <div className="inline-flex items-center">
-                                Docker Image / OS
-                                <CustomTooltip
-                                  title={
-                                    <>
-                                      Docker image of the container.
-                                      <br />
-                                      <br />
-                                      Best practices: avoid using :latest image tags as Akash Providers heavily cache images.
-                                    </>
-                                  }
+                        render={({ field, fieldState }) =>
+                          imageList?.length ? (
+                            <div className="flex flex-grow flex-col">
+                              <Select value={field.value} onValueChange={field.onChange}>
+                                <SelectTrigger className="ml-1">
+                                  <Image alt="Docker Logo" src="/images/docker.png" layout="fixed" quality={100} width={24} height={18} priority />
+                                  <div className="flex-1 pl-2 text-left">
+                                    <SelectValue placeholder="Select image" />
+                                  </div>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectGroup>
+                                    {imageList.map(image => {
+                                      return (
+                                        <SelectItem key={image} value={image}>
+                                          {image}
+                                        </SelectItem>
+                                      );
+                                    })}
+                                  </SelectGroup>
+                                </SelectContent>
+                              </Select>
+                              {fieldState.error?.message && <p className="mt-2 text-sm text-red-600">{fieldState.error.message}</p>}
+                            </div>
+                          ) : (
+                            <InputWithIcon
+                              type="text"
+                              label={
+                                <div className="inline-flex items-center">
+                                  Docker Image / OS
+                                  <CustomTooltip
+                                    title={
+                                      <>
+                                        Docker image of the container.
+                                        <br />
+                                        <br />
+                                        Best practices: avoid using :latest image tags as Akash Providers heavily cache images.
+                                      </>
+                                    }
+                                  >
+                                    <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                                  </CustomTooltip>
+                                </div>
+                              }
+                              placeholder="Example: mydockerimage:1.01"
+                              color="secondary"
+                              // error={!!fieldState.error}
+                              error={fieldState.error?.message}
+                              className="flex-grow"
+                              value={field.value}
+                              onChange={event => field.onChange((event.target.value || "").toLowerCase())}
+                              startIcon={<Image alt="Docker Logo" src="/images/docker.png" layout="fixed" quality={100} width={24} height={18} priority />}
+                              endIcon={
+                                <Link
+                                  href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`}
+                                  className={cn(
+                                    buttonVariants({
+                                      variant: "text",
+                                      size: "icon"
+                                    }),
+                                    "text-muted-foreground"
+                                  )}
+                                  target="_blank"
                                 >
-                                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
-                                </CustomTooltip>
-                              </div>
-                            }
-                            placeholder="Example: mydockerimage:1.01"
-                            color="secondary"
-                            // error={!!fieldState.error}
-                            error={fieldState.error?.message}
-                            className="flex-grow"
-                            value={field.value}
-                            onChange={event => field.onChange((event.target.value || "").toLowerCase())}
-                            startIcon={<Image alt="Docker Logo" src="/images/docker.png" layout="fixed" quality={100} width={24} height={18} priority />}
-                            endIcon={
-                              <Link
-                                href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`}
-                                className={cn(buttonVariants({ variant: "text", size: "icon" }), "text-muted-foreground")}
-                                target="_blank"
-                              >
-                                <OpenInWindow />
-                              </Link>
-                            }
-                          />
-                        )}
+                                  <OpenInWindow />
+                                </Link>
+                              }
+                            />
+                          )
+                        }
                       />
                     </div>
 
@@ -303,76 +350,86 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
 
                 <div>
                   <div className="grid gap-4">
-                    <div>
-                      <EnvVarList currentService={currentService} setIsEditingEnv={setIsEditingEnv} serviceIndex={serviceIndex} />
-                    </div>
+                    {ssh && (
+                      <FormPaper className="whitespace-break-spaces break-all">
+                        <SSHKeyFormControl control={control} serviceIndex={serviceIndex} setValue={setValue} />
+                      </FormPaper>
+                    )}
 
                     <div>
-                      <CommandList currentService={currentService} setIsEditingCommands={setIsEditingCommands} serviceIndex={serviceIndex} />
+                      <EnvVarList currentService={currentService} setIsEditingEnv={setIsEditingEnv} serviceIndex={serviceIndex} ssh={ssh} />
                     </div>
+
+                    {!ssh && (
+                      <div>
+                        <CommandList currentService={currentService} setIsEditingCommands={setIsEditingCommands} serviceIndex={serviceIndex} />
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-4">
-                    <ExposeList currentService={currentService} setIsEditingExpose={setIsEditingExpose} serviceIndex={serviceIndex} />
+                    <ExposeList currentService={currentService} setIsEditingExpose={setIsEditingExpose} serviceIndex={serviceIndex} ssh={ssh} />
                   </div>
 
-                  <div className="mt-4">
-                    <Controller
-                      control={control}
-                      name={`services.${serviceIndex}.count`}
-                      rules={{
-                        min: 1,
-                        validate: v => {
-                          if (!v) return "Service count is required.";
-                          return true;
-                        }
-                      }}
-                      render={({ field, fieldState }) => (
-                        <InputWithIcon
-                          type="number"
-                          label={
-                            <div className="inline-flex items-center">
-                              Service Count
-                              <CustomTooltip
-                                title={
-                                  <>
-                                    The number of instances of the service to run.
-                                    <br />
-                                    <br />
-                                    <a
-                                      href="https://akash.network/docs/getting-started/stack-definition-language/#profilesplacement"
-                                      target="_blank"
-                                      rel="noopener"
-                                    >
-                                      View official documentation.
-                                    </a>
-                                  </>
-                                }
-                              >
-                                <InfoCircle className="ml-2 text-xs text-muted-foreground" />
-                              </CustomTooltip>
-                            </div>
+                  {!ssh && (
+                    <div className="mt-4">
+                      <Controller
+                        control={control}
+                        name={`services.${serviceIndex}.count`}
+                        rules={{
+                          min: 1,
+                          validate: v => {
+                            if (!v) return "Service count is required.";
+                            return true;
                           }
-                          value={field.value || ""}
-                          // error={!!fieldState.error}
-                          error={fieldState.error?.message}
-                          onChange={event => {
-                            const newValue = parseInt(event.target.value);
-                            field.onChange(newValue);
-
-                            if (newValue) {
-                              trigger(`services.${serviceIndex}.profile.cpu`);
-                              trigger(`services.${serviceIndex}.profile.ram`);
-                              trigger(`services.${serviceIndex}.profile.storage`);
+                        }}
+                        render={({ field, fieldState }) => (
+                          <InputWithIcon
+                            type="number"
+                            label={
+                              <div className="inline-flex items-center">
+                                Service Count
+                                <CustomTooltip
+                                  title={
+                                    <>
+                                      The number of instances of the service to run.
+                                      <br />
+                                      <br />
+                                      <a
+                                        href="https://akash.network/docs/getting-started/stack-definition-language/#profilesplacement"
+                                        target="_blank"
+                                        rel="noopener"
+                                      >
+                                        View official documentation.
+                                      </a>
+                                    </>
+                                  }
+                                >
+                                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                                </CustomTooltip>
+                              </div>
                             }
-                          }}
-                          min={1}
-                          max={20}
-                          step={1}
-                        />
-                      )}
-                    />
-                  </div>
+                            value={field.value || ""}
+                            // error={!!fieldState.error}
+                            error={fieldState.error?.message}
+                            onChange={event => {
+                              const newValue = parseInt(event.target.value);
+                              field.onChange(newValue);
+
+                              if (newValue) {
+                                trigger(`services.${serviceIndex}.profile.cpu`);
+                                trigger(`services.${serviceIndex}.profile.ram`);
+                                trigger(`services.${serviceIndex}.profile.storage`);
+                              }
+                            }}
+                            min={1}
+                            max={20}
+                            step={1}
+                          />
+                        )}
+                      />
+                    </div>
+                  )}
 
                   <div className="mt-4">
                     <TokenFormControl control={control} name={`services.${serviceIndex}.placement.pricing.denom`} />

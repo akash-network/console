@@ -10,6 +10,7 @@ export type Service = {
   env?: EnvironmentVariable[];
   placement: Placement;
   count: number;
+  sshPubKey?: string;
 };
 
 export type ImportService = {
