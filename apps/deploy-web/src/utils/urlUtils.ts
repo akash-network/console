@@ -1,11 +1,12 @@
 import { FaqAnchorType } from "@src/pages/faq";
 import { mainnetId, selectedNetworkId } from "./constants";
 
-type NewDeploymentParams = {
+export type NewDeploymentParams = {
   step?: string;
   dseq?: string | number;
   redeploy?: string | number;
   templateId?: string;
+  page?: "new-deployment" | "plain-linux";
 };
 
 function getSelectedNetworkQueryParam() {
@@ -75,7 +76,8 @@ export class UrlService {
   // New deployment
   static newDeployment = (params: NewDeploymentParams = {}) => {
     const { step, dseq, redeploy, templateId } = params;
-    return `/new-deployment${appendSearchParams({ dseq, step, templateId, redeploy })}`;
+    const page = params.page || "new-deployment";
+    return `/${page}${appendSearchParams({ dseq, step, templateId, redeploy })}`;
   };
 }
 

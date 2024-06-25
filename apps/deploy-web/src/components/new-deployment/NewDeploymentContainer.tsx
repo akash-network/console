@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -8,6 +8,7 @@ import { useTemplates } from "@src/context/TemplatesProvider";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
 import { RouteStepKeys } from "@src/utils/constants";
+import { sshVmDistros } from "@src/utils/sdl/data";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -16,7 +17,12 @@ import { ManifestEdit } from "./ManifestEdit";
 import { CustomizedSteppers } from "./Stepper";
 import { TemplateList } from "./TemplateList";
 
-export function NewDeploymentContainer() {
+interface NewDeploymentContainerProps {
+  imageSource?: "ssh-vms" | "user-provided";
+  ssh?: boolean;
+}
+
+export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ imageSource = "user-provided", ssh }) => {
   const { isLoading: isLoadingTemplates, templates } = useTemplates();
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
@@ -118,6 +124,8 @@ export function NewDeploymentContainer() {
       {activeStep === 0 && <TemplateList />}
       {activeStep === 1 && (
         <ManifestEdit
+          imageList={imageSource === "ssh-vms" ? sshVmDistros : undefined}
+          ssh={ssh}
           selectedTemplate={selectedTemplate}
           onTemplateSelected={setSelectedTemplate}
           editedManifest={editedManifest}
@@ -127,4 +135,4 @@ export function NewDeploymentContainer() {
       {activeStep === 2 && <CreateLease dseq={dseq as string} />}
     </Layout>
   );
-}
+};

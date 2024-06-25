@@ -21,6 +21,7 @@ export const defaultService: Service = {
   id: nanoid(),
   title: "service-1",
   image: "",
+  sshPubKey: "",
   profile: {
     cpu: 0.1,
     gpu: 1,
@@ -74,6 +75,24 @@ export const defaultService: Service = {
     attributes: []
   },
   count: 1
+};
+
+export const SSH_VM_IMAGES = {
+  "Ubuntu 24.04": "ghcr.io/akash-network/ubuntu-ssh-2404:3"
+};
+export const sshVmDistros: string[] = Object.keys(SSH_VM_IMAGES);
+export const sshVmImages: Set<string> = new Set(Object.values(SSH_VM_IMAGES));
+export const SSH_EXPOSE = {
+  port: 22,
+  as: 22,
+  global: true,
+  to: []
+};
+
+export const defaultSshVMService: Service = {
+  ...defaultService,
+  image: sshVmDistros[0],
+  expose: []
 };
 
 export const defaultRentGpuService: Service = {

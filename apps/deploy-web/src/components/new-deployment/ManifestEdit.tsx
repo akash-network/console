@@ -1,5 +1,5 @@
 "use client";
-import { Dispatch, useCallback, useEffect, useRef, useState } from "react";
+import { Dispatch, useEffect, useRef, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { Alert, Button, CustomTooltip, InputWithIcon, Spinner } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
@@ -13,6 +13,7 @@ import { event } from "nextjs-google-analytics";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useWhen } from "@src/hooks/useWhen";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
 import { AnalyticsEvents } from "@src/utils/analytics";
@@ -39,9 +40,11 @@ type Props = {
   selectedTemplate: TemplateCreation | null;
   editedManifest: string | null;
   setEditedManifest: Dispatch<string>;
+  imageList?: string[];
+  ssh?: boolean;
 };
 
-export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, setEditedManifest, onTemplateSelected, selectedTemplate }) => {
+export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, setEditedManifest, onTemplateSelected, selectedTemplate, imageList, ssh }) => {
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentName, setDeploymentName] = useState("");
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
@@ -60,9 +63,13 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const { minDeposit } = useChainParam();
 
   const searchParams = useSearchParams();
-  const templateId = searchParams.get('templateId');
+  const templateId = searchParams.get("templateId");
 
   const fileUploadRef = useRef<HTMLInputElement>(null);
+
+  useWhen(ssh, () => {
+    setSelectedSdlEditMode("builder");
+  });
 
   const propagateUploadedSdl = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = event.target.files ?? [];
@@ -81,7 +88,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
         content: event.target?.result as string
       });
       setEditedManifest(event.target?.result as string);
-      setSelectedSdlEditMode('yaml');
+      setSelectedSdlEditMode("yaml");
     };
 
     reader.readAsText(fileUploaded);
@@ -89,7 +96,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
   const triggerFileInput = () => {
     if (fileUploadRef.current) {
-      fileUploadRef.current.value = '';
+      fileUploadRef.current.value = "";
       fileUploadRef.current.click();
     }
   };
@@ -106,8 +113,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     const timer = Timer(500);
 
     timer.start().then(() => {
-      if (editedManifest)
-        createAndValidateDeploymentData(editedManifest, "TEST_DSEQ_VALIDATION");
+      if (editedManifest) createAndValidateDeploymentData(editedManifest, "TEST_DSEQ_VALIDATION");
     });
 
     return () => {
@@ -173,7 +179,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   async function handleCreateClick(deposit: number, depositorAddress: string) {
     setIsCreatingDeployment(true);
 
-    const sdl = selectedSdlEditMode === "yaml" ? editedManifest : (sdlBuilderRef.current?.getSdl());
+    const sdl = selectedSdlEditMode === "yaml" ? editedManifest : sdlBuilderRef.current?.getSdl();
 
     if (!sdl) {
       setIsCreatingDeployment(false);
@@ -241,7 +247,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     }
   }
 
-  const onModeChange = (mode: "yaml" | "builder") => {
+  const changeMode = (mode: "yaml" | "builder") => {
     if (mode === selectedSdlEditMode) return;
 
     if (mode === "yaml") {
@@ -250,6 +256,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       }
     } else {
       const sdl = sdlBuilderRef.current?.getSdl();
+
       if (sdl) {
         setEditedManifest(sdl);
       }
@@ -306,51 +313,55 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
         </div>
       </div>
 
-      <div className="mb-2 flex gap-2">
-        <div className="flex items-center">
-          <Button
-            variant={selectedSdlEditMode === "builder" ? "default" : "outline"}
-            onClick={() => onModeChange("builder")}
-            size="sm"
-            className="flex-grow rounded-e-none sm:flex-grow-0"
-            disabled={!!parsingError && selectedSdlEditMode === "yaml"}
-          >
-            Builder
-          </Button>
-          <Button
-            variant={selectedSdlEditMode === "yaml" ? "default" : "outline"}
-            color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
-            onClick={() => onModeChange("yaml")}
-            size="sm"
-            className="flex-grow rounded-s-none sm:flex-grow-0"
-          >
-            YAML
-          </Button>
-        </div>
-        {!templateId && (
-          <>
-            <input type="file" ref={fileUploadRef} onChange={propagateUploadedSdl} style={{ display: "none" }} accept=".yml,.yaml,.txt" />
+      {!ssh && (
+        <div className="mb-2 flex gap-2">
+          <div className="flex items-center">
             <Button
-              variant="outline"
-              color="secondary"
-              onClick={() => triggerFileInput()}
+              variant={selectedSdlEditMode === "builder" ? "default" : "outline"}
+              onClick={() => changeMode("builder")}
               size="sm"
-              className="flex-grow hover:bg-primary hover:text-white sm:flex-grow-0"
+              className="flex-grow rounded-e-none sm:flex-grow-0"
+              disabled={!!parsingError && selectedSdlEditMode === "yaml"}
             >
-              Upload SDL
+              Builder
             </Button>
-          </>
-        )}
-      </div>
+            <Button
+              variant={selectedSdlEditMode === "yaml" ? "default" : "outline"}
+              color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
+              onClick={() => changeMode("yaml")}
+              size="sm"
+              className="flex-grow rounded-s-none sm:flex-grow-0"
+            >
+              YAML
+            </Button>
+          </div>
+          {!templateId && (
+            <>
+              <input type="file" ref={fileUploadRef} onChange={propagateUploadedSdl} style={{ display: "none" }} accept=".yml,.yaml,.txt" />
+              <Button
+                variant="outline"
+                color="secondary"
+                onClick={() => triggerFileInput()}
+                size="sm"
+                className="flex-grow hover:bg-primary hover:text-white sm:flex-grow-0"
+              >
+                Upload SDL
+              </Button>
+            </>
+          )}
+        </div>
+      )}
 
       {parsingError && <Alert variant="warning">{parsingError}</Alert>}
 
-      {selectedSdlEditMode === "yaml" && (
+      {!ssh && selectedSdlEditMode === "yaml" && (
         <ViewPanel stickToBottom className={cn("overflow-hidden", { ["-mx-4"]: smallScreen })}>
-          <DynamicMonacoEditor value={editedManifest || ''} onChange={handleTextChange} />
+          <DynamicMonacoEditor value={editedManifest || ""} onChange={handleTextChange} />
         </ViewPanel>
       )}
-      {selectedSdlEditMode === "builder" && <SdlBuilder sdlString={editedManifest} ref={sdlBuilderRef} setEditedManifest={setEditedManifest} />}
+      {(ssh || selectedSdlEditMode === "builder") && (
+        <SdlBuilder sdlString={editedManifest} ref={sdlBuilderRef} setEditedManifest={setEditedManifest} imageList={imageList} ssh={ssh} />
+      )}
 
       {isDepositingDeployment && (
         <DeploymentDepositModal

@@ -11,9 +11,10 @@ type Props = {
   serviceIndex?: number;
   children?: ReactNode;
   setIsEditingEnv: Dispatch<SetStateAction<boolean | number>>;
+  ssh?: boolean;
 };
 
-export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, setIsEditingEnv, serviceIndex }) => {
+export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, setIsEditingEnv, serviceIndex, ssh }) => {
   return (
     <FormPaper className="whitespace-break-spaces break-all">
       <div className="mb-2 flex items-center">
@@ -23,6 +24,13 @@ export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, set
           title={
             <>
               A list of environment variables to expose to the running container.
+              {ssh && (
+                <>
+                  <br />
+                  <br />
+                  Note: The SSH_PUBKEY environment variable is reserved and is going to be overridden by the value provided to the relevant field.
+                </>
+              )}
               <br />
               <br />
               <a href="https://akash.network/docs/getting-started/stack-definition-language/#services" target="_blank" rel="noopener">
