@@ -12,7 +12,7 @@ import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
 import { SimpleServiceFormControl } from "@src/components/sdl/SimpleServiceFormControl";
-import { memoryUnits, storageUnits } from "@src/components/shared/akash/units";
+import { memoryUnits, storageUnits } from "@src/utils/akash/units";
 import useFormPersist from "@src/hooks/useFormPersist";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import sdlStore from "@src/store/sdlStore";
