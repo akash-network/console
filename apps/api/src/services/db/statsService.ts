@@ -272,7 +272,7 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
 export const getProviderActiveLeasesGraphData = async (providerAddress: string) => {
   console.log("getProviderActiveLeasesGraphData");
 
-  const result: ProviderActiveLeasesStats[] = (await chainDb.query(
+  const result = await chainDb.query<ProviderActiveLeasesStats>(
     `SELECT "date" AS date, COUNT(l."id") AS count
     FROM "day" d
     LEFT JOIN "lease" l 
@@ -289,7 +289,7 @@ export const getProviderActiveLeasesGraphData = async (providerAddress: string) 
       type: QueryTypes.SELECT,
       replacements: { providerAddress: providerAddress }
     }
-  )) as ProviderActiveLeasesStats[];
+  );
 
   if (result.length < 2) {
     return {
@@ -308,8 +308,8 @@ export const getProviderActiveLeasesGraphData = async (providerAddress: string) 
     };
   }
 
-  const currentValue = result[result.length - 1] as ProviderActiveLeasesStats;
-  const compareValue = result[result.length - 2] as ProviderActiveLeasesStats;
+  const currentValue = result[result.length - 1];
+  const compareValue = result[result.length - 2];
 
   return {
     currentValue: currentValue.count,
