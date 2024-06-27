@@ -1,7 +1,7 @@
 "use client";
 import { Dispatch, ReactNode, SetStateAction, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Alert, Label, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
+import { Alert, Label, RadioGroup, RadioGroupItem, Snackbar } from "@akashnetwork/ui/components";
 import TextField from "@mui/material/TextField";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
@@ -13,7 +13,6 @@ import { getShortText } from "@src/hooks/useShortText";
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
 import { EnvironmentVariable, ITemplate, SdlSaveTemplateFormValues, Service } from "@src/types";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { Snackbar } from "../shared/Snackbar";
 
 type Props = {
   services: Service[];

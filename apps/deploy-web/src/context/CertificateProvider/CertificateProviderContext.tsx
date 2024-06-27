@@ -5,7 +5,6 @@ import axios from "axios";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
-import { Snackbar } from "@src/components/shared/Snackbar";
 import { RestApiCertificatesResponseType } from "@src/types/certificate";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { networkVersion } from "@src/utils/constants";
@@ -13,6 +12,7 @@ import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { getSelectedStorageWallet, getStorageWallets, updateWallet } from "@src/utils/walletUtils";
 import { useSettings } from "../SettingsProvider";
 import { useWallet } from "../WalletProvider";
+import { Snackbar } from "@akashnetwork/ui/components";
 
 export type LocalCert = {
   certPem: string;

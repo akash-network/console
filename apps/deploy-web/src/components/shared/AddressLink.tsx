@@ -1,8 +1,7 @@
 "use client";
 import React, { ReactNode } from "react";
 import Link from "next/link";
-
-import { Address } from "./Address";
+import { Address } from "@akashnetwork/ui/components";
 
 type Props = {
   address: string;

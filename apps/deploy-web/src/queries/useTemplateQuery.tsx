@@ -3,12 +3,12 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
-import { Snackbar } from "@src/components/shared/Snackbar";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { ITemplate } from "@src/types";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { QueryKeys } from "./queryKeys";
+import { Snackbar } from "@akashnetwork/ui/components";
 
 async function getUserTemplates(username: string): Promise<ITemplate[]> {
   const response = await axios.get(`/api/proxy/user/templates/${username}`);

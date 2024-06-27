@@ -1,4 +1,3 @@
-import { Toaster } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { GeistSans } from "geist/font/sans";
 import type { Metadata, Viewport } from "next";
@@ -106,7 +105,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
             <Footer version={version} />
           </div>
-          <Toaster />
         </Providers>
       </body>
     </html>

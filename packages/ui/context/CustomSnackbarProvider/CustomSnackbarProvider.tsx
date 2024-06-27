@@ -1,17 +1,15 @@
 "use client";
 import React, { useRef } from "react";
-import { Button } from "@akashnetwork/ui/components";
+import { Button } from "../../components/button";
 import { styled } from "@mui/material/styles";
 import { Xmark } from "iconoir-react";
 import { MaterialDesignContent, SnackbarKey, SnackbarProvider } from "notistack";
-
-import useTailwind from "@src/hooks/useTailwind";
+import { green, blue } from "tailwindcss/colors";
 
 const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => {
-  const tw = useTailwind();
   return {
     "&.notistack-MuiContent-success": {
-      backgroundColor: tw.theme.colors.green[600]
+      backgroundColor: green[600]
     },
     "&.notistack-MuiContent-error": {
       backgroundColor: "hsl(var(--destructive))"
@@ -20,7 +18,7 @@ const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => {
       backgroundColor: "hsl(var(--warning))"
     },
     "&.notistack-MuiContent-info": {
-      backgroundColor: tw.theme.colors.blue[600]
+      backgroundColor: blue[600]
     }
   };
 });

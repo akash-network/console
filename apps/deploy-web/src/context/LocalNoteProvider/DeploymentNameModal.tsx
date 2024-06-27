@@ -1,11 +1,10 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { InputWithIcon } from "@akashnetwork/ui/components";
+import { InputWithIcon, Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
 import { Popup } from "@src/components/shared/Popup";
-import { Snackbar } from "@src/components/shared/Snackbar";
 import { updateDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 
 export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName }) => {

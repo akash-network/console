@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Alert, Button, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
+import { Alert, Button, CustomTooltip, Spinner, Snackbar } from "@akashnetwork/ui/components";
 import { InfoCircle, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
 import { event } from "nextjs-google-analytics";
@@ -23,7 +23,6 @@ import { getDeploymentLocalData, saveDeploymentManifest } from "@src/utils/deplo
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
-import { Snackbar } from "../shared/Snackbar";
 import { Title } from "../shared/Title";
 
 type Props = {

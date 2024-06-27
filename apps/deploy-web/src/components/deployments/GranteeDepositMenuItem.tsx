@@ -5,8 +5,8 @@ import { FormattedDate } from "react-intl";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { GrantType } from "@src/types/grant";
 import { coinToUDenom } from "@src/utils/priceUtils";
-import { Address } from "../shared/Address";
 import { AKTAmount } from "../shared/AKTAmount";
+import { Address } from "@akashnetwork/ui/components";
 
 type Props = {
   grant: GrantType;

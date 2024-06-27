@@ -1,6 +1,6 @@
 "use client";
 import { ReactNode } from "react";
-import { Button } from "@akashnetwork/ui/components";
+import { Button, Snackbar } from "@akashnetwork/ui/components";
 import Editor from "@monaco-editor/react";
 import { Copy } from "iconoir-react";
 import { useTheme } from "next-themes";
@@ -8,7 +8,6 @@ import { useSnackbar } from "notistack";
 
 import { Popup } from "@src/components/shared/Popup";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
-import { Snackbar } from "../shared/Snackbar";
 
 type Props = {
   sdl: string;

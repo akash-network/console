@@ -1,10 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Button, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { Button, Spinner, Table, TableBody, TableHead, TableHeader, TableRow, Address } from "@akashnetwork/ui/components";
 import { Bank } from "iconoir-react";
 import { NextSeo } from "next-seo";
 
-import { Address } from "@src/components/shared/Address";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { Popup } from "@src/components/shared/Popup";
 import { useWallet } from "@src/context/WalletProvider";

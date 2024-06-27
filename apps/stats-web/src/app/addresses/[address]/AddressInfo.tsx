@@ -1,10 +1,9 @@
 "use client";
 import React from "react";
-import { Card, CardContent, CustomTooltip, Separator } from "@akashnetwork/ui/components";
+import { Card, CardContent, CustomTooltip, Separator, Address } from "@akashnetwork/ui/components";
 import { QrCode } from "iconoir-react";
 import { useQRCode } from "next-qrcode";
 
-import { Address } from "@/components/Address";
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";
 import { customColors } from "@/lib/colors";

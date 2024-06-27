@@ -10,7 +10,8 @@ import {
   Spinner,
   Tooltip,
   TooltipContent,
-  TooltipTrigger
+  TooltipTrigger,
+  Address
 } from "@akashnetwork/ui/components";
 import { Bank, LogOut, MoreHoriz, Wallet } from "iconoir-react";
 import Link from "next/link";
@@ -20,7 +21,6 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { UrlService } from "@src/utils/urlUtils";
-import { Address } from "../shared/Address";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 

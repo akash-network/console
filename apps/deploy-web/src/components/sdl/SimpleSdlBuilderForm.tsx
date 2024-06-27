@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { Alert, Button, Spinner } from "@akashnetwork/ui/components";
+import { Alert, Button, Spinner, Snackbar } from "@akashnetwork/ui/components";
 import axios from "axios";
 import { NavArrowRight } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -23,7 +23,6 @@ import { defaultService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { UrlService } from "@src/utils/urlUtils";
-import { Snackbar } from "../shared/Snackbar";
 import { ImportSdlModal } from "./ImportSdlModal";
 import { PreviewSdl } from "./PreviewSdl";
 import { SaveTemplateModal } from "./SaveTemplateModal";

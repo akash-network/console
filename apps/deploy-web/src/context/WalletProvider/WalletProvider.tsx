@@ -12,7 +12,6 @@ import { event } from "nextjs-google-analytics";
 import { SnackbarKey, useSnackbar } from "notistack";
 
 import { TransactionModal } from "@src/components/layout/TransactionModal";
-import { Snackbar } from "@src/components/shared/Snackbar";
 import { useAllowance } from "@src/hooks/useAllowance";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { getSelectedNetwork, useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
@@ -23,6 +22,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { useSettings } from "../SettingsProvider";
+import { Snackbar } from "@akashnetwork/ui/components";
 
 type Balances = {
   uakt: number;

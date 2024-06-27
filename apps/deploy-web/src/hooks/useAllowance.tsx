@@ -7,10 +7,10 @@ import Link from "next/link";
 import { useSnackbar } from "notistack";
 import { useLocalStorage } from "usehooks-ts";
 
-import { Snackbar } from "@src/components/shared/Snackbar";
 import { useWallet } from "@src/context/WalletProvider";
 import { useWhen } from "@src/hooks/useWhen";
 import { useAllowancesGranted } from "@src/queries/useGrantsQuery";
+import { Snackbar } from "@akashnetwork/ui/components";
 
 const persisted: Record<string, string[]> = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("fee-granters") || "{}") : {};
 

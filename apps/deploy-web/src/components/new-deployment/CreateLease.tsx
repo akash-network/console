@@ -9,7 +9,8 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
   InputWithIcon,
-  Spinner
+  Spinner,
+  Snackbar
 } from "@akashnetwork/ui/components";
 import { ArrowRight, BadgeCheck, Bin, InfoCircle, MoreHoriz, Xmark } from "iconoir-react";
 import yaml from "js-yaml";
@@ -36,7 +37,6 @@ import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
-import { Snackbar } from "../shared/Snackbar";
 import ViewPanel from "../shared/ViewPanel";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { BidGroup } from "./BidGroup";
