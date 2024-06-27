@@ -26,10 +26,11 @@ interface IProps {
 export const ActiveLeasesGraph: React.FunctionComponent<IProps> = ({ provider }) => {
   const { data: snapshotData, status } = useProviderActiveLeasesGraph(provider.owner);
   const [selectedRange, setSelectedRange] = useState(selectedRangeValues["7D"]);
-  const snapshotMetadata = snapshotData && getSnapshotMetadata();
-  const rangedData = snapshotData && snapshotData.snapshots.slice(Math.max(snapshotData.snapshots.length - selectedRange, 0), snapshotData.snapshots.length);
-  const metric = snapshotData && snapshotMetadata.unitFn(snapshotData.currentValue);
-  const metricDiff = snapshotData && snapshotMetadata.unitFn(snapshotData.currentValue - snapshotData.compareValue);
+  const hasSnapshotData = snapshotData && snapshotData.snapshots.length > 0;
+  const snapshotMetadata = hasSnapshotData && getSnapshotMetadata();
+  const rangedData = hasSnapshotData && snapshotData.snapshots.slice(Math.max(snapshotData.snapshots.length - selectedRange, 0), snapshotData.snapshots.length);
+  const metric = hasSnapshotData && snapshotMetadata.unitFn(snapshotData.currentValue);
+  const metricDiff = hasSnapshotData && snapshotMetadata.unitFn(snapshotData.currentValue - snapshotData.compareValue);
 
   return (
     <div className="m-auto max-w-[800px]">
@@ -46,7 +47,9 @@ export const ActiveLeasesGraph: React.FunctionComponent<IProps> = ({ provider })
         </div>
       )}
 
-      {snapshotData && (
+      {!hasSnapshotData && status === "success" && <div className="my-2 text-muted-foreground">No data available</div>}
+
+      {hasSnapshotData && (
         <>
           <div className="mb-4 flex flex-col flex-wrap justify-between sm:flex-row sm:flex-nowrap">
             <div className="mb-4 basis-full sm:mb-0 sm:basis-0">
