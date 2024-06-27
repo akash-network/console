@@ -1,0 +1,74 @@
+import { DepositDeploymentAuthorization } from "@akashnetwork/akash-api/v1beta3";
+import { BasicAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
+import { MsgGrantAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
+import Long from "long";
+import { singleton } from "tsyringe";
+
+interface SpendingAuthorizationOptions {
+  granter: string;
+  grantee: string;
+  denom: string;
+  limit: number;
+  expiration?: Date;
+}
+
+@singleton()
+export class RpcMessageService {
+  getGrantBasicAllowanceMsg({ denom, limit, expiration, granter, grantee }: SpendingAuthorizationOptions) {
+    const allowance = {
+      typeUrl: "/cosmos.feegrant.v1beta1.BasicAllowance",
+      value: Uint8Array.from(
+        BasicAllowance.encode({
+          spendLimit: [
+            {
+              denom: denom,
+              amount: limit.toString()
+            }
+          ],
+          expiration: expiration
+            ? {
+                seconds: Long.fromInt(Math.floor(expiration.getTime() / 1_000)) as unknown as Long,
+                nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
+              }
+            : undefined
+        }).finish()
+      )
+    };
+
+    return {
+      typeUrl: "/cosmos.feegrant.v1beta1.MsgGrantAllowance",
+      value: MsgGrantAllowance.fromPartial({
+        granter: granter,
+        grantee: grantee,
+        allowance: allowance
+      })
+    };
+  }
+
+  getGrantMsg({ denom, limit, expiration, granter, grantee }: SpendingAuthorizationOptions) {
+    return {
+      typeUrl: "/cosmos.authz.v1beta1.MsgGrant",
+      value: {
+        granter: granter,
+        grantee: grantee,
+        grant: {
+          authorization: {
+            typeUrl: "/akash.deployment.v1beta3.DepositDeploymentAuthorization",
+            value: DepositDeploymentAuthorization.encode(
+              DepositDeploymentAuthorization.fromPartial({
+                spendLimit: {
+                  denom: denom,
+                  amount: limit.toString()
+                }
+              })
+            ).finish()
+          },
+          expiration: {
+            seconds: Math.floor(expiration.getTime() / 1_000),
+            nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
+          }
+        }
+      }
+    };
+  }
+}
