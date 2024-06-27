@@ -1,6 +1,6 @@
 {
   "name": "stats-web",
-  "version": "0.19.5",
+  "version": "0.19.6",
   "private": true,
   "scripts": {
     "build": "next build",
