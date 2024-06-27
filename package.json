@@ -37,5 +37,9 @@
   "volta": {
     "node": "20.14.0",
     "npm": "10.7.0"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.31.2",
+    "pg": "^8.11.6"
   }
 }
