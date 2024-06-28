@@ -10,7 +10,7 @@ index 168394a..56db2a1 100644
      }
      getOfflineSignerAmino(chainId) {
 -        return new snapper_1.CosmJSOfflineSigner(chainId);
-+        return this.getOfflineSigner(chainId, "amino");
++        return this.cosmos.getOfflineSigner(chainId, "amino");
      }
      getOfflineSignerDirect(chainId) {
 -        return {
@@ -22,7 +22,7 @@ index 168394a..56db2a1 100644
 -                accountNumber: BigInt(signDoc.accountNumber.toInt()),
 -            }),
 -        };
-+        return this.getOfflineSigner(chainId, "direct");
++        return this.cosmos.getOfflineSigner(chainId, "direct");
      }
      async signAmino(chainId, signer, signDoc, signOptions) {
 -        return await this.cosmos.signAmino(chainId, signer, signDoc);
@@ -80,7 +80,7 @@ index 6858667..f626487 100644
      }
      getOfflineSignerAmino(chainId) {
 -        return new CosmJSOfflineSigner(chainId);
-+        return this.getOfflineSigner(chainId, "amino");
++        return this.cosmos.getOfflineSigner(chainId, "amino");
      }
      getOfflineSignerDirect(chainId) {
 -        return {
@@ -92,7 +92,7 @@ index 6858667..f626487 100644
 -                accountNumber: BigInt(signDoc.accountNumber.toInt()),
 -            }),
 -        };
-+        return this.getOfflineSigner(chainId, "direct");
++        return this.cosmos.getOfflineSigner(chainId, "direct");
      }
      async signAmino(chainId, signer, signDoc, signOptions) {
 -        return await this.cosmos.signAmino(chainId, signer, signDoc);
