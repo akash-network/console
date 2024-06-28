@@ -96,7 +96,7 @@ src/
 
 The public api version will now be included in the url like so: api.cloudmos.io/**v1**/\<endpoint>
 
-Changes that are backward compatible like adding new endpoint will be done in the existing version.
+Changes that are backward compatible like adding a new endpoint will be done in the existing version.
 Changes that are **not** backward compatible, such as removing an endpoint, will be done in a new version. When releasing a new version, a list of breaking changes will be made available. We will keep the old version available for a while to give users enough time to migrate their applications to the latest version.
 
 ### Swagger Documentation
