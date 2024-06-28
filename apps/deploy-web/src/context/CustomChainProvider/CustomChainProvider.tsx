@@ -13,6 +13,13 @@ import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
 import networkStore from "@src/store/networkStore";
 import { customRegistry } from "@src/utils/customRegistry";
 
+let mm: any[] = [];
+if (typeof window !== 'undefined') {
+  import("@cosmos-kit/cosmos-extension-metamask").then((module) => {
+    mm = module.wallets;
+  });
+}
+
 type Props = {
   children: React.ReactNode;
 };
@@ -22,7 +29,7 @@ export function CustomChainProvider({ children }: Props) {
     <ChainProvider
       chains={[akash, akashSandbox, akashTestnet]}
       assetLists={assetLists}
-      wallets={[...keplr, ...leap, ...cosmostation]}
+      wallets={[...keplr, ...leap, ...cosmostation, ...mm]}
       sessionOptions={{
         duration: 31_556_926_000, // 1 year
         callback: () => {

@@ -1,0 +1,65 @@
+diff --git a/node_modules/@cosmsnap/snapper/dist/provider.cjs b/node_modules/@cosmsnap/snapper/dist/provider.cjs
+index a72a2c5..1a2c689 100644
+--- a/node_modules/@cosmsnap/snapper/dist/provider.cjs
++++ b/node_modules/@cosmsnap/snapper/dist/provider.cjs
+@@ -1,6 +1,7 @@
+ import { DEFAULT_SNAP_ID, addAddressToBook, deleteAddressFromBook, deleteChain, getAccountInfo, getAddressBook, getBech32Address, getBech32Addresses, getChains, getKey, installSnap, sendTx, sign, signAmino, signAndBroadcast, signDirect, suggestChain } from "./snap.js";
+ import { CosmJSOfflineSigner } from "./signer.js";
+ import { Appwrite } from "./appwrite.js";
++import Long from 'long';
+ export class CosmosSnap {
+   constructor() {
+     this.snap_id = DEFAULT_SNAP_ID;
+@@ -113,7 +114,15 @@ export class CosmosSnap {
+   }
+   async signDirect(chainId, signer, signDoc) {
+     let res = await signDirect(chainId, signer, signDoc, this.snap_id);
+-    return res;
++    return {
++      signature: res.signature,
++      signed: {
++        chainId: res.signed.chainId,
++        accountNumber: new Long(low, high, unsigned),
++        bodyBytes: new Uint8Array(Object.values(res.signed.bodyBytes)),
++        authInfoBytes: new Uint8Array(Object.values(res.signed.authInfoBytes))
++      }
++    };
+   }
+   async signArbitrary(chainId, signer, data) {
+     let dataBase64 = typeof data != "string" ? Buffer.from(signer).toString("base64") : data;
+diff --git a/node_modules/@cosmsnap/snapper/dist/provider.js b/node_modules/@cosmsnap/snapper/dist/provider.js
+index 6a10377..bf514c1 100644
+--- a/node_modules/@cosmsnap/snapper/dist/provider.js
++++ b/node_modules/@cosmsnap/snapper/dist/provider.js
+@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
+ import { DEFAULT_SNAP_ID, addAddressToBook, deleteAddressFromBook, deleteChain, getAccountInfo, getAddressBook, getBech32Address, getBech32Addresses, getChains, getKey, installSnap, sendTx, sign, signAmino, signAndBroadcast, signDirect, suggestChain } from './snap.js';
+ import { CosmJSOfflineSigner } from './signer.js';
+ import { Appwrite } from './appwrite.js';
++import Long from 'long';
+ export class CosmosSnap {
+     constructor() {
+         this.snap_id = DEFAULT_SNAP_ID;
+@@ -87,8 +88,8 @@ export class CosmosSnap {
+         });
+     }
+     experimentalSuggestChain(chainInfo) {
++        var _a, _b;
+         return __awaiter(this, void 0, void 0, function* () {
+-            var _a, _b;
+             let chains = yield this.getChains();
+             let chainIds = chains.map(item => item.chain_id);
+             if (chainIds.includes(chainInfo.chainId)) {
+@@ -146,7 +147,12 @@ export class CosmosSnap {
+     signDirect(chainId, signer, signDoc) {
+         return __awaiter(this, void 0, void 0, function* () {
+             let res = yield signDirect(chainId, signer, signDoc, this.snap_id);
+-            return res;
++            return {
++                chainId: res.signed.chainId,
++                accountNumber: new Long(low, high, unsigned),
++                signature: res.signature,
++                signed: Object.assign(Object.assign({}, res.signed), { bodyBytes: new Uint8Array(Object.values(res.signed.bodyBytes)), authInfoBytes: new Uint8Array(Object.values(res.signed.authInfoBytes)) })
++            };
+         });
+     }
+     signArbitrary(chainId, signer, data) {
