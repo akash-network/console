@@ -13,7 +13,7 @@
 
 `./build.ps1 (web|api|indexer|notifications) [version] [-deploy]`
 
-The image version can be set by passing a second arguments or by using the `-version` parameter. If it is not specified it will be parsed from the `package.json`.
+The image version can be set by passing a second argument or by using the `-version` parameter. If it is not specified it will be parsed from the `package.json`.
 
 If the `-deploy` flag is set, the vm instance will be updated to the new version. There will be a downtime of ~2min while the vm restarts. **Only works for the API.**
 
