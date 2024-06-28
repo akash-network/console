@@ -55,7 +55,7 @@ Tasks can be configured to report their execution to healthcheck endpoints autom
 
 ### **Step #1 - Download Blocks**
 
-Using our [nodeAccessor](./src/chain/nodeAccessor.ts) missing blocks are downloaded from RPC nodes. A list of rpc node is setup in the [chainDefinition](../shared/chainDefinitions.ts#L39) file and their status is then kept updated (earliest/latest available block, rate limitting, etc). The blocks are saved on disk inside a leveldb database (see [File Structure](#block-cache-structure)).
+Using our [nodeAccessor](./src/chain/nodeAccessor.ts) missing blocks are downloaded from RPC nodes. A list of rpc node is setup in the [chainDefinition](../shared/chainDefinitions.ts#L39) file and their status is then kept updated (earliest/latest available block, rate limiting, etc). The blocks are saved on disk inside a leveldb database (see [File Structure](#block-cache-structure)).
 
 *See [downloadBlocks()](./src/chain/chainSync.ts#L302).*
 
