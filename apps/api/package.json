@@ -1,6 +1,6 @@
 {
   "name": "cloudmos-api",
-  "version": "2.18.5",
+  "version": "2.18.6",
   "description": "Api providing data to the deploy tool",
   "repository": {
     "type": "git",
