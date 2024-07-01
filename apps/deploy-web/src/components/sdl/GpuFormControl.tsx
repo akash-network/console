@@ -12,9 +12,9 @@ import { Bin, InfoCircle, Xmark } from "iconoir-react";
 
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
 import { GpuVendor } from "@src/types/gpu";
-import { FormPaper } from "./FormPaper";
-import { validationConfig } from "@src/utils/akash/units";
 import { gpuVendors } from "@src/utils/akash/gpu";
+import { validationConfig } from "@src/utils/akash/units";
+import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;

@@ -1,10 +1,9 @@
 "use client";
 import { MouseEventHandler } from "react";
-import { Badge, CustomTooltip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Address } from "@akashnetwork/ui/components";
+import { Address, Badge, CustomTooltip, Popup, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 
 import { useAuditors } from "@src/queries/useProvidersQuery";
 import { LinkTo } from "../shared/LinkTo";
-import { Popup } from "../shared/Popup";
 
 type Props = {
   attributes: Array<{ key: string; value: string; auditedBy: Array<string> }>;

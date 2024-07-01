@@ -9,8 +9,8 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
   InputWithIcon,
-  Spinner,
-  Snackbar
+  Snackbar,
+  Spinner
 } from "@akashnetwork/ui/components";
 import { ArrowRight, BadgeCheck, Bin, InfoCircle, MoreHoriz, Xmark } from "iconoir-react";
 import yaml from "js-yaml";

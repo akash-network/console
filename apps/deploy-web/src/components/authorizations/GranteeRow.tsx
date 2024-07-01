@@ -1,7 +1,7 @@
 "use client";
 import React, { ReactNode } from "react";
 import { FormattedTime } from "react-intl";
-import { TableCell, TableRow, Address } from "@akashnetwork/ui/components";
+import { Address, TableCell, TableRow } from "@akashnetwork/ui/components";
 
 import { AKTAmount } from "@src/components/shared/AKTAmount";
 import { useDenomData } from "@src/hooks/useWalletBalance";

@@ -1,6 +1,6 @@
 "use client";
 import React, { SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Badge, Button, Card, CardContent, CardHeader, CustomTooltip, Spinner, Snackbar } from "@akashnetwork/ui/components";
+import { Alert, Badge, Button, Card, CardContent, CardHeader, CustomTooltip, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { Check, Copy, InfoCircle, OpenInWindow } from "iconoir-react";
 import yaml from "js-yaml";
 import get from "lodash/get";

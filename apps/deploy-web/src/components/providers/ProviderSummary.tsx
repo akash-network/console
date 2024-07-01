@@ -1,5 +1,5 @@
 "use client";
-import { Card, CardContent, Address } from "@akashnetwork/ui/components";
+import { Address, Card, CardContent } from "@akashnetwork/ui/components";
 
 import { AuditorButton } from "@src/components/providers/AuditorButton";
 import { Uptime } from "@src/components/providers/Uptime";

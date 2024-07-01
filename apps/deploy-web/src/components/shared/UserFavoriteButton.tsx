@@ -1,7 +1,7 @@
 "use client";
 import React, { ReactNode, useState } from "react";
 import { MdStar, MdStarOutline } from "react-icons/md";
-import { Button, Spinner, Snackbar } from "@akashnetwork/ui/components";
+import { Button, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";

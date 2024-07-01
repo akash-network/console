@@ -1,6 +1,7 @@
 "use client";
 import { FormattedNumber } from "react-intl";
 import {
+  Address,
   Badge,
   Button,
   DropdownMenu,
@@ -10,8 +11,7 @@ import {
   Spinner,
   Tooltip,
   TooltipContent,
-  TooltipTrigger,
-  Address
+  TooltipTrigger
 } from "@akashnetwork/ui/components";
 import { Bank, LogOut, MoreHoriz, Wallet } from "iconoir-react";
 import Link from "next/link";

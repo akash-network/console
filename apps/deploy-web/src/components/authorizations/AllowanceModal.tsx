@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { FormattedDate } from "react-intl";
-import { Alert } from "@akashnetwork/ui/components";
+import { Alert, Popup } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import FormControl from "@mui/material/FormControl";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -11,7 +11,6 @@ import { addYears, format } from "date-fns";
 import { event } from "nextjs-google-analytics";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
-import { Popup } from "@src/components/shared/Popup";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { AllowanceType } from "@src/types/grant";

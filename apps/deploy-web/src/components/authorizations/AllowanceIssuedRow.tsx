@@ -1,7 +1,7 @@
 "use client";
 import React, { ReactNode } from "react";
 import { FormattedTime } from "react-intl";
-import { Button, TableCell, TableRow, Address } from "@akashnetwork/ui/components";
+import { Address, Button, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { Bin, Edit } from "iconoir-react";
 
 import { AKTAmount } from "@src/components/shared/AKTAmount";

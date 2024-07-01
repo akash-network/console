@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Card, CardContent, CustomTooltip, Separator, Address } from "@akashnetwork/ui/components";
+import { Address, Card, CardContent, CustomTooltip, Separator } from "@akashnetwork/ui/components";
 import { QrCode } from "iconoir-react";
 import { useQRCode } from "next-qrcode";
 

@@ -18,9 +18,9 @@ import {
 import { InfoCircle } from "iconoir-react";
 
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
+import { memoryUnits, validationConfig } from "@src/utils/akash/units";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
-import { memoryUnits, validationConfig } from "@src/utils/akash/units";
 
 type Props = {
   serviceIndex: number;

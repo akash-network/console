@@ -1,8 +1,9 @@
 "use client";
 import { ReactNode } from "react";
-import { Spinner } from "../index";
 import { Check, InfoCircle, WarningCircle, WarningTriangle } from "iconoir-react";
+
 import { cn } from "../../utils";
+import { Spinner } from "../index";
 
 type IconVariant = "info" | "warning" | "error" | "success";
 type Props = {

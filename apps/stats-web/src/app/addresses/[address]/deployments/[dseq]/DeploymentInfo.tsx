@@ -1,7 +1,7 @@
 "use client";
 
 import { FormattedNumber } from "react-intl";
-import { Badge, Card, CardContent, Table, TableBody, TableHead, TableHeader, TableRow, Address } from "@akashnetwork/ui/components";
+import { Address, Badge, Card, CardContent, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
 import { EventRow } from "./EventRow";

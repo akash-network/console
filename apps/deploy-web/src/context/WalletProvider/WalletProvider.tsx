@@ -1,6 +1,7 @@
 "use client";
 import React, { useRef } from "react";
 import { useEffect, useState } from "react";
+import { Snackbar } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { useManager } from "@cosmos-kit/react";
@@ -22,7 +23,6 @@ import { UrlService } from "@src/utils/urlUtils";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { useSettings } from "../SettingsProvider";
-import { Snackbar } from "@akashnetwork/ui/components";
 
 type Balances = {
   uakt: number;

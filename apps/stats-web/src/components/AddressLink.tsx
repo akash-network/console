@@ -1,6 +1,7 @@
 import React, { ReactNode } from "react";
-import Link from "next/link";
 import { Address } from "@akashnetwork/ui/components";
+import Link from "next/link";
+
 import { UrlService } from "@/lib/urlUtils";
 
 type Props = {

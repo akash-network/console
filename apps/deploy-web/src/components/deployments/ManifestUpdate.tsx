@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Alert, Button, CustomTooltip, Spinner, Snackbar } from "@akashnetwork/ui/components";
+import { Alert, Button, CustomTooltip, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { InfoCircle, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
 import { event } from "nextjs-google-analytics";

@@ -1,7 +1,7 @@
 "use client";
 import { ReactNode, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Button, Label, Spinner, Textarea, Snackbar } from "@akashnetwork/ui/components";
+import { Button, Label, Snackbar, Spinner, Textarea } from "@akashnetwork/ui/components";
 import axios from "axios";
 import { useSnackbar } from "notistack";
 

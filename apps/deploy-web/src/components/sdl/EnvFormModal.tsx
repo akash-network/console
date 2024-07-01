@@ -1,13 +1,12 @@
 "use client";
 import { ReactNode, useEffect } from "react";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Button, CustomNoDivTooltip, FormInput, Switch } from "@akashnetwork/ui/components";
+import { Button, CustomNoDivTooltip, FormInput, Popup, Switch } from "@akashnetwork/ui/components";
 import { Bin } from "iconoir-react";
 import { nanoid } from "nanoid";
 
 import { EnvironmentVariable, RentGpusFormValues, SdlBuilderFormValues } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
-import { Popup } from "../shared/Popup";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

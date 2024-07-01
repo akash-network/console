@@ -7,6 +7,7 @@ import {
   FormItem,
   InputWithIcon,
   Label,
+  Popup,
   Select,
   SelectContent,
   SelectGroup,
@@ -29,7 +30,6 @@ import { uAktDenom } from "@src/utils/constants";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { LinkTo } from "../shared/LinkTo";
-import { Popup } from "../shared/Popup";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
 
 type Props = {

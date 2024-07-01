@@ -1,6 +1,10 @@
+"use client";
 import * as React from "react";
 import { useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
+import { DialogProps } from "@radix-ui/react-dialog";
+
+import { cn } from "../../utils";
 import {
   Button,
   ButtonProps,
@@ -19,11 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
   Spinner
-} from "@akashnetwork/ui/components";
-import { DialogProps } from "@radix-ui/react-dialog";
-
-import { cn } from "@src/utils/styleUtils";
-import { ErrorFallback } from "./ErrorFallback";
+} from "../index";
+import { ErrorFallback } from "./error-fallback";
 
 type MessageProps = {
   variant: "message";

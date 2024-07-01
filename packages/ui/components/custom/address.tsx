@@ -1,10 +1,10 @@
 "use client";
 import React, { ReactNode, useState } from "react";
-import { CustomTooltip } from "../index";
 import { Copy } from "iconoir-react";
 import { useSnackbar } from "notistack";
 
-import { copyTextToClipboard, cn } from "../../utils";
+import { cn, copyTextToClipboard } from "../../utils";
+import { CustomTooltip } from "../index";
 import { Snackbar } from "./snackbar";
 
 type Props = {

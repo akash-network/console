@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
+import { CommonProps, ConfirmProps, Popup, PopupProps, SelectOption, SelectProps } from "@akashnetwork/ui/components";
 import { firstValueFrom, Subject } from "rxjs";
 
-import { CommonProps, ConfirmProps, Popup, PopupProps, SelectOption, SelectProps } from "@src/components/shared/Popup";
 import type { FCWithChildren } from "@src/types/component";
 
 type ConfirmPopupProps = string | (Omit<CommonProps, "onClose" | "open"> & Omit<ConfirmProps, "onValidate" | "onCancel" | "variant">);

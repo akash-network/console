@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { Alert, Button, Spinner, Snackbar } from "@akashnetwork/ui/components";
+import { Alert, Button, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import axios from "axios";
 import { NavArrowRight } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -12,11 +12,11 @@ import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
 import { SimpleServiceFormControl } from "@src/components/sdl/SimpleServiceFormControl";
-import { memoryUnits, storageUnits } from "@src/utils/akash/units";
 import useFormPersist from "@src/hooks/useFormPersist";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import sdlStore from "@src/store/sdlStore";
 import { ITemplate, SdlBuilderFormValues, Service } from "@src/types";
+import { memoryUnits, storageUnits } from "@src/utils/akash/units";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { RouteStepKeys } from "@src/utils/constants";
 import { defaultService } from "@src/utils/sdl/data";
