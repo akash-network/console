@@ -93,11 +93,11 @@ export type ActionButton = ButtonProps & {
 
 export type PopupProps = (MessageProps | ConfirmProps | PromptProps | CustomPrompt | SelectProps) & CommonProps;
 
-export interface DialogTitleProps {
+interface DialogTitleProps {
   children: React.ReactNode;
 }
 
-export const DialogTitle = (props: DialogTitleProps) => {
+const DialogTitle = (props: DialogTitleProps) => {
   const { children, ...other } = props;
 
   return (
