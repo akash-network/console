@@ -87,7 +87,7 @@ function mapImage(input: Service) {
   const image = SSH_VM_IMAGES[input.image];
 
   if (!image) {
-    throw new Error(`Unsupported SSH VM image: ${input.image}`);
+    return input;
   }
 
   const output = cloneDeep(input);

@@ -3,6 +3,7 @@ import { Dispatch, ReactNode, SetStateAction } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
+import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { Service } from "@src/types";
 import { FormPaper } from "./FormPaper";
 
@@ -11,10 +12,10 @@ type Props = {
   serviceIndex?: number;
   children?: ReactNode;
   setIsEditingEnv: Dispatch<SetStateAction<boolean | number>>;
-  ssh?: boolean;
 };
 
-export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, setIsEditingEnv, serviceIndex, ssh }) => {
+export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, setIsEditingEnv, serviceIndex }) => {
+  const { hasComponent } = useSdlBuilder();
   return (
     <FormPaper className="whitespace-break-spaces break-all">
       <div className="mb-2 flex items-center">
@@ -24,7 +25,7 @@ export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, set
           title={
             <>
               A list of environment variables to expose to the running container.
-              {ssh && (
+              {hasComponent("ssh") && (
                 <>
                   <br />
                   <br />

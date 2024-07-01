@@ -64,7 +64,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           title: "SDL Builder",
           icon: props => <Tools {...props} />,
           url: UrlService.sdlBuilder(),
-          activeRoutes: [UrlService.sdlBuilder()]
+          activeRoutes: [UrlService.sdlBuilder()],
+          testId: "sidebar-sdl-builder-link"
         },
         {
           title: "Providers",
@@ -156,6 +157,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           })}
           href={UrlService.newDeployment()}
           onClick={onDeployClick}
+          data-testid="sidebar-deploy-button"
         >
           {_isNavOpen && "Deploy "}
           <Rocket className={cn("rotate-45", { ["ml-4"]: _isNavOpen })} fontSize="small" />

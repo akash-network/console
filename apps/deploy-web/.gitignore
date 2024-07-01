@@ -40,3 +40,7 @@ yarn-error.log*
 # Sentry
 .sentryclirc
 sentry.properties
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

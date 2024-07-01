@@ -18,7 +18,8 @@ export const WelcomeModal = ({ open, onClose }) => {
           label: "I accept",
           variant: "default",
           side: "right",
-          onClick: onClose
+          onClick: onClose,
+          "data-testid": "welcome-modal-accept-button"
         }
       ]}
       maxWidth="sm"

@@ -78,6 +78,7 @@ export type CommonProps = {
   fixedTopPosition?: boolean;
   enableCloseOnBackdropClick?: boolean;
   hideCloseButton?: boolean;
+  testId?: string;
 };
 
 export type ActionButtonSide = "left" | "right";
@@ -86,6 +87,7 @@ export type ActionButton = ButtonProps & {
   label: string | React.ReactNode;
   side: ActionButtonSide;
   isLoading?: boolean;
+  "data-testid"?: string;
 };
 
 export type PopupProps = (MessageProps | ConfirmProps | PromptProps | CustomPrompt | SelectProps) & CommonProps;
