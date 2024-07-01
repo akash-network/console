@@ -6,6 +6,7 @@ import {
   buttonVariants,
   Card,
   CardContent,
+  CheckboxWithLabel,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -25,6 +26,7 @@ import Image from "next/legacy/image";
 import Link from "next/link";
 
 import { SSHKeyFormControl } from "@src/components/sdl/SSHKeyFromControl";
+import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { GpuVendor } from "@src/types/gpu";
 import { uAktDenom } from "@src/utils/constants";
@@ -60,8 +62,6 @@ type Props = {
   setValue: UseFormSetValue<SdlBuilderFormValues>;
   gpuModels: GpuVendor[] | undefined;
   hasSecretOption?: boolean;
-  imageList?: string[];
-  ssh?: boolean;
 };
 
 export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
@@ -74,9 +74,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   setServiceCollapsed,
   setValue,
   gpuModels,
-  hasSecretOption,
-  imageList,
-  ssh
+  hasSecretOption
 }) => {
   const [isEditingCommands, setIsEditingCommands] = useState<number | boolean | null>(null);
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(null);
@@ -90,6 +88,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   const _isEditingCommands = serviceIndex === isEditingCommands;
   const _isEditingExpose = serviceIndex === isEditingExpose;
   const _isEditingPlacement = serviceIndex === isEditingPlacement;
+  const { imageList, hasComponent, toggleCmp } = useSdlBuilder();
 
   const onExpandClick = () => {
     setServiceCollapsed(prev => {
@@ -233,8 +232,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         rules={{
                           required: "Docker image name is required.",
                           validate: value => {
-                            if (ssh) {
-                              return !!SSH_VM_IMAGES[value];
+                            if (imageList) {
+                              return imageList.includes(value);
                             }
 
                             const hasValidChars = /^[a-z0-9\-_/:.]+$/.test(value);
@@ -250,7 +249,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                           imageList?.length ? (
                             <div className="flex flex-grow flex-col">
                               <Select value={field.value} onValueChange={field.onChange}>
-                                <SelectTrigger className="ml-1">
+                                <SelectTrigger className="ml-1" data-testid="ssh-image-select">
                                   <Image alt="Docker Logo" src="/images/docker.png" layout="fixed" quality={100} width={24} height={18} priority />
                                   <div className="flex-1 pl-2 text-left">
                                     <SelectValue placeholder="Select image" />
@@ -260,7 +259,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                   <SelectGroup>
                                     {imageList.map(image => {
                                       return (
-                                        <SelectItem key={image} value={image}>
+                                        <SelectItem key={image} value={image} data-testid={`ssh-image-select-${image}`}>
                                           {image}
                                         </SelectItem>
                                       );
@@ -313,6 +312,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                   <OpenInWindow />
                                 </Link>
                               }
+                              data-testid="image-name-input"
                             />
                           )
                         }
@@ -350,17 +350,26 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
 
                 <div>
                   <div className="grid gap-4">
-                    {ssh && (
+                    {(hasComponent("ssh") || hasComponent("ssh-toggle")) && (
                       <FormPaper className="whitespace-break-spaces break-all">
-                        <SSHKeyFormControl control={control} serviceIndex={serviceIndex} setValue={setValue} />
+                        {hasComponent("ssh-toggle") && (
+                          <CheckboxWithLabel
+                            checked={hasComponent("ssh")}
+                            onCheckedChange={() => toggleCmp("ssh")}
+                            className="ml-4"
+                            label="Expose SSH"
+                            data-testid="ssh-toggle"
+                          />
+                        )}
+                        {hasComponent("ssh") && <SSHKeyFormControl control={control} serviceIndex={serviceIndex} setValue={setValue} />}
                       </FormPaper>
                     )}
 
                     <div>
-                      <EnvVarList currentService={currentService} setIsEditingEnv={setIsEditingEnv} serviceIndex={serviceIndex} ssh={ssh} />
+                      <EnvVarList currentService={currentService} setIsEditingEnv={setIsEditingEnv} serviceIndex={serviceIndex} />
                     </div>
 
-                    {!ssh && (
+                    {hasComponent("command") && (
                       <div>
                         <CommandList currentService={currentService} setIsEditingCommands={setIsEditingCommands} serviceIndex={serviceIndex} />
                       </div>
@@ -368,10 +377,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                   </div>
 
                   <div className="mt-4">
-                    <ExposeList currentService={currentService} setIsEditingExpose={setIsEditingExpose} serviceIndex={serviceIndex} ssh={ssh} />
+                    <ExposeList currentService={currentService} setIsEditingExpose={setIsEditingExpose} serviceIndex={serviceIndex} />
                   </div>
 
-                  {!ssh && (
+                  {hasComponent("service-count") && (
                     <div className="mt-4">
                       <Controller
                         control={control}

@@ -34,6 +34,7 @@ export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, clas
             ["w-[45px] min-w-0 p-2"]: !isNavOpen
           }
         )}
+        data-testid={route.testId}
       >
         {!!route.icon && (
           <span className={cn("z-[100] min-w-0", { ["m-[initial]"]: isNavOpen, ["mx-auto"]: !isNavOpen })}>

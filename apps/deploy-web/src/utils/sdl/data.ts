@@ -94,7 +94,6 @@ export const SSH_EXPOSE = {
 
 export const defaultSshVMService: Service = {
   ...defaultService,
-  image: sshVmDistros[0],
   expose: []
 };
 
