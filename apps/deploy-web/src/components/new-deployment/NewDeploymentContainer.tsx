@@ -8,7 +8,6 @@ import { useTemplates } from "@src/context/TemplatesProvider";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
 import { RouteStepKeys } from "@src/utils/constants";
-import { sshVmDistros } from "@src/utils/sdl/data";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -17,12 +16,7 @@ import { ManifestEdit } from "./ManifestEdit";
 import { CustomizedSteppers } from "./Stepper";
 import { TemplateList } from "./TemplateList";
 
-interface NewDeploymentContainerProps {
-  imageSource?: "ssh-vms" | "user-provided";
-  ssh?: boolean;
-}
-
-export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ imageSource = "user-provided", ssh }) => {
+export const NewDeploymentContainer: FC = () => {
   const { isLoading: isLoadingTemplates, templates } = useTemplates();
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
@@ -41,11 +35,11 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ imageS
     const galleryTemplate = getGalleryTemplate();
 
     if (redeployTemplate) {
-      // If it's a redeploy, set the template from local storage
+      // If it's a redeployment, set the template from local storage
       setSelectedTemplate(redeployTemplate as TemplateCreation);
       setEditedManifest(redeployTemplate.content as string);
     } else if (galleryTemplate) {
-      // If it's a deploy from the template gallery, load from template data
+      // If it's a deployment from the template gallery, load from template data
       setSelectedTemplate(galleryTemplate as TemplateCreation);
       setEditedManifest(galleryTemplate.content as string);
     }
@@ -124,8 +118,6 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ imageS
       {activeStep === 0 && <TemplateList />}
       {activeStep === 1 && (
         <ManifestEdit
-          imageList={imageSource === "ssh-vms" ? sshVmDistros : undefined}
-          ssh={ssh}
           selectedTemplate={selectedTemplate}
           onTemplateSelected={setSelectedTemplate}
           editedManifest={editedManifest}

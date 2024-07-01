@@ -1,5 +1,7 @@
 import { NewDeploymentContainer } from "@src/components/new-deployment/NewDeploymentContainer";
+import { withSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 
-export default function NewDeploymentPage() {
-  return <NewDeploymentContainer imageSource="ssh-vms" ssh />;
-}
+export default withSdlBuilder({
+  componentsSet: "ssh",
+  imageSource: "ssh-vms"
+})(NewDeploymentContainer);
