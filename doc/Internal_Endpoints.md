@@ -60,7 +60,7 @@ All query parameters can be combined, ex:
 
 Url: https://api.cloudmos.io/internal/provider-versions
 
-Returns a list of versions and the providers that are currently on that version. The `<UNKNOWN>` version correspond to providers where the version could not be determined. The `/version` endpoint was broken for a long time, but is now fixed in [v0.5.0-rc11](https://github.com/akash-network/provider/releases/tag/v0.5.0-rc11)
+Returns a list of versions and the providers that are currently on that version. The `<UNKNOWN>` version corresponds to providers where the version could not be determined. The `/version` endpoint was broken for a long time, but is now fixed in [v0.5.0-rc11](https://github.com/akash-network/provider/releases/tag/v0.5.0-rc11)
 
 ### Example Response
 

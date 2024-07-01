@@ -1,6 +1,6 @@
 # Upgrade instructions
 
-Some indexer updates changes the database schemas and an upgrade script must be run on the database to migrate the data before or after updating the indexer. Here is a list of those migrations. If a version is not listed here it means the indexer can be updated without any manual migration.
+Some indexer updates change the database schemas and an upgrade script must be run on the database to migrate the data before or after updating the indexer. Here is a list of those migrations. If a version is not listed here it means the indexer can be updated without any manual migration.
 
 **It is recommended to stop the indexer before running any migration script.**
 

@@ -75,7 +75,7 @@ Directory: [indexer](/indexer/)
 
 ## Landing Page
 
-Small landing page with button to "Launch App".
+Small landing page with a button to "Launch App".
 
 Url: [cloudmos.io](https://cloudmos.io/)  
 Directory: [landing](/landing/)
@@ -92,7 +92,7 @@ Directory: [config](/config/)
 - [Cronitor](https://cronitor.io) is used to monitor uptime. If our website or apis goes offline we get an email + alert in discord.
 - [Grafana](https://grafana.net) dashboards allows us to see usage stats and syncing status. We can monitor block syncing and scheduled task there.
 - **Status Endpoints**  
-  All our backend services have `/status` endpoints built into them allowing us to monitor health and view usage stats. Those endpoints are use by the other monitoring tools.
+  All our backend services have `/status` endpoints built into them allowing us to monitor health and view usage stats. Those endpoints are used by the other monitoring tools.
   
 # Example SQL Queries
 
