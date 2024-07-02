@@ -14,7 +14,6 @@ import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { DeploymentDto } from "@src/types/deployment";
 import Layout from "../layout/Layout";
-import CloudmosImportPanel from "./CloudmosImportPanel";
 import { WelcomePanel } from "./WelcomePanel";
 
 const YourAccount = dynamic(() => import("./YourAccount"), {
@@ -73,9 +72,6 @@ export function HomeContainer() {
       <div>
         <div className="mb-4">
           <WelcomePanel />
-        </div>
-        <div className="mb-4">
-          <CloudmosImportPanel />
         </div>
         {isSettingsInit && isWalletLoaded ? (
           <YourAccount isLoadingBalances={isLoadingBalances} balances={balances} activeDeployments={activeDeployments} leases={leases} providers={providers} />
