@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { MdRestartAlt } from "react-icons/md";
-import { Button, buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
 import Step from "@mui/material/Step";
 import StepContent from "@mui/material/StepContent";
 import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
 import { Check, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 
 import { useChainParam } from "@src/context/ChainParamProvider";
@@ -20,23 +21,19 @@ import { ExternalLink } from "../shared/ExternalLink";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
 
-// const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
-//   ssr: false,
-//   loading: props => {
-//     if (props.isLoading) {
-//       return (
-//         <Button variant="default" disabled size="sm">
-//           <span>Get More</span>
-//           <Spinner size="small" className="ml-2" />
-//         </Button>
-//       );
-//     } else return null;
-//   }
-// });
+const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
+  ssr: false,
+  loading: () => (
+    <Button variant="default" disabled size="sm">
+      <Spinner size="small" className="mr-2" />
+      <span>Get More</span>
+    </Button>
+  )
+});
 
 export const GetStartedStepper: React.FunctionComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
-  const { isWalletConnected, walletBalances } = useWallet();
+  const { isWalletConnected, walletBalances, address, refreshBalances } = useWallet();
   const { minDeposit } = useChainParam();
   const aktBalance = walletBalances ? uaktToAKT(walletBalances.uakt) : 0;
   const usdcBalance = walletBalances ? udenomToDenom(walletBalances.usdc) : 0;
@@ -137,7 +134,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
               <span>
                 You have <strong>{aktBalance}</strong> AKT and <strong>{usdcBalance}</strong> USDC
               </span>
-              {/* <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} /> */}
+              <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} />
             </div>
           )}
         </StepContent>
