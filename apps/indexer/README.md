@@ -1,4 +1,4 @@
-# Cloudmos Indexer
+# Console Indexer
 
 - [How to run](#how-to-run)
 - [Environment Variables](#environment-variables)

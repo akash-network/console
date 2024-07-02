@@ -3,30 +3,28 @@ version: "2.0"
 
 services:
   web:
-    image: redm4x/cloudmos-deploy:<version>
+    image: redm4x/console-deploy:<version>
     depends-on: proxy
     env:
-#      - API_BASE_URL=<API_URL_OVERRIDE>
-#      - NEXT_PUBLIC_GA_MEASUREMENT_ID=<GA_MEASUREMENT_ID>
-#      - NEXT_PUBLIC_SENTRY_DSN=<SENTRY_DSN>
-#      - NEXT_PUBLIC_SENTRY_SERVER_NAME=<SERVER_NAME>
+      #      - API_BASE_URL=<API_URL_OVERRIDE>
+      #      - NEXT_PUBLIC_GA_MEASUREMENT_ID=<GA_MEASUREMENT_ID>
+      #      - NEXT_PUBLIC_SENTRY_DSN=<SENTRY_DSN>
+      #      - NEXT_PUBLIC_SENTRY_SERVER_NAME=<SERVER_NAME>
       - MAINTENANCE_MODE=false
     expose:
       - port: 3001
         as: 80
         accept:
-          - deploybeta.cloudmos.io
-          - deploy.cloudmos.io
+          - console.akash.network
         to:
           - global: true
   proxy:
-    image: redm4x/cloudmos-provider-proxy:1.0.0-test1
+    image: redm4x/console-provider-proxy:1.0.0-test1
     expose:
       - port: 3040
         as: 80
         accept:
-          - deployproxybeta.cloudmos.io
-          - providerproxy.cloudmos.io
+          - providerproxy.console.akash.network
         to:
           - global: true
 profiles:

@@ -7,13 +7,13 @@ export function coinToAsset(coin: Coin) {
     if (coin.denom === "uakt") {
       return {
         symbol: "AKT",
-        logoUrl: "https://cloudmos.io/images/akash-logo.svg",
+        logoUrl: "https://console.akash.network/images/akash-logo.svg",
         amount: parseInt(coin.amount) / 1_000_000
       };
     } else if (coin.denom === "akt") {
       return {
         symbol: "AKT",
-        logoUrl: "https://cloudmos.io/images/akash-logo.svg",
+        logoUrl: "https://console.akash.network/images/akash-logo.svg",
         amount: parseFloat(coin.amount)
       };
     } else {

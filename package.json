@@ -1,5 +1,5 @@
 {
-  "name": "@akash-network/cloudmos",
+  "name": "@akashnetwork/console",
   "packageManager": "npm@10.7.0",
   "workspaces": [
     "./packages/*",
