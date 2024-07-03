@@ -1,12 +1,11 @@
 "use client";
 import { useRef } from "react";
-import { Button } from "@akashnetwork/ui/components";
+import { Button, Snackbar } from "@akashnetwork/ui/components";
 import { Copy } from "iconoir-react";
 import { useSnackbar } from "notistack";
 
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { selectText } from "@src/utils/stringUtils";
-import { Snackbar } from "./Snackbar";
 
 export const CodeSnippet = ({ code }: React.PropsWithChildren<{ code: string }>) => {
   const { enqueueSnackbar } = useSnackbar();

@@ -1,12 +1,11 @@
 "use client";
 import React, { ReactNode, useState } from "react";
-import { CustomTooltip } from "@akashnetwork/ui/components";
 import { Copy } from "iconoir-react";
 import { useSnackbar } from "notistack";
 
-import { copyTextToClipboard } from "@src/utils/copyClipboard";
-import { cn } from "@src/utils/styleUtils";
-import { Snackbar } from "./Snackbar";
+import { cn, copyTextToClipboard } from "../../utils";
+import { CustomTooltip } from "../index";
+import { Snackbar } from "./snackbar";
 
 type Props = {
   address: string;
@@ -37,7 +36,7 @@ export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, d
 
   const content = (
     <span
-      className={cn("inline-flex items-center text-primary transition-all hover:underline", { ["cursor-pointer"]: isCopyable })}
+      className={cn("text-primary inline-flex items-center transition-all hover:underline", { ["cursor-pointer"]: isCopyable })}
       onClick={onClick}
       onMouseOver={() => setIsOver(true)}
       onMouseOut={() => setIsOver(false)}

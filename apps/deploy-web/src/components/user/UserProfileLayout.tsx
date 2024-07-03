@@ -1,10 +1,9 @@
 import React, { ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { ErrorFallback, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useRouter } from "next/router";
 import { event } from "nextjs-google-analytics";
 
-import { ErrorFallback } from "@src/components/shared/ErrorFallback";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { UrlService } from "@src/utils/urlUtils";

@@ -8,6 +8,7 @@ import {
   FormItem,
   InputWithIcon,
   Label,
+  Popup,
   Select,
   SelectContent,
   SelectGroup,
@@ -22,7 +23,6 @@ import { Expose, SdlBuilderFormValues, Service } from "@src/types";
 import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 import { protoTypes } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
-import { Popup } from "../shared/Popup";
 import { AcceptFormControl, AcceptRefType } from "./AcceptFormControl";
 import { FormPaper } from "./FormPaper";
 import { HttpOptionsFormControl } from "./HttpOptionsFormControl";

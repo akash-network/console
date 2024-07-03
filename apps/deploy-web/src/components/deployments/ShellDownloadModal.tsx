@@ -1,10 +1,9 @@
 "use client";
 import { useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Alert, InputWithIcon } from "@akashnetwork/ui/components";
+import { Alert, InputWithIcon, Popup } from "@akashnetwork/ui/components";
 import { event } from "nextjs-google-analytics";
 
-import { Popup } from "@src/components/shared/Popup";
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { AnalyticsEvents } from "@src/utils/analytics";
 

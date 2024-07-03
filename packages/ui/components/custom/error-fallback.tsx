@@ -1,7 +1,8 @@
 "use client";
 import { ReactNode } from "react";
 import { FallbackProps } from "react-error-boundary";
-import { Alert, AlertTitle, Button } from "@akashnetwork/ui/components";
+
+import { Alert, AlertTitle, Button } from "../index";
 
 interface Props extends FallbackProps {
   children?: ReactNode;

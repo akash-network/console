@@ -1,8 +1,6 @@
 "use client";
 import { ReactNode } from "react";
-import { Spinner } from "@akashnetwork/ui/components";
-
-import { Popup } from "../shared/Popup";
+import { Popup, Spinner } from "@akashnetwork/ui/components";
 
 type Props = {
   state: "waitingForApproval" | "broadcasting";

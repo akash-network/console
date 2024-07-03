@@ -7,12 +7,14 @@ import {
   FormItem,
   InputWithIcon,
   Label,
+  Popup,
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  Snackbar
 } from "@akashnetwork/ui/components";
 import compareAsc from "date-fns/compareAsc";
 import { event } from "nextjs-google-analytics";
@@ -28,8 +30,6 @@ import { uAktDenom } from "@src/utils/constants";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { LinkTo } from "../shared/LinkTo";
-import { Popup } from "../shared/Popup";
-import { Snackbar } from "../shared/Snackbar";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
 
 type Props = {

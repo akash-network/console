@@ -1,8 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Alert, AlertDescription, AlertTitle, Badge, buttonVariants, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, AlertTitle, Badge, buttonVariants, Popup, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
 
-import { Popup } from "@src/components/shared/Popup";
 import { useSettings } from "@src/context/SettingsProvider";
 import { networks } from "@src/store/networkStore";
 import { mainnetId } from "@src/utils/constants";

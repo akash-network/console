@@ -1,6 +1,6 @@
 "use client";
 import React, { SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Badge, Button, Card, CardContent, CardHeader, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
+import { Alert, Badge, Button, Card, CardContent, CardHeader, CustomTooltip, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { Check, Copy, InfoCircle, OpenInWindow } from "iconoir-react";
 import yaml from "js-yaml";
 import get from "lodash/get";
@@ -33,7 +33,6 @@ import { sshVmImages } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
-import { Snackbar } from "../shared/Snackbar";
 
 type Props = {
   lease: LeaseDto;
