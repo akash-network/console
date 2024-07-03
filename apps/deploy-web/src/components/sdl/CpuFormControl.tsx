@@ -6,9 +6,9 @@ import { CustomTooltip, FormDescription, FormItem, Input, Slider } from "@akashn
 import { InfoCircle } from "iconoir-react";
 
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
+import { validationConfig } from "@src/utils/akash/units";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
-import { validationConfig } from "@src/utils/akash/units";
 
 type Props = {
   serviceIndex: number;

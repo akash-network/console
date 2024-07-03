@@ -32,7 +32,6 @@ import { GpuVendor } from "@src/types/gpu";
 import { uAktDenom } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
-import { SSH_VM_IMAGES } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";

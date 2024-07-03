@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Button, buttonVariants, Card, CardContent } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Card, CardContent, Popup } from "@akashnetwork/ui/components";
 import { Bin, Edit, Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -9,7 +9,6 @@ import { event } from "nextjs-google-analytics";
 
 import { EditDescriptionForm } from "@src/components/sdl/EditDescriptionForm";
 import { LeaseSpecDetail } from "@src/components/shared/LeaseSpecDetail";
-import { Popup } from "@src/components/shared/Popup";
 import { Title } from "@src/components/shared/Title";
 import { UserFavoriteButton } from "@src/components/shared/UserFavoriteButton";
 import { useCustomUser } from "@src/hooks/useCustomUser";

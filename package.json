@@ -22,7 +22,8 @@
     "indexer:dev": "turbo dev --filter=\"./apps/indexer\"",
     "format": "prettier --write ./*.{js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
-    "lint:api": "eslint ./apps/api"
+    "lint:api": "eslint ./apps/api",
+    "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\""
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",

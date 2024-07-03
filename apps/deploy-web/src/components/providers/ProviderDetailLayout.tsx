@@ -1,12 +1,11 @@
 "use client";
 import React, { ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { Button, buttonVariants, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, ErrorFallback, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { NavArrowLeft, Refresh } from "iconoir-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { ErrorFallback } from "@src/components/shared/ErrorFallback";
 import { useWallet } from "@src/context/WalletProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";

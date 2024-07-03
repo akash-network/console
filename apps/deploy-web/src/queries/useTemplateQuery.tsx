@@ -1,9 +1,9 @@
 import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions } from "react-query";
+import { Snackbar } from "@akashnetwork/ui/components";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
-import { Snackbar } from "@src/components/shared/Snackbar";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { ITemplate } from "@src/types";
 import { ApiUrlService } from "@src/utils/apiUtils";

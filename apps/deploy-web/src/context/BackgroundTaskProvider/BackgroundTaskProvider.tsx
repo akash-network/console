@@ -1,10 +1,9 @@
 "use client";
 import React from "react";
-import { Button } from "@akashnetwork/ui/components";
+import { Button, Snackbar } from "@akashnetwork/ui/components";
 import FileSaver from "file-saver";
 import { useSnackbar } from "notistack";
 
-import { Snackbar } from "@src/components/shared/Snackbar";
 import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
 import { useCertificate } from "../CertificateProvider";
 

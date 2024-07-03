@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Avatar, AvatarFallback, Card, CardContent, Spinner } from "@akashnetwork/ui/components";
+import { Avatar, AvatarFallback, Card, CardContent, Popup, Spinner } from "@akashnetwork/ui/components";
 import { CheckCircle, WarningCircle } from "iconoir-react";
 
 import { useChainParam } from "@src/context/ChainParamProvider";
@@ -8,7 +8,6 @@ import { useWallet } from "@src/context/WalletProvider";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt } from "@src/utils/priceUtils";
 import { ConnectWallet } from "./ConnectWallet";
-import { Popup } from "./Popup";
 import { Title } from "./Title";
 
 type Props = {

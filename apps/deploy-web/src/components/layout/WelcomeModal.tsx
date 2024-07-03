@@ -1,9 +1,8 @@
 "use client";
-import { Card, CardContent } from "@akashnetwork/ui/components";
+import { Card, CardContent, Popup } from "@akashnetwork/ui/components";
 import { useTheme } from "next-themes";
 
 import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
-import { Popup } from "../shared/Popup";
 import { Title } from "../shared/Title";
 
 export const WelcomeModal = ({ open, onClose }) => {
