@@ -3,6 +3,7 @@ import { documentGetInitialProps, DocumentHeadTags } from "@mui/material-nextjs/
 import { Head, Html, Main, NextScript } from "next/document";
 
 import { customColors } from "@src/utils/colors";
+import createEmotionCache from "@src/utils/createEmotionCache";
 
 export default function MyDocument(props) {
   return (
@@ -31,6 +32,8 @@ export default function MyDocument(props) {
 }
 
 MyDocument.getInitialProps = async ctx => {
-  const finalProps = await documentGetInitialProps(ctx);
+  const finalProps = await documentGetInitialProps(ctx, {
+    emotionCache: createEmotionCache()
+  });
   return finalProps;
 };

@@ -1,8 +1,13 @@
 import { ReactNode } from "react";
 import React from "react";
 import Head from "next/head";
-import { Box, Typography, useTheme } from "@mui/material";
+import { Box, Button, Typography, useTheme } from "@mui/material";
 import Image from "next/legacy/image";
+import dynamic from "next/dynamic";
+import LaunchIcon from "@mui/icons-material/Launch";
+import Link from "next/link";
+
+const Waves = dynamic(import("../components/waves"), { ssr: false });
 
 type Props = {
   children?: ReactNode;
@@ -10,6 +15,7 @@ type Props = {
 
 const IndexPage: React.FunctionComponent<Props> = ({}) => {
   const theme = useTheme();
+
   return (
     <>
       <Head>
@@ -35,20 +41,33 @@ const IndexPage: React.FunctionComponent<Props> = ({}) => {
               src={theme.palette.mode === "dark" ? "/images/cloudmos-logo.png" : "/images/cloudmos-logo-light.png"}
               layout="fixed"
               quality={100}
-              width={140}
-              height={35}
+              width={200}
+              height={50}
               loading="eager"
               priority
             />
           </div>
-          <Typography sx={{ ml: 1, fontSize: "1.1rem" }}>has reached end of life...</Typography>
         </Box>
 
         <Typography sx={{ mt: 2 }} variant="h5">
           Cloudmos is now fully moved to <a href="https://console.akash.network">console.akash.network</a>.
         </Typography>
 
-        <Typography sx={{ mt: 2 }}>See you on the other side!</Typography>
+        <Button
+          href="https://console.akash.network"
+          component={Link}
+          variant="contained"
+          color="secondary"
+          size="large"
+          sx={{ mt: 2, display: "inline-flex", alignItems: "center", textTransform: "initial" }}
+        >
+          Go to Akash Console
+          <LaunchIcon fontSize="small" sx={{ ml: 1 }} />
+        </Button>
+
+        <Typography sx={{ mt: 2 }}>See you on the other side! 🚀</Typography>
+
+        <Waves />
       </Box>
     </>
   );
