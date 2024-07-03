@@ -2,13 +2,13 @@
 
 import React, { useCallback, useMemo, useState } from "react";
 import { Button } from "@akashnetwork/ui/components";
-import { useWalletClient } from "@cosmos-kit/react";
+import { useWallet as useConnectedWallet, useWalletClient } from "@cosmos-kit/react";
 import {
   AsyncIDBStorage,
   ElementsProvider,
   initCachingLayer,
   LiquidityModal as LeapLiquidityModal,
-  LiquidityModalProps,
+  type LiquidityModalProps,
   Tabs,
   WalletType
 } from "@leapwallet/elements";
@@ -39,13 +39,12 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
 initCachingLayer(AsyncIDBStorage);
 
 const useConnectedWalletType = (): WalletType | undefined => {
-  const { isWalletConnected, walletName } = useWallet();
+  const { isWalletConnected } = useWallet();
+  const { mainWallet } = useConnectedWallet();
+
+  const walletName = isWalletConnected ? mainWallet?.walletName : undefined;
 
   const walletType = useMemo(() => {
-    if (!isWalletConnected) {
-      return undefined;
-    }
-
     switch (walletName) {
       case "leap-extension":
         return WalletType.LEAP;
@@ -58,17 +57,17 @@ const useConnectedWalletType = (): WalletType | undefined => {
       default:
         return undefined;
     }
-  }, [isWalletConnected, walletName]);
+  }, [walletName]);
 
   return walletType;
 };
 
 type TabsConfig = NonUndefined<LiquidityModalProps["tabsConfig"]>;
 
-const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ address, aktBalance, refreshBalances }) => {
+const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ refreshBalances }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { isWalletConnected, walletName } = useWallet();
-  const { client: walletClient } = useWalletClient(walletName);
+  const { isWalletConnected } = useWallet();
+  const { client: walletClient } = useWalletClient();
 
   const connectedWalletType = useConnectedWalletType();
 

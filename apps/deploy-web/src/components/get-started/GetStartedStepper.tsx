@@ -21,15 +21,27 @@ import { ExternalLink } from "../shared/ExternalLink";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
 
-const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
-  ssr: false,
-  loading: () => (
-    <Button variant="default" disabled size="sm">
-      <Spinner size="small" className="mr-2" />
-      <span>Get More</span>
-    </Button>
-  )
-});
+const LiquidityModal = dynamic(
+  () =>
+    import("../liquidity-modal")
+      .then(m => {
+        console.log("done");
+        return m;
+      })
+      .catch(e => {
+        console.log("error loading liquidity modal", e);
+        throw e;
+      }),
+  {
+    ssr: false,
+    loading: () => (
+      <Button variant="default" disabled size="sm">
+        <Spinner size="small" className="mr-2" />
+        <span>Get More</span>
+      </Button>
+    )
+  }
+);
 
 export const GetStartedStepper: React.FunctionComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
