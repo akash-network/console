@@ -1,8 +1,6 @@
 import React, { ReactNode, useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import { IntlProvider } from "react-intl";
-import { useTheme } from "@mui/material";
-import { makeStyles } from "tss-react/mui";
 
 type Props = {
   isLoading?: boolean;
