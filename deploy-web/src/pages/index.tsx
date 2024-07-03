@@ -1,93 +1,56 @@
-import Layout from "../components/layout/Layout";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode } from "react";
 import React from "react";
-import { useDeploymentList } from "@src/queries/useDeploymentQuery";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { useSettings } from "@src/context/SettingsProvider";
-import { useBalances } from "@src/queries/useBalancesQuery";
-import { useWallet } from "@src/context/WalletProvider";
-import { YourAccount } from "@src/components/home/YourAccount";
-import PageContainer from "@src/components/shared/PageContainer";
-import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { WelcomePanel } from "@src/components/home/WelcomePanel";
-import { Box, CircularProgress } from "@mui/material";
-import { Footer } from "@src/components/layout/Footer";
-import { useProviderList } from "@src/queries/useProvidersQuery";
+import Head from "next/head";
+import { Box, Typography, useTheme } from "@mui/material";
+import Image from "next/legacy/image";
 
 type Props = {
   children?: ReactNode;
 };
 
 const IndexPage: React.FunctionComponent<Props> = ({}) => {
-  const { address, isWalletLoaded } = useWallet();
-  const [activeDeployments, setActiveDeployments] = useState([]);
-  const { isFetching: isLoadingDeployments, refetch: getDeployments } = useDeploymentList(address, {
-    enabled: false,
-    onSuccess: _deployments => {
-      setActiveDeployments(
-        _deployments
-          ? [..._deployments]
-              .filter(d => d.state === "active")
-              .map(d => {
-                const name = getDeploymentName(d.dseq);
-
-                return {
-                  ...d,
-                  name
-                };
-              })
-          : []
-      );
-    }
-  });
-  const { getDeploymentName } = useLocalNotes();
-  const { settings, isSettingsInit } = useSettings();
-  const { apiEndpoint } = settings;
-  const { data: balances, isFetching: isLoadingBalances, refetch: getBalances } = useBalances(address, { enabled: false });
-  const { data: providers, isFetching: isLoadingProviders } = useProviderList();
-  const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
-
-  useEffect(() => {
-    if (address && isSettingsInit) {
-      getBalances();
-      getLeases();
-    }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, isSettingsInit]);
-
-  useEffect(() => {
-    if (isWalletLoaded && isSettingsInit) {
-      getDeployments();
-    }
-  }, [isSettingsInit, isWalletLoaded, getDeployments, apiEndpoint, address]);
-
+  const theme = useTheme();
   return (
-    <Layout isLoading={isLoadingDeployments || isLoadingBalances || isLoadingProviders || isLoadingLeases}>
-      <PageContainer sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
-        <div>
-          <Box sx={{ marginBottom: "1rem" }}>
-            <WelcomePanel />
-          </Box>
+    <>
+      <Head>
+        <title>Cloudmos Import</title>
+      </Head>
 
-          {isSettingsInit && isWalletLoaded ? (
-            <YourAccount
-              isLoadingBalances={isLoadingBalances}
-              balances={balances}
-              activeDeployments={activeDeployments}
-              leases={leases}
-              providers={providers}
+      <Box
+        sx={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          p: 4,
+          textAlign: "center"
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", flexDirection: { xs: "column", sm: "row" } }}>
+          <div>
+            <Image
+              alt="Cloudmos Logo"
+              src={theme.palette.mode === "dark" ? "/images/cloudmos-logo.png" : "/images/cloudmos-logo-light.png"}
+              layout="fixed"
+              quality={100}
+              width={140}
+              height={35}
+              loading="eager"
+              priority
             />
-          ) : (
-            <Box sx={{ padding: "2rem", display: "flex", justifyContent: "center" }}>
-              <CircularProgress color="secondary" size="4rem" />
-            </Box>
-          )}
-        </div>
+          </div>
+          <Typography sx={{ ml: 1, fontSize: "1.1rem" }}>has reached end of life...</Typography>
+        </Box>
 
-        <Footer />
-      </PageContainer>
-    </Layout>
+        <Typography sx={{ mt: 2 }} variant="h5">
+          Cloudmos is now fully moved to <a href="https://console.akash.network">console.akash.network</a>.
+        </Typography>
+
+        <Typography sx={{ mt: 2 }}>See you on the other side!</Typography>
+      </Box>
+    </>
   );
 };
 
