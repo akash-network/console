@@ -96,6 +96,7 @@ const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBal
 
     return {
       [Tabs.SWAPS]: {
+        enabled: true,
         orderIndex: 0,
         title: "Swap or Bridge",
         allowedDestinationChains: [
@@ -115,6 +116,7 @@ const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBal
         enabled: false
       },
       [Tabs.FIAT_ON_RAMP]: {
+        enabled: true,
         title: "Buy Tokens",
         orderIndex: 1,
         allowedDestinationChains: [
@@ -131,6 +133,7 @@ const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBal
         onTxnComplete: txnLifecycleHooks.onTxnComplete
       },
       [Tabs.TRANSFER]: {
+        enabled: true,
         orderIndex: 2,
         title: "IBC Transfer",
         defaultValues: {
@@ -146,9 +149,9 @@ const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBal
     <>
       <ToggleLiquidityModalButton onClick={() => setIsOpen(o => !o)} />
       {walletClient ? (
-        <div className="leap-ui">
+        <div className="leap-ui dark">
           <ElementsProvider primaryChainId="akashnet-2" connectWallet={handleConnectWallet} connectedWalletType={connectedWalletType}>
-            <LeapLiquidityModal isOpen={isOpen} setIsOpen={setIsOpen} tabsConfig={tabsConfig} defaultActiveTab={Tabs.SWAPS} />
+            <LeapLiquidityModal className="border-none" isOpen={isOpen} setIsOpen={setIsOpen} tabsConfig={tabsConfig} defaultActiveTab={Tabs.SWAPS} />
           </ElementsProvider>
         </div>
       ) : null}
