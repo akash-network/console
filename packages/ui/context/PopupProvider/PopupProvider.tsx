@@ -12,7 +12,7 @@ type PopupProviderContext = {
 
 const PopupContext = React.createContext<PopupProviderContext | undefined>(undefined);
 
-export const PopupProvider = ({ children }: React.PropsWithChildren<{}>) => {
+export const PopupProvider = ({ children }: React.PropsWithChildren) => {
   const [popupProps, setPopupProps] = useState<PopupProps | undefined>();
 
   const confirm: PopupProviderContext["confirm"] = useCallback(
