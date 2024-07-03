@@ -2,8 +2,6 @@ import React, { useCallback, useMemo, useState } from "react";
 import { CommonProps, ConfirmProps, Popup, PopupProps, SelectOption, SelectProps } from "@akashnetwork/ui/components";
 import { firstValueFrom, Subject } from "rxjs";
 
-import type { FCWithChildren } from "@src/types/component";
-
 type ConfirmPopupProps = string | (Omit<CommonProps, "onClose" | "open"> & Omit<ConfirmProps, "onValidate" | "onCancel" | "variant">);
 type SelectPopupProps = Omit<CommonProps, "onClose" | "open"> & Omit<SelectProps, "onValidate" | "onCancel" | "variant">;
 
@@ -14,7 +12,7 @@ type PopupProviderContext = {
 
 const PopupContext = React.createContext<PopupProviderContext | undefined>(undefined);
 
-export const PopupProvider: FCWithChildren = ({ children }) => {
+export const PopupProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [popupProps, setPopupProps] = useState<PopupProps | undefined>();
 
   const confirm: PopupProviderContext["confirm"] = useCallback(

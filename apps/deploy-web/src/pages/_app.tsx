@@ -1,7 +1,7 @@
 import React from "react";
 import { QueryClientProvider } from "react-query";
 import { TooltipProvider } from "@akashnetwork/ui/components";
-import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
+import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
 import { GeistSans } from "geist/font/sans";
@@ -22,7 +22,6 @@ import { ChainParamProvider } from "@src/context/ChainParamProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
-import { PopupProvider } from "@src/context/PopupProvider/PopupProvider";
 import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { TemplatesProvider } from "@src/context/TemplatesProvider";
