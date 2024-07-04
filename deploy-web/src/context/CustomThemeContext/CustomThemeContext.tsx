@@ -78,9 +78,9 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
           width: "100%"
         },
         body: {
-          height: `calc(100% - ${accountBarHeight}px) !important`,
+          height: "100%",
           width: "100%",
-          overflowY: "scroll !important",
+          overflow: "hidden",
           padding: "0 !important",
           "&::-webkit-scrollbar": {
             width: "10px"

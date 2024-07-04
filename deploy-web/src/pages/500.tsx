@@ -7,7 +7,6 @@ import { NextSeo } from "next-seo";
 import { UrlService } from "@src/utils/urlUtils";
 import Link from "next/link";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import { NextPage, NextPageContext } from "next";
 
 type Props = {
   children?: ReactNode;
