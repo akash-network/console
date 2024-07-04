@@ -14,6 +14,7 @@ import { ColorModeSelect } from "./ColorModeSelect";
 import { SelectNetworkModal } from "./SelectNetworkModal";
 import { SettingsForm } from "./SettingsForm";
 import { SettingsLayout, SettingsTabs } from "./SettingsLayout";
+import CloudmosImportPanel from "./CloudmosImportPanel";
 
 export const SettingsContainer: React.FunctionComponent = () => {
   const [isSelectingNetwork, setIsSelectingNetwork] = useState(false);
@@ -52,9 +53,11 @@ export const SettingsContainer: React.FunctionComponent = () => {
           </Fieldset>
         </div>
 
-        <Fieldset label="Certificates">
+        <Fieldset label="Certificates" className="mb-4">
           <CertificateList />
         </Fieldset>
+
+        <CloudmosImportPanel />
       </SettingsLayout>
     </Layout>
   );

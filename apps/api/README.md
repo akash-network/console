@@ -1,5 +1,5 @@
 
-# Cloudmos API
+# Console API
 
 - [Environment Variables](#environment-variables)
 - [How to run](#how-to-run)

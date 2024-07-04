@@ -1,9 +1,9 @@
 {
   "name": "@akashnetwork/database",
   "version": "1.0.0",
-  "description": "Code that is shared between multiple cloudmos project",
+  "description": "Database code and schema that is shared between multiple console projects.",
   "license": "Apache-2.0",
-  "author": "Cloudmos",
+  "author": "Akash Network",
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
     "lint": "eslint ."

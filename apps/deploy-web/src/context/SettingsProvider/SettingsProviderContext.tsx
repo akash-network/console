@@ -91,7 +91,7 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
       let nodes = response.data;
 
       const hasSettings =
-        settingsStr && settings.apiEndpoint && settings.rpcEndpoint && settings.selectedNode && nodes.find(x => x.id === settings.selectedNode.id);
+        settingsStr && settings.apiEndpoint && settings.rpcEndpoint && settings.selectedNode && nodes?.find(x => x.id === settings.selectedNode.id);
 
       // if user has settings locally
       if (hasSettings) {

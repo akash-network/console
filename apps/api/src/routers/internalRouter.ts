@@ -10,7 +10,7 @@ internalRouter.doc(`/doc`, {
   openapi: "3.0.0",
   servers: [{ url: `${env.ServerOrigin}/internal` }],
   info: {
-    title: "Cloudmos Internal API",
+    title: "Console Internal API",
     description: "APIs for internal use that are not part of the public API. There is no garantees of stability or backward compatibility.",
     version: "test"
   }
