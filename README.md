@@ -145,7 +145,7 @@ Due to the extensive time required to index Akash from block #1, it's recommende
 
 ### Available Backups
 
-- **Mainnet Database (~30 GB):** [cloudmos-akash-mainnet.sql.gz](https://storage.googleapis.com/cloudmos-postgresql-backups/cloudmos-akash-mainnet.sql)
+- **Mainnet Database (~30 GB):** [cloudmos-akash-mainnet.sql.gz](https://storage.googleapis.com/cloudmos-postgresql-backups/cloudmos-akash-mainnet.sql.gz)
   - Suitable for scenarios requiring complete data.
 - **Sandbox Database (< 300 MB):** [cloudmos-akash-sandbox.sql.gz](https://storage.googleapis.com/cloudmos-postgresql-backups/cloudmos-akash-sandbox.sql.gz)
   - Ideal for most development needs, although it may lack recent chain updates.
