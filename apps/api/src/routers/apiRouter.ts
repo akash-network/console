@@ -13,7 +13,7 @@ function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRou
     openapi: "3.0.0",
     servers: [{ url: `${env.ServerOrigin}/${version}` }],
     info: {
-      title: "Cloudmos API",
+      title: "Console API",
       description: "Access Akash data from our indexer",
       version: version
     }

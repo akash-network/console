@@ -91,7 +91,7 @@ const createProviderClient = memoize((hostUri: string) => {
   const url = hostUri.replace(":8443", ":8444").replace("https://", "dns:///");
 
   // TODO: refactor to use on-change cert validation
-  //  Issue: https://github.com/akash-network/cloudmos/issues/170
+  //  Issue: https://github.com/akash-network/console/issues/170
   const client = new ProviderRPCClient(url, FakeInsecureCredentials.createInsecure());
   const getStatus = promisify(client.getStatus.bind(client));
 

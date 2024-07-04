@@ -33,6 +33,8 @@ build/Release
 .grunt
 .lock-wscript
 .next
+public/sw*
+public/workbox-*
 out
 dist
 build.ps1

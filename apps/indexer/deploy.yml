@@ -3,7 +3,7 @@ version: "2.0"
 
 services:
   syncer:
-    image: redm4x/cloudmos-syncer:1.0.0
+    image: redm4x/console-syncer:1.0.0
     env:
       - HealthchecksEnabled=true
       - SentryDSN=<SENTRY_DSN>

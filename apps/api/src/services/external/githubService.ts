@@ -14,7 +14,7 @@ export function getOctokit() {
 
   return new Octokit({
     auth: githubPAT,
-    userAgent: "Cloudmos API",
+    userAgent: "Console API",
     baseUrl: "https://api.github.com"
   });
 }
@@ -24,7 +24,7 @@ export const getProviderAttributesSchema = async (): Promise<ProviderAttributesS
   const response = await cacheResponse(
     30,
     cacheKeys.getProviderAttributesSchema,
-    async () => await axios.get<ProviderAttributesSchema>("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/provider-attributes.json")
+    async () => await axios.get<ProviderAttributesSchema>("https://raw.githubusercontent.com/akash-network/console/main/config/provider-attributes.json")
   );
 
   return response.data;
@@ -32,7 +32,7 @@ export const getProviderAttributesSchema = async (): Promise<ProviderAttributesS
 
 export async function getAuditors() {
   const response = await cacheResponse(60 * 5, cacheKeys.getAuditors, async () => {
-    const res = await axios.get<Auditor[]>("https://raw.githubusercontent.com/akash-network/cloudmos/main/config/auditors.json");
+    const res = await axios.get<Auditor[]>("https://raw.githubusercontent.com/akash-network/console/main/config/auditors.json");
     return res.data;
   });
 
