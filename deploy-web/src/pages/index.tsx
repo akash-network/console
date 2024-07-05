@@ -19,7 +19,7 @@ const IndexPage: React.FunctionComponent<Props> = ({}) => {
   return (
     <>
       <Head>
-        <title>Cloudmos Import</title>
+        <title>Cloudmos</title>
       </Head>
 
       <Box

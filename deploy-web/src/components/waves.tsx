@@ -19,7 +19,7 @@ export const Waves = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const height = useDocHeight();
   return (
-    <Box sx={{ position: "absolute", width: "100%", height: height, left: 0 }}>
+    <Box sx={{ position: "absolute", width: "100%", height: height, left: 0, zIndex: -1 }}>
       <Wave
         fill={theme.palette.secondary.main}
         paused={false}
