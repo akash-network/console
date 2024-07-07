@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@akashnetwork/ui/components";
 import { useWallet as useConnectedWallet, useWalletClient } from "@cosmos-kit/react";
 import {
@@ -64,7 +65,9 @@ const useConnectedWalletType = (): WalletType | undefined => {
 
 type TabsConfig = NonUndefined<LiquidityModalProps["tabsConfig"]>;
 
-const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ refreshBalances }) => {
+type Props = { address: string; aktBalance: number; refreshBalances: () => void };
+
+const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { isWalletConnected } = useWallet();
   const { client: walletClient } = useWalletClient();
@@ -148,15 +151,20 @@ const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBal
   return (
     <>
       <ToggleLiquidityModalButton onClick={() => setIsOpen(o => !o)} />
-      {walletClient ? (
-        <div className="leap-ui dark">
-          <ElementsProvider primaryChainId="akashnet-2" connectWallet={handleConnectWallet} connectedWalletType={connectedWalletType}>
-            <LeapLiquidityModal className="border-none" isOpen={isOpen} setIsOpen={setIsOpen} tabsConfig={tabsConfig} defaultActiveTab={Tabs.SWAPS} />
-          </ElementsProvider>
-        </div>
-      ) : null}
+      {walletClient
+        ? createPortal(
+            <div className="leap-ui dark">
+              <ElementsProvider primaryChainId="akashnet-2" connectWallet={handleConnectWallet} connectedWalletType={connectedWalletType}>
+                <LeapLiquidityModal className="border-none" isOpen={isOpen} setIsOpen={setIsOpen} tabsConfig={tabsConfig} defaultActiveTab={Tabs.SWAPS} />
+              </ElementsProvider>
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 };
+
+LiquidityModal.displayName = "LiquidityModal";
 
 export default LiquidityModal;
