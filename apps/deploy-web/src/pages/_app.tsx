@@ -32,8 +32,8 @@ import { cn } from "@src/utils/styleUtils";
 
 import "nprogress/nprogress.css"; //styles of nprogress
 import "@akashnetwork/ui/styles";
-import "../styles/index.css";
 import "@leapwallet/elements/styles.css";
+import "../styles/index.css";
 
 interface Props extends AppProps {}
 
