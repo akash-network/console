@@ -129,3 +129,7 @@ header {
   border-top-color: hsl(var(--primary)) !important;
   border-left-color: hsl(var(--primary)) !important;
 }
+
+body {
+  pointer-events: all !important;
+}
