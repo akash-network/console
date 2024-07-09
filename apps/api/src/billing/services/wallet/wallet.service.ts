@@ -6,7 +6,7 @@ import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
-import { ContextualLoggerService } from "@src/core/services";
+import { LoggerService } from "@src/core";
 
 interface SpendingAuthorizationOptions {
   address: string;
@@ -27,13 +27,12 @@ export class WalletService {
 
   private client: SigningStargateClient;
 
+  private readonly logger = new LoggerService({ context: WalletService.name });
+
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
-    private readonly rpcMessageService: RpcMessageService,
-    private readonly logger: ContextualLoggerService
-  ) {
-    this.logger.setContext({ context: WalletService.name });
-  }
+    private readonly rpcMessageService: RpcMessageService
+  ) {}
 
   async createAndAuthorizeTrialSpending({ addressIndex }: { addressIndex: number }) {
     const { address } = await this.createWallet({ addressIndex });

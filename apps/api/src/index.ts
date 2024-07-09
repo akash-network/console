@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import "./open-telemetry";
 
 import { container } from "tsyringe";
 
