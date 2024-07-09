@@ -1,14 +1,12 @@
 import { Context, Next } from "hono";
 import { singleton } from "tsyringe";
 
-import { ContextualLoggerService } from "@src/core/services";
+import { LoggerService } from "@src/core";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 
 @singleton()
 export class HttpLoggerService implements HonoInterceptor {
-  constructor(private readonly logger: ContextualLoggerService) {
-    logger.setContext({ context: "HTTP" });
-  }
+  private readonly logger = new LoggerService({ context: "HTTP" });
 
   intercept() {
     return async (c: Context, next: Next) => {

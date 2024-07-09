@@ -41,8 +41,3 @@ services:
       - '3001:3000'
     depends_on:
       - api
-
-  landing:
-    restart: always
-    ports:
-      - '3002:3000'

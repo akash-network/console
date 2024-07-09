@@ -1,14 +1,10 @@
 import { LogWriter } from "drizzle-orm/logger";
 import { format } from "sql-formatter";
-import { singleton } from "tsyringe";
 
-import { ContextualLoggerService } from "@src/core/services/contextual-logger/contextual-logger.service";
+import { LoggerService } from "@src/core/services/logger/logger.service";
 
-@singleton()
 export class PostgresLoggerService implements LogWriter {
-  constructor(private readonly logger: ContextualLoggerService) {
-    logger.setContext({ context: "POSTGRES" });
-  }
+  private readonly logger = new LoggerService({ context: "POSTGRES" });
 
   write(message: string) {
     let formatted = message.replace(/^Query: /, "");
