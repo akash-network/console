@@ -8,9 +8,9 @@ export const selectedRangeValues: { [key: string]: number } = {
   ALL: Number.MAX_SAFE_INTEGER
 };
 
-const productionMainnetApiUrl = "https://api.cloudmos.io";
-const productionTestnetApiUrl = "https://api-testnet.cloudmos.io";
-const productionSandboxApiUrl = "https://api-sandbox.cloudmos.io";
+const productionMainnetApiUrl = "https://api.console.akash.network";
+const productionTestnetApiUrl = "https://api-testnet.console.akash.network";
+const productionSandboxApiUrl = "https://api-sandbox.console.akash.network";
 const productionHostnames = ["stats.akash.network"];
 
 export const isProd = process.env.NODE_ENV === "production";

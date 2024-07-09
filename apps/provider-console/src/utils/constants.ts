@@ -11,9 +11,9 @@ export const selectedRangeValues: { [key: string]: number } = {
 };
 
 
-const productionMainnetApiUrl = "https://api.cloudmos.io";
-const productionTestnetApiUrl = "https://api-testnet.cloudmos.io";
-const productionSandboxApiUrl = "https://api-sandbox.cloudmos.io";
+const productionMainnetApiUrl = "https://console-api.akash.network";
+const productionTestnetApiUrl = "https://console-api-testnet.akash.network";
+const productionSandboxApiUrl = "https://console-api-sandbox.akash.network";
 export const BASE_API_MAINNET_URL = getApiMainnetUrl();
 export const BASE_API_TESTNET_URL = getApiTestnetUrl();
 export const BASE_API_SANDBOX_URL = getApiSandboxUrl();
