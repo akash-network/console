@@ -7,6 +7,8 @@ import { USER_WALLET_SCHEMA, UserWalletSchema } from "@src/billing/providers";
 import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
 import { closeConnections } from "@src/db/dbConnection";
 
+jest.setTimeout(10000);
+
 describe("wallets", () => {
   const schema = container.resolve<UserWalletSchema>(USER_WALLET_SCHEMA);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
@@ -26,8 +28,6 @@ describe("wallets", () => {
 
   describe("POST /v1/wallets", () => {
     it("should create a wallet for a user", async () => {
-      jest.setTimeout(10000);
-
       const userId = faker.string.uuid();
       const res = await app.request("/v1/wallets", {
         method: "POST",

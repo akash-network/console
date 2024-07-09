@@ -11,7 +11,7 @@ const pool = new Pool({
   connectionString: config.POSTGRES_DB_URI
 });
 
-export const pgDatabase = drizzle(pool, { logger: new DefaultLogger({ writer: container.resolve(PostgresLoggerService) }), schema: billingSchemas });
+export const pgDatabase = drizzle(pool, { logger: new DefaultLogger({ writer: new PostgresLoggerService() }), schema: billingSchemas });
 
 export type ApiPgSchema = typeof billingSchemas;
 

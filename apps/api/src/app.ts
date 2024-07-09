@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { container } from "tsyringe";
 
-import { HttpLoggerService, LoggerService, RequestStorageService } from "@src/core";
+import { HttpLoggerService, LoggerService } from "@src/core";
 import packageJson from "../package.json";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { apiRouter } from "./routers/apiRouter";
@@ -59,7 +59,6 @@ const scheduler = new Scheduler({
   }
 });
 
-appHono.use(container.resolve(RequestStorageService).intercept());
 appHono.use(container.resolve(HttpLoggerService).intercept());
 appHono.use(
   "*",
