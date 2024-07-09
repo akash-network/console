@@ -197,9 +197,9 @@ export const SettingsForm: React.FunctionComponent = () => {
                           endAdornment: (
                             <InputAdornment position="end">
                               <div className="mr-2 inline-flex">
-                                <NavArrowDown className="text-sm" />
+                                <NavArrowDown className="text-xs" />
                               </div>
-                              <NodeStatus latency={Math.floor(selectedNode?.latency || 0)} status={selectedNode?.status || ""} />
+                              <NodeStatus latency={Math.floor(selectedNode?.latency || 0)} status={selectedNode?.status || ""} variant="dense" />
                             </InputAdornment>
                           )
                         }}
@@ -210,9 +210,11 @@ export const SettingsForm: React.FunctionComponent = () => {
                     const node = nodes.find(n => n.id === option);
 
                     return (
-                      <li className="flex w-full items-center justify-between px-2 py-1" {...props}>
-                        <div>{option}</div>
-                        <NodeStatus latency={Math.floor(node?.latency || 0)} status={node?.status || ""} />
+                      <li {...props}>
+                        <div className="flex w-full items-center justify-between px-2 py-1">
+                          <div>{option}</div>
+                          <NodeStatus latency={Math.floor(node?.latency || 0)} status={node?.status || ""} variant="dense" />
+                        </div>
                       </li>
                     );
                   }}
