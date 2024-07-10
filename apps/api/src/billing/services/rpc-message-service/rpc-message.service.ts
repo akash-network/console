@@ -1,7 +1,7 @@
 import { DepositDeploymentAuthorization } from "@akashnetwork/akash-api/v1beta3";
+import { MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 import { BasicAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
 import { MsgGrantAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
-import Long from "long";
 import { singleton } from "tsyringe";
 
 interface SpendingAuthorizationOptions {
@@ -14,6 +14,17 @@ interface SpendingAuthorizationOptions {
 
 @singleton()
 export class RpcMessageService {
+  getAllGrantMsgs(
+    options: Omit<SpendingAuthorizationOptions, "limit"> & {
+      limits: {
+        deployment: number;
+        fees: number;
+      };
+    }
+  ) {
+    return [this.getGrantMsg({ ...options, limit: options.limits.deployment }), this.getGrantBasicAllowanceMsg({ ...options, limit: options.limits.fees })];
+  }
+
   getGrantBasicAllowanceMsg({ denom, limit, expiration, granter, grantee }: SpendingAuthorizationOptions) {
     const allowance = {
       typeUrl: "/cosmos.feegrant.v1beta1.BasicAllowance",
@@ -27,7 +38,7 @@ export class RpcMessageService {
           ],
           expiration: expiration
             ? {
-                seconds: Long.fromInt(Math.floor(expiration.getTime() / 1_000)) as unknown as Long,
+                seconds: BigInt(Math.floor(expiration.getTime() / 1_000)),
                 nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
               }
             : undefined
@@ -69,6 +80,17 @@ export class RpcMessageService {
           }
         }
       }
+    };
+  }
+
+  getRevokeAllowanceMsg({ granter, grantee }: { granter: string; grantee: string }) {
+    return {
+      typeUrl: "/cosmos.authz.v1beta1.MsgRevoke",
+      value: MsgRevoke.fromPartial({
+        granter: granter,
+        grantee: grantee,
+        msgTypeUrl: "/cosmos.feegrant.v1beta1.MsgGrantAllowance"
+      })
     };
   }
 }

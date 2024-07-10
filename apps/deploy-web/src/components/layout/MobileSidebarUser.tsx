@@ -29,26 +29,30 @@ export const MobileSidebarUser: React.FunctionComponent = () => {
         </div>
       ) : user ? (
         <div className="p-2">
-          <SidebarRouteButton
-            route={{
-              title: user.username,
-              icon: props => (
-                <Avatar {...props} className="h-6 w-6">
-                  {user.username && user.username[0].toUpperCase()}
-                </Avatar>
-              ),
-              url: UrlService.userProfile(user.username),
-              activeRoutes: [UrlService.userProfile(user.username)]
-            }}
-          />
-          <SidebarRouteButton
-            route={{
-              title: "Templates",
-              icon: props => <MediaImageList {...props} />,
-              url: UrlService.userProfile(user.username),
-              activeRoutes: [UrlService.userProfile(user.username)]
-            }}
-          />
+          {user.username && (
+            <SidebarRouteButton
+              route={{
+                title: user.username,
+                icon: props => (
+                  <Avatar {...props} className="h-6 w-6">
+                    {user.username && user.username[0].toUpperCase()}
+                  </Avatar>
+                ),
+                url: UrlService.userProfile(user.username),
+                activeRoutes: [UrlService.userProfile(user.username)]
+              }}
+            />
+          )}
+          {user.username && (
+            <SidebarRouteButton
+              route={{
+                title: "Templates",
+                icon: props => <MediaImageList {...props} />,
+                url: UrlService.userProfile(user.username),
+                activeRoutes: [UrlService.userProfile(user.username)]
+              }}
+            />
+          )}
           <SidebarRouteButton
             route={{
               title: "Addresses",

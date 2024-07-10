@@ -41,3 +41,4 @@ services:
       - '3001:3000'
     depends_on:
       - api
+      - provider-proxy

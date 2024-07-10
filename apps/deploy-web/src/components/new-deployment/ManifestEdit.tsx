@@ -10,13 +10,16 @@ import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 
+import { envConfig } from "@src/config/env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useWhen } from "@src/hooks/useWhen";
+import { useDepositParams } from "@src/queries/useSettings";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
+import type { DepositParams } from "@src/types/deployment";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
@@ -52,7 +55,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const { settings } = useSettings();
-  const { address, signAndBroadcastTx } = useWallet();
+  const { address, signAndBroadcastTx, isManaged } = useWallet();
   const router = useRouter();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
@@ -61,10 +64,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
   const { minDeposit } = useChainParam();
   const { hasComponent } = useSdlBuilder();
-
   const searchParams = useSearchParams();
   const templateId = searchParams.get("templateId");
-
+  const { data: depositParams } = useDepositParams();
+  const defaultDeposit = depositParams || defaultInitialDeposit;
   const fileUploadRef = useRef<HTMLInputElement>(null);
 
   useWhen(hasComponent("ssh"), () => {
@@ -131,7 +134,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   async function createAndValidateDeploymentData(
     yamlStr: string,
     dseq: string | null = null,
-    deposit: number = defaultInitialDeposit,
+    deposit = defaultDeposit,
     depositorAddress: string | null = null
   ) {
     try {
@@ -163,12 +166,21 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       if (!valid) return;
     }
 
-    setIsCheckingPrerequisites(true);
+    if (isManaged) {
+      await handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+    } else {
+      setIsCheckingPrerequisites(true);
+    }
   };
 
   const onPrerequisiteContinue = () => {
     setIsCheckingPrerequisites(false);
-    setIsDepositingDeployment(true);
+
+    if (isManaged) {
+      handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+    } else {
+      setIsDepositingDeployment(true);
+    }
   };
 
   const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
@@ -176,7 +188,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     await handleCreateClick(deposit, depositorAddress);
   };
 
-  async function handleCreateClick(deposit: number, depositorAddress: string) {
+  async function handleCreateClick(deposit: number | DepositParams[], depositorAddress: string) {
     setIsCreatingDeployment(true);
 
     const sdl = selectedSdlEditMode === "yaml" ? editedManifest : sdlBuilderRef.current?.getSdl();
