@@ -1,15 +1,20 @@
 import "reflect-metadata";
 import "./open-telemetry";
 
-import { container } from "tsyringe";
+import dotenv from "dotenv";
 
-import { initApp } from "@src/app";
-import type { PostgresMigratorService } from "@src/core";
+dotenv.config({ path: ".env.local" });
+dotenv.config();
 
-const { BILLING_ENABLED } = process.env;
+async function bootstrap() {
+  /* eslint-disable @typescript-eslint/no-var-requires */
+  if (process.env.BILLING_ENABLED === "true") {
+    const pg = require("./core");
+    await pg.migratePG();
+  }
 
-const migrate =
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  BILLING_ENABLED === "true" ? container.resolve<PostgresMigratorService>(require("@src/core").PostgresMigratorService).migrate() : Promise.resolve();
+  const entry = require("./app");
+  await entry.initApp();
+}
 
-migrate.then(() => initApp());
+bootstrap();

@@ -1,8 +1,4 @@
-import dotenv from "dotenv";
 import { z } from "zod";
-
-dotenv.config({ path: ".env.local" });
-dotenv.config();
 
 const envSchema = z.object({
   MASTER_WALLET_MNEMONIC: z.string(),
