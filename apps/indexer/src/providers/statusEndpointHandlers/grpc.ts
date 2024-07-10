@@ -1,4 +1,4 @@
-import { NodeResources } from "@akashnetwork/akash-api/akash/inventory/v1";
+import { NodeResources, Storage } from "@akashnetwork/akash-api/akash/inventory/v1";
 import { ResourcesMetric, Status } from "@akashnetwork/akash-api/akash/provider/v1";
 import { ProviderRPCClient } from "@akashnetwork/akash-api/akash/provider/v1/grpc-js";
 import { Empty } from "@akashnetwork/akash-api/google/protobuf";
@@ -22,15 +22,23 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
         cpu: prev.cpu + next.cpu,
         gpu: prev.gpu + next.gpu,
         memory: prev.memory + next.memory,
-        storage: prev.storage + next.storage
+        ephemeralStorage: prev.ephemeralStorage + next.storage,
+        persistentStorage: prev.persistentStorage
       }),
       {
         cpu: 0,
         gpu: 0,
         memory: 0,
-        storage: 0
+        ephemeralStorage: 0,
+        persistentStorage: 0
       }
     );
+
+  const storage = data.cluster.inventory.cluster.storage.map(storage => ({
+    class: storage.info.class,
+    allocatable: parseSizeStr(storage.quantity.allocatable.string),
+    allocated: parseSizeStr(storage.quantity.allocated.string)
+  }));
 
   return {
     resources: {
@@ -39,15 +47,18 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
       activeCPU: activeResources.cpu,
       activeGPU: activeResources.gpu,
       activeMemory: activeResources.memory,
-      activeStorage: activeResources.storage,
+      activeEphemeralStorage: activeResources.ephemeralStorage,
+      activePersistentStorage: activeResources.persistentStorage,
       pendingCPU: pendingResources.cpu,
       pendingGPU: pendingResources.gpu,
       pendingMemory: pendingResources.memory,
-      pendingStorage: pendingResources.storage,
+      pendingEphemeralStorage: pendingResources.ephemeralStorage,
+      pendingPersistentStorage: pendingResources.persistentStorage,
       availableCPU: availableResources.cpu,
       availableGPU: availableResources.gpu,
       availableMemory: availableResources.memory,
-      availableStorage: availableResources.storage
+      availableEphemeralStorage: availableResources.ephemeralStorage,
+      availablePersistentStorage: storage.map(x => Math.max(0, x.allocatable - x.allocated)).reduce((a, b) => a + b, 0)
     },
     nodes: data.cluster.inventory.cluster.nodes.map(node => {
       const parsedResources = parseNodeResources(node.resources);
@@ -78,7 +89,8 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
           memorySize: gpuInfo.memorySize // TODO: Change type to bytes?
         }))
       };
-    })
+    }),
+    storage: storage
   };
 }
 
@@ -104,7 +116,10 @@ function parseResources(resources: ResourcesMetric) {
   return {
     cpu: Math.round(parseDecimalKubernetesString(resources.cpu.string) * 1_000),
     memory: parseSizeStr(resources.memory.string),
-    storage: parseSizeStr(resources.ephemeralStorage.string),
+    ephemeralStorage: parseSizeStr(resources.ephemeralStorage.string),
+    persistentStorage: Object.values(resources.storage)
+      .map(s => parseSizeStr(s.string))
+      .reduce((a, b) => a + b, 0),
     gpu: parseDecimalKubernetesString(resources.gpu.string)
   };
 }

@@ -15,7 +15,8 @@ import {
   ProviderSnapshot,
   ProviderSnapshotNode,
   ProviderSnapshotNodeCPU,
-  ProviderSnapshotNodeGPU
+  ProviderSnapshotNodeGPU,
+  ProviderSnapshotStorage
 } from "./dbSchemas/akash";
 import { Block, Message } from "./dbSchemas/base";
 dotenv.config({ path: ".env.local" });
@@ -79,7 +80,8 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       ProviderSnapshot,
       ProviderSnapshotNode,
       ProviderSnapshotNodeCPU,
-      ProviderSnapshotNodeGPU
+      ProviderSnapshotNodeGPU,
+      ProviderSnapshotStorage
     ]
   },
   akashTestnet: {
@@ -111,7 +113,8 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       ProviderSnapshot,
       ProviderSnapshotNode,
       ProviderSnapshotNodeCPU,
-      ProviderSnapshotNodeGPU
+      ProviderSnapshotNodeGPU,
+      ProviderSnapshotStorage
     ]
   },
   akashSandbox: {
@@ -143,7 +146,8 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       ProviderSnapshot,
       ProviderSnapshotNode,
       ProviderSnapshotNodeCPU,
-      ProviderSnapshotNodeGPU
+      ProviderSnapshotNodeGPU,
+      ProviderSnapshotStorage
     ]
   },
   passage: {

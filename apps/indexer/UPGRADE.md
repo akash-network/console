@@ -4,6 +4,53 @@ Some indexer updates change the database schemas and an upgrade script must be r
 
 **It is recommended to stop the indexer before running any migration script.**
 
+## v1.9.0
+
+Add tracking of persistent storage for providers.
+
+```
+ALTER TABLE "providerSnapshot" RENAME COLUMN "activeStorage" TO "activeEphemeralStorage";
+ALTER TABLE "providerSnapshot" RENAME COLUMN "pendingStorage" TO "pendingEphemeralStorage";
+ALTER TABLE "providerSnapshot" RENAME COLUMN "availableStorage" TO "availableEphemeralStorage";
+ALTER TABLE "providerSnapshot"
+    ADD COLUMN "activePersistentStorage" bigint,
+    ADD COLUMN "pendingPersistentStorage" bigint,
+    ADD COLUMN "availablePersistentStorage" bigint;
+        
+ALTER TABLE "provider"
+  DROP COLUMN "deploymentCount",
+  DROP COLUMN "leaseCount",
+  DROP COLUMN "activeCPU",
+  DROP COLUMN "activeGPU",
+  DROP COLUMN "activeMemory",
+  DROP COLUMN "activeStorage",
+  DROP COLUMN "pendingCPU",
+  DROP COLUMN "pendingGPU",
+  DROP COLUMN "pendingMemory",
+  DROP COLUMN "pendingStorage",
+  DROP COLUMN "availableCPU",
+  DROP COLUMN "availableGPU",
+  DROP COLUMN "availableMemory",
+  DROP COLUMN "availableStorage";
+
+CREATE TABLE IF NOT EXISTS "providerSnapshotStorage"
+(
+    id uuid NOT NULL,
+    "snapshotId" uuid NOT NULL,
+    class character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    "allocatable" bigint NOT NULL,
+    "allocated" bigint NOT NULL,
+    CONSTRAINT "providerSnapshotStorage_pkey" PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS provider_snapshot_storage_snapshot_id
+    ON public."providerSnapshotStorage" USING btree
+    ("snapshotId" ASC NULLS LAST)
+    WITH (deduplicate_items=True)
+    TABLESPACE pg_default;
+
+```
+
 ## v1.8.2
 
 Change the type of the lease's `predictedClosedHeight` to allow larger values.

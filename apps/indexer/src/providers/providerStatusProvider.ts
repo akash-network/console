@@ -1,4 +1,11 @@
-import { Provider, ProviderSnapshot, ProviderSnapshotNode, ProviderSnapshotNodeCPU, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
+import {
+  Provider,
+  ProviderSnapshot,
+  ProviderSnapshotNode,
+  ProviderSnapshotNodeCPU,
+  ProviderSnapshotNodeGPU,
+  ProviderSnapshotStorage
+} from "@akashnetwork/database/dbSchemas/akash";
 import { asyncify, eachLimit } from "async";
 import axios from "axios";
 import { add, differenceInDays, differenceInHours, differenceInMinutes, isSameDay } from "date-fns";
@@ -94,15 +101,18 @@ async function saveProviderStatus(
         activeCPU: providerStatus?.resources.activeCPU,
         activeGPU: providerStatus?.resources.activeGPU,
         activeMemory: providerStatus?.resources.activeMemory,
-        activeStorage: providerStatus?.resources.activeStorage,
+        activeEphemeralStorage: providerStatus?.resources.activeEphemeralStorage,
+        activePersistentStorage: providerStatus?.resources.activePersistentStorage,
         pendingCPU: providerStatus?.resources.pendingCPU,
         pendingGPU: providerStatus?.resources.pendingGPU,
         pendingMemory: providerStatus?.resources.pendingMemory,
-        pendingStorage: providerStatus?.resources.pendingStorage,
+        pendingEphemeralStorage: providerStatus?.resources.pendingEphemeralStorage,
+        pendingPersistentStorage: providerStatus?.resources.pendingPersistentStorage,
         availableCPU: providerStatus?.resources.availableCPU,
         availableGPU: providerStatus?.resources.availableGPU,
         availableMemory: providerStatus?.resources.availableMemory,
-        availableStorage: providerStatus?.resources.availableStorage
+        availableEphemeralStorage: providerStatus?.resources.availableEphemeralStorage,
+        availablePersistentStorage: providerStatus?.resources.availablePersistentStorage
       },
       { transaction: t }
     );
@@ -143,21 +153,7 @@ async function saveProviderStatus(
         failedCheckCount: providerStatus ? 0 : provider.failedCheckCount + 1,
         nextCheckDate: getNextCheckDate(!!providerStatus, checkDate, provider.downtimeFirstSnapshot?.checkDate ?? createdSnapshot.checkDate),
         cosmosSdkVersion: cosmosVersion,
-        akashVersion: akashVersion,
-        deploymentCount: providerStatus?.resources.deploymentCount,
-        leaseCount: providerStatus?.resources.leaseCount,
-        activeCPU: providerStatus?.resources.activeCPU,
-        activeGPU: providerStatus?.resources.activeGPU,
-        activeMemory: providerStatus?.resources.activeMemory,
-        activeStorage: providerStatus?.resources.activeStorage,
-        pendingCPU: providerStatus?.resources.pendingCPU,
-        pendingGPU: providerStatus?.resources.pendingGPU,
-        pendingMemory: providerStatus?.resources.pendingMemory,
-        pendingStorage: providerStatus?.resources.pendingStorage,
-        availableCPU: providerStatus?.resources.availableCPU,
-        availableGPU: providerStatus?.resources.availableGPU,
-        availableMemory: providerStatus?.resources.availableMemory,
-        availableStorage: providerStatus?.resources.availableStorage
+        akashVersion: akashVersion
       },
       {
         where: { owner: provider.owner },
@@ -205,6 +201,18 @@ async function saveProviderStatus(
             interface: gpuInfo.interface,
             memorySize: gpuInfo.memorySize
           })),
+          { transaction: t }
+        );
+      }
+
+      for (const storage of providerStatus.storage) {
+        await ProviderSnapshotStorage.create(
+          {
+            snapshotId: createdSnapshot.id,
+            class: storage.class,
+            allocatable: storage.allocatable,
+            allocated: storage.allocated
+          },
           { transaction: t }
         );
       }
