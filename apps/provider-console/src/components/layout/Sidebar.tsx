@@ -161,7 +161,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
               <Link
                 target="_blank"
                 rel="noreferrer"
-                href="https://github.com/akash-network/cloudmos"
+                href="https://github.com/akash-network/console"
                 className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
               >
                 <Github className="h-5 w-5" />
