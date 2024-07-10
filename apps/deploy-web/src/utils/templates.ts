@@ -29,7 +29,7 @@ services:
   # The name of the service "web"
   web:
     # The docker container image with version. You must specify a version, the "latest" tag doesn't work.
-    image: akashlytics/hello-akash-world:0.2.0
+    image: baktun/hello-akash-world:1.0.0
     # You can map ports here https://akash.network/docs/getting-started/stack-definition-language/#servicesexpose
     expose:
       - port: 3000
