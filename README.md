@@ -353,17 +353,6 @@ Created for each days (UTC based), simplifies querying for daily stats.
 |lastSuccessfulSnapshotId|uuid|Snapshot ID of the last successful check
 |downtimeFirstSnapshotId|uuid|Snapshot ID of the first failed check of the current downtime period. `NULL` if currently online.
 |error|text|`NULL` if the latest uptime check was successful, otherwise this will contain the error message.
-|deploymentCount|integer
-|leaseCount|integer
-|activeCPU|bigint|Thousandth of CPU
-|activeMemory|bigint|Memory in bytes
-|activeStorage|bigint|Storage in bytes
-|pendingCPU|bigint|Thousandth of CPU
-|pendingMemory|bigint|Memory in bytes
-|pendingStorage|bigint|Storage in bytes
-|availableCPU|bigint|Thousandth of CPU
-|availableMemory|bigint|Memory in bytes
-|availableStorage|bigint|Storage in bytes
 |akashVersion|varchar
 |cosmosSdkVersion|varchar
 |ip|varchar|IP obtained by resolving DNS for the `hostUri`
@@ -406,18 +395,21 @@ Similar to stats on the [Provider](#provider), but a new row is inserted for eve
 |isOnline|boolean|Indicates if this uptime check was successful
 |isLastOfDay|boolean|Indicates if this is the last snapshot of the day for this provider
 |checkDate|timestamp|Date & Time of this uptime check
-|error|text|`null` if the uptime check was successful, otherwise this wil contain the error message.
+|error|text|`null` if the uptime check was successful, otherwise this will contain the error message.
 |deploymentCount|integer
 |leaseCount|integer
 |activeCPU|bigint|Thousandth of CPU
 |activeMemory|bigint|Memory in bytes
-|activeStorage|bigint|Storage in bytes
+|activeEphemeralStorage|bigint|Ephemeral storage in bytes
+|activePersistentStorage|bigint|Persistent storage in bytes
 |pendingCPU|bigint|Thousandth of CPU
 |pendingMemory|bigint|Memory in bytes
-|pendingStorage|bigint|Storage in bytes
+|pendingEphemeralStorage|bigint|Ephemeral storage in bytes
+|pendingPersistentStorage|bigint|Persistent storage in bytes
 |availableCPU|bigint|Thousandth of CPU
 |availableMemory|bigint|Memory in bytes
-|availableStorage|bigint|Storage in bytes
+|availableEphemeralStorage|bigint|Ephemeral storage in bytes
+|availablePersistentStorage|bigint|Persistent storage in bytes
 
 ## ProviderSnapshotNodes
 
@@ -465,6 +457,18 @@ Store GPU informations for each [Provider Nodes](#providersnapshotnodes)
 |modelId|varchar|On the provider, this gets mapped to vendor, name, interface and memorySize based on [this file](https://github.com/akash-network/provider-configs/blob/main/devices/pcie/gpus.json).
 |interface|varchar|ex: `PCIe`
 |memorySize|varchar|ex: `24Gi`
+
+## ProviderSnapshotStorage
+
+Store persistent storage informations
+
+|Column|Type|Note
+|-|-|-
+|id|uuid
+|snapshotId|uuid|Snapshot ID
+|class|varchar|Storage class
+|allocatable|bigint|Storage in bytes
+|allocated|bigint|Storage in bytes
 
 ## Template
 

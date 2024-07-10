@@ -5,17 +5,24 @@ export type ProviderStatusInfo = {
     activeCPU: number;
     activeGPU: number;
     activeMemory: number;
-    activeStorage: number;
+    activeEphemeralStorage: number;
+    activePersistentStorage: number;
     pendingCPU: number;
     pendingGPU: number;
     pendingMemory: number;
-    pendingStorage: number;
+    pendingPersistentStorage: number;
+    pendingEphemeralStorage: number;
     availableCPU: number;
     availableGPU: number;
     availableMemory: number;
-    availableStorage: number;
+    availablePersistentStorage: number;
+    availableEphemeralStorage: number;
   };
-
+  storage: {
+    class: string;
+    allocatable: number;
+    allocated: number;
+  }[];
   nodes: {
     name: string;
     cpuAllocatable: number;

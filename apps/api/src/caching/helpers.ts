@@ -42,7 +42,7 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
         return data;
       })
       .catch(err => {
-        // console.log(`Error making cache request ${err}`);
+        console.error(`Error making cache request ${err}`);
         Sentry.captureException(err);
       })
       .finally(() => {

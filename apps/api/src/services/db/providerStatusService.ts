@@ -16,7 +16,7 @@ export async function getNetworkCapacity() {
     },
     include: [
       {
-        required: false,
+        required: true,
         model: ProviderSnapshot,
         as: "lastSuccessfulSnapshot",
         where: { checkDate: { [Op.gte]: toUTC(sub(new Date(), { minutes: env.ProviderUptimeGracePeriodMinutes })) } }
@@ -24,24 +24,28 @@ export async function getNetworkCapacity() {
     ]
   });
 
-  const filteredProviders = providers
-    .filter(x => x.isOnline || x.lastSuccessfulSnapshot)
-    .filter((value, index, self) => self.map(x => x.hostUri).indexOf(value.hostUri) === index);
+  const filteredProviders = providers.filter((value, index, self) => self.map(x => x.hostUri).indexOf(value.hostUri) === index);
 
   const stats = {
     activeProviderCount: filteredProviders.length,
-    activeCPU: filteredProviders.map(x => x.activeCPU).reduce((a, b) => a + b, 0),
-    activeGPU: filteredProviders.map(x => x.activeGPU).reduce((a, b) => a + b, 0),
-    activeMemory: filteredProviders.map(x => x.activeMemory).reduce((a, b) => a + b, 0),
-    activeStorage: filteredProviders.map(x => x.activeStorage).reduce((a, b) => a + b, 0),
-    pendingCPU: filteredProviders.map(x => x.pendingCPU).reduce((a, b) => a + b, 0),
-    pendingGPU: filteredProviders.map(x => x.pendingGPU).reduce((a, b) => a + b, 0),
-    pendingMemory: filteredProviders.map(x => x.pendingMemory).reduce((a, b) => a + b, 0),
-    pendingStorage: filteredProviders.map(x => x.pendingStorage).reduce((a, b) => a + b, 0),
-    availableCPU: filteredProviders.map(x => x.availableCPU).reduce((a, b) => a + b, 0),
-    availableGPU: filteredProviders.map(x => x.availableGPU).reduce((a, b) => a + b, 0),
-    availableMemory: filteredProviders.map(x => x.availableMemory).reduce((a, b) => a + b, 0),
-    availableStorage: filteredProviders.map(x => x.availableStorage).reduce((a, b) => a + b, 0)
+    activeCPU: filteredProviders.map(x => x.lastSuccessfulSnapshot.activeCPU).reduce((a, b) => a + b, 0),
+    activeGPU: filteredProviders.map(x => x.lastSuccessfulSnapshot.activeGPU).reduce((a, b) => a + b, 0),
+    activeMemory: filteredProviders.map(x => x.lastSuccessfulSnapshot.activeMemory).reduce((a, b) => a + b, 0),
+    activeStorage: filteredProviders
+      .map(x => x.lastSuccessfulSnapshot.activeEphemeralStorage + x.lastSuccessfulSnapshot.activePersistentStorage)
+      .reduce((a, b) => a + b, 0),
+    pendingCPU: filteredProviders.map(x => x.lastSuccessfulSnapshot.pendingCPU).reduce((a, b) => a + b, 0),
+    pendingGPU: filteredProviders.map(x => x.lastSuccessfulSnapshot.pendingGPU).reduce((a, b) => a + b, 0),
+    pendingMemory: filteredProviders.map(x => x.lastSuccessfulSnapshot.pendingMemory).reduce((a, b) => a + b, 0),
+    pendingStorage: filteredProviders
+      .map(x => x.lastSuccessfulSnapshot.pendingEphemeralStorage + x.lastSuccessfulSnapshot.pendingPersistentStorage)
+      .reduce((a, b) => a + b, 0),
+    availableCPU: filteredProviders.map(x => x.lastSuccessfulSnapshot.availableCPU).reduce((a, b) => a + b, 0),
+    availableGPU: filteredProviders.map(x => x.lastSuccessfulSnapshot.availableGPU).reduce((a, b) => a + b, 0),
+    availableMemory: filteredProviders.map(x => x.lastSuccessfulSnapshot.availableMemory).reduce((a, b) => a + b, 0),
+    availableStorage: filteredProviders
+      .map(x => x.lastSuccessfulSnapshot.availableEphemeralStorage + x.lastSuccessfulSnapshot.availablePersistentStorage)
+      .reduce((a, b) => a + b, 0)
   };
 
   return {
@@ -77,15 +81,14 @@ export const getProviderList = async () => {
     include: [
       {
         model: ProviderSnapshot,
-        attributes: ["id"],
         required: true,
         as: "lastSuccessfulSnapshot",
         include: [
           {
             model: ProviderSnapshotNode,
             attributes: ["id"],
-            required: true,
-            include: [{ model: ProviderSnapshotNodeGPU, required: true }]
+            required: false,
+            include: [{ model: ProviderSnapshotNodeGPU, required: false }]
           }
         ]
       }
