@@ -9,15 +9,14 @@ import { event } from "nextjs-google-analytics";
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { LabelValue } from "@src/components/shared/LabelValue";
+import type { RequiredUserConsumer } from "@src/components/user/RequiredUserContainer";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
-import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useSaveSettings } from "@src/queries/useSettings";
-import { UserSettings } from "@src/types/user";
+import type { UserSettings } from "@src/types/user";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import Layout from "../layout/Layout";
 
-export const UserSettingsForm: React.FunctionComponent = () => {
-  const { user, isLoading } = useCustomUser();
+export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
   const [isCheckingAvailability, setIsCheckingAvailability] = useState<boolean>(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const {
@@ -41,7 +40,7 @@ export const UserSettingsForm: React.FunctionComponent = () => {
   const { mutate: saveSettings, isLoading: isSaving } = useSaveSettings();
   const { username } = watch();
 
-  const isFormDisabled = isLoading || isSaving;
+  const isFormDisabled = isSaving;
   const canSave = !isFormDisabled && isDirty && isAvailable !== false;
 
   useEffect(() => {
@@ -81,14 +80,10 @@ export const UserSettingsForm: React.FunctionComponent = () => {
   }
 
   return (
-    <Layout isLoading={isLoading}>
+    <Layout>
       <NextSeo title={user?.username} />
-      <UserProfileLayout page="settings" username={user?.username} bio={user?.bio}>
-        {isLoading || !user ? (
-          <div className="flex items-center justify-center p-8">
-            <Spinner size="large" />
-          </div>
-        ) : (
+      {user?.username && user?.bio && (
+        <UserProfileLayout page="settings" username={user.username} bio={user.bio}>
           <FormPaper>
             <form onSubmit={handleSubmit(onSubmit)}>
               <LabelValue label="Email" value={user.email} />
@@ -173,8 +168,8 @@ export const UserSettingsForm: React.FunctionComponent = () => {
               </Button>
             </form>
           </FormPaper>
-        )}
-      </UserProfileLayout>
+        </UserProfileLayout>
+      )}
     </Layout>
   );
 };

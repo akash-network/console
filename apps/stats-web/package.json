@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@akashnetwork/ui": "*",
-    "@cosmjs/encoding": "^0.32.0",
+    "@cosmjs/encoding": "^0.32.4",
     "@json2csv/plainjs": "^7.0.4",
     "@nivo/line": "^0.87.0",
     "@radix-ui/react-icons": "^1.3.0",

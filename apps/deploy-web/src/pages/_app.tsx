@@ -1,4 +1,4 @@
-import "nprogress/nprogress.css"; //styles of nprogress
+import "nprogress/nprogress.css";
 import "@akashnetwork/ui/styles";
 import "../styles/index.css";
 import "@leapwallet/elements/styles.css";
@@ -7,19 +7,19 @@ import React from "react";
 import { QueryClientProvider } from "react-query";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context";
-import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
 import { GeistSans } from "geist/font/sans";
 import { Provider } from "jotai";
 import { AppProps } from "next/app";
 import Router from "next/router";
 import { ThemeProvider } from "next-themes";
-import NProgress from "nprogress"; //nprogress module
+import NProgress from "nprogress";
 
 import { AllowanceWatcher } from "@src/components/authorizations/AllowanceWatcher";
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
+import { UserProviders } from "@src/components/user/UserProviders";
 import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 import { CertificateProvider } from "@src/context/CertificateProvider";
@@ -33,11 +33,6 @@ import { TemplatesProvider } from "@src/context/TemplatesProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import { queryClient } from "@src/queries";
 import { cn } from "@src/utils/styleUtils";
-
-import "nprogress/nprogress.css"; //styles of nprogress
-import "@akashnetwork/ui/styles";
-import "@leapwallet/elements/styles.css";
-import "../styles/index.css";
 
 interface Props extends AppProps {}
 
@@ -63,8 +58,8 @@ const App: React.FunctionComponent<Props> = props => {
               <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
                 <ColorModeProvider>
                   <CustomSnackbarProvider>
-                    <PricingProvider>
-                      <UserProvider>
+                    <UserProviders>
+                      <PricingProvider>
                         <AddressBookProvider>
                           <TooltipProvider>
                             <SettingsProvider>
@@ -90,8 +85,8 @@ const App: React.FunctionComponent<Props> = props => {
                             </SettingsProvider>
                           </TooltipProvider>
                         </AddressBookProvider>
-                      </UserProvider>
-                    </PricingProvider>
+                      </PricingProvider>
+                    </UserProviders>
                   </CustomSnackbarProvider>
                 </ColorModeProvider>
               </ThemeProvider>

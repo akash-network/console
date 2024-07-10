@@ -53,23 +53,27 @@ export function AccountMenu() {
                   <div>
                     {!isLoading && user ? (
                       <div>
-                        <CustomDropdownLinkItem
-                          onClick={() => router.push(UrlService.userProfile(username))}
-                          icon={
-                            <Avatar className="h-4 w-4">
-                              <AvatarFallback className="text-xs">{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
-                            </Avatar>
-                          }
-                        >
-                          {username}
-                        </CustomDropdownLinkItem>
+                        {username && (
+                          <CustomDropdownLinkItem
+                            onClick={() => router.push(UrlService.userProfile(username))}
+                            icon={
+                              <Avatar className="h-4 w-4">
+                                <AvatarFallback className="text-xs">{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
+                              </Avatar>
+                            }
+                          >
+                            {username}
+                          </CustomDropdownLinkItem>
+                        )}
                         <DropdownMenuSeparator />
                         <CustomDropdownLinkItem onClick={() => router.push(UrlService.userSettings())} icon={<Settings />}>
                           Settings
                         </CustomDropdownLinkItem>
-                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.userProfile(username))} icon={<MultiplePages />}>
-                          Templates
-                        </CustomDropdownLinkItem>
+                        {username && (
+                          <CustomDropdownLinkItem onClick={() => router.push(UrlService.userProfile(username))} icon={<MultiplePages />}>
+                            Templates
+                          </CustomDropdownLinkItem>
+                        )}
                         <CustomDropdownLinkItem onClick={() => router.push(UrlService.userFavorites())} icon={<Star />}>
                           Favorites
                         </CustomDropdownLinkItem>

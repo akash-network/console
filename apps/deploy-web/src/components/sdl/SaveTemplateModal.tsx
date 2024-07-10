@@ -56,7 +56,7 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
 
     const newTemplateMetadata = { ...templateMetadata, title: data.title, isPublic: data.visibility !== "private" };
     if (!isCurrentUserTemplate) {
-      newTemplateMetadata.username = user.username;
+      newTemplateMetadata.username = user.username || "";
       newTemplateMetadata.userId = user.sub || "";
     }
     setTemplateMetadata(newTemplateMetadata);
