@@ -18,7 +18,7 @@ export class TxService {
     await this.pg.transaction(async tx => {
       await new Promise((resolve, reject) => {
         this.storage.run(new Map(), () => {
-          this.storage.getStore().set("PG_TX", tx);
+          this.storage.getStore()?.set("PG_TX", tx);
           cb().then(resolve).catch(reject);
         });
       });
@@ -36,7 +36,16 @@ export function WithTransaction() {
 
     descriptor.value = async function (...args: unknown[]) {
       const txManager = container.resolve(TxService);
-      return txManager.transaction(() => originalMethod.apply(this, args));
+      return new Promise((resolve, reject) => {
+        return txManager.transaction(async () => {
+          try {
+            const result = await originalMethod.apply(this, args);
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      });
     };
 
     return descriptor;

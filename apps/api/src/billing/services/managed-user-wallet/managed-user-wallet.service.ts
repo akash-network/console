@@ -1,10 +1,12 @@
 import { stringToPath } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
-import { calculateFee, GasPrice, SigningStargateClient } from "@cosmjs/stargate";
+import { calculateFee, GasPrice } from "@cosmjs/stargate";
 import add from "date-fns/add";
 import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { MasterSigningClientService } from "@src/billing/services/master-signing-client/master-signing-client.service";
+import { MasterWalletService } from "@src/billing/services/master-wallet/master-wallet.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { LoggerService } from "@src/core";
 
@@ -18,19 +20,17 @@ interface SpendingAuthorizationOptions {
 }
 
 @singleton()
-export class WalletService {
+export class ManagedUserWalletService {
   private readonly PREFIX = "akash";
 
   private readonly HD_PATH = "m/44'/118'/0'/0";
 
-  private masterWallet: DirectSecp256k1HdWallet;
-
-  private client: SigningStargateClient;
-
-  private readonly logger = new LoggerService({ context: WalletService.name });
+  private readonly logger = new LoggerService({ context: ManagedUserWalletService.name });
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
+    private readonly masterWalletService: MasterWalletService,
+    private readonly masterSigningClientService: MasterSigningClientService,
     private readonly rpcMessageService: RpcMessageService
   ) {}
 
@@ -62,7 +62,7 @@ export class WalletService {
 
   async authorizeSpending(options: SpendingAuthorizationOptions) {
     try {
-      const masterWalletAddress = await this.getMasterWalletAddress();
+      const masterWalletAddress = await this.masterWalletService.getFirstAddress();
       const messageParams = {
         granter: masterWalletAddress,
         grantee: options.address,
@@ -79,9 +79,8 @@ export class WalletService {
           limit: options.limits.fees
         })
       ];
-      const client = await this.getClient();
       const fee = await this.estimateFee(messages, this.config.TRIAL_ALLOWANCE_DENOM);
-      await client.signAndBroadcast(masterWalletAddress, messages, fee);
+      await this.masterSigningClientService.signAndBroadcast(masterWalletAddress, messages, fee);
       this.logger.debug({ event: "SPENDING_AUTHORIZED", address: options.address });
     } catch (error) {
       if (error.message.includes("fee allowance already exists")) {
@@ -95,9 +94,8 @@ export class WalletService {
   }
 
   private async estimateFee(messages: readonly EncodeObject[], denom: string) {
-    const client = await this.getClient();
-    const address = await this.getMasterWalletAddress();
-    const gasEstimation = await client.simulate(address, messages, "allowance grant");
+    const address = await this.masterWalletService.getFirstAddress();
+    const gasEstimation = await this.masterSigningClientService.simulate(address, messages, "allowance grant");
     const estimatedGas = Math.round(gasEstimation * this.config.GAS_SAFETY_MULTIPLIER);
 
     return calculateFee(estimatedGas, GasPrice.fromString(`0.025${denom}`));
@@ -105,26 +103,5 @@ export class WalletService {
 
   async refill(wallet: any) {
     return wallet;
-  }
-
-  private async getMasterWalletAddress() {
-    const masterWallet = await this.getMasterWallet();
-    const [account] = await masterWallet.getAccounts();
-    return account.address;
-  }
-
-  private async getMasterWallet() {
-    if (!this.masterWallet) {
-      this.masterWallet = await DirectSecp256k1HdWallet.fromMnemonic(this.config.MASTER_WALLET_MNEMONIC, { prefix: this.PREFIX });
-    }
-
-    return this.masterWallet;
-  }
-
-  private async getClient() {
-    if (!this.client) {
-      this.client = await SigningStargateClient.connectWithSigner(this.config.RPC_NODE_ENDPOINT, await this.getMasterWallet());
-    }
-    return this.client;
   }
 }

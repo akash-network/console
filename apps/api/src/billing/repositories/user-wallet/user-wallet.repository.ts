@@ -7,6 +7,7 @@ import { ApiPgDatabase, InjectPg } from "@src/core/providers";
 import { TxService } from "@src/core/services";
 
 export type UserInput = Partial<UserWalletSchema["$inferInsert"]>;
+export type UserOutput = Partial<UserWalletSchema["$inferSelect"]>;
 
 @singleton()
 export class UserWalletRepository {
@@ -30,10 +31,10 @@ export class UserWalletRepository {
   }
 
   async updateById<R extends boolean>(
-    id: UserWalletSchema["$inferSelect"]["id"],
+    id: UserOutput["id"],
     payload: Partial<UserInput>,
     options?: { returning: R }
-  ): Promise<R extends true ? UserWalletSchema["$inferSelect"] : void> {
+  ): Promise<R extends true ? UserOutput : void> {
     const pg = this.txManager.getPgTx() || this.pg;
     const cursor = pg.update(this.userWallet).set(payload).where(eq(this.userWallet.id, id));
 
@@ -48,5 +49,9 @@ export class UserWalletRepository {
 
   async find() {
     return await this.pg.query.userWalletSchema.findMany();
+  }
+
+  async findByUserId(userId: UserOutput["userId"]) {
+    return await this.pg.query.userWalletSchema.findFirst({ where: eq(this.userWallet.userId, userId) });
   }
 }

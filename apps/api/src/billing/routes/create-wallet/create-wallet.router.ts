@@ -8,7 +8,10 @@ export const CreateWalletInputSchema = z.object({
   userId: z.string().openapi({})
 });
 
-export const CreateWalletOutputSchema = z.void();
+export const CreateWalletOutputSchema = z.object({
+  userId: z.string().openapi({}),
+  address: z.string().openapi({})
+});
 export type CreateWalletInput = z.infer<typeof CreateWalletInputSchema>;
 export type CreateWalletOutput = z.infer<typeof CreateWalletOutputSchema>;
 
@@ -32,9 +35,8 @@ const route = createRoute({
     }
   }
 });
-export const walletRouter = new OpenAPIHono();
+export const createWalletRouter = new OpenAPIHono();
 
-walletRouter.openapi(route, async function routeWallet(c) {
-  await container.resolve(WalletController).create(c.req.valid("json"));
-  return c.json(undefined, 200);
+createWalletRouter.openapi(route, async function routeWallet(c) {
+  return c.json(await container.resolve(WalletController).create(c.req.valid("json")), 200);
 });

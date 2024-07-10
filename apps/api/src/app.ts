@@ -12,6 +12,7 @@ import { container } from "tsyringe";
 
 import { HttpLoggerService } from "@src/core/services/http-logger/http-logger.service";
 import { LoggerService } from "@src/core/services/logger/logger.service";
+import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
 import packageJson from "../package.json";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { apiRouter } from "./routers/apiRouter";
@@ -86,7 +87,9 @@ appHono.route("/internal", internalRouter);
 // TODO: remove condition once billing is in prod
 if (BILLING_ENABLED === "true") {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  appHono.route("/", require("./billing").walletRouter);
+  const { createWalletRouter, signTxRouter } = require("./billing");
+  appHono.route("/", createWalletRouter);
+  appHono.route("/", signTxRouter);
 }
 
 appHono.get("/status", c => {
@@ -102,6 +105,8 @@ appHono.get("/status", c => {
 
   return c.json({ version, memory, tasks: tasksStatus });
 });
+
+appHono.onError(container.resolve(HonoErrorHandlerService).handle);
 
 function startScheduler() {
   scheduler.start();
