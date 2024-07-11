@@ -1,12 +1,12 @@
 "use client";
+import "highlight.js/styles/vs2015.css";
+
 import ReactMarkdown from "react-markdown";
 import { useTheme } from "next-themes";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 
 import { cn } from "@src/utils/styleUtils";
-
-import "highlight.js/styles/vs2015.css";
 
 type MarkdownProps = {
   children?: React.ReactNode | string;

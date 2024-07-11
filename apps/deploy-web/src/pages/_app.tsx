@@ -1,3 +1,8 @@
+import "nprogress/nprogress.css"; //styles of nprogress
+import "@akashnetwork/ui/styles";
+import "../styles/index.css";
+import "@leapwallet/elements/styles.css";
+
 import React from "react";
 import { QueryClientProvider } from "react-query";
 import { TooltipProvider } from "@akashnetwork/ui/components";

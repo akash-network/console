@@ -1,4 +1,6 @@
 "use client";
+import "xterm/css/xterm.css";
+
 import { Ref, useEffect, useRef } from "react";
 import React from "react";
 import { useTheme } from "next-themes";
@@ -7,8 +9,6 @@ import { FitAddon } from "xterm-addon-fit";
 
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { cn } from "@src/utils/styleUtils";
-
-import "xterm/css/xterm.css";
 
 export interface IProps {
   /**
