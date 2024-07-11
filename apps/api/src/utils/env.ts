@@ -12,7 +12,7 @@ export const env = z
     NETWORK: z.string().default("mainnet"),
     REST_API_NODE_URL: z.string().optional(),
     SERVER_ORIGIN: z.string().optional().default("http://localhost:3080"),
-    AKASHLYTICS_GITHUB_PAT: z.string().optional(),
+    CONSOLE_GITHUB_PAT: z.string().optional(),
     AUTH0_JWKS_URI: z.string().optional(),
     AUTH0_AUDIENCE: z.string().optional(),
     AUTH0_ISSUER: z.string().optional(),
