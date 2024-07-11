@@ -154,14 +154,13 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   /**
    * Load the node status from status rpc endpoint
-   * @param {*} nodeUrl
+   * @param {string} rpcUrl
    * @returns
    */
   const loadNodeStatus = async (rpcUrl: string) => {
     const start = performance.now();
-    let latency: number,
-      status: "active" | "inactive" = "inactive",
-      nodeStatus: NodeStatus | null = null;
+    let status: "active" | "inactive" = "inactive";
+    let nodeStatus: NodeStatus | null = null;
 
     try {
       const response = await axios.get(`${rpcUrl}/status`, { timeout: 10000 });
@@ -169,17 +168,16 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
       status = "active";
     } catch (error) {
       status = "inactive";
-    } finally {
-      const end = performance.now();
-      latency = end - start;
-
-      // eslint-disable-next-line no-unsafe-finally
-      return {
-        latency,
-        status,
-        nodeInfo: nodeStatus
-      };
     }
+
+    const end = performance.now();
+    const latency = end - start;
+
+    return {
+      latency,
+      status,
+      nodeInfo: nodeStatus
+    };
   };
 
   /**
