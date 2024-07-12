@@ -84,4 +84,20 @@ export const monacoOptions = {
   }
 };
 
+function getApiUrl() {
+  if (process.env.API_BASE_URL) return process.env.API_BASE_URL;
+  if (typeof window === "undefined") return "http://localhost:3080";
+  if (productionHostnames.includes(window.location?.hostname)) {
+    try {
+      const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
+      return getNetworkBaseApiUrl(_selectedNetworkId || mainnetId);
+    } catch (e) {
+      console.error(e);
+      return productionMainnetApiUrl;
+    }
+  }
+  return "http://localhost:3080";
+}
+
+
 export const txFeeBuffer = 10000; // 10000 uAKT
