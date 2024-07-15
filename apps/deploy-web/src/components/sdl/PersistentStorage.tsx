@@ -21,7 +21,7 @@ import {
 import { InfoCircle } from "iconoir-react";
 
 import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
-import { persistentStorageTypes, storageUnits } from "../shared/akash/units";
+import { persistentStorageTypes, storageUnits } from "@src/utils/akash/units";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

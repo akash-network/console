@@ -49,7 +49,7 @@ const ContactPage: React.FunctionComponent = () => {
           </li>
           <li>
             <a
-              href="https://github.com/akash-network/cloudmos"
+              href="https://github.com/akash-network/console"
               target="_blank"
               className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
             >

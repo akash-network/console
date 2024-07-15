@@ -7,6 +7,7 @@ import JSZip from "jszip";
 import forge from "node-forge";
 
 import { CodeSnippet } from "@src/components/shared/CodeSnippet";
+import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { SdlBuilderFormValues } from "@src/types";
 
 interface SSHKeyInputProps {
@@ -16,7 +17,9 @@ interface SSHKeyInputProps {
 }
 
 export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex, setValue }) => {
+  const { imageList } = useSdlBuilder();
   const [hasGenerated, setHasGenerated] = useState(false);
+
   const generateSSHKeys = useCallback(async () => {
     const keys = forge.pki.rsa.generateKeyPair({ bits: 2048 });
     const publicKey = forge.ssh.publicKeyToOpenSSH(keys.publicKey);
@@ -69,10 +72,11 @@ export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex,
             onChange={event => field.onChange(event.target.value || "")}
             startIcon={<Key className="ml-2 text-xs text-muted-foreground" />}
             endIcon={
-              <Button onClick={generateSSHKeys} type="button" size="sm" className="-mr-2.5">
+              <Button onClick={generateSSHKeys} type="button" size="sm" className="-mr-2.5" data-testid="generate-ssh-keys-btn">
                 Generate
               </Button>
             }
+            data-testid="ssh-public-key-input"
           />
         )}
       />
@@ -97,6 +101,7 @@ export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex,
             <li>Check out more instructions on deployment page in the Lease tab.</li>
           </ul>
           <p className="mt-2">Note: the above is valid for unix operating system</p>
+          {!imageList && <p className="mt-2">Note: make sure your image has ssh configured</p>}
         </div>
       )}
     </div>

@@ -2,7 +2,7 @@ import { ChannelCredentials } from "@grpc/grpc-js/build/src/channel-credentials"
 import { ConnectionOptions } from "tls";
 
 // TODO: get rid of it once on-chain certificates validation is implemented
-//  Issue: https://github.com/akash-network/cloudmos/issues/170
+//  Issue: https://github.com/akash-network/console/issues/170
 export class FakeInsecureCredentials extends ChannelCredentials {
   static createInsecure(): ChannelCredentials {
     return new FakeInsecureCredentials();

@@ -1,11 +1,11 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
+import { Snackbar } from "@akashnetwork/ui/components";
 import axios from "axios";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
-import { Snackbar } from "@src/components/shared/Snackbar";
 import { RestApiCertificatesResponseType } from "@src/types/certificate";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { networkVersion } from "@src/utils/constants";

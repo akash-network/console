@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
+import { Popup } from "@akashnetwork/ui/components";
 
 import { MustConnect } from "./MustConnect";
-import { Popup } from "./Popup";
 
 export type Props = {
   message: string;

@@ -1,19 +1,17 @@
 "use client";
 import { ReactNode, useEffect, useState } from "react";
 import { UseFormSetValue } from "react-hook-form";
-import { Alert } from "@akashnetwork/ui/components";
+import { Alert, Popup, Snackbar } from "@akashnetwork/ui/components";
 import Editor from "@monaco-editor/react";
 import { ArrowDown } from "iconoir-react";
 import { useTheme } from "next-themes";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
-import { Popup } from "@src/components/shared/Popup";
 import { SdlBuilderFormValues, Service } from "@src/types";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { Timer } from "@src/utils/timer";
-import { Snackbar } from "../shared/Snackbar";
 
 type Props = {
   setValue: UseFormSetValue<SdlBuilderFormValues>;

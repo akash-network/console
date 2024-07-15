@@ -1,9 +1,9 @@
 {
-  "name": "cloudmos-provider-proxy",
+  "name": "console-provider-proxy",
   "version": "1.0.6",
   "description": "Proxy that allows communication between the Web UI and providers",
   "license": "Apache-2.0",
-  "author": "Cloudmos",
+  "author": "Akash Network",
   "main": "main.js",
   "scripts": {
     "build": "npx tsc",

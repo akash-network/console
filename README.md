@@ -1,16 +1,16 @@
 <div align="left">
   
   <a href="https://aimeos.org/">
-    <img src="./apps/deploy-web/public/android-chrome-192x192.png" alt="Cloudmos logo" title="Cloudmos" align="left" height="40" />
+    <img src="./apps/deploy-web/public/android-chrome-192x192.png" alt="Akash logo" title="Akash Console" align="left" height="40" />
 </a>
   
-  # Cloudmos
+  # Akash Console
  
-**Cloudmos** is an app that let's you deploy any [docker container](https://www.docker.com/) on the [Akash Network](https://akash.network) in a few clicks... 🛠
+**Akash Console** is an app that lets you deploy any [docker container](https://www.docker.com/) on the [Akash Network](https://akash.network) in a few clicks... 🛠
   
-![version](https://img.shields.io/github/stars/akash-network/cloudmos)
-![license](https://img.shields.io/github/license/akash-network/cloudmos)
-[![Twitter URL](https://img.shields.io/twitter/url/https/twitter.com/bukotsunikki.svg?style=social&label=Follow%20cloudmosio)](https://twitter.com/cloudmosio)
+![version](https://img.shields.io/github/stars/akash-network/console)
+![license](https://img.shields.io/github/license/akash-network/console)
+[![X URL](https://img.shields.io/x/url/https/x.com/bukotsunikki.svg?style=social&label=Follow%20akashnet_)](https://x.com/akashnet_)
 [![https://discord.gg/akash](https://img.shields.io/badge/discord-join-7289DA.svg?logo=discord&longCache=true&style=flat)](https://discord.gg/akash)
   
 </div>
@@ -28,7 +28,7 @@
 We use `docker` with `docker compose` to run the services. This is the easiest way to get started. For instance to run the deploy-web service:
 
 ```bash
-git clone git@github.com:akash-network/cloudmos.git ./console
+git clone git@github.com:akash-network/console.git ./console
 cd console
 npm run dc:up:dev -- deploy-web 
 ```
@@ -47,9 +47,9 @@ Every services are nodejs applications written in typescript. They are deployed 
 
 ## Deploy Website
 
-Website to deploy on Akash. It is using the Next.js framework. The data shown in the website comes from a combination of our [API](#api) and akash nodes (REST).
+Website to deploy on Akash. It is using the Next.js framework. The data shown on the website comes from a combination of our [API](#api) and akash nodes (REST).
 
-Url: [deploy.cloudmos.io](https://deploy.cloudmos.io)  
+Url: [console.akash.network](https://console.akash.network)  
 Directory: [deploy-web](/deploy-web/)
 
 ## Provider Proxy
@@ -62,23 +62,16 @@ Directory: [provider-proxy](/provider-proxy/)
 
 ## API
 
-Provides data to the deploy website. The data is fetched from our Indexer database + coingecko for market data. This api also provide the endpoint for the [Web3 Index](https://web3index.org/) integration.  
+Provides data to the deploy website. The data is fetched from our Indexer database + coingecko for market data. This api also provides the endpoint for the [Web3 Index](https://web3index.org/) integration.  
 
 Url: [api.cloudmos.io](https://api.cloudmos.io)  
 Directory: [api](/api/)
 
 ## Indexer
 
-Fetch the latest blocks from RPC nodes. Saves the blocks & stats to our Indexer Database. For details on how the indexer work see the [Indexer README](./indexer/README.md)  
+Fetch the latest blocks from RPC nodes. Saves the blocks & stats to our Indexer Database. For details on how the indexer works see the [Indexer README](./indexer/README.md)  
 
 Directory: [indexer](/indexer/)
-
-## Landing Page
-
-Small landing page with a button to "Launch App".
-
-Url: [cloudmos.io](https://cloudmos.io/)  
-Directory: [landing](/landing/)
 
 ## Config
 
@@ -145,7 +138,7 @@ Due to the extensive time required to index Akash from block #1, it's recommende
 
 ### Available Backups
 
-- **Mainnet Database (~30 GB):** [cloudmos-akash-mainnet.sql.gz](https://storage.googleapis.com/cloudmos-postgresql-backups/cloudmos-akash-mainnet.sql)
+- **Mainnet Database (~30 GB):** [cloudmos-akash-mainnet.sql.gz](https://storage.googleapis.com/cloudmos-postgresql-backups/cloudmos-akash-mainnet.sql.gz)
   - Suitable for scenarios requiring complete data.
 - **Sandbox Database (< 300 MB):** [cloudmos-akash-sandbox.sql.gz](https://storage.googleapis.com/cloudmos-postgresql-backups/cloudmos-akash-sandbox.sql.gz)
   - Ideal for most development needs, although it may lack recent chain updates.
@@ -178,15 +171,15 @@ The database schemas is defined using [sequelize-typescript](https://github.com/
 |proposer|varchar
 |dayId|uuid|See [Day](#day)
 |txCount|integer
-|isProcessed|boolean|`false` when inserted into the database and then set to `true` once the indexers have processed every messages in the block.
+|isProcessed|boolean|`false` when inserted into the database and then set to `true` once the indexers have processed every message in the block.
 |totalTxCount|bigint| Global tx count as of this height (for historical tx count graphs).
-|totalUAktSpent|double|Cummulative uakt spent on deployments as of this block. ||[Graph](https://deploy.cloudmos.io/graph/total-akt-spent)
-|activeLeaseCount|integer|Currently active lease count as of this block. [Graph](https://deploy.cloudmos.io/graph/active-deployment)
-|totalLeaseCount|integer|Cummulative lease count as of this block. [Graph](https://deploy.cloudmos.io/graph/all-time-deployment-count)
-|activeCPU|integer|Currently leased CPU as of this block. [Graph](https://deploy.cloudmos.io/graph/compute)
-|activeMemory|bigint|Currently leased Memory as of this block. [Graph](https://deploy.cloudmos.io/graph/memory)
-|activeEphemeralStorage|bigint|Currently leased Ephemeral Storage as of this block. [Graph](https://deploy.cloudmos.io/graph/storage)
-|activePersistentStorage|bigint|Currently leased Persistent Storage as of this block. [Graph](https://deploy.cloudmos.io/graph/storage)
+|totalUAktSpent|double|Cummulative uakt spent on deployments as of this block. ||[Graph](https://stats.akash.network/graph/total-akt-spent)
+|activeLeaseCount|integer|Currently active lease count as of this block. [Graph](https://stats.akash.network/graph/active-deployment)
+|totalLeaseCount|integer|Cummulative lease count as of this block. [Graph](https://stats.akash.network/graph/all-time-deployment-count)
+|activeCPU|integer|Currently leased CPU as of this block. [Graph](https://stats.akash.network/graph/compute)
+|activeMemory|bigint|Currently leased Memory as of this block. [Graph](https://stats.akash.network/graph/memory)
+|activeEphemeralStorage|bigint|Currently leased Ephemeral Storage as of this block. [Graph](https://stats.akash.network/graph/storage)
+|activePersistentStorage|bigint|Currently leased Persistent Storage as of this block. [Graph](https://stats.akash.network/graph/storage)
 |activeProviderCount|integer|Provider count as of this block. This only consider on-chain data and does not include uptime checks.
 
 ## Transaction
@@ -202,7 +195,7 @@ The database schemas is defined using [sequelize-typescript](https://github.com/
 |gasWanted|integer
 |fee|bigint
 |memo|text
-|isProcessed|boolean|`false` when inserted into the database and then set to `true` once the indexers have processed every messages in the transaction.
+|isProcessed|boolean|`false` when inserted into the database and then set to `true` once the indexers have processed every message in the transaction.
 |hasProcessingError|boolean|Indicates if the tx was a success or failed
 |log|text|Contains the error message if the tx failed
 
@@ -279,7 +272,7 @@ Created for each days (UTC based), simplifies querying for daily stats.
 |createdHeight|integer|Height of the `MsgCreateDeployment` message
 |balance|double|Remaining balance based on deposits and `MsgWithdrawLease`
 |deposit|bigint|Deposited amount based on `MsgCreateDeployment` and `MsgDepositDeployment`
-|lastWithdrawHeight|integer|Last height where an account settlement occured. This happens on create, withdraw and close.
+|lastWithdrawHeight|integer|Last height where an account settlement occurred. This happens on create, withdraw and close.
 |withdrawnAmount|double|Withdrawn amount as of now. Updated on account settlement (create,withdraw,close).
 |closedHeight|integer|Height the deployment got closed on-chain. Can happen from `MsgCloseDeployment` or as a side-effect of having no active leases remaining.
 
@@ -320,7 +313,7 @@ Created for each days (UTC based), simplifies querying for daily stats.
 |providerAddress|varchar
 |createdHeight|integer|Height of the lease creation. Happens when a bid is accepted with `MsgCreateLease`.
 |closedHeight|integer|Height at which the lease is closed on-chain. Happens from `MsgCloseLease`, `MsgCloseHeight` or if the deployment become overdrawn during an account settlement. 
-|predictedClosedHeight|bigint|Height at which the lease should theoritically expire. This is calculated based on the balance and price. It will usually not match the `closedHeight` since leases can be closed early (`MsgCloseLease` & `MsgCloseBid`) or closed late since the closing wont happen until the provider does a `MsgWithdrawLease`
+|predictedClosedHeight|bigint|Height at which the lease should theoretically expire. This is calculated based on the balance and price. It will usually not match the `closedHeight` since leases can be closed early (`MsgCloseLease` & `MsgCloseBid`) or closed late since the closing wont happen until the provider does a `MsgWithdrawLease`
 |price|double|Lease price as uakt/block
 |withdrawnAmount|double|Withdrawn amount as of now for this lease. Updated on account settlement (create,withdraw,close).
 |cpuUnits|integer|Thousandth of CPU
@@ -359,7 +352,7 @@ Created for each days (UTC based), simplifies querying for daily stats.
 |failedCheckCount|integer|Amount of consecutive failed checks, `NULL` if currently online.
 |lastSuccessfulSnapshotId|uuid|Snapshot ID of the last successful check
 |downtimeFirstSnapshotId|uuid|Snapshot ID of the first failed check of the current downtime period. `NULL` if currently online.
-|error|text|`NULL` if the latest uptime check was successful, otherwise this wil contain the error message.
+|error|text|`NULL` if the latest uptime check was successful, otherwise this will contain the error message.
 |deploymentCount|integer
 |leaseCount|integer
 |activeCPU|bigint|Thousandth of CPU
@@ -428,7 +421,7 @@ Similar to stats on the [Provider](#provider), but a new row is inserted for eve
 
 ## ProviderSnapshotNodes
 
-Keep track of ressources of individual provider nodes obtained through feature discovery.
+Keep track of resources of individual provider nodes obtained through feature discovery.
 
 |Column|Type|Note|
 |-|-|-

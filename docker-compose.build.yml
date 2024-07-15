@@ -38,11 +38,3 @@ services:
       target: production
       args:
         WORKSPACE: apps/stats-web
-
-  landing:
-    image: console-landing:${LANDING_TAG:-latest}
-    build:
-      dockerfile: docker/Dockerfile.nextjs
-      target: production
-      args:
-        WORKSPACE: apps/landing

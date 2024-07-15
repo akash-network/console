@@ -1,17 +1,17 @@
 {
-  "name": "cloudmos-indexer",
+  "name": "console-indexer",
   "version": "1.8.3",
   "description": "Indexer for any Cosmos based blockchain",
-  "homepage": "https://github.com/akash-network/cloudmos",
+  "homepage": "https://github.com/akash-network/console",
   "bugs": {
-    "url": "https://github.com/akash-network/cloudmos/issues"
+    "url": "https://github.com/akash-network/console/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/akash-network/cloudmos.git"
+    "url": "git+https://github.com/akash-network/console.git"
   },
   "license": "Apache-2.0",
-  "author": "Cloudmos",
+  "author": "Akash Network",
   "main": "server.js",
   "scripts": {
     "build": "webpack --config webpack.prod.js",

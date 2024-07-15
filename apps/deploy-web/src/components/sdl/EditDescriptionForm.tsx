@@ -1,11 +1,10 @@
 "use client";
 import { ReactNode, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Button, Label, Spinner, Textarea } from "@akashnetwork/ui/components";
+import { Button, Label, Snackbar, Spinner, Textarea } from "@akashnetwork/ui/components";
 import axios from "axios";
 import { useSnackbar } from "notistack";
 
-import { Snackbar } from "../shared/Snackbar";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

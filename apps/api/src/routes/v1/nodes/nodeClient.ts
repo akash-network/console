@@ -18,7 +18,7 @@ export class NodeClient {
 
   @Memoize()
   async getMainnetNodes() {
-    return await this.get<Node[]>("cloudmos/main/config/mainnet-nodes.json");
+    return await this.get<Node[]>("console/main/config/mainnet-nodes.json");
   }
 
   @Memoize()
@@ -28,7 +28,7 @@ export class NodeClient {
 
   @Memoize()
   async getSandboxNodes() {
-    return await this.get<Node[]>("cloudmos/main/config/sandbox-nodes.json");
+    return await this.get<Node[]>("console/main/config/sandbox-nodes.json");
   }
 
   @Memoize()
@@ -38,7 +38,7 @@ export class NodeClient {
 
   @Memoize()
   async getTestnetNodes() {
-    return await this.get<Node[]>("cloudmos/main/config/testnet-nodes.json");
+    return await this.get<Node[]>("console/main/config/testnet-nodes.json");
   }
 
   @Memoize()

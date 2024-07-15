@@ -1,9 +1,8 @@
 "use client";
-import { Card, CardContent } from "@akashnetwork/ui/components";
+import { Card, CardContent, Popup } from "@akashnetwork/ui/components";
 import { useTheme } from "next-themes";
 
 import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
-import { Popup } from "../shared/Popup";
 import { Title } from "../shared/Title";
 
 export const WelcomeModal = ({ open, onClose }) => {
@@ -18,7 +17,8 @@ export const WelcomeModal = ({ open, onClose }) => {
           label: "I accept",
           variant: "default",
           side: "right",
-          onClick: onClose
+          onClick: onClose,
+          "data-testid": "welcome-modal-accept-button"
         }
       ]}
       maxWidth="sm"

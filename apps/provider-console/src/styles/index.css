@@ -1,0 +1,130 @@
+
+
+html {
+  scroll-padding-top: 57px;
+  -webkit-font-smoothing: auto;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  height: calc(100% - 57px) !important;
+  width: 100%;
+  padding: 0 !important;
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leap-elements h2 {
+  font-weight: 900;
+  font-size: 1rem;
+}
+
+[data-floating-ui-portal] > div {
+  z-index: 2000 !important;
+  pointer-events: auto !important;
+}
+
+/* Hack to make the Select component show in Dialog */
+[data-radix-popper-content-wrapper] {
+  z-index: 1500 !important;
+}
+
+.markdownContainer table th,
+.markdownContainer table td {
+  padding: 6px 13px;
+  border: 1px solid #d0d7de;
+}
+
+.markdownContainer table tr:nth-child(2n) {
+  background-color: #f6f8fa;
+}
+.markdownContainer table tr {
+  background-color: #ffffff;
+  border-top: 1px solid hsla(210, 18%, 87%, 1);
+}
+.markdownContainer table {
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+.markdownContainer code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  border-radius: 6px;
+}
+
+.markdownContainer-dark table th,
+.markdownContainer-dark table td {
+  padding: 6px 13px;
+  border: 1px solid #242526;
+}
+
+.markdownContainer-dark table tr:nth-child(2n) {
+  background-color: #161616;
+}
+.markdownContainer-dark table tr {
+  background-color: #242424;
+  border-top: 1px solid hsl(210deg 5% 15%);
+}
+.markdownContainer-dark table {
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+.markdownContainer-dark code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  background-color: rgba(175, 184, 193, 0.2);
+  border-radius: 6px;
+}
+
+.markdownContainerRoot {
+  word-break: break-word;
+}
+
+.markdownContainerRoot pre {
+  overflow: auto;
+  border-radius: 0.2rem;
+  padding: 0.5rem;
+}
+
+.markdownContainerRoot table {
+  overflow: auto;
+  word-break: break-all;
+}
+
+.markdownContainerRoot h3 code {
+  color: inherit;
+}
+
+.markdownContainerRoot span.linenumber {
+  display: none !important;
+}
+
+#nprogress .bar {
+  background: hsl(var(--primary)) !important;
+  height: 2px !important;
+  z-index: 10000 !important;
+}
+
+#nprogress .spinner {
+  z-index: 10000 !important;
+  top: 6px !important;
+  right: 8px !important;
+}
+
+#nprogress .peg {
+  box-shadow:
+    0 0 10px hsl(var(--primary)),
+    0 0 5pxhsl (var(--primary));
+}
+
+#nprogress .spinner-icon {
+  border-top-color: hsl(var(--primary)) !important;
+  border-left-color: hsl(var(--primary)) !important;
+}

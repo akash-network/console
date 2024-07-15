@@ -46,7 +46,7 @@ export const Nav = () => {
               </Button>
             </Link>
 
-            <Link target="_blank" rel="noreferrer" href="https://github.com/akash-network/cloudmos" className="text-foreground">
+            <Link target="_blank" rel="noreferrer" href="https://github.com/akash-network/console" className="text-foreground">
               <Button variant="ghost" size="icon">
                 <Github width="1.2rem" height="1.2rem" />
                 <span className="sr-only">GitHub</span>

@@ -120,7 +120,7 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
       },
       [Tabs.FIAT_ON_RAMP]: {
         enabled: true,
-        title: "Buy Tokens",
+        title: "Buy AKT",
         orderIndex: 1,
         allowedDestinationChains: [
           {

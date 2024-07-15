@@ -3,6 +3,7 @@ import { Dispatch, ReactNode, SetStateAction } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
+import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { Service } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
@@ -12,10 +13,10 @@ type Props = {
   serviceIndex?: number;
   children?: ReactNode;
   setIsEditingExpose: Dispatch<SetStateAction<boolean | number>>;
-  ssh?: boolean;
 };
 
-export const ExposeList: React.FunctionComponent<Props> = ({ currentService, setIsEditingExpose, serviceIndex, ssh }) => {
+export const ExposeList: React.FunctionComponent<Props> = ({ currentService, setIsEditingExpose, serviceIndex }) => {
+  const { hasComponent } = useSdlBuilder();
   return (
     <FormPaper>
       <div className="mb-2 flex items-center">
@@ -25,7 +26,7 @@ export const ExposeList: React.FunctionComponent<Props> = ({ currentService, set
           title={
             <>
               Expose is a list of port settings describing what can connect to the service.
-              {ssh && (
+              {hasComponent("ssh") && (
                 <>
                   <br />
                   <br />
