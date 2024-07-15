@@ -10,7 +10,7 @@
   
 ![version](https://img.shields.io/github/stars/akash-network/console)
 ![license](https://img.shields.io/github/license/akash-network/console)
-![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/akashnet_)
+[![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/akashnet_)](https://x.com/akashnet_)
 [![https://discord.gg/akash](https://img.shields.io/badge/discord-join-7289DA.svg?logo=discord&longCache=true&style=flat)](https://discord.gg/akash)
   
 </div>
