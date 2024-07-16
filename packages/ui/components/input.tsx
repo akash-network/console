@@ -3,93 +3,80 @@ import * as React from "react";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 
 import { cn } from "../utils";
-import { FormDescription, FormItem } from "./form";
-import { Label } from "./label";
+import { FormControl, FormDescription, FormItem, FormLabel, FormMessage } from "./form";
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+// export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type, ...props }, ref) => {
-  return (
-    <input
-      type={type}
-      className={cn(
-        "border-input bg-popover ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-        className
-      )}
-      ref={ref}
-      {...props}
-    />
-  );
-});
-Input.displayName = "Input";
+// const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type, ...props }, ref) => {
+//   return (
+//     <input
+//       type={type}
+//       className={cn(
+//         "border-input bg-popover ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+//         className
+//       )}
+//       ref={ref}
+//       {...props}
+//     />
+//   );
+// });
+// Input.displayName = "Input";
 
 export interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label: string;
+  label?: string;
   description?: string;
 }
 
 const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ className, type, label, description, ...props }, ref) => {
   return (
     <FormItem>
-      <Label>{label}</Label>
-      <input
-        type={type}
-        className={cn(
-          "border-input bg-popover ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          className
-        )}
-        ref={ref}
-        {...props}
-      />
+      {label && <FormLabel>{label}</FormLabel>}
+      <FormControl>
+        <Input type={type} className={className} ref={ref} {...props} />
+      </FormControl>
       {description && <FormDescription>{description}</FormDescription>}
+      <FormMessage />
     </FormItem>
   );
 });
 FormInput.displayName = "FormInput";
 
-export interface InputWithIconProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string | React.ReactNode;
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   startIcon?: React.ReactNode;
   endIcon?: React.ReactNode;
   error?: string;
   inputClassName?: string;
+  description?: string;
 }
 
 // TODO Variants
 
-const InputWithIcon = React.forwardRef<HTMLInputElement, InputWithIconProps>(
-  ({ className, inputClassName, type, label, startIcon, endIcon, error, ...props }, ref) => {
-    const id = React.useId();
-
-    return (
-      <div className={className}>
-        {label && <Label htmlFor={`${id}-input`}>{label}</Label>}
-        <div className="border-input bg-popover ring-offset-background focus:ring-ring flex h-10 w-full items-center rounded-md border px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-          {startIcon && <div className="inset-y-0 left-0 flex items-center">{startIcon}</div>}
-          <input
-            id={`${id}-input`}
-            type={type}
-            className={cn(
-              "placeholder:text-muted-foreground flex-grow file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none",
-              // "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-              inputClassName,
-              { ["pl-4"]: !!startIcon, ["pr-4"]: !!endIcon }
-            )}
-            ref={ref}
-            {...props}
-          />
-          {endIcon && <div className="inset-y-0 right-0 flex items-center">{endIcon}</div>}
-        </div>
-        {error && (
-          <p className="mt-2 text-sm text-red-600" id={`${id}-error`}>
-            {error}
-          </p>
+const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, inputClassName, type, startIcon, endIcon, error, ...props }, ref) => {
+  return (
+    <div
+      className={cn(
+        "border-input bg-popover ring-offset-background focus:ring-ring flex h-10 w-full items-center rounded-md border px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-offset-2",
+        { "cursor-not-allowed opacity-50": !!props.disabled, "ring-destructive": !!error },
+        className
+      )}
+    >
+      {startIcon && <div className="inset-y-0 left-0 flex items-center">{startIcon}</div>}
+      <input
+        type={type}
+        className={cn(
+          "placeholder:text-muted-foreground flex-grow file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none",
+          "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          inputClassName,
+          { ["pl-4"]: !!startIcon, ["pr-4"]: !!endIcon }
         )}
-      </div>
-    );
-  }
-);
-InputWithIcon.displayName = "InputWithIcon";
+        ref={ref}
+        {...props}
+      />
+      {endIcon && <div className="inset-y-0 right-0 flex items-center">{endIcon}</div>}
+    </div>
+  );
+});
+Input.displayName = "Input";
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
 
@@ -123,4 +110,4 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ classNa
 });
 Textarea.displayName = "Textarea";
 
-export { FormInput, Input, InputWithIcon, Textarea };
+export { FormInput, Input, Textarea };
