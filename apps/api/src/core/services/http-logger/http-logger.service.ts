@@ -1,7 +1,7 @@
 import { Context, Next } from "hono";
 import { singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core";
+import { LoggerService } from "@src/core/services/logger/logger.service";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 
 @singleton()
