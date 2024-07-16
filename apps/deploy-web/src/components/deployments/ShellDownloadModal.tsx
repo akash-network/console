@@ -1,11 +1,23 @@
 "use client";
 import { useRef } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { Alert, InputWithIcon, Popup } from "@akashnetwork/ui/components";
+import { useForm } from "react-hook-form";
+import { Alert, FormField, FormInput, Input, Popup } from "@akashnetwork/ui/components";
 import { event } from "nextjs-google-analytics";
 
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+const formSchema = z.object({
+  filePath: z
+    .string({
+      message: "File path is required."
+    })
+    .regex(/^(?!https?:).*/i, {
+      message: "Should be a valid path on the server, not a URL."
+    })
+});
 
 export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedService, providerInfo }) => {
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -14,10 +26,11 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
     handleSubmit,
     control,
     formState: { errors }
-  } = useForm({
+  } = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       filePath: ""
-    }
+    },
+    resolver: zodResolver(formSchema)
   });
 
   const onSubmit = async ({ filePath }) => {
@@ -68,29 +81,11 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
       </Alert>
 
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-        <Controller
+        <FormField
           control={control}
           name="filePath"
-          rules={{
-            required: "File path is required.",
-            pattern: {
-              value: /^(?!https?:).*/i,
-              message: "Should be a valid path on the server, not a URL."
-            }
-          }}
-          render={({ field, fieldState }) => {
-            return (
-              <InputWithIcon
-                {...field}
-                type="text"
-                label="File path"
-                // error={!!fieldState.error}
-                error={fieldState.error?.message}
-                // helperText={fieldState.error?.message}
-                autoFocus
-                placeholder="Example: /app/logs.txt"
-              />
-            );
+          render={({ field }) => {
+            return <FormInput {...field} type="text" label="File path" autoFocus placeholder="Example: /app/logs.txt" />;
           }}
         />
       </form>
