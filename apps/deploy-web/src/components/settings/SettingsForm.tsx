@@ -1,10 +1,9 @@
 "use client";
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Button, Label, Spinner, SwitchWithLabel } from "@akashnetwork/ui/components";
+import { Button, FormField, FormInput, Label, Spinner, SwitchWithLabel } from "@akashnetwork/ui/components";
 import Autocomplete from "@mui/material/Autocomplete";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
-import FormControl from "@mui/material/FormControl";
 import FormGroup from "@mui/material/FormGroup";
 import InputAdornment from "@mui/material/InputAdornment";
 import TextField from "@mui/material/TextField";
@@ -12,8 +11,23 @@ import { NavArrowDown, Refresh } from "iconoir-react";
 
 import { NodeStatus } from "@src/components/shared/NodeStatus";
 import { BlockchainNode, useSettings } from "@src/context/SettingsProvider/SettingsProviderContext";
-import { isUrl } from "@src/utils/stringUtils";
 import { cn } from "@src/utils/styleUtils";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import FormControl from "@mui/material/FormControl";
+
+const formSchema = z.object({
+  apiEndpoint: z
+    .string({
+      message: "Api endpoint is required."
+    })
+    .url({
+      message: "Url is invalid."
+    }),
+  rpcEndpoint: z.string({ message: "Rpc endpoint is required." }).url({
+    message: "Url is invalid."
+  })
+});
 
 export const SettingsForm: React.FunctionComponent = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -24,7 +38,9 @@ export const SettingsForm: React.FunctionComponent = () => {
     control,
     reset,
     formState: { errors }
-  } = useForm();
+  } = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema)
+  });
   const formRef = useRef<HTMLFormElement>(null);
   const { selectedNode, nodes } = settings;
 
@@ -76,32 +92,14 @@ export const SettingsForm: React.FunctionComponent = () => {
             <Label className="min-w-[150px] basis-[20%] pr-4">Api Endpoint:</Label>
 
             {isEditing ? (
-              <FormControl error={!errors.apiEndpoint} className="w-full">
-                <Controller
-                  control={control}
-                  name="apiEndpoint"
-                  rules={{
-                    required: true,
-                    validate: v => isUrl(v)
-                  }}
-                  defaultValue={settings.apiEndpoint}
-                  render={({ fieldState, field }) => {
-                    const helperText = fieldState.error?.type === "validate" ? "Url is invalid." : "Api endpoint is required.";
-
-                    return (
-                      <TextField
-                        {...field}
-                        type="text"
-                        variant="outlined"
-                        error={!!fieldState.error}
-                        helperText={fieldState.error && helperText}
-                        className="flex-1"
-                        size="small"
-                      />
-                    );
-                  }}
-                />
-              </FormControl>
+              <FormField
+                control={control}
+                name="apiEndpoint"
+                defaultValue={settings.apiEndpoint}
+                render={({ field }) => {
+                  return <FormInput {...field} type="text" className="flex-1" />;
+                }}
+              />
             ) : (
               <p className="flex-grow">{settings.apiEndpoint}</p>
             )}
@@ -111,32 +109,14 @@ export const SettingsForm: React.FunctionComponent = () => {
             <Label className="min-w-[150px] basis-[20%] pr-4">Rpc Endpoint:</Label>
 
             {isEditing ? (
-              <FormControl error={!errors.apiEndpoint} className="w-full">
-                <Controller
-                  control={control}
-                  name="rpcEndpoint"
-                  rules={{
-                    required: true,
-                    validate: v => isUrl(v)
-                  }}
-                  defaultValue={settings.rpcEndpoint}
-                  render={({ fieldState, field }) => {
-                    const helperText = fieldState.error?.type === "validate" ? "Url is invalid." : "Rpc endpoint is required.";
-
-                    return (
-                      <TextField
-                        {...field}
-                        type="text"
-                        variant="outlined"
-                        error={!!fieldState.error}
-                        helperText={fieldState.error && helperText}
-                        className="flex-1"
-                        size="small"
-                      />
-                    );
-                  }}
-                />
-              </FormControl>
+              <FormField
+                control={control}
+                name="rpcEndpoint"
+                defaultValue={settings.apiEndpoint}
+                render={({ field }) => {
+                  return <FormInput {...field} type="text" className="flex-1" />;
+                }}
+              />
             ) : (
               <p className="flex-grow">{settings.rpcEndpoint}</p>
             )}
