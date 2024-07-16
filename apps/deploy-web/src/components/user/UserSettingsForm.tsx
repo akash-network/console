@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { MdHighlightOff } from "react-icons/md";
-import { Alert, Button, Input, InputWithIcon, Spinner, Switch, Textarea } from "@akashnetwork/ui/components";
+import { Alert, Button, FormField, FormInput, Input, Spinner, Switch, Textarea } from "@akashnetwork/ui/components";
 import axios from "axios";
 import { CheckCircle } from "iconoir-react";
 import { NextSeo } from "next-seo";
@@ -15,6 +15,22 @@ import { useSaveSettings } from "@src/queries/useSettings";
 import type { UserSettings } from "@src/types/user";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import Layout from "../layout/Layout";
+import { z } from "zod";
+
+const formSchema = z.object({
+  username: z
+    .string({
+      message: "Amount is required."
+    })
+    .min(3, "Username must be at least 3 characters long")
+    .max(40, "Username must be at most 40 characters long")
+    .regex(/^[a-zA-Z0-9_-]*$/, "Username can only contain letters, numbers, dashes and underscores"),
+  subscribedToNewsletter: z.boolean(),
+  bio: z.string(),
+  youtubeUsername: z.string(),
+  twitterUsername: z.string(),
+  githubUsername: z.string()
+});
 
 export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
   const [isCheckingAvailability, setIsCheckingAvailability] = useState<boolean>(false);
@@ -27,7 +43,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
     control,
     watch,
     formState: { isDirty, errors }
-  } = useForm<UserSettings>({
+  } = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       username: "",
       subscribedToNewsletter: false,
@@ -71,7 +87,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
   }, [user?.username, username]);
 
   async function onSubmit() {
-    saveSettings(getValues());
+    saveSettings(getValues() as UserSettings);
 
     event(AnalyticsEvents.USER_SETTINGS_SAVE, {
       category: "settings",
@@ -92,16 +108,12 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
                 value={
                   <>
                     <div className="flex items-center">
-                      <Input
-                        className="mr-2"
-                        disabled={isFormDisabled}
-                        // error={!!errors.username}
-                        {...register("username", {
-                          required: "Username is required",
-                          minLength: { value: 3, message: "Username must be at least 3 characters long" },
-                          maxLength: { value: 40, message: "Username must be at most 40 characters long" },
-                          pattern: { value: /^[a-zA-Z0-9_-]*$/, message: "Username can only contain letters, numbers, dashes and underscores" }
-                        })}
+                      <FormField
+                        name="username"
+                        control={control}
+                        render={({ field }) => {
+                          return <FormInput {...field} autoFocus className="mr-2" disabled={isFormDisabled} />;
+                        }}
                       />
                       {isCheckingAvailability && <Spinner size="small" />}
                       <span className="flex flex-shrink-0 items-center whitespace-nowrap text-xs">
@@ -144,22 +156,33 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
               <LabelValue
                 label="Youtube"
                 value={
-                  <InputWithIcon
-                    disabled={isFormDisabled}
-                    className="w-full"
-                    {...register("youtubeUsername")}
-                    startIcon={<div>https://www.youtube.com/c/</div>}
+                  <FormField
+                    name="youtubeUsername"
+                    control={control}
+                    render={({ field }) => (
+                      <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://www.youtube.com/c/</div>} />
+                    )}
                   />
                 }
               />
               <LabelValue
                 label="X"
-                value={<InputWithIcon disabled={isFormDisabled} className="w-full" {...register("twitterUsername")} startIcon={<div>https://x.com/</div>} />}
+                value={
+                  <FormField
+                    name="twitterUsername"
+                    control={control}
+                    render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://x.com/</div>} />}
+                  />
+                }
               />
               <LabelValue
                 label="Github"
                 value={
-                  <InputWithIcon disabled={isFormDisabled} className="w-full" {...register("githubUsername")} startIcon={<div>https://github.com/</div>} />
+                  <FormField
+                    name="githubUsername"
+                    control={control}
+                    render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://github.com/</div>} />}
+                  />
                 }
               />
 
