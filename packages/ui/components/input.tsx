@@ -22,8 +22,8 @@ import { FormControl, FormDescription, FormItem, FormLabel, FormMessage } from "
 // });
 // Input.displayName = "Input";
 
-export interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
+export interface FormInputProps extends InputProps {
+  label?: string | React.ReactNode;
   description?: string;
 }
 
