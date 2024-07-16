@@ -10,7 +10,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { container } from "tsyringe";
 
-import { HttpLoggerService, LoggerService } from "@src/core";
+import { HttpLoggerService } from "@src/core/services/http-logger/http-logger.service";
+import { LoggerService } from "@src/core/services/logger/logger.service";
 import packageJson from "../package.json";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { apiRouter } from "./routers/apiRouter";
