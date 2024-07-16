@@ -17,6 +17,7 @@ import { Bank, LogOut, MoreHoriz, Wallet } from "iconoir-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
 import { useWallet } from "@src/context/WalletProvider";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -25,7 +26,7 @@ import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 
 export function WalletStatus() {
-  const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected } = useWallet();
+  const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected, isManaged } = useWallet();
   const walletBalance = useTotalWalletBalance();
   const router = useRouter();
 
@@ -43,26 +44,28 @@ export function WalletStatus() {
         isWalletConnected ? (
           <>
             <div className="flex items-center pr-2">
-              <div className="pl-2 pr-2">
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHoriz />
-                      <span className="sr-only">Toggle theme</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onAuthorizeSpendingClick()}>
-                      <Bank />
-                      &nbsp;Authorize Spending
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onDisconnectClick()}>
-                      <LogOut />
-                      &nbsp;Disconnect Wallet
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+              {!isManaged && (
+                <div className="pl-2 pr-2">
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHoriz />
+                        <span className="sr-only">Toggle theme</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onAuthorizeSpendingClick()}>
+                        <Bank />
+                        &nbsp;Authorize Spending
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onDisconnectClick()}>
+                        <LogOut />
+                        &nbsp;Disconnect Wallet
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
 
               <div className="flex items-center text-left">
                 <div className="flex items-center text-sm font-bold">
@@ -111,7 +114,10 @@ export function WalletStatus() {
             </div>
           </>
         ) : (
-          <ConnectWalletButton className="w-full md:w-auto" />
+          <>
+            <ConnectWalletButton className="w-full md:w-auto" />
+            <ConnectManagedWalletButton className="ml-2 w-full md:w-auto" />
+          </>
         )
       ) : (
         <div className="pl-2 pr-2">

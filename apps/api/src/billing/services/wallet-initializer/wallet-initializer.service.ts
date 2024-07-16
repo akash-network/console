@@ -1,3 +1,4 @@
+import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
 import { UserInput, UserWalletRepository } from "@src/billing/repositories";
@@ -13,10 +14,10 @@ export class WalletInitializerService {
 
   @WithTransaction()
   async initialize(userId: UserInput["userId"]) {
-    const userWallet = await this.userWalletRepository.create({ userId });
-    const wallet = await this.walletManager.createAndAuthorizeTrialSpending({ addressIndex: userWallet.id });
-    await this.userWalletRepository.updateById(userWallet.id, { address: wallet.address });
+    const { id } = await this.userWalletRepository.create({ userId });
+    const wallet = await this.walletManager.createAndAuthorizeTrialSpending({ addressIndex: id });
+    const userWallet = await this.userWalletRepository.updateById(id, { address: wallet.address }, { returning: true });
 
-    return { userId, address: wallet.address };
+    return pick(userWallet, ["id", "userId", "address", "creditAmount"]);
   }
 }

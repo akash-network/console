@@ -2,10 +2,12 @@ import type { Context, Env } from "hono";
 import { singleton } from "tsyringe";
 
 import { ForbiddenException, ManagedException } from "@src/core/exceptions";
+import { NotFoundException } from "@src/core/exceptions/not-found.exception";
 import { LoggerService } from "@src/core/services/logger/logger.service";
 
 const EXCEPTION_STATUSES = {
-  [ForbiddenException.name]: 403
+  [ForbiddenException.name]: 403,
+  [NotFoundException.name]: 404
 };
 
 @singleton()

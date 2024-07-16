@@ -1,6 +1,7 @@
+import { getAkashTypeRegistry } from "@akashnetwork/akashjs/build/stargate";
 import type { StdFee } from "@cosmjs/amino";
-import type { EncodeObject } from "@cosmjs/proto-signing";
-import { SigningStargateClient } from "@cosmjs/stargate";
+import { EncodeObject, Registry } from "@cosmjs/proto-signing";
+import { defaultRegistryTypes, SigningStargateClient } from "@cosmjs/stargate";
 import type { SignerData } from "@cosmjs/stargate/build/signingstargateclient";
 import { singleton } from "tsyringe";
 
@@ -15,18 +16,21 @@ export class MasterSigningClientService {
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly masterWalletService: MasterWalletService
   ) {
-    this.clientAsPromised = SigningStargateClient.connectWithSigner(this.config.RPC_NODE_ENDPOINT, this.masterWalletService);
+    // @ts-ignore
+    this.clientAsPromised = SigningStargateClient.connectWithSigner(this.config.RPC_NODE_ENDPOINT, this.masterWalletService, {
+      registry: new Registry([...defaultRegistryTypes, ...getAkashTypeRegistry()])
+    });
   }
 
-  async signAndBroadcast(signerAddress: string, messages: readonly EncodeObject[], fee: StdFee | "auto" | number, memo?: string) {
-    return (await this.clientAsPromised).signAndBroadcast(signerAddress, messages, fee, memo);
+  async signAndBroadcast(messages: readonly EncodeObject[], fee: StdFee | "auto" | number, memo?: string) {
+    return (await this.clientAsPromised).signAndBroadcast(await this.masterWalletService.getFirstAddress(), messages, fee, memo);
   }
 
-  async sign(signerAddress: string, messages: readonly EncodeObject[], fee: StdFee, memo: string, explicitSignerData?: SignerData) {
-    return (await this.clientAsPromised).sign(signerAddress, messages, fee, memo, explicitSignerData);
+  async sign(messages: readonly EncodeObject[], fee: StdFee, memo: string, explicitSignerData?: SignerData) {
+    return (await this.clientAsPromised).sign(await this.masterWalletService.getFirstAddress(), messages, fee, memo, explicitSignerData);
   }
 
-  async simulate(signerAddress: string, messages: readonly EncodeObject[], memo: string) {
-    return (await this.clientAsPromised).simulate(signerAddress, messages, memo);
+  async simulate(messages: readonly EncodeObject[], memo: string) {
+    return (await this.clientAsPromised).simulate(await this.masterWalletService.getFirstAddress(), messages, memo);
   }
 }

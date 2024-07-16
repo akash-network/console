@@ -127,7 +127,7 @@ function getProviderProxyWsUrl() {
 export let selectedNetworkId = "";
 
 // 0.5AKT aka 500000uakt
-export const defaultInitialDeposit = 500000;
+export const defaultInitialDeposit = 5000000;
 
 export let networkVersion: "v1beta2" | "v1beta3" | "v1beta4";
 export let networkVersionMarket: "v1beta2" | "v1beta3" | "v1beta4";

@@ -6,6 +6,7 @@ export type LocalWalletDataType = {
   certKey?: string;
   name: string;
   selected: boolean;
+  isManaged?: boolean;
 };
 
 export const useStorageWallets = () => {
@@ -37,6 +38,20 @@ export function updateWallet(address: string, func: (w: LocalWalletDataType) => 
     const newWallets = wallets.map(w => (w.address === address ? (wallet as LocalWalletDataType) : w));
     updateStorageWallets(newWallets);
   }
+}
+
+export function selectLocalWallet(wallet: Omit<LocalWalletDataType, "selected">) {
+  const prev = getStorageWallets();
+  const existingWallet = prev.find(w => w.address === wallet.address);
+  const next = prev.map(w => ({ ...w, selected: false }));
+
+  if (existingWallet) {
+    existingWallet.selected = true;
+  } else {
+    next.push({ ...wallet, selected: true });
+  }
+
+  updateStorageWallets(next);
 }
 
 export function updateStorageWallets(wallets: LocalWalletDataType[]) {

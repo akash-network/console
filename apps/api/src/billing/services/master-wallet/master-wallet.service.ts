@@ -19,7 +19,9 @@ export class MasterWalletService implements OfflineDirectSigner {
     return (await this.instanceAsPromised).getAccounts();
   }
 
+  // @ts-ignore
   async signDirect(signerAddress: string, signDoc: SignDoc) {
+    // @ts-ignore
     return (await this.instanceAsPromised).signDirect(signerAddress, signDoc);
   }
 

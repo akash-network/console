@@ -42,6 +42,24 @@ export async function NewDeploymentData(
       denom,
       amount: deposit.toString()
     };
+    const stringify = (val: Uint8Array) =>
+      Array.from(val)
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+    const resource = groups[0].resources[0].resource;
+    console.log("DEBUG resource", resource);
+    // if (resource.cpu.units.val) {
+    //   resource.cpu.units.val = stringify(resource.cpu.units.val);
+    // }
+    // if (resource.storage[0].quantity.val) {
+    //   resource.storage[0].quantity.val = stringify(resource.storage[0].quantity.val);
+    // }
+    // if (resource.memory.quantity.val) {
+    //   resource.memory.quantity.val = stringify(resource.memory.quantity.val);
+    // }
+    // if (resource.gpu.units.val) {
+    //   resource.gpu.units.val = stringify(resource.gpu.units.val);
+    // }
 
     return {
       sdl: sdl.data,
@@ -54,6 +72,7 @@ export async function NewDeploymentData(
       orderId: [],
       leaseId: [],
       version,
+      // version: stringify(version),
       deposit: _deposit,
       depositor: depositorAddress || fromAddress
     };

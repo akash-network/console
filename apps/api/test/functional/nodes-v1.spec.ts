@@ -11,7 +11,7 @@ describe("Nodes API", () => {
   const interceptor = nock(env.NODE_API_BASE_PATH);
 
   beforeAll(async () => {
-    await initDb({ log: false });
+    await initDb();
   });
 
   afterAll(async () => {

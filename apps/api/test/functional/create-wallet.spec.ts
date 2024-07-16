@@ -2,10 +2,9 @@ import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 
-import { app, initDb } from "@src/app";
+import { app } from "@src/app";
 import { USER_WALLET_SCHEMA, UserWalletSchema } from "@src/billing/providers";
 import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
-import { closeConnections } from "@src/db/dbConnection";
 
 jest.setTimeout(10000);
 
@@ -13,14 +12,6 @@ describe("wallets", () => {
   const schema = container.resolve<UserWalletSchema>(USER_WALLET_SCHEMA);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsTable = db.query.userWalletSchema;
-
-  beforeAll(async () => {
-    await initDb();
-  });
-
-  afterAll(async () => {
-    await closeConnections();
-  });
 
   afterEach(async () => {
     await db.delete(schema);

@@ -11,6 +11,7 @@ import { event } from "nextjs-google-analytics";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFiatWallet } from "@src/hooks/useFiatWallet";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
@@ -31,7 +32,9 @@ import { ManifestUpdate } from "./ManifestUpdate";
 export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: string }>) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
-  const { address, isWalletLoaded } = useWallet();
+  const { address: ownWalletAddress, isWalletLoaded } = useWallet();
+  const { wallet: fiatWallet } = useFiatWallet();
+  const address = ownWalletAddress || fiatWallet?.address;
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);

@@ -8,6 +8,20 @@
       "when": 1720022370732,
       "tag": "0000_chilly_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1720700704475,
+      "tag": "0001_huge_meteorite",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1720700710818,
+      "tag": "0002_lumpy_ultragirl",
+      "breakpoints": true
     }
   ]
 }

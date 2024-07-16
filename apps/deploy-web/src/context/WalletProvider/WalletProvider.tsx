@@ -3,7 +3,7 @@ import React, { useRef } from "react";
 import { useEffect, useState } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
-import { SigningStargateClient } from "@cosmjs/stargate";
+import { DeliverTxResponse, SigningStargateClient } from "@cosmjs/stargate";
 import { useManager } from "@cosmos-kit/react";
 import axios from "axios";
 import { OpenNewWindow } from "iconoir-react";
@@ -14,8 +14,11 @@ import { SnackbarKey, useSnackbar } from "notistack";
 
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { useAllowance } from "@src/hooks/useAllowance";
+import { useAnonymousUser } from "@src/hooks/useAnonymousUser";
 import { useUsdcDenom } from "@src/hooks/useDenom";
+import { useFiatWallet } from "@src/hooks/useFiatWallet";
 import { getSelectedNetwork, useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { useWhen } from "@src/hooks/useWhen";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { STATS_APP_URL, uAktDenom } from "@src/utils/constants";
 import { customRegistry } from "@src/utils/customRegistry";
@@ -23,6 +26,16 @@ import { UrlService } from "@src/utils/urlUtils";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { useSettings } from "../SettingsProvider";
+
+const ERROR_MESSAGES = {
+  5: "Insufficient funds",
+  9: "Unknown address",
+  11: "Out of gas",
+  12: "Memo too large",
+  13: "Insufficient fee",
+  19: "Tx already in mempool",
+  25: "Invalid gas adjustment"
+};
 
 type Balances = {
   uakt: number;
@@ -40,6 +53,7 @@ type ContextType = {
   setIsWalletLoaded: React.Dispatch<React.SetStateAction<boolean>>;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<any>;
   refreshBalances: (address?: string) => Promise<Balances>;
+  isManaged: boolean;
 };
 
 const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
@@ -50,15 +64,22 @@ export const WalletProvider = ({ children }) => {
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const sigingClient = useRef<SigningStargateClient | null>(null);
+  const signingClient = useRef<SigningStargateClient | null>(null);
   const router = useRouter();
   const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
-  const { disconnect, getOfflineSigner, isWalletConnected, address: walletAddress, connect, username, estimateFee, sign, broadcast } = useSelectedChain();
+  const { disconnect, getOfflineSigner, isWalletConnected, address: walletAddress1, connect, username, estimateFee, sign, broadcast } = useSelectedChain();
   const { addEndpoints } = useManager();
   const {
     fee: { default: feeGranter }
   } = useAllowance();
+  const { user } = useAnonymousUser();
+  const { wallet } = useFiatWallet();
+  const walletAddress = wallet?.address || walletAddress1;
+
+  useWhen(wallet, () => {
+    refreshBalances();
+  });
 
   useEffect(() => {
     if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
@@ -68,12 +89,12 @@ export const WalletProvider = ({ children }) => {
       "akash-sandbox": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] },
       "akash-testnet": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] }
     });
-  }, [settings.apiEndpoint, settings.rpcEndpoint]);
+  }, [addEndpoints, settings.apiEndpoint, settings.rpcEndpoint]);
 
   useEffect(() => {
     (async () => {
       if (settings?.rpcEndpoint && isWalletConnected) {
-        sigingClient.current = await createStargateClient();
+        signingClient.current = await createStargateClient();
       }
     })();
   }, [settings?.rpcEndpoint, isWalletConnected]);
@@ -102,11 +123,11 @@ export const WalletProvider = ({ children }) => {
   }
 
   async function getStargateClient() {
-    if (!sigingClient.current) {
-      sigingClient.current = await createStargateClient();
+    if (!signingClient.current) {
+      signingClient.current = await createStargateClient();
     }
 
-    return sigingClient.current;
+    return signingClient.current;
   }
 
   function logout() {
@@ -162,24 +183,40 @@ export const WalletProvider = ({ children }) => {
   async function signAndBroadcastTx(msgs: EncodeObject[]): Promise<boolean> {
     setIsWaitingForApproval(true);
     let pendingSnackbarKey: SnackbarKey | null = null;
-    try {
-      const estimatedFees = await estimateFee(msgs);
-      const txRaw = await sign(msgs, {
-        ...estimatedFees,
-        granter: feeGranter
-      });
-
-      setIsWaitingForApproval(false);
-      setIsBroadcastingTx(true);
-
+    const enqueueTxSnackbar = () => {
       pendingSnackbarKey = enqueueSnackbar(<Snackbar title="Broadcasting transaction..." subTitle="Please wait a few seconds" showLoading />, {
         variant: "info",
         autoHideDuration: null
       });
+    };
+    let txResult: DeliverTxResponse;
 
-      const txResult = await broadcast(txRaw);
+    try {
+      if (user && wallet) {
+        const messages = msgs.map(m => ({ ...m, value: Buffer.from(customRegistry.encode(m)).toString("base64") }));
 
-      setIsBroadcastingTx(false);
+        enqueueTxSnackbar();
+        const { data } = await axios.post("http://localhost:3080/v1/sign-tx", {
+          userId: user.id,
+          messages: messages
+        });
+        txResult = data;
+      } else {
+        const estimatedFees = await estimateFee(msgs);
+        const txRaw = await sign(msgs, {
+          ...estimatedFees,
+          granter: feeGranter
+        });
+
+        setIsWaitingForApproval(false);
+        setIsBroadcastingTx(true);
+        enqueueTxSnackbar();
+        txResult = await broadcast(txRaw);
+
+        setIsBroadcastingTx(false);
+
+        await refreshBalances();
+      }
 
       if (txResult.code !== 0) {
         throw new Error(txResult.rawLog);
@@ -191,8 +228,6 @@ export const WalletProvider = ({ children }) => {
         category: "transactions",
         label: "Successful transaction"
       });
-
-      await refreshBalances();
 
       return true;
     } catch (err) {
@@ -213,20 +248,8 @@ export const WalletProvider = ({ children }) => {
             const code = parseInt(match[1]);
             const codeSpace = match[2];
 
-            if (codeSpace === "sdk") {
-              const errorMessages = {
-                5: "Insufficient funds",
-                9: "Unknown address",
-                11: "Out of gas",
-                12: "Memo too large",
-                13: "Insufficient fee",
-                19: "Tx already in mempool",
-                25: "Invalid gas adjustment"
-              };
-
-              if (code in errorMessages) {
-                errorMsg = errorMessages[code];
-              }
+            if (codeSpace === "sdk" && code in ERROR_MESSAGES) {
+              errorMsg = ERROR_MESSAGES[code];
             }
           }
 
@@ -278,6 +301,17 @@ export const WalletProvider = ({ children }) => {
   };
 
   async function refreshBalances(address?: string): Promise<{ uakt: number; usdc: number }> {
+    if (wallet) {
+      const walletBalances = {
+        uakt: 0,
+        usdc: parseFloat(wallet.creditAmount)
+      };
+
+      setWalletBalances(walletBalances);
+
+      return walletBalances;
+    }
+
     const _address = address || walletAddress;
     const client = await getStargateClient();
 
@@ -305,16 +339,17 @@ export const WalletProvider = ({ children }) => {
   return (
     <WalletProviderContext.Provider
       value={{
-        address: walletAddress as string,
-        walletName: username as string,
+        address: wallet?.address || (walletAddress as string),
+        walletName: wallet ? "Fiat Wallet" : (username as string),
         walletBalances,
-        isWalletConnected: isWalletConnected,
-        isWalletLoaded,
+        isWalletConnected: !!wallet || isWalletConnected,
+        isWalletLoaded: !!wallet || isWalletLoaded,
         connectWallet,
         logout,
         setIsWalletLoaded,
         signAndBroadcastTx,
-        refreshBalances
+        refreshBalances,
+        isManaged: !!wallet
       }}
     >
       {children}

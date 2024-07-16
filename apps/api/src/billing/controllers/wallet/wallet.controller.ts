@@ -1,10 +1,12 @@
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import type { StdFee } from "@cosmjs/stargate";
 import { PromisePool } from "@supercharge/promise-pool";
+import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
+import type { WalletOutput } from "@src/billing/http-schemas/wallet.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
-import type { CreateWalletInput, CreateWalletOutput, SignTxInput, SignTxOutput } from "@src/billing/routes";
+import type { CreateWalletInput, SignTxInput, SignTxOutput } from "@src/billing/routes";
+import { GetWalletQuery } from "@src/billing/routes/get-wallet/get-wallet.router";
 import { ManagedUserWalletService, WalletInitializerService } from "@src/billing/services";
 import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
 import { WithTransaction } from "@src/core/services";
@@ -19,12 +21,22 @@ export class WalletController {
   ) {}
 
   @WithTransaction()
-  async create({ userId }: CreateWalletInput): Promise<CreateWalletOutput> {
-    return await this.walletInitializer.initialize(userId);
+  async create({ userId }: CreateWalletInput): Promise<WalletOutput> {
+    try {
+      return await this.walletInitializer.initialize(userId);
+    } catch (error) {
+      console.log("DEBUG WalletController error", error);
+      throw error;
+    }
   }
 
-  async signTx({ userId, messages, fee }: SignTxInput): Promise<SignTxOutput> {
-    return await this.signerService.sign(userId, messages as EncodeObject[], fee as StdFee);
+  async getWallets(query: GetWalletQuery): Promise<WalletOutput[]> {
+    const wallets = await this.userWalletRepository.find(query);
+    return wallets.map(wallet => pick(wallet, ["id", "userId", "address", "creditAmount"]));
+  }
+
+  async signTx({ userId, messages }: SignTxInput): Promise<SignTxOutput> {
+    return await this.signerService.signAndBroadcast(userId, messages as EncodeObject[]);
   }
 
   async refillAll() {

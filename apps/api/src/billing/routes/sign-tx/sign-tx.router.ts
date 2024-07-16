@@ -10,25 +10,14 @@ export const SignTxInputSchema = z.object({
     .array(
       z.object({
         typeUrl: z.string(),
-        value: z.object({})
+        value: z.string()
       })
     )
     .min(1)
-    .openapi({}),
-  fee: z.object({
-    amount: z.array(
-      z.object({
-        denom: z.string(),
-        amount: z.string()
-      })
-    ),
-    gas: z.string(),
-    granter: z.string().optional(),
-    payer: z.string().optional()
-  })
+    .openapi({})
 });
 
-export const SignTxOutputSchema = z.string();
+export const SignTxOutputSchema = z.any();
 export type SignTxInput = z.infer<typeof SignTxInputSchema>;
 export type SignTxOutput = z.infer<typeof SignTxOutputSchema>;
 

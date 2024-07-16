@@ -157,6 +157,9 @@ export const CertificateProvider = ({ children }) => {
     const currentWallet = getSelectedStorageWallet();
     const certs: LocalCert[] = [];
 
+    console.log("DEBUG wallets", wallets);
+    console.log("DEBUG currentWallet", currentWallet);
+
     for (let i = 0; i < wallets.length; i++) {
       const _wallet = wallets[i];
 
@@ -193,7 +196,7 @@ export const CertificateProvider = ({ children }) => {
         });
         const validCerts = await loadValidCertificates();
         loadLocalCert();
-        const currentCert = validCerts.find(x => x.parsed === crtpem);
+        const currentCert = validCerts.find(({ parsed }) => parsed === crtpem);
         setSelectedCertificate(currentCert as ChainCertificate);
 
         event(AnalyticsEvents.CREATE_CERTIFICATE, {

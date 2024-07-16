@@ -13,8 +13,8 @@ import { Template } from "./template";
 })
 export class UserSetting extends Model {
   @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id: string;
-  @Required @Column userId: string;
-  @Required @Column username: string;
+  @Column userId: string;
+  @Column username: string;
   @Column email?: string;
   @Required @Default(false) @Column emailVerified: boolean;
   @Column stripeCustomerId?: string;

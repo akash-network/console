@@ -9,6 +9,7 @@ import { MasterSigningClientService } from "@src/billing/services/master-signing
 import { MasterWalletService } from "@src/billing/services/master-wallet/master-wallet.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { LoggerService } from "@src/core";
+import { InternalServerException } from "@src/core/exceptions/internal-server.exception";
 
 interface SpendingAuthorizationOptions {
   address: string;
@@ -62,40 +63,46 @@ export class ManagedUserWalletService {
 
   async authorizeSpending(options: SpendingAuthorizationOptions) {
     try {
-      const masterWalletAddress = await this.masterWalletService.getFirstAddress();
-      const messageParams = {
-        granter: masterWalletAddress,
+      const messages = this.rpcMessageService.getAllGrantMsgs({
+        granter: await this.masterWalletService.getFirstAddress(),
         grantee: options.address,
         denom: this.config.TRIAL_ALLOWANCE_DENOM,
-        expiration: options.expiration
-      };
-      const messages = [
-        this.rpcMessageService.getGrantMsg({
-          ...messageParams,
-          limit: options.limits.deployment
-        }),
-        this.rpcMessageService.getGrantBasicAllowanceMsg({
-          ...messageParams,
-          limit: options.limits.fees
-        })
-      ];
+        expiration: options.expiration,
+        limits: options.limits
+      });
       const fee = await this.estimateFee(messages, this.config.TRIAL_ALLOWANCE_DENOM);
-      await this.masterSigningClientService.signAndBroadcast(masterWalletAddress, messages, fee);
+      const txResult = await this.masterSigningClientService.signAndBroadcast(messages, fee);
+
+      if (txResult.code !== 0) {
+        this.logger.error({ event: "SPENDING_AUTHORIZATION_FAILED", address: options.address, txResult });
+        throw new InternalServerException("Failed to authorize spending for address");
+      }
+
       this.logger.debug({ event: "SPENDING_AUTHORIZED", address: options.address });
     } catch (error) {
+      error.message = `Failed to authorize spending for address ${options.address}: ${error.message}`;
+      this.logger.error(error);
+
       if (error.message.includes("fee allowance already exists")) {
         this.logger.debug({ event: "SPENDING_ALREADY_AUTHORIZED", address: options.address });
+
+        const revokeMessage = this.rpcMessageService.getRevokeAllowanceMsg({
+          granter: await this.masterWalletService.getFirstAddress(),
+          grantee: options.address
+        });
+
+        console.log("DEBUG revokeMessage", JSON.stringify(revokeMessage, null, 2));
+        const fee = await this.estimateFee([revokeMessage], this.config.TRIAL_ALLOWANCE_DENOM);
+        await this.masterSigningClientService.signAndBroadcast([revokeMessage], fee);
+        await this.authorizeSpending(options);
       } else {
-        error.message = `Failed to authorize spending for address ${options.address}: ${error.message}`;
-        this.logger.error(error);
         throw error;
       }
     }
   }
 
   private async estimateFee(messages: readonly EncodeObject[], denom: string) {
-    const address = await this.masterWalletService.getFirstAddress();
-    const gasEstimation = await this.masterSigningClientService.simulate(address, messages, "allowance grant");
+    const gasEstimation = await this.masterSigningClientService.simulate(messages, "allowance grant");
     const estimatedGas = Math.round(gasEstimation * this.config.GAS_SAFETY_MULTIPLIER);
 
     return calculateFee(estimatedGas, GasPrice.fromString(`0.025${denom}`));
