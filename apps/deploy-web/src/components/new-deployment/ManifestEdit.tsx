@@ -286,7 +286,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
             <InputWithIcon value={deploymentName} onChange={ev => setDeploymentName(ev.target.value)} label="Name your deployment (optional)" />
           </div>
 
-          <div className="flex w-full min-w-0 items-center pt-2 md:w-auto md:pt-0">
+          <div className="flex w-full min-w-0 items-center pt-2 md:w-auto md:pt-0 flex-shrink-0">
             <CustomTooltip
               title={
                 <p>
