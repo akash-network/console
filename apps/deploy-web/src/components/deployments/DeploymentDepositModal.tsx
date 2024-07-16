@@ -4,9 +4,10 @@ import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
   CheckboxWithLabel,
-  FormItem,
-  InputWithIcon,
-  Label,
+  FormField,
+  FormInput,
+  FormLabel,
+  FormMessage,
   Popup,
   Select,
   SelectContent,
@@ -31,6 +32,8 @@ import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { LinkTo } from "../shared/LinkTo";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 type Props = {
   infoText?: string | ReactNode;
@@ -41,6 +44,14 @@ type Props = {
   children?: ReactNode;
 };
 
+const formSchema = z.object({
+  amount: z.number({
+    message: "Amount is required."
+  }),
+  useDepositor: z.boolean(),
+  depositorAddress: z.string({ message: "Depositor address is required." })
+});
+
 export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleCancel, onDeploymentDeposit, disableMin, denom, infoText = null }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const { settings } = useSettings();
@@ -50,12 +61,13 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   const { walletBalances, address } = useWallet();
   const { data: granteeGrants } = useGranteeGrants(address);
   const depositData = useDenomData(denom);
-  const { handleSubmit, control, watch, setValue, clearErrors, unregister } = useForm({
+  const { handleSubmit, control, watch, setValue, clearErrors, unregister } = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       amount: 0,
       useDepositor: false,
       depositorAddress: ""
-    }
+    },
+    resolver: zodResolver(formSchema)
   });
   const { amount, useDepositor, depositorAddress } = watch();
   const usdcIbcDenom = useUsdcDenom();
@@ -199,21 +211,13 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
         {infoText}
 
-        <FormItem
-          className="w-full"
-          // error={!errors.amount} fullWidth
-        >
-          <Controller
+        <div className="w-full">
+          <FormField
             control={control}
             name="amount"
-            rules={{
-              required: true
-            }}
             render={({ fieldState, field }) => {
-              const helperText = fieldState.error?.type === "validate" ? "Invalid amount." : "Amount is required.";
-
               return (
-                <InputWithIcon
+                <FormInput
                   {...field}
                   type="number"
                   label={
@@ -225,8 +229,6 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
                     </div>
                   }
                   autoFocus
-                  error={fieldState.error && helperText}
-                  // helperText={fieldState.error && helperText}
                   min={!disableMin ? depositData?.min : 0}
                   step={0.000001}
                   max={depositData?.inputMax}
@@ -235,9 +237,9 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
               );
             }}
           />
-        </FormItem>
+        </div>
 
-        <FormItem className="my-4 flex items-center">
+        <div className="my-4 flex items-center">
           <Controller
             control={control}
             name="useDepositor"
@@ -245,23 +247,16 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
               return <CheckboxWithLabel label="Use another address to fund" checked={field.value} onCheckedChange={field.onChange} />;
             }}
           />
-        </FormItem>
+        </div>
 
         {useDepositor && (
-          <Controller
+          <FormField
             control={control}
             name="depositorAddress"
-            defaultValue=""
-            rules={{
-              required: true
-            }}
             render={({ field }) => {
               return (
-                <FormItem
-                  className="mt-2 w-full"
-                  // error={fieldState.error}
-                >
-                  <Label htmlFor="deposit-grantee-address">Address</Label>
+                <div className="mt-2 w-full">
+                  <FormLabel htmlFor="deposit-grantee-address">Address</FormLabel>
                   <Select value={field.value || ""} onValueChange={field.onChange} disabled={validGrants.length === 0}>
                     <SelectTrigger id="deposit-grantee-address">
                       <SelectValue placeholder={validGrants.length === 0 ? "No available grants" : "Select address"} />
@@ -276,7 +271,9 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                </FormItem>
+
+                  <FormMessage />
+                </div>
               );
             }}
           />
