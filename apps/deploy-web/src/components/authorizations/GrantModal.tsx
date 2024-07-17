@@ -2,12 +2,20 @@
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { FormattedDate } from "react-intl";
-import { Alert, Popup } from "@akashnetwork/ui/components";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
-import TextField from "@mui/material/TextField";
+import {
+  Alert,
+  FormField,
+  FormInput,
+  FormLabel,
+  FormMessage,
+  Popup,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@akashnetwork/ui/components";
 import { addYears, format } from "date-fns";
 import { event } from "nextjs-google-analytics";
 
@@ -22,13 +30,8 @@ import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { handleDocClick } from "@src/utils/urlUtils";
-type GrantFormValues = {
-  token: string;
-  amount: number;
-  expiration: string;
-  useDepositor: boolean;
-  granteeAddress: string;
-};
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 type Props = {
   address: string;
@@ -41,19 +44,36 @@ const supportedTokens = [
   { id: "usdc", label: "USDC" }
 ];
 
+const formSchema = z.object({
+  token: z.string({
+    message: "Token is required."
+  }),
+  amount: z.number({
+    message: "Amount is required."
+  }),
+  expiration: z
+    .string({
+      message: "Expiration is required."
+    })
+    .date(),
+  useDepositor: z.boolean(),
+  granteeAddress: z.string({ message: "Grantee address is required." })
+});
+
 export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, address, onClose }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState("");
   const { signAndBroadcastTx } = useWallet();
   const usdcDenom = useUsdcDenom();
-  const { handleSubmit, control, watch, clearErrors, setValue } = useForm<GrantFormValues>({
+  const { handleSubmit, control, watch, clearErrors, setValue } = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       token: editingGrant ? (editingGrant.authorization.spend_limit.denom === usdcDenom ? "usdc" : "akt") : "akt",
       amount: editingGrant ? coinToDenom(editingGrant.authorization.spend_limit) : 0,
       expiration: format(addYears(new Date(), 1), "yyyy-MM-dd'T'HH:mm"),
       useDepositor: false,
       granteeAddress: editingGrant?.grantee ?? ""
-    }
+    },
+    resolver: zodResolver(formSchema)
   });
   const { amount, granteeAddress, expiration, token } = watch();
   const selectedToken = supportedTokens.find(x => x.id === token);
@@ -65,7 +85,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  const onSubmit = async ({ amount, expiration, granteeAddress }: GrantFormValues) => {
+  const onSubmit = async ({ amount, expiration, granteeAddress }: z.infer<typeof formSchema>) => {
     setError("");
     clearErrors();
     const spendLimit = token === "akt" ? aktToUakt(amount) : denomToUdenom(amount);
@@ -136,99 +156,75 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
           </LinkTo>
         </div>
 
-        <FormControl className="mb-4 flex flex-row items-center" fullWidth>
-          <InputLabel id="grant-token">Token</InputLabel>
-          <Controller
+        <div className="mb-4 flex w-full flex-row items-center">
+          <FormField
             control={control}
             name="token"
-            defaultValue=""
-            rules={{
-              required: true
-            }}
-            render={({ fieldState, field }) => {
+            render={({ field }) => {
               return (
-                <Select {...field} labelId="grant-token" label="Token" size="medium" error={!!fieldState.error}>
-                  {supportedTokens.map(token => (
-                    <MenuItem key={token.id} value={token.id}>
-                      {token.label}
-                    </MenuItem>
-                  ))}
-                </Select>
+                <div>
+                  <FormLabel htmlFor="grant-address">Token</FormLabel>
+                  <Select value={field.value || ""} onValueChange={field.onChange}>
+                    <SelectTrigger id="grant-address">
+                      <SelectValue placeholder="Select grant token" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {supportedTokens.map(token => (
+                          <SelectItem key={token.id} value={token.id}>
+                            {token.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+
+                  <FormMessage />
+                </div>
               );
             }}
           />
 
-          <Controller
+          <FormField
             control={control}
             name="amount"
-            rules={{
-              required: true
-            }}
-            render={({ fieldState, field }) => {
-              const helperText = fieldState.error?.type === "validate" ? "Invalid amount." : "Amount is required.";
-
+            render={({ field }) => {
               return (
-                <TextField
+                <FormInput
                   {...field}
                   type="number"
-                  variant="outlined"
                   label="Spending Limit"
                   autoFocus
-                  error={!!fieldState.error}
-                  helperText={fieldState.error && helperText}
-                  inputProps={{ min: 0, step: 0.000001, max: denomData?.inputMax }}
-                  sx={{ flexGrow: 1, marginLeft: "1rem" }}
+                  min={0}
+                  step={0.000001}
+                  max={denomData?.inputMax}
+                  startIcon={denomData?.label}
+                  className="ml-4 flex-grow"
                 />
               );
             }}
           />
-        </FormControl>
+        </div>
 
-        <FormControl className="mb-4" fullWidth>
-          <Controller
+        <div className="mb-4 w-full">
+          <FormField
             control={control}
             name="granteeAddress"
-            defaultValue=""
-            rules={{
-              required: true
-            }}
-            render={({ fieldState, field }) => {
-              return (
-                <TextField
-                  {...field}
-                  type="text"
-                  variant="outlined"
-                  label="Grantee Address"
-                  disabled={!!editingGrant}
-                  error={!!fieldState.error}
-                  helperText={fieldState.error && "Grantee address is required."}
-                />
-              );
+            render={({ field }) => {
+              return <FormInput {...field} type="text" label="Grantee Address" disabled={!!editingGrant} />;
             }}
           />
-        </FormControl>
+        </div>
 
-        <FormControl className="mb-4" fullWidth>
-          <Controller
+        <div className="mb-4 w-full">
+          <FormField
             control={control}
             name="expiration"
-            rules={{
-              required: true
-            }}
-            render={({ fieldState, field }) => {
-              return (
-                <TextField
-                  {...field}
-                  type="datetime-local"
-                  variant="outlined"
-                  label="Expiration"
-                  error={!!fieldState.error}
-                  helperText={fieldState.error && "Expiration is required."}
-                />
-              );
+            render={({ field }) => {
+              return <FormInput {...field} type="datetime-local" label="Expiration" />;
             }}
           />
-        </FormControl>
+        </div>
 
         {!!amount && granteeAddress && (
           <Alert

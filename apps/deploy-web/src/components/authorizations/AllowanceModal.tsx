@@ -2,11 +2,8 @@
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { FormattedDate } from "react-intl";
-import { Alert, Popup } from "@akashnetwork/ui/components";
+import { Alert, FormField, FormInput, Popup } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
-import FormControl from "@mui/material/FormControl";
-import InputAdornment from "@mui/material/InputAdornment";
-import TextField from "@mui/material/TextField";
 import { addYears, format } from "date-fns";
 import { event } from "nextjs-google-analytics";
 
@@ -18,13 +15,8 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { uAktDenom } from "@src/utils/constants";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-
-type AllowanceFormValues = {
-  amount: number;
-  expiration: string;
-  useDepositor: boolean;
-  granteeAddress: string;
-};
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 type Props = {
   address: string;
@@ -32,17 +24,31 @@ type Props = {
   onClose: () => void;
 };
 
+const formSchema = z.object({
+  amount: z.number({
+    message: "Amount is required."
+  }),
+  expiration: z
+    .string({
+      message: "Expiration is required."
+    })
+    .date(),
+  useDepositor: z.boolean(),
+  granteeAddress: z.string({ message: "Grantee address is required." })
+});
+
 export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowance, address, onClose }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState("");
   const { signAndBroadcastTx } = useWallet();
-  const { handleSubmit, control, watch, clearErrors, setValue } = useForm<AllowanceFormValues>({
+  const { handleSubmit, control, watch, clearErrors, setValue } = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       amount: editingAllowance ? coinToDenom(editingAllowance.allowance.spend_limit[0]) : 0,
       expiration: format(addYears(new Date(), 1), "yyyy-MM-dd'T'HH:mm"),
       useDepositor: false,
       granteeAddress: editingAllowance?.grantee ?? ""
-    }
+    },
+    resolver: zodResolver(formSchema)
   });
   const { amount, granteeAddress, expiration } = watch();
   const denomData = useDenomData(uAktDenom);
@@ -52,7 +58,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  const onSubmit = async ({ amount, expiration, granteeAddress }: AllowanceFormValues) => {
+  const onSubmit = async ({ amount, expiration, granteeAddress }: z.infer<typeof formSchema>) => {
     setError("");
     clearErrors();
 
@@ -128,80 +134,49 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
           </LinkTo>
         </div>
 
-        <FormControl className="mb-4" fullWidth>
-          <Controller
+        <div className="mb-4 w-full">
+          <FormField
             control={control}
             name="amount"
-            rules={{
-              required: true
-            }}
-            render={({ fieldState, field }) => {
-              const helperText = fieldState.error?.type === "validate" ? "Invalid amount." : "Amount is required.";
-
+            render={({ field }) => {
               return (
-                <TextField
+                <FormInput
                   {...field}
                   type="number"
-                  variant="outlined"
                   label="Spending Limit"
                   autoFocus
-                  error={!!fieldState.error}
-                  helperText={fieldState.error && helperText}
-                  inputProps={{ min: 0, step: 0.000001, max: denomData?.inputMax }}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">AKT</InputAdornment>
-                  }}
+                  min={0}
+                  step={0.000001}
+                  max={denomData?.inputMax}
+                  startIcon={denomData?.label}
                 />
               );
             }}
           />
-        </FormControl>
+        </div>
 
-        <FormControl className="mb-4" fullWidth>
-          <Controller
+        <div className="mb-4 w-full">
+          <FormField
             control={control}
             name="granteeAddress"
-            defaultValue=""
-            rules={{
-              required: true
-            }}
-            render={({ fieldState, field }) => {
-              return (
-                <TextField
-                  {...field}
-                  type="text"
-                  variant="outlined"
-                  label="Grantee Address"
-                  disabled={!!editingAllowance}
-                  error={!!fieldState.error}
-                  helperText={fieldState.error && "Grantee address is required."}
-                />
-              );
+            render={({ field }) => {
+              return <FormInput {...field} type="text" label="Grantee Address" disabled={!!editingAllowance} />;
             }}
           />
-        </FormControl>
+        </div>
 
-        <FormControl className="mb-4" fullWidth>
+        <div className="mb-4 w-full">
           <Controller
             control={control}
             name="expiration"
             rules={{
               required: true
             }}
-            render={({ fieldState, field }) => {
-              return (
-                <TextField
-                  {...field}
-                  type="datetime-local"
-                  variant="outlined"
-                  label="Expiration"
-                  error={!!fieldState.error}
-                  helperText={fieldState.error && "Expiration is required."}
-                />
-              );
+            render={({ field }) => {
+              return <FormInput {...field} type="datetime-local" label="Expiration" />;
             }}
           />
-        </FormControl>
+        </div>
 
         {!!amount && granteeAddress && (
           <Alert>
