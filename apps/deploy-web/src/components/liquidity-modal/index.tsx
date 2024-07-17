@@ -1,102 +1,24 @@
-import React, { useCallback, useMemo } from "react";
+"use client";
+
+import React, { useCallback, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@akashnetwork/ui/components";
-import type { StdSignDoc } from "@cosmjs/amino";
-import type { AllowedDestinationChainConfig, AssetSelector, TabsConfig, ThemeDefinition, WalletClient } from "@leapwallet/elements";
-import { AsyncIDBStorage, defaultBlurs, LiquidityModal as LeapLiquidityModal, Tabs, TxnSummary, useInitCachingLayer } from "@leapwallet/elements";
-import type { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
+import { useWallet as useConnectedWallet, useWalletClient } from "@cosmos-kit/react";
+import {
+  AsyncIDBStorage,
+  ElementsProvider,
+  initCachingLayer,
+  LiquidityModal as LeapLiquidityModal,
+  type LiquidityModalProps,
+  Tabs,
+  WalletType
+} from "@leapwallet/elements";
 import { event } from "nextjs-google-analytics";
 
-import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { customColors } from "@src/utils/colors";
 
-const theme: ThemeDefinition = {
-  colors: {
-    primary: customColors.akashRed,
-    primaryButton: customColors.akashRed,
-    border: "#282828",
-    stepBorder: "#383838",
-    backgroundPrimary: "#212121",
-    backgroundSecondary: "#141414",
-    text: "#ffffff",
-    textSecondary: "#9E9E9E",
-    primaryButtonText: "#ffffff",
-    alpha: "#D6D6D6",
-    gray: "#9E9E9E",
-    error: "#ff6961",
-    errorBackground: "#272727",
-    success: "#29A874",
-    successBackground: "#0D3525",
-    warning: "#ffa726"
-  },
-  zIndices: {
-    modalOverlay: "1200"
-  },
-  borderRadii: {
-    actionButton: "1rem",
-    connectWalletButton: "0.5rem",
-    logo: "99rem",
-    modalBody: "0.75rem",
-    primary: "0.6rem",
-    secondary: "0.3rem",
-    selector: "99rem",
-    tabBody: "0.5rem",
-    tabButton: "0.25rem"
-  },
-  blurs: defaultBlurs,
-  fontFamily: `"Inter", sans-serif`
-};
-
-const formatAmount = (amount: number) => {
-  return Intl.NumberFormat("en", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4
-  })
-    .format(amount)
-    .slice(1);
-};
-
-const osmosisChainId = "osmosis-1";
-const akashnetChainId = "akashnet-2";
-const aktSelector: AssetSelector = ["denom", "uakt"];
-const allowedDestinationChains: AllowedDestinationChainConfig[] = [
-  {
-    chainId: akashnetChainId,
-    assetDenoms: ["uakt"]
-  }
-];
-
-const tabsConfig: TabsConfig = {
-  [Tabs.SWAP]: {
-    title: "Cosmos Swaps",
-    allowedDestinationChains,
-    defaults: {
-      sourceChainId: osmosisChainId,
-      destinationChainId: akashnetChainId,
-      destinationAssetSelector: aktSelector
-    }
-  },
-  [Tabs.CROSS_CHAIN_SWAPS]: {
-    title: "EVM Bridge",
-    allowedDestinationChains,
-    defaults: {
-      destinationChainId: akashnetChainId,
-      destinationAssetSelector: aktSelector
-    }
-  },
-  [Tabs.BRIDGE_USDC]: {
-    enabled: false
-  },
-  [Tabs.TRANSFER]: {
-    enabled: false
-  },
-  [Tabs.FIAT_ON_RAMP]: {
-    enabled: false
-  }
-};
+export type NonUndefined<T> = T extends undefined ? never : T;
 
 const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
   const _onClick = () => {
@@ -107,6 +29,7 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
 
     onClick();
   };
+
   return (
     <Button variant="default" size="sm" onClick={_onClick}>
       Get More
@@ -114,124 +37,134 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
   );
 };
 
-function getWindowWallet(extensionName: string) {
-  switch (extensionName) {
-    case "leap-extension":
-      return window.leap;
-    case "keplr-extension":
-      return window.keplr;
-  }
+initCachingLayer(AsyncIDBStorage);
 
-  return null;
-}
-
-const LiquidityModal: React.FC<{ address: string; aktBalance: number; refreshBalances: () => void }> = ({ address, aktBalance, refreshBalances }) => {
-  useInitCachingLayer(AsyncIDBStorage);
-
+const useConnectedWalletType = (): WalletType | undefined => {
   const { isWalletConnected } = useWallet();
-  const { wallet } = useSelectedChain();
-  const walletExt = getWindowWallet(wallet?.name || "");
+  const { mainWallet } = useConnectedWallet();
 
-  const handleConnectWallet = useCallback(
-    (chainId?: string) => {
-      if (!isWalletConnected && walletExt && chainId) {
-        return walletExt.enable(chainId);
-      } else return new Promise<void>(() => {});
-    },
-    [isWalletConnected, walletExt]
-  );
+  const walletName = isWalletConnected ? mainWallet?.walletName : undefined;
 
-  const walletClient: WalletClient = {
-    enable: (chainIds: string | string[]) => {
-      if (!walletExt) throw "Wallet extension not found";
-      return walletExt.enable(chainIds);
-    },
-    getAccount: async (chainId: string) => {
-      if (!walletExt) throw "Wallet extension not found";
-
-      await walletExt.enable(chainId);
-      const walletKey = await walletExt.getKey?.(chainId);
-      if (!walletKey) {
-        throw new Error("Failed to get connected wallet information");
-      }
-      return {
-        bech32Address: walletKey.bech32Address,
-        pubKey: walletKey.pubKey,
-        isNanoLedger: walletKey.isNanoLedger
-      };
-    },
-
-    getSigner: async (chainId: string) => {
-      if (!walletExt) throw "Wallet extension not found";
-      const offlineSigner = walletExt.getOfflineSigner(chainId);
-      if (!offlineSigner) {
-        throw new Error("Failed to get connected wallet signer");
-      }
-      return {
-        signDirect: async (address: string, signDoc: SignDoc) => {
-          const result = await offlineSigner.signDirect(address, signDoc);
-          return {
-            signed: result.signed,
-            signature: Uint8Array.from(Buffer.from(result.signature.signature, "base64"))
-          };
-        },
-        signAmino: async (address: string, signDoc: StdSignDoc) => {
-          const result = await offlineSigner.signAmino(address, signDoc);
-          return {
-            signed: result.signed,
-            signature: Uint8Array.from(Buffer.from(result.signature.signature, "base64"))
-          };
-        }
-      };
+  const walletType = useMemo(() => {
+    switch (walletName) {
+      case "leap-extension":
+        return WalletType.LEAP;
+      case "keplr-extension":
+        return WalletType.KEPLR;
+      case "cosmostation-extension":
+        return WalletType.COSMOSTATION;
+      case "keplr-mobile":
+        return WalletType.WC_KEPLR_MOBILE;
+      default:
+        return undefined;
     }
-  };
+  }, [walletName]);
 
-  const handleTxnComplete = useCallback((summary: TxnSummary) => {
-    if (summary.destinationChain.chainId === akashnetChainId) {
-      if (summary.summaryType === "skip" || summary.summaryType === "squid") {
-        const denom = summary.destinationAsset.originDenom;
-        if (denom === "uakt") {
-          refreshBalances();
-        }
+  return walletType;
+};
 
+type TabsConfig = NonUndefined<LiquidityModalProps["tabsConfig"]>;
+
+type Props = { address: string; aktBalance: number; refreshBalances: () => void };
+
+const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const { isWalletConnected } = useWallet();
+  const { client: walletClient } = useWalletClient();
+
+  const connectedWalletType = useConnectedWalletType();
+
+  const handleConnectWallet = useCallback(() => {
+    if (!isWalletConnected && walletClient) {
+      if (walletClient.enable) {
+        return walletClient.enable("akashnet-2");
+      } else if (walletClient.connect) {
+        return walletClient.connect("akashnet-2");
+      }
+    } else {
+      throw new Error("Wallet is not connected");
+    }
+  }, [isWalletConnected, walletClient]);
+
+  const tabsConfig: TabsConfig = useMemo(() => {
+    const txnLifecycleHooks = {
+      onTxnComplete: () => {
+        refreshBalances();
         event(AnalyticsEvents.LEAP_TRANSACTION_COMPLETE, {
           category: "wallet",
           label: "Completed a transaction on Leap liquidity modal"
         });
       }
-    }
-  }, []);
-
-  const walletClientConfig = useMemo(() => {
-    return {
-      userAddress: address,
-      walletClient: walletClient,
-      connectWallet: handleConnectWallet
     };
-  }, [address, walletClient, handleConnectWallet]);
 
-  const modalConfig = useMemo(() => {
     return {
-      icon: "https://assets.leapwallet.io/akt.png",
-      subtitle: `You need only ${formatAmount(5 - aktBalance)} more AKT to get started!`,
-      title: "Get AKT",
-      tabsConfig
-    };
-  }, [aktBalance]);
+      [Tabs.SWAPS]: {
+        enabled: true,
+        orderIndex: 0,
+        title: "Swap or Bridge",
+        allowedDestinationChains: [
+          {
+            chainId: "akashnet-2"
+          }
+        ],
+        defaultValues: {
+          sourceChainId: "osmosis-1",
+          sourceAsset: "uosmo",
+          destinationChainId: "akashnet-2",
+          destinationAsset: "uakt"
+        },
+        txnLifecycleHooks
+      },
+      [Tabs.IBC_SWAPS]: {
+        enabled: false
+      },
+      [Tabs.FIAT_ON_RAMP]: {
+        enabled: true,
+        title: "Buy AKT",
+        orderIndex: 1,
+        allowedDestinationChains: [
+          {
+            chainId: "akashnet-2"
+          }
+        ],
+        defaultValues: {
+          currency: "USD",
+          sourceAmount: "10",
+          destinationChainId: "akashnet-2",
+          destinationAsset: "uakt"
+        },
+        onTxnComplete: txnLifecycleHooks.onTxnComplete
+      },
+      [Tabs.TRANSFER]: {
+        enabled: true,
+        orderIndex: 2,
+        title: "IBC Transfer",
+        defaultValues: {
+          sourceChainId: "osmosis-1",
+          sourceAsset: { originChainId: "akashnet-2", originDenom: "uakt" }
+        },
+        txnLifecycleHooks
+      }
+    } satisfies TabsConfig;
+  }, [refreshBalances]);
 
   return (
     <>
-      {walletExt && (
-        <LeapLiquidityModal
-          theme={theme}
-          walletClientConfig={walletClientConfig}
-          onTxnComplete={handleTxnComplete}
-          config={modalConfig}
-          renderLiquidityButton={ToggleLiquidityModalButton}
-        />
-      )}
+      <ToggleLiquidityModalButton onClick={() => setIsOpen(o => !o)} />
+      {walletClient
+        ? createPortal(
+            <div className="leap-ui dark">
+              <ElementsProvider primaryChainId="akashnet-2" connectWallet={handleConnectWallet} connectedWalletType={connectedWalletType}>
+                <LeapLiquidityModal className="border-none" isOpen={isOpen} setIsOpen={setIsOpen} tabsConfig={tabsConfig} defaultActiveTab={Tabs.SWAPS} />
+              </ElementsProvider>
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 };
+
+LiquidityModal.displayName = "LiquidityModal";
 
 export default LiquidityModal;
