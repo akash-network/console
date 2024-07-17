@@ -9,8 +9,8 @@ FROM base AS development
 
 COPY /$WORKSPACE /app/$WORKSPACE
 COPY /packages /app/packages
-COPY package.json /app
-COPY package-lock.json /app
+COPY /$WORKSPACE/package*.json /app/$WORKSPACE
+COPY package*.json /app
 
 RUN npm install
 

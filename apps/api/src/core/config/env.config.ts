@@ -1,8 +1,4 @@
-import dotenv from "dotenv";
 import { z } from "zod";
-
-dotenv.config({ path: ".env.local" });
-dotenv.config();
 
 const envSchema = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).optional().default("info"),

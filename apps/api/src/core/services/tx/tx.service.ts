@@ -1,6 +1,7 @@
 import type { ExtractTablesWithRelations } from "drizzle-orm";
-import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import type { PgTransaction } from "drizzle-orm/pg-core";
+import type {} from "drizzle-orm/postgres-js";
+import { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js/session";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { container, singleton } from "tsyringe";
 
@@ -10,7 +11,9 @@ type TxType = "PG_TX";
 
 @singleton()
 export class TxService {
-  private readonly storage = new AsyncLocalStorage<Map<TxType, PgTransaction<NodePgQueryResultHKT, ApiPgSchema, ExtractTablesWithRelations<ApiPgSchema>>>>();
+  private readonly storage = new AsyncLocalStorage<
+    Map<TxType, PgTransaction<PostgresJsQueryResultHKT, ApiPgSchema, ExtractTablesWithRelations<ApiPgSchema>>>
+  >();
 
   constructor(@InjectPg() private readonly pg: ApiPgDatabase) {}
 

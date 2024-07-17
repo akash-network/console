@@ -1,10 +1,13 @@
 import "reflect-metadata";
 
 import { Command } from "commander";
+import dotenv from "dotenv";
 import { container } from "tsyringe";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
-import { PostgresMigratorService } from "@src/core";
+
+dotenv.config({ path: ".env.local" });
+dotenv.config();
 
 const program = new Command();
 
@@ -14,7 +17,8 @@ program
   .command("refill-wallets")
   .description("Refill draining wallets")
   .action(async () => {
-    await container.resolve(PostgresMigratorService).migrate();
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    await require("./core/providers/postgres.provider").migratePG();
     await container.resolve(WalletController).refillAll();
   });
 
