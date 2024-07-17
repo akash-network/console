@@ -1,13 +1,16 @@
 "use client";
 import { HTMLInputTypeAttribute, useEffect, useRef, useState } from "react";
-import { Control, Controller, FieldPath, RegisterOptions, useFieldArray, useForm } from "react-hook-form";
+import { Control, Controller, FieldPath, useFieldArray, useForm } from "react-hook-form";
 import {
   Alert,
   Button,
   CheckboxWithLabel,
   CustomTooltip,
+  FormField,
+  FormInput,
   FormItem,
-  InputWithIcon,
+  FormLabel,
+  FormMessage,
   Label,
   MultipleSelector,
   MultiSelectorOption,
@@ -24,11 +27,13 @@ import { nanoid } from "nanoid";
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { useWallet } from "@src/context/WalletProvider";
 import { ApiProviderDetail } from "@src/types/provider";
-import { ProviderAttributeSchemaDetailValue, ProviderAttributesFormValues, ProviderAttributesSchema } from "@src/types/providerAttributes";
+import { ProviderAttributeSchemaDetailValue, providerAttributesFormValuesSchema, ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { defaultProviderAttributes } from "@src/utils/providerAttributes/data";
 import { getUnknownAttributes, mapFormValuesToAttributes } from "@src/utils/providerAttributes/helpers";
 import { cn } from "@src/utils/styleUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 type Props = {
   provider: Partial<ApiProviderDetail>;
@@ -40,10 +45,11 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
   const [error, setError] = useState(null);
   const formRef = useRef<HTMLFormElement>(null);
   const { signAndBroadcastTx } = useWallet();
-  const { handleSubmit, control, watch, setValue, formState } = useForm<ProviderAttributesFormValues>({
+  const { handleSubmit, control, watch, setValue, formState } = useForm<z.infer<typeof providerAttributesFormValuesSchema>>({
     defaultValues: {
       ...defaultProviderAttributes
-    }
+    },
+    resolver: zodResolver(providerAttributesFormValuesSchema)
   });
   const {
     fields: unknownAttributes,
@@ -133,7 +139,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
     }
   }, [providerAttributesSchema, isInit]);
 
-  const onSubmit = async (data: ProviderAttributesFormValues) => {
+  const onSubmit = async (data: z.infer<typeof providerAttributesFormValuesSchema>) => {
     setError(null);
 
     try {
@@ -155,25 +161,16 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
       <FormPaper className="mb-4">
         <p className="mb-8 text-lg text-primary">General info</p>
 
-        <Controller
+        <FormField
           control={control}
           name="host-uri"
-          rules={{
-            required: "Host URI is required"
-          }}
-          render={({ field, fieldState }) => (
-            <InputWithIcon
+          render={({ field }) => (
+            <FormInput
               type="text"
-              // variant="outlined"
               label="Host URI"
-              color="secondary"
               tabIndex={0}
-              error={fieldState.error?.message}
-              // helperText={fieldState.error?.message}
-              // fullWidth
               value={field.value}
               className="mb-4"
-              // size="small"
               onChange={event => field.onChange(event.target.value || "")}
               endIcon={
                 <CustomTooltip title="Host URI is the URI of the host that is running the provider. It is used to identify the provider.">
@@ -187,32 +184,11 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/** LEFT COLUMN */}
           <div>
-            <ProviderTextField
-              control={control}
-              className="mb-4"
-              label="Host"
-              name="host"
-              providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Host is required."
-            />
+            <ProviderTextField control={control} className="mb-4" label="Host" name="host" providerAttributesSchema={providerAttributesSchema} />
 
-            <ProviderTextField
-              control={control}
-              className="mb-4"
-              label="Website"
-              name="website"
-              providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Website is required."
-            />
+            <ProviderTextField control={control} className="mb-4" label="Website" name="website" providerAttributesSchema={providerAttributesSchema} />
 
-            <ProviderTextField
-              control={control}
-              className="mb-4"
-              label="Status Page"
-              name="status-page"
-              providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Status page is required."
-            />
+            <ProviderTextField control={control} className="mb-4" label="Status Page" name="status-page" providerAttributesSchema={providerAttributesSchema} />
 
             <ProviderTextField
               control={control}
@@ -220,22 +196,10 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="Country"
               name="country"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Country is required."
-              rules={{
-                maxLength: { value: 2, message: "Country must be Country ISO 3166 Alpha-2 code." },
-                minLength: { value: 2, message: "Country must be Country ISO 3166 Alpha-2 code." }
-              }}
               valueModifier={value => value?.toUpperCase()}
             />
 
-            <ProviderSelect
-              control={control}
-              className="mb-4"
-              label="Timezone"
-              name="timezone"
-              providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Timezone is required."
-            />
+            <ProviderSelect control={control} className="mb-4" label="Timezone" name="timezone" providerAttributesSchema={providerAttributesSchema} />
 
             <ProviderTextField
               control={control}
@@ -243,20 +207,11 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="Hosting Provider"
               name="hosting-provider"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Hosting provider is required."
             />
           </div>
           {/** RIGHT COLUMN */}
           <div>
-            <ProviderTextField
-              control={control}
-              className="mb-4"
-              label="Email"
-              name="email"
-              type="email"
-              providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Email is required."
-            />
+            <ProviderTextField control={control} className="mb-4" label="Email" name="email" type="email" providerAttributesSchema={providerAttributesSchema} />
 
             <ProviderTextField
               control={control}
@@ -264,7 +219,6 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="Organization"
               name="organization"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Organization is required."
             />
 
             <ProviderSelect
@@ -273,7 +227,6 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="Location Region"
               name="location-region"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Location Region is required."
             />
 
             <ProviderTextField
@@ -282,28 +235,12 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="City"
               name="city"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="City is required."
-              rules={{ maxLength: { value: 3, message: "City must be 3 letter code." }, minLength: { value: 3, message: "City must be 3 letter code." } }}
               valueModifier={value => value?.toUpperCase()}
             />
 
-            <ProviderSelect
-              control={control}
-              className="mb-4"
-              label="Location type"
-              name="location-type"
-              providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Location type is required."
-            />
+            <ProviderSelect control={control} className="mb-4" label="Location type" name="location-type" providerAttributesSchema={providerAttributesSchema} />
 
-            <ProviderSelect
-              control={control}
-              className="mb-4"
-              label="Tier"
-              name="tier"
-              providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Tier is required."
-            />
+            <ProviderSelect control={control} className="mb-4" label="Tier" name="tier" providerAttributesSchema={providerAttributesSchema} />
           </div>
         </div>
       </FormPaper>
@@ -314,22 +251,8 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/** LEFT COLUMN */}
           <div>
-            <ProviderSelect
-              control={control}
-              className="mb-4"
-              label="GPU"
-              name="hardware-gpu"
-              providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="GPU is required."
-            />
-            <ProviderSelect
-              control={control}
-              className="mb-4"
-              label="CPU"
-              name="hardware-cpu"
-              providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="CPU is required."
-            />
+            <ProviderSelect control={control} className="mb-4" label="GPU" name="hardware-gpu" providerAttributesSchema={providerAttributesSchema} />
+            <ProviderSelect control={control} className="mb-4" label="CPU" name="hardware-cpu" providerAttributesSchema={providerAttributesSchema} />
 
             <ProviderSelect
               control={control}
@@ -337,7 +260,6 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="Memory (RAM)"
               name="hardware-memory"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Memory is required."
             />
 
             <ProviderCheckbox
@@ -354,7 +276,6 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="Network Speed Download"
               name="network-speed-down"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Network speed download is required."
               type="number"
             />
 
@@ -364,7 +285,6 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="Network Provider"
               name="network-provider"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Network provider is required."
             />
           </div>
 
@@ -376,7 +296,6 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="GPU models"
               name="hardware-gpu-model"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="GPU models is required."
               optionName="hardware-gpu-model"
             />
 
@@ -386,7 +305,6 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="CPU architecture"
               name="hardware-cpu-arch"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="CPU architecture is required."
             />
 
             <ProviderMultiSelect
@@ -395,7 +313,6 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="Disk Storage"
               name="hardware-disk"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="At least one disk storage is required."
               optionName="hardware-disk"
             />
 
@@ -405,8 +322,6 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="Persistent Disk Storage"
               name="feat-persistent-storage-type"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="At least one persistent disk storage is required."
-              required={!!featPersistentStorage}
               optionName="feat-persistent-storage-type"
             />
 
@@ -416,7 +331,6 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="Network Speed Upload"
               name="network-speed-up"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="Network speed upload is required."
               type="number"
             />
           </div>
@@ -462,8 +376,6 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
               label="Chia capabilities"
               name="workload-support-chia-capabilities"
               providerAttributesSchema={providerAttributesSchema}
-              requiredMessage="At least one chia capability is required."
-              required={!!workloadSupportChia}
               optionName="workload-support-chia-capabilities"
             />
           </div>
@@ -487,45 +399,18 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
                   <div className="flex">
                     <div className="flex flex-grow items-center">
                       <div className="basis-1/2">
-                        <Controller
+                        <FormField
                           control={control}
                           name={`unknown-attributes.${attIndex}.key`}
-                          rules={{ required: "Key is required." }}
-                          render={({ field, fieldState }) => (
-                            <InputWithIcon
-                              type="text"
-                              // variant="outlined"
-                              label="Key"
-                              color="secondary"
-                              className="w-full"
-                              value={field.value}
-                              error={fieldState.error?.message}
-                              // helperText={fieldState.error?.message}
-                              onChange={event => field.onChange(event.target.value)}
-                            />
-                          )}
+                          render={({ field }) => <FormInput {...field} type="text" label="Key" className="w-full" />}
                         />
                       </div>
 
                       <div className="ml-2 basis-1/2">
-                        <Controller
+                        <FormField
                           control={control}
                           name={`unknown-attributes.${attIndex}.value`}
-                          rules={{ required: "Key is required." }}
-                          render={({ field, fieldState }) => (
-                            <InputWithIcon
-                              type="text"
-                              // variant="outlined"
-                              label="Value"
-                              color="secondary"
-                              className="w-full"
-                              value={field.value}
-                              error={fieldState.error?.message}
-                              // helperText={fieldState.error?.message}
-                              // size="small"
-                              onChange={event => field.onChange(event.target.value)}
-                            />
-                          )}
+                          render={({ field }) => <FormInput {...field} type="text" label="Value" className="w-full" />}
                         />
                       </div>
                     </div>
@@ -564,15 +449,12 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
 };
 
 type ProviderTextFieldProps = {
-  control: Control<ProviderAttributesFormValues, any>;
+  control: Control<z.infer<typeof providerAttributesFormValuesSchema>, any>;
   providerAttributesSchema: ProviderAttributesSchema;
-  name: keyof ProviderAttributesFormValues;
+  name: keyof z.infer<typeof providerAttributesFormValuesSchema>;
   className?: string;
-  requiredMessage: string;
   label: string;
   type?: HTMLInputTypeAttribute;
-  required?: boolean;
-  rules?: RegisterOptions<ProviderAttributesFormValues>;
   valueModifier?: (value: string) => string;
 };
 const ProviderTextField: React.FunctionComponent<ProviderTextFieldProps> = ({
@@ -580,31 +462,18 @@ const ProviderTextField: React.FunctionComponent<ProviderTextFieldProps> = ({
   providerAttributesSchema,
   name,
   className,
-  requiredMessage,
   label,
-  rules = {},
-  required = providerAttributesSchema[name].required,
   type = "text",
   valueModifier = value => value
 }) => {
   return (
-    <Controller
+    <FormField
       control={control}
       name={name}
-      rules={{
-        required: required ? requiredMessage : undefined,
-        ...rules
-      }}
-      render={({ field, fieldState }) => (
-        <InputWithIcon
+      render={({ field }) => (
+        <FormInput
           type={type}
-          // variant="outlined"
           label={label}
-          color="secondary"
-          tabIndex={0}
-          error={fieldState.error?.message}
-          // helperText={fieldState.error?.message}
-          // fullWidth
           value={field.value as string}
           className={className}
           onChange={event => field.onChange(valueModifier(event.target.value || ""))}
@@ -628,71 +497,60 @@ const ProviderTextField: React.FunctionComponent<ProviderTextFieldProps> = ({
 };
 
 type ProviderCheckboxProps = {
-  control: Control<ProviderAttributesFormValues, any>;
+  control: Control<z.infer<typeof providerAttributesFormValuesSchema>, any>;
   providerAttributesSchema: ProviderAttributesSchema;
-  name: keyof ProviderAttributesFormValues;
+  name: keyof z.infer<typeof providerAttributesFormValuesSchema>;
   className?: string;
   label: string;
 };
 const ProviderCheckbox: React.FunctionComponent<ProviderCheckboxProps> = ({ control, name, className, label, providerAttributesSchema }) => {
   return (
-    <Controller
+    <FormField
       control={control}
       name={name}
       render={({ field }) => (
-        <div className={cn(className, "flex h-[42px] items-center")}>
-          <CheckboxWithLabel label={label} checked={field.value as boolean} onCheckedChange={value => field.onChange(value)} />
-          <div className="mx-2 flex items-center">
-            <CustomTooltip
-              title={
-                <div>
-                  <div>{providerAttributesSchema[name].description}</div>
+        <FormItem>
+          <div className={cn(className, "flex h-[42px] items-center")}>
+            <CheckboxWithLabel label={label} checked={field.value as boolean} onCheckedChange={value => field.onChange(value)} />
+            <div className="mx-2 flex items-center">
+              <CustomTooltip
+                title={
+                  <div>
+                    <div>{providerAttributesSchema[name].description}</div>
 
-                  <div>Attribute key: {providerAttributesSchema[name].key}</div>
-                </div>
-              }
-            >
-              <InfoCircle className="text-xs text-muted-foreground" />
-            </CustomTooltip>
+                    <div>Attribute key: {providerAttributesSchema[name].key}</div>
+                  </div>
+                }
+              >
+                <InfoCircle className="text-xs text-muted-foreground" />
+              </CustomTooltip>
+            </div>
           </div>
-        </div>
+          <FormMessage />
+        </FormItem>
       )}
     />
   );
 };
 
 type ProviderSelectProps = {
-  control: Control<ProviderAttributesFormValues, any>;
+  control: Control<z.infer<typeof providerAttributesFormValuesSchema>, any>;
   providerAttributesSchema: ProviderAttributesSchema;
-  name: keyof ProviderAttributesFormValues;
+  name: keyof z.infer<typeof providerAttributesFormValuesSchema>;
   className?: string;
-  requiredMessage: string;
   label: string;
-  required?: boolean;
   placeholder?: string;
 };
-const ProviderSelect: React.FunctionComponent<ProviderSelectProps> = ({
-  control,
-  providerAttributesSchema,
-  name,
-  className,
-  requiredMessage,
-  label,
-  required = providerAttributesSchema[name].required,
-  placeholder
-}) => {
+const ProviderSelect: React.FunctionComponent<ProviderSelectProps> = ({ control, providerAttributesSchema, name, className, label, placeholder }) => {
   const options = (providerAttributesSchema[name].values || []) as ProviderAttributeSchemaDetailValue[];
 
   return (
-    <Controller
+    <FormField
       control={control}
       name={name}
-      rules={{
-        required: required ? requiredMessage : undefined
-      }}
       render={({ field }) => (
         <FormItem className={cn("w-full", className)}>
-          <Label className="flex items-center">
+          <FormLabel className="flex items-center">
             {label}
 
             <CustomTooltip
@@ -706,7 +564,7 @@ const ProviderSelect: React.FunctionComponent<ProviderSelectProps> = ({
             >
               <InfoCircle className="ml-2 text-xs text-muted-foreground" />
             </CustomTooltip>
-          </Label>
+          </FormLabel>
           <Select value={(field.value as string) || ""} onValueChange={field.onChange}>
             <SelectTrigger>
               <SelectValue placeholder={placeholder} />
@@ -726,6 +584,7 @@ const ProviderSelect: React.FunctionComponent<ProviderSelectProps> = ({
               </SelectGroup>
             </SelectContent>
           </Select>
+          <FormMessage />
         </FormItem>
       )}
     />
@@ -736,11 +595,9 @@ type ProviderMultiSelectProps = {
   control: Control<any, any>;
   providerAttributesSchema: ProviderAttributesSchema;
   optionName: keyof ProviderAttributesSchema;
-  name: FieldPath<ProviderAttributesFormValues>;
+  name: FieldPath<z.infer<typeof providerAttributesFormValuesSchema>>;
   className?: string;
-  requiredMessage?: string;
   label: string;
-  required?: boolean;
   disabled?: boolean;
   placeholder?: string;
   valueType?: "key" | "description ";
@@ -751,9 +608,7 @@ export const ProviderMultiSelect: React.FunctionComponent<ProviderMultiSelectPro
   optionName,
   name,
   className,
-  requiredMessage,
   label,
-  required = providerAttributesSchema[optionName || ""]?.required || false,
   placeholder,
   disabled,
   valueType = "description"
@@ -761,15 +616,12 @@ export const ProviderMultiSelect: React.FunctionComponent<ProviderMultiSelectPro
   const options: ProviderAttributeSchemaDetailValue[] = providerAttributesSchema[optionName || ""]?.values || [];
 
   return (
-    <Controller
+    <FormField
       control={control}
       name={name}
-      rules={{
-        required: required ? requiredMessage : undefined
-      }}
       render={({ field }) => (
-        <div className={cn(className)}>
-          <Label className="flex items-center">
+        <FormItem className={className}>
+          <FormLabel className="flex items-center">
             {label}
 
             <CustomTooltip
@@ -783,7 +635,7 @@ export const ProviderMultiSelect: React.FunctionComponent<ProviderMultiSelectPro
             >
               <InfoCircle className="ml-2 text-xs text-muted-foreground" />
             </CustomTooltip>
-          </Label>
+          </FormLabel>
           <MultipleSelector
             value={
               (field.value as ProviderAttributeSchemaDetailValue[]).map(v => ({
@@ -801,7 +653,8 @@ export const ProviderMultiSelect: React.FunctionComponent<ProviderMultiSelectPro
               field.onChange(newValue.map(v => ({ key: v.value, description: v.label })));
             }}
           />
-        </div>
+          <FormMessage />
+        </FormItem>
       )}
     />
   );

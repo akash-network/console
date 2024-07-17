@@ -3,9 +3,10 @@ import { nanoid } from "nanoid";
 import {
   ProviderAttributeSchemaDetail,
   ProviderAttributeSchemaDetailValue,
-  ProviderAttributesFormValues,
+  providerAttributesFormValuesSchema,
   ProviderAttributesSchema
 } from "@src/types/providerAttributes";
+import { z } from "zod";
 
 /**
  * Maps the form values to the attributes that are broadcasted to the network
@@ -13,7 +14,7 @@ import {
  * @param providerAttributesSchema
  * @returns
  */
-export const mapFormValuesToAttributes = (data: ProviderAttributesFormValues, providerAttributesSchema: ProviderAttributesSchema) => {
+export const mapFormValuesToAttributes = (data: z.infer<typeof providerAttributesFormValuesSchema>, providerAttributesSchema: ProviderAttributesSchema) => {
   const attributes: { key: string; value: string }[] = [];
 
   Object.keys(data).forEach(key => {
