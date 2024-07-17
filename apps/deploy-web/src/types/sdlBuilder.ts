@@ -145,11 +145,6 @@ export type ITemplate = {
   isFavorite: boolean;
 };
 
-export type SdlSaveTemplateFormValues = {
-  title: string;
-  visibility: string;
-};
-
 export type RentGpusFormValues = {
   services: Service[];
   region?: Partial<ProviderRegionValue>;

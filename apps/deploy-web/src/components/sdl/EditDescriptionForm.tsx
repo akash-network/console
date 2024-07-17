@@ -1,11 +1,14 @@
 "use client";
 import { ReactNode, useRef, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { Button, Label, Snackbar, Spinner, Textarea } from "@akashnetwork/ui/components";
+import { useForm } from "react-hook-form";
+import { Button, FormField, FormItem, FormMessage, Snackbar, Spinner, Textarea } from "@akashnetwork/ui/components";
 import axios from "axios";
 import { useSnackbar } from "notistack";
 
 import { FormPaper } from "./FormPaper";
+import { z } from "zod";
+import { FormLabel } from "@mui/material";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 type Props = {
   id: string;
@@ -15,21 +18,25 @@ type Props = {
   onSave: (description: string) => void;
 };
 
-type DescriptionFormValues = {
-  description: string;
-};
+const formSchema = z.object({
+  description: z.string({
+    message: "Description is required."
+  })
+});
+type FormValues = z.infer<typeof formSchema>;
 
 export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, description, onCancel, onSave }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
-  const { handleSubmit, control } = useForm<DescriptionFormValues>({
+  const { handleSubmit, control } = useForm<FormValues>({
     defaultValues: {
       description: description || ""
-    }
+    },
+    resolver: zodResolver(formSchema)
   });
 
-  const onSubmit = async (data: DescriptionFormValues) => {
+  const onSubmit = async (data: FormValues) => {
     setIsSaving(true);
     await axios.post("/api/proxy/user/saveTemplateDesc", {
       id: id,
@@ -46,12 +53,12 @@ export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, descri
   return (
     <FormPaper className="mt-4">
       <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
-        <Controller
+        <FormField
           control={control}
           name={`description`}
           render={({ field }) => (
-            <div>
-              <Label>Description</Label>
+            <FormItem>
+              <FormLabel>Description</FormLabel>
               <Textarea
                 aria-label="Description"
                 rows={10}
@@ -61,7 +68,8 @@ export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, descri
                 spellCheck={false}
                 onChange={field.onChange}
               />
-            </div>
+              <FormMessage />
+            </FormItem>
           )}
         />
 
@@ -69,7 +77,7 @@ export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, descri
           <Button onClick={onCancel} variant="ghost">
             Cancel
           </Button>
-          <Button color="secondary" variant="default" type="submit">
+          <Button variant="default" type="submit">
             {isSaving ? <Spinner size="small" /> : "Save"}
           </Button>
         </div>

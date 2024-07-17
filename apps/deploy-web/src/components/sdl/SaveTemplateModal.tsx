@@ -1,8 +1,7 @@
 "use client";
 import { Dispatch, ReactNode, SetStateAction, useEffect, useRef, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { Alert, Label, Popup, RadioGroup, RadioGroupItem, Snackbar } from "@akashnetwork/ui/components";
-import TextField from "@mui/material/TextField";
+import { useForm } from "react-hook-form";
+import { Alert, FormField, FormInput, Label, Popup, RadioGroup, RadioGroupItem, Snackbar } from "@akashnetwork/ui/components";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
@@ -10,8 +9,9 @@ import { MustConnect } from "@src/components/shared/MustConnect";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
-import { EnvironmentVariable, ITemplate, SdlSaveTemplateFormValues, Service } from "@src/types";
+import { EnvironmentVariable, ITemplate, Service } from "@src/types";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { z } from "zod";
 
 type Props = {
   services: Service[];
@@ -22,6 +22,14 @@ type Props = {
   children?: ReactNode;
 };
 
+const formSchema = z.object({
+  title: z.string({
+    message: "Title is required."
+  }),
+  visibility: z.enum(["private", "public"])
+});
+type FormValues = z.infer<typeof formSchema>;
+
 export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, getTemplateData, templateMetadata, setTemplateMetadata, services }) => {
   const [publicEnvs, setPublicEnvs] = useState<EnvironmentVariable[]>([]);
   const { enqueueSnackbar } = useSnackbar();
@@ -30,7 +38,7 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
   const isRestricted = !isLoadingUser && !user;
   const isCurrentUserTemplate = !isRestricted && user?.sub === templateMetadata?.userId;
   const { mutate: saveTemplate } = useSaveUserTemplate(!isCurrentUserTemplate);
-  const { handleSubmit, control, setValue } = useForm<SdlSaveTemplateFormValues>({
+  const { handleSubmit, control, setValue } = useForm<FormValues>({
     defaultValues: {
       title: "",
       visibility: "private"
@@ -49,7 +57,7 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
     }
   }, []);
 
-  const onSubmit = async (data: SdlSaveTemplateFormValues) => {
+  const onSubmit = async (data: FormValues) => {
     const template = getTemplateData();
 
     await saveTemplate({ ...template, title: data.title, isPublic: data.visibility !== "private" });
@@ -116,27 +124,15 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
           <MustConnect message="To save a template" />
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
-            <Controller
+            <FormField
               control={control}
-              rules={{ required: "Title is required." }}
               name="title"
-              render={({ field, fieldState }) => (
-                <TextField
-                  type="text"
-                  variant="outlined"
-                  label="Title"
-                  error={!!fieldState.error}
-                  helperText={fieldState.error?.message}
-                  className="mb-4"
-                  fullWidth
-                  size="small"
-                  value={field.value || ""}
-                  onChange={event => field.onChange(event.target.value)}
-                />
+              render={({ field }) => (
+                <FormInput type="text" label="Title" className="mb-4 w-full" value={field.value || ""} onChange={event => field.onChange(event.target.value)} />
               )}
             />
 
-            <Controller
+            <FormField
               control={control}
               name={`visibility`}
               render={({ field }) => (
