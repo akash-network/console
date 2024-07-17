@@ -1,8 +1,4 @@
-import dotenv from "dotenv";
 import { z } from "zod";
-
-dotenv.config({ path: ".env.local" });
-dotenv.config();
 
 export const env = z
   .object({

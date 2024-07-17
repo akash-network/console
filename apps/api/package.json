@@ -68,6 +68,7 @@
     "pg-hstore": "^2.3.4",
     "pino": "^9.2.0",
     "pino-pretty": "^11.2.1",
+    "postgres": "^3.4.4",
     "protobufjs": "^6.11.2",
     "semver": "^7.3.8",
     "sequelize": "^6.21.3",
