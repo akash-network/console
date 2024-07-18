@@ -16,7 +16,15 @@ export class WalletInitializerService {
   async initialize(userId: UserInput["userId"]) {
     const { id } = await this.userWalletRepository.create({ userId });
     const wallet = await this.walletManager.createAndAuthorizeTrialSpending({ addressIndex: id });
-    const userWallet = await this.userWalletRepository.updateById(id, { address: wallet.address }, { returning: true });
+    const userWallet = await this.userWalletRepository.updateById(
+      id,
+      {
+        address: wallet.address,
+        deploymentAllowance: String(wallet.limits.deployment),
+        feeAllowance: String(wallet.limits.fees)
+      },
+      { returning: true }
+    );
 
     return pick(userWallet, ["id", "userId", "address", "creditAmount"]);
   }

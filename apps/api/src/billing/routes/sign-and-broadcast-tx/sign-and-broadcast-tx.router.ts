@@ -1,8 +1,9 @@
-import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
+import { OpenApiHonoHandled } from "@src/core/services/open-api-hono-handled/open-api-hono-handled";
 
 export const SignTxInputSchema = z.object({
   userId: z.string(),
@@ -23,7 +24,7 @@ export type SignTxOutput = z.infer<typeof SignTxOutputSchema>;
 
 const route = createRoute({
   method: "post",
-  path: "/v1/sign-tx",
+  path: "/v1/tx",
   summary: "Signs a transaction via a user managed wallet",
   tags: ["Wallets"],
   request: {
@@ -46,9 +47,10 @@ const route = createRoute({
     }
   }
 });
-export const signTxRouter = new OpenAPIHono();
 
-signTxRouter.openapi(route, async function routeSignTx(c) {
+export const signAndBroadcastTxRouter = new OpenApiHonoHandled();
+
+signAndBroadcastTxRouter.openapi(route, async function routeSignTx(c) {
   const payload = await container.resolve(WalletController).signTx(c.req.valid("json"));
   return c.json(payload, 200);
 });

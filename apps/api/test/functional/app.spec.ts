@@ -3,7 +3,7 @@ import { closeConnections } from "@src/db/dbConnection";
 
 describe("app", () => {
   beforeAll(async () => {
-    await initDb({ log: false });
+    await initDb();
   });
 
   afterAll(async () => {

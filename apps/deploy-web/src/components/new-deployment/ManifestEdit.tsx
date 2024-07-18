@@ -14,7 +14,7 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useFiatWallet } from "@src/hooks/useFiatWallet";
+import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useWhen } from "@src/hooks/useWhen";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
@@ -53,9 +53,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const { settings } = useSettings();
-  const { address: ownWalletAddress, signAndBroadcastTx } = useWallet();
-  const { wallet: fiatWallet } = useFiatWallet();
-  const address = ownWalletAddress || fiatWallet?.address;
+  const { address, signAndBroadcastTx } = useWallet();
   const router = useRouter();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
@@ -64,7 +62,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
   const { minDeposit } = useChainParam();
   const { hasComponent } = useSdlBuilder();
-  const { wallet } = useFiatWallet();
+  const wallet = useManagedWallet();
 
   const searchParams = useSearchParams();
   const templateId = searchParams.get("templateId");
@@ -141,7 +139,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     try {
       if (!yamlStr) return null;
 
-      const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, yamlStr, dseq, wallet?.address || address, deposit, depositorAddress);
+      const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, yamlStr, dseq, address, deposit, depositorAddress);
       validateDeploymentData(dd, selectedTemplate);
 
       setSdlDenom(dd.deposit.denom);
@@ -166,7 +164,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       const valid = await sdlBuilderRef.current?.validate();
       if (!valid) return;
     }
-    console.log("DEBUG wallet", wallet);
+
     if (wallet) {
       await handleCreateClick(defaultInitialDeposit, "akash1fq8fhssjs0w8x9ysggrm4r8x26522elefm737l");
     } else {

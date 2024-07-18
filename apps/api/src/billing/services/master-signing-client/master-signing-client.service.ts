@@ -1,11 +1,11 @@
-import { getAkashTypeRegistry } from "@akashnetwork/akashjs/build/stargate";
 import type { StdFee } from "@cosmjs/amino";
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
-import { defaultRegistryTypes, SigningStargateClient } from "@cosmjs/stargate";
+import { SigningStargateClient } from "@cosmjs/stargate";
 import type { SignerData } from "@cosmjs/stargate/build/signingstargateclient";
 import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { MasterWalletService } from "@src/billing/services/master-wallet/master-wallet.service";
 
 @singleton()
@@ -14,11 +14,11 @@ export class MasterSigningClientService {
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
-    private readonly masterWalletService: MasterWalletService
+    private readonly masterWalletService: MasterWalletService,
+    @InjectTypeRegistry() private readonly registry: Registry
   ) {
-    // @ts-ignore
     this.clientAsPromised = SigningStargateClient.connectWithSigner(this.config.RPC_NODE_ENDPOINT, this.masterWalletService, {
-      registry: new Registry([...defaultRegistryTypes, ...getAkashTypeRegistry()])
+      registry
     });
   }
 

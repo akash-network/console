@@ -15,17 +15,10 @@ export class TxService {
   constructor(@InjectPg() private readonly pg: ApiPgDatabase) {}
 
   async transaction(cb: () => Promise<void>) {
-    await this.pg.transaction(async tx => {
-      return await new Promise((resolve, reject) => {
-        this.storage.run(new Map(), async () => {
-          this.storage.getStore()?.set("PG_TX", tx);
-          await cb()
-            .then(resolve)
-            .catch(error => {
-              console.log("DEBUG transaction reject", error);
-              reject(error);
-            });
-        });
+    return await this.pg.transaction(async tx => {
+      return this.storage.run(new Map(), async () => {
+        this.storage.getStore()?.set("PG_TX", tx);
+        return await cb();
       });
     });
   }
@@ -41,7 +34,7 @@ export function WithTransaction() {
 
     descriptor.value = async function (...args: unknown[]) {
       return await container.resolve(TxService).transaction(async () => {
-        await originalMethod.apply(this, args);
+        return await originalMethod.apply(this, args);
       });
     };
 

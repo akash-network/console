@@ -21,6 +21,25 @@ export function getSelectedStorageWallet() {
   return wallets.find(w => w.selected) ?? wallets[0] ?? null;
 }
 
+export function getStorageManagedWallet() {
+  return getStorageWallets().find(wallet => wallet.isManaged);
+}
+
+export function updateStorageManagedWallet(wallet: Pick<LocalWalletDataType, "address" | "cert" | "certKey">) {
+  const prev = getStorageManagedWallet();
+  const next = {
+    ...prev,
+    ...wallet,
+    name: "Managed Wallet",
+    isManaged: true,
+    selected: true
+  };
+
+  updateStorageWallets([next]);
+
+  return next;
+}
+
 export function getStorageWallets() {
   const selectedNetworkId = localStorage.getItem("selectedNetworkId") || mainnetId;
   const wallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`) || "[]") as LocalWalletDataType[];
@@ -38,20 +57,6 @@ export function updateWallet(address: string, func: (w: LocalWalletDataType) => 
     const newWallets = wallets.map(w => (w.address === address ? (wallet as LocalWalletDataType) : w));
     updateStorageWallets(newWallets);
   }
-}
-
-export function selectLocalWallet(wallet: Omit<LocalWalletDataType, "selected">) {
-  const prev = getStorageWallets();
-  const existingWallet = prev.find(w => w.address === wallet.address);
-  const next = prev.map(w => ({ ...w, selected: false }));
-
-  if (existingWallet) {
-    existingWallet.selected = true;
-  } else {
-    next.push({ ...wallet, selected: true });
-  }
-
-  updateStorageWallets(next);
 }
 
 export function updateStorageWallets(wallets: LocalWalletDataType[]) {

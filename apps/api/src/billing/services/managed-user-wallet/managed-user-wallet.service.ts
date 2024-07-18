@@ -37,16 +37,17 @@ export class ManagedUserWalletService {
 
   async createAndAuthorizeTrialSpending({ addressIndex }: { addressIndex: number }) {
     const { address } = await this.createWallet({ addressIndex });
+    const limits = {
+      deployment: this.config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
+      fees: this.config.TRIAL_FEES_ALLOWANCE_AMOUNT
+    };
     await this.authorizeSpending({
       address,
-      limits: {
-        deployment: this.config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
-        fees: this.config.TRIAL_FEES_ALLOWANCE_AMOUNT
-      },
+      limits: limits,
       expiration: add(new Date(), { days: this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS })
     });
 
-    return { address };
+    return { address, limits };
   }
 
   async createWallet({ addressIndex }: { addressIndex: number }) {

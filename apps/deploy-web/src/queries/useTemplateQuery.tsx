@@ -77,9 +77,11 @@ export function useDeleteTemplate(id: string) {
 
   return useMutation(() => axios.delete(`/api/proxy/user/deleteTemplate/${id}`), {
     onSuccess: () => {
-      queryClient.setQueryData(QueryKeys.getUserTemplatesKey(user?.username), (oldData: ITemplate[] = []) => {
-        return oldData.filter(t => t.id !== id);
-      });
+      if (user.username) {
+        queryClient.setQueryData(QueryKeys.getUserTemplatesKey(user?.username), (oldData: ITemplate[] = []) => {
+          return oldData.filter(t => t.id !== id);
+        });
+      }
     }
   });
 }

@@ -1,17 +1,15 @@
-import { getAkashTypeRegistry } from "@akashnetwork/akashjs/build/stargate";
 import { stringToPath } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
-import { calculateFee, defaultRegistryTypes, GasPrice, SigningStargateClient } from "@cosmjs/stargate";
+import { calculateFee, GasPrice, SigningStargateClient } from "@cosmjs/stargate";
 import { DeliverTxResponse } from "@cosmjs/stargate/build/stargateclient";
 import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { UserOutput, UserWalletRepository } from "@src/billing/repositories";
-import { MasterSigningClientService, MasterWalletService } from "@src/billing/services";
+import { MasterWalletService } from "@src/billing/services";
 import { ForbiddenException } from "@src/core";
-
-const registry = new Registry([...defaultRegistryTypes, ...getAkashTypeRegistry()]);
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
 type SimpleSigningStargateClient = {
@@ -28,7 +26,7 @@ export class TxSignerService {
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly masterWalletService: MasterWalletService,
-    private readonly masterSigningClient: MasterSigningClientService
+    @InjectTypeRegistry() private readonly registry: Registry
   ) {}
 
   async signAndBroadcast(userId: UserOutput["userId"], messages: StringifiedEncodeObject[]) {
@@ -46,7 +44,7 @@ export class TxSignerService {
   private decodeMessages(messages: StringifiedEncodeObject[]): EncodeObject[] {
     return messages.map(message => {
       const value = new Uint8Array(Buffer.from(message.value, "base64"));
-      const decoded = registry.decode({ value, typeUrl: message.typeUrl });
+      const decoded = this.registry.decode({ value, typeUrl: message.typeUrl });
 
       return {
         typeUrl: message.typeUrl,
@@ -58,7 +56,7 @@ export class TxSignerService {
   private async getClientForAddressIndex(addressIndex: number): Promise<SimpleSigningStargateClient> {
     const wallet = await this.getWalletForAddressIndex(addressIndex);
     const client = await SigningStargateClient.connectWithSigner(this.config.RPC_NODE_ENDPOINT, wallet, {
-      registry
+      registry: this.registry
     });
     const walletAddress = (await wallet.getAccounts())[0].address;
     const { GAS_SAFETY_MULTIPLIER } = this.config;

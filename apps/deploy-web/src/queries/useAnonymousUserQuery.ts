@@ -1,7 +1,7 @@
-import { useMemo } from "react";
-import { useMutation } from "react-query";
+import { useState } from "react";
 import axios from "axios";
 
+import { useWhen } from "@src/hooks/useWhen";
 import { BASE_API_URL } from "@src/utils/constants";
 
 export interface ApiUserOutput {
@@ -22,9 +22,22 @@ export const anonymousUsersHttp = axios.create({
   baseURL: `${BASE_API_URL}/v1/anonymous-users`
 });
 
-const upsertApiUser = async (id?: string) => (await (id ? anonymousUsersHttp.get<ApiUserOutput>(id) : anonymousUsersHttp.post<ApiUserOutput>(""))).data;
+const createAnonymousUser = async () => (await anonymousUsersHttp.post<ApiUserOutput>("")).data;
+const getAnonymousUser = async (id: string) => (await anonymousUsersHttp.get<ApiUserOutput>(id)).data;
 
-export function useAnonymousUserQuery(id?: string) {
-  const { mutate, data, isLoading, error } = useMutation(["User", id], async () => await upsertApiUser(id));
-  return useMemo(() => ({ findOrCreate: mutate, data, isLoading, error }), [mutate, data, isLoading, error]);
+let userAsPromised: Promise<ApiUserOutput>;
+const findOrCreateAnonymousUser = async (id?: string) => {
+  userAsPromised = userAsPromised || (id ? getAnonymousUser(id) : createAnonymousUser());
+  return await userAsPromised;
+};
+
+export function useAnonymousUserQuery(id?: string, options?: { enabled?: boolean }) {
+  const [userState, setUserState] = useState<{ user?: ApiUserOutput; isLoading: boolean }>({ isLoading: !!options?.enabled });
+
+  useWhen(options?.enabled && !userState.user, async () => {
+    const fetched = await findOrCreateAnonymousUser(id);
+    setUserState({ user: fetched, isLoading: false });
+  });
+
+  return userState;
 }

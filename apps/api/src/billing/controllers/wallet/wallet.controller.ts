@@ -22,12 +22,7 @@ export class WalletController {
 
   @WithTransaction()
   async create({ userId }: CreateWalletInput): Promise<WalletOutput> {
-    try {
-      return await this.walletInitializer.initialize(userId);
-    } catch (error) {
-      console.log("DEBUG WalletController error", error);
-      throw error;
-    }
+    return await this.walletInitializer.initialize(userId);
   }
 
   async getWallets(query: GetWalletQuery): Promise<WalletOutput[]> {
@@ -44,9 +39,7 @@ export class WalletController {
     const { results, errors } = await PromisePool.withConcurrency(2)
       .for(wallets)
       .process(async wallet => {
-        const refilled = await this.walletManager.refill(wallet);
-        console.log("DEBUG refilled", refilled);
-        return refilled;
+        return await this.walletManager.refill(wallet);
       });
 
     if (errors) {

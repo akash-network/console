@@ -1,5 +1,4 @@
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
-import { OfflineDirectSigner } from "@cosmjs/proto-signing/build/signer";
+import { DirectSecp256k1HdWallet, OfflineDirectSigner } from "@cosmjs/proto-signing";
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { singleton } from "tsyringe";
 
@@ -19,9 +18,7 @@ export class MasterWalletService implements OfflineDirectSigner {
     return (await this.instanceAsPromised).getAccounts();
   }
 
-  // @ts-ignore
   async signDirect(signerAddress: string, signDoc: SignDoc) {
-    // @ts-ignore
     return (await this.instanceAsPromised).signDirect(signerAddress, signDoc);
   }
 

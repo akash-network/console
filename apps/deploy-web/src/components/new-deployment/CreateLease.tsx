@@ -20,7 +20,6 @@ import { useSnackbar } from "notistack";
 
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useWallet } from "@src/context/WalletProvider";
-import { useFiatWallet } from "@src/hooks/useFiatWallet";
 import { useBidList } from "@src/queries/useBidQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
@@ -61,9 +60,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const [selectedBids, setSelectedBids] = useState<{ [gseq: string]: BidDto }>({});
   const [filteredBids, setFilteredBids] = useState<Array<string>>([]);
   const [search, setSearch] = useState("");
-  const { address: ownWalletAddress, signAndBroadcastTx } = useWallet();
-  const { wallet: fiatWallet } = useFiatWallet();
-  const address = ownWalletAddress || fiatWallet?.address;
+  const { address, signAndBroadcastTx } = useWallet();
   const { localCert } = useCertificate();
   const router = useRouter();
   const [numberOfRequests, setNumberOfRequests] = useState(0);

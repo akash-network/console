@@ -10,9 +10,9 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { container } from "tsyringe";
 
+import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
 import { HttpLoggerService } from "@src/core/services/http-logger/http-logger.service";
 import { LoggerService } from "@src/core/services/logger/logger.service";
-import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
 import packageJson from "../package.json";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { apiRouter } from "./routers/apiRouter";
@@ -87,10 +87,10 @@ appHono.route("/internal", internalRouter);
 // TODO: remove condition once billing is in prod
 if (BILLING_ENABLED === "true") {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createWalletRouter, getWalletRouter, signTxRouter } = require("./billing");
+  const { createWalletRouter, getWalletRouter, signAndBroadcastTxRouter } = require("./billing");
   appHono.route("/", createWalletRouter);
   appHono.route("/", getWalletRouter);
-  appHono.route("/", signTxRouter);
+  appHono.route("/", signAndBroadcastTxRouter);
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { createAnonymousUserRouter, getAnonymousUserRouter } = require("./user");
   appHono.route("/", createAnonymousUserRouter);

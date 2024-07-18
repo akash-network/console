@@ -8,26 +8,20 @@ import { ApiUserOutput, useAnonymousUserQuery } from "@src/queries/useAnonymousU
 type UseApiUserResult = {
   user?: ApiUserOutput;
   isLoading: boolean;
-  error?: unknown;
 };
 
-export const useAnonymousUser = (): UseApiUserResult => {
+export const useStoredAnonymousUser = (): UseApiUserResult => {
   const { user: registeredUser, isLoading: isLoadingRegisteredUser } = useCustomUser();
-  // TODO: investigate persistence on react query level
   const [storedAnonymousUser, storeAnonymousUser] = useLocalStorage<ApiUserOutput | undefined>("user", undefined);
-  const { findOrCreate, data: anonymousUser, isLoading: isLoadingAnonymousUser, error } = useAnonymousUserQuery(storedAnonymousUser?.id);
+  const { user, isLoading } = useAnonymousUserQuery(storedAnonymousUser?.id, { enabled: !registeredUser && !isLoadingRegisteredUser });
 
-  useWhen(!registeredUser && !isLoadingRegisteredUser, () => {
-    findOrCreate();
-  });
-  useWhen(anonymousUser && !storedAnonymousUser, () => storeAnonymousUser(anonymousUser));
+  useWhen(user, () => storeAnonymousUser(user));
 
   return useMemo(
     () => ({
-      user: anonymousUser,
-      isLoading: isLoadingAnonymousUser,
-      error
+      user,
+      isLoading: isLoadingRegisteredUser || isLoading
     }),
-    [anonymousUser, isLoadingAnonymousUser, error]
+    [user, isLoadingRegisteredUser, isLoading]
   );
 };

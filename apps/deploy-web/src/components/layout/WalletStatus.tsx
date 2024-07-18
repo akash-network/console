@@ -85,7 +85,7 @@ export function WalletStatus() {
                 {walletBalances && (
                   <div className="ml-2 flex items-center whitespace-nowrap font-bold text-muted-foreground">
                     <Tooltip>
-                      <TooltipTrigger>
+                      <TooltipTrigger disabled={isManaged}>
                         <Badge className="h-5 text-xs font-bold" variant="secondary">
                           <FormattedNumber
                             value={walletBalance}
@@ -95,18 +95,20 @@ export function WalletStatus() {
                           />
                         </Badge>
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <div className="text-base">
-                          <div>
-                            <FormattedDecimal value={udenomToDenom(walletBalances.uakt, 2)} />
-                            <span className="ml-1 text-xs">AKT</span>
+                      {!isManaged && (
+                        <TooltipContent>
+                          <div className="text-base">
+                            <div>
+                              <FormattedDecimal value={udenomToDenom(walletBalances.uakt, 2)} />
+                              <span className="ml-1 text-xs">AKT</span>
+                            </div>
+                            <div>
+                              <FormattedDecimal value={udenomToDenom(walletBalances.usdc, 2)} />
+                              <span className="ml-1 text-xs">USDC</span>
+                            </div>
                           </div>
-                          <div>
-                            <FormattedDecimal value={udenomToDenom(walletBalances.usdc, 2)} />
-                            <span className="ml-1 text-xs">USDC</span>
-                          </div>
-                        </div>
-                      </TooltipContent>
+                        </TooltipContent>
+                      )}
                     </Tooltip>
                   </div>
                 )}

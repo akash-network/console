@@ -2,7 +2,6 @@ import { DepositDeploymentAuthorization } from "@akashnetwork/akash-api/v1beta3"
 import { MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 import { BasicAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
 import { MsgGrantAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
-import Long from "long";
 import { singleton } from "tsyringe";
 
 interface SpendingAuthorizationOptions {
@@ -39,7 +38,7 @@ export class RpcMessageService {
           ],
           expiration: expiration
             ? {
-                seconds: Long.fromInt(Math.floor(expiration.getTime() / 1_000)) as unknown as Long,
+                seconds: BigInt(Math.floor(expiration.getTime() / 1_000)),
                 nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
               }
             : undefined

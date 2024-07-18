@@ -7,7 +7,10 @@ import { ApiPgDatabase, InjectPg } from "@src/core/providers";
 import { TxService } from "@src/core/services";
 
 export type UserInput = Partial<UserWalletSchema["$inferInsert"]>;
-export type UserOutput = UserWalletSchema["$inferSelect"];
+export type DbUserOutput = UserWalletSchema["$inferSelect"];
+export type UserOutput = DbUserOutput & {
+  creditAmount: number;
+};
 
 export interface ListOptions {
   limit?: number;
@@ -27,14 +30,16 @@ export class UserWalletRepository {
   ) {}
 
   async create(input: Pick<UserInput, "userId" | "address">) {
-    return first(
-      await this.cursor
-        .insert(this.userWallet)
-        .values({
-          userId: input.userId,
-          address: input.address
-        })
-        .returning()
+    return this.toOutput(
+      first(
+        await this.cursor
+          .insert(this.userWallet)
+          .values({
+            userId: input.userId,
+            address: input.address
+          })
+          .returning()
+      )
     );
   }
 
@@ -43,8 +48,9 @@ export class UserWalletRepository {
   async updateById(id: UserOutput["id"], payload: Partial<UserInput>, options?: { returning: boolean }): Promise<void | UserOutput> {
     const cursor = this.cursor.update(this.userWallet).set(payload).where(eq(this.userWallet.id, id));
 
-    if (options?.returning === true) {
-      return first(await cursor.returning());
+    if (options?.returning) {
+      const items = await cursor.returning();
+      return this.toOutput(first(items));
     }
 
     await cursor;
@@ -52,15 +58,29 @@ export class UserWalletRepository {
     return undefined;
   }
 
-  async find(query?: Partial<UserOutput>) {
-    const fields = query && (Object.keys(query) as Array<keyof UserOutput>);
+  async find(query?: Partial<DbUserOutput>) {
+    const fields = query && (Object.keys(query) as Array<keyof DbUserOutput>);
     const where = fields.length ? and(...fields.map(field => eq(this.userWallet[field], query[field]))) : undefined;
-    return await this.cursor.query.userWalletSchema.findMany({
-      where
-    });
+
+    return this.toOutputList(
+      await this.cursor.query.userWalletSchema.findMany({
+        where
+      })
+    );
   }
 
   async findByUserId(userId: UserOutput["userId"]) {
     return await this.cursor.query.userWalletSchema.findFirst({ where: eq(this.userWallet.userId, userId) });
+  }
+
+  private toOutputList(dbOutput: UserWalletSchema["$inferSelect"][]): UserOutput[] {
+    return dbOutput.map(item => this.toOutput(item));
+  }
+
+  private toOutput(dbOutput: UserWalletSchema["$inferSelect"]): UserOutput {
+    return {
+      ...dbOutput,
+      creditAmount: parseFloat(dbOutput.deploymentAllowance) + parseFloat(dbOutput.feeAllowance)
+    };
   }
 }

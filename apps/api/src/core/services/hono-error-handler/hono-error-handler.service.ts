@@ -1,5 +1,6 @@
 import type { Context, Env } from "hono";
 import { singleton } from "tsyringe";
+import { ZodError } from "zod";
 
 import { ForbiddenException, ManagedException } from "@src/core/exceptions";
 import { NotFoundException } from "@src/core/exceptions/not-found.exception";
@@ -25,6 +26,10 @@ export class HonoErrorHandlerService {
       const { name } = error.constructor;
       const status = EXCEPTION_STATUSES[name];
       return c.json({ error: name, message: error.message, data: error.data }, { status });
+    }
+
+    if (error instanceof ZodError) {
+      return c.json({ error: "BadRequestError", data: error.errors }, { status: 400 });
     }
 
     return c.json({ error: "InternalServerError" }, { status: 500 });

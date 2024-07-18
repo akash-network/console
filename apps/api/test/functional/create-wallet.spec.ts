@@ -3,13 +3,14 @@ import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
-import { USER_WALLET_SCHEMA, UserWalletSchema } from "@src/billing/providers";
+import { BILLING_CONFIG, BillingConfig, USER_WALLET_SCHEMA, UserWalletSchema } from "@src/billing/providers";
 import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
 
 jest.setTimeout(10000);
 
 describe("wallets", () => {
   const schema = container.resolve<UserWalletSchema>(USER_WALLET_SCHEMA);
+  const config = container.resolve<BillingConfig>(BILLING_CONFIG);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsTable = db.query.userWalletSchema;
 
@@ -29,9 +30,11 @@ describe("wallets", () => {
 
       expect(res.status).toBe(200);
       expect(userWallet).toMatchObject({
+        id: expect.any(Number),
         userId,
         address: expect.any(String),
-        creditAmount: "0.00"
+        deploymentAllowance: `${config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT}.00`,
+        feeAllowance: `${config.TRIAL_FEES_ALLOWANCE_AMOUNT}.00`
       });
     });
   });

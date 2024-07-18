@@ -1,0 +1,1 @@
+ALTER TABLE "user_wallets" RENAME COLUMN "credit_amount" TO "deployment_allowance";

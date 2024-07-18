@@ -3,8 +3,8 @@ import React, { ReactNode } from "react";
 import { Button, ButtonProps } from "@akashnetwork/ui/components";
 import { Wallet } from "iconoir-react";
 
-import { useAnonymousUser } from "@src/hooks/useAnonymousUser";
-import { useCreateFiatWalletMutation } from "@src/queries/useCreateFiatWalletMutation";
+import { useStoredAnonymousUser } from "@src/hooks/useStoredAnonymousUser";
+import { useCreateManagedWalletMutation } from "@src/queries";
 import { cn } from "@src/utils/styleUtils";
 
 interface Props extends ButtonProps {
@@ -13,8 +13,8 @@ interface Props extends ButtonProps {
 }
 
 export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ className = "", ...rest }) => {
-  const { user } = useAnonymousUser();
-  const { mutate } = useCreateFiatWalletMutation(user?.id);
+  const { user } = useStoredAnonymousUser();
+  const { mutate } = useCreateManagedWalletMutation(user?.id);
 
   return (
     <Button variant="outline" onClick={() => mutate()} className={cn("border-primary", className)} {...rest}>
