@@ -24,7 +24,8 @@ const whitelist = [
   "https://cloudmos.grafana.net",
   "https://console.akash.network",
   "https://beta.cloudmos.io",
-  "https://staging-console.akash.network"
+  "https://staging-console.akash.network",
+  "https://akashconsole.vercel.app"
 ];
 
 app.use(
