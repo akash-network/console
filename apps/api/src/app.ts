@@ -87,9 +87,9 @@ appHono.route("/internal", internalRouter);
 // TODO: remove condition once billing is in prod
 if (BILLING_ENABLED === "true") {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createWalletRouter, getWalletRouter, signAndBroadcastTxRouter } = require("./billing");
+  const { createWalletRouter, getWalletListRouter, signAndBroadcastTxRouter } = require("./billing");
   appHono.route("/", createWalletRouter);
-  appHono.route("/", getWalletRouter);
+  appHono.route("/", getWalletListRouter);
   appHono.route("/", signAndBroadcastTxRouter);
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { createAnonymousUserRouter, getAnonymousUserRouter } = require("./user");

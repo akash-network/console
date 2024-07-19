@@ -16,10 +16,12 @@ describe("Tx Sign", () => {
       const userId = faker.string.uuid();
       const walletResponse = await app.request("/v1/wallets", {
         method: "POST",
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({
+          data: { userId }
+        }),
         headers: new Headers({ "Content-Type": "application/json" })
       });
-      const wallet = await walletResponse.json();
+      const { data: wallet } = await walletResponse.json();
       const { cert, publicKey } = certificateManager.generatePEM(wallet.address);
 
       const message = {
@@ -33,19 +35,21 @@ describe("Tx Sign", () => {
       const res = await app.request("/v1/tx", {
         method: "POST",
         body: JSON.stringify({
-          userId: userId,
-          messages: [
-            {
-              typeUrl: message.typeUrl,
-              value: Buffer.from(registry.encode(message)).toString("base64")
-            }
-          ]
+          data: {
+            userId: userId,
+            messages: [
+              {
+                typeUrl: message.typeUrl,
+                value: Buffer.from(registry.encode(message)).toString("base64")
+              }
+            ]
+          }
         }),
         headers: new Headers({ "Content-Type": "application/json" })
       });
 
       expect(res.status).toBe(200);
-      expect(await res.json()).toMatchObject({ code: 0, transactionHash: expect.any(String) });
+      expect(await res.json()).toMatchObject({ data: { code: 0, transactionHash: expect.any(String) } });
     });
   });
 });

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useWhen } from "@src/hooks/useWhen";
 import { userHttpService } from "@src/services/user-http/user-http.service";
 
-export interface ApiUserOutput {
+export interface UserOutput {
   id: string;
   userId?: string;
   username?: string;
@@ -18,7 +18,7 @@ export interface ApiUserOutput {
 }
 
 export function useAnonymousUserQuery(id?: string, options?: { enabled?: boolean }) {
-  const [userState, setUserState] = useState<{ user?: ApiUserOutput; isLoading: boolean }>({ isLoading: !!options?.enabled });
+  const [userState, setUserState] = useState<{ user?: UserOutput; isLoading: boolean }>({ isLoading: !!options?.enabled });
 
   useWhen(options?.enabled && !userState.user, async () => {
     const fetched = await userHttpService.getOrCreateAnonymousUser(id);

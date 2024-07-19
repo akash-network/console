@@ -3,11 +3,11 @@ import { container } from "tsyringe";
 import { z } from "zod";
 
 import { UserController } from "@src/user/controllers/user/user.controller";
-import { anonymousUserOutputSchema } from "@src/user/routes/schemas/user.schema";
+import { AnonymousUserResponseOutputSchema } from "@src/user/routes/schemas/user.schema";
 
-export const getUserParamsSchema = z.object({ id: z.string() });
+export const GetUserParamsSchema = z.object({ id: z.string() });
 
-export type GetUserParams = z.infer<typeof getUserParamsSchema>;
+export type GetUserParams = z.infer<typeof GetUserParamsSchema>;
 
 const route = createRoute({
   method: "get",
@@ -15,7 +15,7 @@ const route = createRoute({
   summary: "Retrieves an anonymous user by id",
   tags: ["Users"],
   request: {
-    params: getUserParamsSchema
+    params: GetUserParamsSchema
   },
   responses: {
     200: {
@@ -23,7 +23,7 @@ const route = createRoute({
       body: {
         content: {
           "application/json": {
-            schema: anonymousUserOutputSchema
+            schema: AnonymousUserResponseOutputSchema
           }
         }
       }

@@ -3,14 +3,16 @@ import { container } from "tsyringe";
 import { z } from "zod";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
-import { WalletOutputSchema } from "@src/billing/http-schemas/wallet.schema";
+import { WalletResponseOutputSchema } from "@src/billing/http-schemas/wallet.schema";
 import { OpenApiHonoHandled } from "@src/core/services/open-api-hono-handled/open-api-hono-handled";
 
-export const CreateWalletInputSchema = z.object({
-  userId: z.string().openapi({})
+export const CreateWalletRequestInputSchema = z.object({
+  data: z.object({
+    userId: z.string().openapi({})
+  })
 });
 
-export type CreateWalletInput = z.infer<typeof CreateWalletInputSchema>;
+export type CreateWalletRequestInput = z.infer<typeof CreateWalletRequestInputSchema>;
 
 const route = createRoute({
   method: "post",
@@ -21,7 +23,7 @@ const route = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: CreateWalletInputSchema
+          schema: CreateWalletRequestInputSchema
         }
       }
     }
@@ -31,7 +33,7 @@ const route = createRoute({
       description: "Returns a created wallet",
       content: {
         "application/json": {
-          schema: WalletOutputSchema
+          schema: WalletResponseOutputSchema
         }
       }
     }

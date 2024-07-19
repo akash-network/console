@@ -23,12 +23,20 @@ describe("wallets", () => {
       const userId = faker.string.uuid();
       const res = await app.request("/v1/wallets", {
         method: "POST",
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ data: { userId } }),
         headers: new Headers({ "Content-Type": "application/json" })
       });
       const userWallet = await userWalletsTable.findFirst({ where: eq(schema.userId, userId) });
 
       expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        data: {
+          id: expect.any(Number),
+          userId,
+          creditAmount: expect.any(Number),
+          address: expect.any(String)
+        }
+      });
       expect(userWallet).toMatchObject({
         id: expect.any(Number),
         userId,

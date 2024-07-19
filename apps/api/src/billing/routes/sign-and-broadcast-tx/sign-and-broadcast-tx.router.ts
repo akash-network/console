@@ -5,22 +5,30 @@ import { z } from "zod";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { OpenApiHonoHandled } from "@src/core/services/open-api-hono-handled/open-api-hono-handled";
 
-export const SignTxInputSchema = z.object({
-  userId: z.string(),
-  messages: z
-    .array(
-      z.object({
-        typeUrl: z.string(),
-        value: z.string()
-      })
-    )
-    .min(1)
-    .openapi({})
+export const SignTxRequestInputSchema = z.object({
+  data: z.object({
+    userId: z.string(),
+    messages: z
+      .array(
+        z.object({
+          typeUrl: z.string(),
+          value: z.string()
+        })
+      )
+      .min(1)
+      .openapi({})
+  })
 });
 
-export const SignTxOutputSchema = z.any();
-export type SignTxInput = z.infer<typeof SignTxInputSchema>;
-export type SignTxOutput = z.infer<typeof SignTxOutputSchema>;
+export const SignTxResponseOutputSchema = z.object({
+  data: z.object({
+    code: z.number(),
+    transactionHash: z.string(),
+    rawLog: z.string()
+  })
+});
+export type SignTxRequestInput = z.infer<typeof SignTxRequestInputSchema>;
+export type SignTxResponseOutput = z.infer<typeof SignTxResponseOutputSchema>;
 
 const route = createRoute({
   method: "post",
@@ -31,7 +39,7 @@ const route = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: SignTxInputSchema
+          schema: SignTxRequestInputSchema
         }
       }
     }
@@ -41,7 +49,7 @@ const route = createRoute({
       description: "Returns a signed transaction",
       content: {
         "application/json": {
-          schema: SignTxOutputSchema
+          schema: SignTxResponseOutputSchema
         }
       }
     }

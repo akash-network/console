@@ -1,7 +1,11 @@
 import { z } from "zod";
 
-export const anonymousUserOutputSchema = z.object({
-  id: z.string().openapi({})
+export const AnonymousUserResponseOutputSchema = z.object({
+  data: z
+    .object({
+      id: z.string().openapi({})
+    })
+    .openapi({})
 });
 
-export type AnonymousUserOutput = z.infer<typeof anonymousUserOutputSchema>;
+export type AnonymousUserResponseOutput = z.infer<typeof AnonymousUserResponseOutputSchema>;

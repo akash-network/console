@@ -2,11 +2,11 @@ import React from "react";
 
 import { LoadingBlocker } from "@src/components/layout/LoadingBlocker/LoadingBlocker";
 import { useStoredAnonymousUser } from "@src/hooks/useStoredAnonymousUser";
-import { ApiUserOutput } from "@src/queries/useAnonymousUserQuery";
+import { UserOutput } from "@src/queries/useAnonymousUserQuery";
 import type { FCWithChildren } from "@src/types/component";
 
 interface IAnonymousUserContext {
-  user?: ApiUserOutput;
+  user?: UserOutput;
 }
 
 const AnonymousUserContext = React.createContext<IAnonymousUserContext>({});

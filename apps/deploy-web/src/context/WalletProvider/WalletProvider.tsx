@@ -19,6 +19,7 @@ import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { getSelectedNetwork, useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { useWhen } from "@src/hooks/useWhen";
+import { txHttpService, TxOutput } from "@src/services/tx-http/tx-http.service";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { STATS_APP_URL, uAktDenom } from "@src/utils/constants";
 import { customRegistry } from "@src/utils/customRegistry";
@@ -187,18 +188,12 @@ export const WalletProvider = ({ children }) => {
         autoHideDuration: null
       });
     };
-    let txResult: DeliverTxResponse;
+    let txResult: TxOutput;
 
     try {
       if (user && managedWallet) {
-        const messages = msgs.map(m => ({ ...m, value: Buffer.from(customRegistry.encode(m)).toString("base64") }));
-
         enqueueTxSnackbar();
-        const { data } = await axios.post("http://localhost:3080/v1/tx", {
-          userId: user.id,
-          messages: messages
-        });
-        txResult = data;
+        txResult = await txHttpService.signAndBroadcastTx({ userId: user.id, messages: msgs });
       } else {
         const estimatedFees = await userWallet.estimateFee(msgs);
         const txRaw = await userWallet.sign(msgs, {

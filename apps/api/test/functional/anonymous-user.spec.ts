@@ -3,19 +3,19 @@ import { container } from "tsyringe";
 import { app } from "@src/app";
 import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
 import { USER_SCHEMA, UserSchema } from "@src/user/providers";
-import { AnonymousUserOutput } from "@src/user/routes/schemas/user.schema";
+import { AnonymousUserResponseOutput } from "@src/user/routes/schemas/user.schema";
 
 describe("Users", () => {
   const schema = container.resolve<UserSchema>(USER_SCHEMA);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  let user: AnonymousUserOutput;
+  let user: AnonymousUserResponseOutput["data"];
 
   beforeEach(async () => {
     const userResponse = await app.request("/v1/anonymous-users", {
       method: "POST",
       headers: new Headers({ "Content-Type": "application/json" })
     });
-    user = await userResponse.json();
+    user = (await userResponse.json()).data;
   });
 
   afterEach(async () => {
@@ -36,7 +36,7 @@ describe("Users", () => {
       });
       const retrievedUser = await getUserResponse.json();
 
-      expect(retrievedUser).toMatchObject(user);
+      expect(retrievedUser).toMatchObject({ data: user });
     });
   });
 });

@@ -3,10 +3,10 @@ import { PromisePool } from "@supercharge/promise-pool";
 import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
-import type { WalletOutput } from "@src/billing/http-schemas/wallet.schema";
+import type { WalletListOutputResponse, WalletOutputResponse } from "@src/billing/http-schemas/wallet.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
-import type { CreateWalletInput, SignTxInput, SignTxOutput } from "@src/billing/routes";
-import { GetWalletQuery } from "@src/billing/routes/get-wallet/get-wallet.router";
+import type { CreateWalletRequestInput, SignTxRequestInput, SignTxResponseOutput } from "@src/billing/routes";
+import { GetWalletQuery } from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
 import { ManagedUserWalletService, WalletInitializerService } from "@src/billing/services";
 import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
 import { WithTransaction } from "@src/core/services";
@@ -21,17 +21,23 @@ export class WalletController {
   ) {}
 
   @WithTransaction()
-  async create({ userId }: CreateWalletInput): Promise<WalletOutput> {
-    return await this.walletInitializer.initialize(userId);
+  async create({ data: { userId } }: CreateWalletRequestInput): Promise<WalletOutputResponse> {
+    return {
+      data: await this.walletInitializer.initialize(userId)
+    };
   }
 
-  async getWallets(query: GetWalletQuery): Promise<WalletOutput[]> {
+  async getWallets(query: GetWalletQuery): Promise<WalletListOutputResponse> {
     const wallets = await this.userWalletRepository.find(query);
-    return wallets.map(wallet => pick(wallet, ["id", "userId", "address", "creditAmount"]));
+    return {
+      data: wallets.map(wallet => pick(wallet, ["id", "userId", "address", "creditAmount"]))
+    };
   }
 
-  async signTx({ userId, messages }: SignTxInput): Promise<SignTxOutput> {
-    return await this.signerService.signAndBroadcast(userId, messages as EncodeObject[]);
+  async signTx({ data: { userId, messages } }: SignTxRequestInput): Promise<SignTxResponseOutput> {
+    return {
+      data: await this.signerService.signAndBroadcast(userId, messages as EncodeObject[])
+    };
   }
 
   async refillAll() {

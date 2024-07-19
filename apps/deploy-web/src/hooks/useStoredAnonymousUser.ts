@@ -3,16 +3,16 @@ import { useLocalStorage } from "usehooks-ts";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useWhen } from "@src/hooks/useWhen";
-import { ApiUserOutput, useAnonymousUserQuery } from "@src/queries/useAnonymousUserQuery";
+import { useAnonymousUserQuery, UserOutput } from "@src/queries/useAnonymousUserQuery";
 
 type UseApiUserResult = {
-  user?: ApiUserOutput;
+  user?: UserOutput;
   isLoading: boolean;
 };
 
 export const useStoredAnonymousUser = (): UseApiUserResult => {
   const { user: registeredUser, isLoading: isLoadingRegisteredUser } = useCustomUser();
-  const [storedAnonymousUser, storeAnonymousUser] = useLocalStorage<ApiUserOutput | undefined>("user", undefined);
+  const [storedAnonymousUser, storeAnonymousUser] = useLocalStorage<UserOutput | undefined>("user", undefined);
   const { user, isLoading } = useAnonymousUserQuery(storedAnonymousUser?.id, { enabled: !registeredUser && !isLoadingRegisteredUser });
 
   useWhen(user, () => storeAnonymousUser(user));
