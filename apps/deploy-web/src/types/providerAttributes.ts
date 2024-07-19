@@ -1,39 +1,5 @@
 import { z } from "zod";
 
-// export type ProviderAttributesFormValues = {
-//   "host-uri": string;
-//   host: string;
-//   email: string;
-//   organization: string;
-//   website: string;
-//   tier: string;
-//   "status-page": string;
-//   "location-region": string;
-//   country: string;
-//   city: string;
-//   timezone: string;
-//   "location-type": string;
-//   "hosting-provider": string;
-//   "hardware-cpu": string;
-//   "hardware-cpu-arch": string;
-//   "hardware-gpu": string;
-//   "hardware-gpu-model": ProviderAttributeSchemaDetailValue[];
-//   "hardware-disk": ProviderAttributeSchemaDetailValue[];
-//   "hardware-memory": string;
-//   "network-provider": string;
-//   "network-speed-up": number;
-//   "network-speed-down": number;
-//   "feat-persistent-storage": boolean;
-//   "feat-persistent-storage-type": ProviderAttributeSchemaDetailValue[];
-//   "workload-support-chia": boolean;
-//   "workload-support-chia-capabilities": ProviderAttributeSchemaDetailValue[];
-//   "feat-endpoint-ip": boolean;
-//   "feat-endpoint-custom-domain": boolean;
-
-//   // Unknown attributes
-//   "unknown-attributes": { id: string; key: string; value: string }[];
-// };
-
 export const providerAttributeSchemaDetailValueSchema = z.object({
   key: z.string(),
   description: z.string(),
@@ -121,6 +87,7 @@ export interface ProviderAttributeSchemaDetailValue {
   description: string;
   value?: any;
 }
+
 export interface ProviderRegionValue extends ProviderAttributeSchemaDetailValue {
   providers: string[];
 }
