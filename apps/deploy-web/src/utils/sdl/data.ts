@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 
-import { Service } from "@src/types";
+import { ProviderRegionValueType, ServiceType } from "@src/types";
 
 export const protoTypes = [
   { id: 1, name: "http" },
@@ -17,7 +17,7 @@ export const defaultHttpOptions = {
   nextTimeout: 60000
 };
 
-export const defaultService: Service = {
+export const defaultService: ServiceType = {
   id: nanoid(),
   title: "service-1",
   image: "",
@@ -92,12 +92,12 @@ export const SSH_EXPOSE = {
   to: []
 };
 
-export const defaultSshVMService: Service = {
+export const defaultSshVMService: ServiceType = {
   ...defaultService,
   expose: []
 };
 
-export const defaultRentGpuService: Service = {
+export const defaultRentGpuService: ServiceType = {
   id: nanoid(),
   title: "service-1",
   image: "",
@@ -156,7 +156,7 @@ export const defaultRentGpuService: Service = {
   count: 1
 };
 
-export const defaultAnyRegion = {
+export const defaultAnyRegion: ProviderRegionValueType = {
   key: "any",
   value: "any",
   description: "Any region"

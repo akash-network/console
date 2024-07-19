@@ -15,7 +15,7 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import sdlStore from "@src/store/sdlStore";
-import { ApiTemplate, ProfileGpuModel, RentGpusFormValues, Service } from "@src/types";
+import { ApiTemplate, ProfileGpuModelType, RentGpusFormValuesType, ServiceType } from "@src/types";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
@@ -52,7 +52,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [rentGpuSdl, setRentGpuSdl] = useAtom(sdlStore.rentGpuSdl);
   const { data: gpuModels } = useGpuModels();
-  const { handleSubmit, control, watch, setValue, trigger } = useForm<RentGpusFormValues>({
+  const { handleSubmit, control, watch, setValue, trigger } = useForm<RentGpusFormValuesType>({
     defaultValues: {
       services: [{ ...defaultRentGpuService }],
       region: { ...defaultAnyRegion }
@@ -60,7 +60,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
   });
   const { services: _services } = watch();
   const searchParams = useSearchParams();
-  const currentService: Service = (_services && _services[0]) || ({} as any);
+  const currentService: ServiceType = (_services && _services[0]) || ({} as any);
   const { settings } = useSettings();
   const { address, signAndBroadcastTx } = useWallet();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
@@ -79,7 +79,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
     }
 
     const subscription = watch(({ services, region }) => {
-      setRentGpuSdl({ services: services as Service[], region: region as ProviderAttributeSchemaDetailValue });
+      setRentGpuSdl({ services: services as ServiceType[], region: region as ProviderAttributeSchemaDetailValue });
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -95,7 +95,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
         const vramQuery = searchParams?.get("vram");
         const interfaceQuery = searchParams?.get("interface");
 
-        const model: ProfileGpuModel = {
+        const model: ProfileGpuModelType = {
           vendor: vendorQuery,
           name: gpuModel.name,
           memory: gpuModel.memory.find(x => x === vramQuery) || "",
@@ -163,7 +163,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
       };
     });
 
-    setValue("services", result as Service[]);
+    setValue("services", result as ServiceType[]);
     setValue("services.0.profile.gpuModels", _gpuModels);
     trigger();
   };
@@ -178,7 +178,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
     await handleCreateClick(deposit, depositorAddress);
   };
 
-  const onSubmit = async (data: RentGpusFormValues) => {
+  const onSubmit = async (data: RentGpusFormValuesType) => {
     setRentGpuSdl(data);
     setIsCheckingPrerequisites(true);
   };

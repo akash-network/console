@@ -8,13 +8,13 @@ import { useTheme } from "next-themes";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
-import { SdlBuilderFormValues, Service } from "@src/types";
+import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { Timer } from "@src/utils/timer";
 
 type Props = {
-  setValue: UseFormSetValue<SdlBuilderFormValues>;
+  setValue: UseFormSetValue<SdlBuilderFormValuesType>;
   onClose: () => void;
   children?: ReactNode;
 };
@@ -68,7 +68,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
 
     if (!result) return;
 
-    setValue("services", result as Service[]);
+    setValue("services", result as ServiceType[]);
 
     enqueueSnackbar(<Snackbar title="Import success!" iconVariant="success" />, {
       variant: "success",

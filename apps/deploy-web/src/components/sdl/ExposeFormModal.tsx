@@ -5,8 +5,11 @@ import {
   Button,
   Checkbox,
   CustomTooltip,
+  FormField,
+  FormInput,
   FormItem,
-  InputWithIcon,
+  FormLabel,
+  FormMessage,
   Label,
   Popup,
   Select,
@@ -19,8 +22,7 @@ import {
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
 
-import { Expose, SdlBuilderFormValues, Service } from "@src/types";
-import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
+import { ExposeType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { protoTypes } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
 import { AcceptFormControl, AcceptRefType } from "./AcceptFormControl";
@@ -31,10 +33,10 @@ import { ToFormControl, ToRefType } from "./ToFormControl";
 type Props = {
   serviceIndex: number;
   onClose: () => void;
-  control: Control<SdlBuilderFormValues, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
   children?: ReactNode;
-  services: Service[];
-  expose: Expose[];
+  services: ServiceType[];
+  expose: ExposeType[];
 };
 
 export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, onClose, expose: _expose, services }) => {
@@ -133,12 +135,11 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
             <div className="flex-grow">
               <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-4">
                 <div>
-                  <Controller
+                  <FormField
                     control={control}
                     name={`services.${serviceIndex}.expose.${expIndex}.port`}
-                    rules={{ pattern: { value: /^[1-9]d*$/, message: "Port numbers don't allow decimals." } }}
                     render={({ field, fieldState }) => (
-                      <InputWithIcon
+                      <FormInput
                         type="number"
                         label={
                           <div className="inline-flex items-center">
@@ -152,19 +153,18 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                         max={65535}
                         step={1}
                         value={field.value}
-                        error={fieldState.error?.message}
+                        error={!!fieldState.error}
                         onChange={event => field.onChange(parseInt(event.target.value))}
                       />
                     )}
                   />
                 </div>
                 <div>
-                  <Controller
+                  <FormField
                     control={control}
                     name={`services.${serviceIndex}.expose.${expIndex}.as`}
-                    rules={{ pattern: { value: /^[1-9]d*$/, message: "Port numbers don't allow decimals." } }}
                     render={({ field, fieldState }) => (
-                      <InputWithIcon
+                      <FormInput
                         type="number"
                         label={
                           <div className="inline-flex items-center">
@@ -176,19 +176,19 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                         }
                         color="secondary"
                         value={field.value}
-                        error={fieldState.error?.message}
+                        error={!!fieldState.error}
                         onChange={event => field.onChange(parseInt(event.target.value))}
                       />
                     )}
                   />
                 </div>
                 <div>
-                  <Controller
+                  <FormField
                     control={control}
                     name={`services.${serviceIndex}.expose.${expIndex}.proto`}
                     render={({ field }) => (
                       <FormItem>
-                        <Label>Protocol</Label>
+                        <FormLabel>Protocol</FormLabel>
                         <Select value={field.value || ""} onValueChange={field.onChange}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select protocol" />
@@ -205,6 +205,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                             </SelectGroup>
                           </SelectContent>
                         </Select>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -252,29 +253,11 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
               </div>
 
               <div className="mb-4">
-                <Controller
+                <FormField
                   control={control}
                   name={`services.${serviceIndex}.expose.${expIndex}.ipName`}
-                  rules={{
-                    validate: value => {
-                      const _val = value || "";
-                      const hasValidChars = endpointNameValidationRegex.test(_val);
-                      const hasValidStartingChar = /^[a-z]/.test(_val);
-                      const hasValidEndingChar = !_val.endsWith("-");
-
-                      if (!hasValidChars) {
-                        return "Invalid ip name. It must only be lower case letters, numbers and dashes.";
-                      } else if (!hasValidStartingChar) {
-                        return "Invalid starting character. It can only start with a lowercase letter.";
-                      } else if (!hasValidEndingChar) {
-                        return "Invalid ending character. It can only end with a lowercase letter or number";
-                      }
-
-                      return true;
-                    }
-                  }}
                   render={({ field, fieldState }) => (
-                    <InputWithIcon
+                    <FormInput
                       type="text"
                       label={
                         <div className="inline-flex items-center">
@@ -300,7 +283,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                       }
                       color="secondary"
                       value={field.value}
-                      error={fieldState.error?.message}
+                      error={!!fieldState.error}
                       onChange={event => field.onChange(event.target.value)}
                     />
                   )}

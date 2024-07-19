@@ -1,10 +1,10 @@
 "use client";
 import { ReactNode } from "react";
 import { Control, Controller } from "react-hook-form";
-import { Checkbox, CustomTooltip, FormItem, InputWithIcon, Label, MultipleSelector } from "@akashnetwork/ui/components";
+import { Checkbox, CustomTooltip, FormField, FormInput, FormItem, Label, MultipleSelector } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
-import { SdlBuilderFormValues, Service } from "@src/types";
+import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { nextCases } from "@src/utils/sdl/data";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
@@ -12,8 +12,8 @@ import { FormPaper } from "./FormPaper";
 type Props = {
   serviceIndex: number;
   exposeIndex: number;
-  services: Service[];
-  control: Control<SdlBuilderFormValues, any>;
+  services: ServiceType[];
+  control: Control<SdlBuilderFormValuesType, any>;
   children?: ReactNode;
 };
 
@@ -65,11 +65,11 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
 
       {currentService.expose[exposeIndex]?.hasCustomHttpOptions && (
         <>
-          <Controller
+          <FormField
             control={control}
             name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.maxBodySize`}
             render={({ field, fieldState }) => (
-              <InputWithIcon
+              <FormInput
                 type="number"
                 label={
                   <div className="inline-flex items-center">
@@ -81,18 +81,18 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                 }
                 className="mb-2 w-full"
                 value={field.value}
-                error={fieldState.error?.message}
+                error={!!fieldState.error}
                 onChange={event => field.onChange(parseInt(event.target.value))}
                 min={0}
               />
             )}
           />
 
-          <Controller
+          <FormField
             control={control}
             name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.readTimeout`}
             render={({ field, fieldState }) => (
-              <InputWithIcon
+              <FormInput
                 type="number"
                 label={
                   <div className="inline-flex items-center">
@@ -104,18 +104,18 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                 }
                 className="mb-2 w-full"
                 value={field.value}
-                error={fieldState.error?.message}
+                error={!!fieldState.error}
                 onChange={event => field.onChange(parseInt(event.target.value))}
                 min={0}
               />
             )}
           />
 
-          <Controller
+          <FormField
             control={control}
             name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.sendTimeout`}
             render={({ field, fieldState }) => (
-              <InputWithIcon
+              <FormInput
                 type="number"
                 label={
                   <div className="inline-flex items-center">
@@ -127,18 +127,18 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                 }
                 className="mb-2 w-full"
                 value={field.value}
-                error={fieldState.error?.message}
+                error={!!fieldState.error}
                 onChange={event => field.onChange(parseInt(event.target.value))}
                 min={0}
               />
             )}
           />
 
-          <Controller
+          <FormField
             control={control}
             name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.nextTries`}
             render={({ field, fieldState }) => (
-              <InputWithIcon
+              <FormInput
                 type="number"
                 label={
                   <div className="inline-flex items-center">
@@ -150,18 +150,18 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                 }
                 className="mb-2 w-full"
                 value={field.value}
-                error={fieldState.error?.message}
+                error={!!fieldState.error}
                 onChange={event => field.onChange(parseInt(event.target.value))}
                 min={0}
               />
             )}
           />
 
-          <Controller
+          <FormField
             control={control}
             name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.nextTimeout`}
             render={({ field, fieldState }) => (
-              <InputWithIcon
+              <FormInput
                 type="number"
                 label={
                   <div className="inline-flex items-center">
@@ -173,14 +173,14 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                 }
                 className="mb-2 w-full"
                 value={field.value}
-                error={fieldState.error?.message}
+                error={!!fieldState.error}
                 onChange={event => field.onChange(parseInt(event.target.value))}
                 min={0}
               />
             )}
           />
 
-          <Controller
+          <FormField
             control={control}
             name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.nextCases`}
             defaultValue={[]}

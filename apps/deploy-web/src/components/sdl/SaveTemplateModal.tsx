@@ -9,12 +9,12 @@ import { MustConnect } from "@src/components/shared/MustConnect";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
-import { EnvironmentVariable, ITemplate, Service } from "@src/types";
+import { EnvironmentVariableType, ITemplate, ServiceType } from "@src/types";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { z } from "zod";
 
 type Props = {
-  services: Service[];
+  services: ServiceType[];
   templateMetadata: ITemplate;
   getTemplateData: () => Partial<ITemplate>;
   setTemplateMetadata: Dispatch<SetStateAction<ITemplate>>;
@@ -31,7 +31,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, getTemplateData, templateMetadata, setTemplateMetadata, services }) => {
-  const [publicEnvs, setPublicEnvs] = useState<EnvironmentVariable[]>([]);
+  const [publicEnvs, setPublicEnvs] = useState<EnvironmentVariableType[]>([]);
   const { enqueueSnackbar } = useSnackbar();
   const formRef = useRef<HTMLFormElement>(null);
   const { user, isLoading: isLoadingUser } = useCustomUser();
@@ -47,7 +47,7 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
 
   useEffect(() => {
     const envs = services.some(s => s.env?.some(e => !e.isSecret))
-      ? services.reduce((cur: EnvironmentVariable[], prev) => cur.concat([...(prev.env?.filter(e => !e.isSecret) as EnvironmentVariable[])]), [])
+      ? services.reduce((cur: EnvironmentVariableType[], prev) => cur.concat([...(prev.env?.filter(e => !e.isSecret) as EnvironmentVariableType[])]), [])
       : [];
     setPublicEnvs(envs);
 

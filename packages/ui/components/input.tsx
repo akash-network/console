@@ -44,7 +44,7 @@ FormInput.displayName = "FormInput";
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   startIcon?: React.ReactNode;
   endIcon?: React.ReactNode;
-  error?: string;
+  error?: boolean;
   inputClassName?: string;
   description?: string;
 }

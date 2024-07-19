@@ -5,15 +5,15 @@ import { Button, CustomTooltip, Select, SelectContent, SelectGroup, SelectItem, 
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
 
-import { SdlBuilderFormValues, Service } from "@src/types";
+import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;
   exposeIndex: number;
-  services: Service[];
-  control: Control<SdlBuilderFormValues, any>;
+  services: ServiceType[];
+  control: Control<SdlBuilderFormValuesType, any>;
   children?: ReactNode;
 };
 

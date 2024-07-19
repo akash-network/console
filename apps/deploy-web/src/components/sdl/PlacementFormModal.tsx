@@ -1,12 +1,12 @@
 "use client";
 import { ReactNode, useRef } from "react";
-import { Control, Controller } from "react-hook-form";
+import { Control } from "react-hook-form";
 import { FormattedNumber } from "react-intl";
-import { CustomTooltip, FormItem, InputWithIcon, Popup } from "@akashnetwork/ui/components";
+import { CustomTooltip, FormField, FormInput, Popup } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
 import { useSdlDenoms } from "@src/hooks/useDenom";
-import { Placement, SdlBuilderFormValues, Service } from "@src/types";
+import { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { uAktDenom } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, toReadableDenom, uaktToAKT } from "@src/utils/priceUtils";
@@ -18,11 +18,11 @@ import { SignedByFormControl, SignedByRefType } from "./SignedByFormControl";
 
 type Props = {
   serviceIndex: number;
-  services: Service[];
+  services: ServiceType[];
   onClose: () => void;
-  control: Control<SdlBuilderFormValues, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
   children?: ReactNode;
-  placement: Placement;
+  placement: PlacementType;
 };
 
 export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, services, serviceIndex, onClose, placement: _placement }) => {
@@ -85,29 +85,11 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
         <div className="flex-grow">
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <Controller
+              <FormField
                 control={control}
                 name={`services.${serviceIndex}.placement.name`}
-                rules={{
-                  required: "Placement name is required",
-                  validate: value => {
-                    const hasValidChars = /^[a-z0-9-]+$/.test(value);
-                    const hasValidStartingChar = /^[a-z]/.test(value);
-                    const hasValidEndingChar = !value.endsWith("-");
-
-                    if (!hasValidChars) {
-                      return "Invalid name. It must only be lower case letters, numbers and dashes.";
-                    } else if (!hasValidStartingChar) {
-                      return "Invalid starting character. It can only start with a lowercase letter.";
-                    } else if (!hasValidEndingChar) {
-                      return "Invalid ending character. It can only end with a lowercase letter or number";
-                    }
-
-                    return true;
-                  }
-                }}
                 render={({ field, fieldState }) => (
-                  <InputWithIcon
+                  <FormInput
                     type="text"
                     label={
                       <div className="flex items-center">
@@ -118,7 +100,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                       </div>
                     }
                     value={field.value}
-                    error={fieldState.error?.message}
+                    error={!!fieldState.error}
                     onChange={event => field.onChange(event.target.value)}
                   />
                 )}
@@ -126,57 +108,54 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
             </div>
 
             <div>
-              <FormItem>
-                <Controller
-                  control={control}
-                  name={`services.${serviceIndex}.placement.pricing.amount`}
-                  rules={{ required: "Pricing is required" }}
-                  render={({ field, fieldState }) => (
-                    <InputWithIcon
-                      type="number"
-                      label={
-                        <div className="flex items-center">
-                          Pricing, ${toReadableDenom(currentService.placement.pricing.denom)}
-                          <CustomTooltip
-                            title={
-                              <>
-                                The maximum amount of {selectedDenom?.label} you're willing to pay per block (~6 seconds).
-                                <br />
-                                <br />
-                                Akash will only show providers costing <strong>less</strong> than{" "}
-                                <strong>
-                                  {selectedDenom?.value === uAktDenom ? (
-                                    <>
-                                      ~<PriceValue denom={uAktDenom} value={getAvgCostPerMonth(uaktToAKT(_placement.pricing.amount))} />
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span>
-                                        <FormattedNumber value={getAvgCostPerMonth(udenomToDenom(_placement.pricing.amount))} maximumFractionDigits={2} />
-                                      </span>
-                                      <USDLabel />
-                                    </>
-                                  )}
-                                </strong>
-                                &nbsp;per month
-                              </>
-                            }
-                          >
-                            <InfoCircle className="ml-2 text-sm text-muted-foreground" />
-                          </CustomTooltip>
-                        </div>
-                      }
-                      value={field.value}
-                      error={fieldState.error?.message}
-                      // description={fieldState.error?.message}
-                      min={1}
-                      step={1}
-                      max={10000000}
-                      onChange={event => field.onChange(parseFloat(event.target.value))}
-                    />
-                  )}
-                />
-              </FormItem>
+              <FormField
+                control={control}
+                name={`services.${serviceIndex}.placement.pricing.amount`}
+                rules={{ required: "Pricing is required" }}
+                render={({ field, fieldState }) => (
+                  <FormInput
+                    type="number"
+                    label={
+                      <div className="flex items-center">
+                        Pricing, ${toReadableDenom(currentService.placement.pricing.denom)}
+                        <CustomTooltip
+                          title={
+                            <>
+                              The maximum amount of {selectedDenom?.label} you're willing to pay per block (~6 seconds).
+                              <br />
+                              <br />
+                              Akash will only show providers costing <strong>less</strong> than{" "}
+                              <strong>
+                                {selectedDenom?.value === uAktDenom ? (
+                                  <>
+                                    ~<PriceValue denom={uAktDenom} value={getAvgCostPerMonth(uaktToAKT(_placement.pricing.amount))} />
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>
+                                      <FormattedNumber value={getAvgCostPerMonth(udenomToDenom(_placement.pricing.amount))} maximumFractionDigits={2} />
+                                    </span>
+                                    <USDLabel />
+                                  </>
+                                )}
+                              </strong>
+                              &nbsp;per month
+                            </>
+                          }
+                        >
+                          <InfoCircle className="ml-2 text-sm text-muted-foreground" />
+                        </CustomTooltip>
+                      </div>
+                    }
+                    value={field.value}
+                    error={!!fieldState.error}
+                    min={1}
+                    step={1}
+                    max={10000000}
+                    onChange={event => field.onChange(parseFloat(event.target.value))}
+                  />
+                )}
+              />
             </div>
           </div>
 

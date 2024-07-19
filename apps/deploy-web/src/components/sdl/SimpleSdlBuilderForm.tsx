@@ -15,7 +15,7 @@ import { SimpleServiceFormControl } from "@src/components/sdl/SimpleServiceFormC
 import useFormPersist from "@src/hooks/useFormPersist";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import sdlStore from "@src/store/sdlStore";
-import { ITemplate, SdlBuilderFormValues, Service } from "@src/types";
+import { ITemplate, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { memoryUnits, storageUnits } from "@src/utils/akash/units";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { RouteStepKeys } from "@src/utils/constants";
@@ -45,7 +45,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
   const [sdlBuilderSdl, setSdlBuilderSdl] = useAtom(sdlStore.sdlBuilderSdl);
   const { data: gpuModels } = useGpuModels();
   const { enqueueSnackbar } = useSnackbar();
-  const { handleSubmit, reset, control, trigger, watch, setValue } = useForm<SdlBuilderFormValues>();
+  const { handleSubmit, reset, control, trigger, watch, setValue } = useForm<SdlBuilderFormValuesType>();
   useFormPersist("sdl-builder-form", {
     watch,
     setValue,
@@ -85,7 +85,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
 
   useEffect(() => {
     if (_services) {
-      setSdlBuilderSdl({ services: _services as Service[] });
+      setSdlBuilderSdl({ services: _services as ServiceType[] });
     }
   }, [_services]);
 
@@ -100,7 +100,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
       setIsLoadingTemplate(false);
 
       reset();
-      setValue("services", services as Service[]);
+      setValue("services", services as ServiceType[]);
       setServiceCollapsed(services.map((x, i) => i));
       setTemplateMetadata(template);
     } catch (error) {
@@ -120,7 +120,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
     removeService(index);
   };
 
-  const onSubmit = async (data: SdlBuilderFormValues) => {
+  const onSubmit = async (data: SdlBuilderFormValuesType) => {
     setError(null);
 
     try {
@@ -157,7 +157,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
     setError(null);
 
     try {
-      const sdl = generateSdl(_services as Service[]);
+      const sdl = generateSdl(_services as ServiceType[]);
       setSdlResult(sdl);
       setIsPreviewingSdl(true);
 
@@ -171,7 +171,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
   };
 
   const getTemplateData = () => {
-    const sdl = generateSdl(_services as Service[]);
+    const sdl = generateSdl(_services as ServiceType[]);
     const template: Partial<ITemplate> = {
       id: templateMetadata?.id || undefined,
       sdl,
@@ -207,7 +207,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
           getTemplateData={getTemplateData}
           templateMetadata={templateMetadata as ITemplate}
           setTemplateMetadata={setTemplateMetadata}
-          services={_services as Service[]}
+          services={_services as ServiceType[]}
         />
       )}
 
@@ -295,7 +295,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
           <SimpleServiceFormControl
             key={service.id}
             serviceIndex={serviceIndex}
-            _services={_services as Service[]}
+            _services={_services as ServiceType[]}
             setValue={setValue}
             control={control}
             trigger={trigger}

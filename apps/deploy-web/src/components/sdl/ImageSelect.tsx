@@ -12,13 +12,13 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
-import { ApiTemplate, RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
+import { ApiTemplate, RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   children?: ReactNode;
-  control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
-  currentService: Service;
+  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
+  currentService: ServiceType;
   onSelectTemplate: (template: ApiTemplate) => void;
 };
 

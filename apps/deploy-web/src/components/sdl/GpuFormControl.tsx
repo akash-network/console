@@ -2,7 +2,7 @@
 import { ReactNode } from "react";
 import { Control, Controller, useFieldArray, UseFormSetValue } from "react-hook-form";
 import { MdSpeed } from "react-icons/md";
-import { Button, Checkbox, CustomTooltip, FormDescription, FormItem, Input, Slider, Spinner } from "@akashnetwork/ui/components";
+import { Button, Checkbox, CustomTooltip, FormField, FormItem, FormMessage, Input, Slider, Spinner } from "@akashnetwork/ui/components";
 import FormControl from "@mui/material/FormControl";
 import IconButton from "@mui/material/IconButton";
 import InputLabel from "@mui/material/InputLabel";
@@ -10,21 +10,22 @@ import MenuItem from "@mui/material/MenuItem";
 import { default as MuiSelect } from "@mui/material/Select";
 import { Bin, InfoCircle, Xmark } from "iconoir-react";
 
-import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
+import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { GpuVendor } from "@src/types/gpu";
 import { gpuVendors } from "@src/utils/akash/gpu";
 import { validationConfig } from "@src/utils/akash/units";
 import { FormPaper } from "./FormPaper";
+import { cn } from "@akashnetwork/ui/utils";
 
 type Props = {
   serviceIndex: number;
   hasGpu: boolean;
   hideHasGpu?: boolean;
   children?: ReactNode;
-  control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
+  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
   gpuModels: GpuVendor[] | undefined;
-  currentService: Service;
-  setValue: UseFormSetValue<RentGpusFormValues | SdlBuilderFormValues>;
+  currentService: ServiceType;
+  setValue: UseFormSetValue<RentGpusFormValuesType | SdlBuilderFormValuesType>;
 };
 
 export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, control, serviceIndex, hasGpu, currentService, setValue, hideHasGpu }) => {
@@ -45,7 +46,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
   return (
     <FormPaper>
       <div className="flex items-center">
-        <Controller
+        <FormField
           control={control}
           name={`services.${serviceIndex}.profile.gpu`}
           rules={{
@@ -64,10 +65,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
             }
           }}
           render={({ field, fieldState }) => (
-            <FormItem
-              className="w-full"
-              // variant="standard" error={!!fieldState.error} fullWidth
-            >
+            <FormItem className={cn("w-full", { ["border-b border-red-500"]: !!fieldState.error })}>
               <div className="flex items-center">
                 <div className="flex items-center">
                   <div className="flex items-center">
@@ -120,7 +118,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                       type="number"
                       color="secondary"
                       value={field.value || ""}
-                      // error={!!fieldState.error}
+                      error={!!fieldState.error}
                       onChange={event => field.onChange(parseFloat(event.target.value))}
                       min={1}
                       step={1}
@@ -143,7 +141,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                 />
               )}
 
-              {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -333,39 +331,6 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                                 ))}
                               </MuiSelect>
                             </FormControl>
-
-                            // <FormItem>
-                            //   <Label>Interface</Label>
-                            //   <Select value={(field.value as string) || ""} onValueChange={field.onChange}>
-                            //     <SelectTrigger className="flex items-center">
-                            //       <SelectValue placeholder="Select Interface" />
-
-                            //       {(field.value?.length || 0) > 0
-                            //         ? () => (
-                            //             <Button
-                            //               size="icon"
-                            //               onClick={e => {
-                            //                 field.onChange("");
-                            //               }}
-                            //             >
-                            //               <Xmark className="text-sm" />
-                            //             </Button>
-                            //           )
-                            //         : undefined}
-                            //     </SelectTrigger>
-                            //     <SelectContent>
-                            //       <SelectGroup>
-                            //         {interfaces.map(option => {
-                            //           return (
-                            //             <SelectItem key={option} value={option} className="px-2 py-1">
-                            //               {option}
-                            //             </SelectItem>
-                            //           );
-                            //         })}
-                            //       </SelectGroup>
-                            //     </SelectContent>
-                            //   </Select>
-                            // </FormItem>
                           )}
                         />
                       </div>

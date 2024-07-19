@@ -4,8 +4,9 @@ import { Control, Controller } from "react-hook-form";
 import { MdMemory } from "react-icons/md";
 import {
   CustomTooltip,
-  FormDescription,
+  FormField,
   FormItem,
+  FormMessage,
   Input,
   Select,
   SelectContent,
@@ -17,7 +18,7 @@ import {
 } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
-import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
+import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { memoryUnits, validationConfig } from "@src/utils/akash/units";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
@@ -25,13 +26,13 @@ import { FormPaper } from "./FormPaper";
 type Props = {
   serviceIndex: number;
   children?: ReactNode;
-  control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
-  currentService: Service;
+  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
+  currentService: ServiceType;
 };
 
 export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, currentService }) => {
   return (
-    <Controller
+    <FormField
       control={control}
       name={`services.${serviceIndex}.profile.ram`}
       rules={{
@@ -54,12 +55,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
       }}
       render={({ field, fieldState }) => (
         <FormPaper className={cn({ ["border-b border-red-500"]: !!fieldState.error })}>
-          <FormItem
-          // className={cx(classes.formControl, classes.textField)}
-          // variant="standard"
-          // sx={{ marginBottom: "0 !important" }}
-          // error={!!fieldState.error}
-          >
+          <FormItem>
             <div className="flex flex-col items-start sm:flex-row sm:items-center">
               <div className="flex items-center">
                 <MdMemory className="mr-2 text-2xl text-muted-foreground" />
@@ -85,7 +81,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
               <div className="mt-2 flex items-center sm:ml-4 sm:mt-0">
                 <Input
                   type="number"
-                  // error={!!fieldState.error}
+                  error={!!fieldState.error}
                   color="secondary"
                   value={field.value || ""}
                   onChange={event => field.onChange(parseFloat(event.target.value))}
@@ -128,12 +124,11 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
               step={1}
               color="secondary"
               aria-label="RAM"
-              // valueLabelDisplay="auto"
               onValueChange={newValue => field.onChange(newValue)}
               className="pt-2"
             />
 
-            {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}
+            <FormMessage />
           </FormItem>
         </FormPaper>
       )}
