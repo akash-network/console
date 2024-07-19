@@ -1,8 +1,7 @@
 import { useState } from "react";
-import axios from "axios";
 
 import { useWhen } from "@src/hooks/useWhen";
-import { BASE_API_URL } from "@src/utils/constants";
+import { userHttpService } from "@src/services/user-http/user-http.service";
 
 export interface ApiUserOutput {
   id: string;
@@ -18,24 +17,11 @@ export interface ApiUserOutput {
   githubUsername?: string;
 }
 
-export const anonymousUsersHttp = axios.create({
-  baseURL: `${BASE_API_URL}/v1/anonymous-users`
-});
-
-const createAnonymousUser = async () => (await anonymousUsersHttp.post<ApiUserOutput>("")).data;
-const getAnonymousUser = async (id: string) => (await anonymousUsersHttp.get<ApiUserOutput>(id)).data;
-
-let userAsPromised: Promise<ApiUserOutput>;
-const findOrCreateAnonymousUser = async (id?: string) => {
-  userAsPromised = userAsPromised || (id ? getAnonymousUser(id) : createAnonymousUser());
-  return await userAsPromised;
-};
-
 export function useAnonymousUserQuery(id?: string, options?: { enabled?: boolean }) {
   const [userState, setUserState] = useState<{ user?: ApiUserOutput; isLoading: boolean }>({ isLoading: !!options?.enabled });
 
   useWhen(options?.enabled && !userState.user, async () => {
-    const fetched = await findOrCreateAnonymousUser(id);
+    const fetched = await userHttpService.getOrCreateAnonymousUser(id);
     setUserState({ user: fetched, isLoading: false });
   });
 

@@ -1,9 +1,8 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import { useStoredAnonymousUser } from "@src/hooks/useStoredAnonymousUser";
-import { useWhen } from "@src/hooks/useWhen";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
-import { updateStorageManagedWallet } from "@src/utils/walletUtils";
+import { deleteManagedWalletFromStorage, updateStorageManagedWallet } from "@src/utils/walletUtils";
 
 export const useManagedWallet = () => {
   const { user } = useStoredAnonymousUser();
@@ -12,8 +11,10 @@ export const useManagedWallet = () => {
   const created = useCreateManagedWalletMutation(user?.id);
   const wallet = useMemo(() => created.data || queried.data, [created.data, queried.data]);
 
-  useWhen(wallet, () => {
-    if (wallet) {
+  useEffect(() => {
+    if ((queried.isFetched || created.isSuccess) && !wallet) {
+      deleteManagedWalletFromStorage();
+    } else if (wallet) {
       updateStorageManagedWallet(wallet);
     }
   });

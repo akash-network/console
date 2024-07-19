@@ -40,6 +40,13 @@ export function updateStorageManagedWallet(wallet: Pick<LocalWalletDataType, "ad
   return next;
 }
 
+export function deleteManagedWalletFromStorage() {
+  const wallet = getStorageManagedWallet();
+  if (wallet) {
+    deleteWalletFromStorage(wallet.address, true);
+  }
+}
+
 export function getStorageWallets() {
   const selectedNetworkId = localStorage.getItem("selectedNetworkId") || mainnetId;
   const wallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`) || "[]") as LocalWalletDataType[];

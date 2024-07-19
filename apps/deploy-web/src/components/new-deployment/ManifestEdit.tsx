@@ -10,6 +10,7 @@ import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 
+import { envConfig } from "@src/config/env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
@@ -62,8 +63,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
   const { minDeposit } = useChainParam();
   const { hasComponent } = useSdlBuilder();
-  const wallet = useManagedWallet();
-
+  const { wallet: managedWallet } = useManagedWallet();
   const searchParams = useSearchParams();
   const templateId = searchParams.get("templateId");
 
@@ -165,8 +165,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       if (!valid) return;
     }
 
-    if (wallet) {
-      await handleCreateClick(defaultInitialDeposit, "akash1fq8fhssjs0w8x9ysggrm4r8x26522elefm737l");
+    if (managedWallet) {
+      await handleCreateClick(defaultInitialDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
     } else {
       setIsCheckingPrerequisites(true);
     }

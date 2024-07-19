@@ -84,7 +84,7 @@ export const UserSettingsForm: React.FunctionComponent = () => {
     <Layout isLoading={isLoading}>
       <NextSeo title={user?.username} />
       {user?.username && user?.bio && (
-        <UserProfileLayout page="settings" username={user?.username} bio={user?.bio}>
+        <UserProfileLayout page="settings" username={user.username} bio={user.bio}>
           {isLoading || !user ? (
             <div className="flex items-center justify-center p-8">
               <Spinner size="large" />

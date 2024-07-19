@@ -92,7 +92,6 @@ export class ManagedUserWalletService {
           grantee: options.address
         });
 
-        console.log("DEBUG revokeMessage", JSON.stringify(revokeMessage, null, 2));
         const fee = await this.estimateFee([revokeMessage], this.config.TRIAL_ALLOWANCE_DENOM);
         await this.masterSigningClientService.signAndBroadcast([revokeMessage], fee);
         await this.authorizeSpending(options);
