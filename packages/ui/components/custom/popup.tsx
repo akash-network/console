@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle as _DialogTitle,
-  InputWithIcon,
+  Input,
   ScrollArea,
   ScrollBar,
   Select,
@@ -22,7 +22,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Spinner
+  Spinner,
+  Label
 } from "../index";
 import { ErrorFallback } from "./error-fallback";
 
@@ -167,13 +168,15 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
       <ScrollArea key="dialog-content" className="-mx-4 max-h-[75vh]">
         <div className="p-4">
           {props.variant === "prompt" ? (
-            <InputWithIcon
-              label={props.message}
-              value={promptInput}
-              // eslint-disable-next-line no-void
-              onChange={_ => void setPromptInput(_.target.value)}
-              className="w-full"
-            />
+            <div>
+              <Label>{props.message}</Label>
+              <Input
+                value={promptInput}
+                // eslint-disable-next-line no-void
+                onChange={_ => void setPromptInput(_.target.value)}
+                className="w-full"
+              />
+            </div>
           ) : (
             props.children
           )}

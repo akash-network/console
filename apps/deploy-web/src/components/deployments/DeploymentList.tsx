@@ -5,7 +5,8 @@ import {
   buttonVariants,
   CheckboxWithLabel,
   CustomPagination,
-  InputWithIcon,
+  Input,
+  Label,
   Spinner,
   Table,
   TableBody,
@@ -182,20 +183,22 @@ export const DeploymentList: React.FunctionComponent = () => {
 
       {((filteredDeployments?.length || 0) > 0 || !!search) && (
         <div className="flex items-center pb-4 pt-2">
-          <InputWithIcon
-            label="Search Deployments by name"
-            value={search}
-            onChange={onSearchChange}
-            className="w-full"
-            type="text"
-            endIcon={
-              !!search && (
-                <Button size="icon" variant="text" onClick={() => setSearch("")}>
-                  <Xmark className="text-xs" />
-                </Button>
-              )
-            }
-          />
+          <div className="flex-grow">
+            <Label>Search Deployments by name</Label>
+            <Input
+              value={search}
+              onChange={onSearchChange}
+              className="w-full"
+              type="text"
+              endIcon={
+                !!search && (
+                  <Button size="icon" variant="text" onClick={() => setSearch("")}>
+                    <Xmark className="text-xs" />
+                  </Button>
+                )
+              }
+            />
+          </div>
         </div>
       )}
 

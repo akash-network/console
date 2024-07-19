@@ -4,7 +4,7 @@ import {
   Button,
   CheckboxWithLabel,
   CustomPagination,
-  InputWithIcon,
+  Input,
   Label,
   Select,
   SelectContent,
@@ -252,20 +252,22 @@ export const ProviderList: React.FunctionComponent = () => {
             </div>
 
             <div className="my-2 flex flex-col items-center space-y-2 md:flex-row md:space-x-2 md:space-y-0">
-              <InputWithIcon
-                label="Search Providers"
-                value={search}
-                onChange={onSearchChange}
-                className="w-full"
-                type="text"
-                endIcon={
-                  !!search && (
-                    <Button size="icon" variant="text" onClick={() => setSearch("")}>
-                      <Xmark />
-                    </Button>
-                  )
-                }
-              />
+              <div className="flex-grow">
+                <Label>Search Providers</Label>
+                <Input
+                  value={search}
+                  onChange={onSearchChange}
+                  className="w-full"
+                  type="text"
+                  endIcon={
+                    !!search && (
+                      <Button size="icon" variant="text" onClick={() => setSearch("")}>
+                        <Xmark />
+                      </Button>
+                    )
+                  }
+                />
+              </div>
 
               <div className="w-full min-w-[200px] md:w-auto">
                 <Label>Sort by</Label>

@@ -1,6 +1,6 @@
 "use client";
 import { ReactNode, useEffect, useState } from "react";
-import { InputWithIcon, Popup, Snackbar } from "@akashnetwork/ui/components";
+import { Input, Label, Popup, Snackbar } from "@akashnetwork/ui/components";
 import { Bin, Check } from "iconoir-react";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
@@ -107,8 +107,8 @@ export const EditAddressBookmarkModal: React.FunctionComponent<Props> = ({ open,
     >
       <FormPaper contentClassName="flex items-center p-4 flex-col space-y-2">
         <div className="w-full">
-          <InputWithIcon
-            label="Address"
+          <Label>Address</Label>
+          <Input
             placeholder="Address"
             value={_address}
             onChange={ev => setAddress(ev.target.value)}
@@ -119,8 +119,8 @@ export const EditAddressBookmarkModal: React.FunctionComponent<Props> = ({ open,
         </div>
 
         <div className="w-full">
-          <InputWithIcon
-            label="Custom name"
+          <Label>Custom name</Label>
+          <Input
             placeholder="Your custom name"
             value={customName}
             onChange={ev => setCustomName(ev.target.value)}
