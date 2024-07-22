@@ -406,7 +406,7 @@ Similar to stats on the [Provider](#provider), but a new row is inserted for eve
 |isOnline|boolean|Indicates if this uptime check was successful
 |isLastOfDay|boolean|Indicates if this is the last snapshot of the day for this provider
 |checkDate|timestamp|Date & Time of this uptime check
-|error|text|`null` if the uptime check was successful, otherwise this wil contain the error message.
+|error|text|`null` if the uptime check was successful, otherwise this will contain the error message.
 |deploymentCount|integer
 |leaseCount|integer
 |activeCPU|bigint|Thousandth of CPU
