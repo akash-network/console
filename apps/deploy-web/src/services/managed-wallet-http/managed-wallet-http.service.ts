@@ -1,5 +1,3 @@
-import debounce from "lodash/debounce";
-
 import { ApiHttpService } from "@src/services/api-http/api-http.service";
 
 export interface ApiWalletOutput {
@@ -10,12 +8,6 @@ export interface ApiWalletOutput {
 }
 
 export class ManagedWalletHttpService extends ApiHttpService {
-  constructor() {
-    super();
-
-    this.createWallet = debounce(this.createWallet.bind(this), 1000);
-  }
-
   async createWallet(userId: string) {
     return this.addWalletEssentials(this.extractData(await this.post<ApiWalletOutput>("v1/wallets", { data: { userId } })));
   }

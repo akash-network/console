@@ -15,7 +15,6 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useWhen } from "@src/hooks/useWhen";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
@@ -54,7 +53,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const { settings } = useSettings();
-  const { address, signAndBroadcastTx } = useWallet();
+  const { address, signAndBroadcastTx, isManaged } = useWallet();
   const router = useRouter();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
@@ -63,7 +62,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
   const { minDeposit } = useChainParam();
   const { hasComponent } = useSdlBuilder();
-  const { wallet: managedWallet } = useManagedWallet();
   const searchParams = useSearchParams();
   const templateId = searchParams.get("templateId");
 
@@ -165,7 +163,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       if (!valid) return;
     }
 
-    if (managedWallet) {
+    if (isManaged) {
       await handleCreateClick(defaultInitialDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
     } else {
       setIsCheckingPrerequisites(true);
@@ -174,7 +172,12 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
   const onPrerequisiteContinue = () => {
     setIsCheckingPrerequisites(false);
-    setIsDepositingDeployment(true);
+
+    if (isManaged) {
+      handleCreateClick(defaultInitialDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+    } else {
+      setIsDepositingDeployment(true);
+    }
   };
 
   const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {

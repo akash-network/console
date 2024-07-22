@@ -1,3 +1,5 @@
+import memoize from "lodash/memoize";
+
 import { ApiHttpService } from "@src/services/api-http/api-http.service";
 
 export interface UserOutput {
@@ -15,18 +17,20 @@ export interface UserOutput {
 }
 
 export class UserHttpService extends ApiHttpService {
-  private static userAsPromised: Promise<UserOutput>;
-
-  async getOrCreateAnonymousUser(id?: string) {
-    UserHttpService.userAsPromised = UserHttpService.userAsPromised || (id ? this.getAnonymousUser(id) : this.createAnonymousUser());
-    return await UserHttpService.userAsPromised;
+  constructor() {
+    super();
+    this.getOrCreateAnonymousUser = memoize(this.getOrCreateAnonymousUser.bind(this));
   }
 
-  async createAnonymousUser() {
+  async getOrCreateAnonymousUser(id?: string) {
+    return await (id ? this.getAnonymousUser(id) : this.createAnonymousUser());
+  }
+
+  private async createAnonymousUser() {
     return this.extractData(await this.post<UserOutput>("/v1/anonymous-users"));
   }
 
-  async getAnonymousUser(id: string) {
+  private async getAnonymousUser(id: string) {
     try {
       return this.extractData(await this.get<UserOutput>(`/v1/anonymous-users/${id}`));
     } catch (error) {

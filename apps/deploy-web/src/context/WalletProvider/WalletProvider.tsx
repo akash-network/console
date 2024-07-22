@@ -3,7 +3,7 @@ import React, { useMemo, useRef } from "react";
 import { useEffect, useState } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
-import { DeliverTxResponse, SigningStargateClient } from "@cosmjs/stargate";
+import { SigningStargateClient } from "@cosmjs/stargate";
 import { useManager } from "@cosmos-kit/react";
 import axios from "axios";
 import { OpenNewWindow } from "iconoir-react";
@@ -50,11 +50,12 @@ type ContextType = {
   isWalletConnected: boolean;
   isWalletLoaded: boolean;
   connectWallet: () => Promise<void>;
+  connectManagedWallet: () => void;
   logout: () => void;
-  setIsWalletLoaded: React.Dispatch<React.SetStateAction<boolean>>;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<any>;
   refreshBalances: (address?: string) => Promise<Balances>;
   isManaged: boolean;
+  isWalletLoading: boolean;
 };
 
 const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
@@ -69,14 +70,16 @@ export const WalletProvider = ({ children }) => {
   const router = useRouter();
   const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
+
+  const { user } = useAnonymousUser();
+
   const userWallet = useSelectedChain();
+  const { wallet: managedWallet, isLoading, create } = useManagedWallet();
+  const { address: walletAddress, username, isWalletConnected } = useMemo(() => managedWallet || userWallet, [managedWallet, userWallet]);
   const { addEndpoints } = useManager();
   const {
     fee: { default: feeGranter }
   } = useAllowance();
-  const { user } = useAnonymousUser();
-  const { wallet: managedWallet } = useManagedWallet();
-  const { address, username, isWalletConnected } = useMemo(() => managedWallet || userWallet, [managedWallet, userWallet]);
 
   useWhen(managedWallet, refreshBalances);
 
@@ -143,7 +146,7 @@ export const WalletProvider = ({ children }) => {
 
   async function connectWallet() {
     console.log("Connecting wallet with CosmosKit...");
-    userWallet.connect();
+    await userWallet.connect();
 
     await loadWallet();
 
@@ -153,12 +156,7 @@ export const WalletProvider = ({ children }) => {
     });
   }
 
-  // Update balances on wallet address change
-  useEffect(() => {
-    if (address) {
-      loadWallet();
-    }
-  }, [address]);
+  useWhen(walletAddress, loadWallet);
 
   async function loadWallet(): Promise<void> {
     const selectedNetwork = getSelectedNetwork();
@@ -166,14 +164,13 @@ export const WalletProvider = ({ children }) => {
 
     let currentWallets = storageWallets ?? [];
 
-    if (!currentWallets.some(x => x.address === address)) {
-      currentWallets.push({ name: username || "", address: address as string, selected: true });
+    if (!currentWallets.some(x => x.address === walletAddress)) {
+      currentWallets.push({ name: username || "", address: walletAddress as string, selected: true });
     }
 
-    currentWallets = currentWallets.map(x => ({ ...x, selected: x.address === address }));
+    currentWallets = currentWallets.map(x => ({ ...x, selected: x.address === walletAddress }));
 
     localStorage.setItem(`${selectedNetwork.id}/wallets`, JSON.stringify(currentWallets));
-
     await refreshBalances();
 
     setIsWalletLoaded(true);
@@ -305,7 +302,7 @@ export const WalletProvider = ({ children }) => {
       return walletBalances;
     }
 
-    const _address = address;
+    const _address = address || walletAddress;
     const client = await getStargateClient();
 
     if (client) {
@@ -332,17 +329,18 @@ export const WalletProvider = ({ children }) => {
   return (
     <WalletProviderContext.Provider
       value={{
-        address: address as string,
+        address: walletAddress as string,
         walletName: username as string,
         walletBalances,
         isWalletConnected: isWalletConnected,
         isWalletLoaded: isWalletLoaded,
         connectWallet,
+        connectManagedWallet: create,
         logout,
-        setIsWalletLoaded,
         signAndBroadcastTx,
         refreshBalances,
-        isManaged: !!managedWallet?.isWalletConnected
+        isManaged: !!managedWallet?.isWalletConnected,
+        isWalletLoading: isLoading
       }}
     >
       {children}

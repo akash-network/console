@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
+import { envConfig } from "@src/config/env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -26,10 +27,9 @@ import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 
 export function WalletStatus() {
-  const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected, isManaged } = useWallet();
+  const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading } = useWallet();
   const walletBalance = useTotalWalletBalance();
   const router = useRouter();
-
   function onDisconnectClick() {
     logout();
   }
@@ -40,7 +40,7 @@ export function WalletStatus() {
 
   return (
     <>
-      {isWalletLoaded ? (
+      {isWalletLoaded && !isWalletLoading ? (
         isWalletConnected ? (
           <>
             <div className="flex items-center pr-2">
@@ -118,7 +118,7 @@ export function WalletStatus() {
         ) : (
           <>
             <ConnectWalletButton className="w-full md:w-auto" />
-            <ConnectManagedWalletButton className="ml-2 w-full md:w-auto" />
+            {envConfig.NEXT_PUBLIC_BILLING_ENABLED && <ConnectManagedWalletButton className="ml-2 w-full md:w-auto" />}
           </>
         )
       ) : (
