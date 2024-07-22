@@ -2,12 +2,12 @@
 import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { Alert, FormField, FormInput, Input, Popup } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { event } from "nextjs-google-analytics";
+import { z } from "zod";
 
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
 
 const formSchema = z.object({
   filePath: z

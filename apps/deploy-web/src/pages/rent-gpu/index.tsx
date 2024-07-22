@@ -4,8 +4,8 @@ import Layout from "@src/components/layout/Layout";
 import { RentGpusForm } from "@src/components/sdl/RentGpusForm";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { Title } from "@src/components/shared/Title";
-import { domainName, UrlService } from "@src/utils/urlUtils";
 import { withSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 
 function RentGpuPage() {
   return (

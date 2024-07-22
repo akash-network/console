@@ -2,13 +2,13 @@
 import { ReactNode, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, FormField, FormItem, FormMessage, Snackbar, Spinner, Textarea } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { FormLabel } from "@mui/material";
 import axios from "axios";
 import { useSnackbar } from "notistack";
+import { z } from "zod";
 
 import { FormPaper } from "./FormPaper";
-import { z } from "zod";
-import { FormLabel } from "@mui/material";
-import { zodResolver } from "@hookform/resolvers/zod";
 
 type Props = {
   id: string;

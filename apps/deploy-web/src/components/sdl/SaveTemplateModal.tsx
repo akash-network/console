@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { Alert, FormField, FormInput, Label, Popup, RadioGroup, RadioGroupItem, Snackbar } from "@akashnetwork/ui/components";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
+import { z } from "zod";
 
 import { MustConnect } from "@src/components/shared/MustConnect";
 import { useCustomUser } from "@src/hooks/useCustomUser";
@@ -11,7 +12,6 @@ import { getShortText } from "@src/hooks/useShortText";
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
 import { EnvironmentVariableType, ITemplate, ServiceType } from "@src/types";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { z } from "zod";
 
 type Props = {
   services: ServiceType[];

@@ -20,8 +20,10 @@ import {
   SelectTrigger,
   SelectValue
 } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
+import { z } from "zod";
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { useWallet } from "@src/context/WalletProvider";
@@ -31,8 +33,6 @@ import { defaultProviderAttributes } from "@src/utils/providerAttributes/data";
 import { getUnknownAttributes, mapFormValuesToAttributes } from "@src/utils/providerAttributes/helpers";
 import { cn } from "@src/utils/styleUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 
 type Props = {
   provider: Partial<ApiProviderDetail>;

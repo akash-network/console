@@ -1,11 +1,11 @@
 "use client";
 import React, { ReactNode, useState } from "react";
+import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { Discord, Github, Menu, MenuScale, Rocket, X as TwitterX, Youtube } from "iconoir-react";
 import { Home, OpenInWindow } from "iconoir-react";
-
 import getConfig from "next/config";
 import Image from "next/image";
 import Link from "next/link";
@@ -14,7 +14,6 @@ import { ISidebarGroupMenu } from "@src/types";
 import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
-import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { ModeToggle } from "./ModeToggle";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
 

@@ -2,19 +2,19 @@
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Button, FormField, FormInput, Label, Spinner, SwitchWithLabel } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Autocomplete from "@mui/material/Autocomplete";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
+import FormControl from "@mui/material/FormControl";
 import FormGroup from "@mui/material/FormGroup";
 import InputAdornment from "@mui/material/InputAdornment";
 import TextField from "@mui/material/TextField";
 import { NavArrowDown, Refresh } from "iconoir-react";
+import { z } from "zod";
 
 import { NodeStatus } from "@src/components/shared/NodeStatus";
 import { BlockchainNode, useSettings } from "@src/context/SettingsProvider/SettingsProviderContext";
 import { cn } from "@src/utils/styleUtils";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import FormControl from "@mui/material/FormControl";
 
 const formSchema = z.object({
   apiEndpoint: z

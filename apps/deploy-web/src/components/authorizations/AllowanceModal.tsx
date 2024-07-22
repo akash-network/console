@@ -4,8 +4,10 @@ import { Controller, useForm } from "react-hook-form";
 import { FormattedDate } from "react-intl";
 import { Alert, FormField, FormInput, Popup } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { addYears, format } from "date-fns";
 import { event } from "nextjs-google-analytics";
+import { z } from "zod";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useWallet } from "@src/context/WalletProvider";
@@ -15,8 +17,6 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { uAktDenom } from "@src/utils/constants";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
 
 type Props = {
   address: string;

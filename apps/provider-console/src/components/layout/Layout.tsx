@@ -2,6 +2,7 @@
 import React, { ReactNode, useEffect, useState } from "react";
 import { IntlProvider } from "react-intl";
 import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
+
 import { accountBarHeight } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import Spinner from "../shared/Spinner";

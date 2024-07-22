@@ -2,11 +2,11 @@
 import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { FormField, FormInput, Popup, Snackbar } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod"
 import { useSnackbar } from "notistack";
+import { z } from "zod";
 
 import { updateDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod"
 
 const formSchema = z.object({
   name: z.string()

@@ -1,4 +1,4 @@
-import "nprogress/nprogress.css";
+import "nprogress/nprogress.css"; //styles of nprogress
 import "@akashnetwork/ui/styles";
 import "../styles/index.css";
 

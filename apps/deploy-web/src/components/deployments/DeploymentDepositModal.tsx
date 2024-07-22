@@ -17,9 +17,11 @@ import {
   SelectValue,
   Snackbar
 } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
 import compareAsc from "date-fns/compareAsc";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
+import { z } from "zod";
 
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -32,8 +34,6 @@ import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { LinkTo } from "../shared/LinkTo";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
 
 type Props = {
   infoText?: string | ReactNode;

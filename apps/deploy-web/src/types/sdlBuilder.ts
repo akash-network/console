@@ -1,5 +1,6 @@
-import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 import { z } from "zod";
+
+import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 
 export type ITemplate = {
   id: string;

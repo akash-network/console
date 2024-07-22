@@ -6,6 +6,7 @@ import axios from "axios";
 import { CheckCircle } from "iconoir-react";
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
+import { z } from "zod";
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { LabelValue } from "@src/components/shared/LabelValue";
@@ -15,7 +16,6 @@ import { useSaveSettings } from "@src/queries/useSettings";
 import type { UserSettings } from "@src/types/user";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import Layout from "../layout/Layout";
-import { z } from "zod";
 
 const formSchema = z.object({
   username: z

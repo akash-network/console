@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle as _DialogTitle,
   Input,
+  Label,
   ScrollArea,
   ScrollBar,
   Select,
@@ -22,9 +23,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Spinner,
-  Label
-} from "../index";
+  Spinner } from "../index";
 import { ErrorFallback } from "./error-fallback";
 
 type MessageProps = {

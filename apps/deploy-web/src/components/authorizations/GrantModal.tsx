@@ -16,8 +16,10 @@ import {
   SelectTrigger,
   SelectValue
 } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { addYears, format } from "date-fns";
 import { event } from "nextjs-google-analytics";
+import { z } from "zod";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useWallet } from "@src/context/WalletProvider";
@@ -30,8 +32,6 @@ import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { handleDocClick } from "@src/utils/urlUtils";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
 
 type Props = {
   address: string;

@@ -1,4 +1,5 @@
 import { nanoid } from "nanoid";
+import { z } from "zod";
 
 import {
   ProviderAttributeSchemaDetail,
@@ -6,7 +7,6 @@ import {
   providerAttributesFormValuesSchema,
   ProviderAttributesSchema
 } from "@src/types/providerAttributes";
-import { z } from "zod";
 
 /**
  * Maps the form values to the attributes that are broadcasted to the network
