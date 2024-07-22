@@ -1,1 +1,0 @@
-ALTER TABLE "user_wallets" ADD COLUMN "fee_allowance" numeric(10, 2) DEFAULT '0.00' NOT NULL;

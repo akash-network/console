@@ -1,6 +1,5 @@
 "use client";
-import React, { useMemo, useRef } from "react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { SigningStargateClient } from "@cosmjs/stargate";
@@ -116,12 +115,10 @@ export const WalletProvider = ({ children }) => {
       }
     }
 
-    const client = await SigningStargateClient.connectWithSigner(rpc, offlineSigner, {
+    return await SigningStargateClient.connectWithSigner(rpc, offlineSigner, {
       registry: customRegistry,
       broadcastTimeoutMs: 300_000 // 5min
     });
-
-    return client;
   }
 
   async function getStargateClient() {

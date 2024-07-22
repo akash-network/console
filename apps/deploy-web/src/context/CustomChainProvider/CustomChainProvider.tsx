@@ -18,8 +18,6 @@ type Props = {
 };
 
 export function CustomChainProvider({ children }: Props) {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
   return (
     <ChainProvider
       chains={[akash, akashSandbox, akashTestnet]}

@@ -86,19 +86,23 @@ export class ManagedUserWalletService {
 
       if (error.message.includes("fee allowance already exists")) {
         this.logger.debug({ event: "SPENDING_ALREADY_AUTHORIZED", address: options.address });
+        await this.revokeSpending(options.address);
 
-        const revokeMessage = this.rpcMessageService.getRevokeAllowanceMsg({
-          granter: await this.masterWalletService.getFirstAddress(),
-          grantee: options.address
-        });
-
-        const fee = await this.estimateFee([revokeMessage], this.config.TRIAL_ALLOWANCE_DENOM);
-        await this.masterSigningClientService.signAndBroadcast([revokeMessage], fee);
         await this.authorizeSpending(options);
       } else {
         throw error;
       }
     }
+  }
+
+  private async revokeSpending(address: string) {
+    const revokeMessage = this.rpcMessageService.getRevokeAllowanceMsg({
+      granter: await this.masterWalletService.getFirstAddress(),
+      grantee: address
+    });
+
+    const fee = await this.estimateFee([revokeMessage], this.config.TRIAL_ALLOWANCE_DENOM);
+    await this.masterSigningClientService.signAndBroadcast([revokeMessage], fee);
   }
 
   private async estimateFee(messages: readonly EncodeObject[], denom: string) {

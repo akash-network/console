@@ -70,16 +70,18 @@ export function WalletStatus() {
               <div className="flex items-center text-left">
                 <div className="flex items-center text-sm font-bold">
                   <Wallet className="text-xs" />
-                  <Link className="ml-2 cursor-pointer leading-4" href={`https://stats.akash.network/addresses/${address}`} target="_blank">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span>{walletName}</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <Address address={address} isCopyable disableTooltip />
-                      </TooltipContent>
-                    </Tooltip>
-                  </Link>
+                  {!isManaged && (
+                    <Link className="ml-2 cursor-pointer leading-4" href={`https://stats.akash.network/addresses/${address}`} target="_blank">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>{walletName}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <Address address={address} isCopyable disableTooltip />
+                        </TooltipContent>
+                      </Tooltip>
+                    </Link>
+                  )}
                 </div>
 
                 {walletBalances && (

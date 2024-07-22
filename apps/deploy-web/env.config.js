@@ -1,7 +1,7 @@
 const { z } = require("zod");
 
 const envSchema = z.object({
-  NEXT_PUBLIC_MASTER_WALLET_ADDRESS: z.string(),
+  NEXT_PUBLIC_MASTER_WALLET_ADDRESS: z.string().optional(),
   NEXT_PUBLIC_BILLING_ENABLED: z
     .enum(["true", "false"])
     .transform(val => val === "true")
