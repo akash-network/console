@@ -68,7 +68,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
         }
 
         // Set the array of refs for lease rows
-        // To be able to refresh lease status when refresh deployment detail
+        // To be able to refresh lease status when refreshing deployment detail
         if (_leases.length > 0 && _leases.length !== leaseRefs.length) {
           setLeaseRefs(elRefs =>
             Array(_leases.length)
