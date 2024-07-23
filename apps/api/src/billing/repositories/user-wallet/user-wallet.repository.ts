@@ -6,9 +6,9 @@ import { InjectUserWalletSchema, UserWalletSchema } from "@src/billing/providers
 import { ApiPgDatabase, InjectPg } from "@src/core/providers";
 import { TxService } from "@src/core/services";
 
-export type UserInput = Partial<UserWalletSchema["$inferInsert"]>;
-export type DbUserOutput = UserWalletSchema["$inferSelect"];
-export type UserOutput = DbUserOutput & {
+export type UserWalletInput = Partial<UserWalletSchema["$inferInsert"]>;
+export type DbUserWalletOutput = UserWalletSchema["$inferSelect"];
+export type UserWalletOutput = DbUserWalletOutput & {
   creditAmount: number;
 };
 
@@ -29,7 +29,7 @@ export class UserWalletRepository {
     private readonly txManager: TxService
   ) {}
 
-  async create(input: Pick<UserInput, "userId" | "address">) {
+  async create(input: Pick<UserWalletInput, "userId" | "address">) {
     return this.toOutput(
       first(
         await this.cursor
@@ -43,9 +43,9 @@ export class UserWalletRepository {
     );
   }
 
-  async updateById(id: UserOutput["id"], payload: Partial<UserInput>, options?: { returning: true }): Promise<UserOutput>;
-  async updateById(id: UserOutput["id"], payload: Partial<UserInput>): Promise<void>;
-  async updateById(id: UserOutput["id"], payload: Partial<UserInput>, options?: { returning: boolean }): Promise<void | UserOutput> {
+  async updateById(id: UserWalletOutput["id"], payload: Partial<UserWalletInput>, options?: { returning: true }): Promise<UserWalletOutput>;
+  async updateById(id: UserWalletOutput["id"], payload: Partial<UserWalletInput>): Promise<void>;
+  async updateById(id: UserWalletOutput["id"], payload: Partial<UserWalletInput>, options?: { returning: boolean }): Promise<void | UserWalletOutput> {
     const cursor = this.cursor.update(this.userWallet).set(payload).where(eq(this.userWallet.id, id));
 
     if (options?.returning) {
@@ -58,8 +58,8 @@ export class UserWalletRepository {
     return undefined;
   }
 
-  async find(query?: Partial<DbUserOutput>) {
-    const fields = query && (Object.keys(query) as Array<keyof DbUserOutput>);
+  async find(query?: Partial<DbUserWalletOutput>) {
+    const fields = query && (Object.keys(query) as Array<keyof DbUserWalletOutput>);
     const where = fields.length ? and(...fields.map(field => eq(this.userWallet[field], query[field]))) : undefined;
 
     return this.toOutputList(
@@ -69,15 +69,15 @@ export class UserWalletRepository {
     );
   }
 
-  async findByUserId(userId: UserOutput["userId"]) {
-    return await this.cursor.query.userWalletSchema.findFirst({ where: eq(this.userWallet.userId, userId) });
+  async findByUserId(userId: UserWalletOutput["userId"]) {
+    return this.toOutput(await this.cursor.query.userWalletSchema.findFirst({ where: eq(this.userWallet.userId, userId) }));
   }
 
-  private toOutputList(dbOutput: UserWalletSchema["$inferSelect"][]): UserOutput[] {
+  private toOutputList(dbOutput: UserWalletSchema["$inferSelect"][]): UserWalletOutput[] {
     return dbOutput.map(item => this.toOutput(item));
   }
 
-  private toOutput(dbOutput: UserWalletSchema["$inferSelect"]): UserOutput {
+  private toOutput(dbOutput: UserWalletSchema["$inferSelect"]): UserWalletOutput {
     return {
       ...dbOutput,
       creditAmount: parseFloat(dbOutput.deploymentAllowance) + parseFloat(dbOutput.feeAllowance)

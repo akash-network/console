@@ -10,7 +10,7 @@ const isBillingEnabled = envConfig.NEXT_PUBLIC_BILLING_ENABLED;
 export const useManagedWallet = () => {
   const { user } = useStoredAnonymousUser();
 
-  const { data: queried, isFetched, isLoading: isFetching } = useManagedWalletQuery(isBillingEnabled && user?.id);
+  const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled && user?.id);
   const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => queried || created, [queried, created]);
   const isLoading = isFetching || isCreating;
@@ -48,7 +48,8 @@ export const useManagedWallet = () => {
             isWalletLoaded: isConfigured
           }
         : undefined,
-      isLoading
+      isLoading,
+      refetch
     };
-  }, [create, isLoading, user, wallet]);
+  }, [create, isLoading, user, wallet, refetch]);
 };
