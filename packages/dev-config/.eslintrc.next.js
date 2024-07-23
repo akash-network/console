@@ -10,7 +10,7 @@ module.exports = {
         "react/no-unescaped-entities": "warn",
         "react-hooks/exhaustive-deps": "warn",
         "import/no-anonymous-default-export": "warn",
-        "react/display-name": "warn"
+        "react/display-name": "off"
       }
     }
   ],
