@@ -26,16 +26,20 @@ const FormField = <TFieldValues extends FieldValues = FieldValues, TName extends
 };
 
 const useFormField = () => {
+  const formContext = useFormContext();
   const fieldContext = React.useContext(FormFieldContext);
   const itemContext = React.useContext(FormItemContext);
-  const { getFieldState, formState } = useFormContext();
 
-  const fieldState = getFieldState(fieldContext.name, formState);
+  if (!formContext) {
+    return null;
+  }
 
   if (!fieldContext) {
     throw new Error("useFormField should be used within <FormField>");
   }
 
+  const { getFieldState, formState } = formContext;
+  const fieldState = getFieldState(fieldContext.name, formState);
   const { id } = itemContext;
 
   return {
@@ -105,7 +109,7 @@ const FormMessage = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<
   }
 
   return (
-    <p ref={ref} id={formMessageId} className={cn("text-destructive text-sm font-medium", className)} {...props}>
+    <p ref={ref} id={formMessageId} className={cn("text-destructive text-xs font-medium", className)} {...props}>
       {body}
     </p>
   );

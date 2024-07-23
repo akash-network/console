@@ -3,19 +3,21 @@ import * as React from "react";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 
 import { cn } from "../utils";
-import { FormControl, FormDescription, FormItem, FormLabel, FormMessage } from "./form";
+import { FormControl, FormDescription, FormItem, FormLabel, FormMessage, useFormField } from "./form";
+import { Label } from "./label";
 
 export interface FormInputProps extends InputProps {
   label?: string | React.ReactNode;
   description?: string;
+  inputClassName?: string;
 }
 
-const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ className, type, label, description, ...props }, ref) => {
+const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ className, inputClassName, type, label, description, ...props }, ref) => {
   return (
-    <FormItem>
+    <FormItem className={className}>
       {label && <FormLabel>{label}</FormLabel>}
       <FormControl>
-        <Input type={type} className={className} ref={ref} {...props} />
+        <Input type={type} className={inputClassName} ref={ref} {...props} />
       </FormControl>
       {description && <FormDescription>{description}</FormDescription>}
       <FormMessage />
@@ -26,39 +28,50 @@ FormInput.displayName = "FormInput";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   startIcon?: React.ReactNode;
+  startIconClassName?: string;
   endIcon?: React.ReactNode;
+  endIconClassName?: string;
   error?: boolean;
   inputClassName?: string;
   description?: string;
+  label?: string | React.ReactNode;
+  isForm?: boolean;
 }
 
 // TODO Variants
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, inputClassName, type, startIcon, endIcon, error, ...props }, ref) => {
-  return (
-    <div
-      className={cn(
-        "border-input bg-popover ring-offset-background focus:ring-ring flex h-10 w-full items-center rounded-md border px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-offset-2",
-        { "cursor-not-allowed opacity-50": !!props.disabled, "ring-destructive": !!error },
-        className
-      )}
-    >
-      {startIcon && <div className="inset-y-0 left-0 flex items-center">{startIcon}</div>}
-      <input
-        type={type}
-        className={cn(
-          "placeholder:text-muted-foreground flex-grow file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none",
-          "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          inputClassName,
-          { ["pl-4"]: !!startIcon, ["pr-4"]: !!endIcon }
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, startIconClassName, endIconClassName, inputClassName, type, startIcon, endIcon, error, label, isForm, ...props }, ref) => {
+    const id = React.useId();
+    const formField = useFormField();
+
+    return (
+      <div className={className}>
+        {label && (formField ? <FormLabel>{label}</FormLabel> : <Label htmlFor={`${id}-input`}>{label}</Label>)}
+        <div className="relative flex items-center">
+          {startIcon && <div className={cn("absolute inset-y-0 left-0 flex items-center", startIconClassName)}>{startIcon}</div>}
+          <input
+            id={`${id}-input`}
+            type={type}
+            className={cn(
+              "border-input bg-popover ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+              inputClassName,
+              { ["pl-10"]: !!startIcon, ["pr-10"]: !!endIcon }
+            )}
+            ref={ref}
+            {...props}
+          />
+          {endIcon && <div className={cn("absolute inset-y-0 right-0 flex items-center", endIconClassName)}>{endIcon}</div>}
+        </div>
+        {error && (
+          <p className="mt-2 text-sm text-red-600" id={`${id}-error`}>
+            {error}
+          </p>
         )}
-        ref={ref}
-        {...props}
-      />
-      {endIcon && <div className="inset-y-0 right-0 flex items-center">{endIcon}</div>}
-    </div>
-  );
-});
+      </div>
+    );
+  }
+);
 Input.displayName = "Input";
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
