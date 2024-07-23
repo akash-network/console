@@ -1,3 +1,4 @@
+import { AllowanceHttpService } from "@akashnetwork/http-sdk";
 import { stringToPath } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, GasPrice, SigningStargateClient } from "@cosmjs/stargate";
@@ -7,8 +8,9 @@ import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
-import { UserOutput, UserWalletRepository } from "@src/billing/repositories";
+import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { MasterWalletService } from "@src/billing/services";
+import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { ForbiddenException } from "@src/core";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
@@ -24,12 +26,14 @@ export class TxSignerService {
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
+    @InjectTypeRegistry() private readonly registry: Registry,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly masterWalletService: MasterWalletService,
-    @InjectTypeRegistry() private readonly registry: Registry
+    private readonly allowanceHttpService: AllowanceHttpService,
+    private readonly balancesService: BalancesService
   ) {}
 
-  async signAndBroadcast(userId: UserOutput["userId"], messages: StringifiedEncodeObject[]) {
+  async signAndBroadcast(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
     const userWallet = await this.userWalletRepository.findByUserId(userId);
     const decodedMessages = this.decodeMessages(messages);
 
@@ -37,6 +41,8 @@ export class TxSignerService {
 
     const client = await this.getClientForAddressIndex(userWallet.id);
     const tx = await client.signAndBroadcast(decodedMessages);
+
+    await this.balancesService.updateUserWalletLimits(userWallet);
 
     return pick(tx, ["code", "transactionHash", "rawLog"]);
   }

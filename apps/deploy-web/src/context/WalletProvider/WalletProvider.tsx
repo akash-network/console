@@ -73,7 +73,7 @@ export const WalletProvider = ({ children }) => {
   const { user } = useAnonymousUser();
 
   const userWallet = useSelectedChain();
-  const { wallet: managedWallet, isLoading, create } = useManagedWallet();
+  const { wallet: managedWallet, isLoading, create, refetch } = useManagedWallet();
   const { address: walletAddress, username, isWalletConnected } = useMemo(() => managedWallet || userWallet, [managedWallet, userWallet]);
   const { addEndpoints } = useManager();
   const {
@@ -201,8 +201,6 @@ export const WalletProvider = ({ children }) => {
         txResult = await userWallet.broadcast(txRaw);
 
         setIsBroadcastingTx(false);
-
-        await refreshBalances();
       }
 
       if (txResult.code !== 0) {
@@ -259,6 +257,7 @@ export const WalletProvider = ({ children }) => {
 
       return false;
     } finally {
+      await refreshBalances();
       if (pendingSnackbarKey) {
         closeSnackbar(pendingSnackbarKey);
       }
@@ -289,9 +288,10 @@ export const WalletProvider = ({ children }) => {
 
   async function refreshBalances(address?: string): Promise<{ uakt: number; usdc: number }> {
     if (managedWallet) {
+      const wallet = await refetch();
       const walletBalances = {
         uakt: 0,
-        usdc: managedWallet.creditAmount
+        usdc: wallet.data?.creditAmount || managedWallet.creditAmount
       };
 
       setWalletBalances(walletBalances);
