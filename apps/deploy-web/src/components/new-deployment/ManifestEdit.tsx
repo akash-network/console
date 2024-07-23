@@ -16,8 +16,10 @@ import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useWhen } from "@src/hooks/useWhen";
+import { useDepositParams } from "@src/queries/useSettings";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
+import type { DepositParams } from "@src/types/deployment";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
@@ -64,7 +66,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const { hasComponent } = useSdlBuilder();
   const searchParams = useSearchParams();
   const templateId = searchParams.get("templateId");
-
+  const { data: depositParams } = useDepositParams();
+  const defaultDeposit = depositParams || defaultInitialDeposit;
   const fileUploadRef = useRef<HTMLInputElement>(null);
 
   useWhen(hasComponent("ssh"), () => {
@@ -131,7 +134,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   async function createAndValidateDeploymentData(
     yamlStr: string,
     dseq: string | null = null,
-    deposit: number = defaultInitialDeposit,
+    deposit = defaultDeposit,
     depositorAddress: string | null = null
   ) {
     try {
@@ -164,7 +167,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     }
 
     if (isManaged) {
-      await handleCreateClick(defaultInitialDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      await handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
     } else {
       setIsCheckingPrerequisites(true);
     }
@@ -174,7 +177,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     setIsCheckingPrerequisites(false);
 
     if (isManaged) {
-      handleCreateClick(defaultInitialDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
     } else {
       setIsDepositingDeployment(true);
     }
@@ -185,7 +188,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     await handleCreateClick(deposit, depositorAddress);
   };
 
-  async function handleCreateClick(deposit: number, depositorAddress: string) {
+  async function handleCreateClick(deposit: number | DepositParams[], depositorAddress: string) {
     setIsCreatingDeployment(true);
 
     const sdl = selectedSdlEditMode === "yaml" ? editedManifest : sdlBuilderRef.current?.getSdl();
