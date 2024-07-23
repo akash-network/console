@@ -2,11 +2,70 @@ export const mainnetId = "mainnet";
 export const testnetId = "testnet";
 export const sandboxId = "sandbox";
 
+const productionHostnames = ["deploy.cloudmos.io", "console.akash.network", "staging-console.akash.network", "beta.cloudmos.io"];
+
 export const selectedRangeValues: { [key: string]: number } = {
   "7D": 7,
   "1M": 30,
   ALL: Number.MAX_SAFE_INTEGER
 };
+
+
+const productionMainnetApiUrl = "https://api.cloudmos.io";
+const productionTestnetApiUrl = "https://api-testnet.cloudmos.io";
+const productionSandboxApiUrl = "https://api-sandbox.cloudmos.io";
+export const BASE_API_MAINNET_URL = getApiMainnetUrl();
+export const BASE_API_TESTNET_URL = getApiTestnetUrl();
+export const BASE_API_SANDBOX_URL = getApiSandboxUrl();
+export const BASE_API_URL = getApiUrl();
+
+
+function getApiMainnetUrl() {
+  if (process.env.API_MAINNET_BASE_URL) return process.env.API_MAINNET_BASE_URL;
+  if (typeof window === "undefined") return "http://localhost:3080";
+  if (productionHostnames.includes(window.location?.hostname)) return productionMainnetApiUrl;
+  return "http://localhost:3080";
+}
+
+function getApiTestnetUrl() {
+  if (process.env.API_TESTNET_BASE_URL) return process.env.API_TESTNET_BASE_URL;
+  if (typeof window === "undefined") return "http://localhost:3080";
+  if (productionHostnames.includes(window.location?.hostname)) return productionTestnetApiUrl;
+  return "http://localhost:3080";
+}
+
+function getApiSandboxUrl() {
+  if (process.env.API_SANDBOX_BASE_URL) return process.env.API_SANDBOX_BASE_URL;
+  if (typeof window === "undefined") return "http://localhost:3080";
+  if (productionHostnames.includes(window.location?.hostname)) return productionSandboxApiUrl;
+  return "http://localhost:3080";
+}
+
+export function getNetworkBaseApiUrl(network: string) {
+  switch (network) {
+    case testnetId:
+      return BASE_API_TESTNET_URL;
+    case sandboxId:
+      return BASE_API_SANDBOX_URL;
+    default:
+      return BASE_API_MAINNET_URL;
+  }
+}
+
+function getApiUrl() {
+  if (process.env.API_BASE_URL) return process.env.API_BASE_URL;
+  if (typeof window === "undefined") return "http://localhost:3080";
+  if (productionHostnames.includes(window.location?.hostname)) {
+    try {
+      const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
+      return getNetworkBaseApiUrl(_selectedNetworkId || mainnetId);
+    } catch (e) {
+      console.error(e);
+      return productionMainnetApiUrl;
+    }
+  }
+  return "http://localhost:3080";
+}
 
 // UI
 export const statusBarHeight = 30;
@@ -83,21 +142,5 @@ export const monacoOptions = {
     enabled: false
   }
 };
-
-function getApiUrl() {
-  if (process.env.API_BASE_URL) return process.env.API_BASE_URL;
-  if (typeof window === "undefined") return "http://localhost:3080";
-  if (productionHostnames.includes(window.location?.hostname)) {
-    try {
-      const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
-      return getNetworkBaseApiUrl(_selectedNetworkId || mainnetId);
-    } catch (e) {
-      console.error(e);
-      return productionMainnetApiUrl;
-    }
-  }
-  return "http://localhost:3080";
-}
-
 
 export const txFeeBuffer = 10000; // 10000 uAKT
