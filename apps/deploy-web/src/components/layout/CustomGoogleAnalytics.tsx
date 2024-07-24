@@ -16,7 +16,7 @@ export default function GoogleAnalytics() {
 
   return (
     <>
-      {!isProd && (
+      {isProd && (
         <>
           <GAnalytics trackPageViews />
           <GAnalytics trackPageViews gaMeasurementId="G-LFRGN2J2RV" />
