@@ -14,5 +14,14 @@ export default function GoogleAnalytics() {
     });
   });
 
-  return <>{isProd && <GAnalytics trackPageViews />}</>;
+  return (
+    <>
+      {!isProd && (
+        <>
+          <GAnalytics trackPageViews />
+          <GAnalytics trackPageViews gaMeasurementId="G-LFRGN2J2RV" />
+        </>
+      )}
+    </>
+  );
 }
