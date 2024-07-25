@@ -11,7 +11,7 @@ import { ProviderSnapshotStorage } from "./providerSnapshotStorage";
     { unique: false, fields: ["owner"] },
     { unique: false, fields: ["owner", "checkDate"] },
     { name: "provider_snapshot_id_where_isonline_and_islastofday", unique: false, fields: ["id"], where: { isOnline: true, isLastOfDay: true } },
-    { name: "provider_snapshot_id_where_islastsuccessofday", unique: false, fields: ["id"], where: { isLastSuccessOfDay: true } }
+    { name: "provider_snapshot_checkdate_where_islastsuccessofday", unique: false, fields: ["checkDate"], where: { isLastSuccessOfDay: true } }
   ]
 })
 export class ProviderSnapshot extends Model {
