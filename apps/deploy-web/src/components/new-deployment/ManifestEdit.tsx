@@ -1,7 +1,7 @@
 "use client";
 import { Dispatch, useEffect, useRef, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-import { Alert, Button, CustomTooltip, Input, Label, Spinner } from "@akashnetwork/ui/components";
+import { Alert, Button, CustomTooltip, Input, Spinner } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -283,8 +283,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       <div className="mb-2 pt-4">
         <div className="mb-2 flex flex-col items-end justify-between md:flex-row">
           <div className="w-full flex-grow">
-            <Label>Name your deployment (optional)</Label>
-            <Input value={deploymentName} onChange={ev => setDeploymentName(ev.target.value)} />
+            <Input value={deploymentName} onChange={ev => setDeploymentName(ev.target.value)} label="Name your deployment (optional)" />
           </div>
 
           <div className="flex w-full min-w-0 flex-shrink-0 items-center pt-2 md:w-auto md:pt-0">

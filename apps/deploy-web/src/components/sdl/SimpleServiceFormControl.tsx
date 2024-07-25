@@ -1,6 +1,6 @@
 "use client";
 import { Dispatch, SetStateAction, useState } from "react";
-import { Control, Controller, UseFormSetValue, UseFormTrigger } from "react-hook-form";
+import { Control, UseFormSetValue, UseFormTrigger } from "react-hook-form";
 import {
   Button,
   buttonVariants,
@@ -15,6 +15,7 @@ import {
   FormInput,
   FormItem,
   FormMessage,
+  Input,
   Select,
   SelectContent,
   SelectGroup,
@@ -220,7 +221,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                           }
                         }}
                         render={({ field, fieldState }) => (
-                          <FormItem>
+                          <FormItem className="w-full">
                             {imageList?.length ? (
                               <div className="flex flex-grow flex-col">
                                 <Select value={field.value} onValueChange={field.onChange}>
@@ -245,7 +246,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                 {fieldState.error?.message && <p className="mt-2 text-sm text-red-600">{fieldState.error.message}</p>}
                               </div>
                             ) : (
-                              <FormInput
+                              <Input
                                 type="text"
                                 label={
                                   <div className="inline-flex items-center">
@@ -265,9 +266,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                   </div>
                                 }
                                 placeholder="Example: mydockerimage:1.01"
-                                className="flex-grow"
+                                className="w-full"
                                 value={field.value}
                                 onChange={event => field.onChange((event.target.value || "").toLowerCase())}
+                                startIconClassName="pl-2"
                                 startIcon={<Image alt="Docker Logo" src="/images/docker.png" layout="fixed" quality={100} width={24} height={18} priority />}
                                 endIcon={
                                   <Link
@@ -357,7 +359,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
 
                   {hasComponent("service-count") && (
                     <div className="mt-4">
-                      <Controller
+                      <FormField
                         control={control}
                         name={`services.${serviceIndex}.count`}
                         render={({ field, fieldState }) => (

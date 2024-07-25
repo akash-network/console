@@ -53,7 +53,6 @@ const formSchema = z
         required_error: "Amount is required",
         invalid_type_error: "Amount must be a number"
       })
-      .positive()
       .min(0.000001, { message: "Amount must be greater than 0" }),
     useDepositor: z.boolean().optional(),
     depositorAddress: z.string().optional()

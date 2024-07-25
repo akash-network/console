@@ -6,6 +6,7 @@ import {
   Button,
   CheckboxWithLabel,
   CustomTooltip,
+  Form,
   FormField,
   FormInput,
   FormItem,
@@ -44,12 +45,13 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
   const [error, setError] = useState(null);
   const formRef = useRef<HTMLFormElement>(null);
   const { signAndBroadcastTx } = useWallet();
-  const { handleSubmit, control, watch, setValue, formState } = useForm<z.infer<typeof providerAttributesFormValuesSchema>>({
+  const form = useForm<z.infer<typeof providerAttributesFormValuesSchema>>({
     defaultValues: {
       ...defaultProviderAttributes
     },
     resolver: zodResolver(providerAttributesFormValuesSchema)
   });
+  const { handleSubmit, control, watch, setValue, formState } = form;
   const {
     fields: unknownAttributes,
     remove: removeUnkownAttribute,
@@ -59,9 +61,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
     name: "unknown-attributes",
     keyName: "id"
   });
-  const { "feat-persistent-storage": featPersistentStorage, "workload-support-chia": workloadSupportChia, "unknown-attributes": _unknownAttributes } = watch();
-
-  console.log(formState);
+  const { "unknown-attributes": _unknownAttributes } = watch();
 
   useEffect(() => {
     const getProviderAttributeTextValue = (key: string) => {
@@ -147,7 +147,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
 
       const message = TransactionMessageData.getUpdateProviderMsg(provider?.owner || "", data["host-uri"], attributes, {
         email: data.email,
-        website: data.website
+        website: data.website || ""
       });
       await signAndBroadcastTx([message]);
     } catch (error) {
@@ -156,294 +156,315 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
-      <FormPaper className="mb-4">
-        <p className="mb-8 text-lg text-primary">General info</p>
+    <Form {...form}>
+      <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
+        <FormPaper className="mb-4">
+          <p className="mb-8 text-lg text-primary">General info</p>
 
-        <FormField
-          control={control}
-          name="host-uri"
-          render={({ field }) => (
-            <FormInput
-              type="text"
-              label="Host URI"
-              tabIndex={0}
-              value={field.value}
-              className="mb-4"
-              onChange={event => field.onChange(event.target.value || "")}
-              endIcon={
-                <CustomTooltip title="Host URI is the URI of the host that is running the provider. It is used to identify the provider.">
-                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
-                </CustomTooltip>
-              }
-            />
-          )}
-        />
+          <FormField
+            control={control}
+            name="host-uri"
+            render={({ field }) => (
+              <FormInput
+                type="text"
+                label="Host URI"
+                tabIndex={0}
+                value={field.value}
+                className="mb-4"
+                onChange={event => field.onChange(event.target.value || "")}
+                endIcon={
+                  <CustomTooltip title="Host URI is the URI of the host that is running the provider. It is used to identify the provider.">
+                    <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                  </CustomTooltip>
+                }
+              />
+            )}
+          />
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/** LEFT COLUMN */}
-          <div>
-            <ProviderTextField control={control} className="mb-4" label="Host" name="host" providerAttributesSchema={providerAttributesSchema} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/** LEFT COLUMN */}
+            <div>
+              <ProviderTextField control={control} className="mb-4" label="Host" name="host" providerAttributesSchema={providerAttributesSchema} />
 
-            <ProviderTextField control={control} className="mb-4" label="Website" name="website" providerAttributesSchema={providerAttributesSchema} />
+              <ProviderTextField control={control} className="mb-4" label="Website" name="website" providerAttributesSchema={providerAttributesSchema} />
 
-            <ProviderTextField control={control} className="mb-4" label="Status Page" name="status-page" providerAttributesSchema={providerAttributesSchema} />
+              <ProviderTextField
+                control={control}
+                className="mb-4"
+                label="Status Page"
+                name="status-page"
+                providerAttributesSchema={providerAttributesSchema}
+              />
 
-            <ProviderTextField
-              control={control}
-              className="mb-4"
-              label="Country"
-              name="country"
-              providerAttributesSchema={providerAttributesSchema}
-              valueModifier={value => value?.toUpperCase()}
-            />
+              <ProviderTextField
+                control={control}
+                className="mb-4"
+                label="Country"
+                name="country"
+                providerAttributesSchema={providerAttributesSchema}
+                valueModifier={value => value?.toUpperCase()}
+              />
 
-            <ProviderSelect control={control} className="mb-4" label="Timezone" name="timezone" providerAttributesSchema={providerAttributesSchema} />
+              <ProviderSelect control={control} className="mb-4" label="Timezone" name="timezone" providerAttributesSchema={providerAttributesSchema} />
 
-            <ProviderTextField
-              control={control}
-              className="mb-4"
-              label="Hosting Provider"
-              name="hosting-provider"
-              providerAttributesSchema={providerAttributesSchema}
-            />
+              <ProviderTextField
+                control={control}
+                className="mb-4"
+                label="Hosting Provider"
+                name="hosting-provider"
+                providerAttributesSchema={providerAttributesSchema}
+              />
+            </div>
+            {/** RIGHT COLUMN */}
+            <div>
+              <ProviderTextField
+                control={control}
+                className="mb-4"
+                label="Email"
+                name="email"
+                type="email"
+                providerAttributesSchema={providerAttributesSchema}
+              />
+
+              <ProviderTextField
+                control={control}
+                className="mb-4"
+                label="Organization"
+                name="organization"
+                providerAttributesSchema={providerAttributesSchema}
+              />
+
+              <ProviderSelect
+                control={control}
+                className="mb-4"
+                label="Location Region"
+                name="location-region"
+                providerAttributesSchema={providerAttributesSchema}
+              />
+
+              <ProviderTextField
+                control={control}
+                className="mb-4"
+                label="City"
+                name="city"
+                providerAttributesSchema={providerAttributesSchema}
+                valueModifier={value => value?.toUpperCase()}
+              />
+
+              <ProviderSelect
+                control={control}
+                className="mb-4"
+                label="Location type"
+                name="location-type"
+                providerAttributesSchema={providerAttributesSchema}
+              />
+
+              <ProviderSelect control={control} className="mb-4" label="Tier" name="tier" providerAttributesSchema={providerAttributesSchema} />
+            </div>
           </div>
-          {/** RIGHT COLUMN */}
-          <div>
-            <ProviderTextField control={control} className="mb-4" label="Email" name="email" type="email" providerAttributesSchema={providerAttributesSchema} />
+        </FormPaper>
 
-            <ProviderTextField
-              control={control}
-              className="mb-4"
-              label="Organization"
-              name="organization"
-              providerAttributesSchema={providerAttributesSchema}
-            />
+        <FormPaper className="mb-4">
+          <p className="mb-8 text-lg text-primary">Hardware specifications</p>
 
-            <ProviderSelect
-              control={control}
-              className="mb-4"
-              label="Location Region"
-              name="location-region"
-              providerAttributesSchema={providerAttributesSchema}
-            />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/** LEFT COLUMN */}
+            <div>
+              <ProviderSelect control={control} className="mb-4" label="GPU" name="hardware-gpu" providerAttributesSchema={providerAttributesSchema} />
+              <ProviderSelect control={control} className="mb-4" label="CPU" name="hardware-cpu" providerAttributesSchema={providerAttributesSchema} />
 
-            <ProviderTextField
-              control={control}
-              className="mb-4"
-              label="City"
-              name="city"
-              providerAttributesSchema={providerAttributesSchema}
-              valueModifier={value => value?.toUpperCase()}
-            />
+              <ProviderSelect
+                control={control}
+                className="mb-4"
+                label="Memory (RAM)"
+                name="hardware-memory"
+                providerAttributesSchema={providerAttributesSchema}
+              />
 
-            <ProviderSelect control={control} className="mb-4" label="Location type" name="location-type" providerAttributesSchema={providerAttributesSchema} />
+              <ProviderCheckbox
+                control={control}
+                providerAttributesSchema={providerAttributesSchema}
+                className="mb-4"
+                label="Persistent storage"
+                name="feat-persistent-storage"
+              />
 
-            <ProviderSelect control={control} className="mb-4" label="Tier" name="tier" providerAttributesSchema={providerAttributesSchema} />
+              <ProviderTextField
+                control={control}
+                className="mb-4"
+                label="Network Speed Download"
+                name="network-speed-down"
+                providerAttributesSchema={providerAttributesSchema}
+                type="number"
+              />
+
+              <ProviderTextField
+                control={control}
+                className="mb-4"
+                label="Network Provider"
+                name="network-provider"
+                providerAttributesSchema={providerAttributesSchema}
+              />
+            </div>
+
+            {/** RIGHT COLUMN */}
+            <div>
+              <ProviderMultiSelect
+                control={control}
+                className="mb-4"
+                label="GPU models"
+                name="hardware-gpu-model"
+                providerAttributesSchema={providerAttributesSchema}
+                optionName="hardware-gpu-model"
+              />
+
+              <ProviderSelect
+                control={control}
+                className="mb-4"
+                label="CPU architecture"
+                name="hardware-cpu-arch"
+                providerAttributesSchema={providerAttributesSchema}
+              />
+
+              <ProviderMultiSelect
+                control={control}
+                className="mb-4"
+                label="Disk Storage"
+                name="hardware-disk"
+                providerAttributesSchema={providerAttributesSchema}
+                optionName="hardware-disk"
+              />
+
+              <ProviderMultiSelect
+                control={control}
+                className="mb-4"
+                label="Persistent Disk Storage"
+                name="feat-persistent-storage-type"
+                providerAttributesSchema={providerAttributesSchema}
+                optionName="feat-persistent-storage-type"
+              />
+
+              <ProviderTextField
+                control={control}
+                className="mb-4"
+                label="Network Speed Upload"
+                name="network-speed-up"
+                providerAttributesSchema={providerAttributesSchema}
+                type="number"
+              />
+            </div>
           </div>
-        </div>
-      </FormPaper>
+        </FormPaper>
 
-      <FormPaper className="mb-4">
-        <p className="mb-8 text-lg text-primary">Hardware specifications</p>
+        <FormPaper className="mb-4">
+          <p className="mb-8 text-lg text-primary">Features</p>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/** LEFT COLUMN */}
-          <div>
-            <ProviderSelect control={control} className="mb-4" label="GPU" name="hardware-gpu" providerAttributesSchema={providerAttributesSchema} />
-            <ProviderSelect control={control} className="mb-4" label="CPU" name="hardware-cpu" providerAttributesSchema={providerAttributesSchema} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/** LEFT COLUMN */}
+            <div>
+              <ProviderCheckbox
+                control={control}
+                providerAttributesSchema={providerAttributesSchema}
+                className="mb-4"
+                label="IP Leasing"
+                name="feat-endpoint-ip"
+              />
 
-            <ProviderSelect
-              control={control}
-              className="mb-4"
-              label="Memory (RAM)"
-              name="hardware-memory"
-              providerAttributesSchema={providerAttributesSchema}
-            />
+              <ProviderCheckbox
+                control={control}
+                providerAttributesSchema={providerAttributesSchema}
+                className="mb-4"
+                label="Chia support"
+                name="workload-support-chia"
+              />
+            </div>
 
-            <ProviderCheckbox
-              control={control}
-              providerAttributesSchema={providerAttributesSchema}
-              className="mb-4"
-              label="Persistent storage"
-              name="feat-persistent-storage"
-            />
+            {/** RIGHT COLUMN */}
+            <div>
+              <ProviderCheckbox
+                control={control}
+                providerAttributesSchema={providerAttributesSchema}
+                className="mb-4"
+                label="Custom Domain"
+                name="feat-endpoint-custom-domain"
+              />
 
-            <ProviderTextField
-              control={control}
-              className="mb-4"
-              label="Network Speed Download"
-              name="network-speed-down"
-              providerAttributesSchema={providerAttributesSchema}
-              type="number"
-            />
-
-            <ProviderTextField
-              control={control}
-              className="mb-4"
-              label="Network Provider"
-              name="network-provider"
-              providerAttributesSchema={providerAttributesSchema}
-            />
+              <ProviderMultiSelect
+                control={control}
+                className="mb-4"
+                label="Chia capabilities"
+                name="workload-support-chia-capabilities"
+                providerAttributesSchema={providerAttributesSchema}
+                optionName="workload-support-chia-capabilities"
+              />
+            </div>
           </div>
+        </FormPaper>
 
-          {/** RIGHT COLUMN */}
-          <div>
-            <ProviderMultiSelect
-              control={control}
-              className="mb-4"
-              label="GPU models"
-              name="hardware-gpu-model"
-              providerAttributesSchema={providerAttributesSchema}
-              optionName="hardware-gpu-model"
-            />
+        <FormPaper className="mb-4">
+          <div className="mb-8 flex items-center">
+            <p className="text-lg text-primary">Unknown attributes</p>
 
-            <ProviderSelect
-              control={control}
-              className="mb-4"
-              label="CPU architecture"
-              name="hardware-cpu-arch"
-              providerAttributesSchema={providerAttributesSchema}
-            />
-
-            <ProviderMultiSelect
-              control={control}
-              className="mb-4"
-              label="Disk Storage"
-              name="hardware-disk"
-              providerAttributesSchema={providerAttributesSchema}
-              optionName="hardware-disk"
-            />
-
-            <ProviderMultiSelect
-              control={control}
-              className="mb-4"
-              label="Persistent Disk Storage"
-              name="feat-persistent-storage-type"
-              providerAttributesSchema={providerAttributesSchema}
-              optionName="feat-persistent-storage-type"
-            />
-
-            <ProviderTextField
-              control={control}
-              className="mb-4"
-              label="Network Speed Upload"
-              name="network-speed-up"
-              providerAttributesSchema={providerAttributesSchema}
-              type="number"
-            />
-          </div>
-        </div>
-      </FormPaper>
-
-      <FormPaper className="mb-4">
-        <p className="mb-8 text-lg text-primary">Features</p>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/** LEFT COLUMN */}
-          <div>
-            <ProviderCheckbox
-              control={control}
-              providerAttributesSchema={providerAttributesSchema}
-              className="mb-4"
-              label="IP Leasing"
-              name="feat-endpoint-ip"
-            />
-
-            <ProviderCheckbox
-              control={control}
-              providerAttributesSchema={providerAttributesSchema}
-              className="mb-4"
-              label="Chia support"
-              name="workload-support-chia"
-            />
+            <Button size="sm" color="secondary" className="ml-4" onClick={() => appendUnkownAttribute({ id: nanoid(), key: "", value: "" })}>
+              Add attribute
+            </Button>
           </div>
 
-          {/** RIGHT COLUMN */}
           <div>
-            <ProviderCheckbox
-              control={control}
-              providerAttributesSchema={providerAttributesSchema}
-              className="mb-4"
-              label="Custom Domain"
-              name="feat-endpoint-custom-domain"
-            />
+            {unknownAttributes.length > 0 ? (
+              unknownAttributes.map((att, attIndex) => {
+                return (
+                  <div key={att.id} className={cn({ ["mb-4"]: attIndex + 1 !== _unknownAttributes?.length })}>
+                    <div className="flex">
+                      <div className="flex flex-grow items-center">
+                        <div className="basis-1/2">
+                          <FormField
+                            control={control}
+                            name={`unknown-attributes.${attIndex}.key`}
+                            render={({ field }) => <FormInput {...field} type="text" label="Key" className="w-full" />}
+                          />
+                        </div>
 
-            <ProviderMultiSelect
-              control={control}
-              className="mb-4"
-              label="Chia capabilities"
-              name="workload-support-chia-capabilities"
-              providerAttributesSchema={providerAttributesSchema}
-              optionName="workload-support-chia-capabilities"
-            />
-          </div>
-        </div>
-      </FormPaper>
-
-      <FormPaper className="mb-4">
-        <div className="mb-8 flex items-center">
-          <p className="text-lg text-primary">Unknown attributes</p>
-
-          <Button size="sm" color="secondary" className="ml-4" onClick={() => appendUnkownAttribute({ id: nanoid(), key: "", value: "" })}>
-            Add attribute
-          </Button>
-        </div>
-
-        <div>
-          {unknownAttributes.length > 0 ? (
-            unknownAttributes.map((att, attIndex) => {
-              return (
-                <div key={att.id} className={cn({ ["mb-4"]: attIndex + 1 !== _unknownAttributes?.length })}>
-                  <div className="flex">
-                    <div className="flex flex-grow items-center">
-                      <div className="basis-1/2">
-                        <FormField
-                          control={control}
-                          name={`unknown-attributes.${attIndex}.key`}
-                          render={({ field }) => <FormInput {...field} type="text" label="Key" className="w-full" />}
-                        />
+                        <div className="ml-2 basis-1/2">
+                          <FormField
+                            control={control}
+                            name={`unknown-attributes.${attIndex}.value`}
+                            render={({ field }) => <FormInput {...field} type="text" label="Value" className="w-full" />}
+                          />
+                        </div>
                       </div>
 
-                      <div className="ml-2 basis-1/2">
-                        <FormField
-                          control={control}
-                          name={`unknown-attributes.${attIndex}.value`}
-                          render={({ field }) => <FormInput {...field} type="text" label="Value" className="w-full" />}
-                        />
+                      <div className="pl-2">
+                        <Button onClick={() => removeUnkownAttribute(attIndex)} size="icon">
+                          <Bin />
+                        </Button>
                       </div>
-                    </div>
-
-                    <div className="pl-2">
-                      <Button onClick={() => removeUnkownAttribute(attIndex)} size="icon">
-                        <Bin />
-                      </Button>
                     </div>
                   </div>
-                </div>
-              );
-            })
-          ) : (
-            <p className="text-sm text-muted-foreground">None</p>
-          )}
+                );
+              })
+            ) : (
+              <p className="text-sm text-muted-foreground">None</p>
+            )}
+          </div>
+        </FormPaper>
+
+        {error && <Alert variant="destructive">{error}</Alert>}
+        {formState.errors && (
+          <Alert variant="destructive">
+            {Object.entries(formState.errors).map(([key, value]) => {
+              return <div key={key}>{value.message}</div>;
+            })}
+          </Alert>
+        )}
+
+        <div className="flex justify-end pt-4">
+          <Button color="secondary" size="lg" variant="default" type="submit">
+            Save
+          </Button>
         </div>
-      </FormPaper>
-
-      {error && <Alert variant="destructive">{error}</Alert>}
-      {formState.errors && (
-        <Alert variant="destructive">
-          {Object.entries(formState.errors).map(([key, value]) => {
-            return <div key={key}>{value.message}</div>;
-          })}
-        </Alert>
-      )}
-
-      <div className="flex justify-end pt-4">
-        <Button color="secondary" size="lg" variant="default" type="submit">
-          Save
-        </Button>
-      </div>
-    </form>
+      </form>
+    </Form>
   );
 };
 

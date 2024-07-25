@@ -1,13 +1,13 @@
 "use client";
 import React, { Dispatch, useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { Alert, Button, Spinner } from "@akashnetwork/ui/components";
+import { Alert, Button, Form, Spinner } from "@akashnetwork/ui/components";
 import cloneDeep from "lodash/cloneDeep";
 import { nanoid } from "nanoid";
 
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
-import { SdlBuilderFormValues, Service } from "@src/types";
+import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService, defaultSshVMService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
@@ -29,11 +29,12 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   const formRef = useRef<HTMLFormElement>(null);
   const [isInit, setIsInit] = useState(false);
   const { hasComponent } = useSdlBuilder();
-  const { control, trigger, watch, setValue } = useForm<SdlBuilderFormValues>({
+  const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: {
       services: [cloneDeep(hasComponent("ssh") ? defaultSshVMService : defaultService)]
     }
   });
+  const { control, trigger, watch, setValue } = form;
   const {
     fields: services,
     remove: removeService,
@@ -56,14 +57,14 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
 
   useEffect(() => {
     const { unsubscribe } = watch(data => {
-      const sdl = generateSdl(data.services as Service[]);
+      const sdl = generateSdl(data.services as ServiceType[]);
       setEditedManifest(sdl);
     });
 
     try {
       if (sdlString) {
         const services = createAndValidateSdl(sdlString);
-        setValue("services", services as Service[]);
+        setValue("services", services as ServiceType[]);
       }
     } catch (error) {
       setError("Error importing SDL");
@@ -122,40 +123,42 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
           <Spinner size="large" />
         </div>
       ) : (
-        <form ref={formRef} autoComplete="off">
-          {_services &&
-            services.map((service, serviceIndex) => (
-              <SimpleServiceFormControl
-                key={service.id}
-                serviceIndex={serviceIndex}
-                gpuModels={gpuModels}
-                setValue={setValue}
-                _services={_services as Service[]}
-                control={control}
-                trigger={trigger}
-                onRemoveService={onRemoveService}
-                serviceCollapsed={serviceCollapsed}
-                setServiceCollapsed={setServiceCollapsed}
-                hasSecretOption={false}
-              />
-            ))}
+        <Form {...form}>
+          <form ref={formRef} autoComplete="off">
+            {_services &&
+              services.map((service, serviceIndex) => (
+                <SimpleServiceFormControl
+                  key={service.id}
+                  serviceIndex={serviceIndex}
+                  gpuModels={gpuModels}
+                  setValue={setValue}
+                  _services={_services as ServiceType[]}
+                  control={control}
+                  trigger={trigger}
+                  onRemoveService={onRemoveService}
+                  serviceCollapsed={serviceCollapsed}
+                  setServiceCollapsed={setServiceCollapsed}
+                  hasSecretOption={false}
+                />
+              ))}
 
-          {error && (
-            <Alert variant="destructive" className="mt-4">
-              {error}
-            </Alert>
-          )}
+            {error && (
+              <Alert variant="destructive" className="mt-4">
+                {error}
+              </Alert>
+            )}
 
-          {!hasComponent("ssh") && (
-            <div className="flex items-center justify-end pt-4">
-              <div>
-                <Button variant="default" size="sm" type="button" onClick={onAddService}>
-                  Add Service
-                </Button>
+            {!hasComponent("ssh") && (
+              <div className="flex items-center justify-end pt-4">
+                <div>
+                  <Button variant="default" size="sm" type="button" onClick={onAddService}>
+                    Add Service
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-        </form>
+            )}
+          </form>
+        </Form>
       )}
     </div>
   );

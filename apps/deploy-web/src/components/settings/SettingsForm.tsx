@@ -18,13 +18,14 @@ import { cn } from "@src/utils/styleUtils";
 
 const formSchema = z.object({
   apiEndpoint: z
-    .string({
+    .string()
+    .min(1, {
       message: "Api endpoint is required."
     })
     .url({
       message: "Url is invalid."
     }),
-  rpcEndpoint: z.string({ message: "Rpc endpoint is required." }).url({
+  rpcEndpoint: z.string().min(1, "Rpc endpoint is required.").url({
     message: "Url is invalid."
   })
 });

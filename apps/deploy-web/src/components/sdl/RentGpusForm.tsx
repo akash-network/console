@@ -2,8 +2,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-import { Alert, Button, Spinner } from "@akashnetwork/ui/components";
+import { Alert, Button, Form, Spinner } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -15,7 +16,7 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import sdlStore from "@src/store/sdlStore";
-import { ApiTemplate, ProfileGpuModelType, RentGpusFormValuesType, ServiceType } from "@src/types";
+import { ApiTemplate, ProfileGpuModelType, RentGpusFormValuesSchema,RentGpusFormValuesType, ServiceType } from "@src/types";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
@@ -52,12 +53,14 @@ export const RentGpusForm: React.FunctionComponent = () => {
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [rentGpuSdl, setRentGpuSdl] = useAtom(sdlStore.rentGpuSdl);
   const { data: gpuModels } = useGpuModels();
-  const { handleSubmit, control, watch, setValue, trigger } = useForm<RentGpusFormValuesType>({
+  const form = useForm<RentGpusFormValuesType>({
     defaultValues: {
       services: [{ ...defaultRentGpuService }],
       region: { ...defaultAnyRegion }
-    }
+    },
+    resolver: zodResolver(RentGpusFormValuesSchema)
   });
+  const { handleSubmit, control, watch, setValue, trigger } = form;
   const { services: _services } = watch();
   const searchParams = useSearchParams();
   const currentService: ServiceType = (_services && _services[0]) || ({} as any);
@@ -273,73 +276,75 @@ export const RentGpusForm: React.FunctionComponent = () => {
       )}
       {isCheckingPrerequisites && <PrerequisiteList onClose={() => setIsCheckingPrerequisites(false)} onContinue={onPrerequisiteContinue} />}
 
-      <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
-        <FormPaper className="mt-4 p-4">
-          <ImageSelect control={control as any} currentService={currentService} onSelectTemplate={onSelectTemplate} />
+      <Form {...form}>
+        <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
+          <FormPaper className="mt-4 p-4">
+            <ImageSelect control={control as any} currentService={currentService} onSelectTemplate={onSelectTemplate} />
 
-          <div className="mt-4">
-            <GpuFormControl
-              control={control as any}
-              gpuModels={gpuModels}
-              serviceIndex={0}
-              hasGpu
-              currentService={currentService}
-              setValue={setValue}
-              hideHasGpu
-            />
-          </div>
-
-          <div className="mt-4">
-            <CpuFormControl control={control as any} currentService={currentService} serviceIndex={0} />
-          </div>
-
-          <div className="mt-4">
-            <MemoryFormControl control={control as any} currentService={currentService} serviceIndex={0} />
-          </div>
-
-          <div className="mt-4">
-            <StorageFormControl control={control as any} currentService={currentService} serviceIndex={0} />
-          </div>
-
-          <div className="grid-col-2 mt-4 grid gap-2">
-            <div>
-              <RegionSelect control={control} />
+            <div className="mt-4">
+              <GpuFormControl
+                control={control as any}
+                gpuModels={gpuModels}
+                serviceIndex={0}
+                hasGpu
+                currentService={currentService}
+                setValue={setValue}
+                hideHasGpu
+              />
             </div>
-            <div>
-              <TokenFormControl control={control} name="services.0.placement.pricing.denom" />
+
+            <div className="mt-4">
+              <CpuFormControl control={control as any} currentService={currentService} serviceIndex={0} />
             </div>
+
+            <div className="mt-4">
+              <MemoryFormControl control={control as any} currentService={currentService} serviceIndex={0} />
+            </div>
+
+            <div className="mt-4">
+              <StorageFormControl control={control as any} currentService={currentService} serviceIndex={0} />
+            </div>
+
+            <div className="grid-col-2 mt-4 grid gap-2">
+              <div>
+                <RegionSelect control={control} />
+              </div>
+              <div>
+                <TokenFormControl control={control} name="services.0.placement.pricing.denom" />
+              </div>
+            </div>
+          </FormPaper>
+
+          <AdvancedConfig control={control} currentService={currentService} />
+
+          {error && (
+            <Alert variant="destructive" className="mt-4">
+              {error}
+            </Alert>
+          )}
+
+          {currentService?.env?.some(x => !!x.key && !x.value) && (
+            <Alert variant="warning" className="mt-4">
+              Some of the environment variables are empty. Please fill them in the advanced configuration before deploying.
+            </Alert>
+          )}
+
+          <div className="flex items-center justify-end pt-4">
+            <Button size="lg" variant="default" type="submit" disabled={isCreatingDeployment || !!error}>
+              {isCreatingDeployment ? (
+                <Spinner />
+              ) : (
+                <>
+                  Deploy{" "}
+                  <span className="ml-2 inline-flex items-center">
+                    <Rocket className="rotate-45 text-sm" />
+                  </span>
+                </>
+              )}
+            </Button>
           </div>
-        </FormPaper>
-
-        <AdvancedConfig control={control} currentService={currentService} />
-
-        {error && (
-          <Alert variant="destructive" className="mt-4">
-            {error}
-          </Alert>
-        )}
-
-        {currentService?.env?.some(x => !!x.key && !x.value) && (
-          <Alert variant="warning" className="mt-4">
-            Some of the environment variables are empty. Please fill them in the advanced configuration before deploying.
-          </Alert>
-        )}
-
-        <div className="flex items-center justify-end pt-4">
-          <Button size="lg" variant="default" type="submit" disabled={isCreatingDeployment || !!error}>
-            {isCreatingDeployment ? (
-              <Spinner />
-            ) : (
-              <>
-                Deploy{" "}
-                <span className="ml-2 inline-flex items-center">
-                  <Rocket className="rotate-45 text-sm" />
-                </span>
-              </>
-            )}
-          </Button>
-        </div>
-      </form>
+        </form>
+      </Form>
     </>
   );
 };

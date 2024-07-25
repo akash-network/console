@@ -1,5 +1,5 @@
 import { FC, useCallback, useState } from "react";
-import { Control, Controller, UseFormSetValue } from "react-hook-form";
+import { Control, UseFormSetValue } from "react-hook-form";
 import { Button, CustomTooltip, FormField, FormInput } from "@akashnetwork/ui/components";
 import { saveAs } from "file-saver";
 import { InfoCircle, Key } from "iconoir-react";
@@ -41,7 +41,7 @@ export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex,
       <FormField
         control={control}
         name={`services.${serviceIndex}.sshPubKey`}
-        render={({ field, fieldState }) => (
+        render={({ field }) => (
           <FormInput
             type="text"
             label={

@@ -1,7 +1,7 @@
 "use client";
 import { useRef } from "react";
 import { useForm } from "react-hook-form";
-import { Alert, FormField, FormInput, Input, Popup } from "@akashnetwork/ui/components";
+import { Alert, Form, FormField, FormInput, Popup } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { event } from "nextjs-google-analytics";
 import { z } from "zod";
@@ -11,7 +11,8 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 
 const formSchema = z.object({
   filePath: z
-    .string({
+    .string()
+    .min(1, {
       message: "File path is required."
     })
     .regex(/^(?!https?:).*/i, {
@@ -22,16 +23,17 @@ const formSchema = z.object({
 export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedService, providerInfo }) => {
   const formRef = useRef<HTMLFormElement | null>(null);
   const { downloadFileFromShell } = useBackgroundTask();
-  const {
-    handleSubmit,
-    control,
-    formState: { errors }
-  } = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       filePath: ""
     },
     resolver: zodResolver(formSchema)
   });
+  const {
+    handleSubmit,
+    control,
+    formState: { errors }
+  } = form;
 
   const onSubmit = async ({ filePath }) => {
     downloadFileFromShell(providerInfo.hostUri, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, selectedService, filePath);
@@ -80,15 +82,17 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
         <p className="text-xs">This is an experimental feature and may not work reliably.</p>
       </Alert>
 
-      <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-        <FormField
-          control={control}
-          name="filePath"
-          render={({ field }) => {
-            return <FormInput {...field} type="text" label="File path" autoFocus placeholder="Example: /app/logs.txt" />;
-          }}
-        />
-      </form>
+      <Form {...form}>
+        <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+          <FormField
+            control={control}
+            name="filePath"
+            render={({ field }) => {
+              return <FormInput {...field} type="text" label="File path" autoFocus placeholder="Example: /app/logs.txt" />;
+            }}
+          />
+        </form>
+      </Form>
     </Popup>
   );
 };
