@@ -1,3 +1,4 @@
+import { isHttpError } from "http-errors";
 import pino, { Bindings, LoggerOptions } from "pino";
 import pretty from "pino-pretty";
 
@@ -36,6 +37,9 @@ export class LoggerService {
   }
 
   protected toLoggableInput(message: any) {
+    if (isHttpError(message)) {
+      return { status: message.status, message: message.message, stack: message.stack, data: message.data };
+    }
     if (message instanceof Error) {
       return message.stack;
     }

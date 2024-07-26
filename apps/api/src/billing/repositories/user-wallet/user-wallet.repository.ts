@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, lte, or } from "drizzle-orm";
 import first from "lodash/first";
 import { singleton } from "tsyringe";
 
@@ -60,11 +60,20 @@ export class UserWalletRepository {
 
   async find(query?: Partial<DbUserWalletOutput>) {
     const fields = query && (Object.keys(query) as Array<keyof DbUserWalletOutput>);
-    const where = fields.length ? and(...fields.map(field => eq(this.userWallet[field], query[field]))) : undefined;
+    const where = fields?.length ? and(...fields.map(field => eq(this.userWallet[field], query[field]))) : undefined;
 
     return this.toOutputList(
       await this.cursor.query.userWalletSchema.findMany({
         where
+      })
+    );
+  }
+
+  async findDrainingWallets(thresholds = { fee: 0, deployment: 0 }, options?: Pick<ListOptions, "limit">) {
+    return this.toOutputList(
+      await this.cursor.query.userWalletSchema.findMany({
+        where: or(lte(this.userWallet.deploymentAllowance, thresholds.deployment.toString()), lte(this.userWallet.feeAllowance, thresholds.fee.toString())),
+        limit: options?.limit || 10
       })
     );
   }
