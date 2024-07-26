@@ -40,7 +40,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 
 // TODO Variants
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
+const   Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, startIconClassName, endIconClassName, inputClassName, type, startIcon, endIcon, error, label, isForm, ...props }, ref) => {
     const id = React.useId();
     const formField = useFormField();

@@ -266,7 +266,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                   </div>
                                 }
                                 placeholder="Example: mydockerimage:1.01"
-                                className="w-full"
+                                className="space-y-1"
                                 value={field.value}
                                 onChange={event => field.onChange((event.target.value || "").toLowerCase())}
                                 startIconClassName="pl-2"
