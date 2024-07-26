@@ -1,8 +1,8 @@
-import { AllowanceHttpService } from "@akashnetwork/http-sdk";
 import { stringToPath } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, GasPrice, SigningStargateClient } from "@cosmjs/stargate";
 import { DeliverTxResponse } from "@cosmjs/stargate/build/stargateclient";
+import assert from "http-assert";
 import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
@@ -11,7 +11,6 @@ import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provide
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { MasterWalletService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
-import { ForbiddenException } from "@src/core";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
 type SimpleSigningStargateClient = {
@@ -29,15 +28,14 @@ export class TxSignerService {
     @InjectTypeRegistry() private readonly registry: Registry,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly masterWalletService: MasterWalletService,
-    private readonly allowanceHttpService: AllowanceHttpService,
     private readonly balancesService: BalancesService
   ) {}
 
   async signAndBroadcast(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
     const userWallet = await this.userWalletRepository.findByUserId(userId);
-    const decodedMessages = this.decodeMessages(messages);
+    assert(userWallet, 403, "User wallet not found");
 
-    ForbiddenException.assert(userWallet);
+    const decodedMessages = this.decodeMessages(messages);
 
     const client = await this.getClientForAddressIndex(userWallet.id);
     const tx = await client.signAndBroadcast(decodedMessages);

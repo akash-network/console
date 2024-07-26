@@ -1,15 +1,9 @@
 import type { Context, Env } from "hono";
+import { isHttpError } from "http-errors";
 import { singleton } from "tsyringe";
 import { ZodError } from "zod";
 
-import { ForbiddenException, ManagedException } from "@src/core/exceptions";
-import { NotFoundException } from "@src/core/exceptions/not-found.exception";
 import { LoggerService } from "@src/core/services/logger/logger.service";
-
-const EXCEPTION_STATUSES = {
-  [ForbiddenException.name]: 403,
-  [NotFoundException.name]: 404
-};
 
 @singleton()
 export class HonoErrorHandlerService {
@@ -22,10 +16,9 @@ export class HonoErrorHandlerService {
   handle<E extends Env = any>(error: Error, c: Context<E>): Response | Promise<Response> {
     this.logger.error(error);
 
-    if (error instanceof ManagedException) {
+    if (isHttpError(error)) {
       const { name } = error.constructor;
-      const status = EXCEPTION_STATUSES[name];
-      return c.json({ error: name, message: error.message, data: error.data }, { status });
+      return c.json({ error: name, message: error.message, data: error.data }, { status: error.status });
     }
 
     if (error instanceof ZodError) {

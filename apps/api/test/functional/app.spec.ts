@@ -1,13 +1,8 @@
 import { app, initDb } from "@src/app";
-import { closeConnections } from "@src/db/dbConnection";
 
 describe("app", () => {
   beforeAll(async () => {
     await initDb();
-  });
-
-  afterAll(async () => {
-    await closeConnections();
   });
 
   describe("GET /status", () => {
