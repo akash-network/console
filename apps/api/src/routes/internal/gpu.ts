@@ -94,13 +94,10 @@ export default new OpenAPIHono().openapi(route, async c => {
         INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSuccessfulSnapshotId"
         WHERE p."isOnline" IS TRUE OR ps."checkDate" >= :grace_date
       )
-      SELECT s."hostUri", n."name", n."gpuAllocatable" AS allocatable, n."gpuAllocated" AS allocated, gpu."modelId", gpu.vendor, gpu.name AS "modelName", gpu.interface, gpu."memorySize"
+      SELECT DISTINCT ON (s."hostUri", n."name") s."hostUri", n."name", n."gpuAllocatable" AS allocatable, n."gpuAllocated" AS allocated, gpu."modelId", gpu.vendor, gpu.name AS "modelName", gpu.interface, gpu."memorySize"
       FROM snapshots s
       INNER JOIN "providerSnapshotNode" n ON n."snapshotId"=s.id AND n."gpuAllocatable" > 0
-      LEFT JOIN (
-        SELECT DISTINCT ON (gpu."snapshotNodeId") gpu.*
-        FROM "providerSnapshotNodeGPU" gpu
-      ) gpu ON gpu."snapshotNodeId" = n.id
+      LEFT JOIN "providerSnapshotNodeGPU" gpu ON gpu."snapshotNodeId" = n.id
       WHERE 
         (:vendor IS NULL OR gpu.vendor = :vendor)
         AND (:model IS NULL OR gpu.name = :model)
@@ -153,6 +150,12 @@ export default new OpenAPIHono().openapi(route, async c => {
         allocated: gpuNode.allocated
       });
     }
+  }
+
+  for (const vendorName in response.gpus.details) {
+    response.gpus.details[vendorName] = response.gpus.details[vendorName].sort(
+      (a, b) => a.model.localeCompare(b.model) || a.ram.localeCompare(b.ram) || a.interface.localeCompare(b.interface)
+    );
   }
 
   return c.json(response);
