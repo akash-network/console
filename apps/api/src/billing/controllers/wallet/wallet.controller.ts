@@ -1,5 +1,4 @@
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import { PromisePool } from "@supercharge/promise-pool";
 import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
@@ -8,8 +7,8 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import type { CreateWalletRequestInput, SignTxRequestInput, SignTxResponseOutput } from "@src/billing/routes";
 import { GetWalletQuery } from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
 import { ManagedUserWalletService, WalletInitializerService } from "@src/billing/services";
+import { RefillService } from "@src/billing/services/refill/refill.service";
 import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
-import { WithTransaction } from "@src/core/services";
 
 // TODO: authorize endpoints below
 @singleton()
@@ -18,10 +17,10 @@ export class WalletController {
     private readonly walletManager: ManagedUserWalletService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly walletInitializer: WalletInitializerService,
-    private readonly signerService: TxSignerService
+    private readonly signerService: TxSignerService,
+    private readonly refillService: RefillService
   ) {}
 
-  @WithTransaction()
   async create({ data: { userId } }: CreateWalletRequestInput): Promise<WalletOutputResponse> {
     return {
       data: await this.walletInitializer.initialize(userId)
@@ -41,18 +40,7 @@ export class WalletController {
     };
   }
 
-  async refillAll() {
-    const wallets = await this.userWalletRepository.find();
-    const { results, errors } = await PromisePool.withConcurrency(2)
-      .for(wallets)
-      .process(async wallet => {
-        return await this.walletManager.refill(wallet);
-      });
-
-    if (errors) {
-      console.log("DEBUG errors", errors);
-    }
-
-    console.log("DEBUG results", results);
+  async refillWallets() {
+    await this.refillService.refillAll();
   }
 }

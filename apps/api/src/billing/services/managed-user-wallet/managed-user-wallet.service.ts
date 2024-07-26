@@ -1,15 +1,15 @@
+import { AllowanceHttpService } from "@akashnetwork/http-sdk";
 import { stringToPath } from "@cosmjs/crypto";
-import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
-import { calculateFee, GasPrice } from "@cosmjs/stargate";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import { IndexedTx } from "@cosmjs/stargate";
 import add from "date-fns/add";
 import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { MasterSigningClientService } from "@src/billing/services/master-signing-client/master-signing-client.service";
 import { MasterWalletService } from "@src/billing/services/master-wallet/master-wallet.service";
-import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
+import { RpcMessageService, SpendingAuthorizationMsgOptions } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { LoggerService } from "@src/core";
-import { InternalServerException } from "@src/core/exceptions/internal-server.exception";
 
 interface SpendingAuthorizationOptions {
   address: string;
@@ -17,7 +17,7 @@ interface SpendingAuthorizationOptions {
     deployment: number;
     fees: number;
   };
-  expiration: Date;
+  expiration?: Date;
 }
 
 @singleton()
@@ -32,7 +32,8 @@ export class ManagedUserWalletService {
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly masterWalletService: MasterWalletService,
     private readonly masterSigningClientService: MasterSigningClientService,
-    private readonly rpcMessageService: RpcMessageService
+    private readonly rpcMessageService: RpcMessageService,
+    private readonly allowanceHttpService: AllowanceHttpService
   ) {}
 
   async createAndAuthorizeTrialSpending({ addressIndex }: { addressIndex: number }) {
@@ -63,56 +64,44 @@ export class ManagedUserWalletService {
   }
 
   async authorizeSpending(options: SpendingAuthorizationOptions) {
-    try {
-      const messages = this.rpcMessageService.getAllGrantMsgs({
-        granter: await this.masterWalletService.getFirstAddress(),
-        grantee: options.address,
-        denom: this.config.TRIAL_ALLOWANCE_DENOM,
-        expiration: options.expiration,
-        limits: options.limits
-      });
-      const fee = await this.estimateFee(messages, this.config.TRIAL_ALLOWANCE_DENOM);
-      const txResult = await this.masterSigningClientService.signAndBroadcast(messages, fee);
+    const masterWalletAddress = await this.masterWalletService.getFirstAddress();
+    const msgOptions = {
+      granter: masterWalletAddress,
+      grantee: options.address,
+      denom: this.config.TRIAL_ALLOWANCE_DENOM,
+      expiration: options.expiration
+    };
 
-      if (txResult.code !== 0) {
-        this.logger.error({ event: "SPENDING_AUTHORIZATION_FAILED", address: options.address, txResult });
-        throw new InternalServerException("Failed to authorize spending for address");
-      }
+    await Promise.all([
+      this.authorizeDeploymentSpending({
+        ...msgOptions,
+        limit: options.limits.deployment
+      }),
+      this.authorizeFeeSpending({
+        ...msgOptions,
+        limit: options.limits.fees
+      })
+    ]);
 
-      this.logger.debug({ event: "SPENDING_AUTHORIZED", address: options.address });
-    } catch (error) {
-      error.message = `Failed to authorize spending for address ${options.address}: ${error.message}`;
-      this.logger.error(error);
+    this.logger.debug({ event: "SPENDING_AUTHORIZED", address: options.address });
+  }
 
-      if (error.message.includes("fee allowance already exists")) {
-        this.logger.debug({ event: "SPENDING_ALREADY_AUTHORIZED", address: options.address });
-        await this.revokeSpending(options.address);
+  private async authorizeFeeSpending(options: SpendingAuthorizationMsgOptions) {
+    const feeAllowances = await this.allowanceHttpService.getFeeAllowancesForGrantee(options.grantee);
+    const feeAllowance = feeAllowances.find(allowance => allowance.granter === options.granter);
+    const results: Promise<IndexedTx>[] = [];
 
-        await this.authorizeSpending(options);
-      } else {
-        throw error;
-      }
+    if (feeAllowance) {
+      results.push(this.masterSigningClientService.executeTx([this.rpcMessageService.getRevokeAllowanceMsg(options)]));
     }
+
+    results.push(this.masterSigningClientService.executeTx([this.rpcMessageService.getFeesAllowanceGrantMsg(options)]));
+
+    return await Promise.all(results);
   }
 
-  private async revokeSpending(address: string) {
-    const revokeMessage = this.rpcMessageService.getRevokeAllowanceMsg({
-      granter: await this.masterWalletService.getFirstAddress(),
-      grantee: address
-    });
-
-    const fee = await this.estimateFee([revokeMessage], this.config.TRIAL_ALLOWANCE_DENOM);
-    await this.masterSigningClientService.signAndBroadcast([revokeMessage], fee);
-  }
-
-  private async estimateFee(messages: readonly EncodeObject[], denom: string) {
-    const gasEstimation = await this.masterSigningClientService.simulate(messages, "allowance grant");
-    const estimatedGas = Math.round(gasEstimation * this.config.GAS_SAFETY_MULTIPLIER);
-
-    return calculateFee(estimatedGas, GasPrice.fromString(`0.025${denom}`));
-  }
-
-  async refill(wallet: any) {
-    return wallet;
+  private async authorizeDeploymentSpending(options: SpendingAuthorizationMsgOptions) {
+    const deploymentAllowanceMsg = this.rpcMessageService.getDepositDeploymentGrantMsg(options);
+    return await this.masterSigningClientService.executeTx([deploymentAllowanceMsg]);
   }
 }

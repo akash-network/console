@@ -1,6 +1,5 @@
 import type { ExtractTablesWithRelations } from "drizzle-orm";
 import type { PgTransaction } from "drizzle-orm/pg-core";
-import type {} from "drizzle-orm/postgres-js";
 import { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js/session";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { container, singleton } from "tsyringe";
