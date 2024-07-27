@@ -38,7 +38,7 @@ export async function getTransactions(limit: number) {
     messages: tx.messages.map(msg => ({
       id: msg.id,
       type: msg.type,
-      amount: msg.amount
+      amount: parseInt(msg.amount)
     }))
   }));
 }

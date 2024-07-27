@@ -29,7 +29,7 @@ export class Message extends Model {
   @Required @Column indexInBlock: number;
   @Required @Default(false) @Column isProcessed: boolean;
   @Required @Default(false) @Column isNotificationProcessed: boolean;
-  @Column(DataTypes.DECIMAL(30, 0)) amount?: number;
+  @Column(DataTypes.DECIMAL(30, 0)) amount?: string;
   @Required @Column(DataTypes.BLOB) data: Uint8Array;
 
   @BelongsTo(() => Transaction, "txId") transaction: Transaction;

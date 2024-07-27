@@ -72,7 +72,7 @@ export async function getBlock(height: number) {
       messages: tx.messages.map(message => ({
         id: message.id,
         type: message.type,
-        amount: message.amount
+        amount: parseInt(message.amount)
       }))
     }))
   };

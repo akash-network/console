@@ -27,7 +27,7 @@ export class Lease extends Model {
   @Required @Column providerAddress: string;
   @Required @Column createdHeight: number;
   @Column closedHeight?: number;
-  @Required @Column(DataTypes.DECIMAL(30, 0)) predictedClosedHeight: number;
+  @Required @Column(DataTypes.DECIMAL(30, 0)) predictedClosedHeight: string;
   @Required @Column(DataTypes.DOUBLE) price: number;
   @Required @Default(0) @Column(DataTypes.DOUBLE) withdrawnAmount: number;
   @Required @Column denom: string;
