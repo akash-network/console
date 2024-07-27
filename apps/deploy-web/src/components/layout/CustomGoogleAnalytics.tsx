@@ -18,8 +18,8 @@ export default function GoogleAnalytics() {
     <>
       {isProd && (
         <>
-          <GAnalytics trackPageViews />
-          <GAnalytics trackPageViews gaMeasurementId="G-LFRGN2J2RV" />
+          <GAnalytics trackPageViews gaMeasurementId="G-NLQMNEXEPD" key={"G-NLQMNEXEPD"} />
+          <GAnalytics trackPageViews gaMeasurementId="G-LFRGN2J2RV" key={"G-LFRGN2J2RV"} />
         </>
       )}
     </>
