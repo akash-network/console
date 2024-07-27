@@ -212,7 +212,7 @@ The database schemas is defined using [sequelize-typescript](https://github.com/
 |indexInBlock|integer
 |isProcessed|boolean|`false` when inserted into the database and then set to `true` once the indexers have processed the message.
 |isNotificationProcessed|boolean|`false` when inserted into the database and then set to true once it has been checked for existing alerts. (BlockSpy specific)
-|amount|bigint|Amount of the transfer if token were transferred. ex: `MsgSend` or `MsgDelegate`
+|amount|decimal|Amount of the transfer if token were transferred. ex: `MsgSend` or `MsgDelegate`
 |data|bytes|Protobuf encoded data of the message
 |relatedDeploymentId|uuid|If the message is deployment related (ex: `MsgCloseLease`) this will be set to the related deployment. See [Deployment](#deployment)
 
@@ -313,7 +313,7 @@ Created for each days (UTC based), simplifies querying for daily stats.
 |providerAddress|varchar
 |createdHeight|integer|Height of the lease creation. Happens when a bid is accepted with `MsgCreateLease`.
 |closedHeight|integer|Height at which the lease is closed on-chain. Happens from `MsgCloseLease`, `MsgCloseHeight` or if the deployment become overdrawn during an account settlement. 
-|predictedClosedHeight|bigint|Height at which the lease should theoretically expire. This is calculated based on the balance and price. It will usually not match the `closedHeight` since leases can be closed early (`MsgCloseLease` & `MsgCloseBid`) or closed late since the closing wont happen until the provider does a `MsgWithdrawLease`
+|predictedClosedHeight|decimal|Height at which the lease should theoretically expire. This is calculated based on the balance and price. It will usually not match the `closedHeight` since leases can be closed early (`MsgCloseLease` & `MsgCloseBid`) or closed late since the closing wont happen until the provider does a `MsgWithdrawLease`
 |price|double|Lease price as uakt/block
 |withdrawnAmount|double|Withdrawn amount as of now for this lease. Updated on account settlement (create,withdraw,close).
 |cpuUnits|integer|Thousandth of CPU

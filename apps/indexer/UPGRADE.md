@@ -264,3 +264,44 @@ FROM "created_msg" cm
 LEFT JOIN "update_msg" um ON um."address"=cm."address"
 WHERE cm."address"=p."owner";
 ```
+
+## v1.4.1
+
+Add columns on the provider to keep track track of uptime ([PR #20](https://github.com/akash-network/console/pull/20))
+
+```
+ALTER TABLE public.provider ADD COLUMN "uptime1d" double precision DEFAULT 0;
+ALTER TABLE public.provider ADD COLUMN "uptime7d" double precision DEFAULT 0;
+ALTER TABLE public.provider ADD COLUMN "uptime30d" double precision DEFAULT 0;
+```
+
+
+## v1.4.0
+
+Add columns to keep track of USD spending overtime ([PR #16](https://github.com/akash-network/console/pull/16))
+
+```
+ALTER TABLE IF EXISTS public.day
+    ADD COLUMN "aktPriceChanged" boolean NOT NULL DEFAULT true;
+ALTER TABLE IF EXISTS public.block
+    ADD COLUMN "totalUUsdSpent" double precision;
+    
+CREATE INDEX IF NOT EXISTS block_totaluusdspent_is_null
+    ON public.block USING btree
+    (height ASC NULLS LAST)
+    TABLESPACE pg_default
+    WHERE "totalUUsdSpent" IS NULL;
+```
+
+## v1.3.0
+
+Add columns to support multi-denom deployments ([PR #5](https://github.com/akash-network/console/pull/5))
+
+```
+ALTER TABLE public.block ADD COLUMN "totalUUsdcSpent" double precision DEFAULT 0;
+ALTER TABLE public.block ALTER COLUMN "totalUUsdcSpent" DROP DEFAULT;
+ALTER TABLE public.deployment ADD COLUMN denom character varying(255) DEFAULT 'uakt' COLLATE pg_catalog."default" NOT NULL;
+ALTER TABLE public.deployment ALTER COLUMN denom DROP DEFAULT;
+ALTER TABLE public.lease ADD COLUMN denom character varying(255) DEFAULT 'uakt' COLLATE pg_catalog."default" NOT NULL;
+ALTER TABLE public.lease ALTER COLUMN denom DROP DEFAULT;
+```
