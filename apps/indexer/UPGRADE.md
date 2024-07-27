@@ -4,6 +4,16 @@ Some indexer updates change the database schemas and an upgrade script must be r
 
 **It is recommended to stop the indexer before running any migration script.**
 
+## v1.9.1
+
+Change the type of the messages's `amount` to allow larger values.
+```
+ALTER TABLE message
+ALTER COLUMN "amount"
+TYPE numeric(30,0)
+USING "amount"::numeric(30,0);
+```
+
 ## v1.9.0
 
 Add tracking of persistent storage for providers.
