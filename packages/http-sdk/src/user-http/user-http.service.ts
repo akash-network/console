@@ -1,6 +1,6 @@
+import { ApiHttpService } from "@akashnetwork/http-sdk";
+import { AxiosRequestConfig } from "axios";
 import memoize from "lodash/memoize";
-
-import { ApiHttpService } from "@src/services/api-http/api-http.service";
 
 export interface UserOutput {
   id: string;
@@ -17,8 +17,8 @@ export interface UserOutput {
 }
 
 export class UserHttpService extends ApiHttpService {
-  constructor() {
-    super();
+  constructor(config?: AxiosRequestConfig) {
+    super(config);
     this.getOrCreateAnonymousUser = memoize(this.getOrCreateAnonymousUser.bind(this));
   }
 
@@ -27,12 +27,12 @@ export class UserHttpService extends ApiHttpService {
   }
 
   private async createAnonymousUser() {
-    return this.extractData(await this.post<UserOutput>("/v1/anonymous-users"));
+    return this.extractApiData(await this.post<UserOutput>("/v1/anonymous-users"));
   }
 
   private async getAnonymousUser(id: string) {
     try {
-      return this.extractData(await this.get<UserOutput>(`/v1/anonymous-users/${id}`));
+      return this.extractApiData(await this.get<UserOutput>(`/v1/anonymous-users/${id}`));
     } catch (error) {
       if (error.response?.status === 404) {
         return this.createAnonymousUser();
@@ -42,5 +42,3 @@ export class UserHttpService extends ApiHttpService {
     }
   }
 }
-
-export const userHttpService = new UserHttpService();

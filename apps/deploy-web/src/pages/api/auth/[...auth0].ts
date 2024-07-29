@@ -1,6 +1,6 @@
 // pages/api/auth/[...auth0].js
 import { handleAuth, handleLogin, handleProfile } from "@auth0/nextjs-auth0";
-import axios, { AxiosRequestHeaders } from "axios";
+import axios, { AxiosHeaders } from "axios";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import { BASE_API_MAINNET_URL } from "@src/utils/constants";
@@ -22,14 +22,14 @@ export default handleAuth({
           try {
             // TODO: Fix for console
             const user_metadata = session.user["https://console.akash.network/user_metadata"];
-            const headers: AxiosRequestHeaders = {
+            const headers = new AxiosHeaders({
               Authorization: `Bearer ${session.accessToken}`
-            };
+            });
 
             const anonymousId = req.headers["x-anonymous-user-id"];
 
             if (anonymousId) {
-              headers["X-ANONYMOUS-USER-ID"] = anonymousId as string;
+              headers.set("x-anonymous-user-id", anonymousId);
             }
 
             const userSettings = await axios.post(
@@ -41,7 +41,7 @@ export default handleAuth({
                 subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true"
               },
               {
-                headers
+                headers: headers.toJSON()
               }
             );
 
