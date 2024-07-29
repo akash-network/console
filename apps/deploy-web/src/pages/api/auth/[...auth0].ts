@@ -1,18 +1,19 @@
 // pages/api/auth/[...auth0].js
 import { handleAuth, handleLogin, handleProfile } from "@auth0/nextjs-auth0";
-import axios from "axios";
+import axios, { AxiosRequestHeaders } from "axios";
+import type { NextApiRequest, NextApiResponse } from "next";
 
 import { BASE_API_MAINNET_URL } from "@src/utils/constants";
 
 export default handleAuth({
-  async login(req, res) {
+  async login(req: NextApiRequest, res: NextApiResponse) {
     const returnUrl = decodeURIComponent((req.query.from as string) ?? "/");
 
     await handleLogin(req, res, {
       returnTo: returnUrl
     });
   },
-  async profile(req, res) {
+  async profile(req: NextApiRequest, res: NextApiResponse) {
     console.log("server /profile", req.url);
     try {
       await handleProfile(req, res, {
@@ -21,6 +22,15 @@ export default handleAuth({
           try {
             // TODO: Fix for console
             const user_metadata = session.user["https://console.akash.network/user_metadata"];
+            const headers: AxiosRequestHeaders = {
+              Authorization: `Bearer ${session.accessToken}`
+            };
+
+            const anonymousId = req.headers["x-anonymous-user-id"];
+
+            if (anonymousId) {
+              headers["X-ANONYMOUS-USER-ID"] = anonymousId as string;
+            }
 
             const userSettings = await axios.post(
               `${BASE_API_MAINNET_URL}/user/tokenInfo`,
@@ -31,9 +41,7 @@ export default handleAuth({
                 subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true"
               },
               {
-                headers: {
-                  Authorization: `Bearer ${session.accessToken}`
-                }
+                headers
               }
             );
 
