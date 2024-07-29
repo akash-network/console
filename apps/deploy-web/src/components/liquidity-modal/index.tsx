@@ -1,5 +1,7 @@
 "use client";
 
+import "@leapwallet/elements/styles.css";
+
 import React, { useCallback, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@akashnetwork/ui/components";
