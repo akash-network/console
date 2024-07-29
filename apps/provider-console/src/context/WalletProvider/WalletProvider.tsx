@@ -91,6 +91,7 @@ export const WalletProvider = ({ children }) => {
       }
     }
 
+    console.log("This is checking if it's working");
     const client = await SigningStargateClient.connectWithSigner(rpc, offlineSigner, {
       registry: customRegistry,
       broadcastTimeoutMs: 300_000 // 5min

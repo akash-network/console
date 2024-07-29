@@ -1,4 +1,4 @@
-// export * from "./dashboard";
+export * from "./dashboard";
 export * from "./block";
 export * from "./transaction";
 export * from "./coin";

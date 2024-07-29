@@ -6,6 +6,7 @@ import { accountBarHeight } from "@src/utils/constants";
 import { UrlService } from "@src/utils/urlUtils";
 import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
 import { Button } from "@akashnetwork/ui/components";
+import { WalletStatus } from "./WalletStatus";
 
 export const Nav = ({
   isMobileOpen,
@@ -37,9 +38,13 @@ export const Nav = ({
               </Button>
             </Link>
           </div>
+          <div className="flex items-center">
+            <div className="ml-4">
+              <WalletStatus />
+            </div>
+          </div>
         </div>
       </div>
     </header>
   );
 };
-

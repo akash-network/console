@@ -21,7 +21,12 @@ export class ApiUrlService {
   static sandboxNodes() {
     return `${BASE_API_URL}/v1/nodes/sandbox`;
   }
-
+  static depositParams(apiEndpoint: string) {
+    return `${apiEndpoint}/cosmos/params/v1beta1/params?subspace=deployment&key=MinDeposits`;
+  }
+  static marketData() {
+    return `${BASE_API_URL}/v1/market-data`;
+  }
 }
 
 export const mainnetNodes = ApiUrlService.mainnetNodes();

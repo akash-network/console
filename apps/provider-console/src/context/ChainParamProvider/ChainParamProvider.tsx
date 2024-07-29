@@ -28,12 +28,6 @@ export const ChainParamProvider = ({ children }) => {
   const usdcMinDeposit = depositParams ? udenomToDenom(parseFloat(depositParams.find(x => x.denom === usdcDenom)?.amount || "") || 0) : 0;
   const minDeposit = { akt: aktMinDeposit, usdc: usdcMinDeposit };
 
-  useEffect(() => {
-    if (isSettingsInit && !depositParams) {
-      getDepositParams();
-    }
-  }, [isSettingsInit, depositParams]);
-
   return <ChainParamContext.Provider value={{ minDeposit }}>{children}</ChainParamContext.Provider>;
 };
 

@@ -20,22 +20,32 @@ import { useRouter } from "next/navigation";
 import { useWallet } from "@src/context/WalletProvider";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { UrlService } from "@src/utils/urlUtils";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
+import { useEffect } from "react";
 
 export function WalletStatus() {
   const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected } = useWallet();
   const walletBalance = useTotalWalletBalance();
   const router = useRouter();
 
+  // Define your custom function to call on successful connection
+  const onWalletConnectSuccess = () => {
+    console.log("Wallet connected successfully!", address);
+    // Add any other logic you want to execute upon successful connection
+  };
+
+  useEffect(() => {
+    if (isWalletConnected) {
+      onWalletConnectSuccess();
+    } else {
+      console.log("Disconnected");
+    }
+  }, [isWalletConnected]); // Ensure to include address as a dependency if needed
+
   function onDisconnectClick() {
     logout();
   }
-
-  const onAuthorizeSpendingClick = () => {
-    router.push(UrlService.settingsAuthorizations());
-  };
 
   return (
     <>
@@ -52,10 +62,6 @@ export function WalletStatus() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onAuthorizeSpendingClick()}>
-                      <Bank />
-                      &nbsp;Authorize Spending
-                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onDisconnectClick()}>
                       <LogOut />
                       &nbsp;Disconnect Wallet
