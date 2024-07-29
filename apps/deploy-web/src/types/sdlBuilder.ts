@@ -173,6 +173,50 @@ const validateCpuAmount = (value: number, serviceCount: number, context: z.Refin
   return true;
 };
 
+// rules={{
+//   validate: v => {
+//     if (!v) return "GPU amount is required.";
+
+//     const _value = v || 0;
+
+//     if (_value < 1) return "GPU amount must be greater than 0.";
+//     else if (currentService.count === 1 && _value > validationConfig.maxGpuAmount) {
+//       return `Maximum amount of GPU for a single service instance is ${validationConfig.maxGpuAmount}.`;
+//     } else if (currentService.count > 1 && currentService.count * _value > validationConfig.maxGroupGpuCount) {
+//       return `Maximum total amount of GPU for a single service instance group is ${validationConfig.maxGroupGpuCount}.`;
+//     }
+//     return true;
+//   }
+// }}
+
+const validateGpuAmount = (value: number, serviceCount: number, context: z.RefinementCtx) => {
+  if (value < 1) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "GPU amount must be greater than 0.",
+      path: ["profile", "gpu"],
+      fatal: true
+    });
+    return z.NEVER;
+  } else if (serviceCount === 1 && value > validationConfig.maxGpuAmount) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Maximum amount of GPU for a single service instance is ${validationConfig.maxGpuAmount}.`,
+      path: ["profile", "gpu"],
+      fatal: true
+    });
+    return z.NEVER;
+  } else if (serviceCount > 1 && serviceCount * value > validationConfig.maxGroupGpuCount) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Maximum total amount of GPU for a single service instance group is ${validationConfig.maxGroupGpuCount}.`,
+      path: ["profile", "gpu"],
+      fatal: true
+    });
+    return z.NEVER;
+  }
+};
+
 export const ServiceSchema = z
   .object({
     id: z.string().optional(),
@@ -197,24 +241,10 @@ export const ServiceSchema = z
   .superRefine((data, ctx) => {
     console.log("validating");
     validateCpuAmount(data.profile.cpu, data.count, ctx);
+    if (data.profile.hasGpu) {
+      validateGpuAmount(data.profile.gpu as number, data.count, ctx);
+    }
   });
-// rules={{
-//   validate: v => {
-//     if (!v) return "CPU amount is required.";
-
-//     const _value = v || 0;
-
-//     if (currentService.count === 1 && _value < 0.1) {
-//       return "Minimum amount of CPU for a single service instance is 0.1.";
-//     } else if (currentService.count === 1 && _value > validationConfig.maxCpuAmount) {
-//       return `Maximum amount of CPU for a single service instance is ${validationConfig.maxCpuAmount}.`;
-//     } else if (currentService.count > 1 && currentService.count * _value > validationConfig.maxGroupCpuCount) {
-//       return `Maximum total amount of CPU for a single service instance group is ${validationConfig.maxGroupCpuCount}.`;
-//     }
-
-//     return true;
-//   }
-// }}
 
 export const SdlBuilderFormValuesSchema = z.object({
   services: z.array(ServiceSchema)

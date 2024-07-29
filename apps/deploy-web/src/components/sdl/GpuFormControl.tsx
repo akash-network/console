@@ -49,21 +49,6 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
         <FormField
           control={control}
           name={`services.${serviceIndex}.profile.gpu`}
-          rules={{
-            validate: v => {
-              if (!v) return "GPU amount is required.";
-
-              const _value = v || 0;
-
-              if (_value < 1) return "GPU amount must be greater than 0.";
-              else if (currentService.count === 1 && _value > validationConfig.maxGpuAmount) {
-                return `Maximum amount of GPU for a single service instance is ${validationConfig.maxGpuAmount}.`;
-              } else if (currentService.count > 1 && currentService.count * _value > validationConfig.maxGroupGpuCount) {
-                return `Maximum total amount of GPU for a single service instance group is ${validationConfig.maxGroupGpuCount}.`;
-              }
-              return true;
-            }
-          }}
           render={({ field, fieldState }) => (
             <FormItem className={cn("w-full")}>
               <div className="flex items-center">
