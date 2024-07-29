@@ -1,7 +1,6 @@
 import "nprogress/nprogress.css";
 import "@akashnetwork/ui/styles";
 import "../styles/index.css";
-import "@leapwallet/elements/styles.css";
 
 import React from "react";
 import { QueryClientProvider } from "react-query";
