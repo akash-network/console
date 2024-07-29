@@ -12,7 +12,6 @@ type UseCustomUser = {
 
 export const useCustomUser = (): UseCustomUser => {
   const { user, isLoading, error, checkSession } = useUser();
-
   const completeUser = user ? { ...user, plan: plans.find(x => x.code === user.planCode) } : user;
 
   return {
