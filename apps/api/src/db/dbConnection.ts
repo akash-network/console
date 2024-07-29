@@ -27,11 +27,13 @@ if (!csMap[env.Network]) {
 }
 
 const logger = new PostgresLoggerService({ orm: "sequelize" });
+const logging = (msg: string) => logger.write(msg);
 
 pg.defaults.parseInt8 = true;
 export const chainDb = new Sequelize(csMap[env.Network], {
   dialectModule: pg,
-  logging: (msg: string) => logger.write(msg),
+  logging,
+  logQueryParameters: true,
   transactionType: DbTransaction.TYPES.IMMEDIATE,
   define: {
     timestamps: false,
@@ -47,7 +49,8 @@ export const chainDbs: { [key: string]: Sequelize } = Object.keys(chainDefinitio
       ...obj,
       [chain]: new Sequelize(chainDefinitions[chain].connectionString, {
         dialectModule: pg,
-        logging: (msg: string) => logger.write(msg),
+        logging,
+        logQueryParameters: true,
         repositoryMode: true,
         transactionType: DbTransaction.TYPES.IMMEDIATE,
         define: {
@@ -62,7 +65,8 @@ export const chainDbs: { [key: string]: Sequelize } = Object.keys(chainDefinitio
 
 export const userDb = new Sequelize(env.UserDatabaseCS, {
   dialectModule: pg,
-  logging: (msg: string) => logger.write(msg),
+  logging,
+  logQueryParameters: true,
   transactionType: DbTransaction.TYPES.IMMEDIATE,
   define: {
     timestamps: false,
