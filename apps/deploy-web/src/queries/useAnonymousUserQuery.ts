@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { useWhen } from "@src/hooks/useWhen";
-import { userHttpService } from "@src/services/user-http/user-http.service";
+import { userHttpService } from "@src/services/http/http.service";
 
 export interface UserOutput {
   id: string;

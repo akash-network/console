@@ -11,6 +11,7 @@ import { ManagedUserWalletService, WalletInitializerService } from "@src/billing
 import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
 import { WithTransaction } from "@src/core/services";
 
+// TODO: authorize endpoints below
 @singleton()
 export class WalletController {
   constructor(
