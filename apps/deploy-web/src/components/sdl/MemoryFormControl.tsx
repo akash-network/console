@@ -74,7 +74,6 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
                 <Controller
                   control={control}
                   name={`services.${serviceIndex}.profile.ramUnit`}
-                  rules={{ required: "Ram unit is required." }}
                   defaultValue=""
                   render={({ field }) => (
                     <Select value={field.value || ""} onValueChange={field.onChange}>

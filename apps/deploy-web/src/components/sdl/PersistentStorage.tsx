@@ -90,7 +90,6 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                   <Controller
                     control={control}
                     name={`services.${serviceIndex}.profile.persistentStorageUnit`}
-                    rules={{ required: "Storage unit is required." }}
                     defaultValue=""
                     render={({ field }) => (
                       <Select value={field.value || ""} onValueChange={field.onChange}>

@@ -13,14 +13,14 @@ export const ProfileGpuModelSchema = z.object({
 export const ServicePersistentStorageSchema = z.object({
   name: z
     .string()
-    .min(1, { message: "Name is required." })
     .regex(/^[a-z0-9-]+$/, { message: "Invalid storage name. It must only be lower case letters, numbers and dashes." })
     .regex(/^[a-z]/, { message: "Invalid starting character. It can only start with a lowercase letter." })
-    .regex(/[^-]$/, { message: "Invalid ending character. It can only end with a lowercase letter or number" }),
-  type: z.string().min(1, { message: "Type is required." }),
+    .regex(/[^-]$/, { message: "Invalid ending character. It can only end with a lowercase letter or number" })
+    .optional()
+    .or(z.literal("")),
+  type: z.string().optional(),
   mount: z
     .string()
-    // .min(1, { message: "Mount is required." })
     .regex(/^\/.*$/, { message: "Mount must be an absolute path." })
     .optional()
     .or(z.literal("")),
@@ -90,9 +90,31 @@ export const ProfileSchema = z
       return z.NEVER;
     }
 
-    if (data.hasPersistentStorage && (!data.persistentStorage || data.persistentStorage < 1)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Persistent storage amount is required", path: ["persistentStorage"], fatal: true });
-      return z.NEVER;
+    if (data.hasPersistentStorage) {
+      if (!data.persistentStorage || data.persistentStorage < 1) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Persistent storage amount is required", path: ["persistentStorage"], fatal: true });
+        return z.NEVER;
+      }
+
+      if (!data.persistentStorageUnit) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Persistent storage unit is required", path: ["persistentStorageUnit"], fatal: true });
+        return z.NEVER;
+      }
+
+      if (!data.persistentStorageParam?.name) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Persistent storage name is required", path: ["persistentStorageParam", "name"], fatal: true });
+        return z.NEVER;
+      }
+
+      if (!data.persistentStorageParam?.type) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Persistent storage type is required", path: ["persistentStorageParam", "type"], fatal: true });
+        return z.NEVER;
+      }
+
+      if (!data.persistentStorageParam?.mount) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Persistent storage mount is required", path: ["persistentStorageParam", "mount"], fatal: true });
+        return z.NEVER;
+      }
     }
   });
 
@@ -200,25 +222,6 @@ const validateGpuAmount = (value: number, serviceCount: number, context: z.Refin
     return z.NEVER;
   }
 };
-
-// rules={{
-//   validate: v => {
-//     if (!v) return "Memory amount is required.";
-
-//     const currentUnit = memoryUnits.find(u => currentService.profile.ramUnit === u.suffix);
-//     const _value = (v || 0) * (currentUnit?.value || 0);
-
-//     if (currentService.count === 1 && _value < validationConfig.minMemory) {
-//       return "Minimum amount of memory for a single service instance is 1 Mi.";
-//     } else if (currentService.count === 1 && currentService.count * _value > validationConfig.maxMemory) {
-//       return "Maximum amount of memory for a single service instance is 512 Gi.";
-//     } else if (currentService.count > 1 && currentService.count * _value > validationConfig.maxGroupMemory) {
-//       return "Maximum total amount of memory for a single service instance group is 1024 Gi.";
-//     }
-
-//     return true;
-//   }
-// }}
 
 const validateMemoryAmount = (value: number, ramUnit: string, serviceCount: number, context: z.RefinementCtx) => {
   const currentUnit = memoryUnits.find(u => ramUnit === u.suffix);
