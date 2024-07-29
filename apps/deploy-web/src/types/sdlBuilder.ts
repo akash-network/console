@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { validationConfig } from "@src/utils/akash/units";
+import { memoryUnits, validationConfig } from "@src/utils/akash/units";
 import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 
 export const ProfileGpuModelSchema = z.object({
@@ -84,16 +84,16 @@ export const ProfileSchema = z
     persistentStorageUnit: z.string().optional(),
     persistentStorageParam: ServicePersistentStorageSchema.optional()
   })
-  .refine(data => {
+  .superRefine((data, ctx) => {
     if (data.hasGpu && !data.gpu) {
-      return { message: "Gpu amount is required.", path: ["gpu"] };
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Gpu amount is required.", path: ["gpu"], fatal: true });
+      return z.NEVER;
     }
 
     if (data.hasPersistentStorage && (!data.persistentStorage || data.persistentStorage < 1)) {
-      return { message: "Persistent storage amount is required", path: ["persistentStorage"] };
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Persistent storage amount is required", path: ["persistentStorage"], fatal: true });
+      return z.NEVER;
     }
-
-    return true;
   });
 
 const Port = z
@@ -173,22 +173,6 @@ const validateCpuAmount = (value: number, serviceCount: number, context: z.Refin
   return true;
 };
 
-// rules={{
-//   validate: v => {
-//     if (!v) return "GPU amount is required.";
-
-//     const _value = v || 0;
-
-//     if (_value < 1) return "GPU amount must be greater than 0.";
-//     else if (currentService.count === 1 && _value > validationConfig.maxGpuAmount) {
-//       return `Maximum amount of GPU for a single service instance is ${validationConfig.maxGpuAmount}.`;
-//     } else if (currentService.count > 1 && currentService.count * _value > validationConfig.maxGroupGpuCount) {
-//       return `Maximum total amount of GPU for a single service instance group is ${validationConfig.maxGroupGpuCount}.`;
-//     }
-//     return true;
-//   }
-// }}
-
 const validateGpuAmount = (value: number, serviceCount: number, context: z.RefinementCtx) => {
   if (value < 1) {
     context.addIssue({
@@ -211,6 +195,55 @@ const validateGpuAmount = (value: number, serviceCount: number, context: z.Refin
       code: z.ZodIssueCode.custom,
       message: `Maximum total amount of GPU for a single service instance group is ${validationConfig.maxGroupGpuCount}.`,
       path: ["profile", "gpu"],
+      fatal: true
+    });
+    return z.NEVER;
+  }
+};
+
+// rules={{
+//   validate: v => {
+//     if (!v) return "Memory amount is required.";
+
+//     const currentUnit = memoryUnits.find(u => currentService.profile.ramUnit === u.suffix);
+//     const _value = (v || 0) * (currentUnit?.value || 0);
+
+//     if (currentService.count === 1 && _value < validationConfig.minMemory) {
+//       return "Minimum amount of memory for a single service instance is 1 Mi.";
+//     } else if (currentService.count === 1 && currentService.count * _value > validationConfig.maxMemory) {
+//       return "Maximum amount of memory for a single service instance is 512 Gi.";
+//     } else if (currentService.count > 1 && currentService.count * _value > validationConfig.maxGroupMemory) {
+//       return "Maximum total amount of memory for a single service instance group is 1024 Gi.";
+//     }
+
+//     return true;
+//   }
+// }}
+
+const validateMemoryAmount = (value: number, ramUnit: string, serviceCount: number, context: z.RefinementCtx) => {
+  const currentUnit = memoryUnits.find(u => ramUnit === u.suffix);
+  const _value = (value || 0) * (currentUnit?.value || 0);
+  if (serviceCount === 1 && _value < validationConfig.minMemory) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Minimum amount of memory for a single service instance is 1 Mi.",
+      path: ["profile", "ram"],
+      fatal: true
+    });
+    return z.NEVER;
+  } else if (serviceCount === 1 && _value > validationConfig.maxMemory) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Maximum amount of memory for a single service instance is 512 Gi.`,
+      path: ["profile", "ram"],
+      fatal: true
+    });
+    return z.NEVER;
+  } else if (serviceCount > 1 && serviceCount * _value > validationConfig.maxGroupMemory) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Maximum total amount of memory for a single service instance group is 1024 Gi.`,
+      path: ["profile", "ram"],
       fatal: true
     });
     return z.NEVER;
@@ -241,6 +274,7 @@ export const ServiceSchema = z
   .superRefine((data, ctx) => {
     console.log("validating");
     validateCpuAmount(data.profile.cpu, data.count, ctx);
+    validateMemoryAmount(data.profile.ram, data.profile.ramUnit, data.count, ctx);
     if (data.profile.hasGpu) {
       validateGpuAmount(data.profile.gpu as number, data.count, ctx);
     }

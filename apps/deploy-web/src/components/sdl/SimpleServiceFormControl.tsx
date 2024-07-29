@@ -312,7 +312,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                     </div>
 
                     <div>
-                      <MemoryFormControl control={control as any} currentService={currentService} serviceIndex={serviceIndex} />
+                      <MemoryFormControl control={control as any} serviceIndex={serviceIndex} />
                     </div>
 
                     <div>

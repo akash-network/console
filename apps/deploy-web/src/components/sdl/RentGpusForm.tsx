@@ -16,7 +16,7 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import sdlStore from "@src/store/sdlStore";
-import { ApiTemplate, ProfileGpuModelType, RentGpusFormValuesSchema,RentGpusFormValuesType, ServiceType } from "@src/types";
+import { ApiTemplate, ProfileGpuModelType, RentGpusFormValuesSchema, RentGpusFormValuesType, ServiceType } from "@src/types";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
@@ -298,7 +298,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
             </div>
 
             <div className="mt-4">
-              <MemoryFormControl control={control as any} currentService={currentService} serviceIndex={0} />
+              <MemoryFormControl control={control as any} serviceIndex={0} />
             </div>
 
             <div className="mt-4">

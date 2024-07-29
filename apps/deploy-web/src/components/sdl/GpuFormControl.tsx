@@ -153,7 +153,6 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                     <Controller
                       control={control}
                       name={`services.${serviceIndex}.profile.gpuModels.${formGpuIndex}.vendor`}
-                      rules={{ required: "GPU vendor is required." }}
                       defaultValue=""
                       render={({ field }) => (
                         <FormControl fullWidth>

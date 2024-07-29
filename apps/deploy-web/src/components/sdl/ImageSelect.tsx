@@ -116,18 +116,6 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
           <Controller
             control={control}
             name={`services.0.image`}
-            rules={{
-              required: "Docker image name is required.",
-              validate: value => {
-                const hasValidChars = /^[a-z0-9\-_/:.]+$/.test(value);
-
-                if (!hasValidChars) {
-                  return "Invalid docker image name.";
-                }
-
-                return true;
-              }
-            }}
             render={({ field, fieldState }) => (
               <TextField
                 type="text"

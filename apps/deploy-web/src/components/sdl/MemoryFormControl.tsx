@@ -18,8 +18,8 @@ import {
 } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
-import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { memoryUnits, validationConfig } from "@src/utils/akash/units";
+import { RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
+import { memoryUnits } from "@src/utils/akash/units";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
@@ -27,32 +27,13 @@ type Props = {
   serviceIndex: number;
   children?: ReactNode;
   control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
-  currentService: ServiceType;
 };
 
-export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, currentService }) => {
+export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex }) => {
   return (
     <FormField
       control={control}
       name={`services.${serviceIndex}.profile.ram`}
-      rules={{
-        validate: v => {
-          if (!v) return "Memory amount is required.";
-
-          const currentUnit = memoryUnits.find(u => currentService.profile.ramUnit === u.suffix);
-          const _value = (v || 0) * (currentUnit?.value || 0);
-
-          if (currentService.count === 1 && _value < validationConfig.minMemory) {
-            return "Minimum amount of memory for a single service instance is 1 Mi.";
-          } else if (currentService.count === 1 && currentService.count * _value > validationConfig.maxMemory) {
-            return "Maximum amount of memory for a single service instance is 512 Gi.";
-          } else if (currentService.count > 1 && currentService.count * _value > validationConfig.maxGroupMemory) {
-            return "Maximum total amount of memory for a single service instance group is 1024 Gi.";
-          }
-
-          return true;
-        }
-      }}
       render={({ field, fieldState }) => (
         <FormPaper className={cn({ ["border-b border-red-500"]: !!fieldState.error })}>
           <FormItem>
