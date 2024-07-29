@@ -17,30 +17,13 @@ type Props = {
   currentService: ServiceType;
 };
 
-export const CpuFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, currentService }) => {
+export const CpuFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex }) => {
   return (
     <FormField
       control={control}
       name={`services.${serviceIndex}.profile.cpu`}
-      rules={{
-        validate: v => {
-          if (!v) return "CPU amount is required.";
-
-          const _value = v || 0;
-
-          if (currentService.count === 1 && _value < 0.1) {
-            return "Minimum amount of CPU for a single service instance is 0.1.";
-          } else if (currentService.count === 1 && _value > validationConfig.maxCpuAmount) {
-            return `Maximum amount of CPU for a single service instance is ${validationConfig.maxCpuAmount}.`;
-          } else if (currentService.count > 1 && currentService.count * _value > validationConfig.maxGroupCpuCount) {
-            return `Maximum total amount of CPU for a single service instance group is ${validationConfig.maxGroupCpuCount}.`;
-          }
-
-          return true;
-        }
-      }}
       render={({ field, fieldState }) => (
-        <FormPaper className={cn({ ["border-b border-red-500"]: !!fieldState.error })}>
+        <FormPaper>
           <FormItem>
             <div className="flex items-center">
               <div className="flex items-center">
@@ -50,13 +33,13 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
                 <CustomTooltip
                   title={
                     <>
-                      The amount of vCPU's required for this workload.
+                      The amount of vCPU&apos;s required for this workload.
                       <br />
                       <br />
-                      The maximum for a single instance is {validationConfig.maxCpuAmount} vCPU's.
+                      The maximum for a single instance is {validationConfig.maxCpuAmount} vCPU&apos;s.
                       <br />
                       <br />
-                      The maximum total multiplied by the count of instances is 512 vCPU's.
+                      The maximum total multiplied by the count of instances is 512 vCPU&apos;s.
                     </>
                   }
                 >
@@ -89,7 +72,7 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
               />
             </div>
 
-            <FormMessage />
+            <FormMessage className={cn({ "pt-2": !!fieldState.error })} />
           </FormItem>
         </FormPaper>
       )}

@@ -2,12 +2,13 @@
 import React, { Dispatch, useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Alert, Button, Form, Spinner } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
 import cloneDeep from "lodash/cloneDeep";
 import { nanoid } from "nanoid";
 
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
-import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { SdlBuilderFormValuesSchema, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService, defaultSshVMService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
@@ -32,9 +33,10 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: {
       services: [cloneDeep(hasComponent("ssh") ? defaultSshVMService : defaultService)]
-    }
+    },
+    resolver: zodResolver(SdlBuilderFormValuesSchema)
   });
-  const { control, trigger, watch, setValue } = form;
+  const { control, trigger, watch, setValue, formState } = form;
   const {
     fields: services,
     remove: removeService,
@@ -47,6 +49,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   const { services: _services = [] } = watch();
   const { data: gpuModels } = useGpuModels();
   const [serviceCollapsed, setServiceCollapsed] = useState([]);
+  console.log(formState.errors);
 
   React.useImperativeHandle(ref, () => ({
     getSdl: getSdl,

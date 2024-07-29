@@ -165,9 +165,6 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
             <Controller
               control={control}
               name="expiration"
-              rules={{
-                required: true
-              }}
               render={({ field }) => {
                 return <FormInput {...field} type="datetime-local" label="Expiration" />;
               }}

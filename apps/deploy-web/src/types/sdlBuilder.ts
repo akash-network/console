@@ -1,20 +1,8 @@
 import { z } from "zod";
 
+import { validationConfig } from "@src/utils/akash/units";
 import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 
-export type ITemplate = {
-  id: string;
-  userId: string;
-  username: string;
-  title: string;
-  description: string;
-  isPublic: boolean;
-  cpu: number;
-  ram: number;
-  storage: number;
-  sdl: string;
-  isFavorite: boolean;
-};
 export const ProfileGpuModelSchema = z.object({
   vendor: z.string().min(1, { message: "Vendor is required." }),
   name: z.string().optional(),
@@ -32,8 +20,10 @@ export const ServicePersistentStorageSchema = z.object({
   type: z.string().min(1, { message: "Type is required." }),
   mount: z
     .string()
-    .min(1, { message: "Mount is required." })
-    .regex(/^\/.*$/, { message: "Mount must be an absolute path." }),
+    // .min(1, { message: "Mount is required." })
+    .regex(/^\/.*$/, { message: "Mount must be an absolute path." })
+    .optional()
+    .or(z.literal("")),
   readOnly: z.boolean().optional()
 });
 
@@ -79,20 +69,32 @@ export const SignedBySchema = z.object({
   value: z.string().min(1, { message: "Value is required." })
 });
 
-export const ProfileSchema = z.object({
-  cpu: z.number().min(0, { message: "CPU count is required." }),
-  hasGpu: z.boolean().optional(),
-  gpu: z.number().optional(),
-  gpuModels: z.array(ProfileGpuModelSchema).optional(),
-  ram: z.number().min(1, { message: "RAM is required." }),
-  ramUnit: z.string().min(1, { message: "RAM unit is required." }),
-  storage: z.number().min(1, { message: "Storage is required." }),
-  storageUnit: z.string().min(1, { message: "Storage unit is required." }),
-  hasPersistentStorage: z.boolean().optional(),
-  persistentStorage: z.number().optional(),
-  persistentStorageUnit: z.string().optional(),
-  persistentStorageParam: ServicePersistentStorageSchema.optional()
-});
+export const ProfileSchema = z
+  .object({
+    cpu: z.number({ invalid_type_error: "CPU count is required." }).min(0.1, { message: "CPU count is required." }),
+    hasGpu: z.boolean().optional(),
+    gpu: z.number({ invalid_type_error: "Gpu amount is required." }).optional(),
+    gpuModels: z.array(ProfileGpuModelSchema).optional(),
+    ram: z.number().min(1, { message: "RAM is required." }),
+    ramUnit: z.string().min(1, { message: "RAM unit is required." }),
+    storage: z.number().min(1, { message: "Storage is required." }),
+    storageUnit: z.string().min(1, { message: "Storage unit is required." }),
+    hasPersistentStorage: z.boolean().optional(),
+    persistentStorage: z.number({ invalid_type_error: "Persistent storage amount is required." }).optional(),
+    persistentStorageUnit: z.string().optional(),
+    persistentStorageParam: ServicePersistentStorageSchema.optional()
+  })
+  .refine(data => {
+    if (data.hasGpu && !data.gpu) {
+      return { message: "Gpu amount is required.", path: ["gpu"] };
+    }
+
+    if (data.hasPersistentStorage && (!data.persistentStorage || data.persistentStorage < 1)) {
+      return { message: "Persistent storage amount is required", path: ["persistentStorage"] };
+    }
+
+    return true;
+  });
 
 const Port = z
   .number()
@@ -118,6 +120,7 @@ export const ExposeSchema = z.object({
     .regex(/^[a-z]/, { message: "Invalid starting character. It can only start with a lowercase letter." })
     .regex(/[^-]$/, { message: "Invalid ending character. It can only end with a lowercase letter or number" })
     .optional()
+    .or(z.literal(""))
 });
 
 export const PlacementSchema = z.object({
@@ -140,33 +143,81 @@ export const PlacementSchema = z.object({
   })
 });
 
-export const ServiceSchema = z.object({
-  id: z.string().optional(),
-  title: z
-    .string()
-    .min(1, { message: "Service name is required." })
-    .regex(/^[a-z0-9-]+$/, { message: "Invalid service name. It must only be lower case letters, numbers and dashes." })
-    .regex(/^[a-z]/, { message: "Invalid starting character. It can only start with a lowercase letter." })
-    .regex(/[^-]$/, { message: "Invalid ending character. It can only end with a lowercase letter or number" }),
-  image: z
-    .string()
-    .min(1, { message: "Docker image name is required." })
-    .regex(/^[a-z0-9\-_/:.]+$/, { message: "Invalid docker image name." }),
-  profile: ProfileSchema,
-  expose: z.array(ExposeSchema),
-  command: CommandSchema.optional(),
-  env: z.array(EnvironmentVariableSchema).optional(),
-  placement: PlacementSchema,
-  count: z.number().min(1, { message: "Service count is required." }),
-  sshPubKey: z.string().min(1, { message: "SSH Public key is required." }) //.optional()
-});
+const validateCpuAmount = (value: number, serviceCount: number, context: z.RefinementCtx) => {
+  if (serviceCount === 1 && value < 0.1) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Minimum amount of CPU for a single service instance is 0.1.",
+      path: ["profile", "cpu"],
+      fatal: true
+    });
+    return z.NEVER;
+  } else if (serviceCount === 1 && value > validationConfig.maxCpuAmount) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Maximum amount of CPU for a single service instance is ${validationConfig.maxCpuAmount}.`,
+      path: ["profile", "cpu"],
+      fatal: true
+    });
+    return z.NEVER;
+  } else if (serviceCount > 1 && serviceCount * value > validationConfig.maxGroupCpuCount) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Maximum total amount of CPU for a single service instance group is ${validationConfig.maxGroupCpuCount}.`,
+      path: ["profile", "cpu"],
+      fatal: true
+    });
+    return z.NEVER;
+  }
+
+  return true;
+};
+
+export const ServiceSchema = z
+  .object({
+    id: z.string().optional(),
+    title: z
+      .string()
+      .min(1, { message: "Service name is required." })
+      .regex(/^[a-z0-9-]+$/, { message: "Invalid service name. It must only be lower case letters, numbers and dashes." })
+      .regex(/^[a-z]/, { message: "Invalid starting character. It can only start with a lowercase letter." })
+      .regex(/[^-]$/, { message: "Invalid ending character. It can only end with a lowercase letter or number" }),
+    image: z
+      .string()
+      .min(1, { message: "Docker image name is required." })
+      .regex(/^[a-z0-9\-_/:.]+$/, { message: "Invalid docker image name." }),
+    profile: ProfileSchema,
+    expose: z.array(ExposeSchema),
+    command: CommandSchema.optional(),
+    env: z.array(EnvironmentVariableSchema).optional(),
+    placement: PlacementSchema,
+    count: z.number().min(1, { message: "Service count is required." }),
+    sshPubKey: z.string().optional() //.min(1, { message: "SSH Public key is required." }) //.optional()
+  })
+  .superRefine((data, ctx) => {
+    console.log("validating");
+    validateCpuAmount(data.profile.cpu, data.count, ctx);
+  });
+// rules={{
+//   validate: v => {
+//     if (!v) return "CPU amount is required.";
+
+//     const _value = v || 0;
+
+//     if (currentService.count === 1 && _value < 0.1) {
+//       return "Minimum amount of CPU for a single service instance is 0.1.";
+//     } else if (currentService.count === 1 && _value > validationConfig.maxCpuAmount) {
+//       return `Maximum amount of CPU for a single service instance is ${validationConfig.maxCpuAmount}.`;
+//     } else if (currentService.count > 1 && currentService.count * _value > validationConfig.maxGroupCpuCount) {
+//       return `Maximum total amount of CPU for a single service instance group is ${validationConfig.maxGroupCpuCount}.`;
+//     }
+
+//     return true;
+//   }
+// }}
 
 export const SdlBuilderFormValuesSchema = z.object({
   services: z.array(ServiceSchema)
-});
-
-export const SdlBuilderCommandFormValuesSchema = z.object({
-  commands: z.array(CommandSchema)
 });
 
 export const ProviderRegionValueSchema = z.object({
@@ -195,6 +246,5 @@ export type SignedByType = z.infer<typeof SignedBySchema>;
 export type ProfileType = z.infer<typeof ProfileSchema>;
 export type ExposeType = z.infer<typeof ExposeSchema>;
 export type PlacementType = z.infer<typeof PlacementSchema>;
-export type SdlBuilderCommandFormValuesType = z.infer<typeof SdlBuilderCommandFormValuesSchema>;
 export type ProviderRegionValueType = z.infer<typeof ProviderRegionValueSchema>;
 export type RentGpusFormValuesType = z.infer<typeof RentGpusFormValuesSchema>;

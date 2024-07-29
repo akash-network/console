@@ -39,3 +39,17 @@ export type ApiTemplateCategory = {
   templateSources: TemplateSource[];
   templates: ApiTemplate[];
 };
+
+export type ITemplate = {
+  id: string;
+  userId: string;
+  username: string;
+  title: string;
+  description: string;
+  isPublic: boolean;
+  cpu: number;
+  ram: number;
+  storage: number;
+  sdl: string;
+  isFavorite: boolean;
+};

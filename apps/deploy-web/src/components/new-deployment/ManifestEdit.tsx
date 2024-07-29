@@ -304,7 +304,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
             <div className="flex-grow">
               <Button
                 variant="default"
-                disabled={isCreatingDeployment || !!parsingError || !editedManifest}
+                // disabled={isCreatingDeployment || !!parsingError || !editedManifest}
                 onClick={() => handleCreateDeployment()}
                 className="w-full whitespace-nowrap sm:w-auto"
                 data-testid="create-deployment-btn"

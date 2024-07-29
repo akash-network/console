@@ -5,7 +5,6 @@ import { MdStorage } from "react-icons/md";
 import {
   Checkbox,
   CustomTooltip,
-  FormDescription,
   FormField,
   FormInput,
   FormItem,
@@ -21,6 +20,7 @@ import {
   SelectValue,
   Slider
 } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle } from "iconoir-react";
 
 import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -40,13 +40,6 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
       <FormField
         control={control}
         name={`services.${serviceIndex}.profile.persistentStorage`}
-        rules={{
-          min: 1,
-          validate: v => {
-            if (!v) return "Storage amount is required.";
-            return true;
-          }
-        }}
         render={({ field, fieldState }) => (
           <FormItem>
             <div className="flex items-start justify-between sm:flex-row sm:items-center">
@@ -126,7 +119,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
               <Slider value={[field.value || 0]} min={1} max={512} step={1} onValueChange={newValue => field.onChange(newValue)} className="pt-2" />
             )}
 
-            {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}
+            <FormMessage className={cn({ "pt-2": !!fieldState.error })} />
           </FormItem>
         )}
       />

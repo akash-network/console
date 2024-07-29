@@ -65,7 +65,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
             }
           }}
           render={({ field, fieldState }) => (
-            <FormItem className={cn("w-full", { ["border-b border-red-500"]: !!fieldState.error })}>
+            <FormItem className={cn("w-full")}>
               <div className="flex items-center">
                 <div className="flex items-center">
                   <div className="flex items-center">
@@ -141,7 +141,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                 />
               )}
 
-              <FormMessage />
+              <FormMessage className={cn({ "pt-2": !!fieldState.error })} />
             </FormItem>
           )}
         />
