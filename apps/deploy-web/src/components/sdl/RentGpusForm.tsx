@@ -302,7 +302,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
             </div>
 
             <div className="mt-4">
-              <StorageFormControl control={control as any} currentService={currentService} serviceIndex={0} />
+              <StorageFormControl control={control as any} serviceIndex={0} />
             </div>
 
             <div className="grid-col-2 mt-4 grid gap-2">

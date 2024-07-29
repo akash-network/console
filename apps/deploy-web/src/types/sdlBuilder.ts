@@ -73,7 +73,7 @@ export const ProfileSchema = z
   .object({
     cpu: z.number({ invalid_type_error: "CPU count is required." }).min(0.1, { message: "CPU count is required." }),
     hasGpu: z.boolean().optional(),
-    gpu: z.number({ invalid_type_error: "Gpu amount is required." }).optional(),
+    gpu: z.number({ invalid_type_error: "GPU amount is required." }).optional(),
     gpuModels: z.array(ProfileGpuModelSchema).optional(),
     ram: z.number().min(1, { message: "RAM is required." }),
     ramUnit: z.string().min(1, { message: "RAM unit is required." }),
@@ -253,6 +253,29 @@ const validateMemoryAmount = (value: number, ramUnit: string, serviceCount: numb
   }
 };
 
+const validateStorageAmount = (value: number, storageUnit: string, serviceCount: number, context: z.RefinementCtx) => {
+  const currentUnit = memoryUnits.find(u => storageUnit === u.suffix);
+  const _value = (value || 0) * (currentUnit?.value || 0);
+
+  if (serviceCount === 1 && _value < validationConfig.minStorage) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Minimum amount of storage for a single service instance is 5 Mi.",
+      path: ["profile", "storage"],
+      fatal: true
+    });
+    return z.NEVER;
+  } else if (serviceCount === 1 && _value > validationConfig.maxStorage) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Maximum amount of storage for a single service instance is 32 Ti.`,
+      path: ["profile", "storage"],
+      fatal: true
+    });
+    return z.NEVER;
+  }
+};
+
 export const ServiceSchema = z
   .object({
     id: z.string().optional(),
@@ -278,6 +301,7 @@ export const ServiceSchema = z
     console.log("validating");
     validateCpuAmount(data.profile.cpu, data.count, ctx);
     validateMemoryAmount(data.profile.ram, data.profile.ramUnit, data.count, ctx);
+    validateStorageAmount(data.profile.storage, data.profile.storageUnit, data.count, ctx);
     if (data.profile.hasGpu) {
       validateGpuAmount(data.profile.gpu as number, data.count, ctx);
     }

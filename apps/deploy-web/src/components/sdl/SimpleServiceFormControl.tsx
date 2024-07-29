@@ -316,7 +316,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                     </div>
 
                     <div>
-                      <StorageFormControl control={control as any} currentService={currentService} serviceIndex={serviceIndex} />
+                      <StorageFormControl control={control as any} serviceIndex={serviceIndex} />
                     </div>
 
                     <div>

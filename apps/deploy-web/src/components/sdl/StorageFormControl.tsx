@@ -18,8 +18,8 @@ import {
 } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
-import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { storageUnits, validationConfig } from "@src/utils/akash/units";
+import { RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
+import { storageUnits } from "@src/utils/akash/units";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
@@ -27,29 +27,12 @@ type Props = {
   serviceIndex: number;
   children?: ReactNode;
   control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
-  currentService: ServiceType;
 };
 
-export const StorageFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, currentService }) => {
+export const StorageFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex }) => {
   return (
     <FormField
       control={control}
-      rules={{
-        validate: v => {
-          if (!v) return "Storage amount is required.";
-
-          const currentUnit = storageUnits.find(u => currentService.profile.storageUnit === u.suffix);
-          const _value = (v || 0) * (currentUnit?.value || 0);
-
-          if (currentService.count * _value < validationConfig.minStorage) {
-            return "Minimum amount of storage for a single service instance is 5 Mi.";
-          } else if (currentService.count * _value > validationConfig.maxStorage) {
-            return "Maximum amount of storage for a single service instance is 32 Ti.";
-          }
-
-          return true;
-        }
-      }}
       name={`services.${serviceIndex}.profile.storage`}
       render={({ field, fieldState }) => (
         <FormPaper className={cn({ ["border-b border-red-500"]: !!fieldState.error })}>
@@ -94,7 +77,6 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
                 <Controller
                   control={control}
                   name={`services.${serviceIndex}.profile.storageUnit`}
-                  rules={{ required: "Storage unit is required." }}
                   defaultValue=""
                   render={({ field }) => (
                     <Select value={field.value || ""} onValueChange={field.onChange}>
