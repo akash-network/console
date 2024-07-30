@@ -307,9 +307,30 @@ export const ServiceSchema = z
     }
   });
 
-export const SdlBuilderFormValuesSchema = z.object({
-  services: z.array(ServiceSchema)
-});
+const ImageList = z
+  .object({
+    services: z.array(ServiceSchema),
+    imageList: z.array(z.string()).optional()
+  })
+  .superRefine((data, ctx) => {
+    if (data.imageList && data.services.length === 0) {
+      for (let i = 0; i < data.services.length; i++) {
+        if (!data.imageList.includes(data.services[i].image)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "At least one service is required.",
+            path: ["services", i, "image"],
+            fatal: true
+          });
+          return z.NEVER;
+        }
+      }
+    }
+
+    return data;
+  });
+
+export const SdlBuilderFormValuesSchema = z.object({}).merge(ImageList.innerType());
 
 export const ProviderRegionValueSchema = z.object({
   key: z.string().optional(),
@@ -319,7 +340,7 @@ export const ProviderRegionValueSchema = z.object({
 });
 
 export const RentGpusFormValuesSchema = z.object({
-  services: z.array(ServiceSchema).min(1, { message: "At least one service is required." }),
+  services: z.array(ServiceSchema),
   region: ProviderRegionValueSchema.optional()
 });
 

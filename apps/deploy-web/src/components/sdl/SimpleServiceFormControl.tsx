@@ -211,15 +211,6 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                       <FormField
                         control={control}
                         name={`services.${serviceIndex}.image`}
-                        rules={{
-                          validate: value => {
-                            if (imageList) {
-                              return imageList.includes(value);
-                            }
-
-                            return true;
-                          }
-                        }}
                         render={({ field, fieldState }) => (
                           <FormItem className="w-full">
                             {imageList?.length ? (
@@ -268,6 +259,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                 placeholder="Example: mydockerimage:1.01"
                                 className="space-y-1"
                                 value={field.value}
+                                error={!!fieldState.error}
                                 onChange={event => field.onChange((event.target.value || "").toLowerCase())}
                                 startIconClassName="pl-2"
                                 startIcon={<Image alt="Docker Logo" src="/images/docker.png" layout="fixed" quality={100} width={24} height={18} priority />}
@@ -307,7 +299,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         hasGpu={!!currentService.profile.hasGpu}
                         currentService={currentService}
                         gpuModels={gpuModels}
-                        setValue={setValue}
+                        setValue={setValue as any}
                       />
                     </div>
 

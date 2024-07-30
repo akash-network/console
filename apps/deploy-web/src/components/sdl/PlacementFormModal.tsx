@@ -111,7 +111,6 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
               <FormField
                 control={control}
                 name={`services.${serviceIndex}.placement.pricing.amount`}
-                rules={{ required: "Pricing is required" }}
                 render={({ field, fieldState }) => (
                   <FormInput
                     type="number"
