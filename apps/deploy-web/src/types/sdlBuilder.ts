@@ -3,6 +3,8 @@ import { z } from "zod";
 import { memoryUnits, validationConfig } from "@src/utils/akash/units";
 import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 
+const VALID_IMAGE_NAME = /^[a-z0-9\-_/:.]+$/;
+
 export const ProfileGpuModelSchema = z.object({
   vendor: z.string().min(1, { message: "Vendor is required." }),
   name: z.string().optional(),
@@ -285,10 +287,7 @@ export const ServiceSchema = z
       .regex(/^[a-z0-9-]+$/, { message: "Invalid service name. It must only be lower case letters, numbers and dashes." })
       .regex(/^[a-z]/, { message: "Invalid starting character. It can only start with a lowercase letter." })
       .regex(/[^-]$/, { message: "Invalid ending character. It can only end with a lowercase letter or number" }),
-    image: z
-      .string()
-      .min(1, { message: "Docker image name is required." })
-      .regex(/^[a-z0-9\-_/:.]+$/, { message: "Invalid docker image name." }),
+    image: z.string().min(1, { message: "Docker image name is required." }),
     profile: ProfileSchema,
     expose: z.array(ExposeSchema),
     command: CommandSchema.optional(),
@@ -298,7 +297,6 @@ export const ServiceSchema = z
     sshPubKey: z.string().optional() //.min(1, { message: "SSH Public key is required." }) //.optional()
   })
   .superRefine((data, ctx) => {
-    console.log("validating");
     validateCpuAmount(data.profile.cpu, data.count, ctx);
     validateMemoryAmount(data.profile.ram, data.profile.ramUnit, data.count, ctx);
     validateStorageAmount(data.profile.storage, data.profile.storageUnit, data.count, ctx);
@@ -307,18 +305,32 @@ export const ServiceSchema = z
     }
   });
 
-const ImageList = z
-  .object({
-    services: z.array(ServiceSchema),
-    imageList: z.array(z.string()).optional()
-  })
+const ImageList = z.object({
+  imageList: z.array(z.string()).optional()
+});
+
+export const SdlBuilderFormValuesSchema = z
+  .object({ services: z.array(ServiceSchema) })
+  .merge(ImageList)
   .superRefine((data, ctx) => {
-    if (data.imageList && data.services.length === 0) {
+    if (data.imageList && data.imageList.length > 0) {
       for (let i = 0; i < data.services.length; i++) {
         if (!data.imageList.includes(data.services[i].image)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: "At least one service is required.",
+            message: "Docker image is not in the valid image list.",
+            path: ["services", i, "image"],
+            fatal: true
+          });
+          return z.NEVER;
+        }
+      }
+    } else {
+      for (let i = 0; i < data.services.length; i++) {
+        if (!VALID_IMAGE_NAME.test(data.services[i].image)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Invalid docker image name.",
             path: ["services", i, "image"],
             fatal: true
           });
@@ -329,8 +341,6 @@ const ImageList = z
 
     return data;
   });
-
-export const SdlBuilderFormValuesSchema = z.object({}).merge(ImageList.innerType());
 
 export const ProviderRegionValueSchema = z.object({
   key: z.string().optional(),
