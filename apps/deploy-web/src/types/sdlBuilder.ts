@@ -294,7 +294,7 @@ export const ServiceSchema = z
     env: z.array(EnvironmentVariableSchema).optional(),
     placement: PlacementSchema,
     count: z.number().min(1, { message: "Service count is required." }),
-    sshPubKey: z.string().optional() //.min(1, { message: "SSH Public key is required." }) //.optional()
+    sshPubKey: z.string().optional()
   })
   .superRefine((data, ctx) => {
     validateCpuAmount(data.profile.cpu, data.count, ctx);
@@ -309,10 +309,17 @@ const ImageList = z.object({
   imageList: z.array(z.string()).optional()
 });
 
+const SSHKey = z.object({
+  hasSSHKey: z.boolean().optional()
+});
+
 export const SdlBuilderFormValuesSchema = z
   .object({ services: z.array(ServiceSchema) })
   .merge(ImageList)
+  .merge(SSHKey)
   .superRefine((data, ctx) => {
+    // Docker image name validation
+    // Image list is set when we deploy a linux instance
     if (data.imageList && data.imageList.length > 0) {
       for (let i = 0; i < data.services.length; i++) {
         if (!data.imageList.includes(data.services[i].image)) {
@@ -339,7 +346,20 @@ export const SdlBuilderFormValuesSchema = z
       }
     }
 
-    return data;
+    // SSH key validation
+    if (data.hasSSHKey) {
+      for (let i = 0; i < data.services.length; i++) {
+        if (!data.services[i].sshPubKey) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "SSH Public key is required.",
+            path: ["services", i, "sshPubKey"],
+            fatal: true
+          });
+          return z.NEVER;
+        }
+      }
+    }
   });
 
 export const ProviderRegionValueSchema = z.object({

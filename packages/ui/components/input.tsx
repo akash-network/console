@@ -17,7 +17,7 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ classNam
     <FormItem className={className}>
       {label && <FormLabel>{label}</FormLabel>}
       <FormControl>
-        <Input type={type} className={inputClassName} ref={ref} {...props} />
+        <Input type={type} inputClassName={inputClassName} ref={ref} {...props} />
       </FormControl>
       {description && <FormDescription>{description}</FormDescription>}
       <FormMessage />
@@ -55,8 +55,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             className={cn(
               "border-input bg-popover ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-              inputClassName,
-              { ["pl-10"]: !!startIcon, ["pr-10"]: !!endIcon, "ring-destructive ring-2": !!error }
+              { ["pl-10"]: !!startIcon, ["pr-10"]: !!endIcon, "ring-destructive ring-2 ring-offset-2": !!error },
+              inputClassName
             )}
             ref={ref}
             {...props}

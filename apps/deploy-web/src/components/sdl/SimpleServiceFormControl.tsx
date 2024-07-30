@@ -323,7 +323,10 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         {hasComponent("ssh-toggle") && (
                           <CheckboxWithLabel
                             checked={hasComponent("ssh")}
-                            onCheckedChange={() => toggleCmp("ssh")}
+                            onCheckedChange={checked => {
+                              toggleCmp("ssh");
+                              setValue("hasSSHKey", !!checked);
+                            }}
                             className="ml-4"
                             label="Expose SSH"
                             data-testid="ssh-toggle"

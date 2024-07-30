@@ -33,7 +33,8 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: {
       services: [cloneDeep(hasComponent("ssh") ? defaultSshVMService : defaultService)],
-      imageList: imageList
+      imageList: imageList,
+      hasSSHKey: hasComponent("ssh")
     },
     resolver: zodResolver(SdlBuilderFormValuesSchema)
   });
