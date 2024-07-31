@@ -137,7 +137,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                   <FormField
                     control={control}
                     name={`services.${serviceIndex}.expose.${expIndex}.port`}
-                    render={({ field, fieldState }) => (
+                    render={({ field }) => (
                       <FormInput
                         type="number"
                         label={
@@ -152,7 +152,6 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                         max={65535}
                         step={1}
                         value={field.value}
-                        error={!!fieldState.error}
                         onChange={event => field.onChange(parseInt(event.target.value))}
                       />
                     )}
@@ -162,7 +161,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                   <FormField
                     control={control}
                     name={`services.${serviceIndex}.expose.${expIndex}.as`}
-                    render={({ field, fieldState }) => (
+                    render={({ field }) => (
                       <FormInput
                         type="number"
                         label={
@@ -175,7 +174,6 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                         }
                         color="secondary"
                         value={field.value}
-                        error={!!fieldState.error}
                         onChange={event => field.onChange(parseInt(event.target.value))}
                       />
                     )}
@@ -255,7 +253,7 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                 <FormField
                   control={control}
                   name={`services.${serviceIndex}.expose.${expIndex}.ipName`}
-                  render={({ field, fieldState }) => (
+                  render={({ field }) => (
                     <FormInput
                       type="text"
                       label={
@@ -282,7 +280,6 @@ export const ExposeFormModal: React.FunctionComponent<Props> = ({ control, servi
                       }
                       color="secondary"
                       value={field.value}
-                      error={!!fieldState.error}
                       onChange={event => field.onChange(event.target.value)}
                     />
                   )}

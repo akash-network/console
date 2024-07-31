@@ -68,7 +68,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
           <FormField
             control={control}
             name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.maxBodySize`}
-            render={({ field, fieldState }) => (
+            render={({ field }) => (
               <FormInput
                 type="number"
                 label={
@@ -81,7 +81,6 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                 }
                 className="mb-2 w-full"
                 value={field.value}
-                error={!!fieldState.error}
                 onChange={event => field.onChange(parseInt(event.target.value))}
                 min={0}
               />
@@ -91,7 +90,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
           <FormField
             control={control}
             name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.readTimeout`}
-            render={({ field, fieldState }) => (
+            render={({ field }) => (
               <FormInput
                 type="number"
                 label={
@@ -104,7 +103,6 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                 }
                 className="mb-2 w-full"
                 value={field.value}
-                error={!!fieldState.error}
                 onChange={event => field.onChange(parseInt(event.target.value))}
                 min={0}
               />
@@ -114,7 +112,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
           <FormField
             control={control}
             name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.sendTimeout`}
-            render={({ field, fieldState }) => (
+            render={({ field }) => (
               <FormInput
                 type="number"
                 label={
@@ -127,7 +125,6 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                 }
                 className="mb-2 w-full"
                 value={field.value}
-                error={!!fieldState.error}
                 onChange={event => field.onChange(parseInt(event.target.value))}
                 min={0}
               />
@@ -137,7 +134,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
           <FormField
             control={control}
             name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.nextTries`}
-            render={({ field, fieldState }) => (
+            render={({ field }) => (
               <FormInput
                 type="number"
                 label={
@@ -150,7 +147,6 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                 }
                 className="mb-2 w-full"
                 value={field.value}
-                error={!!fieldState.error}
                 onChange={event => field.onChange(parseInt(event.target.value))}
                 min={0}
               />
@@ -160,7 +156,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
           <FormField
             control={control}
             name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.nextTimeout`}
-            render={({ field, fieldState }) => (
+            render={({ field }) => (
               <FormInput
                 type="number"
                 label={
@@ -173,7 +169,6 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
                 }
                 className="mb-2 w-full"
                 value={field.value}
-                error={!!fieldState.error}
                 onChange={event => field.onChange(parseInt(event.target.value))}
                 min={0}
               />

@@ -129,7 +129,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
             <FormField
               control={control}
               name={`services.${serviceIndex}.profile.persistentStorageParam.name`}
-              render={({ field, fieldState }) => (
+              render={({ field }) => (
                 <FormInput
                   type="text"
                   label={
@@ -150,7 +150,6 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                     </div>
                   }
                   value={field.value}
-                  error={!!fieldState.error}
                   onChange={event => field.onChange(event.target.value)}
                   className="flex-grow"
                 />
@@ -197,7 +196,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
             <FormField
               control={control}
               name={`services.${serviceIndex}.profile.persistentStorageParam.mount`}
-              render={({ field, fieldState }) => (
+              render={({ field }) => (
                 <FormInput
                   type="text"
                   label={
@@ -219,7 +218,6 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                   }
                   placeholder="Example: /mnt/data"
                   value={field.value}
-                  error={!!fieldState.error}
                   onChange={event => field.onChange(event.target.value)}
                   className="ml-2 w-full"
                 />

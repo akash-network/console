@@ -146,7 +146,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
             <FormField
               control={control}
               name={`services.${serviceIndex}.title`}
-              render={({ field, fieldState }) => (
+              render={({ field }) => (
                 <FormInput
                   type="text"
                   label={
@@ -168,7 +168,6 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                       </CustomTooltip>
                     </div>
                   }
-                  error={!!fieldState.error}
                   value={field.value}
                   className="flex-grow"
                   onChange={event => field.onChange((event.target.value || "").toLowerCase())}
@@ -356,7 +355,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                       <FormField
                         control={control}
                         name={`services.${serviceIndex}.count`}
-                        render={({ field, fieldState }) => (
+                        render={({ field }) => (
                           <FormInput
                             type="number"
                             label={
@@ -383,7 +382,6 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                               </div>
                             }
                             value={field.value || ""}
-                            error={!!fieldState.error}
                             onChange={event => {
                               const newValue = parseInt(event.target.value);
                               field.onChange(newValue);

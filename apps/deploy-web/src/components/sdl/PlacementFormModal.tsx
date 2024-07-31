@@ -88,7 +88,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
               <FormField
                 control={control}
                 name={`services.${serviceIndex}.placement.name`}
-                render={({ field, fieldState }) => (
+                render={({ field }) => (
                   <FormInput
                     type="text"
                     label={
@@ -100,7 +100,6 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                       </div>
                     }
                     value={field.value}
-                    error={!!fieldState.error}
                     onChange={event => field.onChange(event.target.value)}
                   />
                 )}
@@ -111,7 +110,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
               <FormField
                 control={control}
                 name={`services.${serviceIndex}.placement.pricing.amount`}
-                render={({ field, fieldState }) => (
+                render={({ field }) => (
                   <FormInput
                     type="number"
                     label={
@@ -147,7 +146,6 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                       </div>
                     }
                     value={field.value}
-                    error={!!fieldState.error}
                     min={1}
                     step={1}
                     max={10000000}

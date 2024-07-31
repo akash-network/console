@@ -13,11 +13,12 @@ export interface FormInputProps extends InputProps {
 }
 
 const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ className, inputClassName, type, label, description, ...props }, ref) => {
+  const { error } = useFormField();
   return (
     <FormItem className={className}>
       {label && <FormLabel>{label}</FormLabel>}
       <FormControl>
-        <Input type={type} inputClassName={inputClassName} ref={ref} {...props} />
+        <Input type={type} inputClassName={inputClassName} ref={ref} error={!!error} {...props} />
       </FormControl>
       {description && <FormDescription>{description}</FormDescription>}
       <FormMessage />

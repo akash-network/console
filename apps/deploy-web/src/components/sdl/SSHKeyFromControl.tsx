@@ -41,7 +41,7 @@ export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex,
       <FormField
         control={control}
         name={`services.${serviceIndex}.sshPubKey`}
-        render={({ field, fieldState }) => (
+        render={({ field }) => (
           <FormInput
             type="text"
             label={
@@ -65,7 +65,6 @@ export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex,
             className="flex-grow"
             inputClassName="pr-[100px]"
             value={field.value}
-            error={!!fieldState.error}
             onChange={event => field.onChange(event.target.value || "")}
             startIcon={<Key className="ml-2 text-xs text-muted-foreground" />}
             endIcon={
