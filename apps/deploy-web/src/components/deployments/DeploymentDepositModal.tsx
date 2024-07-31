@@ -50,10 +50,9 @@ const formSchema = z
   .object({
     amount: z.coerce
       .number({
-        required_error: "Amount is required",
-        invalid_type_error: "Amount must be a number"
+        invalid_type_error: "Amount must be a number."
       })
-      .min(0.000001, { message: "Amount must be greater than 0" }),
+      .min(0.000001, { message: "Amount is required." }),
     useDepositor: z.boolean().optional(),
     depositorAddress: z.string().optional()
   })

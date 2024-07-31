@@ -9,7 +9,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
   Input,
-  Label,
   Snackbar,
   Spinner
 } from "@akashnetwork/ui/components";
@@ -219,7 +218,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
           <div className="flex flex-col items-end justify-between py-2 md:flex-row">
             <div className="flex w-full flex-grow items-end md:w-auto">
               <div className="flex-grow">
-                <Label>Search provider</Label>
                 <Input
                   placeholder="Search provider..."
                   disabled={bids?.length === 0 || isSendingManifest}
@@ -227,6 +225,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
                   onChange={onSearchChange}
                   type="text"
                   className="w-full"
+                  label="Search provider"
                   endIcon={
                     search && (
                       <Button

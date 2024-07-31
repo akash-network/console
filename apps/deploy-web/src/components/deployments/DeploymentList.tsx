@@ -6,7 +6,6 @@ import {
   CheckboxWithLabel,
   CustomPagination,
   Input,
-  Label,
   Spinner,
   Table,
   TableBody,
@@ -184,10 +183,10 @@ export const DeploymentList: React.FunctionComponent = () => {
       {((filteredDeployments?.length || 0) > 0 || !!search) && (
         <div className="flex items-center pb-4 pt-2">
           <div className="flex-grow">
-            <Label>Search Deployments by name</Label>
             <Input
               value={search}
               onChange={onSearchChange}
+              label="Search Deployments by name"
               className="w-full"
               type="text"
               endIcon={

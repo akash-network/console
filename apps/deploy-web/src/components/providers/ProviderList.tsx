@@ -253,11 +253,11 @@ export const ProviderList: React.FunctionComponent = () => {
 
             <div className="my-2 flex flex-col items-center space-y-2 md:flex-row md:space-x-2 md:space-y-0">
               <div className="flex-grow">
-                <Label>Search Providers</Label>
                 <Input
                   value={search}
                   onChange={onSearchChange}
                   className="w-full"
+                  label="Search Providers"
                   type="text"
                   endIcon={
                     !!search && (

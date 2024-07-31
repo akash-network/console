@@ -38,7 +38,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
     },
     resolver: zodResolver(SdlBuilderFormValuesSchema)
   });
-  const { control, trigger, watch, setValue, formState } = form;
+  const { control, trigger, watch, setValue } = form;
   const {
     fields: services,
     remove: removeService,
@@ -51,7 +51,6 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   const { services: _services = [] } = watch();
   const { data: gpuModels } = useGpuModels();
   const [serviceCollapsed, setServiceCollapsed] = useState([]);
-  console.log(formState.errors);
 
   React.useImperativeHandle(ref, () => ({
     getSdl: getSdl,
