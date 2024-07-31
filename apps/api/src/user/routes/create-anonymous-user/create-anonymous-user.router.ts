@@ -2,7 +2,7 @@ import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { UserController } from "@src/user/controllers/user/user.controller";
-import { AnonymousUserResponseOutputSchema } from "@src/user/routes/schemas/user.schema";
+import { AnonymousUserResponseOutputSchema } from "@src/user/schemas/user.schema";
 
 const route = createRoute({
   method: "post",

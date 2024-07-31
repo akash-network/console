@@ -6,6 +6,7 @@ import assert from "http-assert";
 import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
+import { AuthService } from "@src/auth/services/auth.service";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
@@ -28,12 +29,13 @@ export class TxSignerService {
     @InjectTypeRegistry() private readonly registry: Registry,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly masterWalletService: MasterWalletService,
-    private readonly balancesService: BalancesService
+    private readonly balancesService: BalancesService,
+    private readonly authService: AuthService
   ) {}
 
   async signAndBroadcast(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
-    const userWallet = await this.userWalletRepository.findByUserId(userId);
-    assert(userWallet, 403, "User wallet not found");
+    const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findByUserId(userId);
+    assert(userWallet, 403);
 
     const decodedMessages = this.decodeMessages(messages);
 
