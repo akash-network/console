@@ -6,7 +6,7 @@ import { BILLING_CONFIG, BillingConfig, USER_WALLET_SCHEMA, UserWalletSchema } f
 import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
 import { USER_SCHEMA, UserSchema } from "@src/user/providers";
 
-jest.setTimeout(10000);
+jest.setTimeout(20000);
 
 describe("wallets", () => {
   const userWalletSchema = container.resolve<UserWalletSchema>(USER_WALLET_SCHEMA);

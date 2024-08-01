@@ -114,9 +114,17 @@ userRequiredRouter.delete("/removeAddressName/:address", async c => {
 
 userRequiredRouter.post("/tokenInfo", async c => {
   const userId = getCurrentUserId(c);
+  const anonymousUserId = c.req.header("x-anonymous-user-id");
   const { wantedUsername, email, emailVerified, subscribedToNewsletter } = await c.req.json();
 
-  const settings = await getSettingsOrInit(userId, wantedUsername, email, !!emailVerified, subscribedToNewsletter);
+  const settings = await getSettingsOrInit({
+    anonymousUserId,
+    userId: userId,
+    wantedUsername,
+    email: email,
+    emailVerified: !!emailVerified,
+    subscribedToNewsletter: subscribedToNewsletter
+  });
 
   return c.json(settings);
 });

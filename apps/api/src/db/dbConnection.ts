@@ -5,6 +5,7 @@ import pg from "pg";
 import { Transaction as DbTransaction } from "sequelize";
 import { Sequelize } from "sequelize-typescript";
 
+import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
 import { env } from "@src/utils/env";
 
 function isValidNetwork(network: string): network is keyof typeof csMap {
@@ -25,10 +26,14 @@ if (!csMap[env.Network]) {
   throw new Error(`Missing connection string for network: ${env.Network}`);
 }
 
+const logger = new PostgresLoggerService({ orm: "sequelize" });
+const logging = (msg: string) => logger.write(msg);
+
 pg.defaults.parseInt8 = true;
 export const chainDb = new Sequelize(csMap[env.Network], {
   dialectModule: pg,
-  logging: false,
+  logging,
+  logQueryParameters: true,
   transactionType: DbTransaction.TYPES.IMMEDIATE,
   define: {
     timestamps: false,
@@ -44,7 +49,8 @@ export const chainDbs: { [key: string]: Sequelize } = Object.keys(chainDefinitio
       ...obj,
       [chain]: new Sequelize(chainDefinitions[chain].connectionString, {
         dialectModule: pg,
-        logging: false,
+        logging,
+        logQueryParameters: true,
         repositoryMode: true,
         transactionType: DbTransaction.TYPES.IMMEDIATE,
         define: {
@@ -59,7 +65,8 @@ export const chainDbs: { [key: string]: Sequelize } = Object.keys(chainDefinitio
 
 export const userDb = new Sequelize(env.UserDatabaseCS, {
   dialectModule: pg,
-  logging: false,
+  logging,
+  logQueryParameters: true,
   transactionType: DbTransaction.TYPES.IMMEDIATE,
   define: {
     timestamps: false,

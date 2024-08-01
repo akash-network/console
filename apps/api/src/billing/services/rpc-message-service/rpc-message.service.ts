@@ -4,7 +4,7 @@ import { BasicAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
 import { MsgGrantAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
 import { singleton } from "tsyringe";
 
-interface SpendingAuthorizationOptions {
+export interface SpendingAuthorizationMsgOptions {
   granter: string;
   grantee: string;
   denom: string;
@@ -14,70 +14,59 @@ interface SpendingAuthorizationOptions {
 
 @singleton()
 export class RpcMessageService {
-  getAllGrantMsgs(
-    options: Omit<SpendingAuthorizationOptions, "limit"> & {
-      limits: {
-        deployment: number;
-        fees: number;
-      };
-    }
-  ) {
-    return [this.getGrantMsg({ ...options, limit: options.limits.deployment }), this.getGrantBasicAllowanceMsg({ ...options, limit: options.limits.fees })];
-  }
-
-  getGrantBasicAllowanceMsg({ denom, limit, expiration, granter, grantee }: SpendingAuthorizationOptions) {
-    const allowance = {
-      typeUrl: "/cosmos.feegrant.v1beta1.BasicAllowance",
-      value: Uint8Array.from(
-        BasicAllowance.encode({
-          spendLimit: [
-            {
-              denom: denom,
-              amount: limit.toString()
-            }
-          ],
-          expiration: expiration
-            ? {
-                seconds: BigInt(Math.floor(expiration.getTime() / 1_000)),
-                nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
-              }
-            : undefined
-        }).finish()
-      )
-    };
-
+  getFeesAllowanceGrantMsg({ denom, limit, expiration, granter, grantee }: SpendingAuthorizationMsgOptions) {
     return {
       typeUrl: "/cosmos.feegrant.v1beta1.MsgGrantAllowance",
       value: MsgGrantAllowance.fromPartial({
-        granter: granter,
-        grantee: grantee,
-        allowance: allowance
+        granter,
+        grantee,
+        allowance: {
+          typeUrl: "/cosmos.feegrant.v1beta1.BasicAllowance",
+          value: Uint8Array.from(
+            BasicAllowance.encode({
+              spendLimit: [
+                {
+                  denom,
+                  amount: limit.toString()
+                }
+              ],
+              expiration: expiration
+                ? {
+                    seconds: BigInt(Math.floor(expiration.getTime() / 1_000)),
+                    nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
+                  }
+                : undefined
+            }).finish()
+          )
+        }
       })
     };
   }
 
-  getGrantMsg({ denom, limit, expiration, granter, grantee }: SpendingAuthorizationOptions) {
+  getDepositDeploymentGrantMsg({ denom, limit, expiration, granter, grantee }: SpendingAuthorizationMsgOptions) {
     return {
       typeUrl: "/cosmos.authz.v1beta1.MsgGrant",
       value: {
-        granter: granter,
-        grantee: grantee,
+        granter,
+        grantee,
         grant: {
           authorization: {
             typeUrl: "/akash.deployment.v1beta3.DepositDeploymentAuthorization",
             value: DepositDeploymentAuthorization.encode(
               DepositDeploymentAuthorization.fromPartial({
                 spendLimit: {
-                  denom: denom,
+                  denom,
                   amount: limit.toString()
                 }
               })
             ).finish()
           },
-          expiration: {
-            seconds: Math.floor(expiration.getTime() / 1_000),
-            nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
-          }
+          expiration: expiration
+            ? {
+                seconds: Math.floor(expiration.getTime() / 1_000),
+                nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
+              }
+            : undefined
         }
       }
     };
@@ -85,10 +74,10 @@ export class RpcMessageService {
 
   getRevokeAllowanceMsg({ granter, grantee }: { granter: string; grantee: string }) {
     return {
-      typeUrl: "/cosmos.authz.v1beta1.MsgRevoke",
+      typeUrl: "/cosmos.feegrant.v1beta1.MsgRevokeAllowance",
       value: MsgRevoke.fromPartial({
-        granter: granter,
-        grantee: grantee,
+        granter,
+        grantee,
         msgTypeUrl: "/cosmos.feegrant.v1beta1.MsgGrantAllowance"
       })
     };

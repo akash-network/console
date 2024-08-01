@@ -12,7 +12,7 @@ import * as userSchemas from "@src/user/model-schemas";
 
 const logger = new LoggerService({ context: "POSTGRES" });
 const migrationClient = postgres(config.POSTGRES_DB_URI, { max: 1, onnotice: logger.info.bind(logger) });
-const appClient = postgres(config.POSTGRES_DB_URI);
+const appClient = postgres(config.POSTGRES_DB_URI, { max: config.POSTGRES_MAX_CONNECTIONS, onnotice: logger.info.bind(logger) });
 
 const schema = { ...userSchemas, ...billingSchemas };
 const drizzleOptions = { logger: new DefaultLogger({ writer: new PostgresLoggerService() }), schema };
@@ -29,3 +29,5 @@ export const InjectPg = () => inject(POSTGRES_DB);
 
 export type ApiPgDatabase = typeof pgDatabase;
 export type ApiPgSchema = typeof schema;
+
+export const closeConnections = async () => await Promise.all([migrationClient.end(), appClient.end()]);

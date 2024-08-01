@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "react-query";
 
-import { managedWalletHttpService } from "@src/services/managed-wallet-http/managed-wallet-http.service";
+import { managedWalletHttpService } from "@src/services/http/http.service";
 
 const MANAGED_WALLET = "MANAGED_WALLET";
 

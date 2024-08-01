@@ -1,10 +1,6 @@
 import "reflect-metadata";
 import "./open-telemetry";
-
-import dotenv from "dotenv";
-
-dotenv.config({ path: ".env.local" });
-dotenv.config();
+import "./dotenv";
 
 async function bootstrap() {
   /* eslint-disable @typescript-eslint/no-var-requires */
