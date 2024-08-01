@@ -5,15 +5,15 @@ import { Button, CustomNoDivTooltip, FormField, FormInput, Popup, Switch } from 
 import { Bin } from "iconoir-react";
 import { nanoid } from "nanoid";
 
-import { EnvironmentVariable, RentGpusFormValues, SdlBuilderFormValues } from "@src/types";
+import { EnvironmentVariableType, RentGpusFormValuesType,SdlBuilderFormValuesType } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;
   onClose: () => void;
-  envs: EnvironmentVariable[];
-  control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
+  envs: EnvironmentVariableType[];
+  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
   hasSecretOption?: boolean;
   children?: ReactNode;
 };

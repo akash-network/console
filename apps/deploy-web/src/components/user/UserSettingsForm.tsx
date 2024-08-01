@@ -60,7 +60,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
 
   useEffect(() => {
     if (user) {
-      setValue("username", user.username);
+      setValue("username", user.username || "");
       setValue("subscribedToNewsletter", user.subscribedToNewsletter);
       setValue("bio", user.bio);
       setValue("youtubeUsername", user.youtubeUsername);

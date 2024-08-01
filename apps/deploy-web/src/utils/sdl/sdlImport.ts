@@ -1,7 +1,7 @@
 import yaml from "js-yaml";
 import { nanoid } from "nanoid";
 
-import { Expose, ImportService, ProfileGpuModel } from "@src/types";
+import { ExposeType, ImportServiceType, ProfileGpuModelType } from "@src/types";
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
@@ -9,13 +9,13 @@ import { defaultHttpOptions } from "./data";
 export const importSimpleSdl = (yamlStr: string) => {
   try {
     const yamlJson = yaml.load(yamlStr) as any;
-    const services: ImportService[] = [];
+    const services: ImportServiceType[] = [];
 
     const sortedServicesNames = Object.keys(yamlJson.services).sort();
     sortedServicesNames.forEach(svcName => {
       const svc = yamlJson.services[svcName];
 
-      const service: ImportService = {
+      const service: ImportServiceType = {
         id: nanoid(),
         title: svcName,
         image: svc.image
@@ -64,7 +64,7 @@ export const importSimpleSdl = (yamlStr: string) => {
       svc.expose?.forEach(expose => {
         const isGlobal = expose.to.find(t => t.global);
 
-        const _expose: Expose = {
+        const _expose: ExposeType = {
           id: nanoid(),
           port: expose.port,
           as: expose.as,
@@ -146,8 +146,8 @@ const getResourceUnit = (size: string): string => {
   return match ? capitalizeFirstLetter(match[0]) : "";
 };
 
-const getGpuModels = (vendor: { [key: string]: { model: string; ram: string; interface: string }[] }): ProfileGpuModel[] => {
-  const models: ProfileGpuModel[] = [];
+const getGpuModels = (vendor: { [key: string]: { model: string; ram: string; interface: string }[] }): ProfileGpuModelType[] => {
+  const models: ProfileGpuModelType[] = [];
 
   for (const [vendorName, vendorModels] of Object.entries(vendor)) {
     if (vendorModels) {

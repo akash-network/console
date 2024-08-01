@@ -201,8 +201,6 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
     return template;
   };
 
-  console.log(form)
-
   return (
     <>
       {isImportingSdl && <ImportSdlModal onClose={() => setIsImportingSdl(false)} setValue={setValue} />}

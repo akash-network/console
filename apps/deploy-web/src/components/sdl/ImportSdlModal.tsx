@@ -64,7 +64,6 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
 
   const onImport = () => {
     const result = createAndValidateSdl(sdl || "");
-    console.log(result);
 
     if (!result) return;
 

@@ -40,7 +40,7 @@ export const CommandList: React.FunctionComponent<Props> = ({ currentService, se
         </span>
       </div>
 
-      {(currentService.command?.command.length || 0) > 0 ? (
+      {(currentService?.command?.command?.length || 0) > 0 ? (
         <div className="whitespace-pre-wrap text-xs">
           <div>{currentService.command?.command}</div>
           <div className="text-muted-foreground">{currentService.command?.arg}</div>

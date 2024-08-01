@@ -143,7 +143,6 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
 
     try {
       const attributes = mapFormValuesToAttributes(data, providerAttributesSchema);
-      console.log(data, attributes);
 
       const message = TransactionMessageData.getUpdateProviderMsg(provider?.owner || "", data["host-uri"], attributes, {
         email: data.email,
