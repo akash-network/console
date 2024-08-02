@@ -5,6 +5,7 @@ export { ProviderSnapshot } from "./providerSnapshot";
 export { ProviderSnapshotNode } from "./providerSnapshotNode";
 export { ProviderSnapshotNodeCPU } from "./providerSnapshotNodeCPU";
 export { ProviderSnapshotNodeGPU } from "./providerSnapshotNodeGPU";
+export { ProviderSnapshotStorage } from "./providerSnapshotStorage";
 export { ProviderAttribute } from "./providerAttribute";
 export { ProviderAttributeSignature } from "./providerAttributeSignature";
 export { Lease } from "./lease";

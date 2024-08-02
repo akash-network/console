@@ -18,7 +18,7 @@ type Props = {
 export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onContinue }) => {
   const [isLoadingPrerequisites, setIsLoadingPrerequisites] = useState(false);
   const [isBalanceValidated, setIsBalanceValidated] = useState<boolean | null>(null);
-  const { address, walletBalances, refreshBalances } = useWallet();
+  const { address, walletBalances, refreshBalances, isManaged } = useWallet();
   const { minDeposit } = useChainParam();
 
   useEffect(() => {
@@ -36,11 +36,15 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       }
     }
 
+    if (isManaged) {
+      onContinue();
+    }
+
     if (address && minDeposit.akt && minDeposit.usdc && !!walletBalances) {
       loadPrerequisites();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, walletBalances?.uakt, walletBalances?.usdc, minDeposit.akt, minDeposit.usdc]);
+  }, [address, walletBalances?.uakt, walletBalances?.usdc, minDeposit.akt, minDeposit.usdc, isManaged]);
 
   return (
     <Popup

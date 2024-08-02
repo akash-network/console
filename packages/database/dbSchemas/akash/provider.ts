@@ -30,8 +30,6 @@ export class Provider extends Model {
   @Required @Default(DataTypes.NOW) @Column nextCheckDate: Date;
   @Required @Default(0) @Column failedCheckCount: number;
   @Column(DataTypes.TEXT) error?: string;
-  @Column deploymentCount?: number;
-  @Column leaseCount?: number;
   @Column ip?: string;
   @Column ipRegion?: string;
   @Column ipRegionCode?: string;
@@ -39,18 +37,6 @@ export class Provider extends Model {
   @Column ipCountryCode?: string;
   @Column ipLat?: string;
   @Column ipLon?: string;
-  @Column(DataTypes.BIGINT) activeCPU?: number;
-  @Column(DataTypes.BIGINT) activeGPU?: number;
-  @Column(DataTypes.BIGINT) activeMemory?: number;
-  @Column(DataTypes.BIGINT) activeStorage?: number;
-  @Column(DataTypes.BIGINT) pendingCPU?: number;
-  @Column(DataTypes.BIGINT) pendingGPU?: number;
-  @Column(DataTypes.BIGINT) pendingMemory?: number;
-  @Column(DataTypes.BIGINT) pendingStorage?: number;
-  @Column(DataTypes.BIGINT) availableCPU?: number;
-  @Column(DataTypes.BIGINT) availableGPU?: number;
-  @Column(DataTypes.BIGINT) availableMemory?: number;
-  @Column(DataTypes.BIGINT) availableStorage?: number;
 
   @Column(DataTypes.DOUBLE) uptime1d?: number;
   @Column(DataTypes.DOUBLE) uptime7d?: number;

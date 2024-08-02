@@ -1,4 +1,5 @@
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import type { DepositParams } from "@src/types/deployment";
 import { defaultInitialDeposit } from "../constants";
 import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion } from "./helpers";
 
@@ -28,7 +29,7 @@ export async function NewDeploymentData(
   yamlStr: string,
   dseq: string | null,
   fromAddress: string,
-  deposit = defaultInitialDeposit,
+  deposit: number | DepositParams[] = defaultInitialDeposit,
   depositorAddress: string | null = null
 ) {
   try {
@@ -38,10 +39,7 @@ export async function NewDeploymentData(
     const mani = sdl.manifest();
     const denom = getDenomFromSdl(groups);
     const version = await sdl.manifestVersion();
-    const _deposit = {
-      denom,
-      amount: deposit.toString()
-    };
+    const _deposit = (Array.isArray(deposit) && deposit.find(d => d.denom === denom)) || { denom, amount: deposit.toString() };
 
     return {
       sdl: sdl.data,

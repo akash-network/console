@@ -1,12 +1,16 @@
 import "reflect-metadata";
 import "./open-telemetry";
+import "./dotenv";
 
-import { container } from "tsyringe";
+async function bootstrap() {
+  /* eslint-disable @typescript-eslint/no-var-requires */
+  if (process.env.BILLING_ENABLED === "true") {
+    const pg = require("./core");
+    await pg.migratePG();
+  }
 
-import { initApp } from "@src/app";
-import { PostgresMigratorService } from "@src/core";
+  const entry = require("./app");
+  await entry.initApp();
+}
 
-container
-  .resolve(PostgresMigratorService)
-  .migrate()
-  .then(() => initApp());
+bootstrap();

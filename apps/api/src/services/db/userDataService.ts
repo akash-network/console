@@ -1,7 +1,10 @@
 import { UserAddressName, UserSetting } from "@akashnetwork/database/dbSchemas/user";
+import pick from "lodash/pick";
 import { Transaction } from "sequelize";
 
-import { getUserPlan } from "../external/stripeService";
+import { LoggerService } from "@src/core";
+
+const logger = new LoggerService({ context: "UserDataService" });
 
 function randomIntFromInterval(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1) + min);
@@ -13,9 +16,7 @@ export async function checkUsernameAvailable(username: string, dbTransaction?: T
 }
 
 async function generateUsername(wantedUsername: string, dbTransaction?: Transaction): Promise<string> {
-  const sanitized = wantedUsername.replace(/[^a-zA-Z0-9_-]/gi, "");
-
-  let baseUsername = sanitized;
+  let baseUsername = wantedUsername.replace(/[^a-zA-Z0-9_-]/gi, "");
 
   if (baseUsername.length < 3) {
     baseUsername = "anonymous";
@@ -61,41 +62,82 @@ export async function updateSettings(
   await settings.save();
 }
 
-export async function getSettingsOrInit(userId: string, wantedUsername: string, email: string, emailVerified: boolean, subscribedToNewsletter: boolean) {
-  const [userSettings, created] = await UserSetting.findCreateFind({
-    where: { userId: userId },
-    defaults: {
+type UserInput = {
+  anonymousUserId?: string;
+  userId: string;
+  wantedUsername: string;
+  email: string;
+  emailVerified: boolean;
+  subscribedToNewsletter: boolean;
+};
+
+export async function getSettingsOrInit({ anonymousUserId, userId, wantedUsername, email, emailVerified, subscribedToNewsletter }: UserInput) {
+  let userSettings: UserSetting;
+  let isAnonymous = false;
+
+  if (anonymousUserId) {
+    try {
+      const updateResult = await UserSetting.update(
+        {
+          userId,
+          username: await generateUsername(wantedUsername),
+          email: email,
+          emailVerified: emailVerified,
+          stripeCustomerId: null,
+          subscribedToNewsletter: subscribedToNewsletter
+        },
+        { where: { id: anonymousUserId, userId: null }, returning: ["*"] }
+      );
+
+      userSettings = updateResult[1][0];
+      isAnonymous = !!userSettings;
+
+      if (isAnonymous) {
+        logger.info({ event: "ANONYMOUS_USER_REGISTERED", id: anonymousUserId, userId });
+      }
+    } catch (error) {
+      if (error.name !== "SequelizeUniqueConstraintError") {
+        throw error;
+      }
+
+      logger.info({ event: "ANONYMOUS_USER_ALREADY_REGISTERED", id: anonymousUserId, userId });
+    }
+  }
+
+  if (!isAnonymous) {
+    userSettings = await UserSetting.findOne({ where: { userId: userId } });
+    logger.debug({ event: "USER_RETRIEVED", id: anonymousUserId, userId });
+  }
+
+  if (!userSettings) {
+    userSettings = await UserSetting.create({
       userId: userId,
       username: await generateUsername(wantedUsername),
       email: email,
       emailVerified: emailVerified,
       stripeCustomerId: null,
       subscribedToNewsletter: subscribedToNewsletter
-    }
-  });
+    });
+    logger.info({ event: "USER_REGISTERED", userId });
+  }
 
-  if (created) {
-    console.log(`Created settings for user ${userId}`);
-  } else if (userSettings.email !== email || userSettings.emailVerified !== emailVerified) {
+  if (userSettings.email !== email || userSettings.emailVerified !== emailVerified) {
     userSettings.email = email;
     userSettings.emailVerified = emailVerified;
     await userSettings.save();
   }
 
-  const planCode = await getUserPlan(userSettings.stripeCustomerId);
-
-  return {
-    username: userSettings.username,
-    email: userSettings.email,
-    emailVerified: userSettings.emailVerified,
-    stripeCustomerId: userSettings.stripeCustomerId,
-    bio: userSettings.bio,
-    subscribedToNewsletter: userSettings.subscribedToNewsletter,
-    youtubeUsername: userSettings.youtubeUsername,
-    twitterUsername: userSettings.twitterUsername,
-    githubUsername: userSettings.githubUsername,
-    planCode: planCode
-  };
+  return pick(userSettings, [
+    "username",
+    "email",
+    "emailVerified",
+    "stripeCustomerId",
+    "bio",
+    "subscribedToNewsletter",
+    "youtubeUsername",
+    "twitterUsername",
+    "githubUsername"
+  ]);
 }
 
 export async function getAddressNames(userId: string) {

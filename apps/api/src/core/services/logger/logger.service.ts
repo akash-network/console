@@ -1,4 +1,6 @@
+import { isHttpError } from "http-errors";
 import pino, { Bindings, LoggerOptions } from "pino";
+import pretty from "pino-pretty";
 
 import { config } from "@src/core/config";
 
@@ -10,13 +12,7 @@ export class LoggerService {
   constructor(bindings?: Bindings) {
     const options: LoggerOptions = { level: config.LOG_LEVEL };
 
-    if (this.isPretty) {
-      options.transport = {
-        target: "pino-pretty"
-      };
-    }
-
-    this.pino = pino(options);
+    this.pino = pino(options, config.NODE_ENV === "production" ? undefined : pretty({ sync: true }));
 
     if (bindings) {
       this.pino = this.pino.child(bindings);
@@ -41,6 +37,9 @@ export class LoggerService {
   }
 
   protected toLoggableInput(message: any) {
+    if (isHttpError(message)) {
+      return { status: message.status, message: message.message, stack: message.stack, data: message.data };
+    }
     if (message instanceof Error) {
       return message.stack;
     }

@@ -22,8 +22,8 @@ export const mapProviderToList = (
     email: provider.email || getProviderAttributeValue("email", provider, providerAttributeSchema),
     website: provider.website || getProviderAttributeValue("website", provider, providerAttributeSchema),
     lastCheckDate: provider.lastCheckDate,
-    deploymentCount: provider.deploymentCount,
-    leaseCount: provider.leaseCount,
+    deploymentCount: lastSuccessfulSnapshot?.deploymentCount,
+    leaseCount: lastSuccessfulSnapshot?.leaseCount,
     cosmosSdkVersion: provider.cosmosSdkVersion,
     akashVersion: provider.akashVersion,
     ipRegion: provider.ipRegion,
@@ -33,22 +33,22 @@ export const mapProviderToList = (
     ipLat: provider.ipLat,
     ipLon: provider.ipLon,
     activeStats: {
-      cpu: provider.activeCPU,
-      gpu: provider.activeGPU,
-      memory: provider.activeMemory,
-      storage: provider.activeStorage
+      cpu: lastSuccessfulSnapshot?.activeCPU,
+      gpu: lastSuccessfulSnapshot?.activeGPU,
+      memory: lastSuccessfulSnapshot?.activeMemory,
+      storage: lastSuccessfulSnapshot?.activeEphemeralStorage + lastSuccessfulSnapshot?.activePersistentStorage
     },
     pendingStats: {
-      cpu: isValidVersion ? provider.pendingCPU : 0,
-      gpu: isValidVersion ? provider.pendingGPU : 0,
-      memory: isValidVersion ? provider.pendingMemory : 0,
-      storage: isValidVersion ? provider.pendingStorage : 0
+      cpu: isValidVersion ? lastSuccessfulSnapshot?.pendingCPU : 0,
+      gpu: isValidVersion ? lastSuccessfulSnapshot?.pendingGPU : 0,
+      memory: isValidVersion ? lastSuccessfulSnapshot?.pendingMemory : 0,
+      storage: isValidVersion ? lastSuccessfulSnapshot?.pendingEphemeralStorage + lastSuccessfulSnapshot?.pendingPersistentStorage : 0
     },
     availableStats: {
-      cpu: isValidVersion ? provider.availableCPU : 0,
-      gpu: isValidVersion ? provider.availableGPU : 0,
-      memory: isValidVersion ? provider.availableMemory : 0,
-      storage: isValidVersion ? provider.availableStorage : 0
+      cpu: isValidVersion ? lastSuccessfulSnapshot?.availableCPU : 0,
+      gpu: isValidVersion ? lastSuccessfulSnapshot?.availableGPU : 0,
+      memory: isValidVersion ? lastSuccessfulSnapshot?.availableMemory : 0,
+      storage: isValidVersion ? lastSuccessfulSnapshot?.availableEphemeralStorage + lastSuccessfulSnapshot?.availablePersistentStorage : 0
     },
     gpuModels: gpuModels,
     uptime1d: provider.uptime1d,

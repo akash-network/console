@@ -3,6 +3,7 @@ import { Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-ty
 
 import { Required } from "../decorators/requiredDecorator";
 import { ProviderSnapshotNode } from "./providerSnapshotNode";
+import { ProviderSnapshotStorage } from "./providerSnapshotStorage";
 
 @Table({
   modelName: "providerSnapshot",
@@ -10,7 +11,7 @@ import { ProviderSnapshotNode } from "./providerSnapshotNode";
     { unique: false, fields: ["owner"] },
     { unique: false, fields: ["owner", "checkDate"] },
     { name: "provider_snapshot_id_where_isonline_and_islastofday", unique: false, fields: ["id"], where: { isOnline: true, isLastOfDay: true } },
-    { name: "provider_snapshot_id_where_islastsuccessofday", unique: false, fields: ["id"], where: { isLastSuccessOfDay: true } }
+    { name: "provider_snapshot_checkdate_where_islastsuccessofday", unique: false, fields: ["checkDate"], where: { isLastSuccessOfDay: true } }
   ]
 })
 export class ProviderSnapshot extends Model {
@@ -28,15 +29,19 @@ export class ProviderSnapshot extends Model {
   @Column(DataTypes.BIGINT) activeCPU?: number;
   @Column(DataTypes.BIGINT) activeGPU?: number;
   @Column(DataTypes.BIGINT) activeMemory?: number;
-  @Column(DataTypes.BIGINT) activeStorage?: number;
+  @Column(DataTypes.BIGINT) activeEphemeralStorage?: number;
+  @Column(DataTypes.BIGINT) activePersistentStorage?: number;
   @Column(DataTypes.BIGINT) pendingCPU?: number;
   @Column(DataTypes.BIGINT) pendingGPU?: number;
   @Column(DataTypes.BIGINT) pendingMemory?: number;
-  @Column(DataTypes.BIGINT) pendingStorage?: number;
+  @Column(DataTypes.BIGINT) pendingEphemeralStorage?: number;
+  @Column(DataTypes.BIGINT) pendingPersistentStorage?: number;
   @Column(DataTypes.BIGINT) availableCPU?: number;
   @Column(DataTypes.BIGINT) availableGPU?: number;
   @Column(DataTypes.BIGINT) availableMemory?: number;
-  @Column(DataTypes.BIGINT) availableStorage?: number;
+  @Column(DataTypes.BIGINT) availableEphemeralStorage?: number;
+  @Column(DataTypes.BIGINT) availablePersistentStorage?: number;
 
   @HasMany(() => ProviderSnapshotNode, "snapshotId") nodes: ProviderSnapshotNode[];
+  @HasMany(() => ProviderSnapshotStorage, "snapshotId") storage: ProviderSnapshotStorage[];
 }

@@ -10,7 +10,11 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { container } from "tsyringe";
 
-import { HttpLoggerService, LoggerService } from "@src/core";
+import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
+import { HttpLoggerService } from "@src/core/services/http-logger/http-logger.service";
+import { LoggerService } from "@src/core/services/logger/logger.service";
+import { RequestStorageInterceptor } from "@src/core/services/request-storage/request-storage.interceptor";
+import { CurrentUserInterceptor } from "@src/user/services/current-user/current-user.interceptor";
 import packageJson from "../package.json";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { apiRouter } from "./routers/apiRouter";
@@ -60,6 +64,8 @@ const scheduler = new Scheduler({
 });
 
 appHono.use(container.resolve(HttpLoggerService).intercept());
+appHono.use(container.resolve(RequestStorageInterceptor).intercept());
+appHono.use(container.resolve(CurrentUserInterceptor).intercept());
 appHono.use(
   "*",
   sentry({
@@ -85,7 +91,14 @@ appHono.route("/internal", internalRouter);
 // TODO: remove condition once billing is in prod
 if (BILLING_ENABLED === "true") {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  appHono.route("/", require("./billing").walletRouter);
+  const { createWalletRouter, getWalletListRouter, signAndBroadcastTxRouter } = require("./billing");
+  appHono.route("/", createWalletRouter);
+  appHono.route("/", getWalletListRouter);
+  appHono.route("/", signAndBroadcastTxRouter);
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { createAnonymousUserRouter, getAnonymousUserRouter } = require("./user");
+  appHono.route("/", createAnonymousUserRouter);
+  appHono.route("/", getAnonymousUserRouter);
 }
 
 appHono.get("/status", c => {
@@ -101,6 +114,8 @@ appHono.get("/status", c => {
 
   return c.json({ version, memory, tasks: tasksStatus });
 });
+
+appHono.onError(container.resolve(HonoErrorHandlerService).handle);
 
 function startScheduler() {
   scheduler.start();

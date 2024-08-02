@@ -10,14 +10,14 @@ export interface SdlTemplate {
 }
 
 export interface UserSettings {
-  username: string;
-  subscribedToNewsletter: boolean;
-  bio: string;
-  youtubeUsername: string;
-  twitterUsername: string;
-  githubUsername: string;
-  planCode: PlanCode;
-  plan: IPlan;
+  username?: string;
+  subscribedToNewsletter?: boolean;
+  bio?: string;
+  youtubeUsername?: string;
+  twitterUsername?: string;
+  githubUsername?: string;
+  planCode?: PlanCode;
+  plan?: IPlan;
 }
 
 export type CustomUserProfile = UserProfile & UserSettings;

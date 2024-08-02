@@ -207,7 +207,13 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
         `SELECT d."date", (SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU")) AS "cpu", (SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU")) AS "gpu", (SUM("activeMemory") + SUM("pendingMemory") + SUM("availableMemory")) AS memory, (SUM("activeStorage") + SUM("pendingStorage") + SUM("availableStorage")) as storage, COUNT(*) as count
          FROM "day" d
          INNER JOIN (
-            SELECT DISTINCT ON("hostUri",DATE("checkDate")) DATE("checkDate") AS date, ps."activeCPU", ps."pendingCPU", ps."availableCPU", ps."activeGPU", ps."pendingGPU", ps."availableGPU", ps."activeMemory", ps."pendingMemory", ps."availableMemory", ps."activeStorage", ps."pendingStorage", ps."availableStorage", ps."isOnline"
+            SELECT DISTINCT ON("hostUri",DATE("checkDate")) 
+              DATE("checkDate") AS date, 
+              ps."activeCPU", ps."pendingCPU", ps."availableCPU", 
+              ps."activeGPU", ps."pendingGPU", ps."availableGPU", 
+              ps."activeMemory", ps."pendingMemory", ps."availableMemory", 
+              ps."activeEphemeralStorage" + COALESCE(ps."activePersistentStorage", 0) AS "activeStorage", ps."pendingEphemeralStorage" + COALESCE(ps."pendingPersistentStorage", 0) AS "pendingStorage", ps."availableEphemeralStorage" + COALESCE(ps."availablePersistentStorage", 0) AS "availableStorage", 
+              ps."isOnline"
             FROM "providerSnapshot" ps
             INNER JOIN "provider" ON "provider"."owner"=ps."owner"
             WHERE ps."isLastSuccessOfDay" = TRUE AND ps."checkDate" >= DATE(ps."checkDate")::timestamp + INTERVAL '1 day' - (:grace_duration * INTERVAL '1 minutes')

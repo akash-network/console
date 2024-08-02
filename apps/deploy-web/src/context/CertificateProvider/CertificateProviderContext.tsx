@@ -193,7 +193,7 @@ export const CertificateProvider = ({ children }) => {
         });
         const validCerts = await loadValidCertificates();
         loadLocalCert();
-        const currentCert = validCerts.find(x => x.parsed === crtpem);
+        const currentCert = validCerts.find(({ parsed }) => parsed === crtpem);
         setSelectedCertificate(currentCert as ChainCertificate);
 
         event(AnalyticsEvents.CREATE_CERTIFICATE, {

@@ -141,7 +141,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   );
 };
 
-const Loading: React.FunctionComponent<{ text: string }> = ({ text }) => {
+export const Loading: React.FunctionComponent<{ text: string }> = ({ text }) => {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center pb-12 pt-12">
       <div className="pb-4">

@@ -1,8 +1,4 @@
-import dotenv from "dotenv";
 import { z } from "zod";
-
-dotenv.config({ path: ".env.local" });
-dotenv.config();
 
 const envSchema = z.object({
   MASTER_WALLET_MNEMONIC: z.string(),
@@ -12,7 +8,12 @@ const envSchema = z.object({
   TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: z.number({ coerce: true }),
   TRIAL_FEES_ALLOWANCE_AMOUNT: z.number({ coerce: true }),
   TRIAL_ALLOWANCE_DENOM: z.string(),
-  GAS_SAFETY_MULTIPLIER: z.number({ coerce: true }).default(1.5)
+  GAS_SAFETY_MULTIPLIER: z.number({ coerce: true }).default(1.5),
+  FEE_ALLOWANCE_REFILL_THRESHOLD: z.number({ coerce: true }),
+  DEPLOYMENT_ALLOWANCE_REFILL_THRESHOLD: z.number({ coerce: true }),
+  FEE_ALLOWANCE_REFILL_AMOUNT: z.number({ coerce: true }),
+  DEPLOYMENT_ALLOWANCE_REFILL_AMOUNT: z.number({ coerce: true }),
+  ALLOWANCE_REFILL_BATCH_SIZE: z.number({ coerce: true }).default(10)
 });
 
 export const envConfig = envSchema.parse(process.env);

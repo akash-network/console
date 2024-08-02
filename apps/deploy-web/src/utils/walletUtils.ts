@@ -6,6 +6,7 @@ export type LocalWalletDataType = {
   certKey?: string;
   name: string;
   selected: boolean;
+  isManaged?: boolean;
 };
 
 export const useStorageWallets = () => {
@@ -18,6 +19,32 @@ export function getSelectedStorageWallet() {
   const wallets = getStorageWallets();
 
   return wallets.find(w => w.selected) ?? wallets[0] ?? null;
+}
+
+export function getStorageManagedWallet() {
+  return getStorageWallets().find(wallet => wallet.isManaged);
+}
+
+export function updateStorageManagedWallet(wallet: Pick<LocalWalletDataType, "address" | "cert" | "certKey">) {
+  const prev = getStorageManagedWallet();
+  const next = {
+    ...prev,
+    ...wallet,
+    name: "Managed Wallet",
+    isManaged: true,
+    selected: true
+  };
+
+  updateStorageWallets([next]);
+
+  return next;
+}
+
+export function deleteManagedWalletFromStorage() {
+  const wallet = getStorageManagedWallet();
+  if (wallet) {
+    deleteWalletFromStorage(wallet.address, true);
+  }
 }
 
 export function getStorageWallets() {

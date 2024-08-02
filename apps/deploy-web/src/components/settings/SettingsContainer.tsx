@@ -10,11 +10,11 @@ import { LabelValue } from "@src/components/shared/LabelValue";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import Layout from "../layout/Layout";
 import { CertificateList } from "./CertificateList";
+import CloudmosImportPanel from "./CloudmosImportPanel";
 import { ColorModeSelect } from "./ColorModeSelect";
 import { SelectNetworkModal } from "./SelectNetworkModal";
 import { SettingsForm } from "./SettingsForm";
 import { SettingsLayout, SettingsTabs } from "./SettingsLayout";
-import CloudmosImportPanel from "./CloudmosImportPanel";
 
 export const SettingsContainer: React.FunctionComponent = () => {
   const [isSelectingNetwork, setIsSelectingNetwork] = useState(false);
