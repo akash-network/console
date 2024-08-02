@@ -22,7 +22,7 @@ export function CustomChainProvider({ children }: Props) {
     <ChainProvider
       chains={[akash, akashSandbox, akashTestnet]}
       assetLists={assetLists}
-      wallets={[...keplr, ...leap, ...cosmostation]}
+      wallets={[...keplr, ...leap]}
       sessionOptions={{
         duration: 31_556_926_000, // 1 year
         callback: () => {

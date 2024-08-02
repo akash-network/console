@@ -91,7 +91,6 @@ export const WalletProvider = ({ children }) => {
       }
     }
 
-    console.log("This is checking if it's working");
     const client = await SigningStargateClient.connectWithSigner(rpc, offlineSigner, {
       registry: customRegistry,
       broadcastTimeoutMs: 300_000 // 5min
@@ -109,9 +108,10 @@ export const WalletProvider = ({ children }) => {
   }
 
   function logout() {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     setWalletBalances(null);
     disconnect();
-
     router.push(UrlService.home());
   }
 

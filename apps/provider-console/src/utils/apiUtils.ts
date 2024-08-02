@@ -1,6 +1,5 @@
 import axios from "axios";
 import { BASE_API_URL } from "./constants";
-
 export class ApiUrlService {
   static mainnetVersion() {
     return `0.36.0`;

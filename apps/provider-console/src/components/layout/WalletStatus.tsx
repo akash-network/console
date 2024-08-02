@@ -23,16 +23,69 @@ import { udenomToDenom } from "@src/utils/mathHelpers";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { useEffect } from "react";
+import { useChainWallet, useWalletClient } from "@cosmos-kit/react";
+import { useSelectedChain } from "@src/context/CustomChainProvider";
+import authClient from "@src/utils/authClient";
+// import { jwtDecode } from "jwt-decode";
 
 export function WalletStatus() {
   const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected } = useWallet();
+  const { wallet } = useSelectedChain();
+
   const walletBalance = useTotalWalletBalance();
   const router = useRouter();
 
+  const { signArbitrary: keplrSignArbitrary } = useChainWallet("akash", "keplr-extension");
+  const { signArbitrary: leapSignArbitrary } = useChainWallet("akash", "leap-extension");
+
   // Define your custom function to call on successful connection
-  const onWalletConnectSuccess = () => {
-    console.log("Wallet connected successfully!", address);
-    // Add any other logic you want to execute upon successful connection
+  const onWalletConnectSuccess = async () => {
+    if (!localStorage.getItem("accessToken")) {
+      //check if accesstoken is not expired
+
+      // Get Nonce
+      const response = await authClient.get(`users/nonce/${address}`);
+      if (response.data.nonce) {
+        // Get Address
+        let url: string;
+        if (process.env.NODE_ENV === "development") {
+          url = "app-dev.praetor.dev";
+        } else {
+          url = window.location.hostname;
+        }
+        console.log(wallet);
+
+        const message = `${url} wants you to sign in with your Keplr account - ${address} using Nonce - ${response.data.nonce}`;
+        let result;
+        if (wallet?.name == "leap-extension") {
+          result = await leapSignArbitrary(address, message);
+        } else {
+          result = await keplrSignArbitrary(address, message);
+        }
+
+        console.log(result);
+        if (result) {
+          const verifySign = await authClient.post("auth/verify", { signer: address, ...result });
+          if (verifySign.data) {
+            localStorage.setItem("accessToken", verifySign.data.access_token);
+            localStorage.setItem("refreshToken", verifySign.data.refresh_token);
+          } else {
+            console.log("There is some error in signing");
+            logout();
+          }
+        }
+      }
+    } else {
+      // TODO Probably more work needs to be done for refresh token
+
+      console.log("Access Token Found");
+      // const decodedJwt: any = jwtDecode(localStorage.getItem("accessToken"));
+
+      // if (decodedJwt.exp < Math.floor(Date.now() / 1000)) {
+      //   // renew with access token
+      //   // TODO renew access token logic here
+      // }
+    }
   };
 
   useEffect(() => {
