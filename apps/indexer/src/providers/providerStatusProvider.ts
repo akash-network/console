@@ -1,4 +1,5 @@
 import {
+  AkashBlock,
   Provider,
   ProviderSnapshot,
   ProviderSnapshotNode,
@@ -30,6 +31,7 @@ export async function syncProvidersInfo() {
       nextCheckDate: { [Op.lte]: toUTC(new Date()) }
     },
     include: [
+      { model: AkashBlock, as: "createdBlock" },
       { model: ProviderSnapshot, as: "lastSnapshot" },
       { model: ProviderSnapshot, as: "downtimeFirstSnapshot" }
     ],
@@ -151,7 +153,12 @@ async function saveProviderStatus(
         error: error,
         lastCheckDate: checkDate,
         failedCheckCount: providerStatus ? 0 : provider.failedCheckCount + 1,
-        nextCheckDate: getNextCheckDate(!!providerStatus, checkDate, provider.downtimeFirstSnapshot?.checkDate ?? createdSnapshot.checkDate),
+        nextCheckDate: getNextCheckDate(
+          !!providerStatus,
+          checkDate,
+          provider.downtimeFirstSnapshot?.checkDate ?? createdSnapshot.checkDate,
+          provider.createdBlock.datetime
+        ),
         cosmosSdkVersion: cosmosVersion,
         akashVersion: akashVersion
       },
@@ -220,20 +227,22 @@ async function saveProviderStatus(
   });
 }
 
-function getNextCheckDate(successful: boolean, checkDate: Date, downtimeStartDate: Date) {
+function getNextCheckDate(successful: boolean, checkDate: Date, downtimeStartDate: Date, createdOn: Date) {
   if (successful) {
     return add(checkDate, { seconds: UptimeCheckIntervalSeconds });
   }
 
-  if (differenceInMinutes(checkDate, downtimeStartDate) < 15) {
+  const wasCreatedRecently = differenceInDays(checkDate, createdOn) < 7;
+
+  if (differenceInMinutes(checkDate, downtimeStartDate) < 30) {
     return add(checkDate, { minutes: 1 });
-  } else if (differenceInHours(checkDate, downtimeStartDate) < 1) {
+  } else if (differenceInHours(checkDate, downtimeStartDate) < 6 || wasCreatedRecently) {
     return add(checkDate, { minutes: 5 });
-  } else if (differenceInHours(checkDate, downtimeStartDate) < 6) {
-    return add(checkDate, { minutes: 15 });
   } else if (differenceInHours(checkDate, downtimeStartDate) < 24) {
-    return add(checkDate, { minutes: 30 });
+    return add(checkDate, { minutes: 15 });
   } else if (differenceInDays(checkDate, downtimeStartDate) < 7) {
+    return add(checkDate, { minutes: 30 });
+  } else if (differenceInDays(checkDate, downtimeStartDate) < 30) {
     return add(checkDate, { hours: 1 });
   } else {
     return add(checkDate, { hours: 24 });
