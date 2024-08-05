@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { Controller, ControllerProps, FieldPath, FieldValues, FormProvider, useFormContext } from "react-hook-form";
+import { Controller, ControllerProps, FieldError, FieldErrorsImpl, FieldPath, FieldValues, FormProvider, Merge, useFormContext } from "react-hook-form";
 import * as LabelPrimitive from "@radix-ui/react-label";
 import { Slot } from "@radix-ui/react-slot";
 
@@ -25,13 +25,26 @@ const FormField = <TFieldValues extends FieldValues = FieldValues, TName extends
   );
 };
 
-const useFormField = () => {
+interface FormFieldProps {
+  id: string;
+  name: string;
+  formItemId: string;
+  formDescriptionId: string;
+  formMessageId: string;
+  invalid: boolean;
+  isDirty: boolean;
+  isTouched: boolean;
+  isValidating: boolean;
+  error?: FieldError | Merge<FieldError, FieldErrorsImpl<any>>;
+}
+
+const useFormField = (): FormFieldProps => {
   const formContext = useFormContext();
   const fieldContext = React.useContext(FormFieldContext);
   const itemContext = React.useContext(FormItemContext);
 
   if (!formContext) {
-    return null;
+    return {} as FormFieldProps;
   }
 
   if (!fieldContext) {
@@ -71,8 +84,6 @@ FormItem.displayName = "FormItem";
 
 const FormLabel = React.forwardRef<React.ElementRef<typeof LabelPrimitive.Root>, React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>>(
   ({ className, ...props }, ref) => {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
     const { error, formItemId } = useFormField();
 
     return <Label ref={ref} className={cn(error && "text-destructive", className)} htmlFor={formItemId} {...props} />;
@@ -81,8 +92,6 @@ const FormLabel = React.forwardRef<React.ElementRef<typeof LabelPrimitive.Root>,
 FormLabel.displayName = "FormLabel";
 
 const FormControl = React.forwardRef<React.ElementRef<typeof Slot>, React.ComponentPropsWithoutRef<typeof Slot>>(({ ...props }, ref) => {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
   const { error, formItemId, formDescriptionId, formMessageId } = useFormField();
 
   return (
@@ -98,8 +107,6 @@ const FormControl = React.forwardRef<React.ElementRef<typeof Slot>, React.Compon
 FormControl.displayName = "FormControl";
 
 const FormDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(({ className, ...props }, ref) => {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
   const { formDescriptionId } = useFormField();
 
   return <p ref={ref} id={formDescriptionId} className={cn("text-muted-foreground text-sm", className)} {...props} />;
@@ -107,8 +114,6 @@ const FormDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttribu
 FormDescription.displayName = "FormDescription";
 
 const FormMessage = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(({ className, children, ...props }, ref) => {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
   const { error, formMessageId } = useFormField();
   const body = error ? String(error?.message) : children;
 

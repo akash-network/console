@@ -13,8 +13,6 @@ export interface FormInputProps extends InputProps {
 }
 
 const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ className, inputClassName, type, label, description, ...props }, ref) => {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
   const { error } = useFormField();
   return (
     <FormItem className={className}>
@@ -50,7 +48,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 
     return (
       <div className={className}>
-        {label && (formField ? <FormLabel>{label}</FormLabel> : <Label htmlFor={`${id}-input`}>{label}</Label>)}
+        {label && (formField.id ? <FormLabel>{label}</FormLabel> : <Label htmlFor={`${id}-input`}>{label}</Label>)}
         <div className="relative flex items-center">
           {startIcon && <div className={cn("absolute inset-y-0 left-0 flex items-center", startIconClassName)}>{startIcon}</div>}
           <input
