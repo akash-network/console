@@ -5,6 +5,7 @@ import { Required } from "../decorators/requiredDecorator";
 import { ProviderAttribute } from "./providerAttribute";
 import { ProviderAttributeSignature } from "./providerAttributeSignature";
 import { ProviderSnapshot } from "./providerSnapshot";
+import { AkashBlock } from "./akashBlock";
 
 @Table({
   modelName: "provider",
@@ -45,6 +46,7 @@ export class Provider extends Model {
   @HasMany(() => ProviderAttribute, "provider") providerAttributes: ProviderAttribute[];
   @HasMany(() => ProviderAttributeSignature, "provider") providerAttributeSignatures: ProviderAttributeSignature[];
   @HasMany(() => ProviderSnapshot, "owner") providerSnapshots: ProviderSnapshot[];
+  @BelongsTo(() => AkashBlock, "createdHeight") createdBlock: AkashBlock;
   @BelongsTo(() => ProviderSnapshot, "lastSnapshotId") lastSnapshot: ProviderSnapshot;
   @BelongsTo(() => ProviderSnapshot, "lastSuccessfulSnapshotId") lastSuccessfulSnapshot: ProviderSnapshot;
   @BelongsTo(() => ProviderSnapshot, "downtimeFirstSnapshotId") downtimeFirstSnapshot: ProviderSnapshot;
