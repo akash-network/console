@@ -34,7 +34,7 @@ export class MasterSigningClientService {
     async (batchedMessages: readonly EncodeObject[][]) => {
       return this.executeTxBatch(batchedMessages);
     },
-    { cache: false, batchScheduleFn: callback => setTimeout(callback, 100) }
+    { cache: false, batchScheduleFn: callback => setTimeout(callback, this.config.MASTER_WALLET_BATCHING_INTERVAL_MS) }
   );
 
   constructor(

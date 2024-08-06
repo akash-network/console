@@ -8,7 +8,7 @@ import { queryClient } from "@src/queries";
 import { initiateNetworkData, networks } from "@src/store/networkStore";
 import { NodeStatus } from "@src/types/node";
 import { mainnetNodes } from "@src/utils/apiUtils";
-import { mainnetId } from "@src/utils/constants";
+import { defaultNetworkId } from "@src/utils/constants";
 import { initAppTypes } from "@src/utils/init";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 
@@ -58,7 +58,7 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [isSettingsInit, setIsSettingsInit] = useState(false);
   const [isRefreshingNodeStatus, setIsRefreshingNodeStatus] = useState(false);
   const { getLocalStorageItem, setLocalStorageItem } = useLocalStorage();
-  const [selectedNetworkId, setSelectedNetworkId] = useState(mainnetId);
+  const [selectedNetworkId, setSelectedNetworkId] = useState(defaultNetworkId);
   const { isCustomNode, customNode, nodes, apiEndpoint, rpcEndpoint } = settings;
 
   usePreviousRoute();
@@ -77,7 +77,7 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
       // Init app types based on the selected network id
       initAppTypes();
 
-      const _selectedNetworkId = localStorage.getItem("selectedNetworkId") || mainnetId;
+      const _selectedNetworkId = localStorage.getItem("selectedNetworkId") || defaultNetworkId;
 
       setSelectedNetworkId(_selectedNetworkId);
 

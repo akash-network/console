@@ -3,7 +3,7 @@
 import getConfig from "next/config";
 import { gt, neq } from "semver";
 
-import { mainnetId } from "./constants";
+import { defaultNetworkId } from "./constants";
 const { publicRuntimeConfig } = getConfig();
 
 const migrations = {
@@ -35,7 +35,7 @@ export const migrateLocalStorage = () => {
   localStorage.setItem("latestUpdatedVersion", currentVersion);
 
   if (!localStorage.getItem("selectedNetworkId")) {
-    localStorage.setItem("selectedNetworkId", mainnetId);
+    localStorage.setItem("selectedNetworkId", defaultNetworkId);
   }
 };
 
