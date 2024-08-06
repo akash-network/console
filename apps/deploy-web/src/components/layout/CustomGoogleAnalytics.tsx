@@ -14,5 +14,5 @@ export default function GoogleAnalytics() {
     });
   });
 
-  return <>{!isProd && <GAnalytics trackPageViews />}</>;
+  return <>{isProd && <GAnalytics trackPageViews />}</>;
 }
