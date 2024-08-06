@@ -47,7 +47,7 @@ describe("Tx Sign", () => {
       expect(await res.json()).toMatchObject({ error: "UnauthorizedError", message: "Unauthorized" });
     });
 
-    it("should throw 403 provided a different user auth header", async () => {
+    it("should throw 404 provided a different user auth header", async () => {
       const { user, wallet } = await walletService.createUserAndWallet();
       const differentUserResponse = await app.request("/v1/anonymous-users", {
         method: "POST",
@@ -60,8 +60,8 @@ describe("Tx Sign", () => {
         headers: new Headers({ "Content-Type": "application/json", "x-anonymous-user-id": differentUser.id })
       });
 
-      expect(res.status).toBe(403);
-      expect(await res.json()).toMatchObject({ error: "ForbiddenError", message: "Forbidden" });
+      expect(res.status).toBe(404);
+      expect(await res.json()).toMatchObject({ error: "NotFoundError", message: "UserWallet Not Found" });
     });
   });
 

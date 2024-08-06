@@ -3,7 +3,6 @@ import { singleton } from "tsyringe";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
-import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { getCurrentUserId } from "@src/middlewares/userMiddleware";
 import { UserRepository } from "@src/user/repositories";
@@ -13,7 +12,6 @@ export class AuthInterceptor implements HonoInterceptor {
   constructor(
     private readonly abilityService: AbilityService,
     private readonly userRepository: UserRepository,
-    private readonly executionContextService: ExecutionContextService,
     private readonly authService: AuthService
   ) {}
 
@@ -25,7 +23,7 @@ export class AuthInterceptor implements HonoInterceptor {
         const currentUser = await this.userRepository.findByUserId(userId);
 
         this.authService.currentUser = currentUser;
-        this.authService.ability = currentUser ? this.abilityService.getAbilityForUser(currentUser) : this.abilityService.getEmptyAbility();
+        this.authService.ability = currentUser ? this.abilityService.getAbilityFor("REGULAR_USER", currentUser) : this.abilityService.EMPTY_ABILITY;
 
         return await next();
       }
@@ -35,12 +33,12 @@ export class AuthInterceptor implements HonoInterceptor {
         const currentUser = await this.userRepository.findAnonymousById(anonymousUserId);
 
         this.authService.currentUser = currentUser;
-        this.authService.ability = currentUser ? this.abilityService.getAbilityForAnonymousUser(currentUser) : this.abilityService.getEmptyAbility();
+        this.authService.ability = currentUser ? this.abilityService.getAbilityFor("REGULAR_ANONYMOUS_USER", currentUser) : this.abilityService.EMPTY_ABILITY;
 
         return await next();
       }
 
-      this.authService.ability = this.abilityService.getEmptyAbility();
+      this.authService.ability = this.abilityService.EMPTY_ABILITY;
 
       return await next();
     };
