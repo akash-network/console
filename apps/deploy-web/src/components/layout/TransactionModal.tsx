@@ -2,22 +2,41 @@
 import { ReactNode } from "react";
 import { Popup, Spinner } from "@akashnetwork/ui/components";
 
+export type LoadingState =
+  | "waitingForApproval"
+  | "broadcasting"
+  | "searchingProviders"
+  | "creatingDeployment"
+  | "updatingDeployment"
+  | "creatingLease"
+  | "closingDeployment";
+
 type Props = {
-  state: "waitingForApproval" | "broadcasting";
-  open: boolean;
+  managed?: boolean;
+  state?: LoadingState;
   onClose?: () => void;
   children?: ReactNode;
 };
 
-export const TransactionModal: React.FunctionComponent<Props> = ({ state, open, onClose }) => {
-  return (
+const TITLES: Record<LoadingState, string> = {
+  waitingForApproval: "Waiting for tx approval",
+  broadcasting: "Transaction Pending",
+  searchingProviders: "Searching Providers",
+  creatingDeployment: "Creating Deployment",
+  updatingDeployment: "Updating Deployment",
+  creatingLease: "Creating Lease",
+  closingDeployment: "Closing Deployment"
+};
+
+const CRYPTO_STATES: LoadingState[] = ["waitingForApproval", "broadcasting"];
+
+export const TransactionModal: React.FunctionComponent<Props> = ({ state, onClose }) => {
+  return state ? (
     <Popup
       fullWidth
-      open={open}
+      open={!!state}
       variant="custom"
-      title={
-        state === "waitingForApproval" ? <div className="text-center">Waiting for tx approval</div> : <div className="text-center">Transaction Pending</div>
-      }
+      title={<div className="text-center">{TITLES[state]}</div>}
       actions={[]}
       onClose={onClose}
       maxWidth="xs"
@@ -29,10 +48,12 @@ export const TransactionModal: React.FunctionComponent<Props> = ({ state, open, 
           <Spinner size="large" className="flex justify-center" />
         </div>
 
-        <div className="text-sm text-muted-foreground">
-          {state === "waitingForApproval" ? "APPROVE OR REJECT TX TO CONTINUE..." : "BROADCASTING TRANSACTION..."}
-        </div>
+        {CRYPTO_STATES.includes(state) && (
+          <div className="text-sm text-muted-foreground">
+            {state === "waitingForApproval" ? "APPROVE OR REJECT TX TO CONTINUE..." : "BROADCASTING TRANSACTION..."}
+          </div>
+        )}
       </div>
     </Popup>
-  );
+  ) : null;
 };
