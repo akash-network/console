@@ -10,11 +10,11 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { container } from "tsyringe";
 
+import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
 import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
 import { HttpLoggerService } from "@src/core/services/http-logger/http-logger.service";
 import { LoggerService } from "@src/core/services/logger/logger.service";
-import { RequestStorageInterceptor } from "@src/core/services/request-storage/request-storage.interceptor";
-import { CurrentUserInterceptor } from "@src/user/services/current-user/current-user.interceptor";
+import { RequestContextInterceptor } from "@src/core/services/request-storage/request-context.interceptor";
 import packageJson from "../package.json";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { apiRouter } from "./routers/apiRouter";
@@ -64,8 +64,8 @@ const scheduler = new Scheduler({
 });
 
 appHono.use(container.resolve(HttpLoggerService).intercept());
-appHono.use(container.resolve(RequestStorageInterceptor).intercept());
-appHono.use(container.resolve(CurrentUserInterceptor).intercept());
+appHono.use(container.resolve(RequestContextInterceptor).intercept());
+appHono.use(container.resolve(AuthInterceptor).intercept());
 appHono.use(
   "*",
   sentry({

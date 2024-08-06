@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 
@@ -28,21 +29,34 @@ describe("wallets", () => {
       const {
         data: { id: userId }
       } = await userResponse.json();
-      const res = await app.request("/v1/wallets", {
+      const headers = new Headers({ "Content-Type": "application/json", "x-anonymous-user-id": userId });
+      const createWalletResponse = await app.request("/v1/wallets", {
         method: "POST",
         body: JSON.stringify({ data: { userId } }),
-        headers: new Headers({ "Content-Type": "application/json" })
+        headers
       });
+      const getWalletsResponse = await app.request(`/v1/wallets?userId=${userId}`, { headers });
       const userWallet = await userWalletsTable.findFirst({ where: eq(userWalletSchema.userId, userId) });
 
-      expect(res.status).toBe(200);
-      expect(await res.json()).toMatchObject({
+      expect(createWalletResponse.status).toBe(200);
+      expect(getWalletsResponse.status).toBe(200);
+      expect(await createWalletResponse.json()).toMatchObject({
         data: {
           id: expect.any(Number),
           userId,
           creditAmount: expect.any(Number),
           address: expect.any(String)
         }
+      });
+      expect(await getWalletsResponse.json()).toMatchObject({
+        data: [
+          {
+            id: expect.any(Number),
+            userId,
+            creditAmount: expect.any(Number),
+            address: expect.any(String)
+          }
+        ]
       });
       expect(userWallet).toMatchObject({
         id: expect.any(Number),
@@ -51,6 +65,26 @@ describe("wallets", () => {
         deploymentAllowance: `${config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT}.00`,
         feeAllowance: `${config.TRIAL_FEES_ALLOWANCE_AMOUNT}.00`
       });
+    });
+
+    it("should throw 401 provided no auth header ", async () => {
+      const createWalletResponse = await app.request("/v1/wallets", {
+        method: "POST",
+        body: JSON.stringify({ data: { userId: faker.string.uuid() } }),
+        headers: new Headers({ "Content-Type": "application/json" })
+      });
+
+      expect(createWalletResponse.status).toBe(401);
+      expect(await createWalletResponse.json()).toMatchObject({ error: "UnauthorizedError", message: "Unauthorized" });
+    });
+  });
+
+  describe("GET /v1/wallets", () => {
+    it("should throw 401 provided no auth header ", async () => {
+      const getWalletsResponse = await app.request(`/v1/wallets?userId=${faker.string.uuid()}`);
+
+      expect(getWalletsResponse.status).toBe(401);
+      expect(await getWalletsResponse.json()).toMatchObject({ error: "UnauthorizedError", message: "Unauthorized" });
     });
   });
 });

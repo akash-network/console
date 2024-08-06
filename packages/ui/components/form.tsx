@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { Controller, ControllerProps, FieldPath, FieldValues, FormProvider, useFormContext } from "react-hook-form";
+import { Controller, ControllerProps, FieldError, FieldErrorsImpl, FieldPath, FieldValues, FormProvider, Merge, useFormContext } from "react-hook-form";
 import * as LabelPrimitive from "@radix-ui/react-label";
 import { Slot } from "@radix-ui/react-slot";
 
@@ -25,17 +25,34 @@ const FormField = <TFieldValues extends FieldValues = FieldValues, TName extends
   );
 };
 
-const useFormField = () => {
+interface FormFieldProps {
+  id: string;
+  name: string;
+  formItemId: string;
+  formDescriptionId: string;
+  formMessageId: string;
+  invalid: boolean;
+  isDirty: boolean;
+  isTouched: boolean;
+  isValidating: boolean;
+  error?: FieldError | Merge<FieldError, FieldErrorsImpl<any>>;
+}
+
+const useFormField = (): FormFieldProps => {
+  const formContext = useFormContext();
   const fieldContext = React.useContext(FormFieldContext);
   const itemContext = React.useContext(FormItemContext);
-  const { getFieldState, formState } = useFormContext();
 
-  const fieldState = getFieldState(fieldContext.name, formState);
+  if (!formContext) {
+    return {} as FormFieldProps;
+  }
 
   if (!fieldContext) {
     throw new Error("useFormField should be used within <FormField>");
   }
 
+  const { getFieldState, formState } = formContext;
+  const fieldState = getFieldState(fieldContext.name, formState);
   const { id } = itemContext;
 
   return {
@@ -59,7 +76,7 @@ const FormItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
 
   return (
     <FormItemContext.Provider value={{ id }}>
-      <div ref={ref} className={cn("space-y-2", className)} {...props} />
+      <div ref={ref} className={cn("space-y-1", className)} {...props} />
     </FormItemContext.Provider>
   );
 });
@@ -105,7 +122,7 @@ const FormMessage = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<
   }
 
   return (
-    <p ref={ref} id={formMessageId} className={cn("text-destructive text-sm font-medium", className)} {...props}>
+    <p ref={ref} id={formMessageId} className={cn("text-destructive text-xs font-medium", className)} {...props}>
       {body}
     </p>
   );

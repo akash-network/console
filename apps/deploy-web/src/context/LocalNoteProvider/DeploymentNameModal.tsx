@@ -1,19 +1,27 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { InputWithIcon, Popup, Snackbar } from "@akashnetwork/ui/components";
+import { useForm } from "react-hook-form";
+import { Form, FormField, FormInput, Popup, Snackbar } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useSnackbar } from "notistack";
+import { z } from "zod";
 
 import { updateDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
+
+const formSchema = z.object({
+  name: z.string()
+});
 
 export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName }) => {
   const formRef = useRef<HTMLFormElement | null>(null);
   const { enqueueSnackbar } = useSnackbar();
-  const { handleSubmit, control, setValue } = useForm({
+  const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       name: ""
-    }
+    },
+    resolver: zodResolver(formSchema)
   });
+  const { handleSubmit, control, setValue } = form;
 
   useEffect(() => {
     if (dseq) {
@@ -61,15 +69,17 @@ export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName 
       onClose={onClose}
       maxWidth="xs"
     >
-      <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-        <Controller
-          control={control}
-          name="name"
-          render={({ field }) => {
-            return <InputWithIcon {...field} label="Name" autoFocus type="text" />;
-          }}
-        />
-      </form>
+      <Form {...form}>
+        <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+          <FormField
+            control={control}
+            name="name"
+            render={({ field }) => {
+              return <FormInput {...field} label="Name" autoFocus type="text" />;
+            }}
+          />
+        </form>
+      </Form>
     </Popup>
   );
 };

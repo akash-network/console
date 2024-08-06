@@ -1,13 +1,24 @@
 "use client";
 import { ReactElement } from "react";
-import { Control, Controller, FieldPathValue, FieldValues, Path } from "react-hook-form";
-import { FormItem, Label, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
+import { Control, FieldPathValue, FieldValues, Path } from "react-hook-form";
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@akashnetwork/ui/components";
 
 import { useSdlDenoms } from "@src/hooks/useDenom";
-import { Service } from "@src/types";
+import { ServiceType } from "@src/types";
 
 interface ServicesFieldValues extends FieldValues {
-  services: Service[];
+  services: ServiceType[];
 }
 
 interface Props<TFieldValues extends ServicesFieldValues, TName extends Path<TFieldValues> = Path<TFieldValues>> {
@@ -20,20 +31,14 @@ export const TokenFormControl = <F extends ServicesFieldValues>({ control, name,
   const supportedSdlDenoms = useSdlDenoms();
 
   return (
-    <Controller
+    <FormField
       control={control}
       name={name}
       defaultValue={defaultValue}
-      rules={{
-        required: true
-      }}
       render={({ field }) => {
         return (
-          <FormItem
-          // TODO
-          // error={!!fieldState.error}
-          >
-            <Label>Token</Label>
+          <FormItem>
+            <FormLabel>Token</FormLabel>
             <Select value={field.value || ""} onValueChange={field.onChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select token" />
@@ -50,6 +55,7 @@ export const TokenFormControl = <F extends ServicesFieldValues>({ control, name,
                 </SelectGroup>
               </SelectContent>
             </Select>
+            <FormMessage />
           </FormItem>
         );
       }}

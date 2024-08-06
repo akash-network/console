@@ -1,6 +1,6 @@
 import { FC, useCallback, useState } from "react";
-import { Control, Controller, UseFormSetValue } from "react-hook-form";
-import { Button, CustomTooltip, InputWithIcon } from "@akashnetwork/ui/components";
+import { Control, UseFormSetValue } from "react-hook-form";
+import { Button, CustomTooltip, FormField, FormInput } from "@akashnetwork/ui/components";
 import { saveAs } from "file-saver";
 import { InfoCircle, Key } from "iconoir-react";
 import JSZip from "jszip";
@@ -8,12 +8,12 @@ import forge from "node-forge";
 
 import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
-import { SdlBuilderFormValues } from "@src/types";
+import { SdlBuilderFormValuesType } from "@src/types";
 
 interface SSHKeyInputProps {
-  control: Control<SdlBuilderFormValues, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
   serviceIndex: number;
-  setValue: UseFormSetValue<SdlBuilderFormValues>;
+  setValue: UseFormSetValue<SdlBuilderFormValuesType>;
 }
 
 export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex, setValue }) => {
@@ -38,14 +38,11 @@ export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex,
 
   return (
     <div>
-      <Controller
+      <FormField
         control={control}
         name={`services.${serviceIndex}.sshPubKey`}
-        rules={{
-          required: "SSH Public key is required."
-        }}
-        render={({ field, fieldState }) => (
-          <InputWithIcon
+        render={({ field }) => (
+          <FormInput
             type="text"
             label={
               <div className="inline-flex items-center">
@@ -65,14 +62,13 @@ export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex,
               </div>
             }
             placeholder="ssh-..."
-            color="secondary"
-            error={fieldState.error?.message}
             className="flex-grow"
+            inputClassName="pr-[100px]"
             value={field.value}
             onChange={event => field.onChange(event.target.value || "")}
             startIcon={<Key className="ml-2 text-xs text-muted-foreground" />}
             endIcon={
-              <Button onClick={generateSSHKeys} type="button" size="sm" className="-mr-2.5" data-testid="generate-ssh-keys-btn">
+              <Button onClick={generateSSHKeys} type="button" size="sm" className="h-full" data-testid="generate-ssh-keys-btn">
                 Generate
               </Button>
             }

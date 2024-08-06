@@ -3,7 +3,7 @@ import { ReactNode, useState } from "react";
 import { Control } from "react-hook-form";
 import { Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
 
-import { RentGpusFormValues, Service } from "@src/types";
+import { RentGpusFormValuesType, ServiceType } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { ExpandMore } from "../shared/ExpandMore";
 import { CommandFormModal } from "./CommandFormModal";
@@ -15,8 +15,8 @@ import { ExposeList } from "./ExposeList";
 import { PersistentStorage } from "./PersistentStorage";
 
 type Props = {
-  currentService: Service;
-  control: Control<RentGpusFormValues, any>;
+  currentService: ServiceType;
+  control: Control<RentGpusFormValuesType, any>;
   children?: ReactNode;
 };
 

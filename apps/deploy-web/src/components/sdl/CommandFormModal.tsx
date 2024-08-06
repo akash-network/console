@@ -1,15 +1,15 @@
 "use client";
 import { ReactNode } from "react";
-import { Control, Controller } from "react-hook-form";
-import { FormInput, Label, Popup, Textarea } from "@akashnetwork/ui/components";
+import { Control } from "react-hook-form";
+import { FormField, FormInput, FormItem, FormLabel, Popup, Textarea } from "@akashnetwork/ui/components";
 
-import { SdlBuilderFormValues } from "@src/types";
+import { SdlBuilderFormValuesType } from "@src/types";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;
   onClose: () => void;
-  control: Control<SdlBuilderFormValues, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
   children?: ReactNode;
 };
 
@@ -34,7 +34,7 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
       enableCloseOnBackdropClick
     >
       <FormPaper className="!bg-popover">
-        <Controller
+        <FormField
           control={control}
           name={`services.${serviceIndex}.command.command`}
           render={({ field }) => (
@@ -42,12 +42,12 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
           )}
         />
 
-        <Controller
+        <FormField
           control={control}
           name={`services.${serviceIndex}.command.arg`}
           render={({ field }) => (
-            <div className="mt-2">
-              <Label>Arguments</Label>
+            <FormItem className="mt-2">
+              <FormLabel>Arguments</FormLabel>
               <Textarea
                 aria-label="Args"
                 placeholder="Example: apt-get update; apt-get install -y --no-install-recommends -- ssh;"
@@ -57,7 +57,7 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
                 spellCheck={false}
                 onChange={field.onChange}
               />
-            </div>
+            </FormItem>
           )}
         />
       </FormPaper>

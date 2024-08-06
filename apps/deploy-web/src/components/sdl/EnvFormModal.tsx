@@ -1,19 +1,19 @@
 "use client";
 import { ReactNode, useEffect } from "react";
 import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Button, CustomNoDivTooltip, FormInput, Popup, Switch } from "@akashnetwork/ui/components";
+import { Button, CustomNoDivTooltip, FormField, FormInput, Popup, Switch } from "@akashnetwork/ui/components";
 import { Bin } from "iconoir-react";
 import { nanoid } from "nanoid";
 
-import { EnvironmentVariable, RentGpusFormValues, SdlBuilderFormValues } from "@src/types";
+import { EnvironmentVariableType, RentGpusFormValuesType,SdlBuilderFormValuesType } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;
   onClose: () => void;
-  envs: EnvironmentVariable[];
-  control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
+  envs: EnvironmentVariableType[];
+  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
   hasSecretOption?: boolean;
   children?: ReactNode;
 };
@@ -84,7 +84,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
           return (
             <div key={env.id} className={cn("flex", { ["mb-2"]: envIndex + 1 !== envs.length })}>
               <div className="flex flex-grow flex-col items-end sm:flex-row">
-                <Controller
+                <FormField
                   control={control}
                   name={`services.${serviceIndex}.env.${envIndex}.key`}
                   render={({ field }) => (
@@ -101,7 +101,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
                   )}
                 />
 
-                <Controller
+                <FormField
                   control={control}
                   name={`services.${serviceIndex}.env.${envIndex}.value`}
                   render={({ field }) => (

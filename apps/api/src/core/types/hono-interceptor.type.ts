@@ -1,5 +1,5 @@
 import type { MiddlewareHandler } from "hono";
 
 export interface HonoInterceptor {
-  intercept(): MiddlewareHandler;
+  intercept(options?: any): MiddlewareHandler;
 }

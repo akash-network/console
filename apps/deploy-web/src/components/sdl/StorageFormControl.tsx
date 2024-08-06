@@ -4,8 +4,9 @@ import { Control, Controller } from "react-hook-form";
 import { MdStorage } from "react-icons/md";
 import {
   CustomTooltip,
-  FormDescription,
+  FormField,
   FormItem,
+  FormMessage,
   Input,
   Select,
   SelectContent,
@@ -17,47 +18,25 @@ import {
 } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
-import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
-import { storageUnits, validationConfig } from "@src/utils/akash/units";
+import { RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
+import { storageUnits } from "@src/utils/akash/units";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;
   children?: ReactNode;
-  control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
-  currentService: Service;
+  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
 };
 
-export const StorageFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, currentService }) => {
+export const StorageFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex }) => {
   return (
-    <Controller
+    <FormField
       control={control}
-      rules={{
-        validate: v => {
-          if (!v) return "Storage amount is required.";
-
-          const currentUnit = storageUnits.find(u => currentService.profile.storageUnit === u.suffix);
-          const _value = (v || 0) * (currentUnit?.value || 0);
-
-          if (currentService.count * _value < validationConfig.minStorage) {
-            return "Minimum amount of storage for a single service instance is 5 Mi.";
-          } else if (currentService.count * _value > validationConfig.maxStorage) {
-            return "Maximum amount of storage for a single service instance is 32 Ti.";
-          }
-
-          return true;
-        }
-      }}
       name={`services.${serviceIndex}.profile.storage`}
       render={({ field, fieldState }) => (
-        <FormPaper className={cn({ ["border-b border-red-500"]: !!fieldState.error })}>
-          <FormItem
-          // className={cx(classes.formControl, classes.textField)}
-          // variant="standard"
-          // sx={{ marginBottom: "0 !important" }}
-          // error={!!fieldState.error}
-          >
+        <FormPaper>
+          <FormItem>
             <div className="flex flex-col items-start sm:flex-row sm:items-center">
               <div className="flex items-center">
                 <MdStorage className="mr-2 text-2xl text-muted-foreground" />
@@ -88,22 +67,21 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
                   type="number"
                   color="secondary"
                   value={field.value || ""}
-                  // error={!!fieldState.error}
+                  error={!!fieldState.error}
                   onChange={event => field.onChange(parseFloat(event.target.value))}
                   min={1}
                   step={1}
-                  className="w-[100px]"
+                  inputClassName="w-[100px]"
                 />
 
                 <Controller
                   control={control}
                   name={`services.${serviceIndex}.profile.storageUnit`}
-                  rules={{ required: "Storage unit is required." }}
                   defaultValue=""
                   render={({ field }) => (
                     <Select value={field.value || ""} onValueChange={field.onChange}>
-                      <SelectTrigger className="ml-1">
-                        <SelectValue placeholder="Select unit" className="w-[75px]" />
+                      <SelectTrigger className="ml-1 w-[75px]">
+                        <SelectValue placeholder="Select unit" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
@@ -129,12 +107,11 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
               step={1}
               color="secondary"
               aria-label="Storage"
-              // valueLabelDisplay="auto"
               onValueChange={newValue => field.onChange(newValue)}
               className="pt-2"
             />
 
-            {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}
+            <FormMessage />
           </FormItem>
         </FormPaper>
       )}

@@ -1,20 +1,20 @@
 "use client";
 import { forwardRef, ReactNode, useImperativeHandle } from "react";
-import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Button, CustomTooltip, FormInput } from "@akashnetwork/ui/components";
+import { Control, useFieldArray } from "react-hook-form";
+import { Button, CustomTooltip, FormField, FormInput } from "@akashnetwork/ui/components";
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
 
-import { Accept, SdlBuilderFormValues } from "@src/types";
+import { AcceptType, SdlBuilderFormValuesType } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;
   exposeIndex: number;
-  control: Control<SdlBuilderFormValues, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
   children?: ReactNode;
-  accept: Accept[];
+  accept: AcceptType[];
 };
 
 export type AcceptRefType = {
@@ -57,7 +57,7 @@ export const AcceptFormControl = forwardRef<AcceptRefType, Props>(({ control, se
           <div key={acc.id} className={cn("w-full", { ["mb-2"]: accIndex + 1 !== accept.length })}>
             <div className="flex items-end">
               <div className="flex-grow">
-                <Controller
+                <FormField
                   control={control}
                   name={`services.${serviceIndex}.expose.${exposeIndex}.accept.${accIndex}.value`}
                   render={({ field }) => (

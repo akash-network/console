@@ -8,7 +8,7 @@ import { queryClient } from "@src/queries";
 import { initiateNetworkData, networks } from "@src/store/networkStore";
 import { NodeStatus } from "@src/types/node";
 import { mainnetNodes } from "@src/utils/apiUtils";
-import { mainnetId } from "@src/utils/constants";
+import { defaultNetworkId } from "@src/utils/constants";
 import { initAppTypes } from "@src/utils/init";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 
@@ -26,8 +26,8 @@ export type Settings = {
   rpcEndpoint: string;
   isCustomNode: boolean;
   nodes: Array<BlockchainNode>;
-  selectedNode: BlockchainNode | null;
-  customNode: BlockchainNode | null;
+  selectedNode: BlockchainNode | null | undefined;
+  customNode: BlockchainNode | null | undefined;
 };
 
 type ContextType = {
@@ -58,7 +58,7 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [isSettingsInit, setIsSettingsInit] = useState(false);
   const [isRefreshingNodeStatus, setIsRefreshingNodeStatus] = useState(false);
   const { getLocalStorageItem, setLocalStorageItem } = useLocalStorage();
-  const [selectedNetworkId, setSelectedNetworkId] = useState(mainnetId);
+  const [selectedNetworkId, setSelectedNetworkId] = useState(defaultNetworkId);
   const { isCustomNode, customNode, nodes, apiEndpoint, rpcEndpoint } = settings;
 
   usePreviousRoute();
@@ -77,7 +77,7 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
       // Init app types based on the selected network id
       initAppTypes();
 
-      const _selectedNetworkId = localStorage.getItem("selectedNetworkId") || mainnetId;
+      const _selectedNetworkId = localStorage.getItem("selectedNetworkId") || defaultNetworkId;
 
       setSelectedNetworkId(_selectedNetworkId);
 
@@ -229,7 +229,7 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
    * @returns
    */
   const refreshNodeStatuses = useCallback(
-    async (settingsOverride?) => {
+    async (settingsOverride?: Settings) => {
       if (isRefreshingNodeStatus) return;
 
       setIsRefreshingNodeStatus(true);
@@ -247,7 +247,9 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
           status: nodeStatus.status,
           latency: nodeStatus.latency,
           nodeInfo: nodeStatus.nodeInfo,
-          id: customNodeUrl.hostname
+          id: customNodeUrl.hostname,
+          api: _apiEndpoint,
+          rpc: _rpcEndpoint
         };
       } else {
         _nodes = await Promise.all(
