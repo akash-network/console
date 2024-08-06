@@ -56,6 +56,7 @@ type ContextType = {
   refreshBalances: (address?: string) => Promise<Balances>;
   isManaged: boolean;
   isWalletLoading: boolean;
+  isTrialing: boolean;
 };
 
 const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
@@ -338,7 +339,8 @@ export const WalletProvider = ({ children }) => {
         signAndBroadcastTx,
         refreshBalances,
         isManaged: !!managedWallet?.isWalletConnected,
-        isWalletLoading: isLoading
+        isWalletLoading: isLoading,
+        isTrialing: !!managedWallet?.isTrialing
       }}
     >
       {children}

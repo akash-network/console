@@ -1,4 +1,3 @@
-import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
@@ -28,6 +27,6 @@ export class WalletInitializerService {
       { returning: true }
     );
 
-    return pick(userWallet, ["id", "userId", "address", "creditAmount"]);
+    return this.userWalletRepository.toPublic(userWallet);
   }
 }

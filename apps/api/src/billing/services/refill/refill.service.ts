@@ -48,7 +48,12 @@ export class RefillService {
       limits
     });
 
-    await this.balancesService.updateUserWalletLimits(wallet);
+    const limitsUpdate = await this.balancesService.getLimitsUpdate(wallet);
+
+    if (Object.keys(limitsUpdate).length > 0) {
+      limitsUpdate.isTrialing = false;
+      await this.userWalletRepository.updateById(wallet.id, limitsUpdate);
+    }
   }
 
   private async chargeUser(wallet: UserWalletOutput) {
