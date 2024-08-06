@@ -12,13 +12,13 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
-import { ApiTemplate, RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
+import { ApiTemplate, RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   children?: ReactNode;
-  control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
-  currentService: Service;
+  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
+  currentService: ServiceType;
   onSelectTemplate: (template: ApiTemplate) => void;
 };
 
@@ -116,18 +116,6 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
           <Controller
             control={control}
             name={`services.0.image`}
-            rules={{
-              required: "Docker image name is required.",
-              validate: value => {
-                const hasValidChars = /^[a-z0-9\-_/:.]+$/.test(value);
-
-                if (!hasValidChars) {
-                  return "Invalid docker image name.";
-                }
-
-                return true;
-              }
-            }}
             render={({ field, fieldState }) => (
               <TextField
                 type="text"
@@ -179,11 +167,11 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
             onResizeCapture={undefined}
           >
             <ul className="relative m-0 max-h-[40vh] list-none overflow-auto py-2">
-              {filteredGpuTemplates.map(template => (
+              {filteredGpuTemplates.map((template, i) => (
                 <li
                   className="MuiAutocomplete-option flex w-full cursor-pointer items-center justify-between px-4 py-2 text-sm hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
                   ref={eleRefs[template.id as string]}
-                  key={template.id}
+                  key={`${template.id}-${i}`}
                   onClick={() => _onSelectTemplate(template)}
                   onMouseOver={() => {
                     setHoveredTemplate(template);

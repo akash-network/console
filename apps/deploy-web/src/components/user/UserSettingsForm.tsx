@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { MdHighlightOff } from "react-icons/md";
-import { Alert, Button, Input, InputWithIcon, Spinner, Switch, Textarea } from "@akashnetwork/ui/components";
+import { Alert, Button, Form, FormField, FormInput, Spinner, Switch, Textarea } from "@akashnetwork/ui/components";
 import axios from "axios";
 import { CheckCircle } from "iconoir-react";
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
+import { z } from "zod";
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { LabelValue } from "@src/components/shared/LabelValue";
@@ -16,18 +17,23 @@ import type { UserSettings } from "@src/types/user";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import Layout from "../layout/Layout";
 
+const formSchema = z.object({
+  username: z
+    .string()
+    .min(3, "Username must be at least 3 characters long")
+    .max(40, "Username must be at most 40 characters long")
+    .regex(/^[a-zA-Z0-9_-]*$/, "Username can only contain letters, numbers, dashes and underscores"),
+  subscribedToNewsletter: z.boolean().optional(),
+  bio: z.string().optional(),
+  youtubeUsername: z.string().optional(),
+  twitterUsername: z.string().optional(),
+  githubUsername: z.string().optional()
+});
+
 export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
   const [isCheckingAvailability, setIsCheckingAvailability] = useState<boolean>(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
-  const {
-    getValues,
-    register,
-    handleSubmit,
-    setValue,
-    control,
-    watch,
-    formState: { isDirty, errors }
-  } = useForm<UserSettings>({
+  const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       username: "",
       subscribedToNewsletter: false,
@@ -37,6 +43,15 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
       githubUsername: ""
     }
   });
+  const {
+    getValues,
+    register,
+    handleSubmit,
+    setValue,
+    control,
+    watch,
+    formState: { isDirty, errors }
+  } = form;
   const { mutate: saveSettings, isLoading: isSaving } = useSaveSettings();
   const { username } = watch();
 
@@ -45,7 +60,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
 
   useEffect(() => {
     if (user) {
-      setValue("username", user.username);
+      setValue("username", user.username || "");
       setValue("subscribedToNewsletter", user.subscribedToNewsletter);
       setValue("bio", user.bio);
       setValue("youtubeUsername", user.youtubeUsername);
@@ -71,7 +86,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
   }, [user?.username, username]);
 
   async function onSubmit() {
-    saveSettings(getValues());
+    saveSettings(getValues() as UserSettings);
 
     event(AnalyticsEvents.USER_SETTINGS_SAVE, {
       category: "settings",
@@ -85,88 +100,97 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
       {user?.username && user?.bio && (
         <UserProfileLayout page="settings" username={user.username} bio={user.bio}>
           <FormPaper>
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <LabelValue label="Email" value={user.email} />
-              <LabelValue
-                label="Username"
-                value={
-                  <>
+            <Form {...form}>
+              <form onSubmit={handleSubmit(onSubmit)}>
+                <LabelValue label="Email" value={user.email} />
+                <LabelValue
+                  label="Username"
+                  value={
+                    <>
+                      <div className="flex items-center">
+                        <FormField
+                          name="username"
+                          control={control}
+                          render={({ field }) => {
+                            return <FormInput {...field} autoFocus className="mr-2" disabled={isFormDisabled} />;
+                          }}
+                        />
+                        {isCheckingAvailability && <Spinner size="small" />}
+                        <span className="flex flex-shrink-0 items-center whitespace-nowrap text-xs">
+                          {!isCheckingAvailability && isAvailable && (
+                            <>
+                              <CheckCircle className="text-green-600" />
+                              &nbsp;Username is available
+                            </>
+                          )}
+                          {!isCheckingAvailability && isAvailable === false && (
+                            <>
+                              <MdHighlightOff className="text-destructive" />
+                              &nbsp;Username is not available
+                            </>
+                          )}
+                        </span>
+                      </div>
+                      {errors.username && (
+                        <Alert className="mt-2" variant="destructive">
+                          {errors.username.message}
+                        </Alert>
+                      )}
+                    </>
+                  }
+                />
+                <LabelValue
+                  label="Subscribed to newsletter"
+                  value={
                     <div className="flex items-center">
-                      <Input
-                        className="mr-2"
-                        disabled={isFormDisabled}
-                        // error={!!errors.username}
-                        {...register("username", {
-                          required: "Username is required",
-                          minLength: { value: 3, message: "Username must be at least 3 characters long" },
-                          maxLength: { value: 40, message: "Username must be at most 40 characters long" },
-                          pattern: { value: /^[a-zA-Z0-9_-]*$/, message: "Username can only contain letters, numbers, dashes and underscores" }
-                        })}
+                      <Controller
+                        name="subscribedToNewsletter"
+                        control={control}
+                        render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />}
                       />
-                      {isCheckingAvailability && <Spinner size="small" />}
-                      <span className="flex flex-shrink-0 items-center whitespace-nowrap text-xs">
-                        {!isCheckingAvailability && isAvailable && (
-                          <>
-                            <CheckCircle className="text-green-600" />
-                            &nbsp;Username is available
-                          </>
-                        )}
-                        {!isCheckingAvailability && isAvailable === false && (
-                          <>
-                            <MdHighlightOff className="text-destructive" />
-                            &nbsp;Username is not available
-                          </>
-                        )}
-                      </span>
                     </div>
-                    {errors.username && (
-                      <Alert className="mt-2" variant="destructive">
-                        {errors.username.message}
-                      </Alert>
-                    )}
-                  </>
-                }
-              />
-              <LabelValue
-                label="Subscribed to newsletter"
-                value={
-                  <div className="flex items-center">
-                    <Controller
-                      name="subscribedToNewsletter"
+                  }
+                />
+                <LabelValue label="Bio" value={<Textarea disabled={isFormDisabled} rows={4} className="w-full" {...register("bio")} />} />
+
+                <LabelValue
+                  label="Youtube"
+                  value={
+                    <FormField
+                      name="youtubeUsername"
                       control={control}
-                      render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />}
+                      render={({ field }) => (
+                        <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://www.youtube.com/c/</div>} />
+                      )}
                     />
-                  </div>
-                }
-              />
-              <LabelValue label="Bio" value={<Textarea disabled={isFormDisabled} rows={4} className="w-full" {...register("bio")} />} />
+                  }
+                />
+                <LabelValue
+                  label="X"
+                  value={
+                    <FormField
+                      name="twitterUsername"
+                      control={control}
+                      render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://x.com/</div>} />}
+                    />
+                  }
+                />
+                <LabelValue
+                  label="Github"
+                  value={
+                    <FormField
+                      name="githubUsername"
+                      control={control}
+                      render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://github.com/</div>} />}
+                    />
+                  }
+                />
 
-              <LabelValue
-                label="Youtube"
-                value={
-                  <InputWithIcon
-                    disabled={isFormDisabled}
-                    className="w-full"
-                    {...register("youtubeUsername")}
-                    startIcon={<div>https://www.youtube.com/c/</div>}
-                  />
-                }
-              />
-              <LabelValue
-                label="X"
-                value={<InputWithIcon disabled={isFormDisabled} className="w-full" {...register("twitterUsername")} startIcon={<div>https://x.com/</div>} />}
-              />
-              <LabelValue
-                label="Github"
-                value={
-                  <InputWithIcon disabled={isFormDisabled} className="w-full" {...register("githubUsername")} startIcon={<div>https://github.com/</div>} />
-                }
-              />
-
-              <Button type="submit" disabled={!canSave || isSaving}>
-                {isSaving ? <Spinner size="small" /> : "Save"}
-              </Button>
-            </form>
+                <Button type="submit" disabled={!canSave || isSaving}>
+                  {isSaving ? <Spinner size="small" /> : "Save"}
+                </Button>
+              </form>
+            </Form>
           </FormPaper>
         </UserProfileLayout>
       )}

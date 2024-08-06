@@ -1,9 +1,9 @@
 import yaml from "js-yaml";
 
-import { Expose, ProfileGpuModel, Service } from "@src/types";
+import { ExposeType, ProfileGpuModelType, ServiceType } from "@src/types";
 import { defaultHttpOptions } from "./data";
 
-export const generateSdl = (services: Service[], region?: string) => {
+export const generateSdl = (services: ServiceType[], region?: string) => {
   const sdl = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
 
   services.forEach(service => {
@@ -101,7 +101,7 @@ export const generateSdl = (services: Service[], region?: string) => {
         group[vendor] = group[vendor] ?? [];
         group[vendor].push(model);
         return group;
-      }, {}) as { [key: string]: ProfileGpuModel[] };
+      }, {}) as { [key: string]: ProfileGpuModelType[] };
 
       for (const [vendor, models] of Object.entries(vendors)) {
         const mappedModels = models
@@ -218,8 +218,8 @@ export const generateSdl = (services: Service[], region?: string) => {
 ${result}`;
 };
 
-const getProto = (expose: Expose) => {
-  if (expose.proto && (expose.proto === "http" || expose.proto === "https")) {
+const getProto = (expose: ExposeType) => {
+  if (expose.proto && expose.proto === "http") {
     return null;
   } else {
     return expose.proto;

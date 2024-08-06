@@ -26,8 +26,8 @@ export type Settings = {
   rpcEndpoint: string;
   isCustomNode: boolean;
   nodes: Array<BlockchainNode>;
-  selectedNode: BlockchainNode | null;
-  customNode: BlockchainNode | null;
+  selectedNode: BlockchainNode | null | undefined;
+  customNode: BlockchainNode | null | undefined;
 };
 
 type ContextType = {
@@ -229,7 +229,7 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
    * @returns
    */
   const refreshNodeStatuses = useCallback(
-    async (settingsOverride?) => {
+    async (settingsOverride?: Settings) => {
       if (isRefreshingNodeStatus) return;
 
       setIsRefreshingNodeStatus(true);
@@ -247,7 +247,9 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
           status: nodeStatus.status,
           latency: nodeStatus.latency,
           nodeInfo: nodeStatus.nodeInfo,
-          id: customNodeUrl.hostname
+          id: customNodeUrl.hostname,
+          api: _apiEndpoint,
+          rpc: _rpcEndpoint
         };
       } else {
         _nodes = await Promise.all(

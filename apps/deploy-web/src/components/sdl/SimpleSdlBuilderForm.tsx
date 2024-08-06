@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { Alert, Button, Snackbar, Spinner } from "@akashnetwork/ui/components";
+import { Alert, Button, Form, Snackbar, Spinner } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import { NavArrowRight } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -15,7 +16,7 @@ import { SimpleServiceFormControl } from "@src/components/sdl/SimpleServiceFormC
 import useFormPersist from "@src/hooks/useFormPersist";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import sdlStore from "@src/store/sdlStore";
-import { ITemplate, SdlBuilderFormValues, Service } from "@src/types";
+import { ITemplate, SdlBuilderFormValuesSchema, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { memoryUnits, storageUnits } from "@src/utils/akash/units";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { RouteStepKeys } from "@src/utils/constants";
@@ -45,7 +46,10 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
   const [sdlBuilderSdl, setSdlBuilderSdl] = useAtom(sdlStore.sdlBuilderSdl);
   const { data: gpuModels } = useGpuModels();
   const { enqueueSnackbar } = useSnackbar();
-  const { handleSubmit, reset, control, trigger, watch, setValue } = useForm<SdlBuilderFormValues>();
+  const form = useForm<SdlBuilderFormValuesType>({
+    resolver: zodResolver(SdlBuilderFormValuesSchema)
+  });
+  const { handleSubmit, reset, control, trigger, watch, setValue } = form;
   useFormPersist("sdl-builder-form", {
     watch,
     setValue,
@@ -85,7 +89,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
 
   useEffect(() => {
     if (_services) {
-      setSdlBuilderSdl({ services: _services as Service[] });
+      setSdlBuilderSdl({ services: _services as ServiceType[] });
     }
   }, [_services]);
 
@@ -100,7 +104,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
       setIsLoadingTemplate(false);
 
       reset();
-      setValue("services", services as Service[]);
+      setValue("services", services as ServiceType[]);
       setServiceCollapsed(services.map((x, i) => i));
       setTemplateMetadata(template);
     } catch (error) {
@@ -120,7 +124,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
     removeService(index);
   };
 
-  const onSubmit = async (data: SdlBuilderFormValues) => {
+  const onSubmit = async (data: SdlBuilderFormValuesType) => {
     setError(null);
 
     try {
@@ -157,7 +161,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
     setError(null);
 
     try {
-      const sdl = generateSdl(_services as Service[]);
+      const sdl = generateSdl(_services as ServiceType[]);
       setSdlResult(sdl);
       setIsPreviewingSdl(true);
 
@@ -171,7 +175,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
   };
 
   const getTemplateData = () => {
-    const sdl = generateSdl(_services as Service[]);
+    const sdl = generateSdl(_services as ServiceType[]);
     const template: Partial<ITemplate> = {
       id: templateMetadata?.id || undefined,
       sdl,
@@ -207,119 +211,121 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
           getTemplateData={getTemplateData}
           templateMetadata={templateMetadata as ITemplate}
           setTemplateMetadata={setTemplateMetadata}
-          services={_services as Service[]}
+          services={_services as ServiceType[]}
         />
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
-        {templateMetadata && (
-          <div className="flex items-center">
-            <p>
-              {templateMetadata.title}&nbsp;by&nbsp;
-              {templateMetadata.username && (
-                <span
+      <Form {...form}>
+        <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
+          {templateMetadata && (
+            <div className="flex items-center">
+              <p>
+                {templateMetadata.title}&nbsp;by&nbsp;
+                {templateMetadata.username && (
+                  <span
+                    onClick={() => {
+                      event(AnalyticsEvents.CLICK_SDL_PROFILE, {
+                        category: "sdl_builder",
+                        label: "Click on SDL user profile"
+                      });
+                    }}
+                  >
+                    <Link href={UrlService.userProfile(templateMetadata.username)}>{templateMetadata.username}</Link>
+                  </span>
+                )}
+              </p>
+
+              <div className="ml-6">
+                <Link
+                  href={UrlService.template(templateQueryId as string)}
+                  className="inline-flex cursor-pointer items-center"
                   onClick={() => {
-                    event(AnalyticsEvents.CLICK_SDL_PROFILE, {
+                    event(AnalyticsEvents.CLICK_VIEW_TEMPLATE, {
                       category: "sdl_builder",
-                      label: "Click on SDL user profile"
+                      label: "Click on view SDL template"
                     });
                   }}
                 >
-                  <Link href={UrlService.userProfile(templateMetadata.username)}>{templateMetadata.username}</Link>
-                </span>
-              )}
-            </p>
+                  View template <NavArrowRight className="ml-2 text-sm" />
+                </Link>
+              </div>
+            </div>
+          )}
 
-            <div className="ml-6">
-              <Link
-                href={UrlService.template(templateQueryId as string)}
-                className="inline-flex cursor-pointer items-center"
+          <div className="flex items-center justify-between pt-4">
+            <div className="flex items-center">
+              <Button color="secondary" variant="default" type="submit">
+                Deploy
+              </Button>
+
+              <Button color="secondary" variant="text" onClick={onPreviewSdlClick} className="ml-4" type="button">
+                Preview
+              </Button>
+
+              <Button color="secondary" variant="text" onClick={() => setIsImportingSdl(true)} className="ml-4" type="button">
+                Import
+              </Button>
+
+              <Button
+                variant="text"
+                className="ml-4"
+                type="button"
                 onClick={() => {
-                  event(AnalyticsEvents.CLICK_VIEW_TEMPLATE, {
+                  event(AnalyticsEvents.RESET_SDL, {
                     category: "sdl_builder",
-                    label: "Click on view SDL template"
+                    label: "Reset SDL"
                   });
+
+                  setValue("services", [{ ...defaultService }]);
                 }}
               >
-                View template <NavArrowRight className="ml-2 text-sm" />
-              </Link>
+                Reset
+              </Button>
+
+              {isLoadingTemplate && (
+                <div className="ml-4">
+                  <Spinner size="small" />
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Button color="secondary" variant="default" type="button" onClick={() => onSaveClick()}>
+                Save
+              </Button>
             </div>
           </div>
-        )}
 
-        <div className="flex items-center justify-between pt-4">
-          <div className="flex items-center">
-            <Button color="secondary" variant="default" type="submit">
-              Deploy
-            </Button>
+          {_services?.map((service, serviceIndex) => (
+            <SimpleServiceFormControl
+              key={service.id}
+              serviceIndex={serviceIndex}
+              _services={_services as ServiceType[]}
+              setValue={setValue}
+              control={control}
+              trigger={trigger}
+              onRemoveService={onRemoveService}
+              serviceCollapsed={serviceCollapsed}
+              setServiceCollapsed={setServiceCollapsed}
+              gpuModels={gpuModels}
+            />
+          ))}
 
-            <Button color="secondary" variant="text" onClick={onPreviewSdlClick} className="ml-4" type="button">
-              Preview
-            </Button>
+          {error && (
+            <Alert variant="destructive" className="mt-4">
+              {error}
+            </Alert>
+          )}
 
-            <Button color="secondary" variant="text" onClick={() => setIsImportingSdl(true)} className="ml-4" type="button">
-              Import
-            </Button>
-
-            <Button
-              variant="text"
-              className="ml-4"
-              type="button"
-              onClick={() => {
-                event(AnalyticsEvents.RESET_SDL, {
-                  category: "sdl_builder",
-                  label: "Reset SDL"
-                });
-
-                setValue("services", [{ ...defaultService }]);
-              }}
-            >
-              Reset
-            </Button>
-
-            {isLoadingTemplate && (
-              <div className="ml-4">
-                <Spinner size="small" />
-              </div>
-            )}
+          <div className="flex items-center justify-end pt-4">
+            <div>
+              <Button color="secondary" variant="default" onClick={onAddService} type="button">
+                Add Service
+              </Button>
+            </div>
           </div>
-
-          <div>
-            <Button color="secondary" variant="default" type="button" onClick={() => onSaveClick()}>
-              Save
-            </Button>
-          </div>
-        </div>
-
-        {_services?.map((service, serviceIndex) => (
-          <SimpleServiceFormControl
-            key={service.id}
-            serviceIndex={serviceIndex}
-            _services={_services as Service[]}
-            setValue={setValue}
-            control={control}
-            trigger={trigger}
-            onRemoveService={onRemoveService}
-            serviceCollapsed={serviceCollapsed}
-            setServiceCollapsed={setServiceCollapsed}
-            gpuModels={gpuModels}
-          />
-        ))}
-
-        {error && (
-          <Alert variant="destructive" className="mt-4">
-            {error}
-          </Alert>
-        )}
-
-        <div className="flex items-center justify-end pt-4">
-          <div>
-            <Button color="secondary" variant="default" onClick={onAddService} type="button">
-              Add Service
-            </Button>
-          </div>
-        </div>
-      </form>
+        </form>
+      </Form>
     </>
   );
 };

@@ -1,15 +1,26 @@
 "use client";
 import { useRef, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { FormattedDate } from "react-intl";
-import { Alert, Popup } from "@akashnetwork/ui/components";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
-import TextField from "@mui/material/TextField";
+import {
+  Alert,
+  Form,
+  FormField,
+  FormInput,
+  FormLabel,
+  FormMessage,
+  Popup,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { addYears, format } from "date-fns";
 import { event } from "nextjs-google-analytics";
+import { z } from "zod";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useWallet } from "@src/context/WalletProvider";
@@ -22,13 +33,6 @@ import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { handleDocClick } from "@src/utils/urlUtils";
-type GrantFormValues = {
-  token: string;
-  amount: number;
-  expiration: string;
-  useDepositor: boolean;
-  granteeAddress: string;
-};
 
 type Props = {
   address: string;
@@ -41,20 +45,28 @@ const supportedTokens = [
   { id: "usdc", label: "USDC" }
 ];
 
+const formSchema = z.object({
+  token: z.string().min(1, "Token is required."),
+  amount: z.coerce.number().min(0, "Amount must be greater than 0."),
+  expiration: z.string().min(1, "Expiration is required."),
+  granteeAddress: z.string().min(1, "Grantee address is required.")
+});
+
 export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, address, onClose }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState("");
   const { signAndBroadcastTx } = useWallet();
   const usdcDenom = useUsdcDenom();
-  const { handleSubmit, control, watch, clearErrors, setValue } = useForm<GrantFormValues>({
+  const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       token: editingGrant ? (editingGrant.authorization.spend_limit.denom === usdcDenom ? "usdc" : "akt") : "akt",
       amount: editingGrant ? coinToDenom(editingGrant.authorization.spend_limit) : 0,
       expiration: format(addYears(new Date(), 1), "yyyy-MM-dd'T'HH:mm"),
-      useDepositor: false,
       granteeAddress: editingGrant?.grantee ?? ""
-    }
+    },
+    resolver: zodResolver(formSchema)
   });
+  const { handleSubmit, control, watch, clearErrors, setValue } = form;
   const { amount, granteeAddress, expiration, token } = watch();
   const selectedToken = supportedTokens.find(x => x.id === token);
   const denom = token === "akt" ? uAktDenom : usdcDenom;
@@ -65,7 +77,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  const onSubmit = async ({ amount, expiration, granteeAddress }: GrantFormValues) => {
+  const onSubmit = async ({ amount, expiration, granteeAddress }: z.infer<typeof formSchema>) => {
     setError("");
     clearErrors();
     const spendLimit = token === "akt" ? aktToUakt(amount) : denomToUdenom(amount);
@@ -118,131 +130,104 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
       enableCloseOnBackdropClick
       title="Authorize Spending"
     >
-      <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-        <Alert
-          className="mb-4"
-          // severity="info"
-        >
-          <p className="text-sm text-muted-foreground">
-            <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/network-features/authorized-spend/")}>Authorized Spend</LinkTo> allows users
-            to authorize spending of a set number of tokens from a source wallet to a destination, funded wallet. The authorized spend is restricted to Akash
-            deployment activities and the recipient of the tokens would not have access to those tokens for other operations.
-          </p>
-        </Alert>
-
-        <div className="mb-2 mt-2 text-right">
-          <LinkTo onClick={() => onBalanceClick()}>
-            Balance: {denomData?.balance} {denomData?.label}
-          </LinkTo>
-        </div>
-
-        <FormControl className="mb-4 flex flex-row items-center" fullWidth>
-          <InputLabel id="grant-token">Token</InputLabel>
-          <Controller
-            control={control}
-            name="token"
-            defaultValue=""
-            rules={{
-              required: true
-            }}
-            render={({ fieldState, field }) => {
-              return (
-                <Select {...field} labelId="grant-token" label="Token" size="medium" error={!!fieldState.error}>
-                  {supportedTokens.map(token => (
-                    <MenuItem key={token.id} value={token.id}>
-                      {token.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              );
-            }}
-          />
-
-          <Controller
-            control={control}
-            name="amount"
-            rules={{
-              required: true
-            }}
-            render={({ fieldState, field }) => {
-              const helperText = fieldState.error?.type === "validate" ? "Invalid amount." : "Amount is required.";
-
-              return (
-                <TextField
-                  {...field}
-                  type="number"
-                  variant="outlined"
-                  label="Spending Limit"
-                  autoFocus
-                  error={!!fieldState.error}
-                  helperText={fieldState.error && helperText}
-                  inputProps={{ min: 0, step: 0.000001, max: denomData?.inputMax }}
-                  sx={{ flexGrow: 1, marginLeft: "1rem" }}
-                />
-              );
-            }}
-          />
-        </FormControl>
-
-        <FormControl className="mb-4" fullWidth>
-          <Controller
-            control={control}
-            name="granteeAddress"
-            defaultValue=""
-            rules={{
-              required: true
-            }}
-            render={({ fieldState, field }) => {
-              return (
-                <TextField
-                  {...field}
-                  type="text"
-                  variant="outlined"
-                  label="Grantee Address"
-                  disabled={!!editingGrant}
-                  error={!!fieldState.error}
-                  helperText={fieldState.error && "Grantee address is required."}
-                />
-              );
-            }}
-          />
-        </FormControl>
-
-        <FormControl className="mb-4" fullWidth>
-          <Controller
-            control={control}
-            name="expiration"
-            rules={{
-              required: true
-            }}
-            render={({ fieldState, field }) => {
-              return (
-                <TextField
-                  {...field}
-                  type="datetime-local"
-                  variant="outlined"
-                  label="Expiration"
-                  error={!!fieldState.error}
-                  helperText={fieldState.error && "Expiration is required."}
-                />
-              );
-            }}
-          />
-        </FormControl>
-
-        {!!amount && granteeAddress && (
-          <Alert
-          // severity="info"
-          >
+      <Form {...form}>
+        <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+          <Alert className="mb-4">
             <p className="text-sm text-muted-foreground">
-              This address will be able to spend up to {amount} {selectedToken?.label} on your behalf ending on{" "}
-              <FormattedDate value={expiration} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />.
+              <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/network-features/authorized-spend/")}>Authorized Spend</LinkTo> allows users
+              to authorize spending of a set number of tokens from a source wallet to a destination, funded wallet. The authorized spend is restricted to Akash
+              deployment activities and the recipient of the tokens would not have access to those tokens for other operations.
             </p>
           </Alert>
-        )}
 
-        {error && <Alert variant="warning">{error}</Alert>}
-      </form>
+          <div className="mb-2 mt-2 text-right">
+            <LinkTo onClick={() => onBalanceClick()}>
+              Balance: {denomData?.balance} {denomData?.label}
+            </LinkTo>
+          </div>
+
+          <div className="mb-4 flex w-full flex-row items-center">
+            <FormField
+              control={control}
+              name="token"
+              render={({ field }) => {
+                return (
+                  <div>
+                    <FormLabel htmlFor="grant-address">Token</FormLabel>
+                    <Select value={field.value || ""} onValueChange={field.onChange}>
+                      <SelectTrigger id="grant-address">
+                        <SelectValue placeholder="Select grant token" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {supportedTokens.map(token => (
+                            <SelectItem key={token.id} value={token.id}>
+                              {token.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+
+                    <FormMessage />
+                  </div>
+                );
+              }}
+            />
+
+            <FormField
+              control={control}
+              name="amount"
+              render={({ field }) => {
+                return (
+                  <FormInput
+                    {...field}
+                    type="number"
+                    label="Spending Limit"
+                    autoFocus
+                    min={0}
+                    step={0.000001}
+                    max={denomData?.inputMax}
+                    startIcon={<span className="text-xs pl-2">{denomData?.label}</span>}
+                    className="ml-4 flex-grow"
+                  />
+                );
+              }}
+            />
+          </div>
+
+          <div className="mb-4 w-full">
+            <FormField
+              control={control}
+              name="granteeAddress"
+              render={({ field }) => {
+                return <FormInput {...field} type="text" label="Grantee Address" disabled={!!editingGrant} />;
+              }}
+            />
+          </div>
+
+          <div className="mb-4 w-full">
+            <FormField
+              control={control}
+              name="expiration"
+              render={({ field }) => {
+                return <FormInput {...field} type="datetime-local" label="Expiration" />;
+              }}
+            />
+          </div>
+
+          {!!amount && granteeAddress && (
+            <Alert>
+              <p className="text-sm text-muted-foreground">
+                This address will be able to spend up to {amount} {selectedToken?.label} on your behalf ending on{" "}
+                <FormattedDate value={expiration} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />.
+              </p>
+            </Alert>
+          )}
+
+          {error && <Alert variant="warning">{error}</Alert>}
+        </form>
+      </Form>
     </Popup>
   );
 };

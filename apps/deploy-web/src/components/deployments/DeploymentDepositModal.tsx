@@ -4,9 +4,12 @@ import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
   CheckboxWithLabel,
+  Form,
+  FormField,
+  FormInput,
   FormItem,
-  InputWithIcon,
-  Label,
+  FormLabel,
+  FormMessage,
   Popup,
   Select,
   SelectContent,
@@ -16,9 +19,11 @@ import {
   SelectValue,
   Snackbar
 } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
 import compareAsc from "date-fns/compareAsc";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
+import { z } from "zod";
 
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -41,6 +46,27 @@ type Props = {
   children?: ReactNode;
 };
 
+const formSchema = z
+  .object({
+    amount: z.coerce
+      .number({
+        invalid_type_error: "Amount must be a number."
+      })
+      .min(0.000001, { message: "Amount is required." }),
+    useDepositor: z.boolean().optional(),
+    depositorAddress: z.string().optional()
+  })
+  .refine(
+    data => {
+      if (data.useDepositor && !data.depositorAddress) {
+        return false;
+      }
+
+      return true;
+    },
+    { message: "Depositor address is required.", path: ["depositorAddress"] }
+  );
+
 export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleCancel, onDeploymentDeposit, disableMin, denom, infoText = null }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const { settings } = useSettings();
@@ -50,13 +76,15 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   const { walletBalances, address } = useWallet();
   const { data: granteeGrants } = useGranteeGrants(address);
   const depositData = useDenomData(denom);
-  const { handleSubmit, control, watch, setValue, clearErrors, unregister } = useForm({
+  const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       amount: 0,
       useDepositor: false,
       depositorAddress: ""
-    }
+    },
+    resolver: zodResolver(formSchema)
   });
+  const { handleSubmit, control, watch, setValue, clearErrors, unregister } = form;
   const { amount, useDepositor, depositorAddress } = watch();
   const usdcIbcDenom = useUsdcDenom();
   const validGrants = granteeGrants?.filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1 && x.authorization.spend_limit.denom === denom) || [];
@@ -135,14 +163,14 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  const onSubmit = async ({ amount }) => {
+  const onSubmit = async ({ amount, depositorAddress }: z.infer<typeof formSchema>) => {
     setError("");
     clearErrors();
     const deposit = denomToUdenom(amount);
     const uaktBalance = walletBalances?.uakt || 0;
     const usdcBalance = walletBalances?.usdc || 0;
 
-    if (!disableMin && deposit < (depositData?.min || 0)) {
+    if (!disableMin && amount < (depositData?.min || 0)) {
       setError(`Deposit amount must be greater or equal than ${depositData?.min}.`);
       return;
     }
@@ -196,98 +224,85 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
       enableCloseOnBackdropClick
       title="Deployment Deposit"
     >
-      <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-        {infoText}
+      <Form {...form}>
+        <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+          {infoText}
 
-        <FormItem
-          className="w-full"
-          // error={!errors.amount} fullWidth
-        >
-          <Controller
-            control={control}
-            name="amount"
-            rules={{
-              required: true
-            }}
-            render={({ fieldState, field }) => {
-              const helperText = fieldState.error?.type === "validate" ? "Invalid amount." : "Amount is required.";
+          <div className="w-full">
+            <FormField
+              control={control}
+              name="amount"
+              render={({ field }) => {
+                return (
+                  <FormInput
+                    {...field}
+                    type="number"
+                    label={
+                      <div className="mb-1 flex items-center justify-between">
+                        <span>Amount</span>
+                        <LinkTo onClick={() => onBalanceClick()} className="text-xs">
+                          Balance: {depositData?.balance} {depositData?.label}
+                        </LinkTo>
+                      </div>
+                    }
+                    autoFocus
+                    min={!disableMin ? depositData?.min : 0}
+                    step={0.000001}
+                    max={depositData?.inputMax}
+                    startIcon={<div className="pl-2 text-xs">{depositData?.label}</div>}
+                  />
+                );
+              }}
+            />
+          </div>
 
-              return (
-                <InputWithIcon
-                  {...field}
-                  type="number"
-                  label={
-                    <div className="mb-1 flex items-center justify-between">
-                      <span>Amount</span>
-                      <LinkTo onClick={() => onBalanceClick()} className="text-xs">
-                        Balance: {depositData?.balance} {depositData?.label}
-                      </LinkTo>
-                    </div>
-                  }
-                  autoFocus
-                  error={fieldState.error && helperText}
-                  // helperText={fieldState.error && helperText}
-                  min={!disableMin ? depositData?.min : 0}
-                  step={0.000001}
-                  max={depositData?.inputMax}
-                  startIcon={depositData?.label}
-                />
-              );
-            }}
-          />
-        </FormItem>
+          <div className="my-4 flex items-center">
+            <Controller
+              control={control}
+              name="useDepositor"
+              render={({ field }) => {
+                return <CheckboxWithLabel label="Use another address to fund" checked={field.value} onCheckedChange={field.onChange} />;
+              }}
+            />
+          </div>
 
-        <FormItem className="my-4 flex items-center">
-          <Controller
-            control={control}
-            name="useDepositor"
-            render={({ field }) => {
-              return <CheckboxWithLabel label="Use another address to fund" checked={field.value} onCheckedChange={field.onChange} />;
-            }}
-          />
-        </FormItem>
+          {useDepositor && (
+            <FormField
+              control={control}
+              name="depositorAddress"
+              render={({ field }) => {
+                return (
+                  <FormItem className="mt-2 w-full">
+                    <FormLabel htmlFor="deposit-grantee-address">Address</FormLabel>
+                    <Select value={field.value || ""} onValueChange={field.onChange} disabled={validGrants.length === 0}>
+                      <SelectTrigger id="deposit-grantee-address">
+                        <SelectValue placeholder={validGrants.length === 0 ? "No available grants" : "Select address"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {validGrants.map(grant => (
+                            <SelectItem key={grant.granter} value={grant.granter}>
+                              <GranteeDepositMenuItem grant={grant} />
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
 
-        {useDepositor && (
-          <Controller
-            control={control}
-            name="depositorAddress"
-            defaultValue=""
-            rules={{
-              required: true
-            }}
-            render={({ field }) => {
-              return (
-                <FormItem
-                  className="mt-2 w-full"
-                  // error={fieldState.error}
-                >
-                  <Label htmlFor="deposit-grantee-address">Address</Label>
-                  <Select value={field.value || ""} onValueChange={field.onChange} disabled={validGrants.length === 0}>
-                    <SelectTrigger id="deposit-grantee-address">
-                      <SelectValue placeholder={validGrants.length === 0 ? "No available grants" : "Select address"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {validGrants.map(grant => (
-                          <SelectItem key={grant.granter} value={grant.granter}>
-                            <GranteeDepositMenuItem grant={grant} />
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              );
-            }}
-          />
-        )}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
+            />
+          )}
 
-        {error && (
-          <Alert variant="destructive" className="mt-4 text-sm">
-            {error}
-          </Alert>
-        )}
-      </form>
+          {error && (
+            <Alert variant="destructive" className="mt-4 text-sm">
+              {error}
+            </Alert>
+          )}
+        </form>
+      </Form>
     </Popup>
   );
 };

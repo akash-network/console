@@ -175,8 +175,6 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
 
   const onTerminalKey = useCallback(
     (event: { key: string; domEvent: KeyboardEvent }) => {
-      // console.log(event, event.key);
-
       const data = getEncodedData(event.key);
 
       sendJsonMessage({

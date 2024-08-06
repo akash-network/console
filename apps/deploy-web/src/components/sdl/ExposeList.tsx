@@ -4,12 +4,12 @@ import { CustomTooltip } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
-import { Service } from "@src/types";
+import { ServiceType } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
-  currentService: Service;
+  currentService: ServiceType;
   serviceIndex?: number;
   children?: ReactNode;
   setIsEditingExpose: Dispatch<SetStateAction<boolean | number>>;

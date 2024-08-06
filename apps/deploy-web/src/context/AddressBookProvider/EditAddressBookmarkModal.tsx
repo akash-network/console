@@ -1,6 +1,6 @@
 "use client";
 import { ReactNode, useEffect, useState } from "react";
-import { InputWithIcon, Popup, Snackbar } from "@akashnetwork/ui/components";
+import { Input, Popup, Snackbar } from "@akashnetwork/ui/components";
 import { Bin, Check } from "iconoir-react";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
@@ -107,9 +107,9 @@ export const EditAddressBookmarkModal: React.FunctionComponent<Props> = ({ open,
     >
       <FormPaper contentClassName="flex items-center p-4 flex-col space-y-2">
         <div className="w-full">
-          <InputWithIcon
-            label="Address"
+          <Input
             placeholder="Address"
+            label="Address"
             value={_address}
             onChange={ev => setAddress(ev.target.value)}
             // Disabled if saving, deleting or if there is an address
@@ -119,9 +119,9 @@ export const EditAddressBookmarkModal: React.FunctionComponent<Props> = ({ open,
         </div>
 
         <div className="w-full">
-          <InputWithIcon
-            label="Custom name"
+          <Input
             placeholder="Your custom name"
+            label="Custom name"
             value={customName}
             onChange={ev => setCustomName(ev.target.value)}
             disabled={isSaving || isDeleting}

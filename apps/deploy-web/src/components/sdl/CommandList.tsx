@@ -3,11 +3,11 @@ import { Dispatch, ReactNode, SetStateAction } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
-import { Service } from "@src/types";
+import { ServiceType } from "@src/types";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
-  currentService: Service;
+  currentService: ServiceType;
   serviceIndex?: number;
   children?: ReactNode;
   setIsEditingCommands: Dispatch<SetStateAction<boolean | number>>;
@@ -40,7 +40,7 @@ export const CommandList: React.FunctionComponent<Props> = ({ currentService, se
         </span>
       </div>
 
-      {(currentService.command?.command.length || 0) > 0 ? (
+      {(currentService?.command?.command?.length || 0) > 0 ? (
         <div className="whitespace-pre-wrap text-xs">
           <div>{currentService.command?.command}</div>
           <div className="text-muted-foreground">{currentService.command?.arg}</div>

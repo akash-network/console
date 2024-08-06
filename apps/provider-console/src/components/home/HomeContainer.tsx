@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+
 import { Footer } from "@src/components/layout/Footer";
 import Layout from "../layout/Layout";
 

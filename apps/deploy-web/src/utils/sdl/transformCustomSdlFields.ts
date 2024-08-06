@@ -2,7 +2,7 @@ import cloneDeep from "lodash/cloneDeep";
 import flow from "lodash/flow";
 import isMatch from "lodash/isMatch";
 
-import { Service } from "@src/types";
+import { ServiceType } from "@src/types";
 import { SSH_EXPOSE, SSH_VM_IMAGES } from "@src/utils/sdl/data";
 
 interface TransformOptions {
@@ -11,7 +11,7 @@ interface TransformOptions {
 
 export class TransformError extends Error {}
 
-export const transformCustomSdlFields = (services: Service[], options?: TransformOptions) => {
+export const transformCustomSdlFields = (services: ServiceType[], options?: TransformOptions) => {
   const pipeline = [addSshPubKey, ensureServiceCount];
 
   if (options?.withSSH) {
@@ -24,7 +24,7 @@ export const transformCustomSdlFields = (services: Service[], options?: Transfor
   return services.map(service => transform(service));
 };
 
-function addSshPubKey(input: Service) {
+function addSshPubKey(input: ServiceType) {
   const { sshPubKey } = input;
   if (!sshPubKey) {
     return input;
@@ -49,7 +49,7 @@ function addSshPubKey(input: Service) {
   return output;
 }
 
-function ensureSSHExpose(service: Service) {
+function ensureSSHExpose(service: ServiceType) {
   if (service.expose.some(exp => isMatch(exp, SSH_EXPOSE))) {
     return service;
   }
@@ -72,7 +72,7 @@ function ensureSSHExpose(service: Service) {
   return output;
 }
 
-function ensureServiceCount(input: Service) {
+function ensureServiceCount(input: ServiceType) {
   if (input.count === 1) {
     return input;
   }
@@ -83,7 +83,7 @@ function ensureServiceCount(input: Service) {
   return output;
 }
 
-function mapImage(input: Service) {
+function mapImage(input: ServiceType) {
   const image = SSH_VM_IMAGES[input.image];
 
   if (!image) {
