@@ -4,7 +4,8 @@ const WalletOutputSchema = z.object({
   id: z.number().openapi({}),
   userId: z.string().openapi({}),
   creditAmount: z.number().openapi({}),
-  address: z.string().openapi({})
+  address: z.string().openapi({}),
+  isTrialing: z.boolean()
 });
 
 export const WalletResponseOutputSchema = z.object({

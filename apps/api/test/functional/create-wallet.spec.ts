@@ -45,7 +45,8 @@ describe("wallets", () => {
           id: expect.any(Number),
           userId,
           creditAmount: expect.any(Number),
-          address: expect.any(String)
+          address: expect.any(String),
+          isTrialing: true
         }
       });
       expect(await getWalletsResponse.json()).toMatchObject({
@@ -54,7 +55,8 @@ describe("wallets", () => {
             id: expect.any(Number),
             userId,
             creditAmount: expect.any(Number),
-            address: expect.any(String)
+            address: expect.any(String),
+            isTrialing: true
           }
         ]
       });
@@ -63,7 +65,8 @@ describe("wallets", () => {
         userId,
         address: expect.any(String),
         deploymentAllowance: `${config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT}.00`,
-        feeAllowance: `${config.TRIAL_FEES_ALLOWANCE_AMOUNT}.00`
+        feeAllowance: `${config.TRIAL_FEES_ALLOWANCE_AMOUNT}.00`,
+        isTrialing: true
       });
     });
 

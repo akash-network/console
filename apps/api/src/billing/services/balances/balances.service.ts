@@ -14,7 +14,15 @@ export class BalancesService {
     private readonly allowanceHttpService: AllowanceHttpService
   ) {}
 
-  async updateUserWalletLimits(userWallet: UserWalletOutput) {
+  async updateUserWalletLimits(userWallet: UserWalletOutput): Promise<void> {
+    const update = await this.getLimitsUpdate(userWallet);
+
+    if (Object.keys(update).length > 0) {
+      await this.userWalletRepository.updateById(userWallet.id, update);
+    }
+  }
+
+  async getLimitsUpdate(userWallet: UserWalletOutput): Promise<Partial<UserWalletInput>> {
     const [feeLimit, deploymentLimit] = await Promise.all([this.calculateFeeLimit(userWallet), this.calculateDeploymentLimit(userWallet)]);
 
     const update: Partial<UserWalletInput> = {};
@@ -31,12 +39,10 @@ export class BalancesService {
       update.deploymentAllowance = deploymentLimitStr;
     }
 
-    if (Object.keys(update).length > 0) {
-      await this.userWalletRepository.updateById(userWallet.id, update);
-    }
+    return update;
   }
 
-  private async calculateFeeLimit(userWallet: UserWalletOutput) {
+  private async calculateFeeLimit(userWallet: UserWalletOutput): Promise<number> {
     const feeAllowance = await this.allowanceHttpService.getFeeAllowancesForGrantee(userWallet.address);
     const masterWalletAddress = await this.masterWalletService.getFirstAddress();
 
@@ -55,7 +61,7 @@ export class BalancesService {
     }, 0);
   }
 
-  private async calculateDeploymentLimit(userWallet: UserWalletOutput) {
+  private async calculateDeploymentLimit(userWallet: UserWalletOutput): Promise<number> {
     const deploymentAllowance = await this.allowanceHttpService.getDeploymentAllowancesForGrantee(userWallet.address);
     const masterWalletAddress = await this.masterWalletService.getFirstAddress();
 
