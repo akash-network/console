@@ -116,7 +116,8 @@ export class AkashStatsIndexer extends Indexer {
       "/akash.market.v1beta4.MsgCreateLease": this.handleCreateLease,
       "/akash.market.v1beta4.MsgCloseLease": this.handleCloseLease,
       "/akash.market.v1beta4.MsgCreateBid": this.handleCreateBidV4,
-      "/akash.market.v1beta4.MsgCloseBid": this.handleCloseBid
+      "/akash.market.v1beta4.MsgCloseBid": this.handleCloseBid,
+      "/akash.market.v1beta4.MsgWithdrawLease": this.handleWithdrawLease
     };
   }
 
@@ -554,7 +555,10 @@ export class AkashStatsIndexer extends Indexer {
       { transaction: blockGroupTransaction }
     );
 
-    await Lease.update({ predictedClosedHeight: predictedClosedHeight.toString() }, { where: { deploymentId: deploymentId }, transaction: blockGroupTransaction });
+    await Lease.update(
+      { predictedClosedHeight: predictedClosedHeight.toString() },
+      { where: { deploymentId: deploymentId }, transaction: blockGroupTransaction }
+    );
 
     msg.relatedDeploymentId = deploymentId;
 
@@ -599,7 +603,10 @@ export class AkashStatsIndexer extends Indexer {
       await deployment.save({ transaction: blockGroupTransaction });
     } else {
       const predictedClosedHeight = Math.ceil((deployment.lastWithdrawHeight || lease.createdHeight) + deployment.balance / (blockRate - lease.price));
-      await Lease.update({ predictedClosedHeight: predictedClosedHeight.toString() }, { where: { deploymentId: deployment.id }, transaction: blockGroupTransaction });
+      await Lease.update(
+        { predictedClosedHeight: predictedClosedHeight.toString() },
+        { where: { deploymentId: deployment.id }, transaction: blockGroupTransaction }
+      );
     }
   }
 
@@ -708,7 +715,10 @@ export class AkashStatsIndexer extends Indexer {
         await deployment.save({ transaction: blockGroupTransaction });
       } else {
         const predictedClosedHeight = Math.ceil((deployment.lastWithdrawHeight || lease.createdHeight) + deployment.balance / (blockRate - lease.price));
-        await Lease.update({ predictedClosedHeight: predictedClosedHeight.toString() }, { where: { deploymentId: deployment.id }, transaction: blockGroupTransaction });
+        await Lease.update(
+          { predictedClosedHeight: predictedClosedHeight.toString() },
+          { where: { deploymentId: deployment.id }, transaction: blockGroupTransaction }
+        );
       }
     }
 
@@ -768,7 +778,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleWithdrawLease(
-    decodedMessage: v1beta1.MsgWithdrawLease | v1beta2.MsgWithdrawLease | v1beta3.MsgWithdrawLease,
+    decodedMessage: v1beta1.MsgWithdrawLease | v1beta2.MsgWithdrawLease | v1beta3.MsgWithdrawLease | v1beta4.MsgWithdrawLease,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
