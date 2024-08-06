@@ -42,7 +42,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
         name={`services.${serviceIndex}.profile.persistentStorage`}
         render={({ field, fieldState }) => (
           <FormItem>
-            <div className="flex items-start justify-between sm:flex-row sm:items-center">
+            <div className="flex flex-col items-start sm:flex-row sm:items-center">
               <div className="flex items-center">
                 <div className="flex items-center">
                   <MdStorage className="mr-2 text-2xl text-muted-foreground" />
@@ -75,7 +75,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
               </div>
 
               {currentService.profile.hasPersistentStorage && (
-                <div className="mt-2 flex items-center sm:mt-0">
+                <div className="mt-2 flex items-center sm:ml-4 sm:mt-0">
                   <Input
                     type="number"
                     color="secondary"
@@ -84,7 +84,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                     onChange={event => field.onChange(parseFloat(event.target.value))}
                     min={1}
                     step={1}
-                    className="w-[100px]"
+                    inputClassName="w-[100px]"
                   />
 
                   <Controller
@@ -93,8 +93,8 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                     defaultValue=""
                     render={({ field }) => (
                       <Select value={field.value || ""} onValueChange={field.onChange}>
-                        <SelectTrigger className="ml-1">
-                          <SelectValue placeholder="Select unit" className="w-[75px]" />
+                        <SelectTrigger className="ml-1 w-[75px]">
+                          <SelectValue placeholder="Select unit" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>

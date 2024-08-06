@@ -278,7 +278,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
 
       <Form {...form}>
         <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
-          <FormPaper className="mt-4 p-4">
+          <FormPaper className="mt-4 md:p-4">
             <ImageSelect control={control as any} currentService={currentService} onSelectTemplate={onSelectTemplate} />
 
             <div className="mt-4">

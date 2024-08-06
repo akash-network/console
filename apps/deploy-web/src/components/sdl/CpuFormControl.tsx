@@ -56,7 +56,7 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
                 min={0.1}
                 step={0.1}
                 max={validationConfig.maxCpuAmount}
-                className="ml-4 w-[100px]"
+                inputClassName="ml-4 w-[100px]"
               />
             </div>
 

@@ -35,7 +35,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
       control={control}
       name={`services.${serviceIndex}.profile.ram`}
       render={({ field, fieldState }) => (
-        <FormPaper className={cn({ ["border-b border-red-500"]: !!fieldState.error })}>
+        <FormPaper>
           <FormItem>
             <div className="flex flex-col items-start sm:flex-row sm:items-center">
               <div className="flex items-center">
@@ -68,7 +68,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
                   onChange={event => field.onChange(parseFloat(event.target.value))}
                   min={1}
                   step={1}
-                  className="w-[100px]"
+                  inputClassName="w-[100px]"
                 />
 
                 <Controller
@@ -77,8 +77,8 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
                   defaultValue=""
                   render={({ field }) => (
                     <Select value={field.value || ""} onValueChange={field.onChange}>
-                      <SelectTrigger className="ml-1">
-                        <SelectValue placeholder="Select unit" className="w-[75px]" />
+                      <SelectTrigger className="ml-1 w-[75px]">
+                        <SelectValue placeholder="Select unit" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>

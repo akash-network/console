@@ -16,9 +16,8 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ classNam
   const { error } = useFormField();
   return (
     <FormItem className={className}>
-      {label && <FormLabel>{label}</FormLabel>}
       <FormControl>
-        <Input type={type} inputClassName={inputClassName} ref={ref} error={!!error} {...props} />
+        <Input type={type} inputClassName={inputClassName} ref={ref} error={!!error} label={label} {...props} />
       </FormControl>
       {description && <FormDescription>{description}</FormDescription>}
       <FormMessage />
@@ -47,7 +46,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const formField = useFormField();
 
     return (
-      <div className={className}>
+      <div className={cn("space-y-1", className)}>
         {label && (formField.id ? <FormLabel>{label}</FormLabel> : <Label htmlFor={`${id}-input`}>{label}</Label>)}
         <div className="relative flex items-center">
           {startIcon && <div className={cn("absolute inset-y-0 left-0 flex items-center", startIconClassName)}>{startIcon}</div>}

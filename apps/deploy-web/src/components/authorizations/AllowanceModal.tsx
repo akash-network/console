@@ -144,7 +144,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
                     min={0}
                     step={0.000001}
                     max={denomData?.inputMax}
-                    startIcon={denomData?.label}
+                    startIcon={<span className="text-xs pl-2">{denomData?.label}</span>}
                   />
                 );
               }}

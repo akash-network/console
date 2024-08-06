@@ -108,7 +108,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                       min={1}
                       step={1}
                       max={validationConfig.maxGpuAmount}
-                      className="w-[100px]"
+                      inputClassName="w-[100px]"
                     />
                   </div>
                 )}
@@ -122,6 +122,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                   step={1}
                   color="secondary"
                   aria-label="GPUs"
+                  className="pt-2"
                   onValueChange={newValue => field.onChange(newValue)}
                 />
               )}

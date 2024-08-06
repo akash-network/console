@@ -167,11 +167,11 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
             onResizeCapture={undefined}
           >
             <ul className="relative m-0 max-h-[40vh] list-none overflow-auto py-2">
-              {filteredGpuTemplates.map(template => (
+              {filteredGpuTemplates.map((template, i) => (
                 <li
                   className="MuiAutocomplete-option flex w-full cursor-pointer items-center justify-between px-4 py-2 text-sm hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
                   ref={eleRefs[template.id as string]}
-                  key={template.id}
+                  key={`${template.id}-${i}`}
                   onClick={() => _onSelectTemplate(template)}
                   onMouseOver={() => {
                     setHoveredTemplate(template);
