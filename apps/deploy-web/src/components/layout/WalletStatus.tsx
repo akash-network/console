@@ -119,8 +119,8 @@ export function WalletStatus() {
           </>
         ) : (
           <>
+            {envConfig.NEXT_PUBLIC_BILLING_ENABLED && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
             <ConnectWalletButton className="w-full md:w-auto" />
-            {envConfig.NEXT_PUBLIC_BILLING_ENABLED && <ConnectManagedWalletButton className="ml-2 w-full md:w-auto" />}
           </>
         )
       ) : (
