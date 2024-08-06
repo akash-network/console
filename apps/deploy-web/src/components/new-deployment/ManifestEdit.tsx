@@ -1,7 +1,7 @@
 "use client";
 import { Dispatch, useEffect, useRef, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-import { Alert, Button, CustomTooltip, InputWithIcon, Spinner } from "@akashnetwork/ui/components";
+import { Alert, Button, CustomTooltip, Input, Spinner } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -283,10 +283,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       <div className="mb-2 pt-4">
         <div className="mb-2 flex flex-col items-end justify-between md:flex-row">
           <div className="w-full flex-grow">
-            <InputWithIcon value={deploymentName} onChange={ev => setDeploymentName(ev.target.value)} label="Name your deployment (optional)" />
+            <Input value={deploymentName} onChange={ev => setDeploymentName(ev.target.value)} label="Name your deployment (optional)" />
           </div>
 
-          <div className="flex w-full min-w-0 items-center pt-2 md:w-auto md:pt-0">
+          <div className="flex w-full min-w-0 flex-shrink-0 items-center pt-2 md:w-auto md:pt-0">
             <CustomTooltip
               title={
                 <p>
@@ -326,17 +326,17 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       </div>
 
       <div className="mb-2 flex gap-2">
-        <div className="flex items-center">
-          <Button
-            variant={selectedSdlEditMode === "builder" ? "default" : "outline"}
-            onClick={() => changeMode("builder")}
-            size="sm"
-            className={cn("flex-grow sm:flex-grow-0", { "rounded-e-none": hasComponent("yml-editor") })}
-            disabled={!!parsingError && selectedSdlEditMode === "yaml"}
-          >
-            Builder
-          </Button>
-          {hasComponent("yml-editor") && (
+        {hasComponent("yml-editor") && (
+          <div className="flex items-center">
+            <Button
+              variant={selectedSdlEditMode === "builder" ? "default" : "outline"}
+              onClick={() => changeMode("builder")}
+              size="sm"
+              className={cn("flex-grow sm:flex-grow-0", { "rounded-e-none": hasComponent("yml-editor") })}
+              disabled={!!parsingError && selectedSdlEditMode === "yaml"}
+            >
+              Builder
+            </Button>
             <Button
               variant={selectedSdlEditMode === "yaml" ? "default" : "outline"}
               color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
@@ -346,8 +346,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
             >
               YAML
             </Button>
-          )}
-        </div>
+          </div>
+        )}
         {hasComponent("yml-uploader") && !templateId && (
           <>
             <input type="file" ref={fileUploadRef} onChange={propagateUploadedSdl} style={{ display: "none" }} accept=".yml,.yaml,.txt" />

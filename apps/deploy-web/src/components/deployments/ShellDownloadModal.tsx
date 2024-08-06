@@ -1,24 +1,39 @@
 "use client";
 import { useRef } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { Alert, InputWithIcon, Popup } from "@akashnetwork/ui/components";
+import { useForm } from "react-hook-form";
+import { Alert, Form, FormField, FormInput, Popup } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { event } from "nextjs-google-analytics";
+import { z } from "zod";
 
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { AnalyticsEvents } from "@src/utils/analytics";
 
+const formSchema = z.object({
+  filePath: z
+    .string()
+    .min(1, {
+      message: "File path is required."
+    })
+    .regex(/^(?!https?:).*/i, {
+      message: "Should be a valid path on the server, not a URL."
+    })
+});
+
 export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedService, providerInfo }) => {
   const formRef = useRef<HTMLFormElement | null>(null);
   const { downloadFileFromShell } = useBackgroundTask();
+  const form = useForm<z.infer<typeof formSchema>>({
+    defaultValues: {
+      filePath: ""
+    },
+    resolver: zodResolver(formSchema)
+  });
   const {
     handleSubmit,
     control,
     formState: { errors }
-  } = useForm({
-    defaultValues: {
-      filePath: ""
-    }
-  });
+  } = form;
 
   const onSubmit = async ({ filePath }) => {
     downloadFileFromShell(providerInfo.hostUri, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, selectedService, filePath);
@@ -67,33 +82,17 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
         <p className="text-xs">This is an experimental feature and may not work reliably.</p>
       </Alert>
 
-      <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-        <Controller
-          control={control}
-          name="filePath"
-          rules={{
-            required: "File path is required.",
-            pattern: {
-              value: /^(?!https?:).*/i,
-              message: "Should be a valid path on the server, not a URL."
-            }
-          }}
-          render={({ field, fieldState }) => {
-            return (
-              <InputWithIcon
-                {...field}
-                type="text"
-                label="File path"
-                // error={!!fieldState.error}
-                error={fieldState.error?.message}
-                // helperText={fieldState.error?.message}
-                autoFocus
-                placeholder="Example: /app/logs.txt"
-              />
-            );
-          }}
-        />
-      </form>
+      <Form {...form}>
+        <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+          <FormField
+            control={control}
+            name="filePath"
+            render={({ field }) => {
+              return <FormInput {...field} type="text" label="File path" autoFocus placeholder="Example: /app/logs.txt" />;
+            }}
+          />
+        </form>
+      </Form>
     </Popup>
   );
 };

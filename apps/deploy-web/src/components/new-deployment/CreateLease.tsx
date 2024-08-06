@@ -8,7 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-  InputWithIcon,
+  Input,
   Snackbar,
   Spinner
 } from "@akashnetwork/ui/components";
@@ -217,22 +217,29 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         {!isLoadingBids && (bids?.length || 0) > 0 && !allClosed && (
           <div className="flex flex-col items-end justify-between py-2 md:flex-row">
             <div className="flex w-full flex-grow items-end md:w-auto">
-              <InputWithIcon
-                label="Search provider"
-                placeholder="Search provider..."
-                disabled={bids?.length === 0 || isSendingManifest}
-                value={search}
-                onChange={onSearchChange}
-                type="text"
-                className="w-full"
-                endIcon={
-                  search && (
-                    <Button size="icon" variant="ghost" onClick={() => setSearch("")} className="text-muted-foreground hover:bg-transparent hover:text-current">
-                      <Xmark />
-                    </Button>
-                  )
-                }
-              />
+              <div className="flex-grow">
+                <Input
+                  placeholder="Search provider..."
+                  disabled={bids?.length === 0 || isSendingManifest}
+                  value={search}
+                  onChange={onSearchChange}
+                  type="text"
+                  className="w-full"
+                  label="Search provider"
+                  endIcon={
+                    search && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setSearch("")}
+                        className="text-muted-foreground hover:bg-transparent hover:text-current"
+                      >
+                        <Xmark />
+                      </Button>
+                    )
+                  }
+                />
+              </div>
 
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>

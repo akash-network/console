@@ -5,10 +5,12 @@ import { MdStorage } from "react-icons/md";
 import {
   Checkbox,
   CustomTooltip,
-  FormDescription,
+  FormField,
+  FormInput,
   FormItem,
+  FormLabel,
+  FormMessage,
   Input,
-  InputWithIcon,
   Label,
   Select,
   SelectContent,
@@ -18,40 +20,29 @@ import {
   SelectValue,
   Slider
 } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle } from "iconoir-react";
 
-import { RentGpusFormValues, SdlBuilderFormValues, Service } from "@src/types";
+import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { persistentStorageTypes, storageUnits } from "@src/utils/akash/units";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
-  currentService: Service;
+  currentService: ServiceType;
   serviceIndex: number;
   children?: ReactNode;
-  control: Control<SdlBuilderFormValues | RentGpusFormValues, any>;
+  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
 };
 
 export const PersistentStorage: React.FunctionComponent<Props> = ({ currentService, serviceIndex, control }) => {
   return (
     <FormPaper>
-      <Controller
+      <FormField
         control={control}
         name={`services.${serviceIndex}.profile.persistentStorage`}
-        rules={{
-          min: 1,
-          validate: v => {
-            if (!v) return "Storage amount is required.";
-            return true;
-          }
-        }}
         render={({ field, fieldState }) => (
-          <FormItem
-          // className={cx(classes.formControl, classes.textField)}
-          // variant="standard"
-          // sx={{ marginBottom: "0 !important" }}
-          // error={!!fieldState.error}
-          >
-            <div className="flex items-start justify-between sm:flex-row sm:items-center">
+          <FormItem>
+            <div className="flex flex-col items-start sm:flex-row sm:items-center">
               <div className="flex items-center">
                 <div className="flex items-center">
                   <MdStorage className="mr-2 text-2xl text-muted-foreground" />
@@ -84,27 +75,26 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
               </div>
 
               {currentService.profile.hasPersistentStorage && (
-                <div className="mt-2 flex items-center sm:mt-0">
+                <div className="mt-2 flex items-center sm:ml-4 sm:mt-0">
                   <Input
                     type="number"
                     color="secondary"
                     value={field.value || ""}
-                    // error={!!fieldState.error}
+                    error={!!fieldState.error}
                     onChange={event => field.onChange(parseFloat(event.target.value))}
                     min={1}
                     step={1}
-                    className="w-[100px]"
+                    inputClassName="w-[100px]"
                   />
 
                   <Controller
                     control={control}
                     name={`services.${serviceIndex}.profile.persistentStorageUnit`}
-                    rules={{ required: "Storage unit is required." }}
                     defaultValue=""
                     render={({ field }) => (
                       <Select value={field.value || ""} onValueChange={field.onChange}>
-                        <SelectTrigger className="ml-1">
-                          <SelectValue placeholder="Select unit" className="w-[75px]" />
+                        <SelectTrigger className="ml-1 w-[75px]">
+                          <SelectValue placeholder="Select unit" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
@@ -125,18 +115,10 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
             </div>
 
             {currentService.profile.hasPersistentStorage && (
-              <Slider
-                value={[field.value || 0]}
-                min={1}
-                max={512}
-                step={1}
-                // valueLabelDisplay="auto"
-                onValueChange={newValue => field.onChange(newValue)}
-                className="pt-2"
-              />
+              <Slider value={[field.value || 0]} min={1} max={512} step={1} onValueChange={newValue => field.onChange(newValue)} className="pt-2" />
             )}
 
-            {!!fieldState.error && <FormDescription>{fieldState.error.message}</FormDescription>}
+            <FormMessage className={cn({ "pt-2": !!fieldState.error })} />
           </FormItem>
         )}
       />
@@ -144,31 +126,12 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
       {currentService.profile.hasPersistentStorage && (
         <div>
           <div className="mt-4 flex items-start">
-            <Controller
+            <FormField
               control={control}
               name={`services.${serviceIndex}.profile.persistentStorageParam.name`}
-              rules={{
-                required: "Name is required.",
-                validate: value => {
-                  const hasValidChars = /^[a-z0-9-]+$/.test(value);
-                  const hasValidStartingChar = /^[a-z]/.test(value);
-                  const hasValidEndingChar = !value.endsWith("-");
-
-                  if (!hasValidChars) {
-                    return "Invalid storage name. It must only be lower case letters, numbers and dashes.";
-                  } else if (!hasValidStartingChar) {
-                    return "Invalid starting character. It can only start with a lowercase letter.";
-                  } else if (!hasValidEndingChar) {
-                    return "Invalid ending character. It can only end with a lowercase letter or number";
-                  }
-
-                  return true;
-                }
-              }}
-              render={({ field, fieldState }) => (
-                <InputWithIcon
+              render={({ field }) => (
+                <FormInput
                   type="text"
-                  color="secondary"
                   label={
                     <div className="inline-flex items-center">
                       Name
@@ -187,8 +150,6 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                     </div>
                   }
                   value={field.value}
-                  // error={!!fieldState.error}
-                  error={fieldState.error?.message}
                   onChange={event => field.onChange(event.target.value)}
                   className="flex-grow"
                 />
@@ -205,12 +166,12 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
             </div>
           </div>
           <div className="mt-4 flex items-start">
-            <Controller
+            <FormField
               control={control}
               name={`services.${serviceIndex}.profile.persistentStorageParam.type`}
               render={({ field }) => (
                 <FormItem className="w-full basis-[40%]">
-                  <Label htmlFor={`persistent-storage-type-${currentService.id}`}>Type</Label>
+                  <FormLabel htmlFor={`persistent-storage-type-${currentService.id}`}>Type</FormLabel>
                   <Select value={field.value || ""} onValueChange={field.onChange}>
                     <SelectTrigger id={`persistent-storage-type-${currentService.id}`}>
                       <SelectValue placeholder="Select token" />
@@ -227,18 +188,17 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                       </SelectGroup>
                     </SelectContent>
                   </Select>
+                  <FormMessage />
                 </FormItem>
               )}
             />
 
-            <Controller
+            <FormField
               control={control}
               name={`services.${serviceIndex}.profile.persistentStorageParam.mount`}
-              rules={{ required: "Mount is required.", pattern: { value: /^\/.*$/, message: "Mount must be an absolute path." } }}
-              render={({ field, fieldState }) => (
-                <InputWithIcon
+              render={({ field }) => (
+                <FormInput
                   type="text"
-                  color="secondary"
                   label={
                     <div className="inline-flex items-center">
                       Mount
@@ -258,10 +218,8 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                   }
                   placeholder="Example: /mnt/data"
                   value={field.value}
-                  error={fieldState.error?.message}
                   onChange={event => field.onChange(event.target.value)}
                   className="ml-2 w-full"
-                  // helperText={!!fieldState.error && fieldState.error.message}
                 />
               )}
             />
