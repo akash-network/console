@@ -219,7 +219,7 @@ export const WalletProvider = ({ children }) => {
         throw new Error(txResult.rawLog);
       }
 
-      if (!managedWallet?.isWalletConnected) {
+      if (!managedWallet) {
         showTransactionSnackbar("Transaction success!", "", txResult.transactionHash, "success");
       }
 
@@ -349,7 +349,7 @@ export const WalletProvider = ({ children }) => {
         logout,
         signAndBroadcastTx,
         refreshBalances,
-        isManaged: !!managedWallet?.isWalletConnected,
+        isManaged: !!managedWallet,
         isWalletLoading: isLoading,
         isTrialing: !!managedWallet?.isTrialing
       }}
