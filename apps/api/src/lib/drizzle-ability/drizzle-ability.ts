@@ -49,7 +49,7 @@ export class DrizzleAbility<T extends PgTableWithColumns<any>, A extends AnyAbil
 
     const { $and = [], $or = [] } = rulesToQuery(this.ability, params[0], params[1], rule => {
       if (!rule.ast) {
-        throw new Error("Unable to create knex query without AST");
+        throw new Error("Unable to create query without AST");
       }
 
       if (rule.inverted) {

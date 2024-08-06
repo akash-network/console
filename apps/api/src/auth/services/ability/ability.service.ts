@@ -1,37 +1,39 @@
-import { Ability } from "@casl/ability";
+import { Ability, RawRule } from "@casl/ability";
+import type { TemplateExecutor } from "lodash";
 import template from "lodash/template";
 import { singleton } from "tsyringe";
 
+type Role = "REGULAR_USER" | "REGULAR_ANONYMOUS_USER" | "SUPER_USER";
+
 @singleton()
 export class AbilityService {
-  private readonly createRegularUserRules = template(
-    JSON.stringify([
+  readonly EMPTY_ABILITY = new Ability([]);
+
+  private readonly RULES: Record<Role, RawRule[]> = {
+    REGULAR_USER: [
       { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
       { action: "read", subject: "User", conditions: { id: "${user.id}" } }
-    ])
-  );
-  private readonly createRegularAnonymousUserRules = template(
-    JSON.stringify([
+    ],
+    REGULAR_ANONYMOUS_USER: [
       { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
-      { action: "read", subject: "User", conditions: { id: "${user.id}", userId: null } }
-    ])
+      { action: "read", subject: "User", conditions: { id: "${user.id}" } }
+    ],
+    SUPER_USER: [{ action: "manage", subject: "all" }]
+  };
+
+  private readonly templates = (Object.keys(this.RULES) as Role[]).reduce(
+    (acc, role) => {
+      acc[role] = template(JSON.stringify(this.RULES[role]));
+      return acc;
+    },
+    {} as Record<Role, TemplateExecutor>
   );
 
-  getAbilityForUser(user: { userId: string }) {
-    const rules = this.createRegularUserRules({ user });
-    return new Ability(JSON.parse(rules));
+  getAbilityFor(role: Role, user: { userId: string }) {
+    return this.toAbility(this.templates[role]({ user }));
   }
 
-  getAbilityForAnonymousUser(user: { id: string }) {
-    const rules = this.createRegularAnonymousUserRules({ user });
-    return new Ability(JSON.parse(rules));
-  }
-
-  getEmptyAbility() {
-    return new Ability([]);
-  }
-
-  getSuperUserAbility() {
-    return new Ability([{ action: "manage", subject: "all" }]);
+  private toAbility(raw: string) {
+    return new Ability(JSON.parse(raw));
   }
 }
