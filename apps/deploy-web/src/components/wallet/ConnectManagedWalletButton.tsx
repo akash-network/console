@@ -1,7 +1,7 @@
 "use client";
 import React, { ReactNode } from "react";
 import { Button, ButtonProps } from "@akashnetwork/ui/components";
-import { Wallet } from "iconoir-react";
+import { Rocket } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { cn } from "@src/utils/styleUtils";
@@ -16,8 +16,8 @@ export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ cla
 
   return (
     <Button variant="outline" onClick={connectManagedWallet} className={cn("border-primary", className)} {...rest}>
-      <Wallet className="text-xs" />
-      <span className="ml-2 whitespace-nowrap">Setup Billing</span>
+      <Rocket className="text-xs" />
+      <span className="m-2 whitespace-nowrap">Start Trial</span>
     </Button>
   );
 };
