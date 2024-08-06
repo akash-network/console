@@ -1,5 +1,3 @@
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
---> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "user_wallets" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" uuid,
@@ -10,9 +8,9 @@ CREATE TABLE IF NOT EXISTS "user_wallets" (
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "userSetting" (
-	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
-	"userId" varchar(255),
-	"username" varchar(255),
+	"id" uuid PRIMARY KEY NOT NULL,
+	"userId" varchar(255) NOT NULL,
+	"username" varchar(255) NOT NULL,
 	"email" varchar(255),
 	"emailVerified" boolean DEFAULT false NOT NULL,
 	"stripeCustomerId" varchar(255),

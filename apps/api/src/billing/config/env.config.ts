@@ -13,7 +13,8 @@ const envSchema = z.object({
   DEPLOYMENT_ALLOWANCE_REFILL_THRESHOLD: z.number({ coerce: true }),
   FEE_ALLOWANCE_REFILL_AMOUNT: z.number({ coerce: true }),
   DEPLOYMENT_ALLOWANCE_REFILL_AMOUNT: z.number({ coerce: true }),
-  ALLOWANCE_REFILL_BATCH_SIZE: z.number({ coerce: true }).default(10)
+  ALLOWANCE_REFILL_BATCH_SIZE: z.number({ coerce: true }).default(10),
+  MASTER_WALLET_BATCHING_INTERVAL_MS: z.number().optional().default(1000)
 });
 
 export const envConfig = envSchema.parse(process.env);

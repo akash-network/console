@@ -14,7 +14,7 @@ export class WalletService {
       body: JSON.stringify({
         data: { userId: user.id }
       }),
-      headers: new Headers({ "Content-Type": "application/json" })
+      headers: new Headers({ "Content-Type": "application/json", "x-anonymous-user-id": user.id })
     });
     const { data: wallet } = await walletResponse.json();
 
@@ -23,7 +23,7 @@ export class WalletService {
 
   async getWalletByUserId(userId: string): Promise<{ id: number; address: string; creditAmount: number }> {
     const walletResponse = await this.app.request(`/v1/wallets?userId=${userId}`, {
-      headers: new Headers({ "Content-Type": "application/json" })
+      headers: new Headers({ "Content-Type": "application/json", "x-anonymous-user-id": userId })
     });
     const { data } = await walletResponse.json();
 
