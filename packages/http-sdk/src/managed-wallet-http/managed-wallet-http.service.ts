@@ -5,6 +5,7 @@ export interface ApiWalletOutput {
   userId: string;
   address: string;
   creditAmount: number;
+  isTrialing: boolean;
 }
 
 export class ManagedWalletHttpService extends ApiHttpService {

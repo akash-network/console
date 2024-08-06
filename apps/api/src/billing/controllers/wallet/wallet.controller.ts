@@ -1,5 +1,4 @@
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import pick from "lodash/pick";
 import { Lifecycle, scoped } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
@@ -33,7 +32,7 @@ export class WalletController {
     const wallets = await this.userWalletRepository.accessibleBy(this.authService.ability, "read").find(query);
 
     return {
-      data: wallets.map(wallet => pick(wallet, ["id", "userId", "address", "creditAmount"]))
+      data: wallets.map(wallet => this.userWalletRepository.toPublic(wallet))
     };
   }
 

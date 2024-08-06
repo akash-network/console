@@ -15,6 +15,20 @@
       "when": 1722870150411,
       "tag": "0001_absurd_pretty_boy",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1722945530909,
+      "tag": "0002_opposite_fat_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1722946059197,
+      "tag": "0003_magenta_mandarin",
+      "breakpoints": true
     }
   ]
 }

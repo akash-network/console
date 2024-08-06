@@ -52,6 +52,7 @@ describe("Wallets Refill", () => {
         wallet = await walletService.getWalletByUserId(user.id);
 
         expect(wallet.creditAmount).toBe(config.DEPLOYMENT_ALLOWANCE_REFILL_THRESHOLD + config.FEE_ALLOWANCE_REFILL_THRESHOLD);
+        expect(wallet.isTrialing).toBe(true);
 
         return { user, wallet };
       });
@@ -63,6 +64,7 @@ describe("Wallets Refill", () => {
         records.map(async ({ wallet, user }) => {
           wallet = await walletService.getWalletByUserId(user.id);
           expect(wallet.creditAmount).toBe(config.DEPLOYMENT_ALLOWANCE_REFILL_AMOUNT + config.FEE_ALLOWANCE_REFILL_AMOUNT);
+          expect(wallet.isTrialing).toBe(false);
         })
       );
     });

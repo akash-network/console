@@ -1,5 +1,6 @@
 import { and, eq, lte, or } from "drizzle-orm";
 import first from "lodash/first";
+import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
 import { InjectUserWalletSchema, UserWalletSchema } from "@src/billing/providers";
@@ -98,5 +99,9 @@ export class UserWalletRepository extends BaseRepository<UserWalletSchema> {
         creditAmount: parseFloat(dbOutput.deploymentAllowance) + parseFloat(dbOutput.feeAllowance)
       }
     );
+  }
+
+  toPublic<T extends UserWalletOutput>(output: T): Pick<T, "id" | "userId" | "address" | "creditAmount" | "isTrialing"> {
+    return pick(output, ["id", "userId", "address", "creditAmount", "isTrialing"]);
   }
 }

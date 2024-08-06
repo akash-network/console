@@ -1,0 +1,1 @@
+ALTER TABLE "user_wallets" ADD COLUMN "trial" boolean DEFAULT true;
