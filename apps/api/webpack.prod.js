@@ -1,6 +1,7 @@
 const path = require("path");
 const webpack = require("webpack");
 const nodeExternals = require("webpack-node-externals");
+const CopyPlugin = require("copy-webpack-plugin");
 const hq = require("alias-hq");
 
 const { NODE_ENV = "production" } = process.env;
@@ -30,7 +31,12 @@ module.exports = {
   optimization: {
     minimize: false
   },
-  plugins: [new webpack.IgnorePlugin({ resourceRegExp: /^pg-native$/ })],
+  plugins: [
+    new webpack.IgnorePlugin({ resourceRegExp: /^pg-native$/ }),
+    new CopyPlugin({
+      patterns: [{ from: "drizzle", to: "drizzle" }]
+    })
+  ],
   node: {
     __dirname: true
   },

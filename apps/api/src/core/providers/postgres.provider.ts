@@ -18,7 +18,7 @@ const schema = { ...userSchemas, ...billingSchemas };
 const drizzleOptions = { logger: new DefaultLogger({ writer: new PostgresLoggerService() }), schema };
 
 const pgMigrationDatabase = drizzle(migrationClient, drizzleOptions);
-export const migratePG = () => migrate(pgMigrationDatabase, { migrationsFolder: "./drizzle" });
+export const migratePG = () => migrate(pgMigrationDatabase, { migrationsFolder: config.DRIZZLE_MIGRATIONS_FOLDER });
 
 const pgDatabase = drizzle(appClient, drizzleOptions);
 

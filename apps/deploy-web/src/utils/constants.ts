@@ -1,6 +1,28 @@
+const ENV = {
+  API_MAINNET_BASE_URL:
+    typeof window === "undefined"
+      ? process.env.API_MAINNET_BASE_URL || process.env.NEXT_PUBLIC_API_MAINNET_BASE_URL
+      : process.env.NEXT_PUBLIC_API_MAINNET_BASE_URL,
+  API_TESTNET_BASE_URL:
+    typeof window === "undefined"
+      ? process.env.API_TESTNET_BASE_URL || process.env.NEXT_PUBLIC_API_TESTNET_BASE_URL
+      : process.env.NEXT_PUBLIC_API_TESTNET_BASE_URL,
+  API_SANDBOX_BASE_URL:
+    typeof window === "undefined"
+      ? process.env.API_SANDBOX_BASE_URL || process.env.NEXT_PUBLIC_API_SANDBOX_BASE_URL
+      : process.env.NEXT_PUBLIC_API_SANDBOX_BASE_URL,
+  API_BASE_URL: typeof window === "undefined" ? process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL : process.env.NEXT_PUBLIC_API_BASE_URL,
+  STATS_APP_URL: typeof window === "undefined" ? process.env.STATS_APP_URL || process.env.NEXT_PUBLIC_STATS_APP_URL : process.env.NEXT_PUBLIC_STATS_APP_URL,
+  PROVIDER_PROXY_URL:
+    typeof window === "undefined" ? process.env.PROVIDER_PROXY_URL || process.env.NEXT_PUBLIC_PROVIDER_PROXY_URL : process.env.NEXT_PUBLIC_PROVIDER_PROXY_URL,
+  DEFAULT_NETWORK_ID:
+    typeof window === "undefined" ? process.env.DEFAULT_NETWORK_ID || process.env.NEXT_PUBLIC_DEFAULT_NETWORK_ID : process.env.NEXT_PUBLIC_DEFAULT_NETWORK_ID
+};
+
 export const mainnetId = "mainnet";
 export const testnetId = "testnet";
 export const sandboxId = "sandbox";
+export const defaultNetworkId = ENV.DEFAULT_NETWORK_ID || mainnetId;
 
 export const selectedRangeValues: { [key: string]: number } = {
   "7D": 7,
@@ -67,28 +89,28 @@ export const readableDenoms = {
 };
 
 function getApiMainnetUrl() {
-  if (process.env.API_MAINNET_BASE_URL) return process.env.API_MAINNET_BASE_URL;
+  if (ENV.API_MAINNET_BASE_URL) return ENV.API_MAINNET_BASE_URL;
   if (typeof window === "undefined") return "http://localhost:3080";
   if (productionHostnames.includes(window.location?.hostname)) return productionMainnetApiUrl;
   return "http://localhost:3080";
 }
 
 function getApiTestnetUrl() {
-  if (process.env.API_TESTNET_BASE_URL) return process.env.API_TESTNET_BASE_URL;
+  if (ENV.API_TESTNET_BASE_URL) return ENV.API_TESTNET_BASE_URL;
   if (typeof window === "undefined") return "http://localhost:3080";
   if (productionHostnames.includes(window.location?.hostname)) return productionTestnetApiUrl;
   return "http://localhost:3080";
 }
 
 function getApiSandboxUrl() {
-  if (process.env.API_SANDBOX_BASE_URL) return process.env.API_SANDBOX_BASE_URL;
+  if (ENV.API_SANDBOX_BASE_URL) return ENV.API_SANDBOX_BASE_URL;
   if (typeof window === "undefined") return "http://localhost:3080";
   if (productionHostnames.includes(window.location?.hostname)) return productionSandboxApiUrl;
   return "http://localhost:3080";
 }
 
 function getApiUrl() {
-  if (process.env.API_BASE_URL) return process.env.API_BASE_URL;
+  if (ENV.API_BASE_URL) return ENV.API_BASE_URL;
   if (typeof window === "undefined") return "http://localhost:3080";
   if (productionHostnames.includes(window.location?.hostname)) {
     try {
@@ -103,14 +125,14 @@ function getApiUrl() {
 }
 
 function getStatsAppUrl() {
-  if (process.env.STATS_APP_URL) return process.env.STATS_APP_URL;
+  if (ENV.STATS_APP_URL) return ENV.STATS_APP_URL;
   if (typeof window === "undefined") return "http://localhost:3001";
   if (productionHostnames.includes(window.location?.hostname)) return productionStatsAppUrl;
   return "http://localhost:3001";
 }
 
 function getProviderProxyHttpUrl() {
-  if (process.env.PROVIDER_PROXY_URL) return process.env.PROVIDER_PROXY_URL;
+  if (ENV.PROVIDER_PROXY_URL) return ENV.PROVIDER_PROXY_URL;
   if (typeof window === "undefined") return "http://localhost:3040";
   if (window.location?.hostname === "deploybeta.cloudmos.io") return "https://deployproxybeta.cloudmos.io";
   if (productionHostnames.includes(window.location?.hostname)) return "https://providerproxy.cloudmos.io";

@@ -1,6 +1,6 @@
 {
-  "id": "f35df021-9973-4687-b10f-32057c615b66",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "84417858-3b28-48ef-ae81-3d19629cfd4a",
+  "prevId": "f35df021-9973-4687-b10f-32057c615b66",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -74,19 +74,20 @@
           "name": "id",
           "type": "uuid",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "default": "uuid_generate_v4()"
         },
         "userId": {
           "name": "userId",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "username": {
           "name": "username",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "email": {
           "name": "email",
