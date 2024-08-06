@@ -1,11 +1,11 @@
+import "@akashnetwork/ui/styles";
+import "../styles/index.css";
+
 import { cn } from "@akashnetwork/ui/utils";
 import { GeistSans } from "geist/font/sans";
 import type { Metadata, Viewport } from "next";
 import getConfig from "next/config";
 import { cookies } from "next/headers";
-
-import "@akashnetwork/ui/styles";
-import "../styles/index.css";
 
 import GoogleAnalytics from "@/components/layout/CustomGoogleAnalytics";
 import Providers from "@/components/layout/CustomProviders";

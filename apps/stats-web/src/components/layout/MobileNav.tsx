@@ -1,3 +1,5 @@
+import "react-modern-drawer/dist/index.css";
+
 import { useState } from "react";
 import Drawer from "react-modern-drawer";
 import { Button } from "@akashnetwork/ui/components";
@@ -8,8 +10,6 @@ import Link from "next/link";
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import { ModeToggle } from "../ModeToggle";
 import { NavLinks } from "../NavLinks";
-
-import "react-modern-drawer/dist/index.css";
 
 import useCookieTheme from "@/hooks/useTheme";
 

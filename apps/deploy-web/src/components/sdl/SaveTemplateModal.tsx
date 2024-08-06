@@ -1,20 +1,21 @@
 "use client";
 import { Dispatch, ReactNode, SetStateAction, useEffect, useRef, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { Alert, Label, Popup, RadioGroup, RadioGroupItem, Snackbar } from "@akashnetwork/ui/components";
-import TextField from "@mui/material/TextField";
+import { useForm } from "react-hook-form";
+import { Alert, Form, FormField, FormInput, Label, Popup, RadioGroup, RadioGroupItem, Snackbar } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
+import { z } from "zod";
 
 import { MustConnect } from "@src/components/shared/MustConnect";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
-import { EnvironmentVariable, ITemplate, SdlSaveTemplateFormValues, Service } from "@src/types";
+import { EnvironmentVariableType, ITemplate, ServiceType } from "@src/types";
 import { AnalyticsEvents } from "@src/utils/analytics";
 
 type Props = {
-  services: Service[];
+  services: ServiceType[];
   templateMetadata: ITemplate;
   getTemplateData: () => Partial<ITemplate>;
   setTemplateMetadata: Dispatch<SetStateAction<ITemplate>>;
@@ -22,24 +23,32 @@ type Props = {
   children?: ReactNode;
 };
 
+const formSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters long"),
+  visibility: z.enum(["private", "public"])
+});
+type FormValues = z.infer<typeof formSchema>;
+
 export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, getTemplateData, templateMetadata, setTemplateMetadata, services }) => {
-  const [publicEnvs, setPublicEnvs] = useState<EnvironmentVariable[]>([]);
+  const [publicEnvs, setPublicEnvs] = useState<EnvironmentVariableType[]>([]);
   const { enqueueSnackbar } = useSnackbar();
   const formRef = useRef<HTMLFormElement>(null);
   const { user, isLoading: isLoadingUser } = useCustomUser();
   const isRestricted = !isLoadingUser && !user;
   const isCurrentUserTemplate = !isRestricted && user?.sub === templateMetadata?.userId;
   const { mutate: saveTemplate } = useSaveUserTemplate(!isCurrentUserTemplate);
-  const { handleSubmit, control, setValue } = useForm<SdlSaveTemplateFormValues>({
+  const form = useForm<FormValues>({
     defaultValues: {
       title: "",
       visibility: "private"
-    }
+    },
+    resolver: zodResolver(formSchema)
   });
+  const { handleSubmit, control, setValue } = form;
 
   useEffect(() => {
     const envs = services.some(s => s.env?.some(e => !e.isSecret))
-      ? services.reduce((cur: EnvironmentVariable[], prev) => cur.concat([...(prev.env?.filter(e => !e.isSecret) as EnvironmentVariable[])]), [])
+      ? services.reduce((cur: EnvironmentVariableType[], prev) => cur.concat([...(prev.env?.filter(e => !e.isSecret) as EnvironmentVariableType[])]), [])
       : [];
     setPublicEnvs(envs);
 
@@ -49,7 +58,7 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
     }
   }, []);
 
-  const onSubmit = async (data: SdlSaveTemplateFormValues) => {
+  const onSubmit = async (data: FormValues) => {
     const template = getTemplateData();
 
     await saveTemplate({ ...template, title: data.title, isPublic: data.visibility !== "private" });
@@ -115,57 +124,53 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
         {isRestricted ? (
           <MustConnect message="To save a template" />
         ) : (
-          <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
-            <Controller
-              control={control}
-              rules={{ required: "Title is required." }}
-              name="title"
-              render={({ field, fieldState }) => (
-                <TextField
-                  type="text"
-                  variant="outlined"
-                  label="Title"
-                  error={!!fieldState.error}
-                  helperText={fieldState.error?.message}
-                  className="mb-4"
-                  fullWidth
-                  size="small"
-                  value={field.value || ""}
-                  onChange={event => field.onChange(event.target.value)}
-                />
-              )}
-            />
+          <Form {...form}>
+            <form onSubmit={handleSubmit(onSubmit)} ref={formRef} autoComplete="off">
+              <FormField
+                control={control}
+                name="title"
+                render={({ field }) => (
+                  <FormInput
+                    type="text"
+                    label="Title"
+                    className="mb-4 w-full"
+                    value={field.value || ""}
+                    onChange={event => field.onChange(event.target.value)}
+                  />
+                )}
+              />
 
-            <Controller
-              control={control}
-              name={`visibility`}
-              render={({ field }) => (
-                <RadioGroup defaultValue="private" value={field.value} onValueChange={field.onChange} className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="private" id="private" />
-                    <Label htmlFor="private">Private</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="public" id="public" />
-                    <Label htmlFor="public">Public</Label>
-                  </div>
-                </RadioGroup>
-              )}
-            />
+              <FormField
+                control={control}
+                name={`visibility`}
+                render={({ field }) => (
+                  <RadioGroup defaultValue="private" value={field.value} onValueChange={field.onChange} className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="private" id="private" />
+                      <Label htmlFor="private">Private</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="public" id="public" />
+                      <Label htmlFor="public">Public</Label>
+                    </div>
+                  </RadioGroup>
+                )}
+              />
 
-            {publicEnvs.length > 0 && (
-              <Alert variant="warning" className="mt-4 max-h-[150px] overflow-y-auto">
-                You have {publicEnvs.length} public environment variables. Are you sure you don't need to hide them as secret?
-                <ul className="break-all p-0">
-                  {publicEnvs.map((e, i) => (
-                    <li key={i}>
-                      {e.key}={getShortText(e.value, 30)}
-                    </li>
-                  ))}
-                </ul>
-              </Alert>
-            )}
-          </form>
+              {publicEnvs.length > 0 && (
+                <Alert variant="warning" className="mt-4 max-h-[150px] overflow-y-auto">
+                  You have {publicEnvs.length} public environment variables. Are you sure you don't need to hide them as secret?
+                  <ul className="break-all p-0">
+                    {publicEnvs.map((e, i) => (
+                      <li key={i}>
+                        {e.key}={getShortText(e.value, 30)}
+                      </li>
+                    ))}
+                  </ul>
+                </Alert>
+              )}
+            </form>
+          </Form>
         )}
       </div>
     </Popup>

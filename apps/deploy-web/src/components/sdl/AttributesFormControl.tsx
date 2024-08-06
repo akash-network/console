@@ -1,19 +1,19 @@
 "use client";
 import { forwardRef, ReactNode, useImperativeHandle } from "react";
-import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Button, CustomTooltip, FormInput } from "@akashnetwork/ui/components";
+import { Control, useFieldArray } from "react-hook-form";
+import { Button, CustomTooltip, FormField, FormInput } from "@akashnetwork/ui/components";
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
 
-import { PlacementAttribute, SdlBuilderFormValues } from "@src/types";
+import { PlacementAttributeType, SdlBuilderFormValuesType } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;
-  control: Control<SdlBuilderFormValues, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
   children?: ReactNode;
-  attributes: PlacementAttribute[];
+  attributes: PlacementAttributeType[];
 };
 
 export type AttributesRefType = {
@@ -65,35 +65,21 @@ export const AttributesFormControl = forwardRef<AttributesRefType, Props>(({ con
                 <div className="flex flex-grow items-center">
                   {/** TODO All list of attribute keys and values from pre-defined provider attributes */}
                   <div>
-                    <Controller
+                    <FormField
                       control={control}
                       name={`services.${serviceIndex}.placement.attributes.${attIndex}.key`}
                       render={({ field }) => (
-                        <FormInput
-                          type="text"
-                          label="Key"
-                          color="secondary"
-                          className="w-full"
-                          value={field.value}
-                          onChange={event => field.onChange(event.target.value)}
-                        />
+                        <FormInput type="text" label="Key" className="w-full" value={field.value} onChange={event => field.onChange(event.target.value)} />
                       )}
                     />
                   </div>
 
                   <div className="ml-2">
-                    <Controller
+                    <FormField
                       control={control}
                       name={`services.${serviceIndex}.placement.attributes.${attIndex}.value`}
                       render={({ field }) => (
-                        <FormInput
-                          type="text"
-                          label="Value"
-                          color="secondary"
-                          className="w-full"
-                          value={field.value}
-                          onChange={event => field.onChange(event.target.value)}
-                        />
+                        <FormInput type="text" label="Value" className="w-full" value={field.value} onChange={event => field.onChange(event.target.value)} />
                       )}
                     />
                   </div>

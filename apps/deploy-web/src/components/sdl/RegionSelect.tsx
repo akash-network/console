@@ -8,12 +8,12 @@ import TextField from "@mui/material/TextField";
 import { InfoCircle } from "iconoir-react";
 
 import { useProviderRegions } from "@src/queries/useProvidersQuery";
-import { RentGpusFormValues } from "@src/types";
+import { RentGpusFormValuesType } from "@src/types";
 import { ProviderAttributeSchemaDetailValue, ProviderRegionValue } from "@src/types/providerAttributes";
 import { cn } from "@src/utils/styleUtils";
 
 type RegionSelectProps = {
-  control: Control<RentGpusFormValues, any>;
+  control: Control<RentGpusFormValuesType, any>;
   className?: string;
 };
 
@@ -71,22 +71,13 @@ export const RegionSelect: React.FunctionComponent<RegionSelectProps> = ({ contr
                   {...props}
                   className={cn(
                     "flex w-full items-center px-2 py-1",
-                    { ["pointer-events-none cursor-default text-muted"]: option.key !== "any" && option.providers?.length === 0 },
+                    { ["pointer-events-none cursor-default text-muted-foreground/50"]: option.key !== "any" && option.providers?.length === 0 },
                     props.className
                   )}
                 >
                   <span>{option.key}</span>
                   {option.key !== "any" && (
-                    <small
-                      className={cn("ml-2", { ["font-bold text-primary"]: option.providers?.length > 0 })}
-                      // sx={{
-                      //   marginLeft: ".5rem",
-                      //   color: option.providers?.length === 0 ? "inherit" : theme.palette.secondary.main,
-                      //   fontWeight: option.providers?.length > 0 ? "bold" : "normal"
-                      // }}
-                    >
-                      ({option.providers.length})
-                    </small>
+                    <small className={cn("ml-2", { ["font-bold text-primary"]: option.providers?.length > 0 })}>({option.providers.length})</small>
                   )}
                   <CustomTooltip title={option.description}>
                     <InfoCircle className="ml-2 text-xs text-muted-foreground" />

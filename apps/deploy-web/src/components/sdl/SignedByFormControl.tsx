@@ -1,20 +1,20 @@
 "use client";
 import { forwardRef, ReactNode, useImperativeHandle } from "react";
-import { Control, Controller, useFieldArray } from "react-hook-form";
-import { Button, CustomTooltip, FormInput } from "@akashnetwork/ui/components";
+import { Control, useFieldArray } from "react-hook-form";
+import { Button, CustomTooltip, FormField, FormInput } from "@akashnetwork/ui/components";
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
 
-import { SdlBuilderFormValues, SignedBy } from "@src/types";
+import { SdlBuilderFormValuesType, SignedByType } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;
-  control: Control<SdlBuilderFormValues, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
   children?: ReactNode;
-  signedByAnyOf: SignedBy[];
-  signedByAllOf: SignedBy[];
+  signedByAnyOf: SignedByType[];
+  signedByAllOf: SignedByType[];
 };
 
 export type SignedByRefType = {
@@ -84,10 +84,7 @@ export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
           </CustomTooltip>
         </div>
 
-        <div
-          className={cn("flex items-start justify-between", { ["mb-4"]: !!_signedByAnyOf.length })}
-          // sx={{ marginBottom: _signedByAnyOf.length ? "1rem" : 0, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}
-        >
+        <div className={cn("flex items-start justify-between", { ["mb-4"]: !!_signedByAnyOf.length })}>
           <div className="flex items-center">
             <strong className="text-sm">Any of</strong>
             <CustomTooltip title={<>Filter providers that have been audited by ANY of these accounts.</>}>
@@ -104,28 +101,15 @@ export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
           {signedByAnyOf.length > 0 ? (
             signedByAnyOf.map((anyOf, anyOfIndex) => {
               return (
-                <div
-                  key={anyOf.id}
-                  className={cn({ ["mb-4"]: anyOfIndex + 1 === _signedByAnyOf.length, ["mb-2"]: anyOfIndex + 1 !== _signedByAnyOf.length })}
-                  // sx={{ marginBottom: anyOfIndex + 1 === _signedByAnyOf.length ? "1rem" : ".5rem" }}
-                >
+                <div key={anyOf.id} className={cn({ ["mb-4"]: anyOfIndex + 1 === _signedByAnyOf.length, ["mb-2"]: anyOfIndex + 1 !== _signedByAnyOf.length })}>
                   <div className="flex items-end">
                     <div className="flex-grow">
                       {/** TODO Add list of auditors */}
-                      <Controller
+                      <FormField
                         control={control}
                         name={`services.${serviceIndex}.placement.signedBy.anyOf.${anyOfIndex}.value`}
                         render={({ field }) => (
-                          <FormInput
-                            type="text"
-                            // variant="outlined"
-                            label="Value"
-                            color="secondary"
-                            // fullWidth
-                            value={field.value}
-                            // size="small"
-                            onChange={event => field.onChange(event.target.value)}
-                          />
+                          <FormInput type="text" label="Value" value={field.value} className="w-full" onChange={event => field.onChange(event.target.value)} />
                         )}
                       />
                     </div>
@@ -164,11 +148,11 @@ export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
                 <div className="flex items-end">
                   <div className="flex-grow">
                     {/** TODO Add list of auditors */}
-                    <Controller
+                    <FormField
                       control={control}
                       name={`services.${serviceIndex}.placement.signedBy.allOf.${allOfIndex}.value`}
                       render={({ field }) => (
-                        <FormInput type="text" label="Value" color="secondary" value={field.value} onChange={event => field.onChange(event.target.value)} />
+                        <FormInput type="text" label="Value" className="w-full" value={field.value} onChange={event => field.onChange(event.target.value)} />
                       )}
                     />
                   </div>
