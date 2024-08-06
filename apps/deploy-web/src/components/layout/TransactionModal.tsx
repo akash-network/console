@@ -12,7 +12,6 @@ export type LoadingState =
   | "closingDeployment";
 
 type Props = {
-  managed?: boolean;
   state?: LoadingState;
   onClose?: () => void;
   children?: ReactNode;
