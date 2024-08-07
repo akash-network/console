@@ -128,6 +128,8 @@ export async function getSettingsOrInit({ anonymousUserId, userId, wantedUsernam
   }
 
   return pick(userSettings, [
+    "id",
+    "userId",
     "username",
     "email",
     "emailVerified",

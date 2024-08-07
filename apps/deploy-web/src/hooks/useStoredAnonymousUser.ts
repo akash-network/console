@@ -21,7 +21,7 @@ export const useStoredAnonymousUser = (): UseApiUserResult => {
   });
 
   useWhen(user, () => localStorage.setItem("anonymous-user", JSON.stringify(user)));
-  useWhen(storedAnonymousUser && registeredUser, () => localStorage.removeItem(ANONYMOUS_USER_KEY));
+  useWhen(registeredUser?.id, () => localStorage.removeItem(ANONYMOUS_USER_KEY));
 
   return useMemo(
     () => ({
