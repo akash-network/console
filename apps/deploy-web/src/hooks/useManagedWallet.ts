@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 
 import { envConfig } from "@src/config/env.config";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useStoredAnonymousUser } from "@src/hooks/useStoredAnonymousUser";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
 import { deleteManagedWalletFromStorage, updateStorageManagedWallet } from "@src/utils/walletUtils";
@@ -8,7 +9,9 @@ import { deleteManagedWalletFromStorage, updateStorageManagedWallet } from "@src
 const isBillingEnabled = envConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
 export const useManagedWallet = () => {
-  const { user } = useStoredAnonymousUser();
+  const { user: registeredUser } = useCustomUser();
+  const { user: anonymousUser } = useStoredAnonymousUser();
+  const user = useMemo(() => registeredUser || anonymousUser, [registeredUser, anonymousUser]);
 
   const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled && user?.id);
   const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
@@ -35,7 +38,7 @@ export const useManagedWallet = () => {
           throw new Error("Billing is not enabled");
         }
 
-        if (!user) {
+        if (!user?.id) {
           throw new Error("User is not initialized yet");
         }
 
@@ -51,5 +54,5 @@ export const useManagedWallet = () => {
       isLoading,
       refetch
     };
-  }, [create, isLoading, user, wallet, refetch]);
+  }, [create, isLoading, user?.id, wallet, refetch]);
 };

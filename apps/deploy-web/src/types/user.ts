@@ -10,6 +10,8 @@ export interface SdlTemplate {
 }
 
 export interface UserSettings {
+  id?: string;
+  userId?: string;
   username?: string;
   subscribedToNewsletter?: boolean;
   bio?: string;
