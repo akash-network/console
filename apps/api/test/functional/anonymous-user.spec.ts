@@ -9,13 +9,16 @@ describe("Users", () => {
   const schema = container.resolve<UserSchema>(USER_SCHEMA);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   let user: AnonymousUserResponseOutput["data"];
+  let token: AnonymousUserResponseOutput["token"];
 
   beforeEach(async () => {
     const userResponse = await app.request("/v1/anonymous-users", {
       method: "POST",
       headers: new Headers({ "Content-Type": "application/json" })
     });
-    user = (await userResponse.json()).data;
+    const body = await userResponse.json();
+    user = body.data;
+    token = body.token;
   });
 
   afterEach(async () => {
@@ -32,7 +35,7 @@ describe("Users", () => {
     it("should retrieve a user", async () => {
       const getUserResponse = await app.request(`/v1/anonymous-users/${user.id}`, {
         method: "GET",
-        headers: new Headers({ "Content-Type": "application/json", "x-anonymous-user-id": user.id })
+        headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` })
       });
       const retrievedUser = await getUserResponse.json();
 
@@ -54,10 +57,10 @@ describe("Users", () => {
         method: "POST",
         headers: new Headers({ "Content-Type": "application/json" })
       });
-      const { data: differentUser } = await differentUserResponse.json();
+      const { token: differentUserToken } = await differentUserResponse.json();
       const res = await app.request(`/v1/anonymous-users/${user.id}`, {
         method: "GET",
-        headers: new Headers({ "Content-Type": "application/json", "x-anonymous-user-id": differentUser.id })
+        headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${differentUserToken}` })
       });
 
       expect(res.status).toBe(404);

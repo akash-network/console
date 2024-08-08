@@ -1,17 +1,14 @@
 import { useEffect, useMemo } from "react";
 
 import { envConfig } from "@src/config/env.config";
-import { useCustomUser } from "@src/hooks/useCustomUser";
-import { useStoredAnonymousUser } from "@src/hooks/useStoredAnonymousUser";
+import { useUser } from "@src/hooks/useUser";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
 import { deleteManagedWalletFromStorage, updateStorageManagedWallet } from "@src/utils/walletUtils";
 
 const isBillingEnabled = envConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
 export const useManagedWallet = () => {
-  const { user: registeredUser } = useCustomUser();
-  const { user: anonymousUser } = useStoredAnonymousUser();
-  const user = useMemo(() => registeredUser || anonymousUser, [registeredUser, anonymousUser]);
+  const user = useUser();
 
   const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled && user?.id);
   const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
