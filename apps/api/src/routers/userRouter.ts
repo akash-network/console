@@ -1,6 +1,9 @@
-import { Hono } from "hono";
+import { Context, Hono } from "hono";
+import assert from "http-assert";
+import { container } from "tsyringe";
 import * as uuid from "uuid";
 
+import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
 import { getCurrentUserId, optionalUserMiddleware, requiredUserMiddleware } from "@src/middlewares/userMiddleware";
 import {
   addTemplateFavorite,
@@ -114,11 +117,10 @@ userRequiredRouter.delete("/removeAddressName/:address", async c => {
 
 userRequiredRouter.post("/tokenInfo", async c => {
   const userId = getCurrentUserId(c);
-  const anonymousUserId = c.req.header("x-anonymous-user-id");
   const { wantedUsername, email, emailVerified, subscribedToNewsletter } = await c.req.json();
 
   const settings = await getSettingsOrInit({
-    anonymousUserId,
+    anonymousUserId: await extractAnonymousUserId(c),
     userId: userId,
     wantedUsername,
     email: email,
@@ -128,6 +130,17 @@ userRequiredRouter.post("/tokenInfo", async c => {
 
   return c.json(settings);
 });
+
+async function extractAnonymousUserId(c: Context) {
+  const anonymousBearer = c.req.header("x-anonymous-authorization");
+
+  if (anonymousBearer) {
+    const anonymousUserId = await container.resolve(AuthTokenService).getValidUserId(anonymousBearer);
+    assert(anonymousUserId, 401, "Invalid anonymous user token");
+
+    return anonymousUserId;
+  }
+}
 
 userRequiredRouter.put("/updateSettings", async c => {
   const userId = getCurrentUserId(c);

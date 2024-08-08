@@ -5,7 +5,8 @@ export const AnonymousUserResponseOutputSchema = z.object({
     .object({
       id: z.string().openapi({})
     })
-    .openapi({})
+    .openapi({}),
+  token: z.string().openapi({})
 });
 
 export type AnonymousUserResponseOutput = z.infer<typeof AnonymousUserResponseOutputSchema>;

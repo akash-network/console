@@ -24,11 +24,11 @@ describe("Tx Sign", () => {
 
   describe("POST /v1/tx", () => {
     it("should create a wallet for a user", async () => {
-      const { user, wallet } = await walletService.createUserAndWallet();
+      const { user, token, wallet } = await walletService.createUserAndWallet();
       const res = await app.request("/v1/tx", {
         method: "POST",
         body: await createMessagePayload(user.id, wallet.address),
-        headers: new Headers({ "Content-Type": "application/json", "x-anonymous-user-id": user.id })
+        headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` })
       });
 
       expect(res.status).toBe(200);
@@ -53,11 +53,11 @@ describe("Tx Sign", () => {
         method: "POST",
         headers: new Headers({ "Content-Type": "application/json" })
       });
-      const { data: differentUser } = await differentUserResponse.json();
+      const { token } = await differentUserResponse.json();
       const res = await app.request("/v1/tx", {
         method: "POST",
         body: await createMessagePayload(user.id, wallet.address),
-        headers: new Headers({ "Content-Type": "application/json", "x-anonymous-user-id": differentUser.id })
+        headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` })
       });
 
       expect(res.status).toBe(404);

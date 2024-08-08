@@ -2,6 +2,7 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
+import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
 import { UserRepository } from "@src/user/repositories";
 import { GetUserParams } from "@src/user/routes/get-anonymous-user/get-anonymous-user.router";
 import { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
@@ -10,12 +11,15 @@ import { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
 export class UserController {
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly anonymousUserAuthService: AuthTokenService
   ) {}
 
   async create(): Promise<AnonymousUserResponseOutput> {
+    const user = await this.userRepository.create();
     return {
-      data: await this.userRepository.create()
+      data: user,
+      token: this.anonymousUserAuthService.signTokenFor({ userId: user.id })
     };
   }
 

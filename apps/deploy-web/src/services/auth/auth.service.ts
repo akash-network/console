@@ -1,6 +1,6 @@
 import { InternalAxiosRequestConfig } from "axios";
 
-import { ANONYMOUS_USER_KEY } from "@src/utils/constants";
+import { ANONYMOUS_USER_TOKEN_KEY } from "@src/utils/constants";
 
 export class AuthService {
   constructor() {
@@ -8,11 +8,10 @@ export class AuthService {
   }
 
   withAnonymousUserHeader(config: InternalAxiosRequestConfig) {
-    const user = localStorage.getItem(ANONYMOUS_USER_KEY);
-    const anonymousUserId = user ? JSON.parse(user).id : undefined;
+    const token = localStorage.getItem(ANONYMOUS_USER_TOKEN_KEY);
 
-    if (anonymousUserId) {
-      config.headers.set("x-anonymous-user-id", anonymousUserId);
+    if (token) {
+      config.headers.set("authorization", `Bearer ${token}`);
     } else {
       config.baseURL = "/api/proxy";
     }
