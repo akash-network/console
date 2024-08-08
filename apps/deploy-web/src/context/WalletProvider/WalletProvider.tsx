@@ -15,9 +15,11 @@ import { SnackbarKey, useSnackbar } from "notistack";
 import { LoadingState, TransactionModal } from "@src/components/layout/TransactionModal";
 import { useAnonymousUser } from "@src/context/AnonymousUserProvider/AnonymousUserProvider";
 import { useAllowance } from "@src/hooks/useAllowance";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { getSelectedNetwork, useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { txHttpService } from "@src/services/http/http.service";
 import { AnalyticsEvents } from "@src/utils/analytics";
@@ -77,8 +79,7 @@ export const WalletProvider = ({ children }) => {
   const router = useRouter();
   const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
-
-  const { user } = useAnonymousUser();
+  const user = useUser();
 
   const userWallet = useSelectedChain();
   const { wallet: managedWallet, isLoading, create, refetch } = useManagedWallet();
@@ -186,7 +187,7 @@ export const WalletProvider = ({ children }) => {
     let txResult: TxOutput;
 
     try {
-      if (user && managedWallet) {
+      if (user.id && managedWallet) {
         const mainMessage = msgs.find(msg => msg.typeUrl in MESSAGE_STATES);
 
         if (mainMessage) {
