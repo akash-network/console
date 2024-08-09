@@ -13,23 +13,22 @@ import sdlStore from "@src/store/sdlStore";
 import { ApiTemplate } from "@src/types";
 import { RouteStepKeys } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
-import { helloWorldTemplate, ubuntuTemplate } from "@src/utils/templates";
+import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";
 
 const previewTemplateIds = [
-  "akash-network-cosmos-omnibus-cosmoshub",
-  "akash-network-cosmos-omnibus-juno",
-  "akash-network-cosmos-omnibus-osmosis",
-  "akash-network-cosmos-omnibus-akash",
-  "akash-network-cosmos-omnibus-stargaze",
-  "akash-network-cosmos-omnibus-kava",
-  // "akash-network-cosmos-omnibus-chihuahua",
-  "akash-network-awesome-akash-wordpress",
-  // "akash-network-awesome-akash-pgadmin4",
-  "akash-network-awesome-akash-minecraft"
+  "akash-network-awesome-akash-FLock-training-node",
+  "akash-network-awesome-akash-tensorflow-jupyter-mnist",
+  "akash-network-awesome-akash-comfyui",
+  "akash-network-awesome-akash-Falcon-7B",
+  "akash-network-awesome-akash-stable-diffusion-ui",
+  "akash-network-awesome-akash-bert",
+  "akash-network-awesome-akash-open-gpt",
+  "akash-network-awesome-akash-grok",
+  "akash-network-awesome-akash-FastChat"
 ];
 
 export const TemplateList: React.FunctionComponent = () => {
@@ -41,7 +40,7 @@ export const TemplateList: React.FunctionComponent = () => {
 
   useEffect(() => {
     if (templates) {
-      const _previewTemplates = templates.filter(x => previewTemplateIds.some(y => x.id === y));
+      const _previewTemplates = previewTemplateIds.map(x => templates.find(y => x === y.id)).filter(x => !!x);
       setPreviewTemplates(_previewTemplates);
     }
   }, [templates]);
@@ -73,7 +72,7 @@ export const TemplateList: React.FunctionComponent = () => {
       </div>
 
       <div className="mb-8">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-4 md:gap-4">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
           <DeployOptionBox
             title={helloWorldTemplate.title}
             description={helloWorldTemplate.description}
@@ -120,14 +119,7 @@ export const TemplateList: React.FunctionComponent = () => {
       </div>
 
       <div className="mb-8">
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
-          <DeployOptionBox
-            title={ubuntuTemplate.title}
-            description={ubuntuTemplate.description}
-            imageUrl="/images/ubuntu.png"
-            onClick={() => router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: ubuntuTemplate.code }))}
-          />
-
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
           {previewTemplates.map(template => (
             <TemplateBox
               key={template.id}
