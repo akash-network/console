@@ -1,9 +1,12 @@
 import axios from "axios";
 import { atom } from "jotai";
+import { useAtom } from "jotai/index";
+import { atomWithStorage } from "jotai/utils";
 
+import { store } from "@src/store/global-store";
 import { Network } from "@src/types/network";
 import { ApiUrlService, mainnetNodes, sandboxNodes, testnetNodes } from "@src/utils/apiUtils";
-import { mainnetId, sandboxId, testnetId } from "@src/utils/constants";
+import { defaultNetworkId, mainnetId, sandboxId, testnetId } from "@src/utils/constants";
 
 export let networks: Network[] = [
   {
@@ -66,8 +69,48 @@ export const initiateNetworkData = async () => {
   );
 };
 
-const selectedNetwork = atom<Network>(networks[0]);
+const selectedNetworkId = atomWithStorage<Network["id"]>(
+  "selectedNetworkId",
+  defaultNetworkId,
+  // TODO: remove this once we have all clients using this store instead of the localstorage
+  //   Issue: https://github.com/akash-network/console/issues/297
+  typeof window !== "undefined"
+    ? {
+        setItem: (key, value) => {
+          localStorage.setItem(key, value);
+          location.reload();
+        },
+        getItem: key => {
+          const stored = localStorage.getItem(key) as Network["id"] | null;
+
+          if (!stored) {
+            localStorage.setItem(key, defaultNetworkId);
+            return defaultNetworkId;
+          }
+
+          return stored;
+        },
+        removeItem: key => {
+          localStorage.removeItem(key);
+          location.reload();
+        }
+      }
+    : undefined,
+  { getOnInit: true }
+);
+const selectedNetwork = atom<Network, [Network], void>(
+  get => {
+    const networkId = get(selectedNetworkId);
+    return networks.find(n => n.id === networkId) ?? networks[0];
+  },
+  (get, set, next) => {
+    set(selectedNetworkId, next.id);
+  }
+);
 
 export default {
-  selectedNetwork
+  selectedNetworkId,
+  selectedNetwork,
+  getSelectedNetwork: () => store.get(selectedNetwork),
+  useSelectedNetwork: () => useAtom(selectedNetwork)[0]
 };

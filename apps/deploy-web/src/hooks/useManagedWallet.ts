@@ -1,11 +1,15 @@
 import { useEffect, useMemo } from "react";
+import { useAtom } from "jotai/index";
 
 import { envConfig } from "@src/config/env.config";
 import { useUser } from "@src/hooks/useUser";
+import { useWhen } from "@src/hooks/useWhen";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
+import networkStore from "@src/store/networkStore";
 import { deleteManagedWalletFromStorage, updateStorageManagedWallet } from "@src/utils/walletUtils";
 
 const isBillingEnabled = envConfig.NEXT_PUBLIC_BILLING_ENABLED;
+const { NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID } = envConfig;
 
 export const useManagedWallet = () => {
   const user = useUser();
@@ -14,6 +18,7 @@ export const useManagedWallet = () => {
   const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => queried || created, [queried, created]);
   const isLoading = isFetching || isCreating;
+  const [selectedNetworkId, setSelectedNetworkId] = useAtom(networkStore.selectedNetworkId);
 
   useEffect(() => {
     if (!isBillingEnabled) {
@@ -26,6 +31,10 @@ export const useManagedWallet = () => {
       updateStorageManagedWallet(wallet);
     }
   }, [isFetched, isCreated, wallet]);
+
+  useWhen(created && NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID && selectedNetworkId !== NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, () => {
+    setSelectedNetworkId(NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID);
+  });
 
   return useMemo(() => {
     const isConfigured = !!wallet;

@@ -2,8 +2,8 @@
 import { Button } from "@akashnetwork/ui/components";
 import { useRouter } from "next/navigation";
 
-import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { getSplitText } from "@src/hooks/useShortText";
+import networkStore from "@src/store/networkStore";
 import { UrlService } from "@src/utils/urlUtils";
 import { useSettings } from "../../context/SettingsProvider";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
@@ -14,7 +14,7 @@ export const NodeStatusBar = () => {
   const { selectedNode, isCustomNode, customNode } = settings;
   const router = useRouter();
   const shownNode = isCustomNode ? customNode : selectedNode;
-  const selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = networkStore.useSelectedNetwork();
 
   return (
     <div className="mb-4">

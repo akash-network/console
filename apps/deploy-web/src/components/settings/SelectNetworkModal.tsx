@@ -1,30 +1,22 @@
 "use client";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle, Badge, buttonVariants, Popup, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
+import { useAtom } from "jotai/index";
 
-import { useSettings } from "@src/context/SettingsProvider";
-import { networks } from "@src/store/networkStore";
+import networkStore, { networks } from "@src/store/networkStore";
 import { mainnetId } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 
 export const SelectNetworkModal = ({ onClose }) => {
-  const { selectedNetworkId } = useSettings();
-  const [localSelectedNetworkId, setLocalSelectedNetworkId] = useState(selectedNetworkId);
+  const [selectedNetworkId, setSelectedNetworkId] = useAtom(networkStore.selectedNetworkId);
+  const [formSelectedNetworkId, setFormSelectedNetworkId] = useState(selectedNetworkId);
 
-  const handleSelectNetwork = network => {
-    setLocalSelectedNetworkId(network.id);
-  };
-
-  const handleSaveChanges = () => {
-    if (selectedNetworkId !== localSelectedNetworkId) {
-      // Set in the settings and local storage
-      localStorage.setItem("selectedNetworkId", localSelectedNetworkId);
-      // Reset the ui to reload the settings for the currently selected network
-
-      location.reload();
-    } else {
-      onClose();
+  const save = () => {
+    if (selectedNetworkId !== formSelectedNetworkId) {
+      setSelectedNetworkId(formSelectedNetworkId);
     }
+
+    onClose();
   };
 
   return (
@@ -44,7 +36,7 @@ export const SelectNetworkModal = ({ onClose }) => {
           label: "Save",
           variant: "default",
           side: "right",
-          onClick: handleSaveChanges
+          onClick: save
         }
       ]}
       onClose={onClose}
@@ -57,7 +49,7 @@ export const SelectNetworkModal = ({ onClose }) => {
             return (
               <li
                 key={network.id}
-                onClick={() => handleSelectNetwork(network)}
+                onClick={() => setFormSelectedNetworkId(network.id)}
                 className={cn(
                   buttonVariants({ variant: "text" }),
                   { ["pointer-events-none text-muted-foreground"]: !network.enabled },
@@ -65,7 +57,7 @@ export const SelectNetworkModal = ({ onClose }) => {
                 )}
               >
                 <div className="basis-[40px]">
-                  <RadioGroupItem value={network.id} id={network.id} checked={localSelectedNetworkId === network.id} disabled={!network.enabled} />
+                  <RadioGroupItem value={network.id} id={network.id} checked={formSelectedNetworkId === network.id} disabled={!network.enabled} />
                 </div>
                 <div>
                   <div className="flex items-center justify-between text-lg">
@@ -86,11 +78,11 @@ export const SelectNetworkModal = ({ onClose }) => {
         </ul>
       </RadioGroup>
 
-      {localSelectedNetworkId !== mainnetId && (
+      {formSelectedNetworkId !== mainnetId && (
         <Alert variant="warning" className="mb-2 mt-4">
           <AlertTitle className="font-bold">Warning</AlertTitle>
 
-          <AlertDescription>Some features are experimental and may not work as intented on the testnet or sandbox.</AlertDescription>
+          <AlertDescription>Some features are experimental and may not work as intended on the testnet or sandbox.</AlertDescription>
         </Alert>
       )}
     </Popup>

@@ -8,7 +8,7 @@ import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
 import { GeistSans } from "geist/font/sans";
-import { Provider } from "jotai";
+import { Provider as JotaiProvider } from "jotai";
 import { AppProps } from "next/app";
 import Router from "next/router";
 import { ThemeProvider } from "next-themes";
@@ -31,6 +31,7 @@ import { SettingsProvider } from "@src/context/SettingsProvider";
 import { TemplatesProvider } from "@src/context/TemplatesProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import { queryClient } from "@src/queries";
+import { store } from "@src/store/global-store";
 import { cn } from "@src/utils/styleUtils";
 
 interface Props extends AppProps {}
@@ -53,7 +54,7 @@ const App: React.FunctionComponent<Props> = props => {
       <AppCacheProvider {...props}>
         <CustomIntlProvider>
           <QueryClientProvider client={queryClient}>
-            <Provider>
+            <JotaiProvider store={store}>
               <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
                 <ColorModeProvider>
                   <CustomSnackbarProvider>
@@ -89,7 +90,7 @@ const App: React.FunctionComponent<Props> = props => {
                   </CustomSnackbarProvider>
                 </ColorModeProvider>
               </ThemeProvider>
-            </Provider>
+            </JotaiProvider>
           </QueryClientProvider>
         </CustomIntlProvider>
       </AppCacheProvider>
