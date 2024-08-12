@@ -219,7 +219,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
         height: i,
         msgCount: msgs.length,
         index: txIndex,
-        fee: decodedTx.authInfo.fee.amount.length > 0 ? parseInt(decodedTx.authInfo.fee.amount[0].amount) : 0,
+        fee: decodedTx.authInfo.fee.amount.length > 0 ? decodedTx.authInfo.fee.amount[0].amount : "0",
         memo: decodedTx.body.memo,
         hasProcessingError: !!txJson.code,
         log: txJson.code ? txJson.log : null,

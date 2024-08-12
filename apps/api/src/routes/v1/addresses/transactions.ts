@@ -44,7 +44,7 @@ const route = createRoute({
                 error: z.string().nullable(),
                 gasUsed: z.number(),
                 gasWanted: z.number(),
-                fee: z.number(), // TODO CHECK
+                fee: z.number(),
                 memo: z.string().nullable(),
                 isSigner: z.boolean(),
                 messages: z.array(
