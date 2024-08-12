@@ -24,7 +24,7 @@ export class Transaction extends Model {
   @Column multisigThreshold?: number;
   @Required @Column gasUsed: number;
   @Required @Column gasWanted: number;
-  @Required @Column(DataTypes.DECIMAL(30, 0)) fee: number;
+  @Required @Column(DataTypes.DECIMAL(30, 0)) fee: string;
   @Required @Column(DataTypes.TEXT) memo: string;
   @Required @Default(false) @Column isProcessed: boolean;
   @Required @Default(false) @Column hasProcessingError: boolean;

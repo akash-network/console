@@ -33,7 +33,7 @@ export async function getTransactions(limit: number) {
     error: tx.hasProcessingError ? tx.log : null,
     gasUsed: tx.gasUsed,
     gasWanted: tx.gasWanted,
-    fee: tx.fee,
+    fee: parseInt(tx.fee),
     memo: tx.memo,
     messages: tx.messages.map(msg => ({
       id: msg.id,
@@ -84,7 +84,7 @@ export async function getTransaction(hash: string): Promise<ApiTransactionRespon
     error: tx.hasProcessingError ? tx.log : null,
     gasUsed: tx.gasUsed,
     gasWanted: tx.gasWanted,
-    fee: tx.fee,
+    fee: parseInt(tx.fee),
     memo: tx.memo,
     messages: messages.map(msg => ({
       id: msg.id,
@@ -138,7 +138,7 @@ export async function getTransactionByAddress(address: string, skip: number, lim
       error: tx.hasProcessingError ? tx.log : null,
       gasUsed: tx.gasUsed,
       gasWanted: tx.gasWanted,
-      fee: tx.fee,
+      fee: parseInt(tx.fee),
       memo: tx.memo,
       isSigner: tx.addressReferences.some(ar => ar.type === "Signer"),
       messages: tx.messages.map(msg => ({
