@@ -3,7 +3,7 @@ import { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import yaml from "js-yaml";
 import path from "path";
 
-import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import networkStore from "@src/store/networkStore";
 import { defaultInitialDeposit } from "../constants";
 import { stringToBoolean } from "../stringUtils";
 import { CustomValidationError, DeploymentGroups, getCurrentHeight, getSdl, Manifest, ManifestVersion, parseSizeStr } from "./helpers";
@@ -159,12 +159,12 @@ function validate(yamlStr: string, yamlJson, networkId: NetworkId) {
 }
 
 export function getManifest(yamlJson, asString = false) {
-  const { id: networkId } = getSelectedNetwork();
+  const { id: networkId } = networkStore.getSelectedNetwork();
   return Manifest(yamlJson, "beta2", networkId, asString);
 }
 
 export async function getManifestVersion(yamlJson, asString = false) {
-  const { id: networkId } = getSelectedNetwork();
+  const { id: networkId } = networkStore.getSelectedNetwork();
   const version = await ManifestVersion(yamlJson, "beta2", networkId);
 
   if (asString) {
@@ -182,7 +182,7 @@ export async function NewDeploymentData(
   deposit = defaultInitialDeposit,
   depositorAddress = null
 ) {
-  const { id: networkId } = getSelectedNetwork();
+  const { id: networkId } = networkStore.getSelectedNetwork();
   const yamlJson = yaml.load(yamlStr) as any;
 
   // Validate the integrity of the yaml

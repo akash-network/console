@@ -1,3 +1,5 @@
+import { envConfig } from "@src/config/env.config";
+
 const ENV = {
   API_MAINNET_BASE_URL:
     typeof window === "undefined"
@@ -16,13 +18,13 @@ const ENV = {
   PROVIDER_PROXY_URL:
     typeof window === "undefined" ? process.env.PROVIDER_PROXY_URL || process.env.NEXT_PUBLIC_PROVIDER_PROXY_URL : process.env.NEXT_PUBLIC_PROVIDER_PROXY_URL,
   DEFAULT_NETWORK_ID:
-    typeof window === "undefined" ? process.env.DEFAULT_NETWORK_ID || process.env.NEXT_PUBLIC_DEFAULT_NETWORK_ID : process.env.NEXT_PUBLIC_DEFAULT_NETWORK_ID
+    typeof window === "undefined" ? envConfig.DEFAULT_NETWORK_ID || envConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID : envConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID
 };
 
 export const mainnetId = "mainnet";
 export const testnetId = "testnet";
 export const sandboxId = "sandbox";
-export const defaultNetworkId = ENV.DEFAULT_NETWORK_ID || mainnetId;
+export const defaultNetworkId = envConfig.DEFAULT_NETWORK_ID || mainnetId;
 
 export const selectedRangeValues: { [key: string]: number } = {
   "7D": 7,

@@ -13,15 +13,13 @@ import { event } from "nextjs-google-analytics";
 import { SnackbarKey, useSnackbar } from "notistack";
 
 import { LoadingState, TransactionModal } from "@src/components/layout/TransactionModal";
-import { useAnonymousUser } from "@src/context/AnonymousUserProvider/AnonymousUserProvider";
 import { useAllowance } from "@src/hooks/useAllowance";
-import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
-import { getSelectedNetwork, useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { txHttpService } from "@src/services/http/http.service";
+import networkStore from "@src/store/networkStore";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { STATS_APP_URL, uAktDenom } from "@src/utils/constants";
 import { customRegistry } from "@src/utils/customRegistry";
@@ -110,7 +108,7 @@ export const WalletProvider = ({ children }) => {
   }, [settings?.rpcEndpoint, userWallet.isWalletConnected]);
 
   async function createStargateClient() {
-    const selectedNetwork = getSelectedNetwork();
+    const selectedNetwork = networkStore.getSelectedNetwork();
 
     const offlineSigner = userWallet.getOfflineSigner();
     let rpc = settings?.rpcEndpoint ? settings?.rpcEndpoint : (selectedNetwork.rpcEndpoint as string);
@@ -165,7 +163,7 @@ export const WalletProvider = ({ children }) => {
   useWhen(walletAddress, loadWallet);
 
   async function loadWallet(): Promise<void> {
-    const selectedNetwork = getSelectedNetwork();
+    const selectedNetwork = networkStore.getSelectedNetwork();
     const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetwork.id}/wallets`) || "[]") as LocalWalletDataType[];
 
     let currentWallets = storageWallets ?? [];
@@ -368,7 +366,7 @@ export function useWallet() {
 }
 
 const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
-  const selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = networkStore.useSelectedNetwork();
   const txUrl = transactionHash && `${STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetwork.id}`;
 
   return (
