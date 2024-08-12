@@ -9,8 +9,8 @@ import { LocalDataManager } from "@src/components/settings/LocalDataManager";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { useWallet } from "@src/context/WalletProvider";
-import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { useWhen } from "@src/hooks/useWhen";
+import networkStore from "@src/store/networkStore";
 import Layout from "../layout/Layout";
 import { CertificateList } from "./CertificateList";
 import CloudmosImportPanel from "./CloudmosImportPanel";
@@ -21,7 +21,7 @@ import { SettingsLayout, SettingsTabs } from "./SettingsLayout";
 
 export const SettingsContainer: React.FunctionComponent = () => {
   const [isSelectingNetwork, setIsSelectingNetwork] = useState(false);
-  const selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = networkStore.useSelectedNetwork();
   const wallet = useWallet();
   const router = useRouter();
 
