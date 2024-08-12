@@ -29,6 +29,8 @@ export class RefillService {
     if (wallets.length) {
       try {
         await Promise.all(wallets.map(wallet => this.refillWallet(wallet)));
+      } catch (error) {
+        this.logger.error({ event: "REFILL_ERROR", error });
       } finally {
         await this.refillAll();
       }

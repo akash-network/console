@@ -68,13 +68,13 @@ export class ManagedUserWalletService {
     const msgOptions = {
       granter: masterWalletAddress,
       grantee: options.address,
-      denom: this.config.TRIAL_ALLOWANCE_DENOM,
       expiration: options.expiration
     };
 
     await Promise.all([
       this.authorizeDeploymentSpending({
         ...msgOptions,
+        denom: this.config.DEPLOYMENT_GRANT_DENOM,
         limit: options.limits.deployment
       }),
       this.authorizeFeeSpending({
@@ -86,7 +86,7 @@ export class ManagedUserWalletService {
     this.logger.debug({ event: "SPENDING_AUTHORIZED", address: options.address });
   }
 
-  private async authorizeFeeSpending(options: SpendingAuthorizationMsgOptions) {
+  private async authorizeFeeSpending(options: Omit<SpendingAuthorizationMsgOptions, "denom">) {
     const feeAllowances = await this.allowanceHttpService.getFeeAllowancesForGrantee(options.grantee);
     const feeAllowance = feeAllowances.find(allowance => allowance.granter === options.granter);
     const results: Promise<IndexedTx>[] = [];

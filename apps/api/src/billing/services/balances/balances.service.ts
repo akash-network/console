@@ -27,16 +27,14 @@ export class BalancesService {
 
     const update: Partial<UserWalletInput> = {};
 
-    const feeLimitStr = feeLimit.toString();
+    const feeLimitStr = feeLimit;
 
     if (userWallet.feeAllowance !== feeLimitStr) {
       update.feeAllowance = feeLimitStr;
     }
 
-    const deploymentLimitStr = deploymentLimit.toString();
-
-    if (userWallet.deploymentAllowance !== deploymentLimitStr) {
-      update.deploymentAllowance = deploymentLimitStr;
+    if (userWallet.deploymentAllowance !== deploymentLimit) {
+      update.deploymentAllowance = deploymentLimit;
     }
 
     return update;
@@ -52,7 +50,7 @@ export class BalancesService {
       }
 
       return allowance.allowance.spend_limit.reduce((acc, { denom, amount }) => {
-        if (denom !== this.config.TRIAL_ALLOWANCE_DENOM) {
+        if (denom !== "uakt") {
           return acc;
         }
 
@@ -66,7 +64,7 @@ export class BalancesService {
     const masterWalletAddress = await this.masterWalletService.getFirstAddress();
 
     return deploymentAllowance.reduce((acc, allowance) => {
-      if (allowance.granter !== masterWalletAddress || allowance.authorization.spend_limit.denom !== this.config.TRIAL_ALLOWANCE_DENOM) {
+      if (allowance.granter !== masterWalletAddress || allowance.authorization.spend_limit.denom !== this.config.DEPLOYMENT_GRANT_DENOM) {
         return acc;
       }
 
