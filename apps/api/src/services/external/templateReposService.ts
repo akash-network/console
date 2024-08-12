@@ -39,6 +39,7 @@ type Template = {
   guide?: string;
   githubUrl?: string;
   persistentStorageEnabled?: boolean;
+  config?: { ssh?: boolean };
 };
 
 type TemplateSource = {
@@ -441,12 +442,14 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
         const readme = await findFileContentAsync("README.md", response.data);
         const deploy = await findFileContentAsync(["deploy.yaml", "deploy.yml"], response.data);
         const guide = await findFileContentAsync("GUIDE.md", response.data);
+        const config = await findFileContentAsync("config.json", response.data);
 
         const template: Template = {
           name: templateSource.name,
           path: templateSource.path,
           logoUrl: templateSource.logoUrl,
-          summary: templateSource.summary
+          summary: templateSource.summary,
+          config: config ? JSON.parse(config) : { ssh: false }
         };
 
         template.readme = readme && replaceLinks(readme, templateSource.repoOwner, templateSource.repoName, templateSource.repoVersion, templateSource.path);

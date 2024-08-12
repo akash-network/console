@@ -26,7 +26,10 @@ const route = createRoute({
                   deploy: z.string(),
                   persistentStorageEnabled: z.boolean(),
                   guide: z.string().nullable(),
-                  githubUrl: z.string()
+                  githubUrl: z.string(),
+                  config: z.object({
+                    ssh: z.boolean().optional()
+                  })
                 })
               )
             })
