@@ -8,10 +8,18 @@ import { ApiPgDatabase, InjectPg } from "@src/core/providers";
 import { AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
 
-export type UserWalletInput = Partial<UserWalletSchema["$inferInsert"]>;
+export type DbUserWalletInput = Partial<UserWalletSchema["$inferSelect"]>;
+export type UserWalletInput = Partial<
+  Omit<DbUserWalletInput, "deploymentAllowance" | "feeAllowance"> & {
+    deploymentAllowance: number;
+    feeAllowance: number;
+  }
+>;
 export type DbUserWalletOutput = UserWalletSchema["$inferSelect"];
-export type UserWalletOutput = DbUserWalletOutput & {
+export type UserWalletOutput = Omit<DbUserWalletOutput, "feeAllowance" | "deploymentAllowance"> & {
   creditAmount: number;
+  deploymentAllowance: number;
+  feeAllowance: number;
 };
 
 export interface ListOptions {
@@ -49,7 +57,7 @@ export class UserWalletRepository extends BaseRepository<UserWalletSchema> {
   async updateById(id: UserWalletOutput["id"], payload: Partial<UserWalletInput>, options?: { returning: boolean }): Promise<void | UserWalletOutput> {
     const cursor = this.cursor
       .update(this.schema)
-      .set(payload)
+      .set(this.toInput(payload))
       .where(this.whereAccessibleBy(eq(this.schema.id, id)));
 
     if (options?.returning) {
@@ -84,6 +92,10 @@ export class UserWalletRepository extends BaseRepository<UserWalletSchema> {
     );
   }
 
+  async findById(id: UserWalletOutput["id"]) {
+    return this.toOutput(await this.cursor.query.userWalletSchema.findFirst({ where: this.whereAccessibleBy(eq(this.schema.id, id)) }));
+  }
+
   async findByUserId(userId: UserWalletOutput["userId"]) {
     return this.toOutput(await this.cursor.query.userWalletSchema.findFirst({ where: this.whereAccessibleBy(eq(this.schema.userId, userId)) }));
   }
@@ -96,9 +108,26 @@ export class UserWalletRepository extends BaseRepository<UserWalletSchema> {
     return (
       dbOutput && {
         ...dbOutput,
-        creditAmount: parseFloat(dbOutput.deploymentAllowance) + parseFloat(dbOutput.feeAllowance)
+        creditAmount: parseFloat(dbOutput.deploymentAllowance),
+        deploymentAllowance: parseFloat(dbOutput.deploymentAllowance),
+        feeAllowance: parseFloat(dbOutput.feeAllowance)
       }
     );
+  }
+
+  private toInput({ deploymentAllowance, feeAllowance, ...input }: UserWalletInput): DbUserWalletInput {
+    const dbInput: DbUserWalletInput = {
+      ...input
+    };
+
+    if (deploymentAllowance) {
+      dbInput.deploymentAllowance = deploymentAllowance.toString();
+    }
+
+    if (feeAllowance) {
+      dbInput.feeAllowance = feeAllowance.toString();
+    }
+    return dbInput;
   }
 
   toPublic<T extends UserWalletOutput>(output: T): Pick<T, "id" | "userId" | "address" | "creditAmount" | "isTrialing"> {

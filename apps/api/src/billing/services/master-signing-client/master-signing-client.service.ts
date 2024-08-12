@@ -110,7 +110,7 @@ export class MasterSigningClientService {
 
     while (txIndex < messages.length) {
       txes.push(
-        await client.sign(masterAddress, messages[txIndex], await this.estimateFee(messages[txIndex], this.config.TRIAL_ALLOWANCE_DENOM, { mock: true }), "", {
+        await client.sign(masterAddress, messages[txIndex], await this.estimateFee(messages[txIndex], this.config.DEPLOYMENT_GRANT_DENOM, { mock: true }), "", {
           accountNumber: this.accountInfo.accountNumber,
           sequence: this.accountInfo.sequence++,
           chainId: this.chainId
@@ -137,7 +137,7 @@ export class MasterSigningClientService {
   private async estimateFee(messages: readonly EncodeObject[], denom: string, options?: { mock?: boolean }) {
     if (options?.mock) {
       return {
-        amount: [{ denom: this.config.TRIAL_ALLOWANCE_DENOM, amount: "15000" }],
+        amount: [{ denom: "uakt", amount: "15000" }],
         gas: "500000"
       };
     }

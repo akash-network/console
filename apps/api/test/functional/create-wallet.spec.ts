@@ -1,3 +1,4 @@
+import { AllowanceHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
@@ -15,6 +16,7 @@ describe("wallets", () => {
   const config = container.resolve<BillingConfig>(BILLING_CONFIG);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsTable = db.query.userWalletSchema;
+  const allowanceHttpService = container.resolve(AllowanceHttpService);
 
   afterEach(async () => {
     await Promise.all([db.delete(userWalletSchema), db.delete(userSchema)]);
@@ -38,6 +40,10 @@ describe("wallets", () => {
       });
       const getWalletsResponse = await app.request(`/v1/wallets?userId=${userId}`, { headers });
       const userWallet = await userWalletsTable.findFirst({ where: eq(userWalletSchema.userId, userId) });
+      const allowances = await Promise.all([
+        allowanceHttpService.getDeploymentAllowancesForGrantee(userWallet.address),
+        allowanceHttpService.getFeeAllowancesForGrantee(userWallet.address)
+      ]);
 
       expect(createWalletResponse.status).toBe(200);
       expect(getWalletsResponse.status).toBe(200);
@@ -69,6 +75,30 @@ describe("wallets", () => {
         feeAllowance: `${config.TRIAL_FEES_ALLOWANCE_AMOUNT}.00`,
         isTrialing: true
       });
+      expect(allowances).toMatchObject([
+        [
+          {
+            granter: expect.any(String),
+            grantee: userWallet.address,
+            authorization: {
+              "@type": "/akash.deployment.v1beta3.DepositDeploymentAuthorization",
+              spend_limit: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: String(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT) }
+            },
+            expiration: expect.any(String)
+          }
+        ],
+        [
+          {
+            granter: expect.any(String),
+            grantee: userWallet.address,
+            allowance: {
+              "@type": "/cosmos.feegrant.v1beta1.BasicAllowance",
+              spend_limit: [{ denom: "uakt", amount: String(config.TRIAL_FEES_ALLOWANCE_AMOUNT) }],
+              expiration: expect.any(String)
+            }
+          }
+        ]
+      ]);
     });
 
     it("should throw 401 provided no auth header ", async () => {

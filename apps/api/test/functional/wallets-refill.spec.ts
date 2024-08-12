@@ -31,8 +31,11 @@ describe("Wallets Refill", () => {
         const records = await walletService.createUserAndWallet();
         const { user, token } = records;
         let { wallet } = records;
+        const walletRecord = await userWalletRepository.findById(wallet.id);
 
-        expect(wallet.creditAmount).toBe(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + config.TRIAL_FEES_ALLOWANCE_AMOUNT);
+        expect(wallet.creditAmount).toBe(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT);
+        expect(walletRecord.feeAllowance).toBe(config.TRIAL_FEES_ALLOWANCE_AMOUNT);
+
         const limits = {
           deployment: config.DEPLOYMENT_ALLOWANCE_REFILL_THRESHOLD,
           fees: config.FEE_ALLOWANCE_REFILL_THRESHOLD
@@ -44,14 +47,14 @@ describe("Wallets Refill", () => {
         await userWalletRepository.updateById(
           wallet.id,
           {
-            deploymentAllowance: String(limits.deployment),
-            feeAllowance: String(limits.fees)
+            deploymentAllowance: limits.deployment,
+            feeAllowance: limits.fees
           },
           { returning: true }
         );
         wallet = await walletService.getWalletByUserId(user.id, token);
 
-        expect(wallet.creditAmount).toBe(config.DEPLOYMENT_ALLOWANCE_REFILL_THRESHOLD + config.FEE_ALLOWANCE_REFILL_THRESHOLD);
+        expect(wallet.creditAmount).toBe(config.DEPLOYMENT_ALLOWANCE_REFILL_THRESHOLD);
         expect(wallet.isTrialing).toBe(true);
 
         return { user, token, wallet };
@@ -63,7 +66,10 @@ describe("Wallets Refill", () => {
       await Promise.all(
         records.map(async ({ wallet, token, user }) => {
           wallet = await walletService.getWalletByUserId(user.id, token);
-          expect(wallet.creditAmount).toBe(config.DEPLOYMENT_ALLOWANCE_REFILL_AMOUNT + config.FEE_ALLOWANCE_REFILL_AMOUNT);
+          const walletRecord = await userWalletRepository.findById(wallet.id);
+
+          expect(wallet.creditAmount).toBe(config.DEPLOYMENT_ALLOWANCE_REFILL_AMOUNT);
+          expect(walletRecord.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_AMOUNT);
           expect(wallet.isTrialing).toBe(false);
         })
       );

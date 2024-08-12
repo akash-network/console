@@ -7,7 +7,7 @@ const envSchema = z.object({
   TRIAL_ALLOWANCE_EXPIRATION_DAYS: z.number({ coerce: true }).default(14),
   TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: z.number({ coerce: true }),
   TRIAL_FEES_ALLOWANCE_AMOUNT: z.number({ coerce: true }),
-  TRIAL_ALLOWANCE_DENOM: z.string(),
+  DEPLOYMENT_GRANT_DENOM: z.string(),
   GAS_SAFETY_MULTIPLIER: z.number({ coerce: true }).default(1.5),
   FEE_ALLOWANCE_REFILL_THRESHOLD: z.number({ coerce: true }),
   DEPLOYMENT_ALLOWANCE_REFILL_THRESHOLD: z.number({ coerce: true }),
