@@ -67,7 +67,7 @@ export async function getBlock(height: number) {
       hash: tx.hash,
       isSuccess: !tx.hasProcessingError,
       error: tx.hasProcessingError ? tx.log : null,
-      fee: tx.fee,
+      fee: parseInt(tx.fee),
       datetime: block.datetime,
       messages: tx.messages.map(message => ({
         id: message.id,
