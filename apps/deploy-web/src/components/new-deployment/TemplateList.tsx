@@ -41,7 +41,7 @@ export const TemplateList: React.FunctionComponent = () => {
   useEffect(() => {
     if (templates) {
       const _previewTemplates = previewTemplateIds.map(x => templates.find(y => x === y.id)).filter(x => !!x);
-      setPreviewTemplates(_previewTemplates);
+      setPreviewTemplates(_previewTemplates as ApiTemplate[]);
     }
   }, [templates]);
 
