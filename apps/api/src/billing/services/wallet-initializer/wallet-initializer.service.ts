@@ -21,8 +21,8 @@ export class WalletInitializerService {
       id,
       {
         address: wallet.address,
-        deploymentAllowance: String(wallet.limits.deployment),
-        feeAllowance: String(wallet.limits.fees)
+        deploymentAllowance: wallet.limits.deployment,
+        feeAllowance: wallet.limits.fees
       },
       { returning: true }
     );

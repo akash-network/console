@@ -72,7 +72,7 @@ export class TxSignerService {
       async signAndBroadcast(messages: readonly EncodeObject[]) {
         const gasEstimation = await client.simulate(walletAddress, messages, "managed wallet gas estimation");
         const estimatedGas = Math.round(gasEstimation * GAS_SAFETY_MULTIPLIER);
-        const fee = calculateFee(estimatedGas, GasPrice.fromString(`0.025uakt`));
+        const fee = calculateFee(estimatedGas, GasPrice.fromString("0.025uakt"));
 
         return await client.signAndBroadcast(walletAddress, messages, { ...fee, granter }, "managed wallet tx");
       }

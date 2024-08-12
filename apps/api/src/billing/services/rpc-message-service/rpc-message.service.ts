@@ -14,7 +14,7 @@ export interface SpendingAuthorizationMsgOptions {
 
 @singleton()
 export class RpcMessageService {
-  getFeesAllowanceGrantMsg({ denom, limit, expiration, granter, grantee }: SpendingAuthorizationMsgOptions) {
+  getFeesAllowanceGrantMsg({ limit, expiration, granter, grantee }: Omit<SpendingAuthorizationMsgOptions, "denom">) {
     return {
       typeUrl: "/cosmos.feegrant.v1beta1.MsgGrantAllowance",
       value: MsgGrantAllowance.fromPartial({
@@ -26,7 +26,7 @@ export class RpcMessageService {
             BasicAllowance.encode({
               spendLimit: [
                 {
-                  denom,
+                  denom: "uakt",
                   amount: limit.toString()
                 }
               ],
