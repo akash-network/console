@@ -1,5 +1,5 @@
 "use client";
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useMemo, useState } from "react";
 import { Badge, Button, buttonVariants } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
@@ -11,6 +11,7 @@ import getConfig from "next/config";
 import Image from "next/image";
 import Link from "next/link";
 
+import { useWallet } from "@src/context/WalletProvider";
 import sdlStore from "@src/store/sdlStore";
 import { ISidebarGroupMenu } from "@src/types";
 import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
@@ -37,97 +38,110 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
+  const wallet = useWallet();
 
-  const routeGroups: ISidebarGroupMenu[] = [
-    {
-      hasDivider: false,
-      routes: [
-        {
-          title: "Home",
-          icon: props => <Home {...props} />,
-          url: UrlService.home(),
-          activeRoutes: [UrlService.home()]
-        },
-        {
-          title: "Deployments",
-          icon: props => <Cloud {...props} />,
-          url: UrlService.deploymentList(),
-          activeRoutes: [UrlService.deploymentList(), "/deployments", "/new-deployment"]
-        },
-        {
-          title: "Templates",
-          icon: props => <MultiplePages {...props} />,
-          url: UrlService.templates(),
-          activeRoutes: [UrlService.templates()]
-        },
-        {
-          title: "SDL Builder",
-          icon: props => <Tools {...props} />,
-          url: UrlService.sdlBuilder(),
-          activeRoutes: [UrlService.sdlBuilder()],
-          testId: "sidebar-sdl-builder-link"
-        },
-        {
-          title: "Providers",
-          icon: props => <Server {...props} />,
-          url: UrlService.providers(),
-          activeRoutes: [UrlService.providers()]
-        },
-        {
-          title: "FAQ",
-          icon: props => <HelpCircle {...props} />,
-          url: UrlService.faq(),
-          activeRoutes: [UrlService.faq()]
-        },
-        {
-          title: "Settings",
-          icon: props => <Settings {...props} />,
-          url: UrlService.settings(),
-          activeRoutes: [UrlService.settings()]
-        }
-      ]
-    },
-    {
-      hasDivider: true,
-      routes: [
-        {
-          title: "Akash Network",
-          icon: props => <Image src="/images/akash-logo.svg" alt="Akash Logo" quality={100} width={20} height={20} {...props} />,
-          url: "https://akash.network",
-          activeRoutes: [],
-          target: "_blank"
-        },
-        {
-          title: "Stats",
-          icon: props => <OpenInWindow {...props} />,
-          url: "https://stats.akash.network",
-          activeRoutes: [],
-          target: "_blank"
-        },
-        {
-          title: "Price Compare",
-          icon: props => <OpenInWindow {...props} />,
-          url: "https://akash.network/about/pricing/custom/",
-          activeRoutes: [],
-          target: "_blank"
-        },
-        {
-          title: "API",
-          icon: props => <OpenInWindow {...props} />,
-          url: "https://api.cloudmos.io/v1/swagger",
-          activeRoutes: [],
-          target: "_blank"
-        },
-        {
-          title: "Docs",
-          icon: props => <OpenInWindow {...props} />,
-          url: "https://akash.network/docs",
-          activeRoutes: [],
-          target: "_blank"
-        }
-      ]
+  const mainRoutes = useMemo(() => {
+    const routes = [
+      {
+        title: "Home",
+        icon: props => <Home {...props} />,
+        url: UrlService.home(),
+        activeRoutes: [UrlService.home()]
+      },
+      {
+        title: "Deployments",
+        icon: props => <Cloud {...props} />,
+        url: UrlService.deploymentList(),
+        activeRoutes: [UrlService.deploymentList(), "/deployments", "/new-deployment"]
+      },
+      {
+        title: "Templates",
+        icon: props => <MultiplePages {...props} />,
+        url: UrlService.templates(),
+        activeRoutes: [UrlService.templates()]
+      },
+      {
+        title: "SDL Builder",
+        icon: props => <Tools {...props} />,
+        url: UrlService.sdlBuilder(),
+        activeRoutes: [UrlService.sdlBuilder()],
+        testId: "sidebar-sdl-builder-link"
+      },
+      {
+        title: "Providers",
+        icon: props => <Server {...props} />,
+        url: UrlService.providers(),
+        activeRoutes: [UrlService.providers()]
+      },
+      {
+        title: "FAQ",
+        icon: props => <HelpCircle {...props} />,
+        url: UrlService.faq(),
+        activeRoutes: [UrlService.faq()]
+      }
+    ];
+
+    if (wallet.isWalletConnected && !wallet.isManaged) {
+      routes.push({
+        title: "Settings",
+        icon: props => <Settings {...props} />,
+        url: UrlService.settings(),
+        activeRoutes: [UrlService.settings()]
+      });
     }
-  ];
+
+    return routes;
+  }, [wallet]);
+
+  const routeGroups: ISidebarGroupMenu[] = useMemo(
+    () => [
+      {
+        hasDivider: false,
+        routes: mainRoutes
+      },
+      {
+        hasDivider: true,
+        routes: [
+          {
+            title: "Akash Network",
+            icon: props => <Image src="/images/akash-logo.svg" alt="Akash Logo" quality={100} width={20} height={20} {...props} />,
+            url: "https://akash.network",
+            activeRoutes: [],
+            target: "_blank"
+          },
+          {
+            title: "Stats",
+            icon: props => <OpenInWindow {...props} />,
+            url: "https://stats.akash.network",
+            activeRoutes: [],
+            target: "_blank"
+          },
+          {
+            title: "Price Compare",
+            icon: props => <OpenInWindow {...props} />,
+            url: "https://akash.network/about/pricing/custom/",
+            activeRoutes: [],
+            target: "_blank"
+          },
+          {
+            title: "API",
+            icon: props => <OpenInWindow {...props} />,
+            url: "https://api.cloudmos.io/v1/swagger",
+            activeRoutes: [],
+            target: "_blank"
+          },
+          {
+            title: "Docs",
+            icon: props => <OpenInWindow {...props} />,
+            url: "https://akash.network/docs",
+            activeRoutes: [],
+            target: "_blank"
+          }
+        ]
+      }
+    ],
+    [mainRoutes]
+  );
 
   const onToggleMenuClick = () => {
     setIsHovering(false);
@@ -173,7 +187,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
 
         {_isNavOpen && (
           <div className="space-y-2 pb-4 pl-4 pr-4">
-            <NodeStatusBar />
+            {wallet.isWalletConnected && !wallet.isManaged && <NodeStatusBar />}
 
             <div className="flex items-center justify-center space-x-1 pt-4">
               <Link

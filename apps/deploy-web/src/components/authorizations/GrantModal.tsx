@@ -188,7 +188,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
                     min={0}
                     step={0.000001}
                     max={denomData?.inputMax}
-                    startIcon={<span className="text-xs pl-2">{denomData?.label}</span>}
+                    startIcon={<span className="pl-2 text-xs">{denomData?.label}</span>}
                     className="ml-4 flex-grow"
                   />
                 );
