@@ -10,13 +10,13 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { container } from "tsyringe";
 
-import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
 import { config } from "@src/core/config";
 import { getSentry, sentryOptions } from "@src/core/providers/sentry.provider";
 import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
 import { HttpLoggerService } from "@src/core/services/http-logger/http-logger.service";
 import { LoggerService } from "@src/core/services/logger/logger.service";
 import { RequestContextInterceptor } from "@src/core/services/request-storage/request-context.interceptor";
+import { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import packageJson from "../package.json";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { apiRouter } from "./routers/apiRouter";
@@ -49,7 +49,6 @@ const scheduler = new Scheduler({
 
 appHono.use(container.resolve(HttpLoggerService).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
-appHono.use(container.resolve(AuthInterceptor).intercept());
 appHono.use(
   "*",
   sentry({
@@ -70,6 +69,9 @@ appHono.route("/internal", internalRouter);
 
 // TODO: remove condition once billing is in prod
 if (BILLING_ENABLED === "true") {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { AuthInterceptor } = require("./auth/services/auth.interceptor");
+  appHono.use(container.resolve<HonoInterceptor>(AuthInterceptor).intercept());
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { createWalletRouter, getWalletListRouter, signAndBroadcastTxRouter } = require("./billing");
   appHono.route("/", createWalletRouter);
