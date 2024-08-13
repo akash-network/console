@@ -187,7 +187,7 @@ export const WalletProvider = ({ children }) => {
     let txResult: TxOutput;
 
     try {
-      if (user.id && managedWallet) {
+      if (!!user?.id && managedWallet) {
         const mainMessage = msgs.find(msg => msg.typeUrl in MESSAGE_STATES);
 
         if (mainMessage) {
