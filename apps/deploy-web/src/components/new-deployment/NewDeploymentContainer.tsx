@@ -4,6 +4,7 @@ import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
@@ -27,6 +28,7 @@ export const NewDeploymentContainer: FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dseq = searchParams?.get("dseq");
+  const { toggleCmp } = useSdlBuilder();
 
   useEffect(() => {
     if (!templates) return;
@@ -42,6 +44,10 @@ export const NewDeploymentContainer: FC = () => {
       // If it's a deployment from the template gallery, load from template data
       setSelectedTemplate(galleryTemplate as TemplateCreation);
       setEditedManifest(galleryTemplate.content as string);
+
+      if (galleryTemplate.config?.ssh) {
+        toggleCmp("ssh");
+      }
     }
 
     const queryStep = searchParams?.get("step");
@@ -72,7 +78,13 @@ export const NewDeploymentContainer: FC = () => {
     return template;
   };
 
-  const getGalleryTemplate = () => {
+  const getGalleryTemplate = (): Partial<{
+    code: string;
+    name: string;
+    content: string;
+    valuesToChange: any[];
+    config: { ssh?: boolean };
+  }> | null => {
     const queryTemplateId = searchParams?.get("templateId");
     if (queryTemplateId) {
       const templateById = getTemplateById(queryTemplateId as string);
@@ -81,7 +93,8 @@ export const NewDeploymentContainer: FC = () => {
           code: "empty",
           name: templateById.name,
           content: templateById.deploy,
-          valuesToChange: templateById.valuesToChange || []
+          valuesToChange: templateById.valuesToChange || [],
+          config: templateById.config
         };
       }
 

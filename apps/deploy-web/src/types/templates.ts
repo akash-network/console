@@ -10,6 +10,9 @@ export type ApiTemplate = {
   readme?: string;
   summary?: string;
   valuesToChange?: Array<any>;
+  config?: {
+    ssh?: boolean;
+  };
 };
 
 export type TemplateCreation = {
