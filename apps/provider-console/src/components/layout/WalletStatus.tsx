@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import { FormattedNumber } from "react-intl";
 import {
   Address,
@@ -13,19 +14,18 @@ import {
   TooltipContent,
   TooltipTrigger
 } from "@akashnetwork/ui/components";
+import { useChainWallet, useWalletClient } from "@cosmos-kit/react";
 import { Bank, LogOut, MoreHoriz, Wallet } from "iconoir-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
+import authClient from "@src/utils/authClient";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
-import { useEffect } from "react";
-import { useChainWallet, useWalletClient } from "@cosmos-kit/react";
-import { useSelectedChain } from "@src/context/CustomChainProvider";
-import authClient from "@src/utils/authClient";
 // import { jwtDecode } from "jwt-decode";
 
 export function WalletStatus() {

@@ -1,5 +1,6 @@
 // import { notification } from "antd";
 import axios from "axios";
+
 import authClient from "./authClient";
 
 const errorNotification = (error = "Error Occurred") => {

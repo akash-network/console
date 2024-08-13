@@ -1,4 +1,7 @@
 "use client";
+import "@interchain-ui/react/styles";
+import "@interchain-ui/react/globalStyles";
+
 import { GasPrice } from "@cosmjs/stargate";
 import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
 import { wallets as keplr } from "@cosmos-kit/keplr";
@@ -9,9 +12,6 @@ import { useChain } from "@cosmos-kit/react";
 import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { customRegistry } from "@src/utils/customRegistry";
-
-import "@interchain-ui/react/styles";
-import "@interchain-ui/react/globalStyles";
 
 type Props = {
   children: React.ReactNode;
