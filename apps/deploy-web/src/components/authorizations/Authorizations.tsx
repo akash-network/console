@@ -21,6 +21,7 @@ import { AllowanceModal } from "./AllowanceModal";
 import { GranteeRow } from "./GranteeRow";
 import { GranterRow } from "./GranterRow";
 import { GrantModal } from "./GrantModal";
+import DeploymentGrantTable from "./DeploymentGrantTable";
 
 type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "allowancesGranted" | null;
 const defaultRefetchInterval = 30 * 1000;
@@ -32,9 +33,10 @@ export const Authorizations: React.FunctionComponent = () => {
   const [editingAllowance, setEditingAllowance] = useState<AllowanceType | null>(null);
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [showAllowanceModal, setShowAllowanceModal] = useState(false);
-  const [deletingGrant, setDeletingGrant] = useState<GrantType | null>(null);
+  const [deletingGrants, setDeletingGrants] = useState<GrantType[] | null>(null);
   const [deletingAllowance, setDeletingAllowance] = useState<AllowanceType | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<RefreshingType>(null);
+  const [selectedGrants, setSelectedGrants] = useState<GrantType[]>([]);
   const { data: granterGrants, isLoading: isLoadingGranterGrants } = useGranterGrants(address, {
     refetchInterval: isRefreshing === "granterGrants" ? refreshingInterval : defaultRefetchInterval
   });
@@ -63,15 +65,15 @@ export const Authorizations: React.FunctionComponent = () => {
     };
   }, [isRefreshing]);
 
-  async function onDeleteGrantConfirmed() {
-    if (!deletingGrant) return;
+  async function onDeleteGrantsConfirmed() {
+    if (!deletingGrants) return;
 
-    const message = TransactionMessageData.getRevokeMsg(address, deletingGrant.grantee, deletingGrant.authorization["@type"]);
-    const response = await signAndBroadcastTx([message]);
+    const messages = deletingGrants.map(grant => TransactionMessageData.getRevokeMsg(address, grant.grantee, grant.authorization["@type"]));
+    const response = await signAndBroadcastTx(messages);
 
     if (response) {
       setIsRefreshing("granterGrants");
-      setDeletingGrant(null);
+      setDeletingGrants(null);
     }
   }
 
@@ -155,22 +157,13 @@ export const Authorizations: React.FunctionComponent = () => {
               ) : (
                 <>
                   {granterGrants.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Grantee</TableHead>
-                          <TableHead className="text-right">Spending Limit</TableHead>
-                          <TableHead className="text-right">Expiration</TableHead>
-                          <TableHead className="text-right"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-
-                      <TableBody>
-                        {granterGrants.map(grant => (
-                          <GranterRow key={grant.grantee} grant={grant} onEditGrant={onEditGrant} setDeletingGrant={setDeletingGrant} />
-                        ))}
-                      </TableBody>
-                    </Table>
+                    <DeploymentGrantTable
+                      grants={granterGrants}
+                      selectedGrants={selectedGrants}
+                      onEditGrant={onEditGrant}
+                      setDeletingGrants={setDeletingGrants}
+                      setSelectedGrants={setSelectedGrants}
+                    />
                   ) : (
                     <p className="text-sm text-muted-foreground">No authorizations given.</p>
                   )}
@@ -321,21 +314,17 @@ export const Authorizations: React.FunctionComponent = () => {
           </>
         )}
 
-        {!!deletingGrant && (
+        {!!deletingGrants && (
           <Popup
             open={true}
             title="Confirm Delete?"
             variant="confirm"
-            onClose={() => setDeletingGrant(null)}
-            onCancel={() => setDeletingGrant(null)}
-            onValidate={onDeleteGrantConfirmed}
+            onClose={() => setDeletingGrants(null)}
+            onCancel={() => setDeletingGrants(null)}
+            onValidate={onDeleteGrantsConfirmed}
             enableCloseOnBackdropClick
           >
-            Deleting grant to{" "}
-            <strong>
-              <Address address={deletingGrant.grantee} />
-            </strong>{" "}
-            will revoke their ability to spend your funds on deployments.
+            Deleting grants will revoke their ability to spend your funds on deployments.
           </Popup>
         )}
         {!!deletingAllowance && (
