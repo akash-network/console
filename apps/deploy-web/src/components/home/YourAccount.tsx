@@ -334,7 +334,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
           </div>
         )}
 
-        {!address && <ConnectWallet text="Connect your wallet to deploy!" />}
+        {!address && <ConnectWallet text="Setup your billing to deploy!" />}
       </CardContent>
     </Card>
   );
