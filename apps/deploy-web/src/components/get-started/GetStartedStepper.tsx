@@ -173,7 +173,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                 <CustomTooltip
                   title={
                     <>
-                      If you don't have {minDeposit.akt} AKT or {minDeposit.usdc} USDC, you can request authorization for some tokens to get started on our{" "}
+                      If you don&apos;t have {minDeposit.akt} AKT or {minDeposit.usdc} USDC, you can request authorization for some tokens to get started on our{" "}
                       <ExternalLink href="https://discord.gg/akash" text="Discord" />.
                     </>
                   }

@@ -1,20 +1,9 @@
 "use client";
 
-import "@leapwallet/elements/styles.css";
-
-import React, { useCallback, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
-import { Button } from "@akashnetwork/ui/components";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button, Spinner } from "@akashnetwork/ui/components";
 import { useWallet as useConnectedWallet, useWalletClient } from "@cosmos-kit/react";
-import {
-  AsyncIDBStorage,
-  ElementsProvider,
-  initCachingLayer,
-  LiquidityModal as LeapLiquidityModal,
-  type LiquidityModalProps,
-  Tabs,
-  WalletType
-} from "@leapwallet/elements";
+import { Modal } from "@mui/material";
 import { event } from "nextjs-google-analytics";
 
 import { useWallet } from "@src/context/WalletProvider";
@@ -39,9 +28,7 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
   );
 };
 
-initCachingLayer(AsyncIDBStorage);
-
-const useConnectedWalletType = (): WalletType | undefined => {
+const useConnectedWalletType = (): string => {
   const { isWalletConnected } = useWallet();
   const { mainWallet } = useConnectedWallet();
 
@@ -50,13 +37,13 @@ const useConnectedWalletType = (): WalletType | undefined => {
   const walletType = useMemo(() => {
     switch (walletName) {
       case "leap-extension":
-        return WalletType.LEAP;
+        return window.LeapElements?.WalletType.LEAP;
       case "keplr-extension":
-        return WalletType.KEPLR;
+        return window.LeapElements?.WalletType.KEPLR;
       case "cosmostation-extension":
-        return WalletType.COSMOSTATION;
+        return window.LeapElements?.WalletType.COSMOSTATION;
       case "keplr-mobile":
-        return WalletType.WC_KEPLR_MOBILE;
+        return window.LeapElements?.WalletType.WC_KEPLR_MOBILE;
       default:
         return undefined;
     }
@@ -65,14 +52,13 @@ const useConnectedWalletType = (): WalletType | undefined => {
   return walletType;
 };
 
-type TabsConfig = NonUndefined<LiquidityModalProps["tabsConfig"]>;
-
 type Props = { address: string; aktBalance: number; refreshBalances: () => void };
 
 const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { isWalletConnected } = useWallet();
   const { client: walletClient } = useWalletClient();
+  const isElementsMountedRef = useRef(false);
 
   const connectedWalletType = useConnectedWalletType();
 
@@ -88,7 +74,7 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
     }
   }, [isWalletConnected, walletClient]);
 
-  const tabsConfig: TabsConfig = useMemo(() => {
+  const tabsConfig = useMemo(() => {
     const txnLifecycleHooks = {
       onTxnComplete: () => {
         refreshBalances();
@@ -100,7 +86,7 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
     };
 
     return {
-      [Tabs.SWAPS]: {
+      aggregated: {
         enabled: true,
         orderIndex: 0,
         title: "Swap or Bridge",
@@ -117,10 +103,10 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
         },
         txnLifecycleHooks
       },
-      [Tabs.IBC_SWAPS]: {
+      swap: {
         enabled: false
       },
-      [Tabs.FIAT_ON_RAMP]: {
+      "fiat-on-ramp": {
         enabled: true,
         title: "Buy AKT",
         orderIndex: 1,
@@ -137,7 +123,7 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
         },
         onTxnComplete: txnLifecycleHooks.onTxnComplete
       },
-      [Tabs.TRANSFER]: {
+      transfer: {
         enabled: true,
         orderIndex: 2,
         title: "IBC Transfer",
@@ -147,22 +133,48 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
         },
         txnLifecycleHooks
       }
-    } satisfies TabsConfig;
+    };
   }, [refreshBalances]);
+
+  useEffect(() => {
+    if (isOpen && !isElementsMountedRef.current) {
+      window.LeapElements?.mountElements?.({
+        connectWallet: handleConnectWallet,
+        connectedWalletType,
+        element: {
+          name: "multi-view",
+          props: {
+            tabsConfig
+          }
+        },
+        enableSmartSwap: true,
+        skipClientId: `akashnet-console-${process.env.NODE_ENV}`,
+        enableCaching: true,
+        elementsRoot: "#leap-elements-portal"
+      });
+      isElementsMountedRef.current = true;
+    }
+  }, [connectedWalletType, handleConnectWallet, isOpen, tabsConfig]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+  }, [isOpen]);
 
   return (
     <>
       <ToggleLiquidityModalButton onClick={() => setIsOpen(o => !o)} />
-      {walletClient
-        ? createPortal(
-            <div className="leap-ui dark">
-              <ElementsProvider primaryChainId="akashnet-2" connectWallet={handleConnectWallet} connectedWalletType={connectedWalletType}>
-                <LeapLiquidityModal className="border-none" isOpen={isOpen} setIsOpen={setIsOpen} tabsConfig={tabsConfig} defaultActiveTab={Tabs.SWAPS} />
-              </ElementsProvider>
-            </div>,
-            document.body
-          )
-        : null}
+      {walletClient ? (
+        <Modal keepMounted open={isOpen} onClose={() => setIsOpen(false)} className="flex items-center justify-center">
+          <div className="relative h-full max-h-[34rem] w-full max-w-[26rem]">
+            <Spinner className="absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2" />
+            <div id="leap-elements-portal" className="leap-ui dark h-full w-full rounded-xl" />
+          </div>
+        </Modal>
+      ) : null}
     </>
   );
 };

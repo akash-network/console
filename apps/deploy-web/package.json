@@ -113,6 +113,7 @@
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
     "@keplr-wallet/types": "^0.12.111",
+    "@leapwallet/elements": "1.4.0",
     "@next/bundle-analyzer": "^14.0.1",
     "@playwright/test": "^1.45.0",
     "@types/auth0": "^2.35.3",
