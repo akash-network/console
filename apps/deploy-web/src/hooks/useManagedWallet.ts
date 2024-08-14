@@ -6,7 +6,7 @@ import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
 import networkStore from "@src/store/networkStore";
-import { deleteManagedWalletFromStorage, updateStorageManagedWallet } from "@src/utils/walletUtils";
+import { deleteManagedWalletFromStorage, ensureUserManagedWalletOwnership, updateStorageManagedWallet } from "@src/utils/walletUtils";
 
 const isBillingEnabled = envConfig.NEXT_PUBLIC_BILLING_ENABLED;
 const { NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID } = envConfig;
@@ -35,6 +35,12 @@ export const useManagedWallet = () => {
   useWhen(created && NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID && selectedNetworkId !== NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, () => {
     setSelectedNetworkId(NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID);
   });
+
+  useEffect(() => {
+    if (user?.id && !user.userId) {
+      ensureUserManagedWalletOwnership(user.id);
+    }
+  }, [user]);
 
   return useMemo(() => {
     const isConfigured = !!wallet;
