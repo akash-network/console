@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunk_leap_cosmos_extension=self.webpackChunk_leap_cosmos_extension||[]).push([[5247],{705247:(P,s,n)=>{n.r(s),n.d(s,{default:()=>e});var o=n(964266),_=n(910416),E=n(389320),l=n(830911),a=n(202784),t=n(956871);function e(){return(0,l.a)(_.q.Home),(0,o.a74)()===E.HW?a.createElement(t.Te,null):a.createElement(t.ss,null)}}}]);
