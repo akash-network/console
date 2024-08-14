@@ -11,7 +11,8 @@ const envSchema = z.object({
     .default("false"),
   NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: networkId.optional().default("mainnet"),
   NEXT_PUBLIC_DEFAULT_NETWORK_ID: networkId.optional().default("mainnet"),
-  DEFAULT_NETWORK_ID: networkId.optional().default("mainnet")
+  DEFAULT_NETWORK_ID: networkId.optional().default("mainnet"),
+  NEXT_PUBLIC_MANAGED_WALLET_DENOM: z.enum(["uakt", "usdc"]).optional().default("usdc")
 });
 
 module.exports.envSchema = envSchema;
@@ -20,5 +21,6 @@ module.exports.envConfig = envSchema.parse({
   NEXT_PUBLIC_BILLING_ENABLED: process.env.NEXT_PUBLIC_BILLING_ENABLED,
   NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: process.env.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID,
   NEXT_PUBLIC_DEFAULT_NETWORK_ID: process.env.NEXT_PUBLIC_DEFAULT_NETWORK_ID,
-  DEFAULT_NETWORK_ID: process.env.DEFAULT_NETWORK_ID
+  DEFAULT_NETWORK_ID: process.env.DEFAULT_NETWORK_ID,
+  NEXT_PUBLIC_MANAGED_WALLET_DENOM: process.env.NEXT_PUBLIC_MANAGED_WALLET_DENOM
 });
