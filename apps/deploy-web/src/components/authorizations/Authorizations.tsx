@@ -16,12 +16,11 @@ import { SettingsLayout, SettingsTabs } from "../settings/SettingsLayout";
 import { ConnectWallet } from "../shared/ConnectWallet";
 import { Title } from "../shared/Title";
 import { AllowanceGrantedRow } from "./AllowanceGrantedRow";
-import { AllowanceIssuedRow } from "./AllowanceIssuedRow";
 import { AllowanceModal } from "./AllowanceModal";
 import { GranteeRow } from "./GranteeRow";
-import { GranterRow } from "./GranterRow";
 import { GrantModal } from "./GrantModal";
-import DeploymentGrantTable from "./DeploymentGrantTable";
+import { DeploymentGrantTable } from "./DeploymentGrantTable";
+import { FeeGrantTable } from "./FeeGrantTable";
 
 type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "allowancesGranted" | null;
 const defaultRefetchInterval = 30 * 1000;
@@ -34,9 +33,10 @@ export const Authorizations: React.FunctionComponent = () => {
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [showAllowanceModal, setShowAllowanceModal] = useState(false);
   const [deletingGrants, setDeletingGrants] = useState<GrantType[] | null>(null);
-  const [deletingAllowance, setDeletingAllowance] = useState<AllowanceType | null>(null);
+  const [deletingAllowances, setDeletingAllowances] = useState<AllowanceType[] | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<RefreshingType>(null);
   const [selectedGrants, setSelectedGrants] = useState<GrantType[]>([]);
+  const [selectedAllowances, setSelectedAllowances] = useState<AllowanceType[]>([]);
   const { data: granterGrants, isLoading: isLoadingGranterGrants } = useGranterGrants(address, {
     refetchInterval: isRefreshing === "granterGrants" ? refreshingInterval : defaultRefetchInterval
   });
@@ -78,14 +78,14 @@ export const Authorizations: React.FunctionComponent = () => {
   }
 
   async function onDeleteAllowanceConfirmed() {
-    if (!deletingAllowance) return;
+    if (!deletingAllowances) return;
 
-    const message = TransactionMessageData.getRevokeAllowanceMsg(address, deletingAllowance.grantee);
-    const response = await signAndBroadcastTx([message]);
+    const messages = deletingAllowances.map(allowance => TransactionMessageData.getRevokeAllowanceMsg(address, allowance.grantee));
+    const response = await signAndBroadcastTx(messages);
 
     if (response) {
       setIsRefreshing("allowancesIssued");
-      setDeletingAllowance(null);
+      setDeletingAllowances(null);
     }
   }
 
@@ -234,28 +234,13 @@ export const Authorizations: React.FunctionComponent = () => {
               ) : (
                 <>
                   {allowancesIssued.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Grantee</TableHead>
-                          <TableHead className="text-right">Spending Limit</TableHead>
-                          <TableHead className="text-right">Expiration</TableHead>
-                          <TableHead className="text-right"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-
-                      <TableBody>
-                        {allowancesIssued.map(allowance => (
-                          <AllowanceIssuedRow
-                            key={allowance.grantee}
-                            allowance={allowance}
-                            onEditAllowance={onEditAllowance}
-                            setDeletingAllowance={setDeletingAllowance}
-                          />
-                        ))}
-                      </TableBody>
-                    </Table>
+                    <FeeGrantTable
+                      allowances={allowancesIssued}
+                      selectedAllowances={selectedAllowances}
+                      onEditAllowance={onEditAllowance}
+                      setDeletingAllowances={setDeletingAllowances}
+                      setSelectedAllowances={setSelectedAllowances}
+                    />
                   ) : (
                     <p className="text-sm text-muted-foreground">No allowances issued.</p>
                   )}
@@ -327,21 +312,17 @@ export const Authorizations: React.FunctionComponent = () => {
             Deleting grants will revoke their ability to spend your funds on deployments.
           </Popup>
         )}
-        {!!deletingAllowance && (
+        {!!deletingAllowances && (
           <Popup
             open={true}
             title="Confirm Delete?"
             variant="confirm"
-            onClose={() => setDeletingAllowance(null)}
-            onCancel={() => setDeletingAllowance(null)}
+            onClose={() => setDeletingAllowances(null)}
+            onCancel={() => setDeletingAllowances(null)}
             onValidate={onDeleteAllowanceConfirmed}
             enableCloseOnBackdropClick
           >
-            Deleting allowance to{" "}
-            <strong>
-              <Address address={deletingAllowance.grantee} />
-            </strong>{" "}
-            will revoke their ability to fees on your behalf.
+            Deleting allowance to will revoke their ability to fees on your behalf.
           </Popup>
         )}
         {showGrantModal && <GrantModal editingGrant={editingGrant} address={address} onClose={onGrantClose} />}
