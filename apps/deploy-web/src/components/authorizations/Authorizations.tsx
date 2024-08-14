@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Address, Button, Popup, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { Button, Popup, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Bank } from "iconoir-react";
 import { NextSeo } from "next-seo";
 
@@ -17,10 +17,10 @@ import { ConnectWallet } from "../shared/ConnectWallet";
 import { Title } from "../shared/Title";
 import { AllowanceGrantedRow } from "./AllowanceGrantedRow";
 import { AllowanceModal } from "./AllowanceModal";
-import { GranteeRow } from "./GranteeRow";
-import { GrantModal } from "./GrantModal";
 import { DeploymentGrantTable } from "./DeploymentGrantTable";
 import { FeeGrantTable } from "./FeeGrantTable";
+import { GranteeRow } from "./GranteeRow";
+import { GrantModal } from "./GrantModal";
 
 type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "allowancesGranted" | null;
 const defaultRefetchInterval = 30 * 1000;
@@ -74,6 +74,7 @@ export const Authorizations: React.FunctionComponent = () => {
     if (response) {
       setIsRefreshing("granterGrants");
       setDeletingGrants(null);
+      setSelectedGrants([]);
     }
   }
 
@@ -86,6 +87,7 @@ export const Authorizations: React.FunctionComponent = () => {
     if (response) {
       setIsRefreshing("allowancesIssued");
       setDeletingAllowances(null);
+      setSelectedAllowances([]);
     }
   }
 

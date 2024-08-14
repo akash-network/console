@@ -1,8 +1,9 @@
-import { Button, CustomPagination, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
-import { GrantType } from "@src/types/grant";
 import React, { Dispatch, SetStateAction, useState } from "react";
-import { GranterRow } from "./GranterRow";
+import { Button, CustomPagination, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+
+import { GrantType } from "@src/types/grant";
 import { LinkTo } from "../shared/LinkTo";
+import { GranterRow } from "./GranterRow";
 
 interface Props {
   grants: GrantType[];
