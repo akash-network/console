@@ -7,12 +7,7 @@ export type LocalWalletDataType = {
   name: string;
   selected: boolean;
   isManaged?: boolean;
-};
-
-export const useStorageWallets = () => {
-  const wallets = getStorageWallets();
-
-  return { wallets };
+  userId?: string;
 };
 
 export function getSelectedStorageWallet() {
@@ -95,8 +90,10 @@ export function useSelectedWalletFromStorage() {
   return getSelectedStorageWallet();
 }
 
-export function updateLocalStorageWalletName(address: string, name: string) {
-  updateWallet(address, wallet => {
-    return { ...wallet, name };
-  });
+export function ensureUserManagedWalletOwnership(userId: string) {
+  const wallet = getStorageManagedWallet();
+
+  if (wallet?.userId !== userId) {
+    deleteManagedWalletFromStorage();
+  }
 }
