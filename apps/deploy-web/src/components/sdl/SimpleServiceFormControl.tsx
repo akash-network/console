@@ -31,6 +31,7 @@ import Link from "next/link";
 
 import { SSHKeyFormControl } from "@src/components/sdl/SSHKeyFromControl";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { GpuVendor } from "@src/types/gpu";
 import { uAktDenom } from "@src/utils/constants";
@@ -92,6 +93,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   const _isEditingExpose = serviceIndex === isEditingExpose;
   const _isEditingPlacement = serviceIndex === isEditingPlacement;
   const { imageList, hasComponent, toggleCmp } = useSdlBuilder();
+  const wallet = useWallet();
 
   const onExpandClick = () => {
     setServiceCollapsed(prev => {
@@ -400,9 +402,11 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                     </div>
                   )}
 
-                  <div className="mt-4">
-                    <TokenFormControl control={control} name={`services.${serviceIndex}.placement.pricing.denom`} />
-                  </div>
+                  {!wallet?.isManaged && (
+                    <div className="mt-4">
+                      <TokenFormControl control={control} name={`services.${serviceIndex}.placement.pricing.denom`} />
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="mt-4 break-all">
