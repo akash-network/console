@@ -1,5 +1,5 @@
 "use client";
-import { Dispatch, useEffect, useRef, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { Alert, Button, CustomTooltip, Input, Spinner } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
@@ -15,6 +15,7 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDepositParams } from "@src/queries/useSettings";
 import sdlStore from "@src/store/sdlStore";
@@ -43,7 +44,7 @@ type Props = {
   onTemplateSelected: Dispatch<TemplateCreation | null>;
   selectedTemplate: TemplateCreation | null;
   editedManifest: string | null;
-  setEditedManifest: Dispatch<string>;
+  setEditedManifest: Dispatch<SetStateAction<string>>;
 };
 
 export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, setEditedManifest, onTemplateSelected, selectedTemplate }) => {
@@ -69,6 +70,20 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const { data: depositParams } = useDepositParams();
   const defaultDeposit = depositParams || defaultInitialDeposit;
   const fileUploadRef = useRef<HTMLInputElement>(null);
+  const wallet = useWallet();
+  const managedDenom = useManagedWalletDenom();
+
+  useWhen(wallet.isManaged && sdlDenom === "uakt", () => {
+    setSdlDenom(managedDenom);
+  });
+
+  useWhen(
+    wallet.isManaged && sdlDenom === "uakt",
+    () => {
+      setEditedManifest(prev => prev.replace(/uakt/g, managedDenom));
+    },
+    [editedManifest]
+  );
 
   useWhen(hasComponent("ssh"), () => {
     setSelectedSdlEditMode("builder");
