@@ -52,9 +52,12 @@ type RenderRootArgs = {
 
 type mountElementsArgs = ElementsOptionalConfig & RenderRootArgs & ViewWrapperProps;
 
+// extend the global Window interface
 declare global {
   interface Window {
-    mountElements: (args: mountElementsArgs) => void;
-    WalletType: WalletType;
+    LeapElements?: {
+      mountElements: (args: mountElementsArgs) => void;
+      WalletType: typeof WalletType;
+    };
   }
 }

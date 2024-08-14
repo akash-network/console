@@ -1,5 +1,7 @@
 "use client";
 
+import "@src/elements.types";
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Spinner } from "@akashnetwork/ui/components";
 import { useWallet as useConnectedWallet, useWalletClient } from "@cosmos-kit/react";
@@ -28,39 +30,102 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
   );
 };
 
-const useConnectedWalletType = (): string => {
-  const { isWalletConnected } = useWallet();
-  const { mainWallet } = useConnectedWallet();
+const convertWalletType = (walletName: string | undefined) => {
+  switch (walletName) {
+    case "leap-extension":
+      return window.LeapElements?.WalletType.LEAP;
+    case "keplr-extension":
+      return window.LeapElements?.WalletType.KEPLR;
+    case "cosmostation-extension":
+      return window.LeapElements?.WalletType.COSMOSTATION;
+    case "keplr-mobile":
+      return window.LeapElements?.WalletType.WC_KEPLR_MOBILE;
+    default:
+      return undefined;
+  }
+};
 
-  const walletName = isWalletConnected ? mainWallet?.walletName : undefined;
-
-  const walletType = useMemo(() => {
-    switch (walletName) {
-      case "leap-extension":
-        return window.LeapElements?.WalletType.LEAP;
-      case "keplr-extension":
-        return window.LeapElements?.WalletType.KEPLR;
-      case "cosmostation-extension":
-        return window.LeapElements?.WalletType.COSMOSTATION;
-      case "keplr-mobile":
-        return window.LeapElements?.WalletType.WC_KEPLR_MOBILE;
-      default:
-        return undefined;
+const getTabsConfig = txnLifecycleHooks => {
+  return {
+    aggregated: {
+      enabled: true,
+      orderIndex: 0,
+      title: "Swap or Bridge",
+      allowedDestinationChains: [
+        {
+          chainId: "akashnet-2"
+        }
+      ],
+      defaultValues: {
+        sourceChainId: "osmosis-1",
+        sourceAsset: "uosmo",
+        destinationChainId: "akashnet-2",
+        destinationAsset: "uakt"
+      },
+      txnLifecycleHooks
+    },
+    swap: {
+      enabled: false
+    },
+    "fiat-on-ramp": {
+      enabled: true,
+      title: "Buy AKT",
+      orderIndex: 1,
+      allowedDestinationChains: [
+        {
+          chainId: "akashnet-2"
+        }
+      ],
+      defaultValues: {
+        currency: "USD",
+        sourceAmount: "10",
+        destinationChainId: "akashnet-2",
+        destinationAsset: "uakt"
+      },
+      onTxnComplete: txnLifecycleHooks.onTxnComplete
+    },
+    transfer: {
+      enabled: true,
+      orderIndex: 2,
+      title: "IBC Transfer",
+      defaultValues: {
+        sourceChainId: "osmosis-1",
+        sourceAsset: { originChainId: "akashnet-2", originDenom: "uakt" }
+      },
+      txnLifecycleHooks
     }
-  }, [walletName]);
+  };
+};
 
-  return walletType;
+const usePolling = (callback: () => void, interval: number) => {
+  const savedCallback = useRef(callback);
+
+  useEffect(() => {
+    savedCallback.current = callback;
+  }, [callback]);
+
+  useEffect(() => {
+    const tick = () => {
+      savedCallback.current();
+    };
+
+    const id = setInterval(tick, interval);
+
+    return () => clearInterval(id);
+  }, [interval]);
 };
 
 type Props = { address: string; aktBalance: number; refreshBalances: () => void };
 
 const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isElementsReady, setIsElementsReady] = useState(false);
+
   const { isWalletConnected } = useWallet();
   const { client: walletClient } = useWalletClient();
-  const isElementsMountedRef = useRef(false);
+  const { mainWallet } = useConnectedWallet();
 
-  const connectedWalletType = useConnectedWalletType();
+  const walletName = isWalletConnected ? mainWallet?.walletName : undefined;
 
   const handleConnectWallet = useCallback(() => {
     if (!isWalletConnected && walletClient) {
@@ -85,61 +150,23 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
       }
     };
 
-    return {
-      aggregated: {
-        enabled: true,
-        orderIndex: 0,
-        title: "Swap or Bridge",
-        allowedDestinationChains: [
-          {
-            chainId: "akashnet-2"
-          }
-        ],
-        defaultValues: {
-          sourceChainId: "osmosis-1",
-          sourceAsset: "uosmo",
-          destinationChainId: "akashnet-2",
-          destinationAsset: "uakt"
-        },
-        txnLifecycleHooks
-      },
-      swap: {
-        enabled: false
-      },
-      "fiat-on-ramp": {
-        enabled: true,
-        title: "Buy AKT",
-        orderIndex: 1,
-        allowedDestinationChains: [
-          {
-            chainId: "akashnet-2"
-          }
-        ],
-        defaultValues: {
-          currency: "USD",
-          sourceAmount: "10",
-          destinationChainId: "akashnet-2",
-          destinationAsset: "uakt"
-        },
-        onTxnComplete: txnLifecycleHooks.onTxnComplete
-      },
-      transfer: {
-        enabled: true,
-        orderIndex: 2,
-        title: "IBC Transfer",
-        defaultValues: {
-          sourceChainId: "osmosis-1",
-          sourceAsset: { originChainId: "akashnet-2", originDenom: "uakt" }
-        },
-        txnLifecycleHooks
-      }
-    };
+    return getTabsConfig(txnLifecycleHooks);
   }, [refreshBalances]);
 
+  usePolling(() => {
+    if (window.LeapElements) {
+      setIsElementsReady(true);
+    }
+  }, 250);
+
+  const connectedWalletType = useMemo(() => (isElementsReady ? convertWalletType(walletName) : undefined), [walletName]);
+
   useEffect(() => {
-    if (isOpen && !isElementsMountedRef.current) {
+    if (isElementsReady && isOpen) {
       window.LeapElements?.mountElements?.({
         connectWallet: handleConnectWallet,
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
         connectedWalletType,
         element: {
           name: "multi-view",
@@ -152,9 +179,8 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
         enableCaching: true,
         elementsRoot: "#leap-elements-portal"
       });
-      isElementsMountedRef.current = true;
     }
-  }, [connectedWalletType, handleConnectWallet, isOpen, tabsConfig]);
+  }, [isOpen, handleConnectWallet, connectedWalletType, tabsConfig, isElementsReady]);
 
   useEffect(() => {
     if (isOpen) {
@@ -170,7 +196,7 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
       {walletClient ? (
         <Modal keepMounted open={isOpen} onClose={() => setIsOpen(false)} className="flex items-center justify-center">
           <div className="relative h-full max-h-[34rem] w-full max-w-[26rem]">
-            <Spinner className="absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2" />
+            {!isElementsReady ? <Spinner className="absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2" /> : null}
             <div id="leap-elements-portal" className="leap-ui dark h-full w-full rounded-xl" />
           </div>
         </Modal>
