@@ -25,7 +25,7 @@ const AllowanceNotificationMessage: FC = () => (
 );
 
 export const useAllowance = () => {
-  const { address } = useWallet();
+  const { address, isManaged } = useWallet();
   const [defaultFeeGranter, setDefaultFeeGranter] = useLocalStorage<string | undefined>(`default-fee-granters/${address}`, undefined);
   const { data: allFeeGranters, isLoading, isFetched } = useAllowancesGranted(address);
   const { enqueueSnackbar } = useSnackbar();
@@ -45,7 +45,7 @@ export const useAllowance = () => {
   }, [allFeeGranters, address]);
 
   useWhen(
-    isFetched && address,
+    isFetched && address && !isManaged,
     () => {
       const persistedAddresses = persisted[address] || [];
       const added = difference(actualAddresses, persistedAddresses);
