@@ -101,7 +101,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
         </Card>
       ) : (
         <div className="py-8">
-          <ConnectWallet text="Connect your wallet to deploy!" />
+          <ConnectWallet text="Setup your billing to deploy!" />
         </div>
       )}
     </Popup>
