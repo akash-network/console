@@ -18,19 +18,19 @@ const csMap = {
   sandbox: env.AkashSandboxDatabaseCS
 };
 
-if (!isValidNetwork(env.Network)) {
-  throw new Error(`Invalid network: ${env.Network}`);
+if (!isValidNetwork(env.NETWORK)) {
+  throw new Error(`Invalid network: ${env.NETWORK}`);
 }
 
-if (!csMap[env.Network]) {
-  throw new Error(`Missing connection string for network: ${env.Network}`);
+if (!csMap[env.NETWORK]) {
+  throw new Error(`Missing connection string for network: ${env.NETWORK}`);
 }
 
 const logger = new PostgresLoggerService({ orm: "sequelize" });
 const logging = (msg: string) => logger.write(msg);
 
 pg.defaults.parseInt8 = true;
-export const chainDb = new Sequelize(csMap[env.Network], {
+export const chainDb = new Sequelize(csMap[env.NETWORK], {
   dialectModule: pg,
   logging,
   logQueryParameters: true,

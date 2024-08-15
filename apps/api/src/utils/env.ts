@@ -9,7 +9,7 @@ export const env = z
     AkashTestnetDatabaseCS: z.string().optional(),
     AkashSandboxDatabaseCS: z.string().optional(),
     UserDatabaseCS: z.string().optional(),
-    Network: z.string().default("mainnet"),
+    NETWORK: z.string().default("mainnet"),
     RestApiNodeUrl: z.string().optional(),
     ServerOrigin: z.string().optional().default("http://localhost:3080"),
     AkashlyticsGithubPAT: z.string().optional(),

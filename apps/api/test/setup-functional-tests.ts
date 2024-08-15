@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 
 import { closeConnections, migratePG } from "@src/core";
 
-dotenv.config({ path: ".env.functional.test" });
+dotenv.config({ path: "env/.env.functional.test" });
 
 beforeAll(async () => {
   await migratePG();

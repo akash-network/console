@@ -1,10 +1,9 @@
 services:
   api:
     restart: always
-    env_file:
-      - .env.sandbox.docker-compose-dev
     environment:
       PORT: 3000
+      DB_HOST: db
     ports:
       - '3080:3000'
 
