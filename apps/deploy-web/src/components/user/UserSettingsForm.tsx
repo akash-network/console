@@ -97,103 +97,101 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
   return (
     <Layout>
       <NextSeo title={user?.username} />
-      {user?.username && user?.bio && (
-        <UserProfileLayout page="settings" username={user.username} bio={user.bio}>
-          <FormPaper>
-            <Form {...form}>
-              <form onSubmit={handleSubmit(onSubmit)}>
-                <LabelValue label="Email" value={user.email} />
-                <LabelValue
-                  label="Username"
-                  value={
-                    <>
-                      <div className="flex items-center">
-                        <FormField
-                          name="username"
-                          control={control}
-                          render={({ field }) => {
-                            return <FormInput {...field} autoFocus className="mr-2" disabled={isFormDisabled} />;
-                          }}
-                        />
-                        {isCheckingAvailability && <Spinner size="small" />}
-                        <span className="flex flex-shrink-0 items-center whitespace-nowrap text-xs">
-                          {!isCheckingAvailability && isAvailable && (
-                            <>
-                              <CheckCircle className="text-green-600" />
-                              &nbsp;Username is available
-                            </>
-                          )}
-                          {!isCheckingAvailability && isAvailable === false && (
-                            <>
-                              <MdHighlightOff className="text-destructive" />
-                              &nbsp;Username is not available
-                            </>
-                          )}
-                        </span>
-                      </div>
-                      {errors.username && (
-                        <Alert className="mt-2" variant="destructive">
-                          {errors.username.message}
-                        </Alert>
-                      )}
-                    </>
-                  }
-                />
-                <LabelValue
-                  label="Subscribed to newsletter"
-                  value={
+      <UserProfileLayout page="settings" username={user.username} bio={user.bio}>
+        <FormPaper>
+          <Form {...form}>
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <LabelValue label="Email" value={user.email} />
+              <LabelValue
+                label="Username"
+                value={
+                  <>
                     <div className="flex items-center">
-                      <Controller
-                        name="subscribedToNewsletter"
+                      <FormField
+                        name="username"
                         control={control}
-                        render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />}
+                        render={({ field }) => {
+                          return <FormInput {...field} autoFocus className="mr-2" disabled={isFormDisabled} />;
+                        }}
                       />
+                      {isCheckingAvailability && <Spinner size="small" />}
+                      <span className="flex flex-shrink-0 items-center whitespace-nowrap text-xs">
+                        {!isCheckingAvailability && isAvailable && (
+                          <>
+                            <CheckCircle className="text-green-600" />
+                            &nbsp;Username is available
+                          </>
+                        )}
+                        {!isCheckingAvailability && isAvailable === false && (
+                          <>
+                            <MdHighlightOff className="text-destructive" />
+                            &nbsp;Username is not available
+                          </>
+                        )}
+                      </span>
                     </div>
-                  }
-                />
-                <LabelValue label="Bio" value={<Textarea disabled={isFormDisabled} rows={4} className="w-full" {...register("bio")} />} />
+                    {errors.username && (
+                      <Alert className="mt-2" variant="destructive">
+                        {errors.username.message}
+                      </Alert>
+                    )}
+                  </>
+                }
+              />
+              <LabelValue
+                label="Subscribed to newsletter"
+                value={
+                  <div className="flex items-center">
+                    <Controller
+                      name="subscribedToNewsletter"
+                      control={control}
+                      render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />}
+                    />
+                  </div>
+                }
+              />
+              <LabelValue label="Bio" value={<Textarea disabled={isFormDisabled} rows={4} className="w-full" {...register("bio")} />} />
 
-                <LabelValue
-                  label="Youtube"
-                  value={
-                    <FormField
-                      name="youtubeUsername"
-                      control={control}
-                      render={({ field }) => (
-                        <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://www.youtube.com/c/</div>} />
-                      )}
-                    />
-                  }
-                />
-                <LabelValue
-                  label="X"
-                  value={
-                    <FormField
-                      name="twitterUsername"
-                      control={control}
-                      render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://x.com/</div>} />}
-                    />
-                  }
-                />
-                <LabelValue
-                  label="Github"
-                  value={
-                    <FormField
-                      name="githubUsername"
-                      control={control}
-                      render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://github.com/</div>} />}
-                    />
-                  }
-                />
+              <LabelValue
+                label="Youtube"
+                value={
+                  <FormField
+                    name="youtubeUsername"
+                    control={control}
+                    render={({ field }) => (
+                      <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://www.youtube.com/c/</div>} />
+                    )}
+                  />
+                }
+              />
+              <LabelValue
+                label="X"
+                value={
+                  <FormField
+                    name="twitterUsername"
+                    control={control}
+                    render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://x.com/</div>} />}
+                  />
+                }
+              />
+              <LabelValue
+                label="Github"
+                value={
+                  <FormField
+                    name="githubUsername"
+                    control={control}
+                    render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://github.com/</div>} />}
+                  />
+                }
+              />
 
-                <Button type="submit" disabled={!canSave || isSaving}>
-                  {isSaving ? <Spinner size="small" /> : "Save"}
-                </Button>
-              </form>
-            </Form>
-          </FormPaper>
-        </UserProfileLayout>
-      )}
+              <Button type="submit" disabled={!canSave || isSaving}>
+                {isSaving ? <Spinner size="small" /> : "Save"}
+              </Button>
+            </form>
+          </Form>
+        </FormPaper>
+      </UserProfileLayout>
     </Layout>
   );
 };

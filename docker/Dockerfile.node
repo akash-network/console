@@ -31,7 +31,7 @@ RUN addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
     && adduser --system --uid $APP_GROUP_ID --ingroup $APP_GROUP $APP_USER
 
 COPY --from=builder /app/$WORKSPACE/dist /app/$WORKSPACE/dist
-COPY --from=builder /app/$WORKSPACE/.env* /app/$WORKSPACE
+COPY --from=builder /app/$WORKSPACE/env/* /app/$WORKSPACE/env/
 COPY --from=builder /app/packages /app/packages
 COPY --from=builder /app/package.json /app/package.json
 COPY --from=builder /app/package-lock.json /app/package-lock.json
