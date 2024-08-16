@@ -39,7 +39,7 @@ type Template = {
   guide?: string;
   githubUrl?: string;
   persistentStorageEnabled?: boolean;
-  config?: { ssh?: boolean };
+  config?: { ssh?: boolean; logoUrl?: string };
 };
 
 type TemplateSource = {
@@ -443,13 +443,14 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
         const deploy = await findFileContentAsync(["deploy.yaml", "deploy.yml"], response.data);
         const guide = await findFileContentAsync("GUIDE.md", response.data);
         const config = await findFileContentAsync("config.json", response.data);
+        const _config = config ? JSON.parse(config) : { ssh: false, logoUrl: "" };
 
         const template: Template = {
           name: templateSource.name,
           path: templateSource.path,
           logoUrl: templateSource.logoUrl,
           summary: templateSource.summary,
-          config: config ? JSON.parse(config) : { ssh: false }
+          config: _config
         };
 
         template.readme = readme && replaceLinks(readme, templateSource.repoOwner, templateSource.repoName, templateSource.repoVersion, templateSource.path);
@@ -459,7 +460,9 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
         template.githubUrl = `https://github.com/${templateSource.repoOwner}/${templateSource.repoName}/blob/${templateSource.repoVersion}/${templateSource.path}`;
 
         if (!template.logoUrl) {
-          template.logoUrl = getLogoFromPath(template.path);
+          const logoFromPath = getLogoFromPath(template.path);
+          const configLogo = _config?.logoUrl || "";
+          template.logoUrl = logoFromPath || configLogo;
         }
 
         if (!template.summary) {
