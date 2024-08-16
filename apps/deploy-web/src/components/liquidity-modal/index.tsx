@@ -31,15 +31,19 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
 };
 
 const convertWalletType = (walletName: string | undefined) => {
+  if (!window.LeapElements) {
+    return undefined;
+  }
+  const walletType = window.LeapElements.WalletType;
   switch (walletName) {
     case "leap-extension":
-      return window.LeapElements?.WalletType.LEAP;
+      return walletType.LEAP;
     case "keplr-extension":
-      return window.LeapElements?.WalletType.KEPLR;
+      return walletType.KEPLR;
     case "cosmostation-extension":
-      return window.LeapElements?.WalletType.COSMOSTATION;
+      return walletType.COSMOSTATION;
     case "keplr-mobile":
-      return window.LeapElements?.WalletType.WC_KEPLR_MOBILE;
+      return walletType.WC_KEPLR_MOBILE;
     default:
       return undefined;
   }
@@ -180,14 +184,12 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
     interval: 250
   });
 
-  const connectedWalletType = useMemo(() => (isElementsReady ? convertWalletType(walletName) : undefined), [walletName]);
+  const connectedWalletType = useMemo(() => (isElementsReady ? convertWalletType(walletName) : undefined), [isElementsReady, walletName]);
 
   useEffect(() => {
     if (isElementsReady && isOpen) {
       window.LeapElements?.mountElements?.({
         connectWallet: handleConnectWallet,
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
         connectedWalletType,
         element: {
           name: "multi-view",
