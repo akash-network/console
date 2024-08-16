@@ -1,10 +1,9 @@
 "use client";
 
-import "@src/elements.types";
-
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Spinner } from "@akashnetwork/ui/components";
 import { useWallet as useConnectedWallet, useWalletClient } from "@cosmos-kit/react";
+import * as Elements from "@leapwallet/elements-umd-types";
 import { Modal } from "@mui/material";
 import { event } from "nextjs-google-analytics";
 
@@ -30,7 +29,7 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
   );
 };
 
-const convertWalletType = (walletName: string | undefined) => {
+const convertWalletType = (walletName: string | undefined): Elements.WalletType | undefined => {
   if (!window.LeapElements) {
     return undefined;
   }
@@ -49,7 +48,7 @@ const convertWalletType = (walletName: string | undefined) => {
   }
 };
 
-const getTabsConfig = txnLifecycleHooks => {
+const getTabsConfig = <T,>(txnLifecycleHooks: Partial<Elements.TxnLifecycleHooks<T>>) => {
   return {
     aggregated: {
       enabled: true,
@@ -98,42 +97,7 @@ const getTabsConfig = txnLifecycleHooks => {
       },
       txnLifecycleHooks
     }
-  };
-};
-
-const usePolling = ({ pollFn, interval, shouldStop }: { pollFn: () => void; interval: number; shouldStop: () => boolean }) => {
-  const savedCallback = useRef(pollFn);
-  const savedStopCondition = useRef(shouldStop);
-  const intervalId = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    savedCallback.current = pollFn;
-  }, [pollFn]);
-
-  useEffect(() => {
-    savedStopCondition.current = shouldStop;
-  }, [shouldStop]);
-
-  useEffect(() => {
-    const clearCurrentInterval = () => {
-      if (intervalId.current !== null) {
-        clearInterval(intervalId.current);
-        intervalId.current = null;
-      }
-    };
-
-    const tick = () => {
-      if (savedStopCondition.current()) {
-        clearCurrentInterval();
-        return;
-      }
-      savedCallback.current();
-    };
-
-    intervalId.current = setInterval(tick, interval);
-
-    return clearCurrentInterval;
-  }, [interval]);
+  } satisfies Elements.TabsConfig;
 };
 
 type Props = { address: string; aktBalance: number; refreshBalances: () => void };
@@ -161,7 +125,7 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
   }, [isWalletConnected, walletClient]);
 
   const tabsConfig = useMemo(() => {
-    const txnLifecycleHooks = {
+    const txnLifecycleHooks: Partial<Elements.TxnLifecycleHooks<never>> = {
       onTxnComplete: () => {
         refreshBalances();
         event(AnalyticsEvents.LEAP_TRANSACTION_COMPLETE, {
@@ -173,16 +137,6 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
 
     return getTabsConfig(txnLifecycleHooks);
   }, [refreshBalances]);
-
-  usePolling({
-    pollFn: () => {
-      if (window.LeapElements) {
-        setIsElementsReady(true);
-      }
-    },
-    shouldStop: () => !!window.LeapElements,
-    interval: 250
-  });
 
   const connectedWalletType = useMemo(() => (isElementsReady ? convertWalletType(walletName) : undefined), [isElementsReady, walletName]);
 
@@ -212,6 +166,27 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
       document.body.style.overflow = "auto";
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!window) {
+      return;
+    }
+
+    if (window.LeapElements) {
+      setIsElementsReady(true);
+      return;
+    }
+
+    const cb = () => {
+      setIsElementsReady(true);
+    };
+
+    window.addEventListener("@leapwallet/elements:load", cb);
+
+    return () => {
+      window.removeEventListener("@leapwallet/elements:load", cb);
+    };
+  }, []);
 
   return (
     <>

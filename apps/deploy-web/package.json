@@ -35,8 +35,6 @@
     "@emotion/server": "^11.4.0",
     "@emotion/styled": "^11.8.1",
     "@hookform/resolvers": "^3.9.0",
-    "@leapwallet/elements": "^1.3.4",
-    "@leapwallet/name-matcha": "^1.7.1",
     "@monaco-editor/react": "^4.6.0",
     "@mui/icons-material": "^5.11.11",
     "@mui/material": "^5.4.4",
@@ -113,7 +111,7 @@
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
     "@keplr-wallet/types": "^0.12.111",
-    "@leapwallet/elements": "1.4.0",
+    "@leapwallet/elements-umd-types": "^1.5.1",
     "@next/bundle-analyzer": "^14.0.1",
     "@playwright/test": "^1.45.0",
     "@types/auth0": "^2.35.3",
