@@ -16,36 +16,34 @@ export const UserFavorites: React.FunctionComponent = () => {
   return (
     <Layout isLoading={isLoading}>
       <NextSeo title={user?.username} />
-      {user?.username && user?.bio && (
-        <UserProfileLayout page="favorites" username={user?.username} bio={user?.bio}>
-          {isLoadingTemplates && (
-            <div className="flex items-center justify-center p-8">
-              <Spinner size="large" />
+      <UserProfileLayout page="favorites" username={user?.username} bio={user?.bio}>
+        {isLoadingTemplates && (
+          <div className="flex items-center justify-center p-8">
+            <Spinner size="large" />
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+          {!isLoadingTemplates && favoriteTemplates?.length === 0 && (
+            <div className="p-4">
+              <p>No template favorites.</p>
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-            {!isLoadingTemplates && favoriteTemplates?.length === 0 && (
-              <div className="p-4">
-                <p>No template favorites.</p>
-              </div>
-            )}
-
-            {favoriteTemplates?.map(t => (
-              <TemplateGridButton
-                key={t.id}
-                template={t}
-                onClick={() => {
-                  event(AnalyticsEvents.USER_PROFILE_CLICK_TEMPLATE, {
-                    category: "profile",
-                    label: "Click on template from templates"
-                  });
-                }}
-              />
-            ))}
-          </div>
-        </UserProfileLayout>
-      )}
+          {favoriteTemplates?.map(t => (
+            <TemplateGridButton
+              key={t.id}
+              template={t}
+              onClick={() => {
+                event(AnalyticsEvents.USER_PROFILE_CLICK_TEMPLATE, {
+                  category: "profile",
+                  label: "Click on template from templates"
+                });
+              }}
+            />
+          ))}
+        </div>
+      </UserProfileLayout>
     </Layout>
   );
 };
