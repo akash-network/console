@@ -20,6 +20,7 @@ import remoteDeployStore from "@src/store/remoteDeployStore";
 import { ServiceType } from "@src/types";
 import { useSrcFolders } from "../api/api";
 import { useBitSrcFolders } from "../api/bitbucket-api";
+import { useGitlabSrcFolders } from "../api/gitlab-api";
 import CustomInput from "../CustomInput";
 import useFramework from "../FrameworkDetection";
 import { IGithubDirectoryItem } from "../remoteTypes";
@@ -73,7 +74,8 @@ const Repos = ({
     removeInitialUrl(currentRepo?.value),
     services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")?.value
   );
-  console.log(isGettingDirectoryBit, "isGettingDirectoryBit");
+
+  const { isLoading: isGettingDirectoryGitlab } = useGitlabSrcFolders(setFolders, services?.[0]?.env?.find(e => e.key === "GITLAB_PROJECT_ID")?.value);
 
   useEffect(() => {
     setFilteredRepos(repos);
@@ -129,6 +131,7 @@ const Repos = ({
                       size="sm"
                       disabled={currentRepo?.value === repo.html_url}
                       onClick={() => {
+                        setDirectory(null);
                         const repoUrl = { id: nanoid(), key: "REPO_URL", value: repo.html_url, isSecret: false };
                         const branchName = { id: nanoid(), key: "BRANCH_NAME", value: repo.default_branch, isSecret: false };
                         if (type === "github") {
@@ -166,7 +169,7 @@ const Repos = ({
                       {currentRepo?.value === repo.html_url ? "Selected" : "Select"}
                     </Button>
                   </div>
-                  {(isGettingDirectory || isGettingDirectoryBit) && currentRepo?.value === repo.html_url && (
+                  {(isGettingDirectory || isGettingDirectoryBit || isGettingDirectoryGitlab) && currentRepo?.value === repo.html_url && (
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-muted-foreground">Fetching Directory</p>
                       <Spinner size="small" />
@@ -175,7 +178,8 @@ const Repos = ({
                   {currentRepo?.value === repo.html_url &&
                     !isGettingDirectory &&
                     !isGettingDirectoryBit &&
-                    (directory && directory?.filter(item => item.type === "dir" || item.type === "commit_directory")?.length > 0 ? (
+                    !isGettingDirectoryGitlab &&
+                    (directory && directory?.filter(item => item.type === "dir" || item.type === "commit_directory" || item.type === "tree")?.length > 0 ? (
                       <div className="flex flex-col">
                         <div className="flex items-center justify-between pb-3">
                           <p className="text-muted-foregroun4 text-sm">Select Directory</p>
@@ -190,7 +194,7 @@ const Repos = ({
                           value={currentFolder?.value}
                         >
                           {directory
-                            ?.filter(item => item.type === "dir" || item.type === "commit_directory")
+                            ?.filter(item => item.type === "dir" || item.type === "commit_directory" || item.type === "tree")
                             .map(item => (
                               <div className="flex items-center justify-between py-0.5" key={item.path}>
                                 <Label htmlFor={item.path} className="flex items-center gap-2">

@@ -156,13 +156,34 @@ export const useGitLabCommits = (repo?: string, branch?: string) => {
   });
 };
 
-export const useGitlabPackageJson = (onSettled: (data: any) => void, repo?: string) => {
+export const useGitlabPackageJson = (onSettled: (data: any) => void, repo?: string, subFolder?: string) => {
   const [token] = useAtom(remoteDeployStore.tokens);
 
   return useQuery({
-    queryKey: ["packageJson", repo],
+    queryKey: ["packageJson-gitlab", repo, subFolder],
     queryFn: async () => {
-      const response = await axiosInstance.get(`/projects/${repo}/repository/files/package.json/raw`, {
+      const response = await axiosInstance.get(`/projects/${repo}/repository/files/${subFolder ? `${subFolder}/` : ""}package.json/raw`, {
+        headers: {
+          Authorization: `Bearer ${token?.access_token}`
+        }
+      });
+      return response.data;
+    },
+    enabled: !!token?.access_token && token.type === "gitlab" && !!repo,
+    onSettled: data => {
+      onSettled(data);
+    }
+  });
+};
+
+export const useGitlabSrcFolders = (onSettled: (data: any) => void, repo?: string) => {
+  const [token] = useAtom(remoteDeployStore.tokens);
+
+  return useQuery({
+    queryKey: ["src-folders-gitlab", repo],
+
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/projects/${repo}/repository/tree`, {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }
