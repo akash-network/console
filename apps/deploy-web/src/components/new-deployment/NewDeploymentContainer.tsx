@@ -18,6 +18,7 @@ import { CustomizedSteppers } from "./Stepper";
 import { TemplateList } from "./TemplateList";
 
 export const NewDeploymentContainer: FC = () => {
+  const [github, setGithub] = useState<boolean>(false);
   const { isLoading: isLoadingTemplates, templates } = useTemplates();
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
@@ -127,13 +128,15 @@ export const NewDeploymentContainer: FC = () => {
     <Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet containerClassName="pb-0">
       <div className="flex w-full items-center">{activeStep !== null && <CustomizedSteppers activeStep={activeStep} />}</div>
 
-      {activeStep === 0 && <TemplateList />}
+      {activeStep === 0 && <TemplateList setGithub={setGithub} />}
       {activeStep === 1 && (
         <ManifestEdit
           selectedTemplate={selectedTemplate}
           onTemplateSelected={setSelectedTemplate}
           editedManifest={editedManifest}
           setEditedManifest={setEditedManifest}
+          setGithub={setGithub}
+          github={github}
         />
       )}
       {activeStep === 2 && <CreateLease dseq={dseq as string} />}
