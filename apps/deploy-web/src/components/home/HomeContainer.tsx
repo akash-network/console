@@ -81,7 +81,6 @@ export function HomeContainer() {
           </div>
         )}
       </div>
-
       <Footer />
     </Layout>
   );

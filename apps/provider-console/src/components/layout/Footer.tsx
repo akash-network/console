@@ -13,19 +13,18 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
   return (
     <div className="mt-20 pb-12 text-center sm:text-left">
       <footer>
-        <div className="mb-4 grid grid-cols-1 gap-4">
+        <div>
+          This is footer space
+        </div>
+        {/* <div className="mb-4 grid grid-cols-1 gap-4">
           <div>
             <Title subTitle className="mb-2 tracking-tight">
-              Akash Console
+              Akash Console for Providers
             </Title>
-            <p className="text-sm font-light">
-              Akash Console is the #1 platform to deploy docker containers on the Akash Network, a decentralized cloud compute marketplace. Explore, deploy and
-              track all in one place!
-            </p>
           </div>
         </div>
 
-        <div className="mb-4 flex h-20 flex-col items-center justify-between sm:mb-0 sm:flex-row">
+        <div className="flex h-20 flex-col items-center justify-between sm:mb-0 sm:flex-row">
           <ul className="flex items-center justify-center sm:justify-normal">
             <li>
               <a
@@ -97,7 +96,7 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
             <Copyright className="text-xs" />
             &nbsp;Akash Network {year}
           </p>
-        </div>
+        </div> */}
       </footer>
     </div>
   );
