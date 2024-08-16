@@ -73,6 +73,7 @@ const Repos = ({
     removeInitialUrl(currentRepo?.value),
     services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")?.value
   );
+  console.log(isGettingDirectoryBit, "isGettingDirectoryBit");
 
   useEffect(() => {
     setFilteredRepos(repos);
@@ -146,13 +147,26 @@ const Repos = ({
                             { id: nanoid(), key: "BITBUCKET_USER", value: repo?.username, isSecret: false }
                           ]);
                         }
+                        if (type === "gitlab") {
+                          setValue("services.0.env", [
+                            repoUrl,
+                            branchName,
+                            { id: nanoid(), key: "GITLAB_ACCESS_TOKEN", value: token?.access_token, isSecret: false },
+                            {
+                              id: nanoid(),
+                              key: "GITLAB_PROJECT_ID",
+                              value: repo?.id?.toString(),
+                              isSecret: false
+                            }
+                          ]);
+                        }
                         setDeploymentName(repo.name);
                       }}
                     >
                       {currentRepo?.value === repo.html_url ? "Selected" : "Select"}
                     </Button>
                   </div>
-                  {isGettingDirectory && currentRepo?.value === repo.html_url && (
+                  {(isGettingDirectory || isGettingDirectoryBit) && currentRepo?.value === repo.html_url && (
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-muted-foreground">Fetching Directory</p>
                       <Spinner size="small" />
@@ -161,7 +175,7 @@ const Repos = ({
                   {currentRepo?.value === repo.html_url &&
                     !isGettingDirectory &&
                     !isGettingDirectoryBit &&
-                    (directory && directory?.length > 0 ? (
+                    (directory && directory?.filter(item => item.type === "dir" || item.type === "commit_directory")?.length > 0 ? (
                       <div className="flex flex-col">
                         <div className="flex items-center justify-between pb-3">
                           <p className="text-muted-foregroun4 text-sm">Select Directory</p>
