@@ -4,6 +4,7 @@ import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
+import { IGithubDirectoryItem } from "../remoteTypes";
 import { PROXY_API_URL_AUTH } from "../utils";
 
 const Github_API_URL = "https://api.github.com";
@@ -130,12 +131,12 @@ export const useCommits = (repo: string, branch: string) => {
   });
 };
 
-export const usePackageJson = (onSettled: (data: any) => void, repo?: string) => {
+export const usePackageJson = (onSettled: (data: any) => void, repo?: string, subFolder?: string) => {
   const [token] = useAtom(remoteDeployStore.tokens);
   return useQuery({
-    queryKey: ["packageJson", repo],
+    queryKey: ["packageJson", repo, subFolder],
     queryFn: async () => {
-      const response = await axiosInstance.get(`/repos/${repo}/contents/package.json`, {
+      const response = await axiosInstance.get(`/repos/${repo}/contents/${subFolder ? `${subFolder}/` : ""}package.json`, {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }
@@ -148,6 +149,24 @@ export const usePackageJson = (onSettled: (data: any) => void, repo?: string) =>
       const content = atob(data.content);
       const parsed = JSON.parse(content);
       onSettled(parsed);
+    }
+  });
+};
+export const useSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void, repo?: string) => {
+  const [token] = useAtom(remoteDeployStore.tokens);
+  return useQuery({
+    queryKey: ["srcFolders", repo],
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/repos/${repo}/contents`, {
+        headers: {
+          Authorization: `Bearer ${token?.access_token}`
+        }
+      });
+      return response.data;
+    },
+    enabled: !!token?.access_token && token.type === "github" && !!repo,
+    onSettled: data => {
+      onSettled(data);
     }
   });
 };

@@ -4,7 +4,6 @@ import { Control } from "react-hook-form";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { useRepos } from "../api/api";
 import Branches from "./Branches";
-import Framework from "./Framework";
 import Repos from "./Repos";
 
 const Github = ({
@@ -37,7 +36,6 @@ const Github = ({
         profile={profile}
       />
       <Branches services={services} control={control} />
-      <Framework services={services} setValue={setValue} />
     </>
   );
 };
