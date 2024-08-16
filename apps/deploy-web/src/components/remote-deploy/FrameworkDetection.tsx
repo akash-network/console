@@ -49,7 +49,7 @@ const useFramework = ({ services, setValue, repos, subFolder }: { services: Serv
   const setValueHandler = (data: any) => {
     setData(data);
     if (data?.dependencies) {
-      const cpus = (Object.keys(data?.dependencies ?? {}).length / 10 / 2).toFixed(1);
+      const cpus = (Object.keys(data?.dependencies ?? {})?.length / 10 / 2)?.toFixed(1);
       console.log("c", cpus);
 
       setValue("services.0.profile.cpu", +cpus > 0.5 ? +cpus : 0.5);
