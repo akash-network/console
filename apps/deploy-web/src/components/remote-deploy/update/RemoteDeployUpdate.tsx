@@ -20,7 +20,6 @@ import Branches from "../github/Branches";
 import GitBranches from "../gitlab/Branches";
 import { removeInitialUrl } from "../utils";
 const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: string; setEditedManifest: Dispatch<React.SetStateAction<string | null>> }) => {
-  console.log(sdlString);
   const [token] = useAtom(remoteDeployStore.tokens);
   const [, setIsInit] = useState(false);
   const { control, watch, setValue } = useForm<SdlBuilderFormValuesType>({ defaultValues: { services: [defaultService] } });
@@ -100,7 +99,7 @@ const SelectCommit = ({ services, control }: { services: ServiceType[]; control:
     services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")?.value
   );
   const { data: bitbucketCommits } = useBitBucketCommits(removeInitialUrl(services?.[0]?.env?.find(e => e.key === "REPO_URL")?.value ?? ""));
-  console.log(labCommits);
+
   return (
     <Field
       data={

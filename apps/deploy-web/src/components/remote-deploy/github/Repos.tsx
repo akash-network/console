@@ -19,6 +19,7 @@ import { nanoid } from "nanoid";
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { ServiceType } from "@src/types";
 import { useSrcFolders } from "../api/api";
+import { useBitSrcFolders } from "../api/bitbucket-api";
 import CustomInput from "../CustomInput";
 import useFramework from "../FrameworkDetection";
 import { IGithubDirectoryItem } from "../remoteTypes";
@@ -49,24 +50,30 @@ const Repos = ({
   const repo = repos?.find(r => r.html_url === currentRepo?.value);
   const [directory, setDirectory] = useState<IGithubDirectoryItem[] | null>(null);
   const currentFolder = services?.[0]?.env?.find(e => e.key === "FRONTEND_FOLDER");
-  const { currentFramework, isLoading: isFrameworkLoading } = useFramework({
+  const { currentFramework } = useFramework({
     services,
     setValue,
     repos,
     subFolder: currentFolder?.value
   });
 
-  console.log(currentFramework, isFrameworkLoading, "currentFramework");
-
-  const { isLoading: isGettingDirectory } = useSrcFolders(data => {
-    console.log(data, "data");
-
+  const setFolders = (data: IGithubDirectoryItem[]) => {
     if (data?.length > 0) {
       setDirectory(data);
     } else {
       setDirectory(null);
     }
-  }, removeInitialUrl(currentRepo?.value));
+  };
+  console.log(directory);
+
+  const { isLoading: isGettingDirectory } = useSrcFolders(setFolders, removeInitialUrl(currentRepo?.value));
+
+  const { isLoading: isGettingDirectoryBit } = useBitSrcFolders(
+    setFolders,
+    removeInitialUrl(currentRepo?.value),
+    services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")?.value
+  );
+
   useEffect(() => {
     setFilteredRepos(repos);
   }, [repos]);
@@ -153,6 +160,7 @@ const Repos = ({
                   )}
                   {currentRepo?.value === repo.html_url &&
                     !isGettingDirectory &&
+                    !isGettingDirectoryBit &&
                     (directory && directory?.length > 0 ? (
                       <div className="flex flex-col">
                         <div className="flex items-center justify-between pb-3">
@@ -168,7 +176,7 @@ const Repos = ({
                           value={currentFolder?.value}
                         >
                           {directory
-                            ?.filter(item => item.type === "dir")
+                            ?.filter(item => item.type === "dir" || item.type === "commit_directory")
                             .map(item => (
                               <div className="flex items-center justify-between py-0.5" key={item.path}>
                                 <Label htmlFor={item.path} className="flex items-center gap-2">

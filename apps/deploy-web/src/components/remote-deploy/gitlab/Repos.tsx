@@ -21,7 +21,6 @@ const Repos = ({
   setValue: any;
 }) => {
   const [open, setOpen] = useState(false);
-  console.log(services);
 
   const [token] = useAtom(remoteDeployStore.tokens);
   return (
