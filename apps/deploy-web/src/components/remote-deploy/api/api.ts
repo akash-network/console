@@ -58,12 +58,12 @@ export const useRepos = () => {
     },
     onError: (error: AxiosError<{ message: string }>) => {
       if (error?.response?.data?.message === "Bad credentials") {
-        console.log("Bad credentials");
+        console.log(error);
       }
     },
     onSettled: data => {
       if (data?.message === "Bad credentials") {
-        console.log("Bad credentials");
+        console.log(data);
       }
     },
     enabled: !!token?.access_token && token.type === "github"
@@ -95,7 +95,6 @@ export const useFetchAccessToken = () => {
 
 export const useBranches = (repo?: string, fetch?: boolean) => {
   const [token] = useAtom(remoteDeployStore.tokens);
-  console.log(fetch);
 
   return useQuery({
     queryKey: ["branches", repo, token?.access_token],

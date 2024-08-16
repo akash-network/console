@@ -20,7 +20,6 @@ const Repos = ({
   profile: any;
 }) => {
   const [open, setOpen] = useState(false);
-  console.log(repos);
 
   const [token] = useAtom(remoteDeployStore.tokens);
   return (

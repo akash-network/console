@@ -158,7 +158,6 @@ export const useGitLabCommits = (repo?: string, branch?: string) => {
 
 export const useGitlabPackageJson = (onSettled: (data: any) => void, repo?: string) => {
   const [token] = useAtom(remoteDeployStore.tokens);
-  console.log(repo);
 
   return useQuery({
     queryKey: ["packageJson", repo],
