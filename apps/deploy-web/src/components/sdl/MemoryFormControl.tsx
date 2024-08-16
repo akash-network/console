@@ -20,7 +20,6 @@ import { InfoCircle } from "iconoir-react";
 
 import { RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
 import { memoryUnits } from "@src/utils/akash/units";
-import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
