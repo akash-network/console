@@ -92,28 +92,28 @@ export const readableDenoms = {
 
 function getApiMainnetUrl() {
   if (ENV.API_MAINNET_BASE_URL) return ENV.API_MAINNET_BASE_URL;
-  if (typeof window === "undefined") return "http://localhost:3080";
+  if (typeof window === "undefined") return "https://api.cloudmos.io";
   if (productionHostnames.includes(window.location?.hostname)) return productionMainnetApiUrl;
-  return "http://localhost:3080";
+  return "https://api.cloudmos.io";
 }
 
 function getApiTestnetUrl() {
   if (ENV.API_TESTNET_BASE_URL) return ENV.API_TESTNET_BASE_URL;
-  if (typeof window === "undefined") return "http://localhost:3080";
+  if (typeof window === "undefined") return "https://api.cloudmos.io";
   if (productionHostnames.includes(window.location?.hostname)) return productionTestnetApiUrl;
-  return "http://localhost:3080";
+  return "https://api.cloudmos.io";
 }
 
 function getApiSandboxUrl() {
   if (ENV.API_SANDBOX_BASE_URL) return ENV.API_SANDBOX_BASE_URL;
-  if (typeof window === "undefined") return "http://localhost:3080";
+  if (typeof window === "undefined") return "https://api.cloudmos.io";
   if (productionHostnames.includes(window.location?.hostname)) return productionSandboxApiUrl;
-  return "http://localhost:3080";
+  return "https://api.cloudmos.io";
 }
 
 function getApiUrl() {
   if (ENV.API_BASE_URL) return ENV.API_BASE_URL;
-  if (typeof window === "undefined") return "http://localhost:3080";
+  if (typeof window === "undefined") return "https://api.cloudmos.io";
   if (productionHostnames.includes(window.location?.hostname)) {
     try {
       const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
@@ -123,7 +123,7 @@ function getApiUrl() {
       return productionMainnetApiUrl;
     }
   }
-  return "http://localhost:3080";
+  return "https://api.cloudmos.io";
 }
 
 function getStatsAppUrl() {

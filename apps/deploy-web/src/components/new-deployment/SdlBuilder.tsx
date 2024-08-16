@@ -17,10 +17,14 @@ import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { transformCustomSdlFields, TransformError } from "@src/utils/sdl/transformCustomSdlFields";
 import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
+import GithubDeploy from "./GihubDeploy";
 
 interface Props {
   sdlString: string | null;
   setEditedManifest: Dispatch<string>;
+  github?: boolean;
+  setDeploymentName: Dispatch<string>;
+  deploymentName: string;
 }
 
 export type SdlBuilderRefType = {
@@ -28,7 +32,7 @@ export type SdlBuilderRefType = {
   validate: () => Promise<boolean>;
 };
 
-export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlString, setEditedManifest }, ref) => {
+export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlString, setEditedManifest, github, setDeploymentName, deploymentName }, ref) => {
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [isInit, setIsInit] = useState(false);
@@ -53,7 +57,10 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
   });
   const { services: formServices = [] } = watch();
   const { data: gpuModels } = useGpuModels();
-  const [serviceCollapsed, setServiceCollapsed] = useState([]);
+  const [serviceCollapsed, setServiceCollapsed] = useState(github ? [0] : []);
+
+  console.log(serviceCollapsed);
+
   const wallet = useWallet();
   const managedDenom = useManagedWalletDenom();
 
@@ -146,42 +153,54 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
           <Spinner size="large" />
         </div>
       ) : (
-        <Form {...form}>
-          <form ref={formRef} autoComplete="off">
-            {formServices &&
-              services.map((service, serviceIndex) => (
-                <SimpleServiceFormControl
-                  key={service.id}
-                  serviceIndex={serviceIndex}
-                  gpuModels={gpuModels}
-                  setValue={setValue}
-                  _services={formServices as ServiceType[]}
-                  control={control}
-                  trigger={trigger}
-                  onRemoveService={onRemoveService}
-                  serviceCollapsed={serviceCollapsed}
-                  setServiceCollapsed={setServiceCollapsed}
-                  hasSecretOption={false}
-                />
-              ))}
+        <>
+          {github && (
+            <GithubDeploy
+              setValue={setValue}
+              services={formServices as ServiceType[]}
+              control={control}
+              setDeploymentName={setDeploymentName}
+              deploymentName={deploymentName}
+            />
+          )}
+          <Form {...form}>
+            <form ref={formRef} autoComplete="off">
+              {formServices &&
+                services.map((service, serviceIndex) => (
+                  <SimpleServiceFormControl
+                    key={service.id}
+                    serviceIndex={serviceIndex}
+                    gpuModels={gpuModels}
+                    setValue={setValue}
+                    _services={formServices as ServiceType[]}
+                    control={control}
+                    trigger={trigger}
+                    onRemoveService={onRemoveService}
+                    serviceCollapsed={serviceCollapsed}
+                    setServiceCollapsed={setServiceCollapsed}
+                    hasSecretOption={false}
+                    github={github}
+                  />
+                ))}
 
-            {error && (
-              <Alert variant="destructive" className="mt-4">
-                {error}
-              </Alert>
-            )}
+              {error && (
+                <Alert variant="destructive" className="mt-4">
+                  {error}
+                </Alert>
+              )}
 
-            {!hasComponent("ssh") && (
-              <div className="flex items-center justify-end pt-4">
-                <div>
-                  <Button variant="default" size="sm" type="button" onClick={onAddService}>
-                    Add Service
-                  </Button>
+              {!hasComponent("ssh") && !github && (
+                <div className="flex items-center justify-end pt-4">
+                  <div>
+                    <Button variant="default" size="sm" type="button" onClick={onAddService}>
+                      Add Service
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </form>
-        </Form>
+              )}
+            </form>
+          </Form>
+        </>
       )}
     </div>
   );

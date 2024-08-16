@@ -74,4 +74,50 @@ deployment:
 `
 };
 
-export const hardcodedTemplates = [sdlBuilderTemplate, helloWorldTemplate];
+export const github = {
+  title: "GitHub",
+  name: "GitHub",
+  code: "github",
+  category: "General",
+  description: "Get started with a simple linux Ubuntu server!",
+  githubUrl: "",
+  valuesToChange: [],
+  content: `---
+version: "2.0"
+services:
+  service-1:
+    image: hoomanhq/automation:0.417
+    expose:
+      - port: 3000
+        as: 80
+        to:
+          - global: true
+      - port: 8080
+        as: 8080
+        to:
+          - global: true
+profiles:
+  compute:
+    service-1:
+      resources:
+        cpu:
+          units: 2
+        memory:
+          size: 12GB
+        storage:
+          - size: 8Gi
+  placement:
+    dcloud:
+      pricing:
+        service-1:
+          denom: uakt
+          amount: 1000
+deployment:
+  service-1:
+    dcloud:
+      profile: service-1
+      count: 1
+`
+};
+
+export const hardcodedTemplates = [sdlBuilderTemplate, helloWorldTemplate, github];

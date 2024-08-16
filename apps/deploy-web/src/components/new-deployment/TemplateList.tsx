@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { Dispatch, useEffect, useState } from "react";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { ArrowRight, Cpu, Page, Rocket, Wrench } from "iconoir-react";
 import { NavArrowLeft } from "iconoir-react";
@@ -30,14 +30,19 @@ const previewTemplateIds = [
   "akash-network-awesome-akash-grok",
   "akash-network-awesome-akash-FastChat"
 ];
-
-export const TemplateList: React.FunctionComponent = () => {
+type Props = {
+  setGithub: Dispatch<boolean>;
+};
+export const TemplateList: React.FunctionComponent<Props> = ({ setGithub }) => {
   const { templates } = useTemplates();
   const router = useRouter();
   const [previewTemplates, setPreviewTemplates] = useState<ApiTemplate[]>([]);
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const previousRoute = usePreviousRoute();
-
+  const handleGithubTemplate = async () => {
+    setGithub(true);
+    router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, type: "github" }));
+  };
   useEffect(() => {
     if (templates) {
       const _previewTemplates = previewTemplateIds.map(x => templates.find(y => x === y.id)).filter(x => !!x);
@@ -73,11 +78,17 @@ export const TemplateList: React.FunctionComponent = () => {
 
       <div className="mb-8">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
-          <DeployOptionBox
+          {/* <DeployOptionBox
             title={helloWorldTemplate.title}
             description={helloWorldTemplate.description}
             icon={<Rocket className="rotate-45" />}
             onClick={() => router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: helloWorldTemplate.code }))}
+          /> */}
+          <DeployOptionBox
+            title={"Build and Deploy"}
+            description={"Deploy directly from GitHub/BitBucket/GitLab"}
+            icon={<Rocket />}
+            onClick={handleGithubTemplate}
           />
 
           <DeployOptionBox
