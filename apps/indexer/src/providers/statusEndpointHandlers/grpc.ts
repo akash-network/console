@@ -1,4 +1,4 @@
-import { NodeResources, Storage } from "@akashnetwork/akash-api/akash/inventory/v1";
+import { NodeResources } from "@akashnetwork/akash-api/akash/inventory/v1";
 import { ResourcesMetric, Status } from "@akashnetwork/akash-api/akash/provider/v1";
 import { ProviderRPCClient } from "@akashnetwork/akash-api/akash/provider/v1/grpc-js";
 import { Empty } from "@akashnetwork/akash-api/google/protobuf";
@@ -9,6 +9,7 @@ import { promisify } from "util";
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
 import { FakeInsecureCredentials } from "./fake-insecure-credentials";
 import { ProviderStatusInfo } from "./types";
+import minutesToMilliseconds from "date-fns/minutesToMilliseconds";
 
 export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
   const data = await queryStatus(provider.hostUri, timeout);
@@ -104,7 +105,10 @@ const createProviderClient = memoize((hostUri: string) => {
 
   // TODO: refactor to use on-change cert validation
   //  Issue: https://github.com/akash-network/console/issues/170
-  const client = new ProviderRPCClient(url, FakeInsecureCredentials.createInsecure());
+  const client = new ProviderRPCClient(url, FakeInsecureCredentials.createInsecure(), {
+    "grpc.keepalive_time_ms": minutesToMilliseconds(5),
+    "grpc.keepalive_permit_without_calls": 1
+  });
   const getStatus = promisify(client.getStatus.bind(client));
 
   return {
