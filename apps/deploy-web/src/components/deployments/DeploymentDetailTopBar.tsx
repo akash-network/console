@@ -33,6 +33,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const deploymentName = getDeploymentName(deployment?.dseq);
   const previousRoute = usePreviousRoute();
+  const wallet = useWallet();
 
   function handleBackClick() {
     if (previousRoute) {
@@ -117,9 +118,11 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant="default" className="ml-2 whitespace-nowrap" onClick={() => setIsDepositingDeployment(true)} size="sm">
-              Add funds
-            </Button>
+            {!wallet.isManaged && (
+              <Button variant="default" className="ml-2 whitespace-nowrap" onClick={() => setIsDepositingDeployment(true)} size="sm">
+                Add funds
+              </Button>
+            )}
           </div>
         )}
 

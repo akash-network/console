@@ -38,7 +38,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
   const [isSendingManifest, setIsSendingManifest] = useState(false);
   const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
   const { settings } = useSettings();
-  const { address, signAndBroadcastTx } = useWallet();
+  const { address, signAndBroadcastTx, isManaged: isManagedWallet } = useWallet();
   const { data: providers } = useProviderList();
   const { localCert, isLocalCertMatching, createCertificate, isCreatingCert } = useCertificate();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
@@ -139,10 +139,12 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
         saveDeploymentManifest(dd.deploymentId.dseq, editedManifest, dd.version, address);
 
-        sendManifestKey = enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
-          variant: "info",
-          autoHideDuration: null
-        });
+        sendManifestKey =
+          !isManagedWallet &&
+          enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
+            variant: "info",
+            autoHideDuration: null
+          });
 
         const leaseProviders = leases.map(lease => lease.provider).filter((v, i, s) => s.indexOf(v) === i);
 
@@ -158,14 +160,19 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
         setIsSendingManifest(false);
 
-        closeSnackbar(sendManifestKey);
+        if (sendManifestKey) {
+          closeSnackbar(sendManifestKey);
+        }
 
         closeManifestEditor();
       }
     } catch (error) {
       console.error(error);
       setIsSendingManifest(false);
-      closeSnackbar(sendManifestKey);
+
+      if (sendManifestKey) {
+        closeSnackbar(sendManifestKey);
+      }
     }
   }
 
