@@ -57,6 +57,7 @@ type ContextType = {
   isManaged: boolean;
   isWalletLoading: boolean;
   isTrialing: boolean;
+  creditAmount?: number;
 };
 
 const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
@@ -350,7 +351,8 @@ export const WalletProvider = ({ children }) => {
         refreshBalances,
         isManaged: !!managedWallet,
         isWalletLoading: isLoading,
-        isTrialing: !!managedWallet?.isTrialing
+        isTrialing: !!managedWallet?.isTrialing,
+        creditAmount: managedWallet?.creditAmount
       }}
     >
       {children}

@@ -1,15 +1,17 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { MdRestartAlt } from "react-icons/md";
 import { Button, buttonVariants, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
 import Step from "@mui/material/Step";
 import StepContent from "@mui/material/StepContent";
 import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
-import { Check, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
+import { Check, CreditCard, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
+import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
+import { envConfig } from "@src/config/env.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { RouteStepKeys } from "@src/utils/constants";
@@ -45,7 +47,7 @@ const LiquidityModal = dynamic(
 
 export const GetStartedStepper: React.FunctionComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
-  const { isWalletConnected, walletBalances, address, refreshBalances } = useWallet();
+  const { isWalletConnected, walletBalances, address, refreshBalances, isManaged: isManagedWallet, isTrialing } = useWallet();
   const { minDeposit } = useChainParam();
   const aktBalance = walletBalances ? uaktToAKT(walletBalances.uakt) : 0;
   const usdcBalance = walletBalances ? udenomToDenom(walletBalances.usdc) : 0;
@@ -88,41 +90,73 @@ export const GetStartedStepper: React.FunctionComponent = () => {
           onClick={() => (activeStep > 0 ? onStepClick(0) : null)}
           classes={{ label: cn("text-xl tracking-tight", { ["cursor-pointer hover:text-primary"]: activeStep > 0, ["!font-bold"]: activeStep === 0 }) }}
         >
-          Wallet
+          {envConfig.NEXT_PUBLIC_BILLING_ENABLED ? "Trial / Billing" : "Billing"}
         </StepLabel>
 
         <StepContent>
-          <p className="text-muted-foreground">
-            You need at least {minDeposit.akt} AKT or {minDeposit.usdc} USDC in your wallet to deploy on Akash. If you don't have {minDeposit.akt} AKT or{" "}
-            {minDeposit.usdc} USDC, you can switch to the sandbox or ask help in our <ExternalLink href="https://discord.gg/akash" text="Discord" />.
-          </p>
+          {envConfig.NEXT_PUBLIC_BILLING_ENABLED && !isWalletConnected && (
+            <p className="text-muted-foreground">
+              You can pay using either USD (fiat) or with crypto ($AKT or $USDC). To pay with USD, either click "Start Trial" or "Add Credit Card". To pay with
+              crypto, click "Connect Wallet"
+            </p>
+          )}
+
+          {isWalletConnected && !isManagedWallet && (
+            <div className="my-4 flex items-center space-x-2">
+              <Check className="text-green-600" />
+              <span>Wallet is installed</span>{" "}
+            </div>
+          )}
+
+          {!isManagedWallet && (
+            <p className="text-muted-foreground">
+              You need at least {minDeposit.akt} AKT or {minDeposit.usdc} USDC in your wallet to deploy on Akash. If you don't have {minDeposit.akt} AKT or{" "}
+              {minDeposit.usdc} USDC, you can switch to the sandbox or ask help in our <ExternalLink href="https://discord.gg/akash" text="Discord" />.
+            </p>
+          )}
 
           <div className="my-4 flex items-center space-x-4">
             <Button variant="default" onClick={handleNext}>
               Next
             </Button>
-            <Link className={cn(buttonVariants({ variant: "text" }))} href={UrlService.getStartedWallet()}>
-              Learn how
-            </Link>
+            {!isManagedWallet && (
+              <Link className={cn(buttonVariants({ variant: "text" }))} href={UrlService.getStartedWallet()}>
+                Learn how
+              </Link>
+            )}
           </div>
 
-          <div className="my-4 flex items-center space-x-2">
-            <Check className="text-green-600" />
-            <span>Wallet is installed</span>
-          </div>
-
-          {isWalletConnected ? (
+          {isWalletConnected && isTrialing && (
             <div className="my-4 flex items-center space-x-2">
               <Check className="text-green-600" />
-              <span>Wallet is connected</span>
+              <span>Trialing</span>
             </div>
-          ) : (
+          )}
+
+          {isWalletConnected && isManagedWallet && !isTrialing && (
+            <div className="my-4 flex items-center space-x-2">
+              <Check className="text-green-600" />
+              <span>Billing is set up</span>
+            </div>
+          )}
+
+          {!isWalletConnected && (
             <div>
               <div className="my-4 flex items-center space-x-2">
                 <XmarkCircleSolid className="text-destructive" />
-                <span>Wallet is not connected</span>
+                <span>Billing is not set up</span>
               </div>
 
+              {envConfig.NEXT_PUBLIC_BILLING_ENABLED && (
+                <>
+                  <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />
+
+                  <Button variant="outline" className="mr-2 border-primary">
+                    <CreditCard className="text-xs" />
+                    <span className="m-2 whitespace-nowrap">Add Credit Card</span>
+                  </Button>
+                </>
+              )}
               <ConnectWalletButton />
             </div>
           )}
@@ -143,10 +177,16 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                   <WarningCircle className="text-warning" />
                 </CustomTooltip>
               )}
-              <span>
-                You have <strong>{aktBalance}</strong> AKT and <strong>{usdcBalance}</strong> USDC
-              </span>
-              <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} />
+              {isManagedWallet ? (
+                <span>
+                  You have <strong>${usdcBalance}</strong>
+                </span>
+              ) : (
+                <span>
+                  You have <strong>{aktBalance}</strong> AKT and <strong>{usdcBalance}</strong> USDC
+                </span>
+              )}
+              {!isManagedWallet && <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} />}
             </div>
           )}
         </StepContent>
@@ -156,7 +196,12 @@ export const GetStartedStepper: React.FunctionComponent = () => {
         <StepLabel
           StepIconComponent={QontoStepIcon}
           onClick={() => onStepClick(1)}
-          classes={{ label: cn("text-xl tracking-tight", { ["cursor-pointer hover:text-primary"]: activeStep > 1, ["!font-bold"]: activeStep === 1 }) }}
+          classes={{
+            label: cn("text-xl tracking-tight", {
+              ["cursor-pointer hover:text-primary"]: activeStep > 1,
+              ["!font-bold"]: activeStep === 1
+            })
+          }}
         >
           Docker container
         </StepLabel>
