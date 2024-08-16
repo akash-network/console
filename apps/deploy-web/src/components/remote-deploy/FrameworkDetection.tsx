@@ -64,7 +64,8 @@ const useFramework = ({ services, setValue, repos, subFolder }: { services: Serv
   const { isLoading: bitbucketLoading } = useBitPackageJson(
     setValueHandler,
     removeInitialUrl(selected),
-    services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")?.value
+    services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")?.value,
+    subFolder
   );
 
   return {
