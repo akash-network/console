@@ -13,7 +13,6 @@ import sdlStore from "@src/store/sdlStore";
 import { ApiTemplate } from "@src/types";
 import { RouteStepKeys } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
-import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
