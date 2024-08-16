@@ -30,7 +30,8 @@ const Repos = ({
   isLoading,
   services,
   setDeploymentName,
-  profile
+  profile,
+  type = "github"
 }: {
   repos: any;
   setValue: any;
@@ -39,6 +40,7 @@ const Repos = ({
   setDeploymentName: Dispatch<string>;
   deploymentName: string;
   profile: any;
+  type?: "github" | "gitlab" | "bitbucket";
 }) => {
   const [token] = useAtom(remoteDeployStore.tokens);
   const [search, setSearch] = useState("");
@@ -119,11 +121,24 @@ const Repos = ({
                       size="sm"
                       disabled={currentRepo?.value === repo.html_url}
                       onClick={() => {
-                        setValue("services.0.env", [
-                          { id: nanoid(), key: "REPO_URL", value: repo.html_url, isSecret: false },
-                          { id: nanoid(), key: "BRANCH_NAME", value: repo.default_branch, isSecret: false },
-                          { id: nanoid(), key: "GITHUB_ACCESS_TOKEN", value: token?.access_token, isSecret: false }
-                        ]);
+                        const repoUrl = { id: nanoid(), key: "REPO_URL", value: repo.html_url, isSecret: false };
+                        const branchName = { id: nanoid(), key: "BRANCH_NAME", value: repo.default_branch, isSecret: false };
+                        if (type === "github") {
+                          setValue("services.0.env", [
+                            repoUrl,
+                            branchName,
+
+                            { id: nanoid(), key: "GITHUB_ACCESS_TOKEN", value: token?.access_token, isSecret: false }
+                          ]);
+                        }
+                        if (type === "bitbucket") {
+                          setValue("services.0.env", [
+                            repoUrl,
+                            branchName,
+                            { id: nanoid(), key: "BITBUCKET_ACCESS_TOKEN", value: token?.access_token, isSecret: false },
+                            { id: nanoid(), key: "BITBUCKET_USER", value: repo?.username, isSecret: false }
+                          ]);
+                        }
                         setDeploymentName(repo.name);
                       }}
                     >
@@ -142,7 +157,7 @@ const Repos = ({
                       <div className="flex flex-col">
                         <div className="flex items-center justify-between pb-3">
                           <p className="text-muted-foregroun4 text-sm">Select Directory</p>
-                          <p className="text-sm text-muted-foreground"> {currentFramework?.title}</p>
+                          {/* <p className="text-sm text-muted-foreground"> {currentFramework?.title}</p> */}
                         </div>
 
                         <RadioGroup
@@ -180,7 +195,7 @@ const Repos = ({
                 <Spinner size="medium" />
               </div>
             )}
-            {filteredRepos.length === 0 && <div className="flex items-center justify-center p-4">No Repository Found</div>}
+            {filteredRepos?.length === 0 && <div className="flex items-center justify-center p-4">No Repository Found</div>}
           </div>
         </DialogContent>
       </Dialog>
