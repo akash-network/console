@@ -10,13 +10,13 @@ import { UrlService } from "@src/utils/urlUtils";
 
 type UserProfileTab = "templates" | "favorites" | "address-book" | "settings";
 type Props = {
-  username: string;
-  bio: string;
+  username?: string;
+  bio?: string;
   children?: ReactNode;
   page: UserProfileTab;
 };
 
-export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, children, username, bio }) => {
+export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, children, username = "", bio }) => {
   const router = useRouter();
   const { user } = useCustomUser();
 

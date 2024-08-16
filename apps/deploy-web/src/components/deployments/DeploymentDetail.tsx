@@ -41,7 +41,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
     refetch: getDeploymentDetail,
     error: deploymentError
   } = useDeploymentDetail(address, dseq, {
-    enabled: false,
+    enabled: !deploymentManifest,
     onSuccess: _deploymentDetail => {
       if (_deploymentDetail) {
         getLeases();
