@@ -56,10 +56,7 @@ const useFramework = ({ services, setValue, repos, subFolder }: { services: Serv
   };
 
   const { isLoading } = usePackageJson(setValueHandler, removeInitialUrl(selected), subFolder);
-  const { isLoading: gitlabLoading } = useGitlabPackageJson(
-    setValueHandler,
-    repos?.find(e => e.web_url === services?.[0]?.env?.find(e => e.key === "REPO_URL")?.value)?.id
-  );
+  const { isLoading: gitlabLoading } = useGitlabPackageJson(setValueHandler, services?.[0]?.env?.find(e => e.key === "GITLAB_PROJECT_ID")?.value, subFolder);
 
   const { isLoading: bitbucketLoading } = useBitPackageJson(
     setValueHandler,

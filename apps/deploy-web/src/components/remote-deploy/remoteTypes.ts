@@ -1,5 +1,5 @@
 export interface IGithubDirectoryItem {
-  type: "file" | "dir" | "commit_directory";
+  type: "file" | "dir" | "commit_directory" | "tree";
   size: number;
   name: string;
   path: string;
