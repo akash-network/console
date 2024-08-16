@@ -19,9 +19,10 @@ import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { deploymentData } from "@src/utils/deploymentData";
-import { getDeploymentLocalData, saveDeploymentManifest } from "@src/utils/deploymentLocalDataUtils";
+import { saveDeploymentManifest } from "@src/utils/deploymentLocalDataUtils";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import RemoteDeployUpdate from "../remote-deploy/update/RemoteDeployUpdate";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import { Title } from "../shared/Title";
 
@@ -29,14 +30,32 @@ type Props = {
   deployment: DeploymentDto;
   leases: LeaseDto[];
   closeManifestEditor: () => void;
+  remoteDeploy: boolean;
+  showOutsideDeploymentMessage: boolean;
+  editedManifest: string;
+  deploymentVersion: string | null;
+  setDeploymentVersion: (value: React.SetStateAction<string | null>) => void;
+  setEditedManifest: (value: React.SetStateAction<string>) => void;
+  setShowOutsideDeploymentMessage: (value: React.SetStateAction<boolean>) => void;
 };
 
-export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, leases, closeManifestEditor }) => {
+export const ManifestUpdate: React.FunctionComponent<Props> = ({
+  deployment,
+  leases,
+  closeManifestEditor,
+  remoteDeploy,
+  showOutsideDeploymentMessage,
+  editedManifest,
+  deploymentVersion,
+  setDeploymentVersion,
+  setEditedManifest,
+  setShowOutsideDeploymentMessage
+}) => {
   const [parsingError, setParsingError] = useState<string | null>(null);
-  const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
-  const [editedManifest, setEditedManifest] = useState("");
+  console.log(showOutsideDeploymentMessage);
+
   const [isSendingManifest, setIsSendingManifest] = useState(false);
-  const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
+
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged: isManagedWallet } = useWallet();
   const { data: providers } = useProviderList();
@@ -244,6 +263,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
                     disabled={!!parsingError || !editedManifest || !providers || isSendingManifest || deployment.state !== "active"}
                     onClick={() => handleUpdateClick()}
                     size="sm"
+                    type="button"
                   >
                     Update Deployment
                   </Button>
@@ -254,10 +274,12 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
             {parsingError && <Alert variant="warning">{parsingError}</Alert>}
 
             <LinearLoadingSkeleton isLoading={isSendingManifest} />
-
-            <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
-              <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
-            </ViewPanel>
+            <RemoteDeployUpdate sdlString={editedManifest} setEditedManifest={setEditedManifest} />
+            {!remoteDeploy && (
+              <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
+                <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
+              </ViewPanel>
+            )}
           </div>
         </>
       )}

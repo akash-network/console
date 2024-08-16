@@ -138,14 +138,14 @@ function getProviderProxyHttpUrl() {
   if (typeof window === "undefined") return "http://localhost:3040";
   if (window.location?.hostname === "deploybeta.cloudmos.io") return "https://deployproxybeta.cloudmos.io";
   if (productionHostnames.includes(window.location?.hostname)) return "https://providerproxy.cloudmos.io";
-  return "http://localhost:3040";
+  return "https://providerproxy.cloudmos.io";
 }
 
 function getProviderProxyWsUrl() {
   if (typeof window === "undefined") return "ws://localhost:3040";
   if (window.location?.hostname === "deploybeta.cloudmos.io") return "wss://deployproxybeta.cloudmos.io";
   if (productionHostnames.includes(window.location?.hostname)) return "wss://providerproxy.cloudmos.io";
-  return "ws://localhost:3040";
+  return "wss://providerproxy.cloudmos.io";
 }
 
 export let selectedNetworkId = "";

@@ -42,6 +42,7 @@ type Props = {
   dseq: string;
   providers: ApiProviderList[];
   loadDeploymentDetail: () => void;
+  remoteDeploy?: boolean;
 };
 
 export type AcceptRefType = {
@@ -212,7 +213,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
             />
 
             <LabelValueOld
-              label="Provider:"
+              label="Price:"
               value={
                 <>
                   {isLeaseActive && isLoadingProviderStatus && <Spinner size="small" className="mr-2" />}

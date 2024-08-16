@@ -4,8 +4,9 @@ import { createRef, useEffect, useState } from "react";
 import { Alert, Button, buttonVariants, Spinner, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { ArrowLeft } from "iconoir-react";
+import yaml from "js-yaml";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
 
@@ -28,7 +29,10 @@ import { DeploymentSubHeader } from "./DeploymentSubHeader";
 import { LeaseRow } from "./LeaseRow";
 import { ManifestUpdate } from "./ManifestUpdate";
 
-export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: string }>) {
+export function DeploymentDetail() {
+  const dseq = (useParams()?.dseq as string) ?? "";
+  console.log(dseq);
+
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
   const { address, isWalletLoaded } = useWallet();
@@ -130,6 +134,37 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
       label: `Navigate tab ${value} in deployment detail`
     });
   };
+  const [remoteDeploy, setRemoteDeploy] = useState<boolean>(false);
+  const [editedManifest, setEditedManifest] = useState<string | null>(null);
+  const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
+  const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
+  useEffect(() => {
+    const init = async () => {
+      const localDeploymentData = getDeploymentLocalData(deployment?.dseq || "");
+      console.log("localDeploymentData", !!localDeploymentData && !!localDeploymentData?.manifest);
+
+      if (localDeploymentData && localDeploymentData.manifest) {
+        setShowOutsideDeploymentMessage(false);
+        setEditedManifest(localDeploymentData?.manifest);
+        const yamlVersion = yaml.load(localDeploymentData?.manifest);
+        const version = await deploymentData.getManifestVersion(yamlVersion);
+
+        setDeploymentVersion(version);
+      } else {
+        console.log("klsj");
+
+        setShowOutsideDeploymentMessage(true);
+      }
+    };
+
+    init();
+  }, [deployment]);
+
+  useEffect(() => {
+    if (editedManifest && github.content.includes(editedManifest?.split("service-1:")?.[1]?.split("expose:")?.[0]?.split("image: ")?.[1])) {
+      setRemoteDeploy(true);
+    }
+  }, [editedManifest]);
 
   return (
     <Layout isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders} isUsingSettings isUsingWallet containerClassName="pb-0">
@@ -189,6 +224,13 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
 
             {activeTab === "EDIT" && deployment && leases && (
               <ManifestUpdate
+                editedManifest={editedManifest as string}
+                deploymentVersion={deploymentVersion}
+                setEditedManifest={setEditedManifest}
+                setDeploymentVersion={setDeploymentVersion}
+                setShowOutsideDeploymentMessage={setShowOutsideDeploymentMessage}
+                showOutsideDeploymentMessage={showOutsideDeploymentMessage}
+                remoteDeploy={remoteDeploy}
                 deployment={deployment}
                 leases={leases}
                 closeManifestEditor={() => {
@@ -224,6 +266,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
                       dseq={dseq}
                       providers={providers || []}
                       loadDeploymentDetail={loadDeploymentDetail}
+                      remoteDeploy={remoteDeploy}
                     />
                   ))}
 
