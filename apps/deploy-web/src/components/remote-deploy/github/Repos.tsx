@@ -1,12 +1,29 @@
-import { Dispatch, useState } from "react";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectSeparator, SelectTrigger, SelectValue, Spinner } from "@akashnetwork/ui/components";
-import { GithubCircle, Lock, Plus } from "iconoir-react";
+import { Dispatch, useEffect, useState } from "react";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  Input,
+  Label,
+  RadioGroup,
+  RadioGroupItem,
+  Spinner
+} from "@akashnetwork/ui/components";
+import { Folder, GithubCircle, Lock } from "iconoir-react";
 import { useAtom } from "jotai";
 import { nanoid } from "nanoid";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { ServiceType } from "@src/types";
-import { handleLogin } from "../api/api";
+import { useSrcFolders } from "../api/api";
+import CustomInput from "../CustomInput";
+import useFramework from "../FrameworkDetection";
+import { IGithubDirectoryItem } from "../remoteTypes";
+import { appendEnv, removeInitialUrl } from "../utils";
+// import { handleLogin } from "../api/api";
 const Repos = ({
   repos,
   setValue,
@@ -23,10 +40,34 @@ const Repos = ({
   deploymentName: string;
   profile: any;
 }) => {
-  const [open, setOpen] = useState(false);
-
   const [token] = useAtom(remoteDeployStore.tokens);
+  const [search, setSearch] = useState("");
+  const [filteredRepos, setFilteredRepos] = useState(repos);
+  const currentRepo = services?.[0]?.env?.find(e => e.key === "REPO_URL");
+  const repo = repos?.find(r => r.html_url === currentRepo?.value);
+  const [directory, setDirectory] = useState<IGithubDirectoryItem[] | null>(null);
+  const currentFolder = services?.[0]?.env?.find(e => e.key === "FRONTEND_FOLDER");
+  const { currentFramework, isLoading: isFrameworkLoading } = useFramework({
+    services,
+    setValue,
+    repos,
+    subFolder: currentFolder?.value
+  });
 
+  console.log(currentFramework, isFrameworkLoading, "currentFramework");
+
+  const { isLoading: isGettingDirectory } = useSrcFolders(data => {
+    console.log(data, "data");
+
+    if (data?.length > 0) {
+      setDirectory(data);
+    } else {
+      setDirectory(null);
+    }
+  }, removeInitialUrl(currentRepo?.value));
+  useEffect(() => {
+    setFilteredRepos(repos);
+  }, [repos]);
   return (
     <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
       <div className="flex flex-col gap-2">
@@ -34,57 +75,115 @@ const Repos = ({
         <p className="text-muted-foreground">The Repository Branch used for your private service</p>
       </div>
 
-      <Select
-        onOpenChange={value => {
-          setOpen(value);
-        }}
-        value={services?.[0]?.env?.find(e => e.key === "REPO_URL")?.value}
-        open={open}
-        onValueChange={value => {
-          if (value === "add") {
-            handleLogin();
-            return;
-          }
-          const curRepo = repos?.find(repo => repo.html_url === value);
-          const access_token = { id: nanoid(), key: "GITHUB_ACCESS_TOKEN", value: token?.access_token, isSecret: false };
-          const repo_url = { id: nanoid(), key: "REPO_URL", value: value, isSecret: false };
-          const branch_name = { id: nanoid(), key: "BRANCH_NAME", value: curRepo?.default_branch, isSecret: false };
-          setValue("services.0.env", curRepo?.private ? [repo_url, branch_name, access_token] : [repo_url, branch_name]);
-          setDeploymentName(curRepo?.name);
-        }}
-      >
-        <SelectTrigger className="w-full">
-          <div className="flex items-center gap-2">
-            {isLoading && <Spinner size="small" />}
-            <SelectValue placeholder={"Select Repository"} />
-          </div>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectItem value="add">
-              <div className="flex items-center">
-                <Plus className="mr-2" />
-                Add More Repositories
-              </div>
-            </SelectItem>
-            <SelectSeparator />
-
-            {repos
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button variant="outline" className="flex justify-between bg-card">
+            <div className="flex items-center gap-2">
+              {currentFramework && <img src={currentFramework.image} alt={currentFramework.title} className="h-6 w-6" />}
+              <p>{repo?.name || "Select Repository"}</p>
+            </div>
+            <Folder />
+          </Button>
+        </DialogTrigger>
+        <DialogContent hideCloseButton className="max-h-[80dvh] gap-0 overflow-y-auto p-0 sm:max-w-[525px]">
+          <DialogHeader className="sticky top-0 z-[5] flex flex-col gap-4 bg-popover px-5 pb-4 pt-6">
+            <DialogTitle>Search Repository</DialogTitle>
+            <Input
+              placeholder="Search..."
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value);
+                setFilteredRepos(repos.filter((repo: any) => repo.name.includes(e.target.value)));
+              }}
+            />
+          </DialogHeader>
+          <div className="flex flex-col">
+            {filteredRepos
               ?.filter((repo: any) => repo.owner?.login === profile?.login)
               ?.map((repo: any) => (
-                <SelectItem key={repo.html_url} value={repo.html_url}>
-                  <div className="flex items-center">
-                    <GithubCircle className="mr-2" />
-                    {repo.name}
-
-                    {repo.private && <Lock className="ml-1 text-xs" />}
+                <div key={repo.html_url} className="flex flex-col gap-3 border-b px-5 py-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        {currentFramework && currentRepo?.value === repo.html_url ? (
+                          <img src={currentFramework.image} alt={currentFramework.title} className="h-6 w-6" />
+                        ) : (
+                          <GithubCircle />
+                        )}
+                        <p>{repo.name}</p>
+                        {repo.private && <Lock className="ml-1 text-xs" />}
+                      </div>
+                    </div>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      disabled={currentRepo?.value === repo.html_url}
+                      onClick={() => {
+                        setValue("services.0.env", [
+                          { id: nanoid(), key: "REPO_URL", value: repo.html_url, isSecret: false },
+                          { id: nanoid(), key: "BRANCH_NAME", value: repo.default_branch, isSecret: false },
+                          { id: nanoid(), key: "GITHUB_ACCESS_TOKEN", value: token?.access_token, isSecret: false }
+                        ]);
+                        setDeploymentName(repo.name);
+                      }}
+                    >
+                      {currentRepo?.value === repo.html_url ? "Selected" : "Select"}
+                    </Button>
                   </div>
-                </SelectItem>
+                  {isGettingDirectory && currentRepo?.value === repo.html_url && (
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">Fetching Directory</p>
+                      <Spinner size="small" />
+                    </div>
+                  )}
+                  {currentRepo?.value === repo.html_url &&
+                    !isGettingDirectory &&
+                    (directory && directory?.length > 0 ? (
+                      <div className="flex flex-col">
+                        <div className="flex items-center justify-between pb-3">
+                          <p className="text-muted-foregroun4 text-sm">Select Directory</p>
+                          <p className="text-sm text-muted-foreground"> {currentFramework?.title}</p>
+                        </div>
+
+                        <RadioGroup
+                          className=""
+                          onValueChange={value => {
+                            appendEnv("FRONTEND_FOLDER", value, false, setValue, services);
+                          }}
+                          value={currentFolder?.value}
+                        >
+                          {directory
+                            ?.filter(item => item.type === "dir")
+                            .map(item => (
+                              <div className="flex items-center justify-between py-0.5" key={item.path}>
+                                <Label htmlFor={item.path} className="flex items-center gap-2">
+                                  <Folder />
+                                  {item.path}
+                                </Label>
+                                <RadioGroupItem value={item.path} id={item.path} />
+                              </div>
+                            ))}
+                        </RadioGroup>
+                      </div>
+                    ) : (
+                      <CustomInput
+                        onChange={e => appendEnv("FRONTEND_FOLDER", e.target.value, false, setValue, services)}
+                        label="Frontend Folder"
+                        description="By default we use ./, Change the version if needed"
+                        placeholder="eg. app"
+                      />
+                    ))}
+                </div>
               ))}
-            {/* add more repos */}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+            {isLoading && (
+              <div className="flex items-center justify-center p-4">
+                <Spinner size="medium" />
+              </div>
+            )}
+            {filteredRepos.length === 0 && <div className="flex items-center justify-center p-4">No Repository Found</div>}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

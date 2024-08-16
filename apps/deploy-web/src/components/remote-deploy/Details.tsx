@@ -54,7 +54,7 @@ const Details = ({ services, setValue }) => {
               <CustomInput
                 onChange={e => appendEnv("NODE_VERSION", e.target.value, false, setValue, services)}
                 label="Node Version"
-                description="By default we use 21, Change the version if needed"
+                description="By default we use 20, Change the version if needed"
                 placeholder="eg. 21"
               />
 
