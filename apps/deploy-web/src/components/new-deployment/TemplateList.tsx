@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
-import { ArrowRight, Cpu, Page, Rocket, Wrench } from "iconoir-react";
+import { ArrowRight, Cpu, Page, Rocket, Wrench, Linux } from "iconoir-react";
 import { NavArrowLeft } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -97,9 +97,9 @@ export const TemplateList: React.FunctionComponent = () => {
 
           {
             <DeployOptionBox
-              title="Plain Linux"
+              title="Linux"
               description="Choose from multiple linux distros. Deploy and SSH into it. Install and run what you want after."
-              icon={<Page />}
+              icon={<Linux />}
               onClick={() => onSDLBuilderClick("deploy-linux")}
               testId="plain-linux-card"
             />
