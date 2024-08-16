@@ -53,7 +53,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const [open, setOpen] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const { changeDeploymentName, getDeploymentData } = useLocalNotes();
-  const { address, signAndBroadcastTx } = useWallet();
+  const { address, signAndBroadcastTx, isManaged: isManagedWallet } = useWallet();
   const isActive = deployment.state === "active";
   const { data: leases, isLoading: isLoadingLeases } = useAllLeases(address, { enabled: !!deployment && isActive });
   const filteredLeases = leases?.filter(l => l.dseq === deployment.dseq);
@@ -194,9 +194,13 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                   title={
                     <>
                       Your deployment will close soon,{" "}
-                      <a href="#" onClick={onDepositClicked}>
-                        Add Funds
-                      </a>{" "}
+                      {isManagedWallet ? (
+                        "Add funds"
+                      ) : (
+                        <a href="#" onClick={onDepositClicked}>
+                          Add Funds
+                        </a>
+                      )}{" "}
                       to keep it running.
                     </>
                   }
@@ -306,7 +310,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                 >
                   <ClickAwayListener onClickAway={() => setOpen(false)}>
                     <div>
-                      {isActive && (
+                      {isActive && !isManagedWallet && (
                         <CustomDropdownLinkItem onClick={onDepositClicked} icon={<Plus fontSize="small" />}>
                           Add funds
                         </CustomDropdownLinkItem>
