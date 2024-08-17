@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Spinner } from "@akashnetwork/ui/components";
 import { useWallet as useConnectedWallet, useWalletClient } from "@cosmos-kit/react";
 import * as Elements from "@leapwallet/elements-umd-types";
@@ -48,7 +48,7 @@ const convertWalletType = (walletName: string | undefined): Elements.WalletType 
   }
 };
 
-const getTabsConfig = <T,>(txnLifecycleHooks: Partial<Elements.TxnLifecycleHooks<T>>) => {
+const getTabsConfig = (txnLifecycleHooks: Partial<Elements.TxnLifecycleHooks<unknown>>) => {
   return {
     aggregated: {
       enabled: true,
@@ -105,6 +105,7 @@ type Props = { address: string; aktBalance: number; refreshBalances: () => void 
 const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isElementsReady, setIsElementsReady] = useState(false);
+  const isElementsMounted = useRef(false);
 
   const { isWalletConnected } = useWallet();
   const { client: walletClient } = useWalletClient();
@@ -141,7 +142,8 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
   const connectedWalletType = useMemo(() => (isElementsReady ? convertWalletType(walletName) : undefined), [isElementsReady, walletName]);
 
   useEffect(() => {
-    if (isElementsReady && isOpen) {
+    if (isElementsReady && isOpen && !isElementsMounted.current) {
+      isElementsMounted.current = true;
       window.LeapElements?.mountElements?.({
         connectWallet: handleConnectWallet,
         connectedWalletType,

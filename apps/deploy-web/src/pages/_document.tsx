@@ -25,8 +25,8 @@ export default function MyDocument(props) {
       <body>
         <Main />
         <NextScript />
-        <link rel="stylesheet" href="https://unpkg.com/@leapwallet/elements@1.4.1-beta.11/dist/umd/style.css" />
-        <script defer src="https://unpkg.com/@leapwallet/elements@1.4.1-beta.11/dist/umd/main.js" />
+        <link rel="stylesheet" href="https://unpkg.com/@leapwallet/elements@1.4.1/dist/umd/style.css" />
+        <script defer src="https://unpkg.com/@leapwallet/elements@1.4.1/dist/umd/main.js" />
       </body>
     </Html>
   );
