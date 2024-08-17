@@ -49,6 +49,11 @@ const frameworks = [
     image: "https://gridsome.org/assets/static/favicon.b9532cc.c6d52b979318cc0b0524324281174df2.png"
   },
   {
+    title: "Vite",
+    value: "vite",
+    image: "https://vitejs.dev/logo.svg"
+  },
+  {
     title: "Other",
     value: "other"
   }
@@ -58,16 +63,23 @@ const useFramework = ({ services, setValue, subFolder }: { services: ServiceType
   const selected = services?.[0]?.env?.find(e => e.key === "REPO_URL")?.value;
 
   const setValueHandler = (data: any) => {
-    setData(data);
+    console.log(data);
     if (data?.dependencies) {
+      setData(data);
       const cpus = (Object.keys(data?.dependencies ?? {})?.length / 10 / 2)?.toFixed(1);
 
       setValue("services.0.profile.cpu", +cpus > 0.5 ? +cpus : 0.5);
+    } else {
+      setData(null);
     }
   };
 
   const { isLoading } = usePackageJson(setValueHandler, removeInitialUrl(selected), subFolder);
-  const { isLoading: gitlabLoading } = useGitlabPackageJson(setValueHandler, services?.[0]?.env?.find(e => e.key === "GITLAB_PROJECT_ID")?.value, subFolder);
+  const { isLoading: gitlabLoading, isFetching } = useGitlabPackageJson(
+    setValueHandler,
+    services?.[0]?.env?.find(e => e.key === "GITLAB_PROJECT_ID")?.value,
+    subFolder
+  );
 
   const { isLoading: bitbucketLoading } = useBitPackageJson(
     setValueHandler,
@@ -81,7 +93,7 @@ const useFramework = ({ services, setValue, subFolder }: { services: ServiceType
       title: "Other",
       value: "other"
     },
-    isLoading: isLoading || gitlabLoading || bitbucketLoading
+    isLoading: isLoading || gitlabLoading || bitbucketLoading || isFetching
   };
 };
 

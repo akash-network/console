@@ -52,7 +52,7 @@ const Repos = ({
   const repo = repos?.find(r => r.html_url === currentRepo?.value);
   const [directory, setDirectory] = useState<IGithubDirectoryItem[] | null>(null);
   const currentFolder = services?.[0]?.env?.find(e => e.key === "FRONTEND_FOLDER");
-  const { currentFramework } = useFramework({
+  const { currentFramework, isLoading: frameworkLoading } = useFramework({
     services,
     setValue,
     repos,
@@ -96,7 +96,7 @@ const Repos = ({
         <DialogTrigger asChild>
           <Button variant="outline" className="flex justify-between bg-card">
             <div className="flex items-center gap-2">
-              {currentFramework && currentFramework?.image ? (
+              {!frameworkLoading && currentFramework && currentFramework?.image ? (
                 <img src={currentFramework.image} alt={currentFramework.title} className="h-6 w-6" />
               ) : (
                 <Globe2 size={20} />
@@ -126,7 +126,7 @@ const Repos = ({
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
-                        {currentFramework && currentRepo?.value === repo.html_url ? (
+                        {currentFramework && !frameworkLoading && currentRepo?.value === repo.html_url ? (
                           currentFramework?.image ? (
                             <img src={currentFramework.image} alt={currentFramework.title} className="h-6 w-6" />
                           ) : (
@@ -195,7 +195,6 @@ const Repos = ({
                     </div>
                   )}
                   {currentRepo?.value === repo.html_url &&
-                    !isLoadingDirectories &&
                     (directory && directory?.filter(item => item.type === "dir" || item.type === "commit_directory" || item.type === "tree")?.length > 0 ? (
                       <div className="flex flex-col">
                         <div className="flex items-center justify-between pb-3">
