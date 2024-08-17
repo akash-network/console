@@ -74,7 +74,7 @@ const Repos = ({
     removeInitialUrl(currentRepo?.value),
     services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")?.value
   );
-
+  const [open, setOpen] = useState(false);
   const { isLoading: isGettingDirectoryGitlab, isFetching: isGitlabLoading } = useGitlabSrcFolders(
     setFolders,
     services?.[0]?.env?.find(e => e.key === "GITLAB_PROJECT_ID")?.value
@@ -92,9 +92,9 @@ const Repos = ({
         <p className="text-muted-foreground">The Repository Branch used for your private service</p>
       </div>
 
-      <Dialog>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" className="flex justify-between bg-card">
+          <Button variant="outline" className="flex justify-between bg-popover">
             <div className="flex items-center gap-2">
               {!frameworkLoading && currentFramework && currentFramework?.image ? (
                 <img src={currentFramework.image} alt={currentFramework.title} className="h-6 w-6" />
@@ -140,7 +140,13 @@ const Repos = ({
                       </div>
                     </div>
                     {currentRepo?.value === repo?.html_url ? (
-                      <Button variant="default" size="sm">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => {
+                          setOpen(false);
+                        }}
+                      >
                         Done
                       </Button>
                     ) : (
