@@ -1,9 +1,10 @@
 import React, { Dispatch, useEffect, useState } from "react";
 import { Control, useFieldArray, useForm } from "react-hook-form";
-import { Input, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Switch } from "@akashnetwork/ui/components";
+import { Input, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Snackbar, Switch } from "@akashnetwork/ui/components";
 import { GitCommit } from "iconoir-react";
 import { useAtom } from "jotai";
 import { nanoid } from "nanoid";
+import { useSnackbar } from "notistack";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -137,6 +138,8 @@ const Field = ({ data, control }: { data: any; control: Control<SdlBuilderFormVa
   const [manual, setManual] = useState<boolean>(false);
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
   const { append, update } = useFieldArray({ control, name: "services.0.env", keyName: "id" });
+
+  const { enqueueSnackbar } = useSnackbar();
   return (
     <div className="flex items-center gap-6">
       {manual ? (
@@ -160,6 +163,9 @@ const Field = ({ data, control }: { data: any; control: Control<SdlBuilderFormVa
           value={services[0]?.env?.find(e => e.key === "COMMIT_HASH")?.value}
           onValueChange={(value: any) => {
             const hash = { id: nanoid(), key: "COMMIT_HASH", value: value, isSecret: false };
+            enqueueSnackbar(<Snackbar title={"Info"} subTitle="You need to click update deployment button to apply changes" iconVariant="info" />, {
+              variant: "info"
+            });
             if (services[0]?.env?.find(e => e.key === "COMMIT_HASH")) {
               update(
                 services[0]?.env?.findIndex(e => e.key === "COMMIT_HASH"),
