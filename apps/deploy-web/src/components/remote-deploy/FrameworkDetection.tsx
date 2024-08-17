@@ -42,7 +42,7 @@ const frameworks = [
     value: "other"
   }
 ];
-const useFramework = ({ services, setValue, repos, subFolder }: { services: ServiceType[]; setValue: any; repos?: any; subFolder?: string }) => {
+const useFramework = ({ services, setValue, subFolder }: { services: ServiceType[]; setValue: any; repos?: any; subFolder?: string }) => {
   const [data, setData] = useState<any>(null);
   const selected = services?.[0]?.env?.find(e => e.key === "REPO_URL")?.value;
 
@@ -66,7 +66,10 @@ const useFramework = ({ services, setValue, repos, subFolder }: { services: Serv
   );
 
   return {
-    currentFramework: frameworks.find(f => data?.scripts?.dev?.includes(f.value)),
+    currentFramework: frameworks.find(f => data?.scripts?.dev?.includes(f.value)) ?? {
+      title: "Other",
+      value: "other"
+    },
     isLoading: isLoading || gitlabLoading || bitbucketLoading
   };
 };

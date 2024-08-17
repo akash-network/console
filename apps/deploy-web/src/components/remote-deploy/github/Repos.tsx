@@ -14,6 +14,7 @@ import {
 } from "@akashnetwork/ui/components";
 import { Folder, GithubCircle, Lock } from "iconoir-react";
 import { useAtom } from "jotai";
+import { Globe2 } from "lucide-react";
 import { nanoid } from "nanoid";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
@@ -65,17 +66,21 @@ const Repos = ({
       setDirectory(null);
     }
   };
-  console.log(directory);
 
-  const { isLoading: isGettingDirectory } = useSrcFolders(setFolders, removeInitialUrl(currentRepo?.value));
+  const { isLoading: isGettingDirectory, isFetching: isGithubLoading } = useSrcFolders(setFolders, removeInitialUrl(currentRepo?.value));
 
-  const { isLoading: isGettingDirectoryBit } = useBitSrcFolders(
+  const { isLoading: isGettingDirectoryBit, isFetching: isBitLoading } = useBitSrcFolders(
     setFolders,
     removeInitialUrl(currentRepo?.value),
     services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")?.value
   );
 
-  const { isLoading: isGettingDirectoryGitlab } = useGitlabSrcFolders(setFolders, services?.[0]?.env?.find(e => e.key === "GITLAB_PROJECT_ID")?.value);
+  const { isLoading: isGettingDirectoryGitlab, isFetching: isGitlabLoading } = useGitlabSrcFolders(
+    setFolders,
+    services?.[0]?.env?.find(e => e.key === "GITLAB_PROJECT_ID")?.value
+  );
+  const isLoadingDirectories = isGithubLoading || isGitlabLoading || isBitLoading || isGettingDirectory || isGettingDirectoryBit || isGettingDirectoryGitlab;
+  console.log(repo?.owner?.login, profile?.login, "sdf");
 
   useEffect(() => {
     setFilteredRepos(repos);
@@ -91,7 +96,11 @@ const Repos = ({
         <DialogTrigger asChild>
           <Button variant="outline" className="flex justify-between bg-card">
             <div className="flex items-center gap-2">
-              {currentFramework && <img src={currentFramework.image} alt={currentFramework.title} className="h-6 w-6" />}
+              {currentFramework && currentFramework?.image ? (
+                <img src={currentFramework.image} alt={currentFramework.title} className="h-6 w-6" />
+              ) : (
+                <Globe2 size={20} />
+              )}
               <p>{repo?.name || "Select Repository"}</p>
             </div>
             <Folder />
@@ -111,14 +120,18 @@ const Repos = ({
           </DialogHeader>
           <div className="flex flex-col">
             {filteredRepos
-              ?.filter((repo: any) => repo.owner?.login === profile?.login)
+              ?.filter((repo: any) => repo.owner?.login === profile?.login || type !== "github")
               ?.map((repo: any) => (
                 <div key={repo.html_url} className="flex flex-col gap-3 border-b px-5 py-3">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
                         {currentFramework && currentRepo?.value === repo.html_url ? (
-                          <img src={currentFramework.image} alt={currentFramework.title} className="h-6 w-6" />
+                          currentFramework?.image ? (
+                            <img src={currentFramework.image} alt={currentFramework.title} className="h-6 w-6" />
+                          ) : (
+                            <Globe2 size={22} />
+                          )
                         ) : (
                           <GithubCircle />
                         )}
@@ -126,59 +139,63 @@ const Repos = ({
                         {repo.private && <Lock className="ml-1 text-xs" />}
                       </div>
                     </div>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      disabled={currentRepo?.value === repo.html_url}
-                      onClick={() => {
-                        setDirectory(null);
-                        const repoUrl = { id: nanoid(), key: "REPO_URL", value: repo.html_url, isSecret: false };
-                        const branchName = { id: nanoid(), key: "BRANCH_NAME", value: repo.default_branch, isSecret: false };
-                        if (type === "github") {
-                          setValue("services.0.env", [
-                            repoUrl,
-                            branchName,
+                    {currentRepo?.value === repo?.html_url ? (
+                      <Button variant="default" size="sm">
+                        Done
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        disabled={currentRepo?.value === repo.html_url}
+                        onClick={() => {
+                          setDirectory(null);
+                          const repoUrl = { id: nanoid(), key: "REPO_URL", value: repo.html_url, isSecret: false };
+                          const branchName = { id: nanoid(), key: "BRANCH_NAME", value: repo.default_branch, isSecret: false };
+                          if (type === "github") {
+                            setValue("services.0.env", [
+                              repoUrl,
+                              branchName,
 
-                            { id: nanoid(), key: "GITHUB_ACCESS_TOKEN", value: token?.access_token, isSecret: false }
-                          ]);
-                        }
-                        if (type === "bitbucket") {
-                          setValue("services.0.env", [
-                            repoUrl,
-                            branchName,
-                            { id: nanoid(), key: "BITBUCKET_ACCESS_TOKEN", value: token?.access_token, isSecret: false },
-                            { id: nanoid(), key: "BITBUCKET_USER", value: repo?.username, isSecret: false }
-                          ]);
-                        }
-                        if (type === "gitlab") {
-                          setValue("services.0.env", [
-                            repoUrl,
-                            branchName,
-                            { id: nanoid(), key: "GITLAB_ACCESS_TOKEN", value: token?.access_token, isSecret: false },
-                            {
-                              id: nanoid(),
-                              key: "GITLAB_PROJECT_ID",
-                              value: repo?.id?.toString(),
-                              isSecret: false
-                            }
-                          ]);
-                        }
-                        setDeploymentName(repo.name);
-                      }}
-                    >
-                      {currentRepo?.value === repo.html_url ? "Selected" : "Select"}
-                    </Button>
+                              { id: nanoid(), key: "GITHUB_ACCESS_TOKEN", value: token?.access_token, isSecret: false }
+                            ]);
+                          }
+                          if (type === "bitbucket") {
+                            setValue("services.0.env", [
+                              repoUrl,
+                              branchName,
+                              { id: nanoid(), key: "BITBUCKET_ACCESS_TOKEN", value: token?.access_token, isSecret: false },
+                              { id: nanoid(), key: "BITBUCKET_USER", value: repo?.username, isSecret: false }
+                            ]);
+                          }
+                          if (type === "gitlab") {
+                            setValue("services.0.env", [
+                              repoUrl,
+                              branchName,
+                              { id: nanoid(), key: "GITLAB_ACCESS_TOKEN", value: token?.access_token, isSecret: false },
+                              {
+                                id: nanoid(),
+                                key: "GITLAB_PROJECT_ID",
+                                value: repo?.id?.toString(),
+                                isSecret: false
+                              }
+                            ]);
+                          }
+                          setDeploymentName(repo.name);
+                        }}
+                      >
+                        Select
+                      </Button>
+                    )}
                   </div>
-                  {(isGettingDirectory || isGettingDirectoryBit || isGettingDirectoryGitlab) && currentRepo?.value === repo.html_url && (
+                  {isLoadingDirectories && currentRepo?.value === repo.html_url && (
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-muted-foreground">Fetching Directory</p>
                       <Spinner size="small" />
                     </div>
                   )}
                   {currentRepo?.value === repo.html_url &&
-                    !isGettingDirectory &&
-                    !isGettingDirectoryBit &&
-                    !isGettingDirectoryGitlab &&
+                    !isLoadingDirectories &&
                     (directory && directory?.filter(item => item.type === "dir" || item.type === "commit_directory" || item.type === "tree")?.length > 0 ? (
                       <div className="flex flex-col">
                         <div className="flex items-center justify-between pb-3">
