@@ -38,6 +38,17 @@ const frameworks = [
     image: "https://icon.icepanel.io/Technology/png-shadow-512/Astro.png"
   },
   {
+    title: "Nuxt.js",
+    value: "nuxt",
+    image: "https://v2.nuxt.com/_nuxt/icons/icon_64x64.6dcbd4.png"
+  },
+
+  {
+    title: "Gridsome ",
+    value: "gridsome",
+    image: "https://gridsome.org/assets/static/favicon.b9532cc.c6d52b979318cc0b0524324281174df2.png"
+  },
+  {
     title: "Other",
     value: "other"
   }
