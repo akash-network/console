@@ -162,7 +162,7 @@ export const useGitlabPackageJson = (onSettled: (data: any) => void, repo?: stri
   return useQuery({
     queryKey: ["packageJson-gitlab", repo, subFolder],
     queryFn: async () => {
-      const response = await axiosInstance.get(`/projects/${repo}/repository/files/${subFolder ? `${subFolder}/` : ""}package.json/raw`, {
+      const response = await axiosInstance.get(`/projects/${repo}/repository/files/${subFolder ? `${subFolder}%2F` : ""}package.json?ref=main`, {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }
@@ -171,7 +171,10 @@ export const useGitlabPackageJson = (onSettled: (data: any) => void, repo?: stri
     },
     enabled: !!token?.access_token && token.type === "gitlab" && !!repo,
     onSettled: data => {
-      onSettled(data);
+      if (data?.content === undefined) return;
+      const content = atob(data.content);
+      const parsed = JSON.parse(content);
+      onSettled(parsed);
     }
   });
 };
