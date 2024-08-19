@@ -18,9 +18,11 @@ type MarkdownProps = {
 const Markdown: React.FunctionComponent<MarkdownProps> = ({ children, hasHtml }) => {
   const { resolvedTheme } = useTheme();
 
-  const rehypePlugins: PluggableList = hasHtml
-    ? [[rehypeRaw as any], [rehypeHighlight, { ignoreMissing: true }]]
-    : [[rehypeHighlight, { ignoreMissing: true }]];
+  const rehypePlugins: PluggableList = [[rehypeHighlight, { ignoreMissing: true }]];
+
+  if (hasHtml) {
+    rehypePlugins.push([rehypeRaw as any]);
+  }
 
   return (
     <ReactMarkdown

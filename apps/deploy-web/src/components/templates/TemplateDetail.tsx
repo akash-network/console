@@ -44,8 +44,6 @@ export const TemplateDetail: React.FunctionComponent<Props> = ({ templateId, tem
     window.open(_template.githubUrl, "_blank");
   }
 
-  console.log(template.readme);
-
   return (
     <Layout disableContainer>
       <div className="[&>img]:max-w-full">
