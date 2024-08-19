@@ -43,6 +43,7 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
       unsubscribe();
     };
   }, [watch, sdlString]);
+  const { enqueueSnackbar } = useSnackbar();
   const [, setError] = useState<string | null>(null);
   const createAndValidateSdl = (yamlStr: string) => {
     try {
@@ -90,6 +91,9 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
         <Select
           value={services?.[0]?.env?.find(e => e.key === "DISABLE_PULL")?.value}
           onValueChange={value => {
+            enqueueSnackbar(<Snackbar title={"Info"} subTitle="You need to click update deployment button to apply changes" iconVariant="info" />, {
+              variant: "info"
+            });
             appendEnv("DISABLE_PULL", value, false, setValue, services);
           }}
         >

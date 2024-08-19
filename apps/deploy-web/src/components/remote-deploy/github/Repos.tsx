@@ -1,4 +1,5 @@
 import { Dispatch, useEffect, useState } from "react";
+import { UseFormSetValue } from "react-hook-form";
 import {
   Button,
   Dialog,
@@ -18,14 +19,14 @@ import { Globe2 } from "lucide-react";
 import { nanoid } from "nanoid";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
-import { ServiceType } from "@src/types";
+import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { useSrcFolders } from "../api/api";
 import { useBitSrcFolders } from "../api/bitbucket-api";
 import { useGitlabSrcFolders } from "../api/gitlab-api";
 import CustomInput from "../CustomInput";
 import useFramework from "../FrameworkDetection";
 import { IGithubDirectoryItem } from "../remoteTypes";
-import { appendEnv, removeInitialUrl } from "../utils";
+import { appendEnv, removeInitialUrl, RepoType } from "../utils";
 // import { handleLogin } from "../api/api";
 const Repos = ({
   repos,
@@ -33,11 +34,11 @@ const Repos = ({
   isLoading,
   services,
   setDeploymentName,
-  profile,
+
   type = "github"
 }: {
-  repos: any;
-  setValue: any;
+  repos: RepoType[];
+  setValue: UseFormSetValue<SdlBuilderFormValuesType>;
   services: ServiceType[];
   isLoading: boolean;
   setDeploymentName: Dispatch<string>;
@@ -80,7 +81,6 @@ const Repos = ({
     services?.[0]?.env?.find(e => e.key === "GITLAB_PROJECT_ID")?.value
   );
   const isLoadingDirectories = isGithubLoading || isGitlabLoading || isBitLoading || isGettingDirectory || isGettingDirectoryBit || isGettingDirectoryGitlab;
-  console.log(repo?.owner?.login, profile?.login, "sdf");
 
   useEffect(() => {
     setFilteredRepos(repos);
@@ -97,6 +97,7 @@ const Repos = ({
           <Button variant="outline" className="flex justify-between bg-popover">
             <div className="flex items-center gap-2">
               {!frameworkLoading && currentFramework && currentFramework?.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={currentFramework.image} alt={currentFramework.title} className="h-6 w-6" />
               ) : (
                 <Globe2 size={20} />
@@ -114,130 +115,129 @@ const Repos = ({
               value={search}
               onChange={e => {
                 setSearch(e.target.value);
-                setFilteredRepos(repos.filter((repo: any) => repo.name.includes(e.target.value)));
+                setFilteredRepos(repos.filter(repo => repo.name.toLowerCase().includes(e.target.value.toLowerCase())));
               }}
             />
           </DialogHeader>
           <div className="flex flex-col">
-            {filteredRepos
-              ?.filter((repo: any) => repo.owner?.login === profile?.login || type !== "github")
-              ?.map((repo: any) => (
-                <div key={repo.html_url} className="flex flex-col gap-3 border-b px-5 py-3">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        {currentFramework && !frameworkLoading && currentRepo?.value === repo.html_url ? (
-                          currentFramework?.image ? (
-                            <img src={currentFramework.image} alt={currentFramework.title} className="h-6 w-6" />
-                          ) : (
-                            <Globe2 size={22} />
-                          )
+            {filteredRepos?.map((repo: any) => (
+              <div key={repo.html_url} className="flex flex-col gap-3 border-b px-5 py-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      {currentFramework && !frameworkLoading && currentRepo?.value === repo.html_url ? (
+                        currentFramework?.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={currentFramework.image} alt={currentFramework.title} className="h-6 w-6" />
                         ) : (
-                          <GithubCircle />
-                        )}
-                        <p>{repo.name}</p>
-                        {repo.private && <Lock className="ml-1 text-xs" />}
-                      </div>
+                          <Globe2 size={22} />
+                        )
+                      ) : (
+                        <GithubCircle />
+                      )}
+                      <p>{repo.name}</p>
+                      {repo.private && <Lock className="ml-1 text-xs" />}
                     </div>
-                    {currentRepo?.value === repo?.html_url ? (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => {
-                          setOpen(false);
-                        }}
-                      >
-                        Done
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        disabled={currentRepo?.value === repo.html_url}
-                        onClick={() => {
-                          setDirectory(null);
-                          const repoUrl = { id: nanoid(), key: "REPO_URL", value: repo.html_url, isSecret: false };
-                          const branchName = { id: nanoid(), key: "BRANCH_NAME", value: repo.default_branch, isSecret: false };
-                          if (type === "github") {
-                            setValue("services.0.env", [
-                              repoUrl,
-                              branchName,
-
-                              { id: nanoid(), key: "GITHUB_ACCESS_TOKEN", value: token?.access_token, isSecret: false }
-                            ]);
-                          }
-                          if (type === "bitbucket") {
-                            setValue("services.0.env", [
-                              repoUrl,
-                              branchName,
-                              { id: nanoid(), key: "BITBUCKET_ACCESS_TOKEN", value: token?.access_token, isSecret: false },
-                              { id: nanoid(), key: "BITBUCKET_USER", value: repo?.username, isSecret: false }
-                            ]);
-                          }
-                          if (type === "gitlab") {
-                            setValue("services.0.env", [
-                              repoUrl,
-                              branchName,
-                              { id: nanoid(), key: "GITLAB_ACCESS_TOKEN", value: token?.access_token, isSecret: false },
-                              {
-                                id: nanoid(),
-                                key: "GITLAB_PROJECT_ID",
-                                value: repo?.id?.toString(),
-                                isSecret: false
-                              }
-                            ]);
-                          }
-                          setDeploymentName(repo.name);
-                        }}
-                      >
-                        Select
-                      </Button>
-                    )}
                   </div>
-                  {isLoadingDirectories && currentRepo?.value === repo.html_url && (
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">Fetching Directory</p>
-                      <Spinner size="small" />
-                    </div>
-                  )}
-                  {currentRepo?.value === repo.html_url &&
-                    (directory && directory?.filter(item => item.type === "dir" || item.type === "commit_directory" || item.type === "tree")?.length > 0 ? (
-                      <div className="flex flex-col">
-                        <div className="flex items-center justify-between pb-3">
-                          <p className="text-muted-foregroun4 text-sm">Select Directory</p>
-                          {/* <p className="text-sm text-muted-foreground"> {currentFramework?.title}</p> */}
-                        </div>
+                  {currentRepo?.value === repo?.html_url ? (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        setOpen(false);
+                      }}
+                    >
+                      Done
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      disabled={currentRepo?.value === repo.html_url}
+                      onClick={() => {
+                        setDirectory(null);
+                        const repoUrl = { id: nanoid(), key: "REPO_URL", value: repo.html_url, isSecret: false };
+                        const branchName = { id: nanoid(), key: "BRANCH_NAME", value: repo.default_branch, isSecret: false };
+                        if (type === "github") {
+                          setValue("services.0.env", [
+                            repoUrl,
+                            branchName,
 
-                        <RadioGroup
-                          className=""
-                          onValueChange={value => {
-                            appendEnv("FRONTEND_FOLDER", value, false, setValue, services);
-                          }}
-                          value={currentFolder?.value}
-                        >
-                          {directory
-                            ?.filter(item => item.type === "dir" || item.type === "commit_directory" || item.type === "tree")
-                            .map(item => (
-                              <div className="flex items-center justify-between py-0.5" key={item.path}>
-                                <Label htmlFor={item.path} className="flex items-center gap-2">
-                                  <Folder />
-                                  {item.path}
-                                </Label>
-                                <RadioGroupItem value={item.path} id={item.path} />
-                              </div>
-                            ))}
-                        </RadioGroup>
-                      </div>
-                    ) : (
-                      <CustomInput
-                        onChange={e => appendEnv("FRONTEND_FOLDER", e.target.value, false, setValue, services)}
-                        label="Frontend Folder"
-                        description="By default we use ./, Change the version if needed"
-                        placeholder="eg. app"
-                      />
-                    ))}
+                            { id: nanoid(), key: "GITHUB_ACCESS_TOKEN", value: token?.access_token, isSecret: false }
+                          ]);
+                        }
+                        if (type === "bitbucket") {
+                          setValue("services.0.env", [
+                            repoUrl,
+                            branchName,
+                            { id: nanoid(), key: "BITBUCKET_ACCESS_TOKEN", value: token?.access_token, isSecret: false },
+                            { id: nanoid(), key: "BITBUCKET_USER", value: repo?.username, isSecret: false }
+                          ]);
+                        }
+                        if (type === "gitlab") {
+                          setValue("services.0.env", [
+                            repoUrl,
+                            branchName,
+                            { id: nanoid(), key: "GITLAB_ACCESS_TOKEN", value: token?.access_token, isSecret: false },
+                            {
+                              id: nanoid(),
+                              key: "GITLAB_PROJECT_ID",
+                              value: repo?.id?.toString(),
+                              isSecret: false
+                            }
+                          ]);
+                        }
+                        setDeploymentName(repo.name);
+                      }}
+                    >
+                      Select
+                    </Button>
+                  )}
                 </div>
-              ))}
+                {isLoadingDirectories && currentRepo?.value === repo.html_url && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">Fetching Directory</p>
+                    <Spinner size="small" />
+                  </div>
+                )}
+                {currentRepo?.value === repo.html_url &&
+                  (directory && directory?.filter(item => item.type === "dir" || item.type === "commit_directory" || item.type === "tree")?.length > 0 ? (
+                    <div className="flex flex-col">
+                      <div className="flex items-center justify-between pb-3">
+                        <p className="text-muted-foregroun4 text-sm">Select Directory</p>
+                        {/* <p className="text-sm text-muted-foreground"> {currentFramework?.title}</p> */}
+                      </div>
+
+                      <RadioGroup
+                        className=""
+                        onValueChange={value => {
+                          appendEnv("FRONTEND_FOLDER", value, false, setValue, services);
+                        }}
+                        value={currentFolder?.value}
+                      >
+                        {directory
+                          ?.filter(item => item.type === "dir" || item.type === "commit_directory" || item.type === "tree")
+                          .map(item => (
+                            <div className="flex items-center justify-between py-0.5" key={item.path}>
+                              <Label htmlFor={item.path} className="flex items-center gap-2">
+                                <Folder />
+                                {item.path}
+                              </Label>
+                              <RadioGroupItem value={item.path} id={item.path} />
+                            </div>
+                          ))}
+                      </RadioGroup>
+                    </div>
+                  ) : (
+                    <CustomInput
+                      onChange={e => appendEnv("FRONTEND_FOLDER", e.target.value, false, setValue, services)}
+                      label="Frontend Folder"
+                      description="By default we use ./, Change the version if needed"
+                      placeholder="eg. app"
+                    />
+                  ))}
+              </div>
+            ))}
             {isLoading && (
               <div className="flex items-center justify-center p-4">
                 <Spinner size="medium" />
