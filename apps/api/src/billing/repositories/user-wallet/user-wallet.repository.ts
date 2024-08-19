@@ -27,6 +27,10 @@ export interface ListOptions {
   offset?: number;
 }
 
+interface UpdateOptions {
+  returning: true;
+}
+
 @singleton()
 export class UserWalletRepository extends BaseRepository<UserWalletSchema> {
   constructor(
@@ -52,13 +56,16 @@ export class UserWalletRepository extends BaseRepository<UserWalletSchema> {
     return this.toOutput(first(await this.cursor.insert(this.schema).values(value).returning()));
   }
 
-  async updateById(id: UserWalletOutput["id"], payload: Partial<UserWalletInput>, options?: { returning: true }): Promise<UserWalletOutput>;
+  async updateById(id: UserWalletOutput["id"], payload: Partial<UserWalletInput>, options?: UpdateOptions): Promise<UserWalletOutput>;
   async updateById(id: UserWalletOutput["id"], payload: Partial<UserWalletInput>): Promise<void>;
-  async updateById(id: UserWalletOutput["id"], payload: Partial<UserWalletInput>, options?: { returning: boolean }): Promise<void | UserWalletOutput> {
-    const cursor = this.cursor
-      .update(this.schema)
-      .set(this.toInput(payload))
-      .where(this.whereAccessibleBy(eq(this.schema.id, id)));
+  async updateById(id: UserWalletOutput["id"], payload: Partial<UserWalletInput>, options?: UpdateOptions): Promise<void | UserWalletOutput> {
+    return this.updateBy({ id }, payload, options);
+  }
+
+  async updateBy(query: Partial<DbUserWalletOutput>, payload: Partial<UserWalletInput>, options?: UpdateOptions): Promise<UserWalletOutput>;
+  async updateBy(query: Partial<DbUserWalletOutput>, payload: Partial<UserWalletInput>): Promise<void>;
+  async updateBy(query: Partial<DbUserWalletOutput>, payload: Partial<UserWalletInput>, options?: UpdateOptions): Promise<void | UserWalletOutput> {
+    const cursor = this.cursor.update(this.schema).set(this.toInput(payload)).where(this.queryToWhere(query));
 
     if (options?.returning) {
       const items = await cursor.returning();
@@ -71,14 +78,18 @@ export class UserWalletRepository extends BaseRepository<UserWalletSchema> {
   }
 
   async find(query?: Partial<DbUserWalletOutput>) {
+    return this.toOutputList(
+      await this.cursor.query.userWalletSchema.findMany({
+        where: this.queryToWhere(query)
+      })
+    );
+  }
+
+  private queryToWhere(query: Partial<DbUserWalletOutput>) {
     const fields = query && (Object.keys(query) as Array<keyof DbUserWalletOutput>);
     const where = fields?.length ? and(...fields.map(field => eq(this.schema[field], query[field]))) : undefined;
 
-    return this.toOutputList(
-      await this.cursor.query.userWalletSchema.findMany({
-        where: this.whereAccessibleBy(where)
-      })
-    );
+    return this.whereAccessibleBy(where);
   }
 
   async findDrainingWallets(thresholds = { fee: 0, deployment: 0 }, options?: Pick<ListOptions, "limit">) {
@@ -117,7 +128,8 @@ export class UserWalletRepository extends BaseRepository<UserWalletSchema> {
 
   private toInput({ deploymentAllowance, feeAllowance, ...input }: UserWalletInput): DbUserWalletInput {
     const dbInput: DbUserWalletInput = {
-      ...input
+      ...input,
+      updatedAt: new Date()
     };
 
     if (deploymentAllowance) {
