@@ -19,7 +19,8 @@ export const hiddenEnv = [
   "BITBUCKET_ACCESS_TOKEN",
   "BITBUCKET_USER",
   "DISABLE_PULL",
-  "GITHUB_ACCESS_TOKEN"
+  "GITHUB_ACCESS_TOKEN",
+  "FRONTEND_FOLDER"
 ];
 export const REDIRECT_URL = "http://localhost:3000/new-deployment?step=edit-deployment&type=github";
 export type ServiceControl = Control<SdlBuilderFormValuesType>;
@@ -44,3 +45,12 @@ export function appendEnv(key: string, value: string, isSecret: boolean, setValu
 export const removeInitialUrl = (url?: string) => {
   return url?.split("/").slice(-2).join("/");
 };
+
+export interface RepoType {
+  name: string;
+  id: string;
+  default_branch: string;
+  html_url: string;
+  userName: string;
+  private: boolean;
+}
