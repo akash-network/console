@@ -2,28 +2,35 @@
 import "highlight.js/styles/vs2015.css";
 
 import ReactMarkdown from "react-markdown";
+import { PluggableList } from "react-markdown/lib/react-markdown";
 import { useTheme } from "next-themes";
 import rehypeHighlight from "rehype-highlight";
+import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 
 import { cn } from "@src/utils/styleUtils";
 
 type MarkdownProps = {
   children?: React.ReactNode | string;
+  hasHtml?: boolean;
 };
 
-const Markdown: React.FunctionComponent<MarkdownProps> = ({ children }) => {
+const Markdown: React.FunctionComponent<MarkdownProps> = ({ children, hasHtml }) => {
   const { resolvedTheme } = useTheme();
+
+  const rehypePlugins: PluggableList = hasHtml
+    ? [[rehypeRaw as any], [rehypeHighlight, { ignoreMissing: true }]]
+    : [[rehypeHighlight, { ignoreMissing: true }]];
 
   return (
     <ReactMarkdown
       className={cn(
-        "markdownContainerRoot prose dark:prose-invert prose-code:before:hidden prose-code:after:hidden",
+        "markdownContainerRoot prose max-w-full dark:prose-invert prose-code:before:hidden prose-code:after:hidden",
         resolvedTheme === "dark" ? "markdownContainer-dark" : "markdownContainer"
       )}
       linkTarget="_blank"
       remarkPlugins={[remarkGfm]}
-      rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
+      rehypePlugins={rehypePlugins}
     >
       {children as string}
     </ReactMarkdown>
