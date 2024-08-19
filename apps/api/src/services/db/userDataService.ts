@@ -1,6 +1,7 @@
 import { UserAddressName, UserSetting } from "@akashnetwork/database/dbSchemas/user";
 import pick from "lodash/pick";
 import { Transaction } from "sequelize";
+import { container } from "tsyringe";
 
 import { LoggerService } from "@src/core";
 
@@ -106,7 +107,14 @@ export async function getSettingsOrInit({ anonymousUserId, userId, wantedUsernam
 
   if (!isAnonymous) {
     userSettings = await UserSetting.findOne({ where: { userId: userId } });
-    logger.debug({ event: "USER_RETRIEVED", id: anonymousUserId, userId });
+
+    if (userSettings) {
+      logger.debug({ event: "USER_RETRIEVED", userId });
+    }
+
+    if (userSettings && anonymousUserId) {
+      tryToTransferWallet(anonymousUserId, userSettings.id);
+    }
   }
 
   if (!userSettings) {
@@ -140,6 +148,24 @@ export async function getSettingsOrInit({ anonymousUserId, userId, wantedUsernam
     "twitterUsername",
     "githubUsername"
   ]);
+}
+
+async function tryToTransferWallet(prevUserId: string, nextUserId: string) {
+  if (process.env.BILLING_ENABLED !== "true") {
+    return;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { UserWalletRepository } = require("@src/billing/repositories/user-wallet/user-wallet.repository");
+
+  const userWalletRepository = container.resolve<any>(UserWalletRepository);
+
+  try {
+    await userWalletRepository.updateBy({ userId: prevUserId }, { userId: nextUserId });
+  } catch (error) {
+    if (!error.message.includes("user_wallets_user_id_unique")) {
+      throw error;
+    }
+  }
 }
 
 export async function getAddressNames(userId: string) {
