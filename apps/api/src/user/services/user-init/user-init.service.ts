@@ -9,7 +9,6 @@ import { checkUsernameAvailable } from "@src/services/db/userDataService";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 
 export type UserInitInput = {
-  anonymousUserId?: string;
   userId: string;
   wantedUsername: string;
   email: string;
@@ -20,6 +19,11 @@ export type UserInitInput = {
 @singleton()
 export class UserInitService {
   private readonly logger = new LoggerService({ context: UserInitService.name });
+
+  get anonymousUserId() {
+    return this.authService.currentUser.userId ? undefined : this.authService.currentUser?.id;
+  }
+
   constructor(
     private readonly userRepository: UserRepository,
     private readonly userWalletRepository: UserWalletRepository,
@@ -33,9 +37,9 @@ export class UserInitService {
       user = await this.tryToRetrieveUser(input);
     }
 
-    if (user && input.anonymousUserId) {
-      await this.tryToTransferWallet(input.anonymousUserId, user.id);
-    } else {
+    if (user && this.anonymousUserId) {
+      await this.tryToTransferWallet(this.anonymousUserId, user.id);
+    } else if (!user) {
       user = await this.tryToRegisterUser(input);
     }
 
@@ -57,12 +61,12 @@ export class UserInitService {
   }
 
   private async tryToRegisterAnonymousUser(input: UserInitInput): Promise<UserOutput | undefined> {
-    if (!input.anonymousUserId) {
+    if (!this.anonymousUserId) {
       return;
     }
     try {
       const user = await this.userRepository.updateBy(
-        { id: input.anonymousUserId, userId: null },
+        { id: this.anonymousUserId, userId: null },
         {
           userId: input.userId,
           username: await this.generateUsername(input.wantedUsername),
@@ -74,16 +78,17 @@ export class UserInitService {
       );
 
       if (user) {
-        this.logger.info({ event: "ANONYMOUS_USER_REGISTERED", id: input.anonymousUserId, userId: input.userId });
+        this.logger.info({ event: "ANONYMOUS_USER_REGISTERED", id: this.anonymousUserId, userId: input.userId });
       }
 
       return user;
     } catch (error) {
-      if (error.name !== "SequelizeUniqueConstraintError") {
+      console.log("DEBUG error.message", error.message);
+      if (!error.message.includes("duplicate key")) {
         throw error;
       }
 
-      this.logger.info({ event: "ANONYMOUS_USER_ALREADY_REGISTERED", id: input.anonymousUserId, userId: input.userId });
+      this.logger.info({ event: "ANONYMOUS_USER_ALREADY_REGISTERED", id: this.anonymousUserId, userId: input.userId });
     }
   }
 
@@ -94,8 +99,8 @@ export class UserInitService {
       this.logger.debug({ event: "USER_RETRIEVED", userId: input.userId });
     }
 
-    if (user && input.anonymousUserId) {
-      await this.tryToTransferWallet(input.anonymousUserId, user.id);
+    if (user && this.anonymousUserId) {
+      await this.tryToTransferWallet(this.anonymousUserId, user.id);
     }
 
     return user;
