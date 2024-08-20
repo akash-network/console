@@ -61,7 +61,7 @@ profiles:
         # The name of the service
         web:
           denom: uakt
-          amount: 1000
+          amount: 10000
 
 # The deployment section defines how to deploy the services. It is a mapping of service name to deployment configuration.
 # https://akash.network/docs/getting-started/stack-definition-language/#deployment
