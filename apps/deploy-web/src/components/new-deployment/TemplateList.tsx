@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
-import { ArrowRight, Cpu, Page, Rocket, Wrench, Linux } from "iconoir-react";
+import { ArrowRight, Cpu, Linux,Page, Rocket, Wrench } from "iconoir-react";
 import { NavArrowLeft } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";

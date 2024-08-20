@@ -2,10 +2,10 @@ import { DataTypes } from "sequelize";
 import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
+import { AkashBlock } from "./akashBlock";
 import { ProviderAttribute } from "./providerAttribute";
 import { ProviderAttributeSignature } from "./providerAttributeSignature";
 import { ProviderSnapshot } from "./providerSnapshot";
-import { AkashBlock } from "./akashBlock";
 
 @Table({
   modelName: "provider",
