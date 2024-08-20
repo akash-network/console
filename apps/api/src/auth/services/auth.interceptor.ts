@@ -22,6 +22,7 @@ export class AuthInterceptor implements HonoInterceptor {
   intercept() {
     return async (c: Context, next: Next) => {
       const bearer = c.req.header("authorization");
+      const anonymousBearer = c.req.header("x-anonymous-authorization");
 
       const anonymousUserId = bearer && (await this.anonymousUserAuthService.getValidUserId(bearer));
 
@@ -40,7 +41,9 @@ export class AuthInterceptor implements HonoInterceptor {
         const currentUser = await this.userRepository.findByUserId(userId);
 
         this.authService.currentUser = currentUser;
-        this.authService.ability = currentUser ? this.abilityService.getAbilityFor("REGULAR_USER", currentUser) : this.abilityService.EMPTY_ABILITY;
+        this.authService.ability = currentUser
+          ? this.abilityService.getAbilityFor("REGULAR_USER", currentUser)
+          : this.abilityService.getAbilityFor("REGULAR_UNREGISTERED_USER", { userId });
 
         return await next();
       }

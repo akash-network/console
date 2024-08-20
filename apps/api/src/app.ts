@@ -78,9 +78,10 @@ if (BILLING_ENABLED === "true") {
   appHono.route("/", getWalletListRouter);
   appHono.route("/", signAndBroadcastTxRouter);
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createAnonymousUserRouter, getAnonymousUserRouter } = require("./user");
+  const { createAnonymousUserRouter, getAnonymousUserRouter, createOrGetUserRouter } = require("./user");
   appHono.route("/", createAnonymousUserRouter);
   appHono.route("/", getAnonymousUserRouter);
+  appHono.route("/", createOrGetUserRouter);
 }
 
 appHono.get("/status", c => {

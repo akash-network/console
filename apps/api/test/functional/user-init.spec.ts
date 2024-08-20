@@ -6,6 +6,7 @@ import omit from "lodash/omit";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
+import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
 import { USER_WALLET_SCHEMA, UserWalletSchema } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
@@ -26,6 +27,9 @@ describe("User Init", () => {
   const userWalletRepository = container.resolve(UserWalletRepository);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const walletService = new WalletService(app);
+  const authInterceptor = container.resolve(AuthInterceptor);
+  // @ts-ignore
+  const getValidUserId = jest.spyOn(authInterceptor, "getValidUserId");
   let auth0Payload: {
     userId: string;
     wantedUsername: string;
@@ -58,6 +62,7 @@ describe("User Init", () => {
     };
 
     (getCurrentUserId as jest.Mock).mockReturnValue(auth0Payload.userId);
+    (getValidUserId as jest.Mock).mockResolvedValue(auth0Payload.userId);
   });
 
   afterEach(async () => {
@@ -118,20 +123,22 @@ describe("User Init", () => {
     });
 
     async function sendTokenInfo(token?: string) {
-      const headers = new Headers({ "Content-Type": "application/json" });
+      const headers = new Headers({ "Content-Type": "application/json", authorization: `Bearer some-auth0-token` });
 
       if (token) {
         headers.set("x-anonymous-authorization", `Bearer ${token}`);
       }
 
-      const res = await app.request("/user/tokenInfo", {
+      const res = await app.request("/v1/users", {
         method: "POST",
         headers,
-        body: JSON.stringify(auth0Payload)
+        body: JSON.stringify({ data: auth0Payload })
       });
 
+      const body = await res.json();
+
       return {
-        body: await res.json(),
+        body: body.data,
         status: res.status
       };
     }

@@ -30,6 +30,7 @@ export class AuthService {
   }
 
   throwUnlessCan(action: string, subject: string) {
+    console.log("DEBUG this.ability", JSON.stringify(this.ability.rules, null, 2));
     assert(this.ability.can(action, subject), 403);
   }
 }
@@ -39,11 +40,11 @@ export const Protected = (rules?: { action: string; subject: string }[]) => (tar
 
   descriptor.value = function protectedFunction(...args: any[]) {
     const authService = container.resolve(AuthService);
-
-    assert(authService.isAuthenticated, 401);
-
+    console.log("DEBUG rules", JSON.stringify(rules, null, 2));
     if (rules) {
       rules.forEach(rule => authService.throwUnlessCan(rule.action, rule.subject));
+    } else {
+      assert(authService.isAuthenticated, 401);
     }
 
     return originalMethod.apply(this, args);
