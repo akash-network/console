@@ -28,7 +28,7 @@ export const NewDeploymentContainer: FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dseq = searchParams?.get("dseq");
-  const { toggleCmp } = useSdlBuilder();
+  const { toggleCmp, hasComponent } = useSdlBuilder();
 
   useEffect(() => {
     if (!templates) return;
@@ -45,7 +45,7 @@ export const NewDeploymentContainer: FC = () => {
       setSelectedTemplate(galleryTemplate as TemplateCreation);
       setEditedManifest(galleryTemplate.content as string);
 
-      if (galleryTemplate.config?.ssh) {
+      if (galleryTemplate.config?.ssh || (!galleryTemplate.config?.ssh && hasComponent("ssh"))) {
         toggleCmp("ssh");
       }
     }
