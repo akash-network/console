@@ -46,7 +46,7 @@ export const useRepos = () => {
     queryKey: ["repos", token?.access_token],
     queryFn: async () => {
       const response = await axiosInstance.get(
-        "/user/repos",
+        "/user/repos?per_page=150",
 
         {
           headers: {
