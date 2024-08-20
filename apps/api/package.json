@@ -1,6 +1,6 @@
 {
   "name": "console-api",
-  "version": "2.21.0",
+  "version": "2.21.1",
   "description": "Api providing data to the deploy tool",
   "repository": {
     "type": "git",
