@@ -49,7 +49,7 @@ const productionMainnetApiUrl = "https://api.cloudmos.io";
 const productionTestnetApiUrl = "https://api-testnet.cloudmos.io";
 const productionSandboxApiUrl = "https://api-sandbox.cloudmos.io";
 const productionStatsAppUrl = "https://stats.akash.network";
-const productionHostnames = ["deploy.cloudmos.io", "console.akash.network", "staging-console.akash.network", "beta.cloudmos.io"];
+const productionHostnames = ["deploy.cloudmos.io", "console.akash.network", "staging-console.akash.network", "beta.cloudmos.io", "console-beta.akash.network"];
 
 export const isProd = process.env.NODE_ENV === "production";
 export const isMaintenanceMode = process.env.MAINTENANCE_MODE === "true";
