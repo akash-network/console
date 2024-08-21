@@ -113,7 +113,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
         label: "Balance",
         denom: usdcIbcDenom,
         denomLabel: "USDC",
-        value: isManagedWallet && envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "usdc" ? balances.balanceUsdc + managedWalletCreditAmount : balances.balance,
+        value: isManagedWallet && envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "usdc" ? balances.balanceUsdc + managedWalletCreditAmount : balances.balanceUsdc,
         color: colors.balance_usdc
       },
       {
