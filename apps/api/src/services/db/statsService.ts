@@ -225,7 +225,7 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
         {
           type: QueryTypes.SELECT,
           replacements: {
-            grace_duration: env.ProviderUptimeGracePeriodMinutes
+            grace_duration: env.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES
           }
         }
       );

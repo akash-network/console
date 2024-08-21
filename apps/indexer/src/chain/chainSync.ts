@@ -85,7 +85,7 @@ export async function syncBlocks() {
   if (latestHeightInCache >= latestBlockToDownload) {
     console.log("No blocks to download");
   } else {
-    let startHeight = !env.KeepCache ? latestInsertedHeight + 1 : Math.max(latestHeightInCache, 1);
+    let startHeight = !env.KEEP_CACHE ? latestInsertedHeight + 1 : Math.max(latestHeightInCache, 1);
 
     // If database is empty
     if (latestInsertedHeight === 0) {
@@ -118,7 +118,7 @@ export async function syncBlocks() {
     if (executionMode === ExecutionMode.RebuildAll) {
       await sequelize.query("DROP INDEX message_height");
 
-      if (env.ActiveChain === "akash") {
+      if (env.ACTIVE_CHAIN === "akash") {
         await sequelize.query("DROP INDEX message_related_deployment_id");
       }
 
@@ -144,7 +144,7 @@ export async function syncBlocks() {
 
   benchmark.displayTimes();
 
-  if (!env.KeepCache) {
+  if (!env.KEEP_CACHE) {
     await deleteCache();
   }
 }

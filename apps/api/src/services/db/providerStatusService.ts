@@ -19,7 +19,7 @@ export async function getNetworkCapacity() {
         required: true,
         model: ProviderSnapshot,
         as: "lastSuccessfulSnapshot",
-        where: { checkDate: { [Op.gte]: toUTC(sub(new Date(), { minutes: env.ProviderUptimeGracePeriodMinutes })) } }
+        where: { checkDate: { [Op.gte]: toUTC(sub(new Date(), { minutes: env.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES })) } }
       }
     ]
   });

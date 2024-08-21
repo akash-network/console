@@ -6,10 +6,10 @@ import { Auditor, ProviderAttributesSchema } from "@src/types/provider";
 import { env } from "@src/utils/env";
 
 export function getOctokit() {
-  const githubPAT = env.AkashlyticsGithubPAT;
+  const githubPAT = env.AKASHLYTICS_GITHUB_PAT;
 
   if (!githubPAT) {
-    throw new Error("AkashlyticsGithubPAT is missing");
+    throw new Error("AKASHLYTICS_GITHUB_PAT is missing");
   }
 
   return new Octokit({
