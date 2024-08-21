@@ -13,6 +13,7 @@ export default function GoogleAnalytics() {
       nonInteraction: true // avoids affecting bounce rate.
     });
   });
+  const isProd = false;
 
   return <>{browserEnvConfig.NEXT_PUBLIC_NODE_ENV === "production" && <GAnalytics trackPageViews />}</>;
 }
