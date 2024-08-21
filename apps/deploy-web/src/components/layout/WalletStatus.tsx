@@ -125,8 +125,8 @@ export function WalletStatus() {
           </>
         )
       ) : (
-        <div className="pl-2 pr-2">
-          <Spinner size="small" />
+        <div className="flex items-center justify-center p-4">
+          <Spinner size="medium" />
         </div>
       )}
     </>
