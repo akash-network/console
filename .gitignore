@@ -78,3 +78,6 @@ build.ps1
 
 # Data Folder
 data
+
+# Mac DS store
+.DS_Store
