@@ -24,48 +24,50 @@ const GetStarted: React.FunctionComponent = () => {
         <div className="text-sm">Provider Summary</div>
         <div className="mt-2 grid grid-cols-3 gap-4">
           <Card>
-            <CardHeader className="pb-2">
-              <div className="text-xs font-bold">Total Paid 24H</div>
-            </CardHeader>
-            <CardContent className="pb-4 pt-0">
-              <div className="grid grid-cols-3 gap-2">
+            <CardContent className="rounded-lg p-6 shadow-md">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="">
-                  <div className="text-xl font-bold">$2555.0</div>
-                  <div className="text-sm">3.35%</div>
+                  <div className="text-sm font-medium">Total Paid 24H</div>
+                  <div className="text-2xl font-semibold">$2555.0</div>
+                  <div className="mt-1 text-sm font-medium text-green-500">+3.35%</div>
                 </div>
-                <div className="col-span-2 place-self-center">
-                  <div className="">
-                    <DashboardCharts />
+                <div className="col-span-2 flex items-center justify-end">
+                  <div className="w-full overflow-hidden">
+                    <DashboardCharts data={[15, 0, 25, 0, 45, 70]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} />
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader>
-              <div className="text-sm">Total Paid 7D</div>
-            </CardHeader>
-            <CardContent className="pb-4 pt-0">
-              <div className="grid grid-cols-2 gap-4">
+            <CardContent className="rounded-lg p-6 shadow-md">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="">
-                  <div className="text-lg font-bold">$10K.0</div>
-                  <div className="text-sm">3.35%</div>
+                  <div className="text-sm font-medium">Total Paid 7D</div>
+                  <div className="text-2xl font-semibold">$7354.0</div>
+                  <div className="mt-1 text-sm font-medium">+7.35%</div>
                 </div>
-                <div className="">Graph here</div>
+                <div className="col-span-2 flex items-center justify-end">
+                  <div className="w-full overflow-hidden">
+                    <DashboardCharts data={[25, 65, 30, 45, 80]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader>
-              <div className="text-sm">Active Leases</div>
-            </CardHeader>
-            <CardContent className="pb-4 pt-0">
-              <div className="grid grid-cols-2 gap-4">
+            <CardContent className="rounded-lg p-6 shadow-md">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="">
-                  <div className="text-lg font-bold">15</div>
-                  <div className="text-sm">3.35%</div>
+                  <div className="text-sm font-medium">Total Leases</div>
+                  <div className="text-2xl font-semibold">18</div>
+                  <div className="mt-1 text-sm font-medium">+5.70%</div>
                 </div>
-                <div className="">Graph here</div>
+                <div className="col-span-2 flex items-center justify-end">
+                  <div className="w-full overflow-hidden">
+                    <DashboardCharts data={[10, 34, 20, 60, 75]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

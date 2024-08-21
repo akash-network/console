@@ -1,10 +1,38 @@
 "use client";
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@akashnetwork/ui/components";
 import { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
 import React from "react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-export const DashboardCharts: React.FunctionComponent = () => {
+interface DashboardChartsProps {
+  data: number[];
+  labels: string[];
+  title?: string; // Optional prop
+}
+
+const chartData = [
+  { month: "January", desktop: 186, mobile: 80 },
+  { month: "February", desktop: 305, mobile: 200 },
+  { month: "March", desktop: 237, mobile: 120 },
+  { month: "April", desktop: 73, mobile: 190 },
+  { month: "May", desktop: 209, mobile: 130 },
+  { month: "June", desktop: 214, mobile: 140 }
+];
+
+const chartConfig = {
+  desktop: {
+    label: "Desktop",
+    color: "rgb(255,66,76)"
+  },
+  mobile: {
+    label: "Mobile",
+    color: "rgb(255,66,76)"
+  }
+} satisfies ChartConfig;
+
+export const DashboardCharts: React.FunctionComponent<DashboardChartsProps> = ({ data, labels, title }) => {
   const chartOptions: ApexOptions = {
     chart: {
       height: 125,
@@ -31,8 +59,9 @@ export const DashboardCharts: React.FunctionComponent = () => {
       offsetY: -5 // Adjust the position of the labels above the points
     },
     xaxis: {
+      categories: labels,
       labels: {
-        show: false
+        show: true
       },
       axisBorder: {
         show: false
@@ -51,8 +80,8 @@ export const DashboardCharts: React.FunctionComponent = () => {
   const chartvariable = {
     series: [
       {
-        name: "Desktops",
-        data: [15, 0, 25, 0, 45, 70]
+        name: "Data",
+        data: data
       }
     ],
     options: {
@@ -74,9 +103,22 @@ export const DashboardCharts: React.FunctionComponent = () => {
 
   return (
     <div>
-      <div id="chart">
-        {typeof window !== "undefined" && <Chart options={chartOptions} series={chartvariable.series} type="line" height={125} width={150} />}
-      </div>
+      {/* <div id="chart">{typeof window !== "undefined" && <Chart options={chartOptions} series={chartvariable.series} type="line" height={125} />}</div> */}
+      <ChartContainer config={chartConfig} className="min-h-[150px] w-full">
+        <AreaChart
+          accessibilityLayer
+          data={chartData}
+          margin={{
+            left: 12,
+            right: 12
+          }}
+        >
+          {/* <CartesianGrid vertical={false} /> */}
+          <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={value => value.slice(0, 3)} />
+          <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
+          <Area dataKey="desktop" type="natural" fill="var(--color-desktop)" fillOpacity={0.4} stroke="var(--color-desktop)" />
+        </AreaChart>
+      </ChartContainer>
       <div id="html-dist"></div>
     </div>
   );
