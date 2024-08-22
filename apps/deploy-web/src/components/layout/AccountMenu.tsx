@@ -80,9 +80,6 @@ export function AccountMenu() {
                         <CustomDropdownLinkItem onClick={() => window.open("https://blockspy.io", "_blank")?.focus()} icon={<Bell />}>
                           My Alerts
                         </CustomDropdownLinkItem>
-                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.userAddressBook())} icon={<Book />}>
-                          Addresses
-                        </CustomDropdownLinkItem>
                         <DropdownMenuSeparator />
                         <CustomDropdownLinkItem onClick={() => router.push(UrlService.logout())} icon={<LogOut />}>
                           Logout

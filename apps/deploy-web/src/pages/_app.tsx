@@ -18,7 +18,6 @@ import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
 import { UserProviders } from "@src/components/user/UserProviders";
-import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 import { CertificateProvider } from "@src/context/CertificateProvider";
 import { ChainParamProvider } from "@src/context/ChainParamProvider";
@@ -59,30 +58,28 @@ const App: React.FunctionComponent<Props> = props => {
                   <CustomSnackbarProvider>
                     <UserProviders>
                       <PricingProvider>
-                        <AddressBookProvider>
-                          <TooltipProvider>
-                            <SettingsProvider>
-                              <CustomChainProvider>
-                                <PopupProvider>
-                                  <WalletProvider>
-                                    <ChainParamProvider>
-                                      <CertificateProvider>
-                                        <BackgroundTaskProvider>
-                                          <TemplatesProvider>
-                                            <LocalNoteProvider>
-                                              <GoogleAnalytics />
-                                              <Component {...pageProps} />
-                                            </LocalNoteProvider>
-                                          </TemplatesProvider>
-                                        </BackgroundTaskProvider>
-                                      </CertificateProvider>
-                                    </ChainParamProvider>
-                                  </WalletProvider>
-                                </PopupProvider>
-                              </CustomChainProvider>
-                            </SettingsProvider>
-                          </TooltipProvider>
-                        </AddressBookProvider>
+                        <TooltipProvider>
+                          <SettingsProvider>
+                            <CustomChainProvider>
+                              <PopupProvider>
+                                <WalletProvider>
+                                  <ChainParamProvider>
+                                    <CertificateProvider>
+                                      <BackgroundTaskProvider>
+                                        <TemplatesProvider>
+                                          <LocalNoteProvider>
+                                            <GoogleAnalytics />
+                                            <Component {...pageProps} />
+                                          </LocalNoteProvider>
+                                        </TemplatesProvider>
+                                      </BackgroundTaskProvider>
+                                    </CertificateProvider>
+                                  </ChainParamProvider>
+                                </WalletProvider>
+                              </PopupProvider>
+                            </CustomChainProvider>
+                          </SettingsProvider>
+                        </TooltipProvider>
                       </PricingProvider>
                     </UserProviders>
                   </CustomSnackbarProvider>
