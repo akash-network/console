@@ -1,4 +1,4 @@
-import { UserAddressName, UserSetting } from "@akashnetwork/database/dbSchemas/user";
+import { UserSetting } from "@akashnetwork/database/dbSchemas/user";
 import pick from "lodash/pick";
 import { Transaction } from "sequelize";
 import { container } from "tsyringe";
@@ -166,35 +166,6 @@ async function tryToTransferWallet(prevUserId: string, nextUserId: string) {
       throw error;
     }
   }
-}
-
-export async function getAddressNames(userId: string) {
-  const addressNames = await UserAddressName.findAll({
-    where: {
-      userId: userId
-    }
-  });
-
-  return addressNames.reduce((obj, current) => ({ ...obj, [current.address]: current.name }), {});
-}
-
-export async function saveAddressName(userId: string, address: string, name: string) {
-  let addressName = await UserAddressName.findOne({ where: { userId: userId, address: address } });
-
-  if (!addressName) {
-    addressName = UserAddressName.build({
-      userId: userId,
-      address: address
-    });
-  }
-
-  addressName.name = name;
-
-  await addressName.save();
-}
-
-export async function removeAddressName(userId: string, address: string) {
-  await UserAddressName.destroy({ where: { userId: userId, address: address } });
 }
 
 export async function getUserByUsername(username: string) {
