@@ -20,9 +20,9 @@ import { RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { cn } from "@src/utils/styleUtils";
-import { github } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
+import { isRedeployImage } from "../remote-deploy/utils";
 import { Title } from "../shared/Title";
 import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
@@ -164,7 +164,7 @@ export function DeploymentDetail() {
   }, [deployment]);
 
   useEffect(() => {
-    if (editedManifest && github.content.includes(editedManifest?.split("service-1:")?.[1]?.split("expose:")?.[0]?.split("image: ")?.[1])) {
+    if (editedManifest && isRedeployImage(editedManifest)) {
       setRemoteDeploy(true);
     }
   }, [editedManifest]);

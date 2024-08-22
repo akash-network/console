@@ -1,6 +1,18 @@
 import React, { Dispatch, useEffect, useState } from "react";
 import { Control, useFieldArray, useForm } from "react-hook-form";
-import { Input, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Snackbar, Switch } from "@akashnetwork/ui/components";
+import {
+  Checkbox,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Snackbar,
+  Switch
+} from "@akashnetwork/ui/components";
 import { GitCommit } from "iconoir-react";
 import { useAtom } from "jotai";
 import { nanoid } from "nanoid";
@@ -64,6 +76,23 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
   };
   return github.content.includes(services?.[0]?.image) ? (
     <div className="flex flex-col gap-6 rounded border bg-card px-4 py-6 md:px-6">
+      <div className="flex items-center gap-5 rounded text-card-foreground">
+        <Label htmlFor="disable-pull" className="text-base">
+          Disable Auto-Deploy
+        </Label>
+
+        <Checkbox
+          id="disable-pull"
+          checked={services[0]?.env?.find(e => e.key === "DISABLE_PULL")?.value === "yes"}
+          onCheckedChange={value => {
+            const pull = value ? "yes" : "no";
+            appendEnv("DISABLE_PULL", pull, false, setValue, services);
+            enqueueSnackbar(<Snackbar title={"Info"} subTitle="You need to click update deployment button to apply changes" iconVariant="info" />, {
+              variant: "info"
+            });
+          }}
+        />
+      </div>
       {services[0]?.env?.length && <EnvFormModal control={control} serviceIndex={0} envs={services[0]?.env ?? []} onClose={() => {}} />}
       {/* //type === github */}
       {token.access_token && services[0]?.env?.find(e => e.key === "REPO_URL")?.value?.includes(token.type) && (
@@ -83,33 +112,6 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
           )}
         </>
       )}
-      <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
-        <div className="flex flex-col gap-2">
-          <h1 className="font-semibold">Auto-Deploy</h1>
-          <p className="text-muted-foreground">By default, your code is automatically deployed whenever you update it. Disable to handle deploys manually.</p>
-        </div>
-        <Select
-          value={services?.[0]?.env?.find(e => e.key === "DISABLE_PULL")?.value}
-          onValueChange={value => {
-            enqueueSnackbar(<Snackbar title={"Info"} subTitle="You need to click update deployment button to apply changes" iconVariant="info" />, {
-              variant: "info"
-            });
-            appendEnv("DISABLE_PULL", value, false, setValue, services);
-          }}
-        >
-          <SelectTrigger className="w-full">
-            <div className="flex items-center gap-2">
-              <SelectValue placeholder={"Select"} />
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="yes">Yes</SelectItem>
-              <SelectItem value="no">No</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </div>
     </div>
   ) : null;
 };
