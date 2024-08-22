@@ -37,7 +37,7 @@ export async function getChainStats() {
     cacheKeys.getChainStats,
     async () => {
       const bondedTokensQuery = axios.get<CosmosStakingPoolResponse>(`${apiNodeUrl}/cosmos/staking/v1beta1/pool`);
-      const supplyQuery = axios.get<CosmosBankSupplyResponse>(`${apiNodeUrl}/cosmos/bank/v1beta1/supply`);
+      const supplyQuery = axios.get<CosmosBankSupplyResponse>(`${apiNodeUrl}/cosmos/bank/v1beta1/supply?pagination.limit=1000`);
       const communityPoolQuery = axios.get<CosmosDistributionCommunityPoolResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
       const inflationQuery = axios.get<CosmosMintInflationResponse>(`${apiNodeUrl}/cosmos/mint/v1beta1/inflation`);
       const distributionQuery = axios.get<CosmosDistributionParamsResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/params`);
