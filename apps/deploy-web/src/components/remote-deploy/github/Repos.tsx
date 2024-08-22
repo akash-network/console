@@ -26,7 +26,7 @@ import { useGitlabSrcFolders } from "../api/gitlab-api";
 import CustomInput from "../CustomInput";
 import useFramework from "../FrameworkDetection";
 import { IGithubDirectoryItem } from "../remoteTypes";
-import { appendEnv, removeInitialUrl, RepoType } from "../utils";
+import { appendEnv, removeEnv, removeInitialUrl, RepoType } from "../utils";
 // import { handleLogin } from "../api/api";
 const Repos = ({
   repos,
@@ -49,6 +49,8 @@ const Repos = ({
   const [token] = useAtom(remoteDeployStore.tokens);
   const [search, setSearch] = useState("");
   const [filteredRepos, setFilteredRepos] = useState(repos);
+  console.log(services);
+
   const currentRepo = services?.[0]?.env?.find(e => e.key === "REPO_URL");
   const repo = repos?.find(r => r.html_url === currentRepo?.value);
   const [directory, setDirectory] = useState<IGithubDirectoryItem[] | null>(null);
@@ -81,7 +83,7 @@ const Repos = ({
     services?.[0]?.env?.find(e => e.key === "GITLAB_PROJECT_ID")?.value
   );
   const isLoadingDirectories = isGithubLoading || isGitlabLoading || isBitLoading || isGettingDirectory || isGettingDirectoryBit || isGettingDirectoryGitlab;
-
+  const rootFolder = "akash-root-folder-repo-path";
   useEffect(() => {
     setFilteredRepos(repos);
   }, [repos]);
@@ -209,16 +211,27 @@ const Repos = ({
                       </div>
 
                       <RadioGroup
-                        className=""
+                        className="gap-0"
                         onValueChange={value => {
-                          appendEnv("FRONTEND_FOLDER", value, false, setValue, services);
+                          if (value === rootFolder) {
+                            removeEnv("FRONTEND_FOLDER", setValue, services);
+                          } else {
+                            appendEnv("FRONTEND_FOLDER", value, false, setValue, services);
+                          }
                         }}
-                        value={currentFolder?.value}
+                        value={currentFolder?.value || rootFolder}
                       >
+                        <div className="flex items-center justify-between border-card-foreground py-1">
+                          <Label htmlFor={rootFolder} className="flex items-center gap-2">
+                            <Folder />
+                            ./
+                          </Label>
+                          <RadioGroupItem value={rootFolder} id={rootFolder} />
+                        </div>
                         {directory
                           ?.filter(item => item.type === "dir" || item.type === "commit_directory" || item.type === "tree")
                           .map(item => (
-                            <div className="flex items-center justify-between py-0.5" key={item.path}>
+                            <div className="flex items-center justify-between border-l border-card-foreground py-1 pl-4" key={item.path}>
                               <Label htmlFor={item.path} className="flex items-center gap-2">
                                 <Folder />
                                 {item.path}

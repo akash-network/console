@@ -2,6 +2,7 @@ import { Control } from "react-hook-form";
 import { nanoid } from "nanoid";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { github } from "@src/utils/templates";
 
 export type OAuth = "github" | "gitlab" | "bitbucket";
 export const PROXY_API_URL_AUTH = "https://proxy-console-github.vercel.app";
@@ -42,6 +43,12 @@ export function appendEnv(key: string, value: string, isSecret: boolean, setValu
   setValue("services.0.env", previousEnv);
 }
 
+export function removeEnv(key: string, setValue: any, services: ServiceType[]) {
+  const previousEnv = services[0]?.env || [];
+  const newEnv = previousEnv.filter(e => e.key !== key);
+  setValue("services.0.env", newEnv);
+}
+
 export const removeInitialUrl = (url?: string) => {
   return url?.split("/").slice(-2).join("/");
 };
@@ -54,3 +61,7 @@ export interface RepoType {
   userName: string;
   private: boolean;
 }
+
+export const isRedeployImage = (yml: string) => {
+  return github.content.includes(yml?.split("service-1:")?.[1]?.split("expose:")?.[0]?.split("image: ")?.[1]);
+};

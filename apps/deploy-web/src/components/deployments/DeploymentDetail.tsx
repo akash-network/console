@@ -21,6 +21,7 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
+import { isRedeployImage } from "../remote-deploy/utils";
 import { Title } from "../shared/Title";
 import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
@@ -161,7 +162,7 @@ export function DeploymentDetail() {
   }, [deployment]);
 
   useEffect(() => {
-    if (editedManifest && github.content.includes(editedManifest?.split("service-1:")?.[1]?.split("expose:")?.[0]?.split("image: ")?.[1])) {
+    if (editedManifest && isRedeployImage(editedManifest)) {
       setRemoteDeploy(true);
     }
   }, [editedManifest]);

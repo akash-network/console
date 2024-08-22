@@ -1,18 +1,5 @@
 import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Separator
-} from "@akashnetwork/ui/components";
+import { Card, CardContent, Checkbox, Collapsible, CollapsibleContent, CollapsibleTrigger, Label, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
@@ -41,7 +28,7 @@ const Advanced = ({ services, control, setValue }) => {
           </CollapsibleTrigger>
           {expanded && <Separator />}
           <CollapsibleContent>
-            <div className="flex flex-col gap-6 p-5">
+            <div className="grid grid-cols-2 items-start gap-6 p-5">
               <EnvFormModal
                 control={control}
                 onClose={() => {}}
@@ -49,31 +36,19 @@ const Advanced = ({ services, control, setValue }) => {
                 envs={currentService.env || []}
                 // hasSecretOption={hasSecretOption}
               />
-              <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
-                <div className="flex flex-col gap-2">
-                  <h1 className="font-semibold">Auto-Deploy</h1>
-                  <p className="text-muted-foreground">
-                    By default, your code is automatically deployed whenever you update it. Disable to handle deploys manually.
-                  </p>
-                </div>
-                <Select
-                  value={services?.[0]?.env?.find(e => e.key === "DISABLE_PULL")?.value}
-                  onValueChange={value => {
-                    appendEnv("DISABLE_PULL", value, false, setValue, services);
+              <div className="flex items-center justify-between gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
+                <Label htmlFor="disable-pull" className="text-base">
+                  Disable Auto-Deploy
+                </Label>
+
+                <Checkbox
+                  id="disable-pull"
+                  defaultChecked={false}
+                  onCheckedChange={value => {
+                    const pull = value ? "yes" : "no";
+                    appendEnv("DISABLE_PULL", pull, false, setValue, services);
                   }}
-                >
-                  <SelectTrigger className="w-full">
-                    <div className="flex items-center gap-2">
-                      <SelectValue placeholder={"Select"} />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="yes">Yes</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                />
               </div>
             </div>
           </CollapsibleContent>
