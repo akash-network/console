@@ -55,14 +55,6 @@ export const MobileSidebarUser: React.FunctionComponent = () => {
           )}
           <SidebarRouteButton
             route={{
-              title: "Addresses",
-              icon: props => <BookStack {...props} />,
-              url: UrlService.userAddressBook(),
-              activeRoutes: [UrlService.userAddressBook()]
-            }}
-          />
-          <SidebarRouteButton
-            route={{
               title: "Settings",
               icon: props => <Settings {...props} />,
               url: UrlService.userSettings(),
