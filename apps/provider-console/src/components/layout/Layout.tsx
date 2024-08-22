@@ -86,7 +86,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
 
   return (
     <>
-      <div className="h-full">
+      <div className="h-full bg-card">
         <div className="h-full w-full" style={{ marginTop: `${accountBarHeight}px` }}>
           <div className="h-full">
             <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} />
