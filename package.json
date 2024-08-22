@@ -27,8 +27,7 @@
   "dependencies": {
     "drizzle-orm": "^0.31.2",
     "pg": "^8.11.6",
-    "@cosmos-kit/cosmos-extension-metamask": "^0.9.1",
-    "patch-package": "^8.0.0"
+    "@cosmos-kit/cosmos-extension-metamask": "^0.9.1"
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
