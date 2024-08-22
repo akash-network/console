@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { IGithubDirectoryItem } from "../remoteTypes";
-import { PROXY_API_URL_AUTH } from "../utils";
+import { PROXY_API_URL_AUTH, REDIRECT_URL } from "../utils";
 
 const Github_API_URL = "https://api.github.com";
 
@@ -14,7 +14,10 @@ export const CLIEND_ID = "Iv23liZYLYN9I2HrgeOh";
 export const handleLogin = () => {
   window.location.href = "https://github.com/apps/akash-console/installations/new";
 };
-// window.location.href = `https://github.com/login/oauth/authorize?client_id=${CLIEND_ID}&redirect_uri=${REDIRECT_URL}`;
+
+export const handleReLogin = () => {
+  window.location.href = `https://github.com/login/oauth/authorize?client_id=${CLIEND_ID}&redirect_uri=${REDIRECT_URL}`;
+};
 
 const axiosInstance = axios.create({
   baseURL: Github_API_URL,

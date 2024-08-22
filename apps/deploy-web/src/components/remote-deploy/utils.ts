@@ -22,7 +22,7 @@ export const hiddenEnv = [
   "GITHUB_ACCESS_TOKEN",
   "FRONTEND_FOLDER"
 ];
-export const REDIRECT_URL = "http://localhost:3000/new-deployment?step=edit-deployment&type=github";
+export const REDIRECT_URL = "https://akashconsole.vercel.app/new-deployment?step=edit-deployment&type=github";
 export type ServiceControl = Control<SdlBuilderFormValuesType>;
 export function appendEnv(key: string, value: string, isSecret: boolean, setValue: any, services: ServiceType[]) {
   const previousEnv = services[0]?.env || [];
