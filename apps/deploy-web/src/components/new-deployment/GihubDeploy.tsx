@@ -6,7 +6,7 @@ import { useAtom } from "jotai";
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { ServiceType } from "@src/types";
 import Advanced from "../remote-deploy/Advanced";
-import { handleLogin, useFetchAccessToken, useUserProfile } from "../remote-deploy/api/api";
+import { handleLogin, handleReLogin, useFetchAccessToken, useUserProfile } from "../remote-deploy/api/api";
 import { handleLoginBit, useBitFetchAccessToken, useBitUserProfile } from "../remote-deploy/api/bitbucket-api";
 import { handleGitLabLogin, useGitLabFetchAccessToken, useGitLabUserProfile } from "../remote-deploy/api/gitlab-api";
 import Bit from "../remote-deploy/bitbucket/Bit";
@@ -85,7 +85,16 @@ const GithubDeploy = ({
                   <button
                     className="hidden items-center gap-2 text-primary md:flex"
                     onClick={() => {
-                      setToken({ access_token: null, refresh_token: null, type: "github" });
+                      setToken({
+                        access_token: null,
+                        refresh_token: null,
+                        type: "github",
+                        alreadyLoggedIn: token?.alreadyLoggedIn?.includes(token.type)
+                          ? token.alreadyLoggedIn
+                          : token?.alreadyLoggedIn && token?.alreadyLoggedIn?.length > 0
+                            ? [...token.alreadyLoggedIn, token.type]
+                            : [token.type]
+                      });
                     }}
                   >
                     <CoinsSwap className="text-sm" /> Switch Git Provider
@@ -115,7 +124,7 @@ const GithubDeploy = ({
                     <div className="flex flex-col gap-3 md:flex-row">
                       <Button
                         onClick={() => {
-                          setToken({ access_token: null, refresh_token: null, type: "bitbucket" });
+                          setToken({ access_token: null, refresh_token: null, type: "bitbucket", alreadyLoggedIn: token?.alreadyLoggedIn });
 
                           handleLoginBit();
                         }}
@@ -127,7 +136,7 @@ const GithubDeploy = ({
                       </Button>
                       <Button
                         onClick={() => {
-                          setToken({ access_token: null, refresh_token: null, type: "gitlab" });
+                          setToken({ access_token: null, refresh_token: null, type: "gitlab", alreadyLoggedIn: token?.alreadyLoggedIn });
                           handleGitLabLogin();
                         }}
                         variant="outline"
@@ -138,8 +147,12 @@ const GithubDeploy = ({
                       </Button>
                       <Button
                         onClick={() => {
-                          setToken({ access_token: null, refresh_token: null, type: "github" });
-                          handleLogin();
+                          setToken({ access_token: null, refresh_token: null, type: "github", alreadyLoggedIn: token?.alreadyLoggedIn });
+                          if (token?.alreadyLoggedIn?.includes("github")) {
+                            handleReLogin();
+                          } else {
+                            handleLogin();
+                          }
                         }}
                         variant="outline"
                         className=""
