@@ -42,6 +42,7 @@ const Advanced = ({ services, control, setValue }) => {
                 </Label>
 
                 <Checkbox
+                  checked={currentService?.env?.find(env => env.key === "DISABLE_PULL")?.value === "yes"}
                   id="disable-pull"
                   defaultChecked={false}
                   onCheckedChange={value => {
