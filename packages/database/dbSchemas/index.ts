@@ -2,7 +2,7 @@ import { Model, ModelCtor } from "sequelize-typescript";
 
 import { activeChain, chainDefinitions } from "../chainDefinitions";
 import { AddressReference, Block as BaseBlock, Day, Message as BaseMessage, MonitoredValue, Transaction, Validator } from "./base";
-import { Template, TemplateFavorite, UserAddressName, UserSetting } from "./user";
+import { Template, TemplateFavorite, UserSetting } from "./user";
 
 function getFilteredBaseModel(): ModelCtor<Model<any, any>>[] {
   let models: ModelCtor<Model<any, any>>[] = baseModels;
@@ -31,6 +31,6 @@ export function getChainModels(chainName: string) {
 }
 
 export const chainModels = [...getFilteredBaseModel(), ...(activeChain.customModels ?? [])];
-export const userModels: ModelCtor<Model<any, any>>[] = [UserSetting, Template, TemplateFavorite, UserAddressName];
+export const userModels: ModelCtor<Model<any, any>>[] = [UserSetting, Template, TemplateFavorite];
 export const Block = activeChain.customBlockModel || BaseBlock;
 export const Message = activeChain.customMessageModel || BaseMessage;
