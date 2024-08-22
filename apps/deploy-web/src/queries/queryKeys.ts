@@ -1,7 +1,6 @@
 export class QueryKeys {
   static getFinancialDataKey = () => ["MARKET_DATA"];
   static getDashboardDataKey = () => ["DASHBOARD_DATA"];
-  static getAddressNamesKey = (userId: string) => ["ADDRESS_NAMES", userId];
   static getBlocksKey = (limit: number) => ["BLOCKS", limit];
   static getTransactionsKey = (limit: number) => ["TRANSACTIONS", limit];
   static getAddressTransactionsKey = (address: string, skip: number, limit: number) => ["ADDRESS_TRANSACTIONS", address, skip, limit];
