@@ -25,13 +25,9 @@
     "stats:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\""
   },
   "dependencies": {
-<<<<<<< HEAD
     "drizzle-orm": "^0.31.2",
     "pg": "^8.11.6",
     "@cosmos-kit/cosmos-extension-metamask": "^0.9.1",
-=======
-    "@cosmos-kit/cosmos-extension-metamask": "^0.10.0",
->>>>>>> 5ebde79 (Upgrade packages)
     "patch-package": "^8.0.0"
   },
   "devDependencies": {
