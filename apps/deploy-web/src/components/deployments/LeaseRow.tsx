@@ -192,7 +192,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
       </CardHeader>
       <CardContent className="pt-4">
         <div className="space-y-2">
-          <div className="">
+          <div className="mb-4">
             <SpecDetail
               cpuAmount={lease.cpuAmount}
               gpuAmount={lease.gpuAmount}
@@ -213,33 +213,31 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
             }
           />
 
-          {isLeaseActive && (
-            <LabelValueOld
-              label="Provider:"
-              value={
-                <>
-                  {isLoadingProviderStatus && <Spinner size="small" />}
-                  {providerStatus && (
+          <LabelValueOld
+            label="Provider:"
+            value={
+              <>
+                {isLeaseActive && isLoadingProviderStatus && <Spinner size="small" />}
+                {provider && (
+                  <div className="flex items-center space-x-2">
+                    <Link href={UrlService.providerDetail(lease.provider)}>
+                      {provider.name?.length > 25 ? getSplitText(provider.name, 10, 10) : provider.name}
+                    </Link>
+
                     <div className="flex items-center space-x-2">
-                      <Link href={UrlService.providerDetail(lease.provider)}>
-                        {providerStatus.name?.length > 25 ? getSplitText(providerStatus.name, 10, 10) : providerStatus.name}
-                      </Link>
+                      <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
 
-                      <div className="flex items-center space-x-2">
-                        <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
-
-                        {provider?.isAudited && (
-                          <div className="ml-2">
-                            <AuditorButton provider={provider} />
-                          </div>
-                        )}
-                      </div>
+                      {provider?.isAudited && (
+                        <div className="ml-2">
+                          <AuditorButton provider={provider} />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </>
-              }
-            />
-          )}
+                  </div>
+                )}
+              </>
+            }
+          />
         </div>
 
         {isLeaseNotFound && (
