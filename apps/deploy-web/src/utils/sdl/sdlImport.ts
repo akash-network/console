@@ -32,7 +32,7 @@ export const importSimpleSdl = (yamlStr: string) => {
       // Service compute profile
       service.profile = {
         cpu: compute.resources.cpu.units,
-        gpu: compute.resources.gpu ? compute.resources.gpu.units : 1,
+        gpu: compute.resources.gpu ? compute.resources.gpu.units : 0,
         gpuModels: compute.resources.gpu ? getGpuModels(compute.resources.gpu.attributes.vendor) : [],
         hasGpu: !!compute.resources.gpu,
         ram: getResourceDigit(compute.resources.memory.size),

@@ -39,6 +39,11 @@ import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import ViewPanel from "../shared/ViewPanel";
 import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
+import { usePopup } from "@akashnetwork/ui/context";
+import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
+import { v3Manifest, v2Service, v2ManifestService, v3ManifestService } from "@akashnetwork/akashjs/build/sdl/types";
+import first from "lodash/first";
+import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 
 type Props = {
   onTemplateSelected: Dispatch<TemplateCreation | null>;
@@ -72,6 +77,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const fileUploadRef = useRef<HTMLInputElement>(null);
   const wallet = useWallet();
   const managedDenom = useManagedWalletDenom();
+  const { confirm } = usePopup();
 
   useWhen(wallet.isManaged && sdlDenom === "uakt", () => {
     setSdlDenom(managedDenom);
@@ -182,7 +188,37 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     }
 
     if (isManaged) {
-      await handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      const services = importSimpleSdl(editedManifest as string);
+
+      if (!deploymentData) {
+        setParsingError("Error while parsing SDL file");
+        return;
+      }
+
+      const isConfirmed = await confirm({
+        title: "Confirm deployment creation?",
+        message: (
+          <div className="space-y-2">
+            {services.map(service => {
+              return (
+                <div key={service.image} className="rounded border p-4">
+                  <div className="mb-2 text-sm">{service.image}</div>
+                  <div className="flex items-center whitespace-nowrap">
+                    <LeaseSpecDetail type="cpu" className="flex-shrink-0" value={service.profile?.cpu as number} />
+                    {service.profile?.hasGpu && <LeaseSpecDetail type="gpu" className="ml-4 flex-shrink-0" value={service.profile?.gpu as number} />}
+                    <LeaseSpecDetail type="ram" className="ml-4 flex-shrink-0" value={`${service.profile?.ram} ${service.profile?.ramUnit}`} />
+                    <LeaseSpecDetail type="storage" className="ml-4 flex-shrink-0" value={`${service.profile?.storage} ${service.profile?.storageUnit}`} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      });
+
+      if (isConfirmed) {
+        await handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      }
     } else {
       setIsCheckingPrerequisites(true);
     }
