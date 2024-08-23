@@ -1,6 +1,6 @@
 import { Dispatch, useEffect, useState } from "react";
 import { Button, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
-import { Bitbucket, CoinsSwap, Github as GitIcon, GitlabFull } from "iconoir-react";
+import { Bitbucket, CoinsSwap, Github as GitIcon, GitlabFull, LogOut } from "iconoir-react";
 import { useAtom } from "jotai";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
@@ -82,23 +82,38 @@ const GithubDeploy = ({
                 </TabsList>
 
                 {token?.access_token && (
-                  <button
-                    className="hidden items-center gap-2 text-primary md:flex"
-                    onClick={() => {
-                      setToken({
-                        access_token: null,
-                        refresh_token: null,
-                        type: "github",
-                        alreadyLoggedIn: token?.alreadyLoggedIn?.includes(token.type)
-                          ? token.alreadyLoggedIn
-                          : token?.alreadyLoggedIn && token?.alreadyLoggedIn?.length > 0
-                            ? [...token.alreadyLoggedIn, token.type]
-                            : [token.type]
-                      });
-                    }}
-                  >
-                    <CoinsSwap className="text-sm" /> Switch Git Provider
-                  </button>
+                  <div className="flex items-center gap-6">
+                    <button
+                      className="hidden items-center gap-2 text-primary md:flex"
+                      onClick={() => {
+                        setToken({
+                          access_token: null,
+                          refresh_token: null,
+                          type: "github",
+                          alreadyLoggedIn: token?.alreadyLoggedIn?.includes(token.type)
+                            ? token.alreadyLoggedIn
+                            : token?.alreadyLoggedIn && token?.alreadyLoggedIn?.length > 0
+                              ? [...token.alreadyLoggedIn, token.type]
+                              : [token.type]
+                        });
+                      }}
+                    >
+                      <CoinsSwap className="text-sm" /> Switch Git Provider
+                    </button>
+                    <button
+                      className="hidden items-center gap-2 text-primary md:flex"
+                      onClick={() => {
+                        setToken({
+                          access_token: null,
+                          refresh_token: null,
+                          type: "github",
+                          alreadyLoggedIn: []
+                        });
+                      }}
+                    >
+                      <LogOut className="text-sm" /> Logout
+                    </button>
+                  </div>
                 )}
               </div>
               <TabsContent value="git" className="md:mt-2">
