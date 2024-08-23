@@ -47,8 +47,8 @@ export const CustomizedSteppers = ({ activeStep }: React.PropsWithChildren<{ act
                 onClick={ev => onChooseTemplateClick(ev, step)}
               >
                 <span className="flex items-center px-6 py-4 text-sm font-medium">
-                  <span className="bg-primary group-hover:bg-primary/80 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full">
-                    <Check className="h-5 w-5 text-white" aria-hidden="true" />
+                  <span className="bg-primary group-hover:bg-primary/80 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full">
+                    <Check className="h-4 w-4 text-white" aria-hidden="true" />
                   </span>
                   <span className="ml-4 text-sm font-medium text-neutral-900 dark:text-neutral-500">{step.name}</span>
                 </span>

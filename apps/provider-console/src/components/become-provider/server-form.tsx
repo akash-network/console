@@ -20,7 +20,7 @@ import {
   TabsTrigger
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -28,10 +28,10 @@ const accountFormSchema = z.object({
   ip: z
     .string()
     .min(2, {
-      message: "Name must be at least 2 characters."
+      message: "IP must be at least 2 characters."
     })
     .max(30, {
-      message: "Name must not be longer than 30 characters."
+      message: "IP must not be longer than 30 characters."
     }),
   dob: z.date({
     required_error: "A date of birth is required."
@@ -42,34 +42,71 @@ const accountFormSchema = z.object({
   port: z.string(),
   username: z.string(),
   password: z.string(),
-  file: z.instanceof(File)
+  file: z
+    .any()
+    .refine(file => file instanceof File, {
+      message: "Invalid file upload."
+    })
+    .refine(files => files.length === 1, "You must upload a file.")
+    .refine(files => files[0]?.name.endsWith(".pem"), "Only .pem files are allowed.")
+    .refine(files => files[0]?.size <= 5 * 1024 * 1024, "File size must be less than 5MB"),
+  saveInformation: z.boolean()
 });
 
 type AccountFormValues = z.infer<typeof accountFormSchema>;
 
 // This can come from your database or API.
 const defaultValues: Partial<AccountFormValues> = {
-  // name: "Your name",
-  // dob: new Date("2023-01-23"),
+  // Example default values if needed
 };
-export const ServerForm: React.FunctionComponent = () => {
+
+interface ServerFormProp {
+  currentServerNumber: number;
+  onSubmit: (data: AccountFormValues) => void;
+  defaultValues?: any;
+}
+
+export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentServerNumber, onSubmit, defaultValues = {} }) => {
+  console.log(defaultValues);
   const form = useForm<AccountFormValues>({
-    // resolver: zodResolver(accountFormSchema),
+    // resolver: zodResolver(accountFormSchema), // Uncomment if using Zod schema validation
     defaultValues
   });
+
+  const [selectedFile, setSelectedFile] = useState({ name: "" });
+
+  const submitForm = (formValues: any) => {
+    onSubmit(formValues);
+    form.reset();
+  };
+
+  const fileChange = (event, field) => {
+    field.onChange(event.target.files);
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedFile(event.target.files[0]);
+      defaultValues.file = [];
+      defaultValues.file[0] = event.target.files[0];
+    }
+  };
+
   return (
     <div className="flex flex-col items-center pt-10">
       <div className="space-y-6">
         <div>
-          <h3 className="text-xl font-bold">Control Plane Machine Access</h3>
-          <p className="text-muted-foreground text-sm"> Enter the required details for you control plane setup</p>
+          <h3 className="text-xl font-bold">
+            {currentServerNumber === 0 && "Control Plane Machine Access"}
+            {currentServerNumber !== 0 && "Node Access"}
+          </h3>
+          <p className="text-muted-foreground text-sm">Enter the required details for your control plane setup</p>
         </div>
-        <div className="">
+        <div>
           <Separator />
         </div>
         <div>
           <Form {...form}>
-            <form className="space-y-6">
+            {/* Pass form.handleSubmit(onSubmit) to form's onSubmit */}
+            <form onSubmit={form.handleSubmit(submitForm)} className="space-y-6">
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-2">
                   <FormField
@@ -77,16 +114,19 @@ export const ServerForm: React.FunctionComponent = () => {
                     name="ip"
                     render={({ field }) => (
                       <FormItem className="flex flex-col space-y-2">
-                        <FormLabel>Public IP</FormLabel>
+                        <FormLabel>
+                          {currentServerNumber === 0 && "Public IP"}
+                          {currentServerNumber !== 0 && "Private IP"}
+                        </FormLabel>
                         <FormControl>
-                          <Input placeholder="Input your public ip" {...field} />
+                          <Input placeholder="Input your IP" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-                <div className="">
+                <div>
                   <FormField
                     control={form.control}
                     name="port"
@@ -121,10 +161,10 @@ export const ServerForm: React.FunctionComponent = () => {
               </div>
               <div className="grid grid-cols-1 space-y-2">
                 <p className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Choose how you would like to provider your credentials
+                  Choose how you would like to provide your credentials
                 </p>
                 <div className="rounded-md border">
-                  <Tabs defaultValue="password" className="space-y-4 p-4">
+                  <Tabs defaultValue={defaultValues.file && defaultValues?.file[0]?.name ? "file" : "password"} className="space-y-4 p-4">
                     <TabsList className="ml-auto">
                       <TabsTrigger value="password" className="text-zinc-600 dark:text-zinc-200">
                         Password
@@ -141,7 +181,7 @@ export const ServerForm: React.FunctionComponent = () => {
                           <FormItem className="flex flex-col">
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <Input placeholder="Input your password" {...field} />
+                              <Input placeholder="Input your password" type="password" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -154,14 +194,17 @@ export const ServerForm: React.FunctionComponent = () => {
                         name="file"
                         render={({ field }) => (
                           <FormItem className="flex flex-col">
-                            <FormLabel>Password</FormLabel>
+                            <FormLabel>Password File</FormLabel>
                             <FormControl>
-                              <Input id="picture" type="file" />
+                              <Input id="file" type="file" onChange={e => fileChange(e, field)} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                      <p className="pl-2 pt-4 text-sm">
+                        Selected file : {defaultValues.file && defaultValues?.file[0] ? defaultValues?.file[0]?.name : selectedFile.name}
+                      </p>
                     </TabsContent>
                   </Tabs>
                 </div>
@@ -173,12 +216,32 @@ export const ServerForm: React.FunctionComponent = () => {
               <div className="rounded-md border">
                 <div className="space-y-2 p-4">
                   <h4 className="text-lg font-bold">Heads up!</h4>
-                  <p className="text-sm">You can apply information from Control Plain 1 to all remaining nodes by checking the option below.</p>
-                  <div className="">
-                    <Checkbox id="options" />
-                    <label htmlFor="terms" className="pl-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  <p className="text-sm">You can apply information from Control Plane 1 to all remaining nodes by checking the option below.</p>
+                  <div>
+                    {/* <Checkbox id="options" />
+                    <label htmlFor="options" className="pl-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                       Yes
-                    </label>
+                    </label> */}
+
+                    <FormField
+                      control={form.control}
+                      name="saveInformation"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2">
+                          <FormControl>
+                            <Checkbox
+                              id="saveInformation"
+                              checked={field.value} // Ensure the checkbox reflects the form state
+                              onCheckedChange={field.onChange} // Update the form state on change
+                            />
+                          </FormControl>
+                          <FormLabel htmlFor="saveInformation" className="text-sm font-medium leading-none">
+                            Yes
+                          </FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                    <FormMessage />
                   </div>
                 </div>
               </div>
