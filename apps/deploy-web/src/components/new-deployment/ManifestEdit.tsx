@@ -1,7 +1,7 @@
 "use client";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-import { Alert, Button, CustomTooltip, Input, Spinner } from "@akashnetwork/ui/components";
+import { Alert, Button, CustomTooltip, Input, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -9,6 +9,7 @@ import { ArrowRight, InfoCircle } from "iconoir-react";
 import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { event } from "nextjs-google-analytics";
+import { useSnackbar } from "notistack";
 
 import { envConfig } from "@src/config/env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
@@ -177,7 +178,18 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     }
   }
 
+  const [isRepoDataValidated, setIsRepoDataValidated] = useState(false);
+  const { enqueueSnackbar } = useSnackbar();
+  console.log(isRepoDataValidated);
+
   const handleCreateDeployment = async () => {
+    if (github && !isRepoDataValidated) {
+      enqueueSnackbar(<Snackbar title={"Please Fill All Required Fields"} subTitle="You need fill repo url and branch to deploy" iconVariant="error" />, {
+        variant: "error"
+      });
+      return;
+    }
+
     if (selectedSdlEditMode === "builder") {
       const valid = await sdlBuilderRef.current?.validate();
       if (!valid) return;
@@ -404,6 +416,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           setEditedManifest={setEditedManifest}
           setDeploymentName={setDeploymentName}
           deploymentName={deploymentName}
+          setIsRepoDataValidated={setIsRepoDataValidated}
         />
       )}
 

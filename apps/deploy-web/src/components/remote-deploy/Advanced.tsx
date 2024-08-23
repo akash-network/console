@@ -28,7 +28,7 @@ const Advanced = ({ services, control, setValue }) => {
           </CollapsibleTrigger>
           {expanded && <Separator />}
           <CollapsibleContent>
-            <div className="grid grid-cols-2 items-start gap-6 p-5">
+            <div className="grid items-start gap-6 p-5">
               <EnvFormModal
                 control={control}
                 onClose={() => {}}
@@ -38,15 +38,15 @@ const Advanced = ({ services, control, setValue }) => {
               />
               <div className="flex items-center justify-between gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
                 <Label htmlFor="disable-pull" className="text-base">
-                  Disable Auto-Deploy
+                  Auto Deploy
                 </Label>
 
                 <Checkbox
-                  checked={currentService?.env?.find(env => env.key === "DISABLE_PULL")?.value === "yes"}
+                  checked={currentService?.env?.find(env => env.key === "DISABLE_PULL")?.value !== "yes"}
                   id="disable-pull"
                   defaultChecked={false}
                   onCheckedChange={value => {
-                    const pull = value ? "yes" : "no";
+                    const pull = !value ? "yes" : "no";
                     appendEnv("DISABLE_PULL", pull, false, setValue, services);
                   }}
                 />

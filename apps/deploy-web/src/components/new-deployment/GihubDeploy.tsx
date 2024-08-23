@@ -3,6 +3,7 @@ import { Button, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from "@akas
 import { Bitbucket, CoinsSwap, Github as GitIcon, GitlabFull, LogOut } from "iconoir-react";
 import { useAtom } from "jotai";
 
+import { useWhen } from "@src/hooks/useWhen";
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { ServiceType } from "@src/types";
 import Advanced from "../remote-deploy/Advanced";
@@ -21,13 +22,15 @@ const GithubDeploy = ({
   services,
   control,
   deploymentName,
-  setDeploymentName
+  setDeploymentName,
+  setIsRepoDataValidated
 }: {
   setValue: any;
   services: ServiceType[];
   control: any;
   setDeploymentName: Dispatch<string>;
   deploymentName: string;
+  setIsRepoDataValidated?: Dispatch<boolean>;
 }) => {
   const [token, setToken] = useAtom(remoteDeployStore.tokens);
   console.log(services);
@@ -42,11 +45,19 @@ const GithubDeploy = ({
   const { mutate: fetchAccessTokenGitLab, isLoading: fetchingTokenGitLab } = useGitLabFetchAccessToken();
 
   const [selectedTab, setSelectedTab] = useState("git");
+  console.log(services, "services");
 
   const [open, setOpen] = useState(false);
   useEffect(() => {
     setOpen(true);
   }, []);
+
+  useWhen(
+    services?.[0]?.env?.find(e => e.key === "REPO_URL" && services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")),
+    () => {
+      setIsRepoDataValidated?.(true);
+    }
+  );
 
   useEffect(() => {
     const url = new URL(window.location.href);
