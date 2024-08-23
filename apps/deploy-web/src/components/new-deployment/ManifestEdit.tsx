@@ -10,6 +10,7 @@ import { ArrowRight, InfoCircle } from "iconoir-react";
 import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { event } from "nextjs-google-analytics";
+import { useSnackbar } from "notistack";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
@@ -177,7 +178,18 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     }
   }
 
+  const [isRepoDataValidated, setIsRepoDataValidated] = useState(false);
+  const { enqueueSnackbar } = useSnackbar();
+  console.log(isRepoDataValidated);
+
   const handleCreateDeployment = async () => {
+    if (github && !isRepoDataValidated) {
+      enqueueSnackbar(<Snackbar title={"Please Fill All Required Fields"} subTitle="You need fill repo url and branch to deploy" iconVariant="error" />, {
+        variant: "error"
+      });
+      return;
+    }
+
     if (selectedSdlEditMode === "builder") {
       const valid = await sdlBuilderRef.current?.validate();
       if (!valid) return;
@@ -414,6 +426,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
           setEditedManifest={setEditedManifest}
           setDeploymentName={setDeploymentName}
           deploymentName={deploymentName}
+          setIsRepoDataValidated={setIsRepoDataValidated}
         />
       )}
 
