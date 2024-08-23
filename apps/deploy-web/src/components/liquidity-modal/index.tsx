@@ -170,6 +170,10 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
   }, [isOpen]);
 
   useEffect(() => {
+    isElementsMounted.current = false;
+  }, [connectedWalletType]);
+
+  useEffect(() => {
     if (!window) {
       return;
     }
