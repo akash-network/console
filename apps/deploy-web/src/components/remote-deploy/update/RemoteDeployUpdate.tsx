@@ -99,7 +99,7 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
         <>
           <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
             <div className="flex flex-col gap-2">
-              <h1 className="font-semibold">RollBack</h1> <p className="text-muted-foreground">A unique name for your web service.</p>
+              <h1 className="font-semibold">Rollback</h1> <p className="text-muted-foreground">Rollback to a specific commit</p>
             </div>
             <SelectCommit services={services} control={control} />
           </div>
