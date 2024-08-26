@@ -68,7 +68,7 @@ const useFramework = ({ services, setValue, subFolder }: { services: ServiceType
       setData(data);
       const cpus = (Object.keys(data?.dependencies ?? {})?.length / 10 / 2)?.toFixed(1);
 
-      setValue("services.0.profile.cpu", +cpus > 0.5 ? +cpus : 0.5);
+      setValue("services.0.profile.cpu", +cpus > 2 ? +cpus : 2);
     } else {
       setData(null);
     }

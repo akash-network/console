@@ -36,20 +36,25 @@ const Advanced = ({ services, control, setValue }) => {
                 envs={currentService.env || []}
                 // hasSecretOption={hasSecretOption}
               />
-              <div className="flex items-center justify-between gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
-                <Label htmlFor="disable-pull" className="text-base">
-                  Auto Deploy
-                </Label>
+              <div className="flex flex-col gap-3 rounded border bg-card px-6 py-6 text-card-foreground">
+                <div className="flex items-center justify-between gap-5">
+                  <Label htmlFor="disable-pull" className="text-base">
+                    Auto Deploy
+                  </Label>
 
-                <Checkbox
-                  checked={currentService?.env?.find(env => env.key === "DISABLE_PULL")?.value !== "yes"}
-                  id="disable-pull"
-                  defaultChecked={false}
-                  onCheckedChange={value => {
-                    const pull = !value ? "yes" : "no";
-                    appendEnv("DISABLE_PULL", pull, false, setValue, services);
-                  }}
-                />
+                  <Checkbox
+                    checked={currentService?.env?.find(env => env.key === "DISABLE_PULL")?.value !== "yes"}
+                    id="disable-pull"
+                    defaultChecked={false}
+                    onCheckedChange={value => {
+                      const pull = !value ? "yes" : "no";
+                      appendEnv("DISABLE_PULL", pull, false, setValue, services);
+                    }}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  By default, console automatically detects and deploys changes, disable it to handle deploys manually
+                </p>
               </div>
             </div>
           </CollapsibleContent>
