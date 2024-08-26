@@ -2,12 +2,12 @@ import { QueryObserverResult, useQuery } from "react-query";
 import axios from "axios";
 
 import { useSettings } from "@src/context/SettingsProvider";
-import { AllowanceType } from "@src/types/grant";
+import { AllowanceType, GrantType } from "@src/types/grant";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
 async function getGranterGrants(apiEndpoint: string, address: string) {
-  if (!address) return [];
+  if (!address || !apiEndpoint) return [];
 
   const response = await axios.get(ApiUrlService.granterGrants(apiEndpoint, address));
   const filteredGrants = response.data.grants.filter(
@@ -16,7 +16,7 @@ async function getGranterGrants(apiEndpoint: string, address: string) {
       x.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
   );
 
-  return filteredGrants;
+  return filteredGrants as GrantType[];
 }
 
 export function useGranterGrants(address: string, options = {}) {
@@ -26,7 +26,7 @@ export function useGranterGrants(address: string, options = {}) {
 }
 
 async function getGranteeGrants(apiEndpoint: string, address: string) {
-  if (!address) return [];
+  if (!address || !apiEndpoint) return [];
 
   const response = await axios.get(ApiUrlService.granteeGrants(apiEndpoint, address));
   const filteredGrants = response.data.grants.filter(
@@ -37,7 +37,7 @@ async function getGranteeGrants(apiEndpoint: string, address: string) {
       x.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
   );
 
-  return filteredGrants;
+  return filteredGrants as GrantType[];
 }
 
 export function useGranteeGrants(address: string, options = {}) {
@@ -47,11 +47,11 @@ export function useGranteeGrants(address: string, options = {}) {
 }
 
 async function getAllowancesIssued(apiEndpoint: string, address: string) {
-  if (!address) return [];
+  if (!address || !apiEndpoint) return [];
 
   const response = await axios.get(ApiUrlService.allowancesIssued(apiEndpoint, address));
 
-  return response.data.allowances;
+  return response.data.allowances as AllowanceType[];
 }
 
 export function useAllowancesIssued(address: string, options = {}) {
@@ -61,11 +61,11 @@ export function useAllowancesIssued(address: string, options = {}) {
 }
 
 async function getAllowancesGranted(apiEndpoint: string, address: string) {
-  if (!address) return [];
+  if (!address || !apiEndpoint) return [];
 
   const response = await axios.get(ApiUrlService.allowancesGranted(apiEndpoint, address));
 
-  return response.data.allowances;
+  return response.data.allowances as AllowanceType[];
 }
 
 export function useAllowancesGranted(address?: string, options = {}): QueryObserverResult<AllowanceType[]> {

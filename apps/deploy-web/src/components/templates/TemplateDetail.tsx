@@ -97,7 +97,7 @@ export const TemplateDetail: React.FunctionComponent<Props> = ({ templateId, tem
           {activeTab === "README" && (
             <ViewPanel stickToBottom className="overflow-auto pb-12">
               <div className="container pb-8 pt-4 sm:pt-8">
-                <Markdown>{_template?.readme}</Markdown>
+                <Markdown hasHtml={_template.id?.startsWith("akash-network-awesome-akash")}>{_template?.readme}</Markdown>
               </div>
             </ViewPanel>
           )}

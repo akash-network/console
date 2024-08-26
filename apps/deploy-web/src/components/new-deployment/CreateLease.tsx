@@ -87,6 +87,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const dseqList = Object.keys(groupedBids).map(g => parseInt(g));
   const allClosed = (bids?.length || 0) > 0 && bids?.every(bid => bid.state === "closed");
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const wallet = useWallet();
 
   useEffect(() => {
     getDeploymentDetail();
@@ -167,10 +168,12 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     const localDeploymentData = getDeploymentLocalData(dseq);
     if (localDeploymentData && localDeploymentData.manifest) {
       // Send the manifest
-      const sendManifestKey = enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
-        variant: "info",
-        autoHideDuration: null
-      });
+      const sendManifestNotification =
+        !wallet.isManaged &&
+        enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
+          variant: "info",
+          autoHideDuration: null
+        });
 
       try {
         const yamlJson = yaml.load(localDeploymentData.manifest);
@@ -184,7 +187,10 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
       } catch (err) {
         console.error(err);
       }
-      closeSnackbar(sendManifestKey);
+
+      if (sendManifestNotification) {
+        closeSnackbar(sendManifestNotification);
+      }
     }
 
     event(AnalyticsEvents.SEND_MANIFEST, {

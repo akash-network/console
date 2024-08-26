@@ -47,7 +47,6 @@ export function DeploymentDetail() {
     refetch: getDeploymentDetail,
     error: deploymentError
   } = useDeploymentDetail(address, dseq, {
-    enabled: false,
     onSuccess: _deploymentDetail => {
       if (_deploymentDetail) {
         getLeases();

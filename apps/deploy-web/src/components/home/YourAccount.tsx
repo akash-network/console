@@ -8,6 +8,7 @@ import { useAtom } from "jotai";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 
+import { envConfig } from "@src/config/env.config";
 import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
@@ -53,7 +54,7 @@ type Props = {
 export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadingBalances, activeDeployments, leases, providers }) => {
   const { resolvedTheme } = useTheme();
   const tw = useTailwind();
-  const { address } = useWallet();
+  const { address, isManaged: isManagedWallet, creditAmount: managedWalletCreditAmount = 0 } = useWallet();
   const usdcIbcDenom = useUsdcDenom();
   const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
   const [costPerMonth, setCostPerMonth] = useState<number | null>(null);
@@ -92,7 +93,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
         label: "Balance",
         denom: uAktDenom,
         denomLabel: "AKT",
-        value: balances.balance,
+        value: isManagedWallet && envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "uakt" ? balances.balance + managedWalletCreditAmount : balances.balance,
         color: colors.balance_akt
       },
       {
@@ -112,7 +113,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
         label: "Balance",
         denom: usdcIbcDenom,
         denomLabel: "USDC",
-        value: balances.balanceUsdc,
+        value: isManagedWallet && envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "usdc" ? balances.balanceUsdc + managedWalletCreditAmount : balances.balanceUsdc,
         color: colors.balance_usdc
       },
       {
@@ -125,8 +126,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
       }
     ];
   };
-  const aktData = balances ? getAktData(balances, escrowUAktSum) : [];
-  const usdcData = balances ? getUsdcData(balances, escrowUsdcSum) : [];
+  const aktData = balances && (!isManagedWallet || envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "uakt") ? getAktData(balances, escrowUAktSum) : [];
+  const usdcData = balances && (!isManagedWallet || envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "usdc") ? getUsdcData(balances, escrowUsdcSum) : [];
   const filteredAktData = aktData.filter(x => x.value);
   const filteredUsdcData = usdcData.filter(x => x.value);
   const allData = [...aktData, ...usdcData];
@@ -256,7 +257,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
               {hasBalance && (
                 <div>
                   {filteredAktData.length > 0 && <BalancePie data={filteredAktData} getColor={_getColor} label="AKT" />}
-                  {filteredUsdcData.length > 0 && <BalancePie data={filteredUsdcData} getColor={_getColor} label="USDC" />}
+                  {filteredUsdcData.length > 0 && <BalancePie data={filteredUsdcData} getColor={_getColor} label={isManagedWallet ? "$" : "USDC"} />}
                 </div>
               )}
 
@@ -271,9 +272,11 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     >
                       <div className="h-4 w-4 rounded-lg" style={{ backgroundColor: balance.color }} />
                       <div className="ml-4 w-[90px] font-bold">{balance.label}</div>
-                      <div className="ml-4 w-[100px]">
-                        {udenomToDenom(balance.value, 2)} {balance.denomLabel}
-                      </div>
+                      {!isManagedWallet && (
+                        <div className="ml-4 w-[100px]">
+                          {udenomToDenom(balance.value, 2)} {balance.denomLabel}
+                        </div>
+                      )}
 
                       <div>
                         <PriceValue denom={balance.denom} value={udenomToDenom(balance.value, 6)} />
@@ -284,9 +287,11 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                   <div className="mb-2 flex items-center text-sm leading-5 transition-opacity duration-200 ease-in-out">
                     <div className="h-4 w-4 rounded-lg" />
                     <div className="ml-4 w-[90px] font-bold">Total</div>
-                    <div className="ml-4 w-[100px]">
-                      <strong>{uaktToAKT(totalUAkt, 2)} AKT</strong>
-                    </div>
+                    {!isManagedWallet && (
+                      <div className="ml-4 w-[100px]">
+                        <strong>{uaktToAKT(totalUAkt, 2)} AKT</strong>
+                      </div>
+                    )}
 
                     <div>
                       <strong>
@@ -297,9 +302,11 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                   <div className="mb-2 flex items-center text-sm leading-5 transition-opacity duration-200 ease-in-out">
                     <div className="h-4 w-4 rounded-lg" />
                     <div className="ml-4 w-[90px] font-bold"></div>
-                    <div className="ml-4 w-[100px]">
-                      <strong>{udenomToDenom(totalUsdc, 2)} USDC</strong>
-                    </div>
+                    {!isManagedWallet && (
+                      <div className="ml-4 w-[100px]">
+                        <strong>{udenomToDenom(totalUsdc, 2)} USDC</strong>
+                      </div>
+                    )}
 
                     <div>
                       <strong>
@@ -311,7 +318,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                   <div className="mb-2 mt-2 flex items-center border-t border-muted-foreground pt-2 text-sm leading-5 transition-opacity duration-200 ease-in-out">
                     <div className="h-4 w-4 rounded-lg" />
                     <div className="ml-4 w-[90px] font-bold"></div>
-                    <div className="ml-4 w-[100px]"></div>
+                    {!isManagedWallet && <div className="ml-4 w-[100px]"></div>}
 
                     <div>
                       <strong>

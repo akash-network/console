@@ -13,8 +13,8 @@ export class AuthTokenService {
 
   constructor(@InjectAuthConfig() private readonly config: AuthConfig) {}
 
-  signTokenFor(input: { userId: string }): string {
-    return jwt.sign({ sub: input.userId, type: "ANONYMOUS" }, this.config.ANONYMOUS_USER_TOKEN_SECRET);
+  signTokenFor(input: { id: string }): string {
+    return jwt.sign({ sub: input.id, type: "ANONYMOUS" }, this.config.ANONYMOUS_USER_TOKEN_SECRET);
   }
 
   async getValidUserId(bearer: string): Promise<string | undefined> {

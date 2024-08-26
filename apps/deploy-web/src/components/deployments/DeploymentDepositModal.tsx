@@ -87,7 +87,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   const { handleSubmit, control, watch, setValue, clearErrors, unregister } = form;
   const { amount, useDepositor, depositorAddress } = watch();
   const usdcIbcDenom = useUsdcDenom();
-  const validGrants = granteeGrants?.filter(x => compareAsc(new Date(), x.authorization.expiration) !== 1 && x.authorization.spend_limit.denom === denom) || [];
+  const validGrants = granteeGrants?.filter(x => compareAsc(new Date(), new Date(x.expiration)) !== 1 && x.authorization.spend_limit.denom === denom) || [];
 
   useEffect(() => {
     if (depositData && amount === 0 && !disableMin) {

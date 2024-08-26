@@ -32,7 +32,7 @@ export const useManagedWallet = () => {
     }
   }, [isFetched, isCreated, wallet]);
 
-  useWhen(created && NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID && selectedNetworkId !== NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, () => {
+  useWhen(wallet && NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID && selectedNetworkId !== NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, () => {
     setSelectedNetworkId(NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID);
   });
 

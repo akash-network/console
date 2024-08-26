@@ -19,7 +19,7 @@ export class UserController {
     const user = await this.userRepository.create();
     return {
       data: user,
-      token: this.anonymousUserAuthService.signTokenFor({ userId: user.id })
+      token: this.anonymousUserAuthService.signTokenFor({ id: user.id })
     };
   }
 
