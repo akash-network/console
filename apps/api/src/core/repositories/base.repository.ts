@@ -1,6 +1,8 @@
 import { AnyAbility } from "@casl/ability";
+import { and, eq } from "drizzle-orm";
 import { PgTableWithColumns } from "drizzle-orm/pg-core/table";
 import { SQL } from "drizzle-orm/sql/sql";
+import first from "lodash/first";
 
 import { ApiPgDatabase, InjectPg, TxService } from "@src/core";
 import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
@@ -8,18 +10,39 @@ import { InjectUserSchema } from "@src/user/providers";
 
 export type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
 
-export abstract class BaseRepository<T extends PgTableWithColumns<any>> {
+interface UpdateOptions {
+  returning: true;
+}
+
+export interface BaseRecordInput<T> {
+  id?: T;
+}
+
+export interface BaseRecordOutput<T> {
+  id: T;
+}
+
+export abstract class BaseRepository<
+  T extends PgTableWithColumns<any>,
+  Input extends BaseRecordInput<string | number>,
+  Output extends BaseRecordOutput<string | number>
+> {
   protected ability?: DrizzleAbility<T>;
 
   get cursor() {
     return this.txManager.getPgTx() || this.pg;
   }
 
+  get queryCursor() {
+    return this.cursor.query[this.schemaName] as unknown as T;
+  }
+
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,
     @InjectUserSchema() protected readonly schema: T,
     protected readonly txManager: TxService,
-    protected readonly entityName: string
+    protected readonly entityName: string,
+    protected readonly schemaName: keyof ApiPgDatabase["query"]
   ) {}
 
   protected withAbility(ability: AnyAbility, action: Parameters<AnyAbility["can"]>[0]) {
@@ -32,4 +55,64 @@ export abstract class BaseRepository<T extends PgTableWithColumns<any>> {
   }
 
   abstract accessibleBy(...abilityParams: AbilityParams): this;
+
+  async findById(id: Output["id"]) {
+    return this.toOutput(await this.queryCursor.findFirst({ where: this.whereAccessibleBy(eq(this.schema.id, id)) }));
+  }
+
+  async findOneBy(query?: Partial<Output>) {
+    return this.toOutput(
+      await this.queryCursor.findFirst({
+        where: this.queryToWhere(query)
+      })
+    );
+  }
+
+  async find(query?: Partial<Output>) {
+    return this.toOutputList(
+      await this.queryCursor.findMany({
+        where: this.queryToWhere(query)
+      })
+    );
+  }
+
+  async updateById(id: Output["id"], payload: Partial<Input>, options?: UpdateOptions): Promise<Output>;
+  async updateById(id: Output["id"], payload: Partial<Input>): Promise<void>;
+  async updateById(id: Output["id"], payload: Partial<Input>, options?: UpdateOptions): Promise<void | Output> {
+    return this.updateBy({ id } as Partial<Output>, payload, options);
+  }
+
+  async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: UpdateOptions): Promise<Output>;
+  async updateBy(query: Partial<Output>, payload: Partial<Input>): Promise<void>;
+  async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: UpdateOptions): Promise<void | Output> {
+    const cursor = this.cursor.update(this.schema).set(this.toInput(payload)).where(this.queryToWhere(query));
+
+    if (options?.returning) {
+      const items = await cursor.returning();
+      return this.toOutput(first(items));
+    }
+
+    await cursor;
+
+    return undefined;
+  }
+
+  protected queryToWhere(query: Partial<T["$inferSelect"]>) {
+    const fields = query && (Object.keys(query) as Array<keyof T["$inferSelect"]>);
+    const where = fields?.length ? and(...fields.map(field => eq(this.schema[field], query[field]))) : undefined;
+
+    return this.whereAccessibleBy(where);
+  }
+
+  protected toInput(payload: Partial<Input>): Partial<T["$inferInsert"]> {
+    return payload as Partial<T["$inferSelect"]>;
+  }
+
+  protected toOutputList(dbOutput: T["$inferSelect"][]): Output[] {
+    return dbOutput.map(item => this.toOutput(item));
+  }
+
+  protected toOutput(payload: Partial<T["$inferSelect"]>): Output {
+    return payload as Output;
+  }
 }

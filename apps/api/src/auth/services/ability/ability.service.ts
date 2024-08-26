@@ -3,13 +3,14 @@ import type { TemplateExecutor } from "lodash";
 import template from "lodash/template";
 import { singleton } from "tsyringe";
 
-type Role = "REGULAR_USER" | "REGULAR_ANONYMOUS_USER" | "SUPER_USER";
+type Role = "REGULAR_UNREGISTERED_USER" | "REGULAR_USER" | "REGULAR_ANONYMOUS_USER" | "SUPER_USER";
 
 @singleton()
 export class AbilityService {
   readonly EMPTY_ABILITY = new Ability([]);
 
   private readonly RULES: Record<Role, RawRule[]> = {
+    REGULAR_UNREGISTERED_USER: [{ action: "create", subject: "User", conditions: { userId: "${user.userId}" } }],
     REGULAR_USER: [
       { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
       { action: "read", subject: "User", conditions: { id: "${user.id}" } }

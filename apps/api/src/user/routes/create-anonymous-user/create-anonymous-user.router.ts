@@ -26,5 +26,5 @@ const route = createRoute({
 export const createAnonymousUserRouter = new OpenAPIHono();
 
 createAnonymousUserRouter.openapi(route, async function routeCreateUser(c) {
-  return c.json(await container.resolve(UserController).create(), 200);
+  return c.json(await container.resolve(UserController).createAnonymous(), 200);
 });
