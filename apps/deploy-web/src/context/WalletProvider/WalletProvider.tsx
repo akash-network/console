@@ -13,7 +13,6 @@ import { event } from "nextjs-google-analytics";
 import { SnackbarKey, useSnackbar } from "notistack";
 
 import { LoadingState, TransactionModal } from "@src/components/layout/TransactionModal";
-import { useAllowance } from "@src/hooks/useAllowance";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
@@ -27,6 +26,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { useSettings } from "../SettingsProvider";
+import { useAllowance } from "@src/hooks/useAllowance";
 
 const ERROR_MESSAGES = {
   5: "Insufficient funds",
@@ -79,14 +79,14 @@ export const WalletProvider = ({ children }) => {
   const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
   const user = useUser();
-
   const userWallet = useSelectedChain();
   const { wallet: managedWallet, isLoading, create, refetch } = useManagedWallet();
   const { address: walletAddress, username, isWalletConnected } = useMemo(() => managedWallet || userWallet, [managedWallet, userWallet]);
   const { addEndpoints } = useManager();
+  const isManaged = !!managedWallet;
   const {
     fee: { default: feeGranter }
-  } = useAllowance();
+  } = useAllowance(walletAddress as string, isManaged);
 
   useWhen(managedWallet, refreshBalances);
 
@@ -349,7 +349,7 @@ export const WalletProvider = ({ children }) => {
         logout,
         signAndBroadcastTx,
         refreshBalances,
-        isManaged: !!managedWallet,
+        isManaged: isManaged,
         isWalletLoading: isLoading,
         isTrialing: !!managedWallet?.isTrialing,
         creditAmount: managedWallet?.creditAmount
