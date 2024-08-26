@@ -20,17 +20,17 @@ import { DeploymentGrantTable } from "./DeploymentGrantTable";
 import { FeeGrantTable } from "./FeeGrantTable";
 import { GranteeRow } from "./GranteeRow";
 import { GrantModal } from "./GrantModal";
+import { useAllowance } from "@src/hooks/useAllowance";
 
 type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "allowancesGranted" | null;
 const defaultRefetchInterval = 30 * 1000;
 const refreshingInterval = 1000;
 
 export const Authorizations: React.FunctionComponent = () => {
+  const { address, signAndBroadcastTx, isManaged } = useWallet();
   const {
-    address,
-    signAndBroadcastTx,
     fee: { all: allowancesGranted, isLoading: isLoadingAllowancesGranted, setDefault, default: defaultAllowance }
-  } = useWallet();
+  } = useAllowance(address, isManaged);
   const [editingGrant, setEditingGrant] = useState<GrantType | null>(null);
   const [editingAllowance, setEditingAllowance] = useState<AllowanceType | null>(null);
   const [showGrantModal, setShowGrantModal] = useState(false);

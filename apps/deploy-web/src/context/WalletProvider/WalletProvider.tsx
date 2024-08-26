@@ -1,5 +1,5 @@
 "use client";
-import React, { FC, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { TxOutput } from "@akashnetwork/http-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
@@ -26,11 +26,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { useSettings } from "../SettingsProvider";
-import { useLocalStorage } from "usehooks-ts";
-import { useAllowancesGranted } from "@src/queries/useGrantsQuery";
-import { isAfter, parseISO } from "date-fns";
-import difference from "lodash/difference";
-import { AllowanceType } from "@src/types/grant";
+import { useAllowance } from "@src/hooks/useAllowance";
 
 const ERROR_MESSAGES = {
   5: "Insufficient funds",
@@ -62,12 +58,6 @@ type ContextType = {
   isWalletLoading: boolean;
   isTrialing: boolean;
   creditAmount?: number;
-  fee: {
-    all: AllowanceType[] | undefined;
-    default: string | undefined;
-    setDefault: (granter: string | undefined) => void;
-    isLoading: boolean;
-  };
 };
 
 const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
@@ -78,18 +68,6 @@ const MESSAGE_STATES: Record<string, LoadingState> = {
   "/akash.market.v1beta4.MsgCreateLease": "creatingDeployment",
   "/akash.deployment.v1beta3.MsgUpdateDeployment": "updatingDeployment"
 };
-
-const persisted: Record<string, string[]> = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("fee-granters") || "{}") : {};
-
-const AllowanceNotificationMessage: FC = () => (
-  <>
-    You can update default fee granter in
-    <Link href="/settings/authorizations" className="inline-flex items-center space-x-2 !text-white">
-      <span>Authorizations Settings</span>
-      <OpenNewWindow className="text-xs" />
-    </Link>
-  </>
-);
 
 export const WalletProvider = ({ children }) => {
   const [walletBalances, setWalletBalances] = useState<Balances | null>(null);
@@ -105,23 +83,10 @@ export const WalletProvider = ({ children }) => {
   const { wallet: managedWallet, isLoading, create, refetch } = useManagedWallet();
   const { address: walletAddress, username, isWalletConnected } = useMemo(() => managedWallet || userWallet, [managedWallet, userWallet]);
   const { addEndpoints } = useManager();
-  // Wallet fee allowances
-  const [defaultFeeGranter, setDefaultFeeGranter] = useLocalStorage<string | undefined>(`default-fee-granters/${walletAddress}`, undefined);
-  const { data: allFeeGranters, isLoading: isLoadingAllowances, isFetched } = useAllowancesGranted(walletAddress);
   const isManaged = !!managedWallet;
-  const actualAllowanceAddresses = useMemo(() => {
-    if (!walletAddress || !allFeeGranters) {
-      return null;
-    }
-
-    return allFeeGranters.reduce((acc, grant) => {
-      if (isAfter(parseISO(grant.allowance.expiration), new Date())) {
-        acc.push(grant.granter);
-      }
-
-      return acc;
-    }, [] as string[]);
-  }, [allFeeGranters, walletAddress]);
+  const {
+    fee: { default: feeGranter }
+  } = useAllowance(walletAddress as string, isManaged);
 
   useWhen(managedWallet, refreshBalances);
 
@@ -142,40 +107,6 @@ export const WalletProvider = ({ children }) => {
       }
     })();
   }, [settings?.rpcEndpoint, userWallet.isWalletConnected]);
-
-  useWhen(
-    isFetched && walletAddress && !isManaged && !!actualAllowanceAddresses,
-    () => {
-      const _actualAllowanceAddresses = actualAllowanceAddresses as string[];
-      const persistedAddresses = persisted[walletAddress as string] || [];
-      const added = difference(_actualAllowanceAddresses, persistedAddresses);
-      const removed = difference(persistedAddresses, _actualAllowanceAddresses);
-
-      if (added.length || removed.length) {
-        persisted[walletAddress as string] = _actualAllowanceAddresses;
-        localStorage.setItem(`fee-granters`, JSON.stringify(persisted));
-      }
-
-      if (added.length) {
-        enqueueSnackbar(<Snackbar iconVariant="info" title="New fee allowance granted" subTitle={<AllowanceNotificationMessage />} />, {
-          variant: "info"
-        });
-      }
-
-      if (removed.length) {
-        enqueueSnackbar(<Snackbar iconVariant="warning" title="Some fee allowance is revoked or expired" subTitle={<AllowanceNotificationMessage />} />, {
-          variant: "warning"
-        });
-      }
-
-      if (defaultFeeGranter && removed.includes(defaultFeeGranter)) {
-        setDefaultFeeGranter(undefined);
-      } else if (!defaultFeeGranter && _actualAllowanceAddresses.length) {
-        setDefaultFeeGranter(_actualAllowanceAddresses[0]);
-      }
-    },
-    [actualAllowanceAddresses, persisted]
-  );
 
   async function createStargateClient() {
     const selectedNetwork = networkStore.getSelectedNetwork();
@@ -274,7 +205,7 @@ export const WalletProvider = ({ children }) => {
         const estimatedFees = await userWallet.estimateFee(msgs);
         const txRaw = await userWallet.sign(msgs, {
           ...estimatedFees,
-          granter: defaultFeeGranter
+          granter: feeGranter
         });
 
         setLoadingState("broadcasting");
@@ -421,13 +352,7 @@ export const WalletProvider = ({ children }) => {
         isManaged: isManaged,
         isWalletLoading: isLoading,
         isTrialing: !!managedWallet?.isTrialing,
-        creditAmount: managedWallet?.creditAmount,
-        fee: {
-          all: allFeeGranters,
-          default: defaultFeeGranter,
-          setDefault: setDefaultFeeGranter,
-          isLoading: isLoadingAllowances
-        }
+        creditAmount: managedWallet?.creditAmount
       }}
     >
       {children}
