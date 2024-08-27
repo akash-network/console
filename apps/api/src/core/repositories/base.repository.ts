@@ -73,6 +73,11 @@ export abstract class BaseRepository<
     );
   }
 
+  async findOneByAndLock(query?: Partial<Output>) {
+    const items: T["$inferSelect"][] = await this.txManager.getPgTx()?.select().from(this.table).where(this.queryToWhere(query)).limit(1).for("update");
+    return this.toOutput(first(items));
+  }
+
   async find(query?: Partial<Output>) {
     return this.toOutputList(
       await this.queryCursor.findMany({

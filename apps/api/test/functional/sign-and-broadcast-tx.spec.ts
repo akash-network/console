@@ -1,23 +1,21 @@
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import type { Registry } from "@cosmjs/proto-signing";
-import { WalletService } from "@test/services/wallet.service";
+import { DbTestingService } from "@test/services/db-testing.service";
+import { WalletTestingService } from "@test/services/wallet-testing.service";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
-import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 
 jest.setTimeout(30000);
 
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
-  const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  const userWalletsTable = resolveTable("UserWallets");
-  const usersTable = resolveTable("Users");
-  const walletService = new WalletService(app);
+  const walletService = new WalletTestingService(app);
+  const dbService = container.resolve(DbTestingService);
 
   afterEach(async () => {
-    await Promise.all([db.delete(userWalletsTable), db.delete(usersTable)]);
+    await dbService.cleanAll();
   });
 
   describe("POST /v1/tx", () => {
