@@ -1,4 +1,5 @@
-import { WalletService } from "@test/services/wallet.service";
+import { DbTestingService } from "@test/services/db-testing.service";
+import { WalletTestingService } from "@test/services/wallet-testing.service";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
@@ -6,22 +7,19 @@ import { WalletController } from "@src/billing/controllers/wallet/wallet.control
 import { BILLING_CONFIG, BillingConfig } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService } from "@src/billing/services";
-import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 
 jest.setTimeout(240000);
 
 describe("Wallets Refill", () => {
   const managedUserWalletService = container.resolve(ManagedUserWalletService);
-  const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  const userWalletsTable = resolveTable("UserWallets");
-  const usersTable = resolveTable("Users");
   const config = container.resolve<BillingConfig>(BILLING_CONFIG);
   const walletController = container.resolve(WalletController);
-  const walletService = new WalletService(app);
+  const walletService = new WalletTestingService(app);
   const userWalletRepository = container.resolve(UserWalletRepository);
+  const dbService = container.resolve(DbTestingService);
 
   afterEach(async () => {
-    await Promise.all([db.delete(userWalletsTable), db.delete(usersTable)]);
+    await dbService.cleanAll();
   });
 
   describe("console refill-wallets", () => {

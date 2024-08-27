@@ -1,4 +1,4 @@
-import { boolean, integer, numeric, pgTable, serial, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, numeric, pgTable, serial, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas";
 

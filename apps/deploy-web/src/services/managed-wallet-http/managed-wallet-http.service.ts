@@ -22,9 +22,9 @@ class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
     if (!query) {
       return;
     }
-    console.log('DEBUG query.get("payment-canceled")', query.get("payment-canceled"));
+
     if (query.get("payment-canceled") === "true") {
-      this.clearSessionId();
+      this.clearSessionResults();
     }
 
     if (query.get("payment-success") === "true") {
@@ -35,7 +35,7 @@ class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
   async getWallet(userId: string) {
     const [wallet] = this.extractApiData(await this.get<ApiWalletOutput[]>("v1/wallets", { params: this.getWalletListParams(userId) }));
 
-    this.clearSessionId();
+    this.clearSessionResults();
 
     return wallet && this.addWalletEssentials(wallet);
   }
@@ -49,7 +49,7 @@ class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
     return params;
   }
 
-  private clearSessionId() {
+  private clearSessionResults() {
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.delete("session_id");

@@ -1,7 +1,8 @@
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
 import type { Registry } from "@cosmjs/proto-signing";
-import { WalletService } from "@test/services/wallet.service";
+import { DbTestingService } from "@test/services/db-testing.service";
+import { WalletTestingService } from "@test/services/wallet-testing.service";
 import axios from "axios";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -11,7 +12,6 @@ import { app } from "@src/app";
 import { config } from "@src/billing/config";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { MasterWalletService } from "@src/billing/services";
-import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 
 jest.setTimeout(30000);
 
@@ -20,14 +20,12 @@ const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.ym
 // TODO: finish this test to create a lease and then close the deployment
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
-  const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  const userWalletsTable = resolveTable("UserWallets");
-  const usersTable = resolveTable("Users");
-  const walletService = new WalletService(app);
+  const walletService = new WalletTestingService(app);
   const masterWalletService = container.resolve(MasterWalletService);
+  const dbService = container.resolve(DbTestingService);
 
   afterEach(async () => {
-    await Promise.all([db.delete(userWalletsTable), db.delete(usersTable)]);
+    await dbService.cleanAll();
   });
 
   describe("POST /v1/tx", () => {

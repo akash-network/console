@@ -1,5 +1,6 @@
 import { AllowanceHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
+import { DbTestingService } from "@test/services/db-testing.service";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 
@@ -11,14 +12,14 @@ jest.setTimeout(20000);
 
 describe("wallets", () => {
   const userWalletsTable = resolveTable("UserWallets");
-  const userTable = resolveTable("Users");
   const config = container.resolve<BillingConfig>(BILLING_CONFIG);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsQuery = db.query.UserWallets;
   const allowanceHttpService = container.resolve(AllowanceHttpService);
+  const dbService = container.resolve(DbTestingService);
 
   afterEach(async () => {
-    await Promise.all([db.delete(userWalletsTable), db.delete(userTable)]);
+    await dbService.cleanAll();
   });
 
   describe("POST /v1/wallets", () => {
@@ -70,8 +71,8 @@ describe("wallets", () => {
         id: expect.any(Number),
         userId,
         address: expect.any(String),
-        deploymentAllowance: config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
-        feeAllowance: config.TRIAL_FEES_ALLOWANCE_AMOUNT,
+        deploymentAllowance: `${config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT}.00`,
+        feeAllowance: `${config.TRIAL_FEES_ALLOWANCE_AMOUNT}.00`,
         isTrialing: true
       });
       expect(allowances).toMatchObject([
