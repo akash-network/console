@@ -545,17 +545,20 @@ function getLinuxServerTemplateSummary(readme: string) {
 // Replaces local links with absolute links
 function replaceLinks(markdown: string, owner: string, repo: string, version: string, folder: string) {
   let newMarkdown = markdown;
-  const linkRegex = /!?\[([^[]+)\]\((.*?)\)/gm;
+  const linkRegex = /!?\[([^[]*)\]\((.*?)\)/gm;
   const matches = newMarkdown.matchAll(linkRegex);
   for (const match of matches) {
-    const url = match[2].startsWith("/") ? match[2].substring(1) : match[2];
+    const originalUrl = match[2];
+    const url = originalUrl.replace(/^\.?\//, "");
+
     if (isUrlAbsolute(url)) continue;
+
     const isPicture = match[0].startsWith("!");
     const absoluteUrl = isPicture
       ? `https://raw.githubusercontent.com/${owner}/${repo}/${version}/${folder}/` + url
       : `https://github.com/${owner}/${repo}/blob/${version}/${folder}/` + url;
 
-    newMarkdown = newMarkdown.split("(" + url + ")").join("(" + absoluteUrl + ")");
+    newMarkdown = newMarkdown.split("(" + originalUrl + ")").join("(" + absoluteUrl + ")");
   }
 
   return newMarkdown;
