@@ -1,11 +1,11 @@
-import { boolean, numeric, pgTable, serial, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, integer, numeric, pgTable, serial, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
-import { userSchema } from "@src/user/model-schemas";
+import { Users } from "@src/user/model-schemas";
 
-export const userWalletSchema = pgTable("user_wallets", {
+export const UserWallets = pgTable("user_wallets", {
   id: serial("id").primaryKey(),
   userId: uuid("user_id")
-    .references(() => userSchema.id)
+    .references(() => Users.id)
     .unique(),
   address: varchar("address").unique(),
   stripeCustomerId: varchar("stripe_customer_id"),
@@ -18,7 +18,7 @@ export const userWalletSchema = pgTable("user_wallets", {
 
 function allowance(name: string) {
   return numeric(name, {
-    precision: 10,
+    precision: 20,
     scale: 2
   })
     .notNull()

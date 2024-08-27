@@ -13,10 +13,14 @@ import { LoggerService } from "@src/core";
 
 interface SpendingAuthorizationOptions {
   address: string;
-  limits: {
-    deployment: number;
-    fees: number;
-  };
+  limits:
+    | {
+        deployment: number;
+        fees: number;
+      }
+    | {
+        fees: number;
+      };
   expiration?: Date;
 }
 
@@ -72,11 +76,12 @@ export class ManagedUserWalletService {
     };
 
     await Promise.all([
-      this.authorizeDeploymentSpending({
-        ...msgOptions,
-        denom: this.config.DEPLOYMENT_GRANT_DENOM,
-        limit: options.limits.deployment
-      }),
+      "deployment" in options.limits &&
+        this.authorizeDeploymentSpending({
+          ...msgOptions,
+          denom: this.config.DEPLOYMENT_GRANT_DENOM,
+          limit: options.limits.deployment
+        }),
       this.authorizeFeeSpending({
         ...msgOptions,
         limit: options.limits.fees

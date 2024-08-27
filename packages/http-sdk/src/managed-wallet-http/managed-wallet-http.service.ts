@@ -19,7 +19,7 @@ export class ManagedWalletHttpService extends ApiHttpService {
     return wallet && this.addWalletEssentials(wallet);
   }
 
-  private addWalletEssentials(input: ApiWalletOutput): ApiWalletOutput & { username: "Managed Wallet"; isWalletConnected: true } {
+  protected addWalletEssentials(input: ApiWalletOutput): ApiWalletOutput & { username: "Managed Wallet"; isWalletConnected: true } {
     return {
       ...input,
       username: "Managed Wallet",

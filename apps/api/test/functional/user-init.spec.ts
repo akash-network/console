@@ -6,11 +6,9 @@ import omit from "lodash/omit";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
-import { USER_WALLET_SCHEMA, UserWalletSchema } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
-import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
+import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { getCurrentUserId } from "@src/middlewares/userMiddleware";
-import { USER_SCHEMA, UserSchema } from "@src/user/providers";
 
 jest.mock("../../src/middlewares/userMiddleware.ts", () => ({
   getCurrentUserId: jest.fn(),
@@ -21,8 +19,8 @@ jest.mock("../../src/middlewares/userMiddleware.ts", () => ({
 jest.setTimeout(30000);
 
 describe("User Init", () => {
-  const userSchema = container.resolve<UserSchema>(USER_SCHEMA);
-  const userWalletSchema = container.resolve<UserWalletSchema>(USER_WALLET_SCHEMA);
+  const usersTable = resolveTable("Users");
+  const userWalletsTable = resolveTable("UserWallets");
   const userWalletRepository = container.resolve(UserWalletRepository);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const walletService = new WalletService(app);
@@ -61,8 +59,8 @@ describe("User Init", () => {
   });
 
   afterEach(async () => {
-    await db.delete(userWalletSchema);
-    await db.delete(userSchema);
+    await db.delete(userWalletsTable);
+    await db.delete(usersTable);
   });
 
   describe("POST /user/tokenInfo", () => {
@@ -74,7 +72,7 @@ describe("User Init", () => {
     });
 
     it("should resolve with existing user", async () => {
-      const existingUser = first(await db.insert(userSchema).values(dbPayload).returning());
+      const existingUser = first(await db.insert(usersTable).values(dbPayload).returning());
       const res = await sendTokenInfo();
 
       expect(res.status).toBe(200);
@@ -87,14 +85,14 @@ describe("User Init", () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({
-        ...omit(auth0Payload, "wantedUsername"),
-        ...omit(anonymousUser, ["createdAt", "username"])
+        ...omit(anonymousUser, ["createdAt", "username"]),
+        ...omit(auth0Payload, "wantedUsername")
       });
     });
 
     it("should resolve with existing user and transfer anonymous wallet", async () => {
       const { user: anonymousUser, wallet: anonymousWallet, token: anonymousToken } = await walletService.createUserAndWallet();
-      const existingUser = first(await db.insert(userSchema).values(dbPayload).returning());
+      const existingUser = first(await db.insert(usersTable).values(dbPayload).returning());
 
       const res = await sendTokenInfo(anonymousToken);
       const wallet = await userWalletRepository.findById(anonymousWallet.id);
@@ -106,7 +104,7 @@ describe("User Init", () => {
 
     it("should resolve with existing user without transferring anonymous wallet", async () => {
       const { user: anonymousUser, wallet: anonymousWallet, token: anonymousToken } = await walletService.createUserAndWallet();
-      const existingUser = first(await db.insert(userSchema).values(dbPayload).returning());
+      const existingUser = first(await db.insert(usersTable).values(dbPayload).returning());
 
       await userWalletRepository.create({ userId: existingUser.id, address: faker.string.alphanumeric(10) });
       const res = await sendTokenInfo(anonymousToken);

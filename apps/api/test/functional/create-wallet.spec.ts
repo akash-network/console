@@ -4,22 +4,21 @@ import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
-import { BILLING_CONFIG, BillingConfig, USER_WALLET_SCHEMA, UserWalletSchema } from "@src/billing/providers";
-import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
-import { USER_SCHEMA, UserSchema } from "@src/user/providers";
+import { BILLING_CONFIG, BillingConfig } from "@src/billing/providers";
+import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 
 jest.setTimeout(20000);
 
 describe("wallets", () => {
-  const userWalletSchema = container.resolve<UserWalletSchema>(USER_WALLET_SCHEMA);
-  const userSchema = container.resolve<UserSchema>(USER_SCHEMA);
+  const userWalletsTable = resolveTable("UserWallets");
+  const userTable = resolveTable("Users");
   const config = container.resolve<BillingConfig>(BILLING_CONFIG);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  const userWalletsTable = db.query.userWalletSchema;
+  const userWalletsQuery = db.query.UserWallets;
   const allowanceHttpService = container.resolve(AllowanceHttpService);
 
   afterEach(async () => {
-    await Promise.all([db.delete(userWalletSchema), db.delete(userSchema)]);
+    await Promise.all([db.delete(userWalletsTable), db.delete(userTable)]);
   });
 
   describe("POST /v1/wallets", () => {
@@ -39,7 +38,7 @@ describe("wallets", () => {
         headers
       });
       const getWalletsResponse = await app.request(`/v1/wallets?userId=${userId}`, { headers });
-      const userWallet = await userWalletsTable.findFirst({ where: eq(userWalletSchema.userId, userId) });
+      const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
       const allowances = await Promise.all([
         allowanceHttpService.getDeploymentAllowancesForGrantee(userWallet.address),
         allowanceHttpService.getFeeAllowancesForGrantee(userWallet.address)
@@ -71,8 +70,8 @@ describe("wallets", () => {
         id: expect.any(Number),
         userId,
         address: expect.any(String),
-        deploymentAllowance: `${config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT}.00`,
-        feeAllowance: `${config.TRIAL_FEES_ALLOWANCE_AMOUNT}.00`,
+        deploymentAllowance: config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
+        feeAllowance: config.TRIAL_FEES_ALLOWANCE_AMOUNT,
         isTrialing: true
       });
       expect(allowances).toMatchObject([
