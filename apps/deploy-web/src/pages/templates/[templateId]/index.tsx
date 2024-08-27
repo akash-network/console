@@ -24,6 +24,12 @@ export async function getServerSideProps({ params }) {
   const templates = categories.flatMap(x => x.templates);
   const template = templates.find(x => x.id === params?.templateId);
 
+  if (!template) {
+    return {
+      notFound: true
+    };
+  }
+
   return {
     props: {
       templateId: params?.templateId,
