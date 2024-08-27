@@ -6,6 +6,8 @@ import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositorie
 import { ManagedUserWalletService, WalletInitializerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { LoggerService } from "@src/core";
+import { InjectSentry, Sentry } from "@src/core/providers/sentry.provider";
+import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
 
 @singleton()
 export class RefillService {
@@ -16,7 +18,9 @@ export class RefillService {
     private readonly userWalletRepository: UserWalletRepository,
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly balancesService: BalancesService,
-    private readonly walletInitializerService: WalletInitializerService
+    private readonly walletInitializerService: WalletInitializerService,
+    @InjectSentry() private readonly sentry: Sentry,
+    private readonly sentryEventService: SentryEventService
   ) {}
 
   async refillAllFees() {
@@ -30,7 +34,8 @@ export class RefillService {
         .process(async wallet => this.refillWalletFees(wallet));
 
       if (errors.length) {
-        this.logger.error({ event: "WALLETS_REFILL_ERROR", errors });
+        const id = this.sentry.captureEvent(this.sentryEventService.toEvent(errors));
+        this.logger.error({ event: "WALLETS_REFILL_ERROR", errors, sentryEventId: id });
       }
     }
   }

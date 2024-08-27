@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
-import { WalletService } from "@test/services/wallet.service";
+import { DbTestingService } from "@test/services/db-testing.service";
+import { WalletTestingService } from "@test/services/wallet-testing.service";
 import type { Context, Next } from "hono";
 import first from "lodash/first";
 import omit from "lodash/omit";
@@ -20,10 +21,9 @@ jest.setTimeout(30000);
 
 describe("User Init", () => {
   const usersTable = resolveTable("Users");
-  const userWalletsTable = resolveTable("UserWallets");
   const userWalletRepository = container.resolve(UserWalletRepository);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  const walletService = new WalletService(app);
+  const walletService = new WalletTestingService(app);
   let auth0Payload: {
     userId: string;
     wantedUsername: string;
@@ -57,10 +57,10 @@ describe("User Init", () => {
 
     (getCurrentUserId as jest.Mock).mockReturnValue(auth0Payload.userId);
   });
+  const dbService = container.resolve(DbTestingService);
 
   afterEach(async () => {
-    await db.delete(userWalletsTable);
-    await db.delete(usersTable);
+    await dbService.cleanAll();
   });
 
   describe("POST /user/tokenInfo", () => {

@@ -3,7 +3,6 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserWalletInput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService } from "@src/billing/services";
-import { WithTransaction } from "@src/core/services";
 
 @singleton()
 export class WalletInitializerService {
@@ -13,7 +12,6 @@ export class WalletInitializerService {
     private readonly authService: AuthService
   ) {}
 
-  @WithTransaction()
   async initializeAndGrantTrialLimits(userId: UserWalletInput["userId"]) {
     const { id } = await this.userWalletRepository.accessibleBy(this.authService.ability, "create").create({ userId });
     const wallet = await this.walletManager.createAndAuthorizeTrialSpending({ addressIndex: id });

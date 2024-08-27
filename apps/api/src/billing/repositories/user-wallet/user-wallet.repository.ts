@@ -69,13 +69,16 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   }
 
   protected toOutput(dbOutput: DbUserWalletOutput): UserWalletOutput {
-    const deploymentAllowance = parseFloat(dbOutput.deploymentAllowance);
-    return {
-      ...omit(dbOutput, ["feeAllowance", "deploymentAllowance"]),
-      creditAmount: deploymentAllowance,
-      deploymentAllowance,
-      feeAllowance: parseFloat(dbOutput.feeAllowance)
-    };
+    const deploymentAllowance = dbOutput?.deploymentAllowance && parseFloat(dbOutput.deploymentAllowance);
+
+    return (
+      dbOutput && {
+        ...omit(dbOutput, ["feeAllowance", "deploymentAllowance"]),
+        creditAmount: deploymentAllowance,
+        deploymentAllowance,
+        feeAllowance: parseFloat(dbOutput.feeAllowance)
+      }
+    );
   }
 
   protected toInput({ deploymentAllowance, feeAllowance, ...input }: UserWalletInput): DbUserWalletInput {

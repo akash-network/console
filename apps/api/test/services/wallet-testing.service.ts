@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 
-export class WalletService {
+export class WalletTestingService {
   constructor(private readonly app: Hono) {}
 
   async createUserAndWallet() {
