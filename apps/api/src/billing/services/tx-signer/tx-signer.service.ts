@@ -42,7 +42,7 @@ export class TxSignerService {
     const client = await this.getClientForAddressIndex(userWallet.id);
     const tx = await client.signAndBroadcast(decodedMessages);
 
-    await this.balancesService.updateUserWalletLimits(userWallet);
+    await this.balancesService.refreshUserWalletLimits(userWallet);
 
     return pick(tx, ["code", "transactionHash", "rawLog"]);
   }

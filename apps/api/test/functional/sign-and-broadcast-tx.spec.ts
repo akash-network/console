@@ -4,22 +4,20 @@ import { WalletService } from "@test/services/wallet.service";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
-import { USER_WALLET_SCHEMA, UserWalletSchema } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
-import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
-import { USER_SCHEMA, UserSchema } from "@src/user/providers";
+import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 
 jest.setTimeout(30000);
 
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  const userWalletSchema = container.resolve<UserWalletSchema>(USER_WALLET_SCHEMA);
-  const userSchema = container.resolve<UserSchema>(USER_SCHEMA);
+  const userWalletsTable = resolveTable("UserWallets");
+  const usersTable = resolveTable("Users");
   const walletService = new WalletService(app);
 
   afterEach(async () => {
-    await Promise.all([db.delete(userWalletSchema), db.delete(userSchema)]);
+    await Promise.all([db.delete(userWalletsTable), db.delete(usersTable)]);
   });
 
   describe("POST /v1/tx", () => {

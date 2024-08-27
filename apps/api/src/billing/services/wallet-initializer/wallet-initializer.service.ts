@@ -14,7 +14,7 @@ export class WalletInitializerService {
   ) {}
 
   @WithTransaction()
-  async initialize(userId: UserWalletInput["userId"]) {
+  async initializeAndGrantTrialLimits(userId: UserWalletInput["userId"]) {
     const { id } = await this.userWalletRepository.accessibleBy(this.authService.ability, "create").create({ userId });
     const wallet = await this.walletManager.createAndAuthorizeTrialSpending({ addressIndex: id });
     const userWallet = await this.userWalletRepository.updateById(
@@ -28,5 +28,17 @@ export class WalletInitializerService {
     );
 
     return this.userWalletRepository.toPublic(userWallet);
+  }
+
+  async initialize(userId: UserWalletInput["userId"]) {
+    const { id } = await this.userWalletRepository.create({ userId });
+    const wallet = await this.walletManager.createWallet({ addressIndex: id });
+    return await this.userWalletRepository.updateById(
+      id,
+      {
+        address: wallet.address
+      },
+      { returning: true }
+    );
   }
 }

@@ -9,11 +9,9 @@ import { container } from "tsyringe";
 
 import { app } from "@src/app";
 import { config } from "@src/billing/config";
-import { USER_WALLET_SCHEMA, UserWalletSchema } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { MasterWalletService } from "@src/billing/services";
-import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
-import { USER_SCHEMA, UserSchema } from "@src/user/providers";
+import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 
 jest.setTimeout(30000);
 
@@ -23,13 +21,13 @@ const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.ym
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  const userWalletSchema = container.resolve<UserWalletSchema>(USER_WALLET_SCHEMA);
-  const userSchema = container.resolve<UserSchema>(USER_SCHEMA);
+  const userWalletsTable = resolveTable("UserWallets");
+  const usersTable = resolveTable("Users");
   const walletService = new WalletService(app);
   const masterWalletService = container.resolve(MasterWalletService);
 
   afterEach(async () => {
-    await Promise.all([db.delete(userWalletSchema), db.delete(userSchema)]);
+    await Promise.all([db.delete(userWalletsTable), db.delete(usersTable)]);
   });
 
   describe("POST /v1/tx", () => {
@@ -41,8 +39,6 @@ describe("Tx Sign", () => {
         headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` })
       });
       const result = await res.json();
-
-      console.log("DEBUG result", result);
 
       expect(res.status).toBe(200);
       expect(result).toMatchObject({ data: { code: 0, transactionHash: expect.any(String) } });
