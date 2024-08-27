@@ -20,6 +20,8 @@ import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";
 
 const previewTemplateIds = [
+  "akash-network-awesome-akash-Llama-3.1-8B",
+  "akash-network-awesome-akash-Llama-3.1-405B-FP8",
   "akash-network-awesome-akash-FLock-training-node",
   "akash-network-awesome-akash-tensorflow-jupyter-mnist",
   "akash-network-awesome-akash-comfyui",
