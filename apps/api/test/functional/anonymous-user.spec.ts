@@ -1,12 +1,11 @@
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
-import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
-import { USER_SCHEMA, UserSchema } from "@src/user/providers";
+import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
 
 describe("Users", () => {
-  const schema = container.resolve<UserSchema>(USER_SCHEMA);
+  const UsersTable = resolveTable("Users");
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   let user: AnonymousUserResponseOutput["data"];
   let token: AnonymousUserResponseOutput["token"];
@@ -22,7 +21,7 @@ describe("Users", () => {
   });
 
   afterEach(async () => {
-    await db.delete(schema);
+    await db.delete(UsersTable);
   });
 
   describe("POST /v1/anonymous-users", () => {

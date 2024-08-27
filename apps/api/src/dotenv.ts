@@ -1,5 +1,4 @@
-import dotenv from "dotenv";
-import dotenvExpand from "dotenv-expand";
+import dotenv from "@dotenvx/dotenvx";
 import fs from "fs";
 import pino from "pino";
 
@@ -7,7 +6,7 @@ const logger = pino().child({ context: "ENV" });
 
 const config = (path: string) => {
   if (fs.existsSync(path)) {
-    dotenvExpand.expand(dotenv.config({ path }));
+    dotenv.config({ path });
     logger.info(`Loaded ${path}`);
   }
 };

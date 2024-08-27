@@ -13,7 +13,6 @@ const { NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID } = envConfig;
 
 export const useManagedWallet = () => {
   const user = useUser();
-
   const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled && user?.id);
   const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => queried || created, [queried, created]);
