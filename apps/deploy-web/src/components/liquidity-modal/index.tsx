@@ -23,7 +23,7 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
   };
 
   return (
-    <Button variant="default" size="sm" onClick={_onClick}>
+    <Button variant="default" size="xs" onClick={_onClick}>
       Get More
     </Button>
   );
