@@ -61,6 +61,7 @@ export const useRepos = () => {
     },
     onError: (error: AxiosError<{ message: string }>) => {
       if (error?.response?.data?.message === "Bad credentials") {
+        console.log(error);
       }
     },
 
@@ -91,7 +92,7 @@ export const useFetchAccessToken = () => {
   });
 };
 
-export const useBranches = (repo?: string, fetch?: boolean) => {
+export const useBranches = (repo?: string) => {
   const [token] = useAtom(remoteDeployStore.tokens);
 
   return useQuery({
