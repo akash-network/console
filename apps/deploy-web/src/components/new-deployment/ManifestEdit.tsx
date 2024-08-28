@@ -202,12 +202,12 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
             {services.map(service => {
               return (
                 <div key={service.image} className="rounded border p-4">
-                  <div className="mb-2 text-sm">{service.image}</div>
-                  <div className="flex items-center whitespace-nowrap">
+                  <div className="mb-2 text-sm"><span className="font-bold">{service.title}</span>:{service.image}</div>
+                  <div className="flex items-center space-x-4 whitespace-nowrap">
                     <LeaseSpecDetail type="cpu" className="flex-shrink-0" value={service.profile?.cpu as number} />
-                    {service.profile?.hasGpu && <LeaseSpecDetail type="gpu" className="ml-4 flex-shrink-0" value={service.profile?.gpu as number} />}
-                    <LeaseSpecDetail type="ram" className="ml-4 flex-shrink-0" value={`${service.profile?.ram} ${service.profile?.ramUnit}`} />
-                    <LeaseSpecDetail type="storage" className="ml-4 flex-shrink-0" value={`${service.profile?.storage} ${service.profile?.storageUnit}`} />
+                    {service.profile?.hasGpu && <LeaseSpecDetail type="gpu" className="flex-shrink-0" value={service.profile?.gpu as number} />}
+                    <LeaseSpecDetail type="ram" className="flex-shrink-0" value={`${service.profile?.ram} ${service.profile?.ramUnit}`} />
+                    <LeaseSpecDetail type="storage" className="flex-shrink-0" value={`${service.profile?.storage} ${service.profile?.storageUnit}`} />
                   </div>
                 </div>
               );

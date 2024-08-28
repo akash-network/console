@@ -37,6 +37,7 @@ import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
 import { DeploymentDepositModal } from "./DeploymentDepositModal";
 import { LeaseChip } from "./LeaseChip";
+import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
 
 type Props = {
   deployment: NamedDeploymentDto;
@@ -110,6 +111,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const avgCost = udenomToDenom(getAvgCostPerMonth(deploymentCost || 0));
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const denomData = useDenomData(deployment.escrowAccount.balance.denom);
+  const { closeDeploymentConfirm } = useCloseDeploymentConfirm();
 
   function viewDeployment() {
     router.push(UrlService.deploymentDetails(deployment.dseq));
@@ -142,6 +144,12 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
 
   const onCloseDeployment = async () => {
     handleMenuClose();
+
+    const isConfirmed = await closeDeploymentConfirm([deployment.dseq]);
+
+    if (!isConfirmed) {
+      return;
+    }
 
     const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
     const response = await signAndBroadcastTx([message]);

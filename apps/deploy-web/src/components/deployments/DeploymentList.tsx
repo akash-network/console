@@ -32,6 +32,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
 import { DeploymentListRow } from "./DeploymentListRow";
+import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
 
 export const DeploymentList: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, isWalletLoaded } = useWallet();
@@ -54,6 +55,7 @@ export const DeploymentList: React.FunctionComponent = () => {
   const currentPageDeployments = orderedDeployments.slice(start, end);
   const pageCount = Math.ceil(orderedDeployments.length / pageSize);
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
+  const { closeDeploymentConfirm } = useCloseDeploymentConfirm();
 
   useEffect(() => {
     if (isWalletLoaded && isSettingsInit) {
@@ -109,6 +111,12 @@ export const DeploymentList: React.FunctionComponent = () => {
 
   const onCloseSelectedDeployments = async () => {
     try {
+      const isConfirmed = await closeDeploymentConfirm(selectedDeploymentDseqs);
+
+      if (!isConfirmed) {
+        return;
+      }
+
       const messages = selectedDeploymentDseqs.map(dseq => TransactionMessageData.getCloseDeploymentMsg(address, `${dseq}`));
       const response = await signAndBroadcastTx(messages);
       if (response) {

@@ -15,6 +15,7 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { DeploymentDepositModal } from "./DeploymentDepositModal";
+import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
 
 type Props = {
   address: string;
@@ -28,12 +29,13 @@ type Props = {
 export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address, loadDeploymentDetail, removeLeases, setActiveTab, deployment }) => {
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
   const router = useRouter();
-  const { signAndBroadcastTx } = useWallet();
+  const { signAndBroadcastTx, isManaged } = useWallet();
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const deploymentName = getDeploymentName(deployment?.dseq);
   const previousRoute = usePreviousRoute();
   const wallet = useWallet();
+  const { closeDeploymentConfirm } = useCloseDeploymentConfirm();
 
   function handleBackClick() {
     if (previousRoute) {
@@ -44,6 +46,12 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   }
 
   const onCloseDeployment = async () => {
+    const isConfirmed = await closeDeploymentConfirm([deployment.dseq]);
+
+    if (!isConfirmed) {
+      return;
+    }
+
     const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
     const response = await signAndBroadcastTx([message]);
     if (response) {
