@@ -4,7 +4,7 @@ import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
-import { IGithubDirectoryItem } from "../remoteTypes";
+import { GithubRepository, IGithubDirectoryItem } from "../remoteTypes";
 import { PROXY_API_URL_AUTH, REDIRECT_URL } from "../utils";
 
 const Github_API_URL = "https://api.github.com";
@@ -48,7 +48,7 @@ export const useRepos = () => {
   return useQuery({
     queryKey: ["repos", token?.access_token],
     queryFn: async () => {
-      const response = await axiosInstance.get(
+      const response = await axiosInstance.get<GithubRepository[]>(
         "/user/repos?per_page=150",
 
         {
