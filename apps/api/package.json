@@ -10,8 +10,10 @@
   "author": "Akash Network",
   "main": "server.js",
   "scripts": {
-    "build": "webpack --config webpack.prod.js",
-    "console": "webpack --config webpack.prod.js --entry ./src/console.ts --output-filename console.js && node dist/console.js",
+    "build": "npm run build:app && npm run build:console",
+    "build:app": "webpack --config webpack.prod.js",
+    "build:console": "webpack --config webpack.prod.js --entry ./src/console.ts --output-filename console.js",
+    "console": "npm run build:console && node dist/console.js",
     "dev": "npm run start",
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
