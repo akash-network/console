@@ -54,7 +54,6 @@ const Repos = ({
   const [token] = useAtom(remoteDeployStore.tokens);
   const [search, setSearch] = useState("");
   const [filteredRepos, setFilteredRepos] = useState(repos);
-  console.log(services);
 
   const currentRepo = services?.[0]?.env?.find(e => e.key === "REPO_URL");
   const repo = repos?.find(r => r.html_url === currentRepo?.value);
@@ -100,8 +99,6 @@ const Repos = ({
     }
     setFilteredRepos(repos);
   }, [repos]);
-
-  console.log(accounts);
 
   return (
     <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">

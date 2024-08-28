@@ -9,7 +9,6 @@ const Advanced = ({ services, control, setValue }) => {
   const serviceIndex = 0;
   const [expanded, setExpanded] = useState(false);
   const currentService = services[serviceIndex];
-  console.log(services);
 
   return (
     <Collapsible

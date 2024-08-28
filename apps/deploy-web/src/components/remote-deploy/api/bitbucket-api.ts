@@ -173,7 +173,7 @@ export const useBitPackageJson = (onSettled: (data: any) => void, repo?: string,
 
 export const useBitSrcFolders = (onSettled: (data: any) => void, repo?: string, branch?: string) => {
   const [token] = useAtom(remoteDeployStore.tokens);
-  console.log(repo, branch, "repo, branch");
+
   return useQuery({
     queryKey: ["src-folders-bit", repo, branch],
     // root folder

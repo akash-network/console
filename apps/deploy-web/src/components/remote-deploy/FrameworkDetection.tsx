@@ -63,7 +63,6 @@ const useFramework = ({ services, setValue, subFolder }: { services: ServiceType
   const selected = services?.[0]?.env?.find(e => e.key === "REPO_URL")?.value;
 
   const setValueHandler = (data: any) => {
-    console.log(data);
     if (data?.dependencies) {
       setData(data);
       const cpus = (Object.keys(data?.dependencies ?? {})?.length / 10 / 2)?.toFixed(1);
