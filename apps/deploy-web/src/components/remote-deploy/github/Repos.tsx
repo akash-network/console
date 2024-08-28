@@ -22,6 +22,7 @@ import { Folder, GithubCircle, Lock } from "iconoir-react";
 import { useAtom } from "jotai";
 import { Globe2 } from "lucide-react";
 import { nanoid } from "nanoid";
+import Image from "next/image";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -139,8 +140,17 @@ const Repos = ({
                     {accounts?.map((account, index) => (
                       <SelectItem key={index} value={account}>
                         <div className="flex items-center gap-2">
-                          {" "}
-                          <GithubCircle />
+                          {repos?.find(repo => repo?.owner?.login === account)?.owner?.avatar_url ? (
+                            <Image
+                              width={24}
+                              height={24}
+                              src={repos?.find(repo => repo?.owner?.login === account)?.owner?.avatar_url || ""}
+                              alt={account}
+                              className="h-6 w-6 rounded-full"
+                            />
+                          ) : (
+                            <GithubCircle />
+                          )}
                           {account}
                         </div>
                       </SelectItem>
