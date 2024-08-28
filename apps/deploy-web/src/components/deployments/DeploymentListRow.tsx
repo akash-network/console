@@ -37,7 +37,7 @@ import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
 import { DeploymentDepositModal } from "./DeploymentDepositModal";
 import { LeaseChip } from "./LeaseChip";
-import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 
 type Props = {
   deployment: NamedDeploymentDto;
@@ -111,7 +111,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const avgCost = udenomToDenom(getAvgCostPerMonth(deploymentCost || 0));
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const denomData = useDenomData(deployment.escrowAccount.balance.denom);
-  const { closeDeploymentConfirm } = useCloseDeploymentConfirm();
+  const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
 
   function viewDeployment() {
     router.push(UrlService.deploymentDetails(deployment.dseq));

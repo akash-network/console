@@ -15,7 +15,7 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { DeploymentDepositModal } from "./DeploymentDepositModal";
-import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 
 type Props = {
   address: string;
@@ -35,7 +35,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   const deploymentName = getDeploymentName(deployment?.dseq);
   const previousRoute = usePreviousRoute();
   const wallet = useWallet();
-  const { closeDeploymentConfirm } = useCloseDeploymentConfirm();
+  const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
 
   function handleBackClick() {
     if (previousRoute) {

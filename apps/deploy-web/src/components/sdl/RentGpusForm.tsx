@@ -41,6 +41,7 @@ import { MemoryFormControl } from "./MemoryFormControl";
 import { RegionSelect } from "./RegionSelect";
 import { StorageFormControl } from "./StorageFormControl";
 import { TokenFormControl } from "./TokenFormControl";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 
 export const RentGpusForm: React.FunctionComponent = () => {
   const [error, setError] = useState<string | null>(null);
@@ -65,11 +66,12 @@ export const RentGpusForm: React.FunctionComponent = () => {
   const searchParams = useSearchParams();
   const currentService: ServiceType = (_services && _services[0]) || ({} as any);
   const { settings } = useSettings();
-  const { address, signAndBroadcastTx } = useWallet();
+  const { address, signAndBroadcastTx, isManaged } = useWallet();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const { minDeposit } = useChainParam();
   const router = useRouter();
+  const { createDeploymentConfirm } = useManagedDeploymentConfirm();
 
   useEffect(() => {
     if (rentGpuSdl && rentGpuSdl.services) {
@@ -178,6 +180,14 @@ export const RentGpusForm: React.FunctionComponent = () => {
 
   const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
     setIsDepositingDeployment(false);
+
+    if (isManaged) {
+      const isConfirmed = await createDeploymentConfirm(rentGpuSdl?.services as ServiceType[]);
+
+      if (!isConfirmed) {
+        return;
+      }
+    }
     await handleCreateClick(deposit, depositorAddress);
   };
 

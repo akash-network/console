@@ -40,7 +40,7 @@ import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import ViewPanel from "../shared/ViewPanel";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { BidGroup } from "./BidGroup";
-import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 
 type Props = {
   dseq: string;
@@ -89,7 +89,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const allClosed = (bids?.length || 0) > 0 && bids?.every(bid => bid.state === "closed");
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const wallet = useWallet();
-  const { closeDeploymentConfirm } = useCloseDeploymentConfirm();
+  const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
 
   useEffect(() => {
     getDeploymentDetail();
