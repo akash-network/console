@@ -24,7 +24,6 @@ const GitLab = ({
 }) => {
   const [group, setGroup] = useState<string>("");
   const { data: repos, isLoading } = useGitLabReposByGroup(group);
-  console.log(repos);
 
   return (
     <>

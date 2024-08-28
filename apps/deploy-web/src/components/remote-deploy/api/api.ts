@@ -61,7 +61,6 @@ export const useRepos = () => {
     },
     onError: (error: AxiosError<{ message: string }>) => {
       if (error?.response?.data?.message === "Bad credentials") {
-        console.log(error);
       }
     },
 
