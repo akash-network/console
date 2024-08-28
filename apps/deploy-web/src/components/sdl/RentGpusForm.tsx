@@ -42,6 +42,11 @@ import { RegionSelect } from "./RegionSelect";
 import { StorageFormControl } from "./StorageFormControl";
 import { TokenFormControl } from "./TokenFormControl";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
+import { useWhen } from "@src/hooks/useWhen";
+import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
+import { useDepositParams } from "@src/queries/useSettings";
+import { envConfig } from "@src/config/env.config";
+import { DepositParams } from "@src/types/deployment";
 
 export const RentGpusForm: React.FunctionComponent = () => {
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +77,14 @@ export const RentGpusForm: React.FunctionComponent = () => {
   const { minDeposit } = useChainParam();
   const router = useRouter();
   const { createDeploymentConfirm } = useManagedDeploymentConfirm();
+  const managedDenom = useManagedWalletDenom();
+  const { data: depositParams } = useDepositParams();
+  const defaultDeposit = depositParams || defaultInitialDeposit;
+
+  useWhen(isManaged && sdlDenom === "uakt", () => {
+    setSdlDenom(managedDenom);
+    setValue("services.0.placement.pricing.denom", managedDenom);
+  });
 
   useEffect(() => {
     if (rentGpuSdl && rentGpuSdl.services) {
@@ -115,7 +128,12 @@ export const RentGpusForm: React.FunctionComponent = () => {
     }
   }, [searchParams, gpuModels, isQueryInit]);
 
-  async function createAndValidateDeploymentData(yamlStr: string, dseq = null, deposit = defaultInitialDeposit, depositorAddress: string | null = null) {
+  async function createAndValidateDeploymentData(
+    yamlStr: string,
+    dseq: string | null = null,
+    deposit = defaultDeposit,
+    depositorAddress: string | null = null
+  ) {
     try {
       if (!yamlStr) return null;
 
@@ -170,6 +188,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
 
     setValue("services", result as ServiceType[]);
     setValue("services.0.profile.gpuModels", _gpuModels);
+    setValue("services.0.placement.pricing.denom", managedDenom);
     trigger();
   };
 
@@ -180,6 +199,11 @@ export const RentGpusForm: React.FunctionComponent = () => {
 
   const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
     setIsDepositingDeployment(false);
+    await handleCreateClick(deposit, depositorAddress);
+  };
+
+  const onSubmit = async (data: RentGpusFormValuesType) => {
+    setRentGpuSdl(data);
 
     if (isManaged) {
       const isConfirmed = await createDeploymentConfirm(rentGpuSdl?.services as ServiceType[]);
@@ -187,16 +211,14 @@ export const RentGpusForm: React.FunctionComponent = () => {
       if (!isConfirmed) {
         return;
       }
+
+      await handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+    } else {
+      setIsCheckingPrerequisites(true);
     }
-    await handleCreateClick(deposit, depositorAddress);
   };
 
-  const onSubmit = async (data: RentGpusFormValuesType) => {
-    setRentGpuSdl(data);
-    setIsCheckingPrerequisites(true);
-  };
-
-  async function handleCreateClick(deposit: number, depositorAddress: string) {
+  async function handleCreateClick(deposit: number | DepositParams[], depositorAddress: string) {
     setError(null);
 
     try {
@@ -319,9 +341,11 @@ export const RentGpusForm: React.FunctionComponent = () => {
               <div>
                 <RegionSelect control={control} />
               </div>
-              <div>
-                <TokenFormControl control={control} name="services.0.placement.pricing.denom" />
-              </div>
+              {!isManaged && (
+                <div>
+                  <TokenFormControl control={control} name="services.0.placement.pricing.denom" />
+                </div>
+              )}
             </div>
           </FormPaper>
 
