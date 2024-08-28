@@ -32,7 +32,7 @@ import CustomInput from "../CustomInput";
 import useFramework from "../FrameworkDetection";
 import { IGithubDirectoryItem } from "../remoteTypes";
 import { appendEnv, removeEnv, removeInitialUrl, RepoType } from "../utils";
-// import { handleLogin } from "../api/api";
+
 const Repos = ({
   repos,
   setValue,
@@ -95,10 +95,14 @@ const Repos = ({
       const differentOwnersArray = repos?.map(repo => repo?.owner?.login || "");
       const uniqueOwners = Array.from(new Set(differentOwnersArray));
       setAccounts(uniqueOwners);
-      setCurrentAccount(uniqueOwners?.find(account => profile?.login === account) || uniqueOwners?.[0]);
+      setCurrentAccount(
+        repos?.find(repo => currentRepo?.value?.includes(repo?.html_url?.replace("https://github.com/", "")))?.owner?.login ||
+          uniqueOwners?.find(account => profile?.login === account) ||
+          uniqueOwners?.[0]
+      );
     }
     setFilteredRepos(repos);
-  }, [repos]);
+  }, [repos, type, profile]);
 
   return (
     <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
@@ -243,7 +247,6 @@ const Repos = ({
                       <div className="flex flex-col">
                         <div className="flex items-center justify-between pb-3">
                           <p className="text-muted-foregroun4 text-sm">Select Directory</p>
-                          {/* <p className="text-sm text-muted-foreground"> {currentFramework?.title}</p> */}
                         </div>
 
                         <RadioGroup
