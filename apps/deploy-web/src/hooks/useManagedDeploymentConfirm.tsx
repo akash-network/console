@@ -1,4 +1,5 @@
 import { usePopup } from "@akashnetwork/ui/context";
+
 import { LeaseSpecDetail } from "@src/components/shared/LeaseSpecDetail";
 import { useWallet } from "@src/context/WalletProvider";
 import { ServiceType } from "@src/types";

@@ -20,6 +20,7 @@ import { useSnackbar } from "notistack";
 
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useBidList } from "@src/queries/useBidQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
@@ -40,7 +41,6 @@ import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import ViewPanel from "../shared/ViewPanel";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { BidGroup } from "./BidGroup";
-import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 
 type Props = {
   dseq: string;

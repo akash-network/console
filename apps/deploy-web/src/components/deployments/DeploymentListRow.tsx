@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { getShortText } from "@src/hooks/useShortText";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
@@ -37,7 +38,6 @@ import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
 import { DeploymentDepositModal } from "./DeploymentDepositModal";
 import { LeaseChip } from "./LeaseChip";
-import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 
 type Props = {
   deployment: NamedDeploymentDto;

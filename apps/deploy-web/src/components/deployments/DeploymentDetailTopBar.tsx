@@ -9,13 +9,13 @@ import { event } from "nextjs-google-analytics";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { DeploymentDto } from "@src/types/deployment";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { DeploymentDepositModal } from "./DeploymentDepositModal";
-import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 
 type Props = {
   address: string;

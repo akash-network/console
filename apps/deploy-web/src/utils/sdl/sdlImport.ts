@@ -1,7 +1,7 @@
 import yaml from "js-yaml";
 import { nanoid } from "nanoid";
 
-import { ExposeType, ServiceType, ProfileGpuModelType } from "@src/types";
+import { ExposeType, ProfileGpuModelType,ServiceType } from "@src/types";
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";

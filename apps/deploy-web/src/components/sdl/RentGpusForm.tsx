@@ -10,13 +10,19 @@ import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 
+import { envConfig } from "@src/config/env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
+import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
+import { useWhen } from "@src/hooks/useWhen";
 import { useGpuModels } from "@src/queries/useGpuQuery";
+import { useDepositParams } from "@src/queries/useSettings";
 import sdlStore from "@src/store/sdlStore";
 import { ApiTemplate, ProfileGpuModelType, RentGpusFormValuesSchema, RentGpusFormValuesType, ServiceType } from "@src/types";
+import { DepositParams } from "@src/types/deployment";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
@@ -41,12 +47,6 @@ import { MemoryFormControl } from "./MemoryFormControl";
 import { RegionSelect } from "./RegionSelect";
 import { StorageFormControl } from "./StorageFormControl";
 import { TokenFormControl } from "./TokenFormControl";
-import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
-import { useWhen } from "@src/hooks/useWhen";
-import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
-import { useDepositParams } from "@src/queries/useSettings";
-import { envConfig } from "@src/config/env.config";
-import { DepositParams } from "@src/types/deployment";
 
 export const RentGpusForm: React.FunctionComponent = () => {
   const [error, setError] = useState<string | null>(null);

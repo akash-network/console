@@ -22,6 +22,7 @@ import { LinkTo } from "@src/components/shared/LinkTo";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import sdlStore from "@src/store/sdlStore";
@@ -32,7 +33,6 @@ import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
 import { DeploymentListRow } from "./DeploymentListRow";
-import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 
 export const DeploymentList: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, isWalletLoaded } = useWallet();
