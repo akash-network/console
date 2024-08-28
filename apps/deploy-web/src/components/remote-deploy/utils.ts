@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { github } from "@src/utils/templates";
+import { Owner } from "./remoteTypes";
 
 export type OAuth = "github" | "gitlab" | "bitbucket";
 export const PROXY_API_URL_AUTH = "https://proxy-console-github.vercel.app";
@@ -60,6 +61,7 @@ export interface RepoType {
   html_url: string;
   userName: string;
   private: boolean;
+  owner?: Owner;
 }
 
 export const isRedeployImage = (yml: string) => {

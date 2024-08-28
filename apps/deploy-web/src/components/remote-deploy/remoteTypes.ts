@@ -16,7 +16,7 @@ export interface IGithubDirectoryItem {
   };
 }
 
-interface Owner {
+export interface Owner {
   login: string;
   id: number;
   node_id: string;

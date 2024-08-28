@@ -64,11 +64,7 @@ export const useRepos = () => {
         console.log(error);
       }
     },
-    onSettled: data => {
-      if (data?.message === "Bad credentials") {
-        console.log(data);
-      }
-    },
+
     enabled: !!token?.access_token && token.type === "github"
   });
 };
