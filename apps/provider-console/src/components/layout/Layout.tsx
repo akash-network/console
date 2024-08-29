@@ -8,6 +8,8 @@ import { cn } from "@src/utils/styleUtils";
 import Spinner from "../shared/Spinner";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
+import { useRouter } from "next/router";
+import restClient from "@src/utils/restClient";
 
 type Props = {
   isLoading?: boolean;
@@ -20,12 +22,38 @@ type Props = {
 
 const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName }) => {
   const [locale, setLocale] = useState("en-US");
-
+  const router = useRouter();
   useEffect(() => {
     if (navigator?.language) {
       setLocale(navigator?.language);
     }
   }, []);
+
+  useEffect(() => {
+    const checkProviderStatus = async () => {
+      if (router.pathname !== "/") {
+        try {
+          const response = await restClient.get("/provider/status");
+          const { provider, online } = response.data;
+
+          if (provider && online) {
+            if (router.pathname !== "/dashboard") {
+              router.push("/dashboard");
+            }
+          } else if (provider && !online) {
+            if (router.pathname !== "/provider-remedies") {
+              router.push("/provider-remedies");
+            }
+          }
+          // If provider is false, we don't redirect
+        } catch (error) {
+          console.error("Error checking provider status:", error);
+        }
+      }
+    };
+
+    checkProviderStatus();
+  }, [router.pathname]);
 
   return (
     <IntlProvider locale={locale} defaultLocale="en-US">
@@ -86,7 +114,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
 
   return (
     <>
-      <div className="h-full bg-card">
+      <div className="bg-card h-full">
         <div className="h-full w-full" style={{ marginTop: `${accountBarHeight}px` }}>
           <div className="h-full">
             <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} />
@@ -124,4 +152,3 @@ const Loading: React.FunctionComponent<{ text: string }> = ({ text }) => {
 };
 
 export default Layout;
-

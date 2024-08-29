@@ -20,8 +20,8 @@ const steps: Step[] = [
   { id: 0, name: "1. Server Access" },
   { id: 1, name: "2. Import Wallet" },
   { id: 2, name: "3. Provider Config" },
-  { id: 3, name: "4. Provider Pricing" },
-  { id: 4, name: "5. Setting up Provider" }
+  { id: 3, name: "4. Provider Attributes" },
+  { id: 4, name: "5. Provider Pricing" }
 ];
 
 export const CustomizedSteppers = ({ activeStep }: React.PropsWithChildren<{ activeStep: number }>) => {

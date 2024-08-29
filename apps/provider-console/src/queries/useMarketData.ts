@@ -5,9 +5,10 @@ import { MarketData } from "@src/types";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
-async function getMarketData(): Promise<MarketData> {
-  const response = await axios.get(ApiUrlService.marketData());
-  return response.data;
+async function getMarketData(): Promise<any> {
+  // const response = await axios.get(ApiUrlService.marketData());
+  // return response.data;
+  return {};
 }
 
 export function useMarketData(options?: Omit<UseQueryOptions<MarketData, Error, any, QueryKey>, "queryKey" | "queryFn">) {
