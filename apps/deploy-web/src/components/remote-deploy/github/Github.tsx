@@ -27,7 +27,7 @@ const Github = ({
   return (
     <>
       <Repos
-        repos={repos as any}
+        repos={repos?.filter(repo => repo.owner?.login === profile?.login || repo?.owner?.type === "Organization") as any}
         setValue={setValue}
         isLoading={isLoading}
         services={services}
