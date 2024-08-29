@@ -24,7 +24,6 @@ import {
   subscribeToNewsletter,
   updateSettings
 } from "@src/services/db/userDataService";
-import { getBillingPortalUrl, getCheckoutUrl } from "@src/services/external/stripeService";
 import { isValidBech32Address } from "@src/utils/addresses";
 
 export const userRouter = new Hono();
@@ -34,29 +33,6 @@ userRequiredRouter.use("*", requiredUserMiddleware);
 
 const userOptionalRouter = new Hono();
 userOptionalRouter.use("*", optionalUserMiddleware);
-
-userRequiredRouter.post("/manage-subscription", async c => {
-  const userId = getCurrentUserId(c);
-  const portalUrl = await getBillingPortalUrl(userId);
-
-  return c.redirect(portalUrl);
-});
-
-userRequiredRouter.post("/subscribe", async c => {
-  const userId = getCurrentUserId(c);
-  const { planCode, period } = await c.req.json(); // TODO Test
-
-  if (!planCode) {
-    return c.text("Missing plan code", 400);
-  }
-  if (!period) {
-    return c.text("Missing period", 400);
-  }
-
-  const checkoutUrl = await getCheckoutUrl(userId, planCode, period === "monthly");
-
-  return c.redirect(checkoutUrl, 303);
-});
 
 userOptionalRouter.get("/byUsername/:username", async c => {
   const username = c.req.param("username");

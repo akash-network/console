@@ -1,25 +1,25 @@
 import { AllowanceHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
+import { DbTestingService } from "@test/services/db-testing.service";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
-import { BILLING_CONFIG, BillingConfig, USER_WALLET_SCHEMA, UserWalletSchema } from "@src/billing/providers";
-import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
-import { USER_SCHEMA, UserSchema } from "@src/user/providers";
+import { BILLING_CONFIG, BillingConfig } from "@src/billing/providers";
+import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 
 jest.setTimeout(20000);
 
 describe("wallets", () => {
-  const userWalletSchema = container.resolve<UserWalletSchema>(USER_WALLET_SCHEMA);
-  const userSchema = container.resolve<UserSchema>(USER_SCHEMA);
+  const userWalletsTable = resolveTable("UserWallets");
   const config = container.resolve<BillingConfig>(BILLING_CONFIG);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  const userWalletsTable = db.query.userWalletSchema;
+  const userWalletsQuery = db.query.UserWallets;
   const allowanceHttpService = container.resolve(AllowanceHttpService);
+  const dbService = container.resolve(DbTestingService);
 
   afterEach(async () => {
-    await Promise.all([db.delete(userWalletSchema), db.delete(userSchema)]);
+    await dbService.cleanAll();
   });
 
   describe("POST /v1/wallets", () => {
@@ -39,7 +39,7 @@ describe("wallets", () => {
         headers
       });
       const getWalletsResponse = await app.request(`/v1/wallets?userId=${userId}`, { headers });
-      const userWallet = await userWalletsTable.findFirst({ where: eq(userWalletSchema.userId, userId) });
+      const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
       const allowances = await Promise.all([
         allowanceHttpService.getDeploymentAllowancesForGrantee(userWallet.address),
         allowanceHttpService.getFeeAllowancesForGrantee(userWallet.address)

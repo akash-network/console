@@ -20,9 +20,6 @@ export default async (req, res) => {
   const proxy = httpProxy.createProxyServer({
     changeOrigin: true,
     target: BASE_API_MAINNET_URL,
-    // headers: {
-    //   "ngrok-skip-browser-warning": "true"
-    // },
     secure: false,
     autoRewrite: false
   });

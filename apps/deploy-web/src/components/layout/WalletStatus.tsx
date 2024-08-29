@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import { FormattedNumber } from "react-intl";
 import {
   Address,
@@ -13,10 +14,11 @@ import {
   TooltipContent,
   TooltipTrigger
 } from "@akashnetwork/ui/components";
-import { Bank, LogOut, MoreHoriz, Wallet } from "iconoir-react";
+import { Bank, HandCard, LogOut, MoreHoriz, Wallet } from "iconoir-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { LoginRequiredLink } from "@src/components/user/LoginRequiredLink";
 import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
 import { envConfig } from "@src/config/env.config";
 import { useWallet } from "@src/context/WalletProvider";
@@ -88,7 +90,7 @@ export function WalletStatus() {
                 {walletBalances && (
                   <div className="ml-2 flex items-center whitespace-nowrap font-bold text-muted-foreground">
                     <Tooltip>
-                      <TooltipTrigger disabled={isManaged}>
+                      <TooltipTrigger>
                         <Badge className="h-5 text-xs font-bold" variant="secondary">
                           <FormattedNumber
                             value={walletBalance}
@@ -112,6 +114,18 @@ export function WalletStatus() {
                           </div>
                         </TooltipContent>
                       )}
+                      {isManaged && (
+                        <TooltipContent>
+                          <LoginRequiredLink
+                            className="flex cursor-pointer flex-row text-base"
+                            href="/api/proxy/v1/checkout"
+                            message="Sign In or Sign Up to top up your balance"
+                          >
+                            <HandCard className="text-xs" />
+                            <span className="ml-1 text-xs">Top up balance</span>
+                          </LoginRequiredLink>
+                        </TooltipContent>
+                      )}
                     </Tooltip>
                   </div>
                 )}
@@ -119,10 +133,10 @@ export function WalletStatus() {
             </div>
           </>
         ) : (
-          <>
-            {envConfig.NEXT_PUBLIC_BILLING_ENABLED && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
+          <div>
+            {envConfig.NEXT_PUBLIC_BILLING_ENABLED && <ConnectManagedWalletButton className="mb-2 mr-2 w-full md:mb-0 md:w-auto" />}
             <ConnectWalletButton className="w-full md:w-auto" />
-          </>
+          </div>
         )
       ) : (
         <div className="flex items-center justify-center p-4">
