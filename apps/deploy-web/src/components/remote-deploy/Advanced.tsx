@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Card, CardContent, Checkbox, Collapsible, CollapsibleContent, CollapsibleTrigger, Label, Separator } from "@akashnetwork/ui/components";
+import { Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
 import { EnvFormModal } from "./EnvFormModal";
-import { appendEnv } from "./utils";
-const Advanced = ({ services, control, setValue }) => {
+
+const Advanced = ({ services, control }) => {
   const serviceIndex = 0;
   const [expanded, setExpanded] = useState(false);
   const currentService = services[serviceIndex];
@@ -21,7 +21,7 @@ const Advanced = ({ services, control, setValue }) => {
         <CardContent className="p-0">
           <CollapsibleTrigger asChild>
             <div className="flex items-center justify-between p-4">
-              <h1 className="font-semibold">Other Options</h1>
+              <h1 className="font-semibold">Environment Variables</h1>
               <NavArrowDown fontSize="1rem" className={cn("transition-all duration-100", { ["rotate-180"]: expanded })} />
             </div>
           </CollapsibleTrigger>
@@ -35,26 +35,6 @@ const Advanced = ({ services, control, setValue }) => {
                 envs={currentService.env || []}
                 // hasSecretOption={hasSecretOption}
               />
-              <div className="flex flex-col gap-3 rounded border bg-card px-6 py-6 text-card-foreground">
-                <div className="flex items-center justify-between gap-5">
-                  <Label htmlFor="disable-pull" className="text-base">
-                    Auto Deploy
-                  </Label>
-
-                  <Checkbox
-                    checked={currentService?.env?.find(env => env.key === "DISABLE_PULL")?.value !== "yes"}
-                    id="disable-pull"
-                    defaultChecked={false}
-                    onCheckedChange={value => {
-                      const pull = !value ? "yes" : "no";
-                      appendEnv("DISABLE_PULL", pull, false, setValue, services);
-                    }}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  By default, console automatically detects and deploys changes, disable it to handle deploys manually
-                </p>
-              </div>
             </div>
           </CollapsibleContent>
         </CardContent>

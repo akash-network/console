@@ -43,6 +43,7 @@ type Props = {
   providers: ApiProviderList[];
   loadDeploymentDetail: () => void;
   remoteDeploy?: boolean;
+  repo?: string | null;
 };
 
 export type AcceptRefType = {
@@ -327,7 +328,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                     </div>
                   </div>
 
-                  {leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0 && (
+                  {leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0 && !remoteDeploy && (
                     <div className={cn({ ["mb-4"]: service.uris?.length > 0 })}>
                       <LabelValueOld
                         label="Forwarded Ports:"
@@ -366,7 +367,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                             return (
                               <li className="flex items-center" key={uri}>
                                 <Link href={`http://${uri}`} target="_blank" className="inline-flex items-center space-x-2 truncate text-sm">
-                                  <span>{uri}</span>
+                                  {remoteDeploy ? <span>{repo?.replaceAll("https://github.com/", "")} </span> : <span>{uri}</span>}{" "}
                                   <OpenInWindow className="text-xs" />
                                 </Link>
                                 &nbsp;&nbsp;

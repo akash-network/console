@@ -7,7 +7,7 @@ const CustomInput = ({
   onChange
 }: {
   label: string;
-  description: string;
+  description?: string;
   placeholder: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) => {
@@ -15,7 +15,7 @@ const CustomInput = ({
     <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
       <div className="flex flex-col gap-2">
         <h1 className="font-semibold">{label}</h1>
-        <p className="text-muted-foreground">{description}</p>
+        {description && <p className="text-muted-foreground">{description}</p>}
       </div>
       <Input onChange={onChange} placeholder={placeholder} />
     </div>
