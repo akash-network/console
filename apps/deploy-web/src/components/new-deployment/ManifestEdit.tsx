@@ -15,6 +15,7 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDepositParams } from "@src/queries/useSettings";
@@ -26,6 +27,7 @@ import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
+import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { cn } from "@src/utils/styleUtils";
 import { Timer } from "@src/utils/timer";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -72,6 +74,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const fileUploadRef = useRef<HTMLInputElement>(null);
   const wallet = useWallet();
   const managedDenom = useManagedWalletDenom();
+  const { createDeploymentConfirm } = useManagedDeploymentConfirm();
 
   useWhen(wallet.isManaged && sdlDenom === "uakt", () => {
     setSdlDenom(managedDenom);
@@ -182,7 +185,18 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     }
 
     if (isManaged) {
-      await handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      const services = importSimpleSdl(editedManifest as string);
+
+      if (!services) {
+        setParsingError("Error while parsing SDL file");
+        return;
+      }
+
+      const isConfirmed = await createDeploymentConfirm(services);
+
+      if (isConfirmed) {
+        await handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      }
     } else {
       setIsCheckingPrerequisites(true);
     }

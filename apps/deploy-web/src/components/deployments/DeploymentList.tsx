@@ -22,6 +22,7 @@ import { LinkTo } from "@src/components/shared/LinkTo";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import sdlStore from "@src/store/sdlStore";
@@ -54,6 +55,7 @@ export const DeploymentList: React.FunctionComponent = () => {
   const currentPageDeployments = orderedDeployments.slice(start, end);
   const pageCount = Math.ceil(orderedDeployments.length / pageSize);
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
+  const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
 
   useEffect(() => {
     if (isWalletLoaded && isSettingsInit) {
@@ -109,6 +111,12 @@ export const DeploymentList: React.FunctionComponent = () => {
 
   const onCloseSelectedDeployments = async () => {
     try {
+      const isConfirmed = await closeDeploymentConfirm(selectedDeploymentDseqs);
+
+      if (!isConfirmed) {
+        return;
+      }
+
       const messages = selectedDeploymentDseqs.map(dseq => TransactionMessageData.getCloseDeploymentMsg(address, `${dseq}`));
       const response = await signAndBroadcastTx(messages);
       if (response) {

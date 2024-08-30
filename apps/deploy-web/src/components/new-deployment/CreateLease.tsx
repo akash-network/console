@@ -20,6 +20,7 @@ import { useSnackbar } from "notistack";
 
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useBidList } from "@src/queries/useBidQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
@@ -88,6 +89,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const allClosed = (bids?.length || 0) > 0 && bids?.every(bid => bid.state === "closed");
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const wallet = useWallet();
+  const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
 
   useEffect(() => {
     getDeploymentDetail();
@@ -202,6 +204,12 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   }
 
   async function handleCloseDeployment() {
+    const isConfirmed = await closeDeploymentConfirm([dseq]);
+
+    if (!isConfirmed) {
+      return;
+    }
+
     const message = TransactionMessageData.getCloseDeploymentMsg(address, dseq);
     const response = await signAndBroadcastTx([message]);
 
