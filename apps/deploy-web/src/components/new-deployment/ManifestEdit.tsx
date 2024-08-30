@@ -281,9 +281,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       } else {
         setIsCreatingDeployment(false);
       }
-    } catch (error) {
+    } finally {
       setIsCreatingDeployment(false);
-      throw error;
     }
   }
 

@@ -268,42 +268,47 @@ export const WalletProvider = ({ children }) => {
     } catch (err) {
       console.error(err);
 
-      const transactionHash = err.txHash;
-      let errorMsg = "An error has occured";
+      if (axios.isAxiosError(err) && err.response?.status !== 500) {
+        const [title, message] = err.response?.data?.message.split(": ") ?? [];
+        showTransactionSnackbar(title || message || "Error", message, "", "error");
+      } else {
+        const transactionHash = err.txHash;
+        let errorMsg = "An error has occured";
 
-      if (err.message?.includes("was submitted but was not yet found on the chain")) {
-        errorMsg = "Transaction timeout";
-      } else if (err.message) {
-        try {
-          const reg = /Broadcasting transaction failed with code (.+?) \(codespace: (.+?)\)/i;
-          const match = err.message.match(reg);
-          const log = err.message.substring(err.message.indexOf("Log"), err.message.length);
+        if (err.message?.includes("was submitted but was not yet found on the chain")) {
+          errorMsg = "Transaction timeout";
+        } else if (err.message) {
+          try {
+            const reg = /Broadcasting transaction failed with code (.+?) \(codespace: (.+?)\)/i;
+            const match = err.message.match(reg);
+            const log = err.message.substring(err.message.indexOf("Log"), err.message.length);
 
-          if (match) {
-            const code = parseInt(match[1]);
-            const codeSpace = match[2];
+            if (match) {
+              const code = parseInt(match[1]);
+              const codeSpace = match[2];
 
-            if (codeSpace === "sdk" && code in ERROR_MESSAGES) {
-              errorMsg = ERROR_MESSAGES[code];
+              if (codeSpace === "sdk" && code in ERROR_MESSAGES) {
+                errorMsg = ERROR_MESSAGES[code];
+              }
             }
-          }
 
-          if (log) {
-            errorMsg += `. ${log}`;
+            if (log) {
+              errorMsg += `. ${log}`;
+            }
+          } catch (err) {
+            console.error(err);
           }
-        } catch (err) {
-          console.error(err);
         }
-      }
 
-      if (!errorMsg.includes("Request rejected")) {
-        event(AnalyticsEvents.FAILED_TX, {
-          category: "transactions",
-          label: "Failed transaction"
-        });
-      }
+        if (!errorMsg.includes("Request rejected")) {
+          event(AnalyticsEvents.FAILED_TX, {
+            category: "transactions",
+            label: "Failed transaction"
+          });
+        }
 
-      showTransactionSnackbar("Transaction has failed...", errorMsg, transactionHash, "error");
+        showTransactionSnackbar("Transaction has failed...", errorMsg, transactionHash, "error");
+      }
 
       return false;
     } finally {
