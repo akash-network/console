@@ -8,7 +8,7 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { UrlService } from "@src/utils/urlUtils";
 
-type UserProfileTab = "templates" | "favorites" | "address-book" | "settings";
+type UserProfileTab = "templates" | "favorites" | "settings";
 type Props = {
   username?: string;
   bio?: string;
@@ -33,9 +33,6 @@ export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, childr
       case "favorites":
         router.push(UrlService.userFavorites());
         break;
-      case "address-book":
-        router.push(UrlService.userAddressBook());
-        break;
       case "settings":
         router.push(UrlService.userSettings());
         break;
@@ -51,12 +48,11 @@ export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, childr
       </div>
 
       <Tabs value={page} onValueChange={handleTabChange}>
-        <TabsList className="mb-4 grid w-full grid-cols-4 border-b">
+        <TabsList className="mb-4 grid w-full grid-cols-3 border-b">
           <TabsTrigger value="templates">Templates</TabsTrigger>
           {user?.username === username && (
             <>
               <TabsTrigger value="favorites">Favorites</TabsTrigger>
-              <TabsTrigger value="address-book">Address Book</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </>
           )}

@@ -70,7 +70,7 @@ export type TOnCloseHandler = {
 
 export type CommonProps = {
   title?: string | React.ReactNode;
-  message?: string;
+  message?: string | React.ReactNode;
   open?: boolean;
   onClose?: TOnCloseHandler;
   fullWidth?: boolean;

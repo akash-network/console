@@ -71,11 +71,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
         }
       }
     });
-    const {
-      data: providerStatus,
-      isLoading: isLoadingProviderStatus,
-      refetch: getProviderStatus
-    } = useProviderStatus(provider?.hostUri || "", {
+    const { isLoading: isLoadingProviderStatus, refetch: getProviderStatus } = useProviderStatus(provider?.hostUri || "", {
       enabled: false,
       retry: false
     });

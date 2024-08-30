@@ -84,11 +84,11 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   protected toInput({ deploymentAllowance, feeAllowance, ...input }: UserWalletInput): DbUserWalletInput {
     const dbInput: DbUserWalletInput = input;
 
-    if (deploymentAllowance) {
+    if (deploymentAllowance !== undefined) {
       dbInput.deploymentAllowance = deploymentAllowance.toString();
     }
 
-    if (feeAllowance) {
+    if (feeAllowance !== undefined) {
       dbInput.feeAllowance = feeAllowance.toString();
     }
 

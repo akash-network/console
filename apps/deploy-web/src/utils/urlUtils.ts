@@ -43,7 +43,6 @@ export class UrlService {
 
   // User
   static userSettings = () => "/user/settings";
-  static userAddressBook = () => `/user/settings/address-book`;
   static userFavorites = () => `/user/settings/favorites`;
   static userProfile = (username: string) => `/profile/${username}`;
   static login = (returnUrl?: string) => {
