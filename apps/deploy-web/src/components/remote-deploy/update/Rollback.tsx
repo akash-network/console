@@ -75,7 +75,7 @@ const Field = ({ data, control }: { data: any; control: Control<SdlBuilderFormVa
           </Button>
         </DialogTrigger>
         <DialogContent className="max-h-[90dvh] gap-0 overflow-y-auto p-0">
-          <DialogHeader className="sticky top-0 border-b bg-popover p-5">
+          <DialogHeader className="sticky top-0 z-[20] border-b bg-popover p-5">
             <DialogTitle>Rollbacks</DialogTitle>
             <DialogDescription className="flex items-center gap-2">
               <Info className="h-4 w-4" />
