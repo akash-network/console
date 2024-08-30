@@ -74,74 +74,65 @@ const GithubDeploy = ({
   return (
     <>
       <div className="mt-6 flex flex-col gap-5 rounded border bg-card px-4 py-6 text-card-foreground md:px-6">
-        <h1 className="font-semibold">Configure</h1>
-        <div className="flex flex-col gap-5 rounded text-card-foreground md:border md:bg-card md:px-6 md:py-6">
-          <h1 className="hidden font-semibold md:block">Source Code</h1>
+        <h1 className="font-semibold">Import Repository</h1>
 
-          {
-            <Tabs
-              onValueChange={value => {
-                setSelectedTab(value);
-                setValue("services.0.env", []);
-              }}
-              defaultValue="git"
-            >
-              <div className="flex items-center justify-between">
-                <TabsList>
-                  <TabsTrigger value="git">Git Provider</TabsTrigger>
-                  <TabsTrigger value="public">Public Git Repository</TabsTrigger>
-                </TabsList>
+        {
+          <Tabs
+            onValueChange={value => {
+              setSelectedTab(value);
+              setValue("services.0.env", []);
+            }}
+            defaultValue="git"
+          >
+            <div className="flex items-center justify-between">
+              <TabsList>
+                <TabsTrigger value="git">Git Provider</TabsTrigger>
+                <TabsTrigger value="public">Public Git Repository</TabsTrigger>
+              </TabsList>
 
-                {token?.access_token && (
-                  <div className="flex items-center gap-6">
-                    <button
-                      className="hidden items-center gap-2 text-primary md:flex"
-                      onClick={() => {
-                        setToken({
-                          access_token: null,
-                          refresh_token: null,
-                          type: "github",
-                          alreadyLoggedIn: token?.alreadyLoggedIn?.includes(token.type)
-                            ? token.alreadyLoggedIn
-                            : token?.alreadyLoggedIn && token?.alreadyLoggedIn?.length > 0
-                              ? [...token.alreadyLoggedIn, token.type]
-                              : [token.type]
-                        });
-                      }}
-                    >
-                      <CoinsSwap className="text-sm" /> Switch Git Provider
-                    </button>
-                    <button
-                      className="hidden items-center gap-2 text-primary md:flex"
-                      onClick={() => {
-                        setToken({
-                          access_token: null,
-                          refresh_token: null,
-                          type: "github",
-                          alreadyLoggedIn: []
-                        });
-                      }}
-                    >
-                      <LogOut className="text-sm" /> Logout
-                    </button>
-                  </div>
-                )}
-              </div>
-              <TabsContent value="git" className="md:mt-2">
-                {fetchingToken || fetchingProfile || fetchingTokenBit || fetchingProfileBit || fetchingTokenGitLab || fetchingProfileGitLab ? (
-                  <div className="flex flex-col items-center justify-center gap-2 rounded border px-5 py-10">
-                    <Spinner size="large" />
-                    <p className="text-muted-foreground">Loading...</p>
-                  </div>
-                ) : token?.access_token ? (
-                  <div className="flex flex-col justify-center gap-2 rounded border px-5 py-10 md:items-center">
-                    <h1 className="text-2xl font-semibold text-primary">
-                      Welcome,{" "}
-                      {token?.type === "bitbucket" ? userProfileBit?.display_name : token?.type === "gitlab" ? userProfileGitLab?.name : userProfile?.login}
-                    </h1>
-                    <p className="text-muted-foreground">Let’s Configure and Deploy your new web service ({token?.type})</p>
-                  </div>
-                ) : (
+              {token?.access_token && (
+                <div className="flex items-center gap-6">
+                  <button
+                    className="hidden items-center gap-2 text-primary md:flex"
+                    onClick={() => {
+                      setToken({
+                        access_token: null,
+                        refresh_token: null,
+                        type: "github",
+                        alreadyLoggedIn: token?.alreadyLoggedIn?.includes(token.type)
+                          ? token.alreadyLoggedIn
+                          : token?.alreadyLoggedIn && token?.alreadyLoggedIn?.length > 0
+                            ? [...token.alreadyLoggedIn, token.type]
+                            : [token.type]
+                      });
+                    }}
+                  >
+                    <CoinsSwap className="text-sm" /> Switch Git Provider
+                  </button>
+                  <button
+                    className="hidden items-center gap-2 text-primary md:flex"
+                    onClick={() => {
+                      setToken({
+                        access_token: null,
+                        refresh_token: null,
+                        type: "github",
+                        alreadyLoggedIn: []
+                      });
+                    }}
+                  >
+                    <LogOut className="text-sm" /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
+            <TabsContent value="git" className="md:mt-2">
+              {fetchingToken || fetchingProfile || fetchingTokenBit || fetchingProfileBit || fetchingTokenGitLab || fetchingProfileGitLab ? (
+                <div className="flex flex-col items-center justify-center gap-2 rounded border px-5 py-10">
+                  <Spinner size="large" />
+                  <p className="text-muted-foreground">Loading...</p>
+                </div>
+              ) : (
+                !token?.access_token && (
                   <div className="flex flex-col justify-center gap-6 rounded-sm border px-4 py-8 md:items-center">
                     <div className="flex flex-col items-center justify-center">
                       <h1 className="text-lg font-bold text-primary">Connect Account</h1>
@@ -188,25 +179,26 @@ const GithubDeploy = ({
                       </Button>
                     </div>
                   </div>
-                )}
-              </TabsContent>
-              <TabsContent value="public" className="flex flex-col gap-6">
-                <CustomInput
-                  label="Repository URL"
-                  description="The link of the public repo to be deployed"
-                  placeholder="eg. https://github.com/username/repo.git"
-                  onChange={e => appendEnv("REPO_URL", e.target.value, false, setValue, services)}
-                />
-                <CustomInput
-                  label="Branch Name"
-                  description="The git branch branch which is to be deployed"
-                  placeholder="eg. main"
-                  onChange={e => appendEnv("BRANCH_NAME", e.target.value, false, setValue, services)}
-                />
-              </TabsContent>
-            </Tabs>
-          }
-        </div>
+                )
+              )}
+            </TabsContent>
+            <TabsContent value="public" className="flex flex-col gap-6">
+              <CustomInput
+                label="Repository URL"
+                description="The link of the public repo to be deployed"
+                placeholder="eg. https://github.com/username/repo.git"
+                onChange={e => appendEnv("REPO_URL", e.target.value, false, setValue, services)}
+              />
+              <CustomInput
+                label="Branch Name"
+                description="The git branch branch which is to be deployed"
+                placeholder="eg. main"
+                onChange={e => appendEnv("BRANCH_NAME", e.target.value, false, setValue, services)}
+              />
+            </TabsContent>
+          </Tabs>
+        }
+
         {selectedTab === "git" && token?.access_token && (
           <div className="grid gap-6 md:grid-cols-2">
             {token?.type === "github" ? (
@@ -244,7 +236,7 @@ const GithubDeploy = ({
         )}
       </div>
       <Details services={services} setValue={setValue} />
-      <Advanced services={services} control={control} setValue={setValue} />
+      <Advanced services={services} control={control} />
     </>
   );
 };

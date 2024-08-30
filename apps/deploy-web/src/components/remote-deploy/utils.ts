@@ -67,3 +67,13 @@ export interface RepoType {
 export const isRedeployImage = (yml: string) => {
   return github.content.includes(yml?.split("service-1:")?.[1]?.split("expose:")?.[0]?.split("image: ")?.[1]);
 };
+
+export const getRepoUrl = (yml: string) => {
+  const list = yml?.split("\n");
+  const envIndex = list?.findIndex(item => item?.includes("env:"));
+  const profileIndex = list?.findIndex(item => item?.includes("profiles:"));
+  const env = list?.slice(envIndex + 1, profileIndex);
+  const repo = env?.find(item => item?.includes("REPO_URL"));
+
+  return repo ? repo?.split("=")[1] : null;
+};

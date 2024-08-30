@@ -22,7 +22,7 @@ import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
-import { isRedeployImage } from "../remote-deploy/utils";
+import { getRepoUrl, isRedeployImage } from "../remote-deploy/utils";
 import { Title } from "../shared/Title";
 import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
@@ -137,9 +137,11 @@ export function DeploymentDetail() {
     });
   };
   const [remoteDeploy, setRemoteDeploy] = useState<boolean>(false);
+  const [repo, setRepo] = useState<string | null>(null);
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
   const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
+
   useEffect(() => {
     const init = async () => {
       const localDeploymentData = getDeploymentLocalData(deployment?.dseq || "");
@@ -164,6 +166,8 @@ export function DeploymentDetail() {
 
   useEffect(() => {
     if (editedManifest && isRedeployImage(editedManifest)) {
+      setRepo(getRepoUrl(editedManifest));
+
       setRemoteDeploy(true);
     }
   }, [editedManifest]);
@@ -243,6 +247,7 @@ export function DeploymentDetail() {
                 {leases &&
                   leases.map((lease, i) => (
                     <LeaseRow
+                      repo={repo}
                       key={lease.id}
                       lease={lease}
                       setActiveTab={setActiveTab}
