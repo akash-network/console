@@ -16,8 +16,8 @@ import { defaultService, defaultSshVMService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { transformCustomSdlFields, TransformError } from "@src/utils/sdl/transformCustomSdlFields";
+import GithubDeploy from "../remote-deploy/GithubDeploy";
 import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
-import GithubDeploy from "./GihubDeploy";
 
 interface Props {
   sdlString: string | null;
