@@ -78,7 +78,7 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
             }}
           />
         </div>
-        <p className="text-sm text-muted-foreground">By default, console automatically detects and deploys changes, disable it to handle deploys manually</p>
+        <p className="text-sm text-muted-foreground">If checked, Console will automatically re-deploy your app on any code commits</p>
       </div>
       {services[0]?.env?.length && <EnvFormModal control={control} serviceIndex={0} envs={services[0]?.env ?? []} onClose={() => {}} />}
       {/* //type === github */}

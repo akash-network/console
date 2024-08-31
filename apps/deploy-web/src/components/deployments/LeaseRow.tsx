@@ -364,7 +364,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                         <ul className="mt-2 space-y-2">
                           <li className="flex items-center">
                             <Link href={repo} target="_blank" className="inline-flex items-center space-x-2 truncate text-sm">
-                              <span>{repo?.replaceAll("https://github.com/", "")} </span>
+                              <span>{repo?.replace("https://github.com/", "")?.replace("https://gitlab.com/", "")} </span>
 
                               <OpenInWindow className="text-xs" />
                             </Link>
