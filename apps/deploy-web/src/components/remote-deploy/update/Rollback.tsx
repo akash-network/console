@@ -77,15 +77,15 @@ const Field = ({ data, control }: { data: any; control: Control<SdlBuilderFormVa
         <DialogContent className="max-h-[90dvh] gap-0 overflow-y-auto p-0">
           <DialogHeader className="sticky top-0 z-[20] border-b bg-popover p-5">
             <DialogTitle>Rollbacks</DialogTitle>
-            <DialogDescription className="flex items-center gap-2">
+            <DialogDescription className="mt-1 flex items-center gap-2">
               <Info className="h-4 w-4" />
               You need to click update deployment button to apply changes
             </DialogDescription>
           </DialogHeader>
           <Tabs defaultValue="git">
             <TabsList className="mx-5 mt-4">
-              <TabsTrigger value="git">Git</TabsTrigger>
-              <TabsTrigger value="Custom">Custom</TabsTrigger>
+              <TabsTrigger value="git">Commit Name</TabsTrigger>
+              <TabsTrigger value="Custom">Commit Hash</TabsTrigger>
             </TabsList>
             <TabsContent value="git" className="mt-0 flex flex-col gap-6">
               <div className="flex flex-col">
