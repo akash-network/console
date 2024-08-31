@@ -6,16 +6,16 @@ import { useAtom } from "jotai";
 import { useWhen } from "@src/hooks/useWhen";
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { ServiceType } from "@src/types";
-import Advanced from "../remote-deploy/Advanced";
-import { handleLogin, handleReLogin, useFetchAccessToken, useUserProfile } from "../remote-deploy/api/api";
-import { handleLoginBit, useBitFetchAccessToken, useBitUserProfile } from "../remote-deploy/api/bitbucket-api";
-import { handleGitLabLogin, useGitLabFetchAccessToken, useGitLabUserProfile } from "../remote-deploy/api/gitlab-api";
-import Bit from "../remote-deploy/bitbucket/Bit";
-import CustomInput from "../remote-deploy/CustomInput";
-import Details from "../remote-deploy/Details";
-import Github from "../remote-deploy/github/Github";
-import GitLab from "../remote-deploy/gitlab/Gitlab";
-import { appendEnv } from "../remote-deploy/utils";
+import { handleLogin, handleReLogin, useFetchAccessToken, useUserProfile } from "./api/api";
+import { handleLoginBit, useBitFetchAccessToken, useBitUserProfile } from "./api/bitbucket-api";
+import { handleGitLabLogin, useGitLabFetchAccessToken, useGitLabUserProfile } from "./api/gitlab-api";
+import Bit from "./bitbucket/Bit";
+import Github from "./github/Github";
+import GitLab from "./gitlab/Gitlab";
+import Advanced from "./Advanced";
+import CustomInput from "./CustomInput";
+import Details from "./Details";
+import { appendEnv } from "./utils";
 
 const GithubDeploy = ({
   setValue,
@@ -73,7 +73,7 @@ const GithubDeploy = ({
 
   return (
     <>
-      <div className="mt-6 flex flex-col gap-5 rounded border bg-card px-4 py-6 text-card-foreground md:px-6">
+      <div className="mt-6 flex flex-col rounded border bg-card px-4 py-6 text-card-foreground md:px-6">
         <h1 className="font-semibold">Import Repository</h1>
 
         {
@@ -83,17 +83,18 @@ const GithubDeploy = ({
               setValue("services.0.env", []);
             }}
             defaultValue="git"
+            className="mt-6"
           >
-            <div className="flex items-center justify-between">
+            <div className="mb-6 flex flex-col items-start gap-6 lg:flex-row lg:items-center lg:justify-between">
               <TabsList>
                 <TabsTrigger value="git">Git Provider</TabsTrigger>
-                <TabsTrigger value="public">Public Git Repository</TabsTrigger>
+                <TabsTrigger value="public"> Third-Party Git Repository</TabsTrigger>
               </TabsList>
 
               {token?.access_token && (
                 <div className="flex items-center gap-6">
                   <button
-                    className="hidden items-center gap-2 text-primary md:flex"
+                    className="flex items-center gap-2 text-primary"
                     onClick={() => {
                       setToken({
                         access_token: null,
@@ -110,7 +111,7 @@ const GithubDeploy = ({
                     <CoinsSwap className="text-sm" /> Switch Git Provider
                   </button>
                   <button
-                    className="hidden items-center gap-2 text-primary md:flex"
+                    className="flex items-center gap-2 text-primary"
                     onClick={() => {
                       setToken({
                         access_token: null,
@@ -125,7 +126,7 @@ const GithubDeploy = ({
                 </div>
               )}
             </div>
-            <TabsContent value="git" className="md:mt-2">
+            <TabsContent value="git">
               {fetchingToken || fetchingProfile || fetchingTokenBit || fetchingProfileBit || fetchingTokenGitLab || fetchingProfileGitLab ? (
                 <div className="flex flex-col items-center justify-center gap-2 rounded border px-5 py-10">
                   <Spinner size="large" />
@@ -182,7 +183,7 @@ const GithubDeploy = ({
                 )
               )}
             </TabsContent>
-            <TabsContent value="public" className="flex flex-col gap-6">
+            <TabsContent value="public" className="grid gap-6 lg:grid-cols-2">
               <CustomInput
                 label="Repository URL"
                 description="The link of the public repo to be deployed"
