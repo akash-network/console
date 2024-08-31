@@ -145,39 +145,42 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
             />
           )}
 
-          <div className={cn("flex items-end justify-between p-4", { ["border-b border-muted-foreground/20"]: expanded })}>
-            <FormField
-              control={control}
-              name={`services.${serviceIndex}.title`}
-              render={({ field }) => (
-                <FormInput
-                  type="text"
-                  label={
-                    <div className="inline-flex items-center">
-                      Service Name
-                      <CustomTooltip
-                        title={
-                          <>
-                            The service name serves as a identifier for the workload to be ran on the Akash Network.
-                            <br />
-                            <br />
-                            <a href="https://akash.network/docs/getting-started/stack-definition-language/#services" target="_blank" rel="noopener">
-                              View official documentation.
-                            </a>
-                          </>
-                        }
-                      >
-                        <InfoCircle className="ml-2 text-xs text-muted-foreground" />
-                      </CustomTooltip>
-                    </div>
-                  }
-                  value={field.value}
-                  className="flex-grow"
-                  onChange={event => field.onChange((event.target.value || "").toLowerCase())}
-                />
-              )}
-            />
-
+          <div className={cn("flex justify-between p-4", { ["border-b border-muted-foreground/20"]: expanded }, github ? "items-center" : "items-end")}>
+            {github ? (
+              <h1 className="font-semibold">Build Server Specs</h1>
+            ) : (
+              <FormField
+                control={control}
+                name={`services.${serviceIndex}.title`}
+                render={({ field }) => (
+                  <FormInput
+                    type="text"
+                    label={
+                      <div className="inline-flex items-center">
+                        Service Name
+                        <CustomTooltip
+                          title={
+                            <>
+                              The service name serves as a identifier for the workload to be ran on the Akash Network.
+                              <br />
+                              <br />
+                              <a href="https://akash.network/docs/getting-started/stack-definition-language/#services" target="_blank" rel="noopener">
+                                View official documentation.
+                              </a>
+                            </>
+                          }
+                        >
+                          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                        </CustomTooltip>
+                      </div>
+                    }
+                    value={field.value}
+                    className="flex-grow"
+                    onChange={event => field.onChange((event.target.value || "").toLowerCase())}
+                  />
+                )}
+              />
+            )}
             <div className="ml-4 flex items-center">
               {!expanded && isDesktop && (
                 <div className="flex items-center whitespace-nowrap">
