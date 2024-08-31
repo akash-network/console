@@ -358,6 +358,22 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                     </div>
                   )}
 
+                  {remoteDeploy && repo && (
+                    <>
+                      <div className="mt-2">
+                        <LabelValueOld label="Deployed Repo:" />
+                        <ul className="mt-2 space-y-2">
+                          <li className="flex items-center">
+                            <Link href={repo} target="_blank" className="inline-flex items-center space-x-2 truncate text-sm">
+                              <span>{repo?.replaceAll("https://github.com/", "")} </span>
+
+                              <OpenInWindow className="text-xs" />
+                            </Link>
+                          </li>
+                        </ul>
+                      </div>
+                    </>
+                  )}
                   {service.uris?.length > 0 && (
                     <>
                       <div className="mt-2">
@@ -367,7 +383,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                             return (
                               <li className="flex items-center" key={uri}>
                                 <Link href={`http://${uri}`} target="_blank" className="inline-flex items-center space-x-2 truncate text-sm">
-                                  {remoteDeploy ? <span>{repo?.replaceAll("https://github.com/", "")} </span> : <span>{uri}</span>}{" "}
+                                  <span>{uri}</span>
                                   <OpenInWindow className="text-xs" />
                                 </Link>
                                 &nbsp;&nbsp;
