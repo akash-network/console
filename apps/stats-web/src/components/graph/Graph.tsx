@@ -1,4 +1,9 @@
 "use client";
+import React, { useRef, useEffect } from 'react';
+
+
+import { createChart } from 'lightweight-charts';
+import { format } from 'date-fns';
 import { FormattedDate, useIntl } from "react-intl";
 import { ResponsiveLineCanvas } from "@nivo/line";
 import { useTheme } from "next-themes";
@@ -45,12 +50,67 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
       ]
     : [];
   const graphMetadata = getGraphMetadataPerRange(selectedRange);
+  
+  const newGraphData = snapshotData
+  ? rangedData.map(_snapshot => (
+
+    {
+    time: format(new Date(_snapshot.date), 'yyyy-MM-dd'),
+    value: _snapshot.value
+  })).sort(function (a, b) {
+    return Number(new Date(a.time)) - Number(new Date(b.time));
+  }): [];
+
+  const chartContainerRef = useRef();
+
+
+  const chartOptions = {
+    layout: {
+        textColor: 'black',
+        background: { type: 'solid', color: 'white' },
+    },
+    height: 200,
+  };
+
+  useEffect(() => {
+    if (chartContainerRef.current) {
+      
+    }
+    const chart = createChart(chartContainerRef.current, {
+      width: chartContainerRef.current.clientWidth,
+      layout: {
+        textColor: 'black',
+        background: { color: 'white' },
+      },
+      height: 300,
+    });
+
+    chart.timeScale().fitContent();
+
+    const lineSeries = chart.addLineSeries();
+    lineSeries.setData(newGraphData);
+
+    // Handle resize
+    const handleResize = () => {
+      chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chart.remove();
+    };
+  }, [newGraphData]);
+  
 
   return (
     <div className="relative h-[400px]">
       <div className="absolute left-1/2 top-1 -translate-x-1/2">
         <span className="text-md font-bold tracking-wide text-muted-foreground opacity-40">stats.akash.network</span>
       </div>
+      <div ref={chartContainerRef} />
+
       <ResponsiveLineCanvas
         theme={graphTheme}
         data={graphData}
