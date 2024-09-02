@@ -3,7 +3,7 @@ import React, { useRef, useEffect } from 'react';
 
 
 import { createChart } from 'lightweight-charts';
-import { format } from 'date-fns';
+import moment from "moment";
 import { FormattedDate, useIntl } from "react-intl";
 import { ResponsiveLineCanvas } from "@nivo/line";
 import { useTheme } from "next-themes";
@@ -14,7 +14,6 @@ import { selectedRangeValues } from "@/lib/constants";
 import { nFormatter, roundDecimal } from "@/lib/mathHelpers";
 import { breakpoints } from "@/lib/responsiveUtils";
 import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@/types";
-import { relative } from 'path';
 
 interface IGraphProps {
   rangedData: SnapshotValue[];
@@ -36,127 +35,124 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   const maxValue = snapshotData && snapshotMetadata.unitFn(rangedData.map(x => x.value).reduce((a, b) => (a > b ? a : b))).value;
   const graphData = snapshotData
     ? [
-        {
-          id: snapshot,
-          color: "rgb(1,0,0)",
-          data: rangedData
-            .map(_snapshot => ({
-              x: _snapshot.date,
-              y: roundDecimal(snapshotMetadata.unitFn(_snapshot.value).value)
-            }))
-            .sort(function (a, b) {
-              return Number(new Date(a.x)) - Number(new Date(b.x));
-            })
-        }
-      ]
+      {
+        id: snapshot,
+        color: "rgb(1,0,0)",
+        data: rangedData
+          .map(_snapshot => ({
+            x: _snapshot.date,
+            y: roundDecimal(snapshotMetadata.unitFn(_snapshot.value).value)
+          }))
+          .sort(function (a, b) {
+            return Number(new Date(a.x)) - Number(new Date(b.x));
+          })
+      }
+    ]
     : [];
   const graphMetadata = getGraphMetadataPerRange(selectedRange);
-  
+
   const newGraphData = snapshotData
-  ? rangedData.map(_snapshot => (
+    ? rangedData.map(_snapshot => (
+      {
+        time: moment.utc(_snapshot.date).format('YYYY-MM-DD'),
+        value: _snapshot.value
+      })).sort(function (a, b) {
+        return Number(new Date(a.time)) - Number(new Date(b.time));
+      }) : [];
 
-    {
-    time: format(new Date(_snapshot.date), 'yyyy-MM-dd'),
-    value: _snapshot.value
-  })).sort(function (a, b) {
-    return Number(new Date(a.time)) - Number(new Date(b.time));
-  }): [];
 
-  const chartContainerRef = useRef();
-  const tooltipRef = useRef();
+  const chartContainerRef = useRef(null);
+  const tooltipRef = useRef(null);
 
 
   useEffect(() => {
     if (chartContainerRef.current) {
-      
+
     }
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       layout: {
-        textColor: 'black',
-        background: { color: 'white' },
+        textColor: graphTheme.textColor,
+        background: { color: "transparent" },
       },
       height: 300,
     });
 
     chart.timeScale().fitContent();
 
-    const lineSeries = chart.addLineSeries();
+    const lineSeries = chart.addLineSeries({ color: customColors.akashRed, });
     lineSeries.setData(newGraphData);
 
     chart.applyOptions({
       rightPriceScale: {
-          scaleMargins: {
-              top: 0.3, // leave some space for the legend
-              bottom: 0.25,
-          },
+        scaleMargins: {
+          top: 0.3, // leave some space for the legend
+          bottom: 0.25,
+        },
       },
       crosshair: {
-          // hide the horizontal crosshair line
-          horzLine: {
-              visible: false,
-              labelVisible: false,
-          },
-          // hide the vertical crosshair label
-          vertLine: {
-              labelVisible: false,
-          },
+        // hide the horizontal crosshair line
+        horzLine: {
+          visible: false,
+          labelVisible: false,
+        },
+        // hide the vertical crosshair label
+        vertLine: {
+          labelVisible: false,
+        },
       },
       // hide the grid lines
       grid: {
-          vertLines: {
-              visible: false,
-          },
-          horzLines: {
-              visible: false,
-          },
+        vertLines: {
+          visible: false,
+        },
+        horzLines: {
+          visible: false,
+        },
       },
-  });
+    });
 
-  const toolTipWidth = 80;
-  const toolTipHeight = 80;
-  const toolTipMargin = 15;
+    const toolTipWidth = 80;
+    const toolTipHeight = 80;
+    const toolTipMargin = 15;
 
-  const toolTip = tooltipRef.current;
-  toolTip.style.display = 'none';
+    const toolTip = tooltipRef.current;
+    toolTip.style.display = 'none';
 
-  chart.subscribeCrosshairMove((param) => {
-    if (
+    chart.subscribeCrosshairMove((param) => {
+      if (
         param.point === undefined ||
         !param.time ||
         param.point.x < 0 ||
         param.point.x > chartContainerRef.current.clientWidth ||
         param.point.y < 0 ||
         param.point.y > chartContainerRef.current.clientHeight
-    ) {
+      ) {
         toolTip.style.display = 'none';
-    } else {
-        const dateStr = param.time;
-        const data = param.seriesData.get(lineSeries);
-        const price = data.value !== undefined ? data.value : data.close;
-
-        toolTip.innerHTML = `<div style="color: rgba( 38, 166, 154, 1)">ABC Inc.</div><div style="font-size: 24px; margin: 4px 0px; color: black">
-            ${Math.round(100 * price) / 100}
-            </div><div style="color: black">
-            ${dateStr}
-            </div>`;
+      } else {
+        const data:any = param.seriesData.get(lineSeries);
+        toolTip.innerHTML = `<div style='margin-bottom: 0.25rem; font-size: 0.75rem; line-height: 1rem'>
+            ${moment.utc(param.time).format("MMMM DD, yy")}
+            </div>
+            <div style="font-weight: 700">${nFormatter(data?.value, 2)}</div>
+        `
 
         const y = param.point.y;
         let left = param.point.x + toolTipMargin;
         if (left > chartContainerRef.current.clientWidth - toolTipWidth) {
-            left = param.point.x - toolTipMargin - toolTipWidth;
+          left = param.point.x - toolTipMargin - toolTipWidth;
         }
 
         let top = y + toolTipMargin;
         if (top > chartContainerRef.current.clientHeight - toolTipHeight) {
-            top = y - toolTipHeight - toolTipMargin;
+          top = y - toolTipHeight - toolTipMargin;
         }
 
         toolTip.style.left = left + 'px';
         toolTip.style.top = top + 'px';
         toolTip.style.display = 'block';
-    }
-  });
+      }
+    });
 
     // Handle resize
     const handleResize = () => {
@@ -170,7 +166,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
       chart.remove();
     };
   }, [newGraphData]);
-  
+
 
   return (
     <div className="relative h-[400px]">
@@ -178,32 +174,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
         <span className="text-md font-bold tracking-wide text-muted-foreground opacity-40">stats.akash.network</span>
       </div>
       <div ref={chartContainerRef} className="relative">
-      <div
-                ref={tooltipRef}
-                style={{
-                    width: '96px',
-                    height: '80px',
-                    position: 'absolute',
-                    display: 'none',
-                    padding: '8px',
-                    boxSizing: 'border-box',
-                    fontSize: '12px',
-                    textAlign: 'left',
-                    zIndex: 1000,
-                    top: '12px',
-                    left: '12px',
-                    pointerEvents: 'none',
-                    border: '1px solid',
-                    borderRadius: '2px',
-                    fontFamily:
-                        "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
-                    WebkitFontSmoothing: 'antialiased',
-                    MozOsxFontSmoothing: 'grayscale',
-                    background: 'white',
-                    color: 'black',
-                    borderColor: 'rgba( 38, 166, 154, 1)',
-                }}
-            ></div>
+        <div ref={tooltipRef} className="absolute hidden rounded-sm bg-primary px-3 py-2 leading-4 text-primary-foreground z-50"></div>
       </div>
 
       <ResponsiveLineCanvas
