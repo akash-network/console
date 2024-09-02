@@ -3,23 +3,21 @@ import "@akashnetwork/ui/styles";
 import "../styles/index.css";
 
 import React from "react";
-import { QueryClientProvider } from "react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
 import { GeistSans } from "geist/font/sans";
-import { Provider } from "jotai";
+import { Provider as JotaiProvider } from "jotai";
 import { AppProps } from "next/app";
 import Router from "next/router";
 import { ThemeProvider } from "next-themes";
 import NProgress from "nprogress";
 
-import { AllowanceWatcher } from "@src/components/authorizations/AllowanceWatcher";
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
 import { UserProviders } from "@src/components/user/UserProviders";
-import { AddressBookProvider } from "@src/context/AddressBookProvider";
 import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 import { CertificateProvider } from "@src/context/CertificateProvider";
 import { ChainParamProvider } from "@src/context/ChainParamProvider";
@@ -31,6 +29,7 @@ import { SettingsProvider } from "@src/context/SettingsProvider";
 import { TemplatesProvider } from "@src/context/TemplatesProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import { queryClient } from "@src/queries";
+import { store } from "@src/store/global-store";
 import { cn } from "@src/utils/styleUtils";
 
 interface Props extends AppProps {}
@@ -53,43 +52,40 @@ const App: React.FunctionComponent<Props> = props => {
       <AppCacheProvider {...props}>
         <CustomIntlProvider>
           <QueryClientProvider client={queryClient}>
-            <Provider>
+            <JotaiProvider store={store}>
               <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
                 <ColorModeProvider>
                   <CustomSnackbarProvider>
                     <UserProviders>
                       <PricingProvider>
-                        <AddressBookProvider>
-                          <TooltipProvider>
-                            <SettingsProvider>
-                              <CustomChainProvider>
-                                <PopupProvider>
-                                  <WalletProvider>
-                                    <ChainParamProvider>
-                                      <CertificateProvider>
-                                        <BackgroundTaskProvider>
-                                          <TemplatesProvider>
-                                            <LocalNoteProvider>
-                                              <AllowanceWatcher />
-                                              <GoogleAnalytics />
-                                              <Component {...pageProps} />
-                                            </LocalNoteProvider>
-                                          </TemplatesProvider>
-                                        </BackgroundTaskProvider>
-                                      </CertificateProvider>
-                                    </ChainParamProvider>
-                                  </WalletProvider>
-                                </PopupProvider>
-                              </CustomChainProvider>
-                            </SettingsProvider>
-                          </TooltipProvider>
-                        </AddressBookProvider>
+                        <TooltipProvider>
+                          <SettingsProvider>
+                            <CustomChainProvider>
+                              <PopupProvider>
+                                <WalletProvider>
+                                  <ChainParamProvider>
+                                    <CertificateProvider>
+                                      <BackgroundTaskProvider>
+                                        <TemplatesProvider>
+                                          <LocalNoteProvider>
+                                            <GoogleAnalytics />
+                                            <Component {...pageProps} />
+                                          </LocalNoteProvider>
+                                        </TemplatesProvider>
+                                      </BackgroundTaskProvider>
+                                    </CertificateProvider>
+                                  </ChainParamProvider>
+                                </WalletProvider>
+                              </PopupProvider>
+                            </CustomChainProvider>
+                          </SettingsProvider>
+                        </TooltipProvider>
                       </PricingProvider>
                     </UserProviders>
                   </CustomSnackbarProvider>
                 </ColorModeProvider>
               </ThemeProvider>
-            </Provider>
+            </JotaiProvider>
           </QueryClientProvider>
         </CustomIntlProvider>
       </AppCacheProvider>

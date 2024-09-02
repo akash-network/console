@@ -1,4 +1,4 @@
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
 import { getUsdcDenom } from "@src/hooks/useDenom";
@@ -86,5 +86,9 @@ async function getBalances(apiEndpoint: string, address: string): Promise<Balanc
 
 export function useBalances(address: string, options) {
   const { settings } = useSettings();
-  return useQuery(QueryKeys.getBalancesKey(address), () => getBalances(settings.apiEndpoint, address), options);
+  return useQuery({
+    queryKey: QueryKeys.getBalancesKey(address),
+    queryFn: () => getBalances(settings.apiEndpoint, address),
+    ...options,
+  });
 }

@@ -1,4 +1,4 @@
-import { QueryKey, useQuery, UseQueryOptions } from "react-query";
+import { QueryKey, useQuery, UseQueryOptions } from "@tanstack/react-query";
 import axios from "axios";
 
 import { MarketData } from "@src/types";
@@ -10,6 +10,10 @@ async function getMarketData(): Promise<MarketData> {
   return response.data;
 }
 
-export function useMarketData(options?: Omit<UseQueryOptions<MarketData, Error, any, QueryKey>, "queryKey" | "queryFn">) {
-  return useQuery<MarketData, Error>(QueryKeys.getFinancialDataKey(), () => getMarketData(), options);
+export function useMarketData(options?: Omit<UseQueryOptions<MarketData, Error, MarketData, QueryKey>, "queryKey" | "queryFn">) {
+  return useQuery({
+    queryKey: QueryKeys.getFinancialDataKey(),
+    queryFn: getMarketData,
+    ...options,
+  });
 }
