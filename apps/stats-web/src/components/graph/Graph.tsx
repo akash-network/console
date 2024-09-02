@@ -14,6 +14,7 @@ import { selectedRangeValues } from "@/lib/constants";
 import { nFormatter, roundDecimal } from "@/lib/mathHelpers";
 import { breakpoints } from "@/lib/responsiveUtils";
 import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@/types";
+import { relative } from 'path';
 
 interface IGraphProps {
   rangedData: SnapshotValue[];
@@ -62,15 +63,8 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   }): [];
 
   const chartContainerRef = useRef();
+  const tooltipRef = useRef();
 
-
-  const chartOptions = {
-    layout: {
-        textColor: 'black',
-        background: { type: 'solid', color: 'white' },
-    },
-    height: 200,
-  };
 
   useEffect(() => {
     if (chartContainerRef.current) {
@@ -89,6 +83,80 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
 
     const lineSeries = chart.addLineSeries();
     lineSeries.setData(newGraphData);
+
+    chart.applyOptions({
+      rightPriceScale: {
+          scaleMargins: {
+              top: 0.3, // leave some space for the legend
+              bottom: 0.25,
+          },
+      },
+      crosshair: {
+          // hide the horizontal crosshair line
+          horzLine: {
+              visible: false,
+              labelVisible: false,
+          },
+          // hide the vertical crosshair label
+          vertLine: {
+              labelVisible: false,
+          },
+      },
+      // hide the grid lines
+      grid: {
+          vertLines: {
+              visible: false,
+          },
+          horzLines: {
+              visible: false,
+          },
+      },
+  });
+
+  const toolTipWidth = 80;
+  const toolTipHeight = 80;
+  const toolTipMargin = 15;
+
+  const toolTip = tooltipRef.current;
+  toolTip.style.display = 'none';
+
+  chart.subscribeCrosshairMove((param) => {
+    if (
+        param.point === undefined ||
+        !param.time ||
+        param.point.x < 0 ||
+        param.point.x > chartContainerRef.current.clientWidth ||
+        param.point.y < 0 ||
+        param.point.y > chartContainerRef.current.clientHeight
+    ) {
+        toolTip.style.display = 'none';
+    } else {
+        const dateStr = param.time;
+        const data = param.seriesData.get(lineSeries);
+        const price = data.value !== undefined ? data.value : data.close;
+
+        toolTip.innerHTML = `<div style="color: rgba( 38, 166, 154, 1)">ABC Inc.</div><div style="font-size: 24px; margin: 4px 0px; color: black">
+            ${Math.round(100 * price) / 100}
+            </div><div style="color: black">
+            ${dateStr}
+            </div>`;
+
+        const y = param.point.y;
+        let left = param.point.x + toolTipMargin;
+        if (left > chartContainerRef.current.clientWidth - toolTipWidth) {
+            left = param.point.x - toolTipMargin - toolTipWidth;
+        }
+
+        let top = y + toolTipMargin;
+        if (top > chartContainerRef.current.clientHeight - toolTipHeight) {
+            top = y - toolTipHeight - toolTipMargin;
+        }
+
+        toolTip.style.left = left + 'px';
+        toolTip.style.top = top + 'px';
+        toolTip.style.display = 'block';
+    }
+  });
 
     // Handle resize
     const handleResize = () => {
@@ -109,7 +177,34 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
       <div className="absolute left-1/2 top-1 -translate-x-1/2">
         <span className="text-md font-bold tracking-wide text-muted-foreground opacity-40">stats.akash.network</span>
       </div>
-      <div ref={chartContainerRef} />
+      <div ref={chartContainerRef} className="relative">
+      <div
+                ref={tooltipRef}
+                style={{
+                    width: '96px',
+                    height: '80px',
+                    position: 'absolute',
+                    display: 'none',
+                    padding: '8px',
+                    boxSizing: 'border-box',
+                    fontSize: '12px',
+                    textAlign: 'left',
+                    zIndex: 1000,
+                    top: '12px',
+                    left: '12px',
+                    pointerEvents: 'none',
+                    border: '1px solid',
+                    borderRadius: '2px',
+                    fontFamily:
+                        "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
+                    WebkitFontSmoothing: 'antialiased',
+                    MozOsxFontSmoothing: 'grayscale',
+                    background: 'white',
+                    color: 'black',
+                    borderColor: 'rgba( 38, 166, 154, 1)',
+                }}
+            ></div>
+      </div>
 
       <ResponsiveLineCanvas
         theme={graphTheme}
