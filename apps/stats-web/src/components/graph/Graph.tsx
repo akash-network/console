@@ -83,8 +83,16 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
     const lineSeries = chart.addLineSeries({ color: customColors.akashRed, });
     lineSeries.setData(newGraphData);
 
+    const axisRightFormatter =  val => nFormatter(val, 2);
+    const axisBottomFormatter = dateStr => intl.formatDate(dateStr, { day: "numeric", month: "short", timeZone: "utc" });
+
     chart.applyOptions({
+      localization: {
+        priceFormatter: axisRightFormatter,
+        timeFormatter: axisBottomFormatter,
+      },
       rightPriceScale: {
+        // autoScale: false,
         scaleMargins: {
           top: 0.3, // leave some space for the legend
           bottom: 0.25,
