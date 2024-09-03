@@ -2,6 +2,7 @@
 import { ReactNode, useState } from "react";
 import { Control, Controller, useFieldArray } from "react-hook-form";
 import { Button, CustomNoDivTooltip, FormInput, Switch } from "@akashnetwork/ui/components";
+import clsx from "clsx";
 import { Bin, Eye, EyeClosed } from "iconoir-react";
 import { nanoid } from "nanoid";
 
@@ -17,9 +18,10 @@ type Props = {
   control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
   hasSecretOption?: boolean;
   children?: ReactNode;
+  subComponent?: boolean;
 };
 
-export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, hasSecretOption = true }) => {
+export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, hasSecretOption = true, subComponent }) => {
   // const [envs, setEnvs] = useState<EnvironmentVariable[]>(_envs);
   const {
     fields: envs,
@@ -42,8 +44,8 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded md:border md:p-4">
-      <h1 className="text-sm font-bold">Environment Variables</h1>
+    <div className={clsx("flex flex-col gap-3", !subComponent && "rounded md:border md:p-4")}>
+      {!subComponent && <h1 className="text-sm font-bold">Environment Variables</h1>}
       <FormPaper contentClassName=" ">
         {envs.filter(env => !hiddenEnv.includes(env?.key?.trim())).length === 0 && (
           <p className="text-sm text-muted-foreground">No environment variables added.</p>
