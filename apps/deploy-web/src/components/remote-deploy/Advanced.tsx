@@ -29,6 +29,7 @@ const Advanced = ({ services, control }) => {
           <CollapsibleContent>
             <div className="grid items-start gap-6 p-5">
               <EnvFormModal
+                subComponent
                 control={control}
                 onClose={() => {}}
                 serviceIndex={serviceIndex}
