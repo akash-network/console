@@ -35,7 +35,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
     ? rangedData.map(_snapshot => (
       {
         time: moment.utc(_snapshot.date).format('YYYY-MM-DD'),
-        value: _snapshot.value
+        value: roundDecimal(snapshotMetadata.unitFn(_snapshot.value).value),
       })).sort(function (a, b) {
         return Number(new Date(a.time)) - Number(new Date(b.time));
       }) : [];
@@ -54,13 +54,14 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
       layout: {
         textColor: graphTheme.textColor,
         background: { color: "transparent" },
+        attributionLogo: false,
       },
       height: 400,
     });
 
     chart.timeScale().fitContent();
 
-    const lineSeries = chart.addLineSeries({ color: customColors.akashRed, });
+    const lineSeries = chart.addLineSeries({ color: customColors.akashRed, lineWidth: 2, });
     lineSeries.setData(graphData);
 
     const axisRightFormatter =  val => nFormatter(val, 2);
@@ -70,13 +71,6 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
       localization: {
         priceFormatter: axisRightFormatter,
         timeFormatter: axisBottomFormatter,
-      },
-      rightPriceScale: {
-        // autoScale: false,
-        scaleMargins: {
-          top: 0.3, // leave some space for the legend
-          bottom: 0.25,
-        },
       },
       crosshair: {
         // hide the horizontal crosshair line
