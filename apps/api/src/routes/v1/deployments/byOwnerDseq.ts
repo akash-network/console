@@ -15,8 +15,9 @@ const route = createRoute({
         description: "Owner's Address",
         example: openApiExampleAddress
       }),
-      dseq: z.string().optional().openapi({
+      dseq: z.string().regex(/^\d+$/, "Invalid dseq, must be a positive integer").openapi({
         description: "Deployment DSEQ",
+        type: "integer",
         example: "1000000"
       })
     })
@@ -72,10 +73,6 @@ const route = createRoute({
 });
 
 export default new OpenAPIHono().openapi(route, async c => {
-  if (isNaN(parseInt(c.req.valid("param").dseq))) {
-    return c.text("Invalid dseq.", 400);
-  }
-
   if (!isValidBech32Address(c.req.valid("param").owner, "akash")) {
     return c.text("Invalid address", 400);
   }
