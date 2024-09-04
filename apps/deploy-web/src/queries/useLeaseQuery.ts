@@ -1,4 +1,4 @@
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
@@ -26,7 +26,11 @@ async function getDeploymentLeases(apiEndpoint: string, address: string, deploym
 export function useDeploymentLeaseList(address: string, deployment, options) {
   const { settings } = useSettings();
 
-  return useQuery(QueryKeys.getLeasesKey(address, deployment?.dseq), () => getDeploymentLeases(settings.apiEndpoint, address, deployment), options);
+  return useQuery({
+    queryKey: QueryKeys.getLeasesKey(address, deployment?.dseq),
+    queryFn: () => getDeploymentLeases(settings.apiEndpoint, address, deployment),
+    ...options,
+  });
 }
 
 async function getAllLeases(apiEndpoint: string, address: string, deployment?) {
@@ -43,7 +47,11 @@ async function getAllLeases(apiEndpoint: string, address: string, deployment?) {
 
 export function useAllLeases(address: string, options = {}) {
   const { settings } = useSettings();
-  return useQuery(QueryKeys.getAllLeasesKey(address), () => getAllLeases(settings.apiEndpoint, address), options);
+  return useQuery({
+    queryKey: QueryKeys.getAllLeasesKey(address),
+    queryFn: () => getAllLeases(settings.apiEndpoint, address),
+    ...options,
+  });
 }
 
 async function getLeaseStatus(providerUri: string, lease: LeaseDto, localCert: LocalCert | null) {
@@ -62,5 +70,9 @@ async function getLeaseStatus(providerUri: string, lease: LeaseDto, localCert: L
 
 export function useLeaseStatus(providerUri: string, lease: LeaseDto, options) {
   const { localCert } = useCertificate();
-  return useQuery(QueryKeys.getLeaseStatusKey(lease?.dseq, lease?.gseq, lease?.oseq), () => getLeaseStatus(providerUri, lease, localCert), options);
+  return useQuery({
+    queryKey: QueryKeys.getLeaseStatusKey(lease?.dseq, lease?.gseq, lease?.oseq),
+    queryFn: () => getLeaseStatus(providerUri, lease, localCert),
+    ...options,
+  });
 }

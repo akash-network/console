@@ -1,7 +1,7 @@
 import "@akashnetwork/ui/styles";
 import "../styles/index.css";
 
-import { QueryClientProvider } from "react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { GeistSans } from "geist/font/sans";
 import { Provider } from "jotai";
