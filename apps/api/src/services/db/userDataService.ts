@@ -1,6 +1,7 @@
-import { UserAddressName, UserSetting } from "@akashnetwork/database/dbSchemas/user";
+import { UserSetting } from "@akashnetwork/database/dbSchemas/user";
 import pick from "lodash/pick";
 import { Transaction } from "sequelize";
+import { container } from "tsyringe";
 
 import { LoggerService } from "@src/core";
 
@@ -106,7 +107,14 @@ export async function getSettingsOrInit({ anonymousUserId, userId, wantedUsernam
 
   if (!isAnonymous) {
     userSettings = await UserSetting.findOne({ where: { userId: userId } });
-    logger.debug({ event: "USER_RETRIEVED", id: anonymousUserId, userId });
+
+    if (userSettings) {
+      logger.debug({ event: "USER_RETRIEVED", userId });
+    }
+
+    if (userSettings && anonymousUserId) {
+      tryToTransferWallet(anonymousUserId, userSettings.id);
+    }
   }
 
   if (!userSettings) {
@@ -142,33 +150,22 @@ export async function getSettingsOrInit({ anonymousUserId, userId, wantedUsernam
   ]);
 }
 
-export async function getAddressNames(userId: string) {
-  const addressNames = await UserAddressName.findAll({
-    where: {
-      userId: userId
-    }
-  });
-
-  return addressNames.reduce((obj, current) => ({ ...obj, [current.address]: current.name }), {});
-}
-
-export async function saveAddressName(userId: string, address: string, name: string) {
-  let addressName = await UserAddressName.findOne({ where: { userId: userId, address: address } });
-
-  if (!addressName) {
-    addressName = UserAddressName.build({
-      userId: userId,
-      address: address
-    });
+async function tryToTransferWallet(prevUserId: string, nextUserId: string) {
+  if (process.env.BILLING_ENABLED !== "true") {
+    return;
   }
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { UserWalletRepository } = require("@src/billing/repositories/user-wallet/user-wallet.repository");
 
-  addressName.name = name;
+  const userWalletRepository = container.resolve<any>(UserWalletRepository);
 
-  await addressName.save();
-}
-
-export async function removeAddressName(userId: string, address: string) {
-  await UserAddressName.destroy({ where: { userId: userId, address: address } });
+  try {
+    await userWalletRepository.updateBy({ userId: prevUserId }, { userId: nextUserId });
+  } catch (error) {
+    if (!error.message.includes("user_wallets_user_id_unique")) {
+      throw error;
+    }
+  }
 }
 
 export async function getUserByUsername(username: string) {

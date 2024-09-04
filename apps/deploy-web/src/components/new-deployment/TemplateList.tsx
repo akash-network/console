@@ -1,7 +1,7 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { Dispatch, useEffect, useState } from "react";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
-import { ArrowRight, Cpu, Page, Rocket, Wrench, Linux } from "iconoir-react";
+import { ArrowRight, Cpu, Linux, Rocket, Wrench } from "iconoir-react";
 import { NavArrowLeft } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -13,13 +13,15 @@ import sdlStore from "@src/store/sdlStore";
 import { ApiTemplate } from "@src/types";
 import { RouteStepKeys } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
-import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";
 
 const previewTemplateIds = [
+  "akash-network-awesome-akash-Llama-3.1-8B",
+  "akash-network-awesome-akash-Llama-3.1-405B-FP8",
+  "akash-network-awesome-akash-Llama-3.1-405B-BF16",
   "akash-network-awesome-akash-FLock-training-node",
   "akash-network-awesome-akash-tensorflow-jupyter-mnist",
   "akash-network-awesome-akash-comfyui",
@@ -30,14 +32,19 @@ const previewTemplateIds = [
   "akash-network-awesome-akash-grok",
   "akash-network-awesome-akash-FastChat"
 ];
-
-export const TemplateList: React.FunctionComponent = () => {
+type Props = {
+  setGithub: Dispatch<boolean>;
+};
+export const TemplateList: React.FunctionComponent<Props> = ({ setGithub }) => {
   const { templates } = useTemplates();
   const router = useRouter();
   const [previewTemplates, setPreviewTemplates] = useState<ApiTemplate[]>([]);
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const previousRoute = usePreviousRoute();
-
+  const handleGithubTemplate = async () => {
+    setGithub(true);
+    router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, type: "github" }));
+  };
   useEffect(() => {
     if (templates) {
       const _previewTemplates = previewTemplateIds.map(x => templates.find(y => x === y.id)).filter(x => !!x);
@@ -73,11 +80,17 @@ export const TemplateList: React.FunctionComponent = () => {
 
       <div className="mb-8">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
-          <DeployOptionBox
+          {/* <DeployOptionBox
             title={helloWorldTemplate.title}
             description={helloWorldTemplate.description}
             icon={<Rocket className="rotate-45" />}
             onClick={() => router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: helloWorldTemplate.code }))}
+          /> */}
+          <DeployOptionBox
+            title={"Build and Deploy"}
+            description={"Deploy directly from GitHub/BitBucket/GitLab"}
+            icon={<Rocket />}
+            onClick={handleGithubTemplate}
           />
 
           <DeployOptionBox

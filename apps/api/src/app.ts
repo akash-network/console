@@ -15,7 +15,7 @@ import { getSentry, sentryOptions } from "@src/core/providers/sentry.provider";
 import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
 import { HttpLoggerService } from "@src/core/services/http-logger/http-logger.service";
 import { LoggerService } from "@src/core/services/logger/logger.service";
-import { RequestContextInterceptor } from "@src/core/services/request-storage/request-context.interceptor";
+import { RequestContextInterceptor } from "@src/core/services/request-context-interceptor/request-context.interceptor";
 import { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import packageJson from "../package.json";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
@@ -73,10 +73,12 @@ if (BILLING_ENABLED === "true") {
   const { AuthInterceptor } = require("./auth/services/auth.interceptor");
   appHono.use(container.resolve<HonoInterceptor>(AuthInterceptor).intercept());
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createWalletRouter, getWalletListRouter, signAndBroadcastTxRouter } = require("./billing");
+  const { createWalletRouter, getWalletListRouter, signAndBroadcastTxRouter, checkoutRouter, stripeWebhook } = require("./billing");
   appHono.route("/", createWalletRouter);
   appHono.route("/", getWalletListRouter);
   appHono.route("/", signAndBroadcastTxRouter);
+  appHono.route("/", checkoutRouter);
+  appHono.route("/", stripeWebhook);
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { createAnonymousUserRouter, getAnonymousUserRouter } = require("./user");
   appHono.route("/", createAnonymousUserRouter);

@@ -1,15 +1,13 @@
+import { DbTestingService } from "@test/services/db-testing.service";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
-import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
-import { USER_SCHEMA, UserSchema } from "@src/user/providers";
 import { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
 
 describe("Users", () => {
-  const schema = container.resolve<UserSchema>(USER_SCHEMA);
-  const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   let user: AnonymousUserResponseOutput["data"];
   let token: AnonymousUserResponseOutput["token"];
+  const dbService = container.resolve(DbTestingService);
 
   beforeEach(async () => {
     const userResponse = await app.request("/v1/anonymous-users", {
@@ -22,7 +20,7 @@ describe("Users", () => {
   });
 
   afterEach(async () => {
-    await db.delete(schema);
+    await dbService.cleanAll();
   });
 
   describe("POST /v1/anonymous-users", () => {

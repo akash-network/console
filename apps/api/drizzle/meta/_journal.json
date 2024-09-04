@@ -29,6 +29,20 @@
       "when": 1722946059197,
       "tag": "0003_magenta_mandarin",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1724065113448,
+      "tag": "0004_spooky_cerise",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1724745930642,
+      "tag": "0005_colorful_dreaming_celestial",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 import yaml from "js-yaml";
 import { nanoid } from "nanoid";
 
-import { ExposeType, ImportServiceType, ProfileGpuModelType } from "@src/types";
+import { ExposeType, ProfileGpuModelType,ServiceType } from "@src/types";
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
@@ -9,13 +9,13 @@ import { defaultHttpOptions } from "./data";
 export const importSimpleSdl = (yamlStr: string) => {
   try {
     const yamlJson = yaml.load(yamlStr) as any;
-    const services: ImportServiceType[] = [];
+    const services: ServiceType[] = [];
 
     const sortedServicesNames = Object.keys(yamlJson.services).sort();
     sortedServicesNames.forEach(svcName => {
       const svc = yamlJson.services[svcName];
 
-      const service: ImportServiceType = {
+      const service: Partial<ServiceType> = {
         id: nanoid(),
         title: svcName,
         image: svc.image
@@ -32,7 +32,7 @@ export const importSimpleSdl = (yamlStr: string) => {
       // Service compute profile
       service.profile = {
         cpu: compute.resources.cpu.units,
-        gpu: compute.resources.gpu ? compute.resources.gpu.units : 1,
+        gpu: compute.resources.gpu ? compute.resources.gpu.units : 0,
         gpuModels: compute.resources.gpu ? getGpuModels(compute.resources.gpu.attributes.vendor) : [],
         hasGpu: !!compute.resources.gpu,
         ram: getResourceDigit(compute.resources.memory.size),
@@ -126,7 +126,7 @@ export const importSimpleSdl = (yamlStr: string) => {
 
       service.count = deployment.count;
 
-      services.push(service);
+      services.push(service as ServiceType);
     });
 
     return services;

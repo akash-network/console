@@ -6,10 +6,11 @@ import Step from "@mui/material/Step";
 import StepContent from "@mui/material/StepContent";
 import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
-import { Check, CreditCard, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
+import { Check, HandCard, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
+import { LoginRequiredLink } from "@src/components/user/LoginRequiredLink";
 import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
 import { envConfig } from "@src/config/env.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
@@ -96,8 +97,8 @@ export const GetStartedStepper: React.FunctionComponent = () => {
         <StepContent>
           {envConfig.NEXT_PUBLIC_BILLING_ENABLED && !isWalletConnected && (
             <p className="text-muted-foreground">
-              You can pay using either USD (fiat) or with crypto ($AKT or $USDC). To pay with USD, either click "Start Trial" or "Add Credit Card". To pay with
-              crypto, click "Connect Wallet"
+              You can pay using either USD (fiat) or with crypto ($AKT or $USDC). To pay with USD click "Start Trial". To pay with crypto, click "Connect
+              Wallet"
             </p>
           )}
 
@@ -116,6 +117,16 @@ export const GetStartedStepper: React.FunctionComponent = () => {
           )}
 
           <div className="my-4 flex items-center space-x-4">
+            {isManagedWallet && (
+              <LoginRequiredLink
+                className={cn("hover:no-underline", buttonVariants({ variant: "outline", className: "mr-2 border-primary" }))}
+                href="/api/proxy/v1/checkout"
+                message="Sign In or Sign Up to top up your balance"
+              >
+                <HandCard className="text-xs text-accent-foreground" />
+                <span className="m-2 whitespace-nowrap text-accent-foreground">Top Up Balance</span>
+              </LoginRequiredLink>
+            )}
             <Button variant="default" onClick={handleNext}>
               Next
             </Button>
@@ -147,16 +158,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                 <span>Billing is not set up</span>
               </div>
 
-              {envConfig.NEXT_PUBLIC_BILLING_ENABLED && (
-                <>
-                  <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />
-
-                  <Button variant="outline" className="mr-2 border-primary">
-                    <CreditCard className="text-xs" />
-                    <span className="m-2 whitespace-nowrap">Add Credit Card</span>
-                  </Button>
-                </>
-              )}
+              {envConfig.NEXT_PUBLIC_BILLING_ENABLED && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
               <ConnectWalletButton />
             </div>
           )}

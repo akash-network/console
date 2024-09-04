@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import { FormattedNumber } from "react-intl";
 import {
   Address,
@@ -13,26 +14,32 @@ import {
   TooltipContent,
   TooltipTrigger
 } from "@akashnetwork/ui/components";
-import { Bank, LogOut, MoreHoriz, Wallet } from "iconoir-react";
+import { Bank, CoinsSwap, HandCard, LogOut, MoreHoriz, Wallet } from "iconoir-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
 import { envConfig } from "@src/config/env.config";
 import { useWallet } from "@src/context/WalletProvider";
+import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { UrlService } from "@src/utils/urlUtils";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 
+const goToCheckout = () => {
+  window.location.href = "/api/proxy/v1/checkout";
+};
+
+const withBilling = envConfig.NEXT_PUBLIC_BILLING_ENABLED;
+
 export function WalletStatus() {
-  const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing } = useWallet();
+  const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing, switchWalletType } =
+    useWallet();
   const walletBalance = useTotalWalletBalance();
   const router = useRouter();
-  function onDisconnectClick() {
-    logout();
-  }
+  const whenLoggedIn = useLoginRequiredEventHandler();
 
   const onAuthorizeSpendingClick = () => {
     router.push(UrlService.settingsAuthorizations());
@@ -44,29 +51,48 @@ export function WalletStatus() {
         isWalletConnected ? (
           <>
             <div className="flex items-center pr-2">
-              {!isManaged && (
-                <div className="pl-2 pr-2">
-                  <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHoriz />
-                        <span className="sr-only">Toggle theme</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onAuthorizeSpendingClick()}>
-                        <Bank />
-                        &nbsp;Authorize Spending
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onDisconnectClick()}>
-                        <LogOut />
-                        &nbsp;Disconnect Wallet
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              )}
-
+              <div className="pl-2 pr-2">
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreHoriz />
+                      <span className="sr-only">Toggle theme</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {!isManaged && (
+                      <>
+                        <DropdownMenuItem onClick={() => onAuthorizeSpendingClick()}>
+                          <Bank />
+                          &nbsp;Authorize Spending
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={logout}>
+                          <LogOut />
+                          &nbsp;Disconnect Wallet
+                        </DropdownMenuItem>
+                        {withBilling && (
+                          <DropdownMenuItem onClick={switchWalletType}>
+                            <CoinsSwap />
+                            &nbsp;Switch to USD billing
+                          </DropdownMenuItem>
+                        )}
+                      </>
+                    )}
+                    {withBilling && isManaged && (
+                      <>
+                        <DropdownMenuItem onClick={whenLoggedIn(goToCheckout, "Sign In or Sign Up to top up your balance")}>
+                          <HandCard />
+                          &nbsp;Top up balance
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={switchWalletType}>
+                          <CoinsSwap />
+                          &nbsp;Switch to wallet billing
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
               <div className="flex items-center text-left">
                 <div className="flex items-center text-sm font-bold">
                   <Wallet className="text-xs" />
@@ -88,7 +114,7 @@ export function WalletStatus() {
                 {walletBalances && (
                   <div className="ml-2 flex items-center whitespace-nowrap font-bold text-muted-foreground">
                     <Tooltip>
-                      <TooltipTrigger disabled={isManaged}>
+                      <TooltipTrigger>
                         <Badge className="h-5 text-xs font-bold" variant="secondary">
                           <FormattedNumber
                             value={walletBalance}
@@ -119,14 +145,14 @@ export function WalletStatus() {
             </div>
           </>
         ) : (
-          <>
-            {envConfig.NEXT_PUBLIC_BILLING_ENABLED && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
+          <div>
+            {withBilling && <ConnectManagedWalletButton className="mb-2 mr-2 w-full md:mb-0 md:w-auto" />}
             <ConnectWalletButton className="w-full md:w-auto" />
-          </>
+          </div>
         )
       ) : (
-        <div className="pl-2 pr-2">
-          <Spinner size="small" />
+        <div className="flex items-center justify-center p-4">
+          <Spinner size="medium" />
         </div>
       )}
     </>
