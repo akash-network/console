@@ -1,13 +1,14 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FormattedNumber, FormattedPlural } from "react-intl";
 import { Badge, buttonVariants, Card, CardContent, CardHeader, CardTitle, Spinner } from "@akashnetwork/ui/components";
 import { ResponsivePie } from "@nivo/pie";
-import { Rocket } from "iconoir-react";
+import { HandCard, Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 
+import { LoginRequiredLink } from "@src/components/user/LoginRequiredLink";
 import { envConfig } from "@src/config/env.config";
 import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -113,7 +114,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
         label: "Balance",
         denom: usdcIbcDenom,
         denomLabel: "USDC",
-        value: isManagedWallet && envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "usdc" ? balances.balanceUsdc + managedWalletCreditAmount : balances.balance,
+        value:
+          isManagedWallet && envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "usdc" ? balances.balanceUsdc + managedWalletCreditAmount : balances.balanceUsdc,
         color: colors.balance_usdc
       },
       {
@@ -246,10 +248,20 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                   </div>
                 </>
               ) : (
-                <Link href={UrlService.newDeployment()} className={cn("mt-4", buttonVariants({ variant: "default" }))} onClick={onDeployClick}>
+                <Link href={UrlService.newDeployment()} className={cn("mr-2 mt-4", buttonVariants({ variant: "default" }))} onClick={onDeployClick}>
                   Deploy
-                  <Rocket className="ml-4 rotate-45 text-sm" />
+                  <Rocket className="ml-4rotate-45 text-sm" />
                 </Link>
+              )}
+              {isManagedWallet && (
+                <LoginRequiredLink
+                  className={cn("mt-4", buttonVariants({ variant: "default" }))}
+                  href="/api/proxy/v1/checkout"
+                  message="Sign In or Sign Up to top up your balance"
+                >
+                  Top up balance
+                  <HandCard className="ml-4 rotate-45 text-sm" />
+                </LoginRequiredLink>
               )}
             </div>
 

@@ -25,9 +25,15 @@ const pgDatabase = drizzle(appClient, drizzleOptions);
 export const POSTGRES_DB = "POSTGRES_DB";
 container.register(POSTGRES_DB, { useValue: pgDatabase });
 
+type TableName = keyof typeof schema;
+const tableNames = Object.keys(schema) as TableName[];
+tableNames.forEach(key => container.register(key, { useValue: schema[key] }));
+
+export const InjectPgTable = (name: TableName) => inject(name);
 export const InjectPg = () => inject(POSTGRES_DB);
 
 export type ApiPgDatabase = typeof pgDatabase;
-export type ApiPgSchema = typeof schema;
+export type ApiPgTables = typeof schema;
+export const resolveTable = <T extends TableName>(name: T) => container.resolve<ApiPgTables[T]>(name);
 
 export const closeConnections = async () => await Promise.all([migrationClient.end(), appClient.end()]);

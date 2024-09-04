@@ -1,60 +1,54 @@
-import { WalletService } from "@test/services/wallet.service";
+import { DbTestingService } from "@test/services/db-testing.service";
+import { WalletTestingService } from "@test/services/wallet-testing.service";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
-import { BILLING_CONFIG, BillingConfig, USER_WALLET_SCHEMA, UserWalletSchema } from "@src/billing/providers";
+import { BILLING_CONFIG, BillingConfig } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService } from "@src/billing/services";
-import { ApiPgDatabase, POSTGRES_DB } from "@src/core";
-import { USER_SCHEMA, UserSchema } from "@src/user/providers";
 
 jest.setTimeout(240000);
 
 describe("Wallets Refill", () => {
   const managedUserWalletService = container.resolve(ManagedUserWalletService);
-  const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  const userWalletSchema = container.resolve<UserWalletSchema>(USER_WALLET_SCHEMA);
-  const userSchema = container.resolve<UserSchema>(USER_SCHEMA);
   const config = container.resolve<BillingConfig>(BILLING_CONFIG);
   const walletController = container.resolve(WalletController);
-  const walletService = new WalletService(app);
+  const walletService = new WalletTestingService(app);
   const userWalletRepository = container.resolve(UserWalletRepository);
+  const dbService = container.resolve(DbTestingService);
 
   afterEach(async () => {
-    await Promise.all([db.delete(userWalletSchema), db.delete(userSchema)]);
+    await dbService.cleanAll();
   });
 
   describe("console refill-wallets", () => {
-    it("should refill draining wallets", async () => {
+    it("should refill wallets low on fee allowance", async () => {
       const prepareRecords = Array.from({ length: 15 }).map(async () => {
         const records = await walletService.createUserAndWallet();
         const { user, token } = records;
-        let { wallet } = records;
-        const walletRecord = await userWalletRepository.findById(wallet.id);
+        const { wallet } = records;
+        let walletRecord = await userWalletRepository.findById(wallet.id);
 
         expect(wallet.creditAmount).toBe(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT);
         expect(walletRecord.feeAllowance).toBe(config.TRIAL_FEES_ALLOWANCE_AMOUNT);
 
         const limits = {
-          deployment: config.DEPLOYMENT_ALLOWANCE_REFILL_THRESHOLD,
           fees: config.FEE_ALLOWANCE_REFILL_THRESHOLD
         };
         await managedUserWalletService.authorizeSpending({
           address: wallet.address,
           limits
         });
-        await userWalletRepository.updateById(
+        walletRecord = await userWalletRepository.updateById(
           wallet.id,
           {
-            deploymentAllowance: limits.deployment,
             feeAllowance: limits.fees
           },
           { returning: true }
         );
-        wallet = await walletService.getWalletByUserId(user.id, token);
 
-        expect(wallet.creditAmount).toBe(config.DEPLOYMENT_ALLOWANCE_REFILL_THRESHOLD);
+        expect(walletRecord.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_THRESHOLD);
         expect(wallet.isTrialing).toBe(true);
 
         return { user, token, wallet };
@@ -64,13 +58,10 @@ describe("Wallets Refill", () => {
       await walletController.refillWallets();
 
       await Promise.all(
-        records.map(async ({ wallet, token, user }) => {
-          wallet = await walletService.getWalletByUserId(user.id, token);
+        records.map(async ({ wallet }) => {
           const walletRecord = await userWalletRepository.findById(wallet.id);
 
-          expect(wallet.creditAmount).toBe(config.DEPLOYMENT_ALLOWANCE_REFILL_AMOUNT);
           expect(walletRecord.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_AMOUNT);
-          expect(wallet.isTrialing).toBe(false);
         })
       );
     });

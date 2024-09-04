@@ -11,7 +11,13 @@ export const SignTxRequestInputSchema = z.object({
     messages: z
       .array(
         z.object({
-          typeUrl: z.string(),
+          typeUrl: z.enum([
+            "/akash.deployment.v1beta3.MsgCreateDeployment",
+            "/akash.cert.v1beta3.MsgCreateCertificate",
+            "/akash.market.v1beta4.MsgCreateLease",
+            "/akash.deployment.v1beta3.MsgUpdateDeployment",
+            "/akash.deployment.v1beta3.MsgCloseDeployment"
+          ]),
           value: z.string()
         })
       )

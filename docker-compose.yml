@@ -30,6 +30,7 @@ services:
       - /app/node_modules
       - /app/apps/deploy-web/node_modules
       - /app/apps/deploy-web/.next
+      - ./packages:/app/packages
 
   stats-web:
     build:

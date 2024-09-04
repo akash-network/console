@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
-import { boolean, pgTable, text, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
-export const userSchema = pgTable("userSetting", {
+export const Users = pgTable("userSetting", {
   id: uuid("id")
     .primaryKey()
     .notNull()
@@ -15,5 +15,6 @@ export const userSchema = pgTable("userSetting", {
   subscribedToNewsletter: boolean("subscribedToNewsletter").default(false).notNull(),
   youtubeUsername: varchar("youtubeUsername", { length: 255 }),
   twitterUsername: varchar("twitterUsername", { length: 255 }),
-  githubUsername: varchar("githubUsername", { length: 255 })
+  githubUsername: varchar("githubUsername", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow()
 });
