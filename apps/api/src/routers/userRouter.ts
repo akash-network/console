@@ -14,18 +14,7 @@ import {
   saveTemplate,
   saveTemplateDesc
 } from "@src/services/db/templateService";
-import {
-  checkUsernameAvailable,
-  getAddressNames,
-  getSettingsOrInit,
-  getUserByUsername,
-  removeAddressName,
-  saveAddressName,
-  subscribeToNewsletter,
-  updateSettings
-} from "@src/services/db/userDataService";
-import { getBillingPortalUrl, getCheckoutUrl } from "@src/services/external/stripeService";
-import { isValidBech32Address } from "@src/utils/addresses";
+import { checkUsernameAvailable, getSettingsOrInit, getUserByUsername, subscribeToNewsletter, updateSettings } from "@src/services/db/userDataService";
 
 export const userRouter = new Hono();
 
@@ -34,29 +23,6 @@ userRequiredRouter.use("*", requiredUserMiddleware);
 
 const userOptionalRouter = new Hono();
 userOptionalRouter.use("*", optionalUserMiddleware);
-
-userRequiredRouter.post("/manage-subscription", async c => {
-  const userId = getCurrentUserId(c);
-  const portalUrl = await getBillingPortalUrl(userId);
-
-  return c.redirect(portalUrl);
-});
-
-userRequiredRouter.post("/subscribe", async c => {
-  const userId = getCurrentUserId(c);
-  const { planCode, period } = await c.req.json(); // TODO Test
-
-  if (!planCode) {
-    return c.text("Missing plan code", 400);
-  }
-  if (!period) {
-    return c.text("Missing period", 400);
-  }
-
-  const checkoutUrl = await getCheckoutUrl(userId, planCode, period === "monthly");
-
-  return c.redirect(checkoutUrl, 303);
-});
 
 userOptionalRouter.get("/byUsername/:username", async c => {
   const username = c.req.param("username");
@@ -68,50 +34,6 @@ userOptionalRouter.get("/byUsername/:username", async c => {
   }
 
   return c.json(user);
-});
-
-userRequiredRouter.get("/addressNames", async c => {
-  const userId = getCurrentUserId(c);
-  const addressNames = await getAddressNames(userId);
-
-  return c.json(addressNames);
-});
-
-userRequiredRouter.post("/saveAddressName", async c => {
-  const userId = getCurrentUserId(c);
-  const { address, name } = await c.req.json();
-
-  if (!address) {
-    return c.text("Address is required", 400);
-  }
-
-  if (!name) {
-    return c.text("Name is required", 400);
-  }
-
-  if (!isValidBech32Address(address, "akash")) {
-    return c.text("Invalid address", 400);
-  }
-
-  await saveAddressName(userId, address, name);
-
-  return c.text("Saved");
-});
-
-userRequiredRouter.delete("/removeAddressName/:address", async c => {
-  const userId = getCurrentUserId(c);
-
-  if (!c.req.param("address")) {
-    return c.text("Address is required", 400);
-  }
-
-  if (!isValidBech32Address(c.req.param("address"), "akash")) {
-    return c.text("Invalid address", 400);
-  }
-
-  await removeAddressName(userId, c.req.param("address"));
-
-  return c.text("Removed");
 });
 
 userRequiredRouter.post("/tokenInfo", async c => {

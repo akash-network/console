@@ -1,13 +1,15 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { CommonProps, ConfirmProps, Popup, PopupProps, SelectOption, SelectProps } from "@akashnetwork/ui/components";
+import { CommonProps, ConfirmProps, CustomPrompt, Popup, PopupProps, SelectOption, SelectProps } from "@akashnetwork/ui/components";
 import { firstValueFrom, Subject } from "rxjs";
 
 type ConfirmPopupProps = string | (Omit<CommonProps, "onClose" | "open"> & Omit<ConfirmProps, "onValidate" | "onCancel" | "variant">);
 type SelectPopupProps = Omit<CommonProps, "onClose" | "open"> & Omit<SelectProps, "onValidate" | "onCancel" | "variant">;
+type CustomPopupProps = Omit<CommonProps, "onClose" | "open"> & Omit<CustomPrompt, "onValidate" | "onCancel" | "variant">;
 
 type PopupProviderContext = {
   confirm: (messageOrProps: ConfirmPopupProps) => Promise<boolean>;
   select: (props: SelectPopupProps) => Promise<string | undefined>;
+  requireAction: (props: CustomPopupProps) => Promise<undefined>;
 };
 
 const PopupContext = React.createContext<PopupProviderContext | undefined>(undefined);
@@ -80,7 +82,32 @@ export const PopupProvider = ({ children }: React.PropsWithChildren) => {
     [setPopupProps]
   );
 
-  const context = useMemo(() => ({ confirm, select }), [confirm]);
+  const requireAction: PopupProviderContext["requireAction"] = useCallback(
+    (props: CustomPopupProps) => {
+      let subject: Subject<SelectOption["value"] | undefined> | undefined = new Subject<SelectOption["value"] | undefined>();
+
+      const reject = () => {
+        if (subject) {
+          subject.next(undefined);
+          subject.complete();
+          setPopupProps(undefined);
+          subject = undefined;
+        }
+      };
+
+      setPopupProps({
+        title: "Action Required",
+        ...props,
+        open: true,
+        variant: "custom",
+        onClose: reject
+      });
+
+      return firstValueFrom(subject).then(() => undefined);
+    },
+    [setPopupProps]
+  );
+  const context = useMemo(() => ({ confirm, select, requireAction }), [confirm, select, requireAction]);
 
   return (
     <PopupContext.Provider value={context}>

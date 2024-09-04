@@ -5,12 +5,12 @@ import "@interchain-ui/react/globalStyles";
 import { GasPrice } from "@cosmjs/stargate";
 import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
 import { wallets as keplr } from "@cosmos-kit/keplr";
-import { wallets as leap } from "@cosmos-kit/leap-extension";
+import { wallets as leap } from "@cosmos-kit/leap";
 import { ChainProvider } from "@cosmos-kit/react";
 import { useChain } from "@cosmos-kit/react";
 
 import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
-import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import networkStore from "@src/store/networkStore";
 import { customRegistry } from "@src/utils/customRegistry";
 
 type Props = {
@@ -58,6 +58,6 @@ export function CustomChainProvider({ children }: Props) {
 }
 
 export function useSelectedChain() {
-  const { chainRegistryName } = useSelectedNetwork();
+  const { chainRegistryName } = networkStore.useSelectedNetwork();
   return useChain(chainRegistryName);
 }

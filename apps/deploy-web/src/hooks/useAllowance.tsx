@@ -8,7 +8,6 @@ import Link from "next/link";
 import { useSnackbar } from "notistack";
 import { useLocalStorage } from "usehooks-ts";
 
-import { useWallet } from "@src/context/WalletProvider";
 import { useWhen } from "@src/hooks/useWhen";
 import { useAllowancesGranted } from "@src/queries/useGrantsQuery";
 
@@ -24,15 +23,14 @@ const AllowanceNotificationMessage: FC = () => (
   </>
 );
 
-export const useAllowance = () => {
-  const { address } = useWallet();
+export const useAllowance = (address: string, isManaged: boolean) => {
   const [defaultFeeGranter, setDefaultFeeGranter] = useLocalStorage<string | undefined>(`default-fee-granters/${address}`, undefined);
   const { data: allFeeGranters, isLoading, isFetched } = useAllowancesGranted(address);
   const { enqueueSnackbar } = useSnackbar();
 
-  const actualAddresses = useMemo(() => {
+  const actualAllowanceAddresses = useMemo(() => {
     if (!address || !allFeeGranters) {
-      return [];
+      return null;
     }
 
     return allFeeGranters.reduce((acc, grant) => {
@@ -45,14 +43,15 @@ export const useAllowance = () => {
   }, [allFeeGranters, address]);
 
   useWhen(
-    isFetched && address,
+    isFetched && address && !isManaged && !!actualAllowanceAddresses,
     () => {
+      const _actualAllowanceAddresses = actualAllowanceAddresses as string[];
       const persistedAddresses = persisted[address] || [];
-      const added = difference(actualAddresses, persistedAddresses);
-      const removed = difference(persistedAddresses, actualAddresses);
+      const added = difference(_actualAllowanceAddresses, persistedAddresses);
+      const removed = difference(persistedAddresses, _actualAllowanceAddresses);
 
       if (added.length || removed.length) {
-        persisted[address] = actualAddresses;
+        persisted[address] = _actualAllowanceAddresses;
         localStorage.setItem(`fee-granters`, JSON.stringify(persisted));
       }
 
@@ -70,9 +69,11 @@ export const useAllowance = () => {
 
       if (defaultFeeGranter && removed.includes(defaultFeeGranter)) {
         setDefaultFeeGranter(undefined);
+      } else if (!defaultFeeGranter && _actualAllowanceAddresses.length) {
+        setDefaultFeeGranter(_actualAllowanceAddresses[0]);
       }
     },
-    [actualAddresses, persisted]
+    [actualAllowanceAddresses, persisted]
   );
 
   return useMemo(

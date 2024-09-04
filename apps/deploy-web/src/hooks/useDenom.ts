@@ -1,13 +1,13 @@
+import networkStore from "@src/store/networkStore";
 import { usdcIbcDenoms } from "@src/utils/constants";
-import { getSelectedNetwork, useSelectedNetwork } from "./useSelectedNetwork";
 
 export const useUsdcDenom = () => {
-  const selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = networkStore.useSelectedNetwork();
   return usdcIbcDenoms[selectedNetwork.id];
 };
 
 export const getUsdcDenom = () => {
-  const selectedNetwork = getSelectedNetwork();
+  const selectedNetwork = networkStore.getSelectedNetwork();
   return usdcIbcDenoms[selectedNetwork.id];
 };
 

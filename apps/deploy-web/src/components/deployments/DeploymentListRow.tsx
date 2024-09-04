@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { getShortText } from "@src/hooks/useShortText";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
@@ -53,7 +54,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const [open, setOpen] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const { changeDeploymentName, getDeploymentData } = useLocalNotes();
-  const { address, signAndBroadcastTx } = useWallet();
+  const { address, signAndBroadcastTx, isManaged: isManagedWallet } = useWallet();
   const isActive = deployment.state === "active";
   const { data: leases, isLoading: isLoadingLeases } = useAllLeases(address, { enabled: !!deployment && isActive });
   const filteredLeases = leases?.filter(l => l.dseq === deployment.dseq);
@@ -110,6 +111,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const avgCost = udenomToDenom(getAvgCostPerMonth(deploymentCost || 0));
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const denomData = useDenomData(deployment.escrowAccount.balance.denom);
+  const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
 
   function viewDeployment() {
     router.push(UrlService.deploymentDetails(deployment.dseq));
@@ -142,6 +144,12 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
 
   const onCloseDeployment = async () => {
     handleMenuClose();
+
+    const isConfirmed = await closeDeploymentConfirm([deployment.dseq]);
+
+    if (!isConfirmed) {
+      return;
+    }
 
     const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
     const response = await signAndBroadcastTx([message]);
@@ -194,9 +202,13 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                   title={
                     <>
                       Your deployment will close soon,{" "}
-                      <a href="#" onClick={onDepositClicked}>
-                        Add Funds
-                      </a>{" "}
+                      {isManagedWallet ? (
+                        "Add funds"
+                      ) : (
+                        <a href="#" onClick={onDepositClicked}>
+                          Add Funds
+                        </a>
+                      )}{" "}
                       to keep it running.
                     </>
                   }
@@ -306,7 +318,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                 >
                   <ClickAwayListener onClickAway={() => setOpen(false)}>
                     <div>
-                      {isActive && (
+                      {isActive && !isManagedWallet && (
                         <CustomDropdownLinkItem onClick={onDepositClicked} icon={<Plus fontSize="small" />}>
                           Add funds
                         </CustomDropdownLinkItem>

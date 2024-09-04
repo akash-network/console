@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
 import { managedWalletHttpService } from "@src/services/managed-wallet-http/managed-wallet-http.service";
 
 const MANAGED_WALLET = "MANAGED_WALLET";

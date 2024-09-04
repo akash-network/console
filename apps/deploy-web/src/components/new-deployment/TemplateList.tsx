@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
-import { ArrowRight, Cpu, Page, Rocket, Wrench } from "iconoir-react";
+import { ArrowRight, Cpu, Linux, Rocket, Wrench } from "iconoir-react";
 import { NavArrowLeft } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -20,6 +20,9 @@ import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";
 
 const previewTemplateIds = [
+  "akash-network-awesome-akash-Llama-3.1-8B",
+  "akash-network-awesome-akash-Llama-3.1-405B-FP8",
+  "akash-network-awesome-akash-Llama-3.1-405B-BF16",
   "akash-network-awesome-akash-FLock-training-node",
   "akash-network-awesome-akash-tensorflow-jupyter-mnist",
   "akash-network-awesome-akash-comfyui",
@@ -97,9 +100,9 @@ export const TemplateList: React.FunctionComponent = () => {
 
           {
             <DeployOptionBox
-              title="Plain Linux"
+              title="Linux"
               description="Choose from multiple linux distros. Deploy and SSH into it. Install and run what you want after."
-              icon={<Page />}
+              icon={<Linux />}
               onClick={() => onSDLBuilderClick("deploy-linux")}
               testId="plain-linux-card"
             />

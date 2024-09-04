@@ -1,12 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Address, Button, Popup, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { Button, Popup, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Bank } from "iconoir-react";
 import { NextSeo } from "next-seo";
 
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { useWallet } from "@src/context/WalletProvider";
-import { useAllowance } from "@src/hooks/useAllowance";
 import { useAllowancesIssued, useGranteeGrants, useGranterGrants } from "@src/queries/useGrantsQuery";
 import { AllowanceType, GrantType } from "@src/types/grant";
 import { averageBlockTime } from "@src/utils/priceUtils";
@@ -16,25 +15,31 @@ import { SettingsLayout, SettingsTabs } from "../settings/SettingsLayout";
 import { ConnectWallet } from "../shared/ConnectWallet";
 import { Title } from "../shared/Title";
 import { AllowanceGrantedRow } from "./AllowanceGrantedRow";
-import { AllowanceIssuedRow } from "./AllowanceIssuedRow";
 import { AllowanceModal } from "./AllowanceModal";
+import { DeploymentGrantTable } from "./DeploymentGrantTable";
+import { FeeGrantTable } from "./FeeGrantTable";
 import { GranteeRow } from "./GranteeRow";
-import { GranterRow } from "./GranterRow";
 import { GrantModal } from "./GrantModal";
+import { useAllowance } from "@src/hooks/useAllowance";
 
 type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "allowancesGranted" | null;
 const defaultRefetchInterval = 30 * 1000;
 const refreshingInterval = 1000;
 
 export const Authorizations: React.FunctionComponent = () => {
-  const { address, signAndBroadcastTx } = useWallet();
+  const { address, signAndBroadcastTx, isManaged } = useWallet();
+  const {
+    fee: { all: allowancesGranted, isLoading: isLoadingAllowancesGranted, setDefault, default: defaultAllowance }
+  } = useAllowance(address, isManaged);
   const [editingGrant, setEditingGrant] = useState<GrantType | null>(null);
   const [editingAllowance, setEditingAllowance] = useState<AllowanceType | null>(null);
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [showAllowanceModal, setShowAllowanceModal] = useState(false);
-  const [deletingGrant, setDeletingGrant] = useState<GrantType | null>(null);
-  const [deletingAllowance, setDeletingAllowance] = useState<AllowanceType | null>(null);
+  const [deletingGrants, setDeletingGrants] = useState<GrantType[] | null>(null);
+  const [deletingAllowances, setDeletingAllowances] = useState<AllowanceType[] | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<RefreshingType>(null);
+  const [selectedGrants, setSelectedGrants] = useState<GrantType[]>([]);
+  const [selectedAllowances, setSelectedAllowances] = useState<AllowanceType[]>([]);
   const { data: granterGrants, isLoading: isLoadingGranterGrants } = useGranterGrants(address, {
     refetchInterval: isRefreshing === "granterGrants" ? refreshingInterval : defaultRefetchInterval
   });
@@ -44,9 +49,6 @@ export const Authorizations: React.FunctionComponent = () => {
   const { data: allowancesIssued, isLoading: isLoadingAllowancesIssued } = useAllowancesIssued(address, {
     refetchInterval: isRefreshing === "allowancesIssued" ? refreshingInterval : defaultRefetchInterval
   });
-  const {
-    fee: { all: allowancesGranted, isLoading: isLoadingAllowancesGranted, setDefault, default: defaultAllowance }
-  } = useAllowance();
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
@@ -63,27 +65,29 @@ export const Authorizations: React.FunctionComponent = () => {
     };
   }, [isRefreshing]);
 
-  async function onDeleteGrantConfirmed() {
-    if (!deletingGrant) return;
+  async function onDeleteGrantsConfirmed() {
+    if (!deletingGrants) return;
 
-    const message = TransactionMessageData.getRevokeMsg(address, deletingGrant.grantee, deletingGrant.authorization["@type"]);
-    const response = await signAndBroadcastTx([message]);
+    const messages = deletingGrants.map(grant => TransactionMessageData.getRevokeMsg(address, grant.grantee, grant.authorization["@type"]));
+    const response = await signAndBroadcastTx(messages);
 
     if (response) {
       setIsRefreshing("granterGrants");
-      setDeletingGrant(null);
+      setDeletingGrants(null);
+      setSelectedGrants([]);
     }
   }
 
   async function onDeleteAllowanceConfirmed() {
-    if (!deletingAllowance) return;
+    if (!deletingAllowances) return;
 
-    const message = TransactionMessageData.getRevokeAllowanceMsg(address, deletingAllowance.grantee);
-    const response = await signAndBroadcastTx([message]);
+    const messages = deletingAllowances.map(allowance => TransactionMessageData.getRevokeAllowanceMsg(address, allowance.grantee));
+    const response = await signAndBroadcastTx(messages);
 
     if (response) {
       setIsRefreshing("allowancesIssued");
-      setDeletingAllowance(null);
+      setDeletingAllowances(null);
+      setSelectedAllowances([]);
     }
   }
 
@@ -155,22 +159,13 @@ export const Authorizations: React.FunctionComponent = () => {
               ) : (
                 <>
                   {granterGrants.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Grantee</TableHead>
-                          <TableHead className="text-right">Spending Limit</TableHead>
-                          <TableHead className="text-right">Expiration</TableHead>
-                          <TableHead className="text-right"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-
-                      <TableBody>
-                        {granterGrants.map(grant => (
-                          <GranterRow key={grant.grantee} grant={grant} onEditGrant={onEditGrant} setDeletingGrant={setDeletingGrant} />
-                        ))}
-                      </TableBody>
-                    </Table>
+                    <DeploymentGrantTable
+                      grants={granterGrants}
+                      selectedGrants={selectedGrants}
+                      onEditGrant={onEditGrant}
+                      setDeletingGrants={setDeletingGrants}
+                      setSelectedGrants={setSelectedGrants}
+                    />
                   ) : (
                     <p className="text-sm text-muted-foreground">No authorizations given.</p>
                   )}
@@ -241,28 +236,13 @@ export const Authorizations: React.FunctionComponent = () => {
               ) : (
                 <>
                   {allowancesIssued.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Grantee</TableHead>
-                          <TableHead className="text-right">Spending Limit</TableHead>
-                          <TableHead className="text-right">Expiration</TableHead>
-                          <TableHead className="text-right"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-
-                      <TableBody>
-                        {allowancesIssued.map(allowance => (
-                          <AllowanceIssuedRow
-                            key={allowance.grantee}
-                            allowance={allowance}
-                            onEditAllowance={onEditAllowance}
-                            setDeletingAllowance={setDeletingAllowance}
-                          />
-                        ))}
-                      </TableBody>
-                    </Table>
+                    <FeeGrantTable
+                      allowances={allowancesIssued}
+                      selectedAllowances={selectedAllowances}
+                      onEditAllowance={onEditAllowance}
+                      setDeletingAllowances={setDeletingAllowances}
+                      setSelectedAllowances={setSelectedAllowances}
+                    />
                   ) : (
                     <p className="text-sm text-muted-foreground">No allowances issued.</p>
                   )}
@@ -321,38 +301,30 @@ export const Authorizations: React.FunctionComponent = () => {
           </>
         )}
 
-        {!!deletingGrant && (
+        {!!deletingGrants && (
           <Popup
             open={true}
             title="Confirm Delete?"
             variant="confirm"
-            onClose={() => setDeletingGrant(null)}
-            onCancel={() => setDeletingGrant(null)}
-            onValidate={onDeleteGrantConfirmed}
+            onClose={() => setDeletingGrants(null)}
+            onCancel={() => setDeletingGrants(null)}
+            onValidate={onDeleteGrantsConfirmed}
             enableCloseOnBackdropClick
           >
-            Deleting grant to{" "}
-            <strong>
-              <Address address={deletingGrant.grantee} />
-            </strong>{" "}
-            will revoke their ability to spend your funds on deployments.
+            Deleting grants will revoke their ability to spend your funds on deployments.
           </Popup>
         )}
-        {!!deletingAllowance && (
+        {!!deletingAllowances && (
           <Popup
             open={true}
             title="Confirm Delete?"
             variant="confirm"
-            onClose={() => setDeletingAllowance(null)}
-            onCancel={() => setDeletingAllowance(null)}
+            onClose={() => setDeletingAllowances(null)}
+            onCancel={() => setDeletingAllowances(null)}
             onValidate={onDeleteAllowanceConfirmed}
             enableCloseOnBackdropClick
           >
-            Deleting allowance to{" "}
-            <strong>
-              <Address address={deletingAllowance.grantee} />
-            </strong>{" "}
-            will revoke their ability to fees on your behalf.
+            Deleting allowance to will revoke their ability to fees on your behalf.
           </Popup>
         )}
         {showGrantModal && <GrantModal editingGrant={editingGrant} address={address} onClose={onGrantClose} />}

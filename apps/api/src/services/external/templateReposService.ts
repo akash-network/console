@@ -39,7 +39,7 @@ type Template = {
   guide?: string;
   githubUrl?: string;
   persistentStorageEnabled?: boolean;
-  config?: { ssh?: boolean };
+  config?: { ssh?: boolean; logoUrl?: string };
 };
 
 type TemplateSource = {
@@ -443,13 +443,14 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
         const deploy = await findFileContentAsync(["deploy.yaml", "deploy.yml"], response.data);
         const guide = await findFileContentAsync("GUIDE.md", response.data);
         const config = await findFileContentAsync("config.json", response.data);
+        const _config = config ? JSON.parse(config) : { ssh: false, logoUrl: "" };
 
         const template: Template = {
           name: templateSource.name,
           path: templateSource.path,
           logoUrl: templateSource.logoUrl,
           summary: templateSource.summary,
-          config: config ? JSON.parse(config) : { ssh: false }
+          config: _config
         };
 
         template.readme = readme && replaceLinks(readme, templateSource.repoOwner, templateSource.repoName, templateSource.repoVersion, templateSource.path);
@@ -459,7 +460,9 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
         template.githubUrl = `https://github.com/${templateSource.repoOwner}/${templateSource.repoName}/blob/${templateSource.repoVersion}/${templateSource.path}`;
 
         if (!template.logoUrl) {
-          template.logoUrl = getLogoFromPath(template.path);
+          const logoFromPath = getLogoFromPath(template.path);
+          const configLogo = _config?.logoUrl || "";
+          template.logoUrl = logoFromPath || configLogo;
         }
 
         if (!template.summary) {
@@ -542,17 +545,20 @@ function getLinuxServerTemplateSummary(readme: string) {
 // Replaces local links with absolute links
 function replaceLinks(markdown: string, owner: string, repo: string, version: string, folder: string) {
   let newMarkdown = markdown;
-  const linkRegex = /!?\[([^[]+)\]\((.*?)\)/gm;
+  const linkRegex = /!?\[([^[]*)\]\((.*?)\)/gm;
   const matches = newMarkdown.matchAll(linkRegex);
   for (const match of matches) {
-    const url = match[2].startsWith("/") ? match[2].substring(1) : match[2];
+    const originalUrl = match[2];
+    const url = originalUrl.replace(/^\.?\//, "");
+
     if (isUrlAbsolute(url)) continue;
+
     const isPicture = match[0].startsWith("!");
     const absoluteUrl = isPicture
       ? `https://raw.githubusercontent.com/${owner}/${repo}/${version}/${folder}/` + url
       : `https://github.com/${owner}/${repo}/blob/${version}/${folder}/` + url;
 
-    newMarkdown = newMarkdown.split("(" + url + ")").join("(" + absoluteUrl + ")");
+    newMarkdown = newMarkdown.split("(" + originalUrl + ")").join("(" + absoluteUrl + ")");
   }
 
   return newMarkdown;

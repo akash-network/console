@@ -9,6 +9,7 @@ import { event } from "nextjs-google-analytics";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { DeploymentDto } from "@src/types/deployment";
 import { AnalyticsEvents } from "@src/utils/analytics";
@@ -28,11 +29,13 @@ type Props = {
 export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address, loadDeploymentDetail, removeLeases, setActiveTab, deployment }) => {
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
   const router = useRouter();
-  const { signAndBroadcastTx } = useWallet();
+  const { signAndBroadcastTx, isManaged } = useWallet();
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const deploymentName = getDeploymentName(deployment?.dseq);
   const previousRoute = usePreviousRoute();
+  const wallet = useWallet();
+  const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
 
   function handleBackClick() {
     if (previousRoute) {
@@ -43,6 +46,12 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   }
 
   const onCloseDeployment = async () => {
+    const isConfirmed = await closeDeploymentConfirm([deployment.dseq]);
+
+    if (!isConfirmed) {
+      return;
+    }
+
     const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
     const response = await signAndBroadcastTx([message]);
     if (response) {
@@ -117,9 +126,11 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant="default" className="ml-2 whitespace-nowrap" onClick={() => setIsDepositingDeployment(true)} size="sm">
-              Add funds
-            </Button>
+            {!wallet.isManaged && (
+              <Button variant="default" className="ml-2 whitespace-nowrap" onClick={() => setIsDepositingDeployment(true)} size="sm">
+                Add funds
+              </Button>
+            )}
           </div>
         )}
 

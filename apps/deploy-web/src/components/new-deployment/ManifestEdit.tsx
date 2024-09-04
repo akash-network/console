@@ -1,5 +1,5 @@
 "use client";
-import { Dispatch, useEffect, useRef, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { Alert, Button, CustomTooltip, Input, Spinner } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
@@ -15,6 +15,8 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
+import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDepositParams } from "@src/queries/useSettings";
 import sdlStore from "@src/store/sdlStore";
@@ -25,6 +27,7 @@ import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
+import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { cn } from "@src/utils/styleUtils";
 import { Timer } from "@src/utils/timer";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -43,7 +46,7 @@ type Props = {
   onTemplateSelected: Dispatch<TemplateCreation | null>;
   selectedTemplate: TemplateCreation | null;
   editedManifest: string | null;
-  setEditedManifest: Dispatch<string>;
+  setEditedManifest: Dispatch<SetStateAction<string>>;
 };
 
 export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, setEditedManifest, onTemplateSelected, selectedTemplate }) => {
@@ -69,6 +72,21 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const { data: depositParams } = useDepositParams();
   const defaultDeposit = depositParams || defaultInitialDeposit;
   const fileUploadRef = useRef<HTMLInputElement>(null);
+  const wallet = useWallet();
+  const managedDenom = useManagedWalletDenom();
+  const { createDeploymentConfirm } = useManagedDeploymentConfirm();
+
+  useWhen(wallet.isManaged && sdlDenom === "uakt", () => {
+    setSdlDenom(managedDenom);
+  });
+
+  useWhen(
+    wallet.isManaged && sdlDenom === "uakt",
+    () => {
+      setEditedManifest(prev => prev.replace(/uakt/g, managedDenom));
+    },
+    [editedManifest]
+  );
 
   useWhen(hasComponent("ssh"), () => {
     setSelectedSdlEditMode("builder");
@@ -167,7 +185,18 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     }
 
     if (isManaged) {
-      await handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      const services = importSimpleSdl(editedManifest as string);
+
+      if (!services) {
+        setParsingError("Error while parsing SDL file");
+        return;
+      }
+
+      const isConfirmed = await createDeploymentConfirm(services);
+
+      if (isConfirmed) {
+        await handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      }
     } else {
       setIsCheckingPrerequisites(true);
     }
@@ -252,9 +281,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       } else {
         setIsCreatingDeployment(false);
       }
-    } catch (error) {
+    } finally {
       setIsCreatingDeployment(false);
-      throw error;
     }
   }
 

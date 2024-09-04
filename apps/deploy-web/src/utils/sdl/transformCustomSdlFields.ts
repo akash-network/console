@@ -33,7 +33,7 @@ function addSshPubKey(input: ServiceType) {
   const output = cloneDeep(input);
 
   output.env = output.env || [];
-  const sshPubKeyEnv = output.env.find(e => e.key === "SSH_PUB_KEY");
+  const sshPubKeyEnv = output.env.find(e => e.key === "SSH_PUBKEY");
 
   if (sshPubKeyEnv) {
     sshPubKeyEnv.value = sshPubKey;

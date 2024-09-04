@@ -1,4 +1,4 @@
-import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import networkStore from "@src/store/networkStore";
 import type { DepositParams } from "@src/types/deployment";
 import { defaultInitialDeposit } from "../constants";
 import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion } from "./helpers";
@@ -6,12 +6,12 @@ import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVers
 export const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
 
 export function getManifest(yamlJson, asString: boolean) {
-  const network = getSelectedNetwork();
+  const network = networkStore.getSelectedNetwork();
   return Manifest(yamlJson, "beta3", network.id, asString);
 }
 
 export async function getManifestVersion(yamlJson) {
-  const network = getSelectedNetwork();
+  const network = networkStore.getSelectedNetwork();
   const version = await ManifestVersion(yamlJson, "beta3", network.id);
 
   return Buffer.from(version).toString("base64");
@@ -33,7 +33,7 @@ export async function NewDeploymentData(
   depositorAddress: string | null = null
 ) {
   try {
-    const { id: networkId } = getSelectedNetwork();
+    const { id: networkId } = networkStore.getSelectedNetwork();
     const sdl = getSdl(yamlStr, "beta3", networkId);
     const groups = sdl.groups();
     const mani = sdl.manifest();

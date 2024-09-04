@@ -13,20 +13,18 @@ import { event } from "nextjs-google-analytics";
 import { SnackbarKey, useSnackbar } from "notistack";
 
 import { LoadingState, TransactionModal } from "@src/components/layout/TransactionModal";
-import { useAnonymousUser } from "@src/context/AnonymousUserProvider/AnonymousUserProvider";
 import { useAllowance } from "@src/hooks/useAllowance";
-import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
-import { getSelectedNetwork, useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { txHttpService } from "@src/services/http/http.service";
+import networkStore from "@src/store/networkStore";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { STATS_APP_URL, uAktDenom } from "@src/utils/constants";
 import { customRegistry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
-import { LocalWalletDataType } from "@src/utils/walletUtils";
+import { getSelectedStorageWallet, getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { useSettings } from "../SettingsProvider";
 
@@ -59,6 +57,9 @@ type ContextType = {
   isManaged: boolean;
   isWalletLoading: boolean;
   isTrialing: boolean;
+  creditAmount?: number;
+  switchWalletType: () => void;
+  hasManagedWallet: boolean;
 };
 
 const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
@@ -70,6 +71,8 @@ const MESSAGE_STATES: Record<string, LoadingState> = {
   "/akash.deployment.v1beta3.MsgUpdateDeployment": "updatingDeployment"
 };
 
+const initialWallet = getSelectedStorageWallet();
+
 export const WalletProvider = ({ children }) => {
   const [walletBalances, setWalletBalances] = useState<Balances | null>(null);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
@@ -80,16 +83,24 @@ export const WalletProvider = ({ children }) => {
   const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
   const user = useUser();
-
   const userWallet = useSelectedChain();
-  const { wallet: managedWallet, isLoading, create, refetch } = useManagedWallet();
-  const { address: walletAddress, username, isWalletConnected } = useMemo(() => managedWallet || userWallet, [managedWallet, userWallet]);
+  const { wallet: managedWallet, isLoading, create: createManagedWallet, refetch } = useManagedWallet();
+  const [selectedWalletType, selectWalletType] = useState<"managed" | "custodial">(
+    initialWallet?.selected && initialWallet?.isManaged ? "managed" : "custodial"
+  );
+  const {
+    address: walletAddress,
+    username,
+    isWalletConnected
+  } = useMemo(() => (selectedWalletType === "managed" && managedWallet) || userWallet, [managedWallet, userWallet, selectedWalletType]);
   const { addEndpoints } = useManager();
+  const isManaged = useMemo(() => !!managedWallet && managedWallet?.address === walletAddress, [walletAddress, managedWallet]);
+
   const {
     fee: { default: feeGranter }
-  } = useAllowance();
+  } = useAllowance(walletAddress as string, isManaged);
 
-  useWhen(managedWallet, refreshBalances);
+  useWhen(isManaged, refreshBalances);
 
   useEffect(() => {
     if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
@@ -109,8 +120,35 @@ export const WalletProvider = ({ children }) => {
     })();
   }, [settings?.rpcEndpoint, userWallet.isWalletConnected]);
 
+  function switchWalletType() {
+    if (selectedWalletType === "custodial" && !managedWallet) {
+      userWallet.disconnect();
+    }
+
+    if (selectedWalletType === "managed" && !userWallet.isWalletConnected) {
+      userWallet.connect();
+    }
+
+    if (selectedWalletType === "managed" && managedWallet) {
+      updateStorageManagedWallet({
+        ...managedWallet,
+        selected: false
+      });
+    }
+
+    selectWalletType(prev => (prev === "custodial" ? "managed" : "custodial"));
+  }
+
+  function connectManagedWallet() {
+    if (managedWallet) {
+      selectWalletType("managed");
+    } else {
+      createManagedWallet();
+    }
+  }
+
   async function createStargateClient() {
-    const selectedNetwork = getSelectedNetwork();
+    const selectedNetwork = networkStore.getSelectedNetwork();
 
     const offlineSigner = userWallet.getOfflineSigner();
     let rpc = settings?.rpcEndpoint ? settings?.rpcEndpoint : (selectedNetwork.rpcEndpoint as string);
@@ -165,18 +203,15 @@ export const WalletProvider = ({ children }) => {
   useWhen(walletAddress, loadWallet);
 
   async function loadWallet(): Promise<void> {
-    const selectedNetwork = getSelectedNetwork();
-    const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetwork.id}/wallets`) || "[]") as LocalWalletDataType[];
-
-    let currentWallets = storageWallets ?? [];
+    let currentWallets = getStorageWallets();
 
     if (!currentWallets.some(x => x.address === walletAddress)) {
-      currentWallets.push({ name: username || "", address: walletAddress as string, selected: true });
+      currentWallets.push({ name: username || "", address: walletAddress as string, selected: true, isManaged: false });
     }
 
     currentWallets = currentWallets.map(x => ({ ...x, selected: x.address === walletAddress }));
 
-    localStorage.setItem(`${selectedNetwork.id}/wallets`, JSON.stringify(currentWallets));
+    updateStorageWallets(currentWallets);
     await refreshBalances();
 
     setIsWalletLoaded(true);
@@ -187,7 +222,7 @@ export const WalletProvider = ({ children }) => {
     let txResult: TxOutput;
 
     try {
-      if (!!user?.id && managedWallet) {
+      if (!!user?.id && isManaged) {
         const mainMessage = msgs.find(msg => msg.typeUrl in MESSAGE_STATES);
 
         if (mainMessage) {
@@ -233,42 +268,47 @@ export const WalletProvider = ({ children }) => {
     } catch (err) {
       console.error(err);
 
-      const transactionHash = err.txHash;
-      let errorMsg = "An error has occured";
+      if (axios.isAxiosError(err) && err.response?.status !== 500) {
+        const [title, message] = err.response?.data?.message.split(": ") ?? [];
+        showTransactionSnackbar(title || message || "Error", message, "", "error");
+      } else {
+        const transactionHash = err.txHash;
+        let errorMsg = "An error has occured";
 
-      if (err.message?.includes("was submitted but was not yet found on the chain")) {
-        errorMsg = "Transaction timeout";
-      } else if (err.message) {
-        try {
-          const reg = /Broadcasting transaction failed with code (.+?) \(codespace: (.+?)\)/i;
-          const match = err.message.match(reg);
-          const log = err.message.substring(err.message.indexOf("Log"), err.message.length);
+        if (err.message?.includes("was submitted but was not yet found on the chain")) {
+          errorMsg = "Transaction timeout";
+        } else if (err.message) {
+          try {
+            const reg = /Broadcasting transaction failed with code (.+?) \(codespace: (.+?)\)/i;
+            const match = err.message.match(reg);
+            const log = err.message.substring(err.message.indexOf("Log"), err.message.length);
 
-          if (match) {
-            const code = parseInt(match[1]);
-            const codeSpace = match[2];
+            if (match) {
+              const code = parseInt(match[1]);
+              const codeSpace = match[2];
 
-            if (codeSpace === "sdk" && code in ERROR_MESSAGES) {
-              errorMsg = ERROR_MESSAGES[code];
+              if (codeSpace === "sdk" && code in ERROR_MESSAGES) {
+                errorMsg = ERROR_MESSAGES[code];
+              }
             }
-          }
 
-          if (log) {
-            errorMsg += `. ${log}`;
+            if (log) {
+              errorMsg += `. ${log}`;
+            }
+          } catch (err) {
+            console.error(err);
           }
-        } catch (err) {
-          console.error(err);
         }
-      }
 
-      if (!errorMsg.includes("Request rejected")) {
-        event(AnalyticsEvents.FAILED_TX, {
-          category: "transactions",
-          label: "Failed transaction"
-        });
-      }
+        if (!errorMsg.includes("Request rejected")) {
+          event(AnalyticsEvents.FAILED_TX, {
+            category: "transactions",
+            label: "Failed transaction"
+          });
+        }
 
-      showTransactionSnackbar("Transaction has failed...", errorMsg, transactionHash, "error");
+        showTransactionSnackbar("Transaction has failed...", errorMsg, transactionHash, "error");
+      }
 
       return false;
     } finally {
@@ -301,7 +341,7 @@ export const WalletProvider = ({ children }) => {
   };
 
   async function refreshBalances(address?: string): Promise<{ uakt: number; usdc: number }> {
-    if (managedWallet) {
+    if (isManaged && managedWallet) {
       const wallet = await refetch();
       const walletBalances = {
         uakt: 0,
@@ -346,13 +386,16 @@ export const WalletProvider = ({ children }) => {
         isWalletConnected: isWalletConnected,
         isWalletLoaded: isWalletLoaded,
         connectWallet,
-        connectManagedWallet: create,
+        connectManagedWallet,
         logout,
         signAndBroadcastTx,
         refreshBalances,
-        isManaged: !!managedWallet,
+        isManaged,
         isWalletLoading: isLoading,
-        isTrialing: !!managedWallet?.isTrialing
+        isTrialing: isManaged && !!managedWallet?.isTrialing,
+        creditAmount: isManaged ? managedWallet?.creditAmount : 0,
+        hasManagedWallet: !!managedWallet,
+        switchWalletType
       }}
     >
       {children}
@@ -368,7 +411,7 @@ export function useWallet() {
 }
 
 const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
-  const selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = networkStore.useSelectedNetwork();
   const txUrl = transactionHash && `${STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetwork.id}`;
 
   return (

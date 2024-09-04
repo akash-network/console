@@ -7,6 +7,9 @@ import cloneDeep from "lodash/cloneDeep";
 import { nanoid } from "nanoid";
 
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
+import { useWallet } from "@src/context/WalletProvider";
+import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
+import { useWhen } from "@src/hooks/useWhen";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import { SdlBuilderFormValuesSchema, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService, defaultSshVMService } from "@src/utils/sdl/data";
@@ -48,9 +51,25 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
     name: "services",
     keyName: "id"
   });
-  const { services: _services = [] } = watch();
+  const { services: formServices = [] } = watch();
   const { data: gpuModels } = useGpuModels();
   const [serviceCollapsed, setServiceCollapsed] = useState([]);
+  const wallet = useWallet();
+  const managedDenom = useManagedWalletDenom();
+
+  useWhen(
+    wallet.isManaged,
+    () => {
+      formServices.forEach((service, index) => {
+        const { denom } = service.placement.pricing;
+
+        if (denom !== managedDenom) {
+          setValue(`services.${index}.placement.pricing.denom`, managedDenom);
+        }
+      });
+    },
+    [formServices, sdlString]
+  );
 
   React.useImperativeHandle(ref, () => ({
     getSdl: getSdl,
@@ -83,7 +102,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
 
   const getSdl = () => {
     try {
-      return generateSdl(transformCustomSdlFields(_services, { withSSH: hasComponent("ssh") }));
+      return generateSdl(transformCustomSdlFields(formServices, { withSSH: hasComponent("ssh") }));
     } catch (err) {
       if (err instanceof TransformError) {
         setError(err.message);
@@ -129,14 +148,14 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(({ sdlStrin
       ) : (
         <Form {...form}>
           <form ref={formRef} autoComplete="off">
-            {_services &&
+            {formServices &&
               services.map((service, serviceIndex) => (
                 <SimpleServiceFormControl
                   key={service.id}
                   serviceIndex={serviceIndex}
                   gpuModels={gpuModels}
                   setValue={setValue}
-                  _services={_services as ServiceType[]}
+                  _services={formServices as ServiceType[]}
                   control={control}
                   trigger={trigger}
                   onRemoveService={onRemoveService}

@@ -12,6 +12,7 @@ import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provide
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { MasterWalletService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { ChainErrorService } from "../chain-error/chain-error.service";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
 type SimpleSigningStargateClient = {
@@ -30,7 +31,8 @@ export class TxSignerService {
     private readonly userWalletRepository: UserWalletRepository,
     private readonly masterWalletService: MasterWalletService,
     private readonly balancesService: BalancesService,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly chainErrorService: ChainErrorService
   ) {}
 
   async signAndBroadcast(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
@@ -42,7 +44,7 @@ export class TxSignerService {
     const client = await this.getClientForAddressIndex(userWallet.id);
     const tx = await client.signAndBroadcast(decodedMessages);
 
-    await this.balancesService.updateUserWalletLimits(userWallet);
+    await this.balancesService.refreshUserWalletLimits(userWallet);
 
     return pick(tx, ["code", "transactionHash", "rawLog"]);
   }
@@ -65,16 +67,19 @@ export class TxSignerService {
       registry: this.registry
     });
     const walletAddress = (await wallet.getAccounts())[0].address;
-    const { GAS_SAFETY_MULTIPLIER } = this.config;
     const granter = await this.masterWalletService.getFirstAddress();
 
     return {
-      async signAndBroadcast(messages: readonly EncodeObject[]) {
-        const gasEstimation = await client.simulate(walletAddress, messages, "managed wallet gas estimation");
-        const estimatedGas = Math.round(gasEstimation * GAS_SAFETY_MULTIPLIER);
-        const fee = calculateFee(estimatedGas, GasPrice.fromString("0.025uakt"));
+      signAndBroadcast: async (messages: readonly EncodeObject[]) => {
+        try {
+          const gasEstimation = await client.simulate(walletAddress, messages, "managed wallet gas estimation");
+          const estimatedGas = Math.round(gasEstimation * this.config.GAS_SAFETY_MULTIPLIER);
+          const fee = calculateFee(estimatedGas, GasPrice.fromString("0.025uakt"));
 
-        return await client.signAndBroadcast(walletAddress, messages, { ...fee, granter }, "managed wallet tx");
+          return await client.signAndBroadcast(walletAddress, messages, { ...fee, granter }, "managed wallet tx");
+        } catch (error) {
+          throw this.chainErrorService.toAppError(error, messages);
+        }
       }
     };
   }
