@@ -91,84 +91,98 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
   // load settings from localStorage or set default values
   useEffect(() => {
     const initiateSettings = async () => {
-      setIsLoadingSettings(true);
+      try{
+        setIsLoadingSettings(true);
+        
+        // Set the versions and metadata of available networks
+        await initiateNetworkData();
 
-      // Set the versions and metadata of available networks
-      await initiateNetworkData();
+        // Apply local storage migrations
+        migrateLocalStorage();
 
-      // Apply local storage migrations
-      migrateLocalStorage();
+        // Init app types based on the selected network id
+        initAppTypes();
 
-      // Init app types based on the selected network id
-      initAppTypes();
+        const _selectedNetworkId = localStorage.getItem("selectedNetworkId") || defaultNetworkId;
 
-      const _selectedNetworkId = localStorage.getItem("selectedNetworkId") || defaultNetworkId;
+        setSelectedNetworkId(_selectedNetworkId);
 
-      setSelectedNetworkId(_selectedNetworkId);
+        const settingsStr = getLocalStorageItem("settings");
+        const settings = { ...defaultSettings, ...JSON.parse(settingsStr || "{}") } as Settings;
 
-      const settingsStr = getLocalStorageItem("settings");
-      const settings = { ...defaultSettings, ...JSON.parse(settingsStr || "{}") } as Settings;
+        // Set the available nodes list and default endpoints
+        const currentNetwork = networks.find(x => x.id === _selectedNetworkId);
+        const response = await axios.get(currentNetwork?.nodesUrl || mainnetNodes);
+        const nodes = response.data as Array<{ id: string; api: string; rpc: string }>;
+        const mappedNodes: Array<BlockchainNode> = await Promise.all(
+          nodes.map(async node => {
+            const nodeStatus = await loadNodeStatus(node.rpc);
 
-      // Set the available nodes list and default endpoints
-      const currentNetwork = networks.find(x => x.id === _selectedNetworkId);
-      const response = await axios.get(currentNetwork?.nodesUrl || mainnetNodes);
-      const nodes = response.data as Array<{ id: string; api: string; rpc: string }>;
-      const mappedNodes: Array<BlockchainNode> = await Promise.all(
-        nodes.map(async node => {
-          const nodeStatus = await loadNodeStatus(node.rpc);
+            return {
+              ...node,
+              status: nodeStatus.status,
+              latency: nodeStatus.latency,
+              nodeInfo: nodeStatus.nodeInfo
+            } as BlockchainNode;
+          })
+        );
 
-          return {
-            ...node,
+        const hasSettings =
+          settingsStr && settings.apiEndpoint && settings.rpcEndpoint && settings.selectedNode && nodes?.find(x => x.id === settings.selectedNode?.id);
+        let defaultApiNode = hasSettings ?? settings.apiEndpoint;
+        let defaultRpcNode = hasSettings ?? settings.rpcEndpoint;
+        let selectedNode = hasSettings ?? settings.selectedNode;
+
+        // If the user has a custom node set, use it no matter the status
+        if (hasSettings && settings.isCustomNode) {
+          const nodeStatus = await loadNodeStatus(settings.rpcEndpoint);
+          const customNodeUrl = new URL(settings.apiEndpoint);
+
+          const customNode: Partial<BlockchainNode> = {
             status: nodeStatus.status,
             latency: nodeStatus.latency,
-            nodeInfo: nodeStatus.nodeInfo
-          } as BlockchainNode;
-        })
-      );
+            nodeInfo: nodeStatus.nodeInfo,
+            id: customNodeUrl.hostname
+          };
 
-      const hasSettings =
-        settingsStr && settings.apiEndpoint && settings.rpcEndpoint && settings.selectedNode && nodes?.find(x => x.id === settings.selectedNode?.id);
-      let defaultApiNode = hasSettings ?? settings.apiEndpoint;
-      let defaultRpcNode = hasSettings ?? settings.rpcEndpoint;
-      let selectedNode = hasSettings ?? settings.selectedNode;
+          updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, customNode, nodes: mappedNodes });
+        }
 
-      // If the user has a custom node set, use it no matter the status
-      if (hasSettings && settings.isCustomNode) {
-        const nodeStatus = await loadNodeStatus(settings.rpcEndpoint);
-        const customNodeUrl = new URL(settings.apiEndpoint);
-
-        const customNode: Partial<BlockchainNode> = {
-          status: nodeStatus.status,
-          latency: nodeStatus.latency,
-          nodeInfo: nodeStatus.nodeInfo,
-          id: customNodeUrl.hostname
-        };
-
-        updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, customNode, nodes: mappedNodes });
+        // If the user has no settings or the selected node is inactive, use the fastest available active node
+        if (!hasSettings || (hasSettings && settings.selectedNode?.status === "inactive")) {
+          const randomNode = getFastestNode(mappedNodes);
+          // Use cosmos.directory as a backup if there's no active nodes in the list
+          defaultApiNode = randomNode?.api || "https://rest.cosmos.directory/akash";
+          defaultRpcNode = randomNode?.rpc || "https://rpc.cosmos.directory/akash";
+          selectedNode = randomNode || {
+            api: defaultApiNode,
+            rpc: defaultRpcNode,
+            status: "active",
+            latency: 0,
+            nodeInfo: null,
+            id: "https://rest.cosmos.directory/akash"
+          };
+          updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, nodes: mappedNodes });
+        } else {
+          defaultApiNode = settings.apiEndpoint;
+          defaultRpcNode = settings.rpcEndpoint;
+          selectedNode = settings.selectedNode;
+          updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, nodes: mappedNodes });
+        }
+      } catch(error) {
+        if (axios.isAxiosError(error)) {
+          console.error('Axios error while fetching nodes:', error.message);
+          if (error.response) {
+            console.error('Server responded with status:', error.response.status);
+            console.error('Server response data:', error.response.data);
+          } else if (error.request) {
+            console.error('No response received. Request details:', error.request);
+          }
+        } else {
+          console.error('Unexpected error:', error);
+        }
       }
-
-      // If the user has no settings or the selected node is inactive, use the fastest available active node
-      if (!hasSettings || (hasSettings && settings.selectedNode?.status === "inactive")) {
-        const randomNode = getFastestNode(mappedNodes);
-        // Use cosmos.directory as a backup if there's no active nodes in the list
-        defaultApiNode = randomNode?.api || "https://rest.cosmos.directory/akash";
-        defaultRpcNode = randomNode?.rpc || "https://rpc.cosmos.directory/akash";
-        selectedNode = randomNode || {
-          api: defaultApiNode,
-          rpc: defaultRpcNode,
-          status: "active",
-          latency: 0,
-          nodeInfo: null,
-          id: "https://rest.cosmos.directory/akash"
-        };
-        updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, nodes: mappedNodes });
-      } else {
-        defaultApiNode = settings.apiEndpoint;
-        defaultRpcNode = settings.rpcEndpoint;
-        selectedNode = settings.selectedNode;
-        updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, nodes: mappedNodes });
-      }
-
+      
       setIsLoadingSettings(false);
       setIsSettingsInit(true);
     };
