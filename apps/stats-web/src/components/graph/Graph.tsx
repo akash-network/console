@@ -3,7 +3,7 @@ import React, { useRef, useEffect } from 'react';
 
 
 import { createChart } from 'lightweight-charts';
-import moment from "moment";
+import { format } from "date-fns";
 import { FormattedDate, useIntl } from "react-intl";
 import { ResponsiveLineCanvas } from "@nivo/line";
 import { useTheme } from "next-themes";
@@ -30,11 +30,11 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   const { resolvedTheme } = useTheme();
   const intl = useIntl();
   const graphTheme = getTheme(resolvedTheme);
-  
+
   const graphData = snapshotData
     ? rangedData.map(_snapshot => (
       {
-        time: moment.utc(_snapshot.date).format('YYYY-MM-DD'),
+        time: format(_snapshot.date, 'yyyy-MM-dd'),
         value: roundDecimal(snapshotMetadata.unitFn(_snapshot.value).value),
       })).sort(function (a, b) {
         return Number(new Date(a.time)) - Number(new Date(b.time));
@@ -64,7 +64,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
     const lineSeries = chart.addLineSeries({ color: customColors.akashRed, lineWidth: 2, });
     lineSeries.setData(graphData);
 
-    const axisRightFormatter =  val => nFormatter(val, 2);
+    const axisRightFormatter = val => nFormatter(val, 2);
     const axisBottomFormatter = dateStr => intl.formatDate(dateStr, { day: "numeric", month: "short", timeZone: "utc" });
 
     chart.applyOptions({
@@ -112,9 +112,9 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
       ) {
         toolTip.style.display = 'none';
       } else {
-        const data:any = param.seriesData.get(lineSeries);
+        const data: any = param.seriesData.get(lineSeries);
         toolTip.innerHTML = `<div style='margin-bottom: 0.25rem; font-size: 0.75rem; line-height: 1rem'>
-            ${moment.utc(param.time).format("MMMM DD, yy")}
+            ${format(new Date(param.time.toString()), "MMMM d, yy")}
             </div>
             <div style="font-weight: 700">${nFormatter(data?.value, 2)}</div>
         `
