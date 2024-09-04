@@ -83,7 +83,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   useWhen(
     wallet.isManaged && sdlDenom === "uakt",
     () => {
-      setEditedManifest(prev => (prev || "").replace(/uakt/g, managedDenom));
+      setEditedManifest(prev => (prev ? prev.replace(/uakt/g, managedDenom) : prev));
     },
     [editedManifest]
   );
