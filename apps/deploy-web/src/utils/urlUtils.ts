@@ -7,6 +7,7 @@ export type NewDeploymentParams = {
   redeploy?: string | number;
   templateId?: string;
   page?: "new-deployment" | "deploy-linux";
+  type?: string;
 };
 
 function getSelectedNetworkQueryParam() {
@@ -74,9 +75,9 @@ export class UrlService {
 
   // New deployment
   static newDeployment = (params: NewDeploymentParams = {}) => {
-    const { step, dseq, redeploy, templateId } = params;
+    const { step, dseq, redeploy, templateId, type } = params;
     const page = params.page || "new-deployment";
-    return `/${page}${appendSearchParams({ dseq, step, templateId, redeploy })}`;
+    return `/${page}${appendSearchParams({ dseq, step, templateId, redeploy, type })}`;
   };
 }
 

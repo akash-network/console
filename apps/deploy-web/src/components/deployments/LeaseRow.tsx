@@ -41,421 +41,441 @@ type Props = {
   dseq: string;
   providers: ApiProviderList[];
   loadDeploymentDetail: () => void;
+  remoteDeploy?: boolean;
+  repo?: string | null;
 };
 
 export type AcceptRefType = {
   getLeaseStatus: () => void;
 };
 
-export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActiveTab, deploymentManifest, dseq, providers, loadDeploymentDetail }, ref) => {
-  const provider = providers?.find(p => p.owner === lease?.provider);
-  const { localCert } = useCertificate();
-  const isLeaseActive = lease.state === "active";
-  const [isServicesAvailable, setIsServicesAvailable] = useState(false);
-  const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
-  const isFavorite = favoriteProviders.some(x => lease?.provider === x);
-  const {
-    data: leaseStatus,
-    error,
-    refetch: getLeaseStatus,
-    isLoading: isLoadingLeaseStatus
-  } = useLeaseStatus(provider?.hostUri || "", lease, {
-    enabled: isLeaseActive && !isServicesAvailable && !!provider?.hostUri && !!localCert,
-    refetchInterval: 10_000,
-    onSuccess: leaseStatus => {
-      if (leaseStatus) {
-        checkIfServicesAreAvailable(leaseStatus);
+export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
+  ({ lease, setActiveTab, deploymentManifest, dseq, providers, loadDeploymentDetail, remoteDeploy, repo }, ref) => {
+    const provider = providers?.find(p => p.owner === lease?.provider);
+    const { localCert } = useCertificate();
+    const isLeaseActive = lease.state === "active";
+    const [isServicesAvailable, setIsServicesAvailable] = useState(false);
+    const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
+    const isFavorite = favoriteProviders.some(x => lease?.provider === x);
+    const {
+      data: leaseStatus,
+      error,
+      refetch: getLeaseStatus,
+      isLoading: isLoadingLeaseStatus
+    } = useLeaseStatus(provider?.hostUri || "", lease, {
+      enabled: isLeaseActive && !isServicesAvailable && !!provider?.hostUri && !!localCert,
+      refetchInterval: 10_000,
+      onSuccess: leaseStatus => {
+        if (leaseStatus) {
+          checkIfServicesAreAvailable(leaseStatus);
+        }
       }
-    }
-  });
-  const { isLoading: isLoadingProviderStatus, refetch: getProviderStatus } = useProviderStatus(provider?.hostUri || "", {
-    enabled: false,
-    retry: false
-  });
-  const isLeaseNotFound = error && (error as string).includes && (error as string).includes("lease not found") && isLeaseActive;
-  const servicesNames = useMemo(() => (leaseStatus ? Object.keys(leaseStatus.services) : []), [leaseStatus]);
-  const [isSendingManifest, setIsSendingManifest] = useState(false);
-  const { data: bid } = useBidInfo(lease.owner, lease.dseq, lease.gseq, lease.oseq, lease.provider);
-  const { enqueueSnackbar } = useSnackbar();
+    });
+    const { isLoading: isLoadingProviderStatus, refetch: getProviderStatus } = useProviderStatus(provider?.hostUri || "", {
+      enabled: false,
+      retry: false
+    });
+    const isLeaseNotFound = error && (error as string).includes && (error as string).includes("lease not found") && isLeaseActive;
+    const servicesNames = useMemo(() => (leaseStatus ? Object.keys(leaseStatus.services) : []), [leaseStatus]);
+    const [isSendingManifest, setIsSendingManifest] = useState(false);
+    const { data: bid } = useBidInfo(lease.owner, lease.dseq, lease.gseq, lease.oseq, lease.provider);
+    const { enqueueSnackbar } = useSnackbar();
 
-  React.useImperativeHandle(ref, () => ({
-    getLeaseStatus: loadLeaseStatus
-  }));
+    React.useImperativeHandle(ref, () => ({
+      getLeaseStatus: loadLeaseStatus
+    }));
 
-  const loadLeaseStatus = useCallback(() => {
-    if (isLeaseActive && provider && localCert) {
-      getLeaseStatus();
-      getProviderStatus();
-    }
-  }, [isLeaseActive, provider, localCert, getLeaseStatus, getProviderStatus]);
-
-  const parsedManifest = useMemo(() => yaml.load(deploymentManifest), [deploymentManifest]);
-
-  const checkIfServicesAreAvailable = leaseStatus => {
-    const servicesNames = leaseStatus ? Object.keys(leaseStatus.services) : [];
-    const isServicesAvailable =
-      servicesNames.length > 0
-        ? servicesNames
-            .map(n => leaseStatus.services[n])
-            .every(service => {
-              return service.available > 0;
-            })
-        : false;
-    setIsServicesAvailable(isServicesAvailable);
-  };
-
-  useEffect(() => {
-    loadLeaseStatus();
-  }, [lease, provider, localCert, loadLeaseStatus]);
-
-  function handleEditManifestClick(ev) {
-    ev.preventDefault();
-    setActiveTab("EDIT");
-  }
-
-  async function sendManifest() {
-    setIsSendingManifest(true);
-    try {
-      const manifest = deploymentData.getManifest(parsedManifest, true);
-
-      await sendManifestToProvider(provider as ApiProviderList, manifest, dseq, localCert as LocalCert);
-
-      enqueueSnackbar(<Snackbar title="Manifest sent!" iconVariant="success" />, { variant: "success", autoHideDuration: 10_000 });
-
-      loadDeploymentDetail();
-    } catch (err) {
-      enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
-    }
-    setIsSendingManifest(false);
-  }
-
-  const onStarClick = event => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const newFavorites = isFavorite ? favoriteProviders.filter(x => x !== lease.provider) : favoriteProviders.concat([lease.provider]);
-
-    updateFavoriteProviders(newFavorites);
-  };
-
-  const gpuModels = bid && bid.bid.resources_offer.flatMap(x => getGpusFromAttributes(x.resources.gpu.attributes));
-
-  const sshInstructions = useMemo(() => {
-    return servicesNames.reduce((acc, serviceName) => {
-      if (!sshVmImages.has(get(parsedManifest, ["services", serviceName, "image"]))) {
-        return acc;
+    const loadLeaseStatus = useCallback(() => {
+      if (isLeaseActive && provider && localCert) {
+        getLeaseStatus();
+        getProviderStatus();
       }
+    }, [isLeaseActive, provider, localCert, getLeaseStatus, getProviderStatus]);
 
-      const exposes = leaseStatus.forwarded_ports[serviceName];
+    const parsedManifest = useMemo(() => yaml.load(deploymentManifest), [deploymentManifest]);
 
-      return exposes.reduce((exposesAcc, expose) => {
-        if (expose.port !== 22) {
-          return exposesAcc;
+    const checkIfServicesAreAvailable = leaseStatus => {
+      const servicesNames = leaseStatus ? Object.keys(leaseStatus.services) : [];
+      const isServicesAvailable =
+        servicesNames.length > 0
+          ? servicesNames
+              .map(n => leaseStatus.services[n])
+              .every(service => {
+                return service.available > 0;
+              })
+          : false;
+      setIsServicesAvailable(isServicesAvailable);
+    };
+
+    useEffect(() => {
+      loadLeaseStatus();
+    }, [lease, provider, localCert, loadLeaseStatus]);
+
+    function handleEditManifestClick(ev) {
+      ev.preventDefault();
+      setActiveTab("EDIT");
+    }
+
+    async function sendManifest() {
+      setIsSendingManifest(true);
+      try {
+        const manifest = deploymentData.getManifest(parsedManifest, true);
+
+        await sendManifestToProvider(provider as ApiProviderList, manifest, dseq, localCert as LocalCert);
+
+        enqueueSnackbar(<Snackbar title="Manifest sent!" iconVariant="success" />, { variant: "success", autoHideDuration: 10_000 });
+
+        loadDeploymentDetail();
+      } catch (err) {
+        enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
+      }
+      setIsSendingManifest(false);
+    }
+
+    const onStarClick = event => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const newFavorites = isFavorite ? favoriteProviders.filter(x => x !== lease.provider) : favoriteProviders.concat([lease.provider]);
+
+      updateFavoriteProviders(newFavorites);
+    };
+
+    const gpuModels = bid && bid.bid.resources_offer.flatMap(x => getGpusFromAttributes(x.resources.gpu.attributes));
+
+    const sshInstructions = useMemo(() => {
+      return servicesNames.reduce((acc, serviceName) => {
+        if (!sshVmImages.has(get(parsedManifest, ["services", serviceName, "image"]))) {
+          return acc;
         }
 
-        if (exposesAcc) {
-          exposesAcc += "\n";
-        }
+        const exposes = leaseStatus.forwarded_ports[serviceName];
 
-        return exposesAcc.concat(`ssh root@${expose.host} -p ${expose.externalPort} -i ~/.ssh/id_rsa`);
-      }, acc);
-    }, "");
-  }, [parsedManifest, servicesNames, leaseStatus]);
+        return exposes.reduce((exposesAcc, expose) => {
+          if (expose.port !== 22) {
+            return exposesAcc;
+          }
 
-  return (
-    <Card className="mb-4">
-      <CardHeader className="bg-secondary py-2">
-        <div className="flex items-center">
-          <div className="inline-flex items-center text-xs text-muted-foreground">
-            <span>{lease.state}</span>
-            <StatusPill state={lease.state} size="small" />
+          if (exposesAcc) {
+            exposesAcc += "\n";
+          }
 
-            <span className="ml-4 text-muted-foreground">GSEQ:</span>
-            <span className="ml-1">{lease.gseq}</span>
+          return exposesAcc.concat(`ssh root@${expose.host} -p ${expose.externalPort} -i ~/.ssh/id_rsa`);
+        }, acc);
+      }, "");
+    }, [parsedManifest, servicesNames, leaseStatus]);
 
-            <span className="ml-4">OSEQ:</span>
-            <span className="ml-1">{lease.oseq}</span>
-          </div>
+    return (
+      <Card className="mb-4">
+        <CardHeader className="bg-secondary py-2">
+          <div className="flex items-center">
+            <div className="inline-flex items-center text-xs text-muted-foreground">
+              <span>{lease.state}</span>
+              <StatusPill state={lease.state} size="small" />
 
-          {isLeaseActive && (
-            <div className="ml-4 inline-flex">
-              <LinkTo className="text-sm" onClick={() => setActiveTab("LOGS")}>
-                View logs
-              </LinkTo>
+              <span className="ml-4 text-muted-foreground">GSEQ:</span>
+              <span className="ml-1">{lease.gseq}</span>
+
+              <span className="ml-4">OSEQ:</span>
+              <span className="ml-1">{lease.oseq}</span>
             </div>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="pt-4">
-        <div className="space-y-2">
-          <div className="mb-4">
-            <SpecDetail
-              cpuAmount={lease.cpuAmount}
-              gpuAmount={lease.gpuAmount}
-              gpuModels={gpuModels}
-              memoryAmount={lease.memoryAmount}
-              storageAmount={lease.storageAmount}
-              color="secondary"
-              size="medium"
+
+            {isLeaseActive && (
+              <div className="ml-4 inline-flex">
+                <LinkTo className="text-sm" onClick={() => setActiveTab("LOGS")}>
+                  View logs
+                </LinkTo>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <div className="space-y-2">
+            <div className="mb-4">
+              <SpecDetail
+                cpuAmount={lease.cpuAmount}
+                gpuAmount={lease.gpuAmount}
+                gpuModels={gpuModels}
+                memoryAmount={lease.memoryAmount}
+                storageAmount={lease.storageAmount}
+                color="secondary"
+                size="medium"
+              />
+            </div>
+            <LabelValueOld
+              label="Price:"
+              value={
+                <div className="flex items-center">
+                  <PricePerMonth denom={lease.price.denom} perBlockValue={udenomToDenom(lease.price.amount, 10)} className="text-lg" />
+                  <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} />
+                </div>
+              }
+            />
+
+            <LabelValueOld
+              label="Provider:"
+              value={
+                <>
+                  {isLeaseActive && isLoadingProviderStatus && <Spinner size="small" />}
+                  {provider && (
+                    <div className="flex items-center space-x-2">
+                      <Link href={UrlService.providerDetail(lease.provider)}>
+                        {provider.name?.length > 25 ? getSplitText(provider.name, 10, 10) : provider.name}
+                      </Link>
+
+                      <div className="flex items-center space-x-2">
+                        <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
+
+                        {provider?.isAudited && (
+                          <div className="ml-2">
+                            <AuditorButton provider={provider} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              }
             />
           </div>
-          <LabelValueOld
-            label="Price:"
-            value={
-              <div className="flex items-center">
-                <PricePerMonth denom={lease.price.denom} perBlockValue={udenomToDenom(lease.price.amount, 10)} className="text-lg" />
-                <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} />
-              </div>
-            }
-          />
 
-          <LabelValueOld
-            label="Provider:"
-            value={
-              <>
-                {isLeaseActive && isLoadingProviderStatus && <Spinner size="small" />}
-                {provider && (
-                  <div className="flex items-center space-x-2">
-                    <Link href={UrlService.providerDetail(lease.provider)}>
-                      {provider.name?.length > 25 ? getSplitText(provider.name, 10, 10) : provider.name}
-                    </Link>
+          {isLeaseNotFound && (
+            <Alert variant="warning">
+              The lease was not found on this provider. This can happen if no manifest was sent to the provider. To send one you can update your deployment in
+              the <LinkTo onClick={handleEditManifestClick}>VIEW / EDIT MANIFEST</LinkTo> tab.
+              {deploymentManifest && (
+                <>
+                  <div className="my-4">
+                    <strong>OR</strong>
+                  </div>
+                  <Button variant="default" color="secondary" disabled={isSendingManifest} onClick={sendManifest} size="sm">
+                    {isSendingManifest ? <Spinner size="small" /> : <span>Send manifest manually</span>}
+                  </Button>
+                </>
+              )}
+            </Alert>
+          )}
 
-                    <div className="flex items-center space-x-2">
-                      <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
+          {!leaseStatus && isLoadingLeaseStatus && <Spinner size="small" />}
 
-                      {provider?.isAudited && (
-                        <div className="ml-2">
-                          <AuditorButton provider={provider} />
-                        </div>
-                      )}
+          {isLeaseActive &&
+            leaseStatus &&
+            leaseStatus.services &&
+            servicesNames
+              .map(n => leaseStatus.services[n])
+              .map((service, i) => (
+                <div
+                  className={cn("mt-2", {
+                    ["border-b pb-2"]: servicesNames.length > 1 && i !== servicesNames.length - 1
+                  })}
+                  key={`${service.name}_${i}`}
+                >
+                  <div className="flex items-center">
+                    <LabelValueOld label="Group:" value={service.name} />
+                    {isLoadingLeaseStatus || !isServicesAvailable ? (
+                      <div className="ml-4 inline-flex">
+                        <Spinner size="small" />
+                      </div>
+                    ) : (
+                      <div className="ml-2 inline-flex">
+                        <CustomTooltip
+                          title={
+                            <>
+                              Workloads can take some time to spin up. If you see an error when browsing the uri, it is recommended to refresh and wait a bit.
+                              Check the{" "}
+                              <LinkTo onClick={() => setActiveTab("LOGS")} className="text-white">
+                                logs
+                              </LinkTo>{" "}
+                              for more information.
+                            </>
+                          }
+                        >
+                          <InfoCircle className="ml-2 text-xs text-muted-foreground" fontSize="small" />
+                        </CustomTooltip>
+                      </div>
+                    )}
+
+                    {isServicesAvailable && (
+                      <div className="ml-2">
+                        <Check className="text-sm text-green-600" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    className={cn("flex items-center space-x-4", {
+                      ["mb-4"]: service.uris?.length > 0 || (leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0)
+                    })}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span className="text-xs text-muted-foreground">Available:&nbsp;</span>
+                      <Badge variant={service.available > 0 ? "success" : "destructive"} className="h-3 px-1 text-xs leading-3">
+                        <small>{service.available}</small>
+                      </Badge>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-xs text-muted-foreground">Ready Replicas:&nbsp;</span>
+                      <Badge variant={service.ready_replicas > 0 ? "success" : "destructive"} className="h-3 px-1 text-xs leading-3">
+                        <small>{service.ready_replicas}</small>
+                      </Badge>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-xs text-muted-foreground">Total:&nbsp;</span>
+                      <Badge variant={service.total > 0 ? "success" : "destructive"} className="h-3 px-1 text-xs leading-3">
+                        <small>{service.total}</small>
+                      </Badge>
                     </div>
                   </div>
-                )}
-              </>
-            }
-          />
-        </div>
 
-        {isLeaseNotFound && (
-          <Alert variant="warning">
-            The lease was not found on this provider. This can happen if no manifest was sent to the provider. To send one you can update your deployment in the{" "}
-            <LinkTo onClick={handleEditManifestClick}>VIEW / EDIT MANIFEST</LinkTo> tab.
-            {deploymentManifest && (
-              <>
-                <div className="my-4">
-                  <strong>OR</strong>
-                </div>
-                <Button variant="default" color="secondary" disabled={isSendingManifest} onClick={sendManifest} size="sm">
-                  {isSendingManifest ? <Spinner size="small" /> : <span>Send manifest manually</span>}
-                </Button>
-              </>
-            )}
-          </Alert>
-        )}
-
-        {!leaseStatus && isLoadingLeaseStatus && <Spinner size="small" />}
-
-        {isLeaseActive &&
-          leaseStatus &&
-          leaseStatus.services &&
-          servicesNames
-            .map(n => leaseStatus.services[n])
-            .map((service, i) => (
-              <div
-                className={cn("mt-2", {
-                  ["border-b pb-2"]: servicesNames.length > 1 && i !== servicesNames.length - 1
-                })}
-                key={`${service.name}_${i}`}
-              >
-                <div className="flex items-center">
-                  <LabelValueOld label="Group:" value={service.name} />
-                  {isLoadingLeaseStatus || !isServicesAvailable ? (
-                    <div className="ml-4 inline-flex">
-                      <Spinner size="small" />
+                  {leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0 && !remoteDeploy && (
+                    <div className={cn({ ["mb-4"]: service.uris?.length > 0 })}>
+                      <LabelValueOld
+                        label={remoteDeploy ? "View Logs:" : "Forwarded Ports:"}
+                        value={
+                          <div className="inline-flex items-center space-x-2">
+                            {leaseStatus.forwarded_ports[service.name].map(p => (
+                              <div key={"port_" + p.externalPort}>
+                                {p.host ? (
+                                  <Link
+                                    className={cn({ ["cursor-none text-muted-foreground"]: p.available < 1 }, "inline-flex items-center space-x-2 text-sm")}
+                                    href={`http://${p.host}:${p.externalPort}`}
+                                    target="_blank"
+                                  >
+                                    <span>
+                                      {p.port}:{p.externalPort}
+                                    </span>
+                                    <OpenInWindow className="text-xs" />
+                                  </Link>
+                                ) : (
+                                  <Badge variant="outline">{`${p.port}:${p.externalPort}`}</Badge>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        }
+                      />
                     </div>
-                  ) : (
-                    <div className="ml-2 inline-flex">
+                  )}
+
+                  {remoteDeploy && repo && (
+                    <>
+                      <div className="mt-2">
+                        <LabelValueOld label="Deployed Repo:" />
+                        <ul className="mt-2 space-y-2">
+                          <li className="flex items-center">
+                            <Link href={repo} target="_blank" className="inline-flex items-center space-x-2 truncate text-sm">
+                              <span>{repo?.replace("https://github.com/", "")?.replace("https://gitlab.com/", "")} </span>
+
+                              <OpenInWindow className="text-xs" />
+                            </Link>
+                          </li>
+                        </ul>
+                      </div>
+                    </>
+                  )}
+                  {service.uris?.length > 0 && (
+                    <>
+                      <div className="mt-2">
+                        <LabelValueOld label="URI(s):" />
+                        <ul className="mt-2 space-y-2">
+                          {service.uris.map(uri => {
+                            return (
+                              <li className="flex items-center" key={uri}>
+                                <Link href={`http://${uri}`} target="_blank" className="inline-flex items-center space-x-2 truncate text-sm">
+                                  <span>{uri}</span>
+                                  <OpenInWindow className="text-xs" />
+                                </Link>
+                                &nbsp;&nbsp;
+                                <Button
+                                  aria-label="uri"
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 rounded-full"
+                                  onClick={() => {
+                                    copyTextToClipboard(uri);
+                                    enqueueSnackbar(<Snackbar title="Uri copied to clipboard!" iconVariant="success" />, {
+                                      variant: "success",
+                                      autoHideDuration: 2000
+                                    });
+                                  }}
+                                >
+                                  <Copy className="text-xs" />
+                                </Button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+
+          {isLeaseActive && leaseStatus && leaseStatus.ips && (
+            <div className="mt-2">
+              <LabelValueOld label="IP(s):" />
+              <ul className="mt-2 space-y-2">
+                {servicesNames
+                  .flatMap(service => leaseStatus.ips[service])
+                  .filter(Boolean)
+                  .map(ip => (
+                    <li key={`${ip.IP}${ip.ExternalPort}`} className="flex items-center">
+                      <Link className="inline-flex items-center space-x-2 text-sm" href={`http://${ip.IP}:${ip.ExternalPort}`} target="_blank">
+                        <span>
+                          {ip.IP}:{ip.ExternalPort}
+                        </span>
+                        <OpenInWindow className="text-xs" />
+                      </Link>
+                      &nbsp;&nbsp;
                       <CustomTooltip
                         title={
                           <>
-                            Workloads can take some time to spin up. If you see an error when browsing the uri, it is recommended to refresh and wait a bit.
-                            Check the{" "}
-                            <LinkTo onClick={() => setActiveTab("LOGS")} className="text-white">
-                              logs
-                            </LinkTo>{" "}
-                            for more information.
+                            <div>IP:&nbsp;{ip.IP}</div>
+                            <div>External Port:&nbsp;{ip.ExternalPort}</div>
+                            <div>Port:&nbsp;{ip.Port}</div>
+                            <div>Protocol:&nbsp;{ip.Protocol}</div>
                           </>
                         }
                       >
-                        <InfoCircle className="ml-2 text-xs text-muted-foreground" fontSize="small" />
+                        <InfoCircle className="text-xs text-muted-foreground" />
                       </CustomTooltip>
-                    </div>
-                  )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6 rounded-full"
+                        onClick={() => {
+                          copyTextToClipboard(`${ip.IP}:${ip.ExternalPort}`);
+                          enqueueSnackbar(<Snackbar title="Ip copied to clipboard!" iconVariant="success" />, {
+                            variant: "success",
+                            autoHideDuration: 2000
+                          });
+                        }}
+                      >
+                        <Copy className="text-xs" />
+                      </Button>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
 
-                  {isServicesAvailable && (
-                    <div className="ml-2">
-                      <Check className="text-sm text-green-600" />
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  className={cn("flex items-center space-x-4", {
-                    ["mb-4"]: service.uris?.length > 0 || (leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0)
-                  })}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span className="text-xs text-muted-foreground">Available:&nbsp;</span>
-                    <Badge variant={service.available > 0 ? "success" : "destructive"} className="h-3 px-1 text-xs leading-3">
-                      <small>{service.available}</small>
-                    </Badge>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="text-xs text-muted-foreground">Ready Replicas:&nbsp;</span>
-                    <Badge variant={service.ready_replicas > 0 ? "success" : "destructive"} className="h-3 px-1 text-xs leading-3">
-                      <small>{service.ready_replicas}</small>
-                    </Badge>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="text-xs text-muted-foreground">Total:&nbsp;</span>
-                    <Badge variant={service.total > 0 ? "success" : "destructive"} className="h-3 px-1 text-xs leading-3">
-                      <small>{service.total}</small>
-                    </Badge>
-                  </div>
-                </div>
-
-                {leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0 && (
-                  <div className={cn({ ["mb-4"]: service.uris?.length > 0 })}>
-                    <LabelValueOld
-                      label="Forwarded Ports:"
-                      value={
-                        <div className="inline-flex items-center space-x-2">
-                          {leaseStatus.forwarded_ports[service.name].map(p => (
-                            <div key={"port_" + p.externalPort}>
-                              {p.host ? (
-                                <Link
-                                  className={cn({ ["cursor-none text-muted-foreground"]: p.available < 1 }, "inline-flex items-center space-x-2 text-sm")}
-                                  href={`http://${p.host}:${p.externalPort}`}
-                                  target="_blank"
-                                >
-                                  <span>
-                                    {p.port}:{p.externalPort}
-                                  </span>
-                                  <OpenInWindow className="text-xs" />
-                                </Link>
-                              ) : (
-                                <Badge variant="outline">{`${p.port}:${p.externalPort}`}</Badge>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      }
-                    />
-                  </div>
-                )}
-
-                {service.uris?.length > 0 && (
-                  <>
-                    <div className="mt-2">
-                      <LabelValueOld label="URI(s):" />
-                      <ul className="mt-2 space-y-2">
-                        {service.uris.map(uri => {
-                          return (
-                            <li className="flex items-center" key={uri}>
-                              <Link href={`http://${uri}`} target="_blank" className="inline-flex items-center space-x-2 truncate text-sm">
-                                <span>{uri}</span>
-                                <OpenInWindow className="text-xs" />
-                              </Link>
-                              &nbsp;&nbsp;
-                              <Button
-                                aria-label="uri"
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 rounded-full"
-                                onClick={() => {
-                                  copyTextToClipboard(uri);
-                                  enqueueSnackbar(<Snackbar title="Uri copied to clipboard!" iconVariant="success" />, {
-                                    variant: "success",
-                                    autoHideDuration: 2000
-                                  });
-                                }}
-                              >
-                                <Copy className="text-xs" />
-                              </Button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-
-        {isLeaseActive && leaseStatus && leaseStatus.ips && (
-          <div className="mt-2">
-            <LabelValueOld label="IP(s):" />
-            <ul className="mt-2 space-y-2">
-              {servicesNames
-                .flatMap(service => leaseStatus.ips[service])
-                .filter(Boolean)
-                .map(ip => (
-                  <li key={`${ip.IP}${ip.ExternalPort}`} className="flex items-center">
-                    <Link className="inline-flex items-center space-x-2 text-sm" href={`http://${ip.IP}:${ip.ExternalPort}`} target="_blank">
-                      <span>
-                        {ip.IP}:{ip.ExternalPort}
-                      </span>
-                      <OpenInWindow className="text-xs" />
-                    </Link>
-                    &nbsp;&nbsp;
-                    <CustomTooltip
-                      title={
-                        <>
-                          <div>IP:&nbsp;{ip.IP}</div>
-                          <div>External Port:&nbsp;{ip.ExternalPort}</div>
-                          <div>Port:&nbsp;{ip.Port}</div>
-                          <div>Protocol:&nbsp;{ip.Protocol}</div>
-                        </>
-                      }
-                    >
-                      <InfoCircle className="text-xs text-muted-foreground" />
-                    </CustomTooltip>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-6 w-6 rounded-full"
-                      onClick={() => {
-                        copyTextToClipboard(`${ip.IP}:${ip.ExternalPort}`);
-                        enqueueSnackbar(<Snackbar title="Ip copied to clipboard!" iconVariant="success" />, {
-                          variant: "success",
-                          autoHideDuration: 2000
-                        });
-                      }}
-                    >
-                      <Copy className="text-xs" />
-                    </Button>
-                  </li>
-                ))}
-            </ul>
-          </div>
-        )}
-
-        {sshInstructions && (
-          <div className="mt-4">
-            <h5 className="font-bold dark:text-neutral-500">SSH Instructions:</h5>
-            <ul className="list-inside list-disc space-y-1">
-              <li>
-                Open a command terminal on your machine and copy this command into it:
-                <CodeSnippet code={sshInstructions} />
-              </li>
-              <li>
-                Replace ~/.ssh/id_rsa with the path to the private key (stored on your local machine) corresponding to the public key you provided earlier
-              </li>
-              <li>Run the command</li>
-            </ul>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-});
+          {sshInstructions && (
+            <div className="mt-4">
+              <h5 className="font-bold dark:text-neutral-500">SSH Instructions:</h5>
+              <ul className="list-inside list-disc space-y-1">
+                <li>
+                  Open a command terminal on your machine and copy this command into it:
+                  <CodeSnippet code={sshInstructions} />
+                </li>
+                <li>
+                  Replace ~/.ssh/id_rsa with the path to the private key (stored on your local machine) corresponding to the public key you provided earlier
+                </li>
+                <li>Run the command</li>
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+);
