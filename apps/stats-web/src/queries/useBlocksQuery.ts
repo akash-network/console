@@ -1,4 +1,4 @@
-import { QueryKey, useQuery, UseQueryOptions } from "react-query";
+import { QueryKey, useQuery, UseQueryOptions } from "@tanstack/react-query";
 import axios from "axios";
 
 import { QueryKeys } from "./queryKeys";
@@ -12,5 +12,9 @@ async function getBlocks(limit: number): Promise<Block[]> {
 }
 
 export function useBlocks(limit: number, options?: Omit<UseQueryOptions<Block[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
-  return useQuery<Block[], Error>(QueryKeys.getBlocksKey(limit), () => getBlocks(limit), options);
+  return useQuery({
+    queryKey: QueryKeys.getBlocksKey(limit),
+    queryFn: () => getBlocks(limit),
+    ...options
+  });
 }

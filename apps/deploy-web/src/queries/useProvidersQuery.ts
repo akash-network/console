@@ -1,4 +1,4 @@
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
 import { ApiProviderDetail, ApiProviderList, ApiProviderRegion, Auditor } from "@src/types/provider";
@@ -17,7 +17,11 @@ async function getProviderDetail(owner: string): Promise<ApiProviderDetail | nul
 }
 
 export function useProviderDetail(owner: string, options) {
-  return useQuery(QueryKeys.getProviderDetailKey(owner), () => getProviderDetail(owner), options);
+  return useQuery({
+    queryKey: QueryKeys.getProviderDetailKey(owner),
+    queryFn: () => getProviderDetail(owner),
+    ...options,
+  });
 }
 
 async function getProviderStatus(providerUri: string) {
@@ -34,7 +38,11 @@ async function getProviderStatus(providerUri: string) {
 }
 
 export function useProviderStatus(providerUri: string, options = {}) {
-  return useQuery(QueryKeys.getProviderStatusKey(providerUri), () => getProviderStatus(providerUri), options);
+  return useQuery({
+    queryKey: QueryKeys.getProviderStatusKey(providerUri),
+    queryFn: () => getProviderStatus(providerUri),
+    ...options,
+  });
 }
 
 async function getNetworkCapacity() {
@@ -44,7 +52,11 @@ async function getNetworkCapacity() {
 }
 
 export function useNetworkCapacity(options = {}) {
-  return useQuery(QueryKeys.getNetworkCapacity(), () => getNetworkCapacity(), options);
+  return useQuery({
+    queryKey: QueryKeys.getNetworkCapacity(),
+    queryFn: () => getNetworkCapacity(),
+    ...options,
+  });
 }
 
 async function getAuditors() {
@@ -54,12 +66,14 @@ async function getAuditors() {
 }
 
 export function useAuditors(options = {}) {
-  return useQuery<Array<Auditor>>(QueryKeys.getAuditorsKey(), () => getAuditors(), {
+  return useQuery({
+    queryKey: QueryKeys.getAuditorsKey(),
+    queryFn: () => getAuditors(),
     ...options,
     refetchInterval: false,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false
+    refetchOnReconnect: false,
   });
 }
 
@@ -70,7 +84,11 @@ async function getProviderActiveLeasesGraph(providerAddress: string) {
 }
 
 export function useProviderActiveLeasesGraph(providerAddress: string, options = {}) {
-  return useQuery(QueryKeys.getProviderActiveLeasesGraph(providerAddress), () => getProviderActiveLeasesGraph(providerAddress), options);
+  return useQuery({
+    queryKey: QueryKeys.getProviderActiveLeasesGraph(providerAddress),
+    queryFn: () => getProviderActiveLeasesGraph(providerAddress),
+    ...options,
+  });
 }
 
 async function getProviderAttributesSchema() {
@@ -80,12 +98,14 @@ async function getProviderAttributesSchema() {
 }
 
 export function useProviderAttributesSchema(options = {}) {
-  return useQuery(QueryKeys.getProviderAttributesSchema(), () => getProviderAttributesSchema(), {
+  return useQuery({
+    queryKey: QueryKeys.getProviderAttributesSchema(),
+    queryFn: () => getProviderAttributesSchema(),
     ...options,
     refetchInterval: false,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false
+    refetchOnReconnect: false,
   });
 }
 
@@ -96,7 +116,11 @@ async function getProviderList(): Promise<Array<ApiProviderList>> {
 }
 
 export function useProviderList(options = {}) {
-  return useQuery(QueryKeys.getProviderListKey(), () => getProviderList(), options);
+  return useQuery({
+    queryKey: QueryKeys.getProviderListKey(),
+    queryFn: () => getProviderList(),
+    ...options,
+  });
 }
 
 async function getProviderRegions(): Promise<Array<ApiProviderRegion>> {
@@ -106,5 +130,9 @@ async function getProviderRegions(): Promise<Array<ApiProviderRegion>> {
 }
 
 export function useProviderRegions(options = {}) {
-  return useQuery(QueryKeys.getProviderRegionsKey(), () => getProviderRegions(), options);
+  return useQuery({
+    queryKey: QueryKeys.getProviderRegionsKey(),
+    queryFn: () => getProviderRegions(),
+    ...options,
+  });
 }

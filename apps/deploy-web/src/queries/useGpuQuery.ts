@@ -1,4 +1,4 @@
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
 import { GpuVendor } from "@src/types/gpu";
@@ -12,11 +12,13 @@ async function getGpuModels() {
 }
 
 export function useGpuModels(options = {}) {
-  return useQuery(QueryKeys.getGpuModelsKey(), () => getGpuModels(), {
-    ...options,
+  return useQuery({
+    queryKey: QueryKeys.getGpuModelsKey(),
+    queryFn: () => getGpuModels(),
     refetchInterval: false,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false
+    refetchOnReconnect: false,
+    ...options
   });
 }

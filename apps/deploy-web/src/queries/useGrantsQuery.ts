@@ -1,4 +1,4 @@
-import { QueryObserverResult, useQuery } from "react-query";
+import { QueryObserverResult, useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
 import { useSettings } from "@src/context/SettingsProvider";
@@ -22,7 +22,11 @@ async function getGranterGrants(apiEndpoint: string, address: string) {
 export function useGranterGrants(address: string, options = {}) {
   const { settings } = useSettings();
 
-  return useQuery(QueryKeys.getGranterGrants(address), () => getGranterGrants(settings.apiEndpoint, address), options);
+  return useQuery({
+    queryKey: QueryKeys.getGranterGrants(address),
+    queryFn: () => getGranterGrants(settings.apiEndpoint, address),
+    ...options,
+  });
 }
 
 async function getGranteeGrants(apiEndpoint: string, address: string) {
@@ -43,7 +47,11 @@ async function getGranteeGrants(apiEndpoint: string, address: string) {
 export function useGranteeGrants(address: string, options = {}) {
   const { settings } = useSettings();
 
-  return useQuery(QueryKeys.getGranteeGrants(address), () => getGranteeGrants(settings.apiEndpoint, address), options);
+  return useQuery({
+    queryKey: QueryKeys.getGranteeGrants(address),
+    queryFn: () => getGranteeGrants(settings.apiEndpoint, address),
+    ...options,
+  });
 }
 
 async function getAllowancesIssued(apiEndpoint: string, address: string) {
@@ -57,7 +65,11 @@ async function getAllowancesIssued(apiEndpoint: string, address: string) {
 export function useAllowancesIssued(address: string, options = {}) {
   const { settings } = useSettings();
 
-  return useQuery(QueryKeys.getAllowancesIssued(address), () => getAllowancesIssued(settings.apiEndpoint, address), options);
+  return useQuery({
+    queryKey: QueryKeys.getAllowancesIssued(address),
+    queryFn: () => getAllowancesIssued(settings.apiEndpoint, address),
+    ...options,
+  });
 }
 
 async function getAllowancesGranted(apiEndpoint: string, address: string) {
@@ -71,8 +83,10 @@ async function getAllowancesGranted(apiEndpoint: string, address: string) {
 export function useAllowancesGranted(address?: string, options = {}): QueryObserverResult<AllowanceType[]> {
   const { settings } = useSettings();
 
-  return useQuery(address ? QueryKeys.getAllowancesGranted(address) : "", () => (address ? getAllowancesGranted(settings.apiEndpoint, address) : undefined), {
+  return useQuery({
+    queryKey: address ? QueryKeys.getAllowancesGranted(address) : "",
+    queryFn: () => (address ? getAllowancesGranted(settings.apiEndpoint, address) : undefined),
+    enabled: !!address,
     ...options,
-    enabled: !!address
   });
 }

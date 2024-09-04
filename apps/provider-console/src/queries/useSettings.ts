@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import axios, { AxiosResponse } from "axios";
 import { useSnackbar } from "notistack";
 
@@ -34,5 +34,9 @@ async function getDepositParams(apiEndpoint: string) {
 
 export function useDepositParams(options = {}) {
   const { settings } = useSettings();
-  return useQuery(QueryKeys.getDepositParamsKey(), () => getDepositParams(settings.apiEndpoint), options);
+  return useQuery({
+    queryKey: QueryKeys.getDepositParamsKey(),
+    queryFn: () => getDepositParams(settings.apiEndpoint),
+    ...options
+  });
 }

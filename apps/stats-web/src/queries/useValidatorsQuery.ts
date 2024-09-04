@@ -1,4 +1,4 @@
-import { QueryKey, useQuery, UseQueryOptions } from "react-query";
+import { QueryKey, useQuery, UseQueryOptions } from "@tanstack/react-query";
 import axios from "axios";
 
 import { QueryKeys } from "./queryKeys";
@@ -12,5 +12,9 @@ async function getValidators(): Promise<ValidatorSummaryDetail[]> {
 }
 
 export function useValidators(options?: Omit<UseQueryOptions<ValidatorSummaryDetail[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
-  return useQuery<ValidatorSummaryDetail[], Error>(QueryKeys.getValidatorsKey(), () => getValidators(), options);
+  return useQuery({
+    queryKey: QueryKeys.getValidatorsKey(),
+    queryFn: () => getValidators(),
+    ...options
+  });
 }

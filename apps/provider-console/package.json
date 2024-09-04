@@ -17,6 +17,7 @@
     "@cosmos-kit/keplr": "^2.12.2",
     "@cosmos-kit/leap-extension": "^2.12.2",
     "@cosmos-kit/react": "^2.18.0",
+    "@tanstack/react-query": "^5.54.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "jotai": "^2.9.0",
