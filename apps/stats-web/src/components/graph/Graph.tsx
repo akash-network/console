@@ -72,6 +72,12 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
         priceFormatter: axisRightFormatter,
         timeFormatter: axisBottomFormatter,
       },
+      rightPriceScale: {
+        scaleMargins: {
+          top: 0.05,
+          bottom: 0.05,
+        }
+      },
       crosshair: {
         // hide the horizontal crosshair line
         horzLine: {
