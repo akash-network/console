@@ -4,15 +4,11 @@ import React, { useRef, useEffect, useMemo } from 'react';
 
 import { createChart } from 'lightweight-charts';
 import { format } from "date-fns";
-import { FormattedDate, useIntl } from "react-intl";
-import { ResponsiveLineCanvas } from "@nivo/line";
+import { useIntl } from "react-intl";
 import { useTheme } from "next-themes";
-import { useMediaQuery } from "usehooks-ts";
 
 import { customColors } from "@/lib/colors";
-import { selectedRangeValues } from "@/lib/constants";
 import { nFormatter, roundDecimal } from "@/lib/mathHelpers";
-import { breakpoints } from "@/lib/responsiveUtils";
 import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@/types";
 
 interface IGraphProps {
