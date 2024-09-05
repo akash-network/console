@@ -8,7 +8,6 @@
 **/.env.*.local
 **/.env.*.test
 
-apps/deploy-web/.env*
 apps/indexer/.env*
 apps/landing/.env*
 apps/provider-console/.env*

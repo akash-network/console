@@ -1,6 +1,7 @@
 import axios from "axios";
 
-import { BASE_API_URL, networkVersion, networkVersionMarket } from "./constants";
+import { browserEnvConfig } from "@src/config/browser-env.config";
+import { networkService } from "@src/services/network/network.service";
 import { appendSearchParams } from "./urlUtils";
 
 export class ApiUrlService {
@@ -8,31 +9,31 @@ export class ApiUrlService {
     return `${apiEndpoint}/cosmos/params/v1beta1/params?subspace=deployment&key=MinDeposits`;
   }
   static deploymentList(apiEndpoint: string, address: string) {
-    return `${apiEndpoint}/akash/deployment/${networkVersion}/deployments/list?filters.owner=${address}`;
+    return `${apiEndpoint}/akash/deployment/${networkService.networkVersion}/deployments/list?filters.owner=${address}`;
   }
   static deploymentDetail(apiEndpoint: string, address: string, dseq: string) {
-    return `${apiEndpoint}/akash/deployment/${networkVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`;
+    return `${apiEndpoint}/akash/deployment/${networkService.networkVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`;
   }
   static bidList(apiEndpoint: string, address: string, dseq: string) {
-    return `${apiEndpoint}/akash/market/${networkVersionMarket}/bids/list?filters.owner=${address}&filters.dseq=${dseq}`;
+    return `${apiEndpoint}/akash/market/${networkService.networkVersionMarket}/bids/list?filters.owner=${address}&filters.dseq=${dseq}`;
   }
   static bidInfo(apiEndpoint: string, address: string, dseq: string, gseq: number, oseq: number, provider: string) {
-    return `${apiEndpoint}/akash/market/${networkVersionMarket}/bids/info?id.owner=${address}&id.dseq=${dseq}&id.gseq=${gseq}&id.oseq=${oseq}&id.provider=${provider}`;
+    return `${apiEndpoint}/akash/market/${networkService.networkVersionMarket}/bids/info?id.owner=${address}&id.dseq=${dseq}&id.gseq=${gseq}&id.oseq=${oseq}&id.provider=${provider}`;
   }
   static leaseList(apiEndpoint: string, address: string, dseq: string) {
-    return `${apiEndpoint}/akash/market/${networkVersionMarket}/leases/list?filters.owner=${address}${dseq ? "&filters.dseq=" + dseq : ""}`;
+    return `${apiEndpoint}/akash/market/${networkService.networkVersionMarket}/leases/list?filters.owner=${address}${dseq ? "&filters.dseq=" + dseq : ""}`;
   }
   static providers(apiEndpoint: string) {
-    return `${apiEndpoint}/akash/provider/${networkVersion}/providers`;
+    return `${apiEndpoint}/akash/provider/${networkService.networkVersion}/providers`;
   }
   static providerList() {
-    return `${BASE_API_URL}/v1/providers`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/providers`;
   }
   static providerDetail(owner: string) {
-    return `${BASE_API_URL}/v1/providers/${owner}`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/providers/${owner}`;
   }
   static providerRegions() {
-    return `${BASE_API_URL}/v1/provider-regions`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/provider-regions`;
   }
   static block(apiEndpoint: string, id: string) {
     return `${apiEndpoint}/blocks/${id}`;
@@ -65,74 +66,74 @@ export class ApiUrlService {
     return `${apiEndpoint}/cosmos/feegrant/v1beta1/allowances/${address}`;
   }
   static dashboardData() {
-    return `${BASE_API_URL}/v1/dashboard-data`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/dashboard-data`;
   }
   static marketData() {
-    return `${BASE_API_URL}/v1/market-data`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/market-data`;
   }
   static proposals() {
-    return `${BASE_API_URL}/v1/proposals`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/proposals`;
   }
   static apiProviders() {
-    return `${BASE_API_URL}/v1/providers`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/providers`;
   }
   static templates() {
-    return `${BASE_API_URL}/v1/templates`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/templates`;
   }
   static validators() {
-    return `${BASE_API_URL}/v1/validators`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/validators`;
   }
   static transactions(limit: number) {
-    return `${BASE_API_URL}/v1/transactions${appendSearchParams({ limit })}`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/transactions${appendSearchParams({ limit })}`;
   }
   static addressTransactions(address: string, skip: number, limit: number) {
-    return `${BASE_API_URL}/v1/addresses/${address}/transactions/${skip}/${limit}`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/addresses/${address}/transactions/${skip}/${limit}`;
   }
   static addressDeployments(address: string, skip: number, limit: number, reverseSorting: boolean, filters: { [key: string]: string }) {
-    return `${BASE_API_URL}/v1/addresses/${address}/deployments/${skip}/${limit}${appendSearchParams({ reverseSorting, ...filters })}`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/addresses/${address}/deployments/${skip}/${limit}${appendSearchParams({ reverseSorting, ...filters })}`;
   }
   static graphData(snapshot: string) {
-    return `${BASE_API_URL}/v1/graph-data/${snapshot}`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/graph-data/${snapshot}`;
   }
   static providerGraphData(snapshot: string) {
-    return `${BASE_API_URL}/v1/provider-graph-data/${snapshot}`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/provider-graph-data/${snapshot}`;
   }
   static blocks(limit: number) {
-    return `${BASE_API_URL}/v1/blocks${appendSearchParams({ limit })}`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/blocks${appendSearchParams({ limit })}`;
   }
   static providerActiveLeasesGraph(providerAddress: string) {
-    return `${BASE_API_URL}/v1/provider-active-leases-graph-data/${providerAddress}`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/provider-active-leases-graph-data/${providerAddress}`;
   }
   static providerAttributesSchema() {
-    return `${BASE_API_URL}/v1/provider-attributes-schema`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/provider-attributes-schema`;
   }
   static networkCapacity() {
-    return `${BASE_API_URL}/v1/network-capacity`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/network-capacity`;
   }
   static gpuModels() {
-    return `${BASE_API_URL}/internal/gpu-models`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/internal/gpu-models`;
   }
   // Github
   static auditors() {
-    return `${BASE_API_URL}/v1/auditors`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/auditors`;
   }
   static mainnetNodes() {
-    return `${BASE_API_URL}/v1/nodes/mainnet`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/nodes/mainnet`;
   }
   static testnetNodes() {
-    return `${BASE_API_URL}/v1/nodes/testnet`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/nodes/testnet`;
   }
   static sandboxNodes() {
-    return `${BASE_API_URL}/v1/nodes/sandbox`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/nodes/sandbox`;
   }
   static mainnetVersion() {
-    return `${BASE_API_URL}/v1/version/mainnet`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/version/mainnet`;
   }
   static testnetVersion() {
-    return `${BASE_API_URL}/v1/version/testnet`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/version/testnet`;
   }
   static sandboxVersion() {
-    return `${BASE_API_URL}/v1/version/sandbox`;
+    return `${browserEnvConfig.NEXT_PUBLIC_API_BASE_URL}/v1/version/sandbox`;
   }
 }
 

@@ -11,7 +11,7 @@ import { useTemplates } from "@src/context/TemplatesProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import sdlStore from "@src/store/sdlStore";
 import { ApiTemplate } from "@src/types";
-import { RouteStepKeys } from "@src/utils/constants";
+import { RouteStep } from "@src/types/route-steps.type";
 import { cn } from "@src/utils/styleUtils";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils";
@@ -50,7 +50,7 @@ export const TemplateList: React.FunctionComponent = () => {
 
   function onSDLBuilderClick(page: NewDeploymentParams["page"] = "new-deployment") {
     setSdlEditMode("builder");
-    router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, page }));
+    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, page }));
   }
 
   function handleBackClick() {
@@ -63,7 +63,7 @@ export const TemplateList: React.FunctionComponent = () => {
 
   return (
     <>
-      <CustomNextSeo title="Create Deployment - Template List" url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.chooseTemplate })}`} />
+      <CustomNextSeo title="Create Deployment - Template List" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.chooseTemplate })}`} />
 
       <div className="mb-8 mt-8 flex items-center">
         <Button aria-label="back" onClick={handleBackClick} size="icon" variant="ghost">
@@ -80,7 +80,7 @@ export const TemplateList: React.FunctionComponent = () => {
             title={helloWorldTemplate.title}
             description={helloWorldTemplate.description}
             icon={<Rocket className="rotate-45" />}
-            onClick={() => router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: helloWorldTemplate.code }))}
+            onClick={() => router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code }))}
           />
 
           <DeployOptionBox
@@ -127,7 +127,7 @@ export const TemplateList: React.FunctionComponent = () => {
             <TemplateBox
               key={template.id}
               template={template}
-              linkHref={UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: template?.id })}
+              linkHref={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: template?.id })}
             />
           ))}
         </div>

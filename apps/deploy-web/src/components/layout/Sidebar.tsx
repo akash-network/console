@@ -14,7 +14,6 @@ import Link from "next/link";
 import { useWallet } from "@src/context/WalletProvider";
 import sdlStore from "@src/store/sdlStore";
 import { ISidebarGroupMenu } from "@src/types";
-import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { MobileSidebarUser } from "./MobileSidebarUser";
@@ -31,6 +30,9 @@ type Props = {
   onOpenMenuClick: () => void;
   isNavOpen: boolean;
 };
+
+const DRAWER_WIDTH = 240;
+const CLOSED_DRAWER_WIDTH = 57;
 
 export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
   const [isHovering, setIsHovering] = useState(false);
@@ -161,7 +163,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
 
   const drawer = (
     <div
-      style={{ width: _isNavOpen ? drawerWidth : closedDrawerWidth }}
+      style={{ width: _isNavOpen ? DRAWER_WIDTH : CLOSED_DRAWER_WIDTH }}
       className="box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 bg-popover transition-[width] duration-300 ease-in-out md:h-[calc(100%-57px)] dark:bg-background"
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: _isNavOpen, ["pb-2 pt-2"]: !_isNavOpen })}>
@@ -274,7 +276,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         }}
         sx={{
           display: { xs: "block", sm: "block", md: "none" },
-          "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth, overflow: "hidden" }
+          "& .MuiDrawer-paper": { boxSizing: "border-box", width: DRAWER_WIDTH, overflow: "hidden" }
         }}
         PaperProps={{
           sx: {

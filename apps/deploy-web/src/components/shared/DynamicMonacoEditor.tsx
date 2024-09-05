@@ -3,7 +3,23 @@ import { OnChange, OnMount } from "@monaco-editor/react";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 
-import { monacoOptions } from "@src/utils/constants";
+export const MONACO_OPTIONS = {
+  selectOnLineNumbers: true,
+  scrollBeyondLastLine: false,
+  automaticLayout: true,
+  scrollbar: {
+    verticalScrollbarSize: 8
+  },
+  minimap: {
+    enabled: false
+  },
+  padding: {
+    bottom: 50
+  },
+  hover: {
+    enabled: false
+  }
+};
 
 const _DynamicMonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false, loading: () => <div>Loading...</div> });
 
@@ -26,7 +42,7 @@ export const DynamicMonacoEditor: React.FunctionComponent<Props> = ({ value, hei
       theme={resolvedTheme === "dark" ? "vs-dark" : "hc-light"}
       value={value}
       onChange={onChange}
-      options={{ ...monacoOptions, ...options }}
+      options={{ ...MONACO_OPTIONS, ...options }}
       onMount={onMount}
     />
   );

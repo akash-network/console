@@ -25,8 +25,8 @@ import { useBidList } from "@src/queries/useBidQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { BidDto } from "@src/types/deployment";
+import { RouteStep } from "@src/types/route-steps.type";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
@@ -225,7 +225,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
   return (
     <>
-      <CustomNextSeo title="Create Deployment - Create Lease" url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.createLeases })}`} />
+      <CustomNextSeo title="Create Deployment - Create Lease" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.createLeases })}`} />
 
       <div className="mt-4">
         {!isLoadingBids && (bids?.length || 0) > 0 && !allClosed && (

@@ -5,9 +5,9 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { ResponsiveLineCanvas } from "@nivo/line";
 import { useTheme } from "next-themes";
 
+import { SELECTED_RANGE_VALUES } from "@src/config/graph.config";
 import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@src/types";
 import { customColors } from "@src/utils/colors";
-import { selectedRangeValues } from "@src/utils/constants";
 import { nFormatter, roundDecimal } from "@src/utils/mathHelpers";
 
 interface IGraphProps {
@@ -135,19 +135,19 @@ const getTheme = (theme: string | undefined) => {
 
 const getGraphMetadataPerRange = (range: number): { size: number; border: number; xModulo: number } => {
   switch (range) {
-    case selectedRangeValues["7D"]:
+    case SELECTED_RANGE_VALUES["7D"]:
       return {
         size: 10,
         border: 3,
         xModulo: 1
       };
-    case selectedRangeValues["1M"]:
+    case SELECTED_RANGE_VALUES["1M"]:
       return {
         size: 6,
         border: 2,
         xModulo: 3
       };
-    case selectedRangeValues["ALL"]:
+    case SELECTED_RANGE_VALUES["ALL"]:
       return {
         size: 0,
         border: 1,

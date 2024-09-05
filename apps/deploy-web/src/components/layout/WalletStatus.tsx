@@ -19,7 +19,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
-import { envConfig } from "@src/config/env.config";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
@@ -32,7 +32,7 @@ const goToCheckout = () => {
   window.location.href = "/api/proxy/v1/checkout";
 };
 
-const withBilling = envConfig.NEXT_PUBLIC_BILLING_ENABLED;
+const withBilling = browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
 export function WalletStatus() {
   const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing, switchWalletType } =

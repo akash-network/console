@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useAtom } from "jotai/index";
 
-import { envConfig } from "@src/config/env.config";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
@@ -14,14 +14,14 @@ import {
   updateStorageManagedWallet
 } from "@src/utils/walletUtils";
 
-const isBillingEnabled = envConfig.NEXT_PUBLIC_BILLING_ENABLED;
-const { NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID } = envConfig;
+const { NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, NEXT_PUBLIC_BILLING_ENABLED } = browserEnvConfig;
+const isBillingEnabled = NEXT_PUBLIC_BILLING_ENABLED;
 
 const storedManagedWallet = getStorageManagedWallet();
 
 export const useManagedWallet = () => {
   const user = useUser();
-  const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled && user?.id);
+  const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined);
   const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => queried || storedManagedWallet || created, [queried, created]);
   const isLoading = isFetching || isCreating;

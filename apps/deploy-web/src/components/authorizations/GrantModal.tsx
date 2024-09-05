@@ -23,12 +23,12 @@ import { event } from "nextjs-google-analytics";
 import { z } from "zod";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
+import { UAKT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { getUsdcDenom, useUsdcDenom } from "@src/hooks/useDenom";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { GrantType } from "@src/types/grant";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { uAktDenom } from "@src/utils/constants";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -69,7 +69,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
   const { handleSubmit, control, watch, clearErrors, setValue } = form;
   const { amount, granteeAddress, expiration, token } = watch();
   const selectedToken = supportedTokens.find(x => x.id === token);
-  const denom = token === "akt" ? uAktDenom : usdcDenom;
+  const denom = token === "akt" ? UAKT_DENOM : usdcDenom;
   const denomData = useDenomData(denom);
 
   const onDepositClick = event => {
@@ -82,7 +82,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     clearErrors();
     const spendLimit = token === "akt" ? aktToUakt(amount) : denomToUdenom(amount);
     const usdcDenom = getUsdcDenom();
-    const denom = token === "akt" ? uAktDenom : usdcDenom;
+    const denom = token === "akt" ? UAKT_DENOM : usdcDenom;
 
     const expirationDate = new Date(expiration);
     const message = TransactionMessageData.getGrantMsg(address, granteeAddress, spendLimit, expirationDate, denom);

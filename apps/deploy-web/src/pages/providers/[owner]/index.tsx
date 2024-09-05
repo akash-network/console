@@ -1,8 +1,8 @@
 import axios from "axios";
 
 import { ProviderDetail } from "@src/components/providers/ProviderDetail";
+import { serverApiUrlService } from "@src/services/api-url/server-api-url.service";
 import { ApiProviderDetail } from "@src/types/provider";
-import { getNetworkBaseApiUrl } from "@src/utils/constants";
 
 type Props = {
   owner: string;
@@ -16,7 +16,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
 export default ProviderDetailPage;
 
 export async function getServerSideProps({ params, query }) {
-  const apiUrl = getNetworkBaseApiUrl(query.network as string);
+  const apiUrl = serverApiUrlService.getBaseApiUrlFor(query.network as string);
   const response = await axios.get(`${apiUrl}/v1/providers/${params?.owner}`);
 
   return {

@@ -1,9 +1,9 @@
 "use client";
 import React from "react";
 
+import { UAKT_DENOM } from "@src/config/denom.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useMarketData } from "@src/queries";
-import { uAktDenom } from "@src/utils/constants";
 import { roundDecimal } from "@src/utils/mathHelpers";
 
 type ContextType = {
@@ -33,7 +33,7 @@ export const PricingProvider = ({ children }) => {
 
   const getPriceForDenom = (denom: string) => {
     switch (denom) {
-      case uAktDenom:
+      case UAKT_DENOM:
         return marketData?.price || 0;
       case usdcIbcDenom:
         return 1; // TODO Get price from API
