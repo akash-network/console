@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 
+import { UAKT_DENOM } from "@src/config/denom.config";
+import { TX_FEE_BUFFER } from "@src/config/tx.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { txFeeBuffer, uAktDenom } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { useUsdcDenom } from "./useDenom";
@@ -44,12 +45,12 @@ export const useDenomData = (denom: string) => {
     if (isLoaded && walletBalances && minDeposit?.akt && minDeposit?.usdc && price) {
       let depositData: DenomData | null = null;
       switch (denom) {
-        case uAktDenom:
+        case UAKT_DENOM:
           depositData = {
             min: minDeposit.akt,
             label: "AKT",
             balance: uaktToAKT(walletBalances.uakt, 6),
-            inputMax: uaktToAKT(Math.max(walletBalances.uakt - txFeeBuffer, 0), 6)
+            inputMax: uaktToAKT(Math.max(walletBalances.uakt - TX_FEE_BUFFER, 0), 6)
           };
           break;
         case usdcIbcDenom:
@@ -57,7 +58,7 @@ export const useDenomData = (denom: string) => {
             min: minDeposit.usdc,
             label: "USDC",
             balance: udenomToDenom(walletBalances.usdc, 6),
-            inputMax: udenomToDenom(Math.max(walletBalances.usdc - txFeeBuffer, 0), 6)
+            inputMax: udenomToDenom(Math.max(walletBalances.usdc - TX_FEE_BUFFER, 0), 6)
           };
           break;
         default:

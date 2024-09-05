@@ -4,7 +4,7 @@ import { Button, Snackbar } from "@akashnetwork/ui/components";
 import FileSaver from "file-saver";
 import { useSnackbar } from "notistack";
 
-import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "../CertificateProvider";
 
 const getPrintCommand = os => {
@@ -34,7 +34,7 @@ export const BackgroundTaskProvider = ({ children }) => {
 
   const downloadLogs = async (hostUri: string, dseq: string, gseq: number, oseq: number, isLogs: boolean) => {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(PROVIDER_PROXY_URL_WS);
+      const ws = new WebSocket(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL_WS);
       let isCancelled = false;
       let isFinished = false;
 
@@ -123,7 +123,7 @@ export const BackgroundTaskProvider = ({ children }) => {
   };
 
   const downloadFileFromShell = async (hostUri: string, dseq: string, gseq: number, oseq: number, service: string, filePath: string) => {
-    const ws = new WebSocket(PROVIDER_PROXY_URL_WS);
+    const ws = new WebSocket(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL_WS);
     let isCancelled = false;
     let isFinished = false;
 

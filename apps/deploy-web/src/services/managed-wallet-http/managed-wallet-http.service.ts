@@ -2,9 +2,9 @@ import { ApiWalletOutput, ManagedWalletHttpService as ManagedWalletHttpServiceOr
 import { AxiosRequestConfig } from "axios";
 import { debounce } from "lodash";
 
-import { envConfig } from "@src/config/env.config";
+import { browserEnvConfig } from "@src/config/browser-env.config";
+import { browserApiUrlService } from "@src/services/api-url/browser-api-url.service";
 import { authService } from "@src/services/auth/auth.service";
-import { getNetworkBaseApiUrl } from "@src/utils/constants";
 
 class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
   private checkoutSessionId: string | null = null;
@@ -61,5 +61,7 @@ class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
   }
 }
 
-export const managedWalletHttpService = new ManagedWalletHttpService({ baseURL: getNetworkBaseApiUrl(envConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) });
+export const managedWalletHttpService = new ManagedWalletHttpService({
+  baseURL: browserApiUrlService.getBaseApiUrlFor(browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)
+});
 managedWalletHttpService.interceptors.request.use(authService.withAnonymousUserHeader);

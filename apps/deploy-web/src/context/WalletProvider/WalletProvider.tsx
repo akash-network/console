@@ -13,6 +13,8 @@ import { event } from "nextjs-google-analytics";
 import { SnackbarKey, useSnackbar } from "notistack";
 
 import { LoadingState, TransactionModal } from "@src/components/layout/TransactionModal";
+import { browserEnvConfig } from "@src/config/browser-env.config";
+import { UAKT_DENOM } from "@src/config/denom.config";
 import { useAllowance } from "@src/hooks/useAllowance";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
@@ -21,7 +23,6 @@ import { useWhen } from "@src/hooks/useWhen";
 import { txHttpService } from "@src/services/http/http.service";
 import networkStore from "@src/store/networkStore";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { STATS_APP_URL, uAktDenom } from "@src/utils/constants";
 import { customRegistry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
 import { getSelectedStorageWallet, getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
@@ -358,7 +359,7 @@ export const WalletProvider = ({ children }) => {
 
     if (client) {
       const balances = await client.getAllBalances(_address as string);
-      const uaktBalance = balances.find(b => b.denom === uAktDenom);
+      const uaktBalance = balances.find(b => b.denom === UAKT_DENOM);
       const usdcBalance = balances.find(b => b.denom === usdcIbcDenom);
 
       const walletBalances = {
@@ -412,7 +413,7 @@ export function useWallet() {
 
 const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
   const selectedNetwork = networkStore.useSelectedNetwork();
-  const txUrl = transactionHash && `${STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetwork.id}`;
+  const txUrl = transactionHash && `${browserEnvConfig.NEXT_PUBLIC_STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetwork.id}`;
 
   return (
     <>

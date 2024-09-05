@@ -8,7 +8,7 @@ import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
-import { RouteStepKeys } from "@src/utils/constants";
+import { RouteStep } from "@src/types/route-steps.type";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -54,8 +54,8 @@ export const NewDeploymentContainer: FC = () => {
     const _activeStep = getStepIndexByParam(queryStep);
     setActiveStep(_activeStep);
 
-    if ((redeployTemplate || galleryTemplate) && queryStep !== RouteStepKeys.editDeployment) {
-      router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStepKeys.editDeployment }));
+    if ((redeployTemplate || galleryTemplate) && queryStep !== RouteStep.editDeployment) {
+      router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, templates]);
@@ -114,11 +114,11 @@ export const NewDeploymentContainer: FC = () => {
 
   function getStepIndexByParam(step) {
     switch (step) {
-      case RouteStepKeys.editDeployment:
+      case RouteStep.editDeployment:
         return 1;
-      case RouteStepKeys.createLeases:
+      case RouteStep.createLeases:
         return 2;
-      case RouteStepKeys.chooseTemplate:
+      case RouteStep.chooseTemplate:
       default:
         return 0;
     }

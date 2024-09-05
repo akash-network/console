@@ -1,9 +1,9 @@
 import { Coin } from "@cosmjs/stargate";
 import add from "date-fns/add";
 
+import { READABLE_DENOMS, UAKT_DENOM } from "@src/config/denom.config";
 import { getUsdcDenom } from "@src/hooks/useDenom";
 import { useBlock } from "@src/queries/useBlocksQuery";
-import { readableDenoms, uAktDenom } from "./constants";
 import { averageDaysInMonth } from "./dateUtils";
 import { denomToUdenom } from "./mathHelpers";
 
@@ -23,7 +23,7 @@ export function coinToUDenom(coin: Coin) {
 
   if (coin.denom === "akt") {
     value = denomToUdenom(parseFloat(coin.amount));
-  } else if (coin.denom === uAktDenom || coin.denom === usdcDenom) {
+  } else if (coin.denom === UAKT_DENOM || coin.denom === usdcDenom) {
     value = parseFloat(coin.amount);
   } else {
     throw Error("Unrecognized denom: " + coin.denom);
@@ -38,7 +38,7 @@ export function coinToDenom(coin: Coin) {
 
   if (coin.denom === "akt") {
     value = parseFloat(coin.amount);
-  } else if (coin.denom === uAktDenom || coin.denom === usdcDenom) {
+  } else if (coin.denom === UAKT_DENOM || coin.denom === usdcDenom) {
     value = uaktToAKT(parseFloat(coin.amount), 6);
   } else {
     throw Error("Unrecognized denom: " + coin.denom);
@@ -48,8 +48,7 @@ export function coinToDenom(coin: Coin) {
 }
 
 export function getAvgCostPerMonth(pricePerBlock: number) {
-  const averagePrice = (pricePerBlock * averageDaysInMonth * 24 * 60 * 60) / averageBlockTime;
-  return averagePrice;
+  return (pricePerBlock * averageDaysInMonth * 24 * 60 * 60) / averageBlockTime;
 }
 
 export function getTimeLeft(pricePerBlock: number, balance: number) {
@@ -79,5 +78,5 @@ export function useRealTimeLeft(pricePerBlock: number, balance: number, settledA
 }
 
 export function toReadableDenom(denom: string) {
-  return readableDenoms[denom];
+  return READABLE_DENOMS[denom];
 }

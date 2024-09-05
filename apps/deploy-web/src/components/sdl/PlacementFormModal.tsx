@@ -5,9 +5,9 @@ import { FormattedNumber } from "react-intl";
 import { CustomTooltip, FormField, FormInput, Popup } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
+import { UAKT_DENOM } from "@src/config/denom.config";
 import { useSdlDenoms } from "@src/hooks/useDenom";
 import { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { uAktDenom } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, toReadableDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { PriceValue } from "../shared/PriceValue";
@@ -124,9 +124,9 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                               <br />
                               Akash will only show providers costing <strong>less</strong> than{" "}
                               <strong>
-                                {selectedDenom?.value === uAktDenom ? (
+                                {selectedDenom?.value === UAKT_DENOM ? (
                                   <>
-                                    ~<PriceValue denom={uAktDenom} value={getAvgCostPerMonth(uaktToAKT(_placement.pricing.amount))} />
+                                    ~<PriceValue denom={UAKT_DENOM} value={getAvgCostPerMonth(uaktToAKT(_placement.pricing.amount))} />
                                   </>
                                 ) : (
                                   <>

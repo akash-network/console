@@ -2,6 +2,10 @@ FROM node:20-alpine AS base
 
 ARG WORKSPACE
 ENV WORKSPACE $WORKSPACE
+
+ARG DEPLOYMENT_ENV
+ENV DEPLOYMENT_ENV $DEPLOYMENT_ENV
+
 ENV NEXT_TELEMETRY_DISABLED 1
 
 WORKDIR /app
@@ -37,6 +41,7 @@ ENV APP_USER app
 RUN addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
     && adduser --system --uid $APP_GROUP_ID $APP_USER
 
+COPY --from=builder /app/$WORKSPACE/env ./$WORKSPACE/env
 COPY --from=builder /app/$WORKSPACE/public ./$WORKSPACE/public
 COPY --from=builder /app/$WORKSPACE/.next/standalone ./
 COPY --from=builder /app/$WORKSPACE/.next/static ./$WORKSPACE/.next/static

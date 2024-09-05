@@ -14,7 +14,7 @@ import { useTemplates } from "@src/context/TemplatesProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { getShortText } from "@src/hooks/useShortText";
 import { ApiTemplate } from "@src/types";
-import { RouteStepKeys } from "@src/utils/constants";
+import { RouteStep } from "@src/types/route-steps.type";
 import { cn } from "@src/utils/styleUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -86,7 +86,7 @@ export const TemplateDetail: React.FunctionComponent<Props> = ({ templateId, tem
 
               <Link
                 className={cn(buttonVariants({ variant: "default" }), "ml-4 md:ml-8")}
-                href={UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: _template?.id })}
+                href={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: _template?.id })}
               >
                 Deploy&nbsp;
                 <Rocket className="rotate-45" />

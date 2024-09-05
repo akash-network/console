@@ -17,9 +17,9 @@ import useFormPersist from "@src/hooks/useFormPersist";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import sdlStore from "@src/store/sdlStore";
 import { ITemplate, SdlBuilderFormValuesSchema, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { RouteStep } from "@src/types/route-steps.type";
 import { memoryUnits, storageUnits } from "@src/utils/akash/units";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { RouteStepKeys } from "@src/utils/constants";
 import { defaultService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
@@ -138,7 +138,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
         content: sdl
       });
 
-      router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
+      router.push(UrlService.newDeployment({ step: RouteStep.editDeployment }));
 
       event(AnalyticsEvents.DEPLOY_SDL, {
         category: "sdl_builder",

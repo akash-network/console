@@ -1,7 +1,7 @@
 import { isEqual } from "lodash";
 
-import { envConfig } from "@src/config/env.config";
-import { mainnetId } from "./constants";
+import { browserEnvConfig } from "@src/config/browser-env.config";
+import { MAINNET_ID } from "@src/config/network.config";
 
 interface BaseLocalWallet {
   address: string;
@@ -37,7 +37,7 @@ export function getStorageManagedWallet(networkId?: string): ManagedLocalWallet 
 export function updateStorageManagedWallet(
   wallet: Pick<ManagedLocalWallet, "address" | "cert" | "certKey" | "userId" | "creditAmount" | "isTrialing"> & { selected?: boolean }
 ): ManagedLocalWallet {
-  const networkId = envConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID;
+  const networkId = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID;
   const wallets = getStorageWallets(networkId);
   const prevIndex = wallets.findIndex(({ isManaged }) => isManaged);
   const prev = wallets[prevIndex];
@@ -86,7 +86,7 @@ export function getStorageWallets(networkId?: string) {
     return [];
   }
 
-  const selectedNetworkId = networkId || localStorage.getItem("selectedNetworkId") || mainnetId;
+  const selectedNetworkId = networkId || localStorage.getItem("selectedNetworkId") || MAINNET_ID;
   const wallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`) || "[]") as LocalWallet[];
 
   return wallets || [];
@@ -105,12 +105,12 @@ export function updateWallet(address: string, func: (w: LocalWallet) => LocalWal
 }
 
 export function updateStorageWallets(wallets: LocalWallet[], networkId?: string) {
-  const selectedNetworkId = networkId || localStorage.getItem("selectedNetworkId") || mainnetId;
+  const selectedNetworkId = networkId || localStorage.getItem("selectedNetworkId") || MAINNET_ID;
   localStorage.setItem(`${selectedNetworkId}/wallets`, JSON.stringify(wallets));
 }
 
 export function deleteWalletFromStorage(address: string, deleteDeployments: boolean, networkId?: string) {
-  const selectedNetworkId = networkId || localStorage.getItem("selectedNetworkId") || mainnetId;
+  const selectedNetworkId = networkId || localStorage.getItem("selectedNetworkId") || MAINNET_ID;
   const wallets = getStorageWallets();
   const newWallets = wallets.filter(w => w.address !== address).map((w, i) => ({ ...w, selected: i === 0 }));
 

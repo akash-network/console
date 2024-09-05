@@ -2,9 +2,9 @@
 import React from "react";
 import { useEffect } from "react";
 
+import { UAKT_DENOM } from "@src/config/denom.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useDepositParams } from "@src/queries/useSettings";
-import { uAktDenom } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { useSettings } from "../SettingsProvider";
@@ -24,7 +24,7 @@ export const ChainParamProvider = ({ children }) => {
   const { isSettingsInit } = useSettings();
   const { data: depositParams, refetch: getDepositParams } = useDepositParams({ enabled: false });
   const usdcDenom = useUsdcDenom();
-  const aktMinDeposit = depositParams ? uaktToAKT(parseFloat(depositParams.find(x => x.denom === uAktDenom)?.amount || "") || 0) : 0;
+  const aktMinDeposit = depositParams ? uaktToAKT(parseFloat(depositParams.find(x => x.denom === UAKT_DENOM)?.amount || "") || 0) : 0;
   const usdcMinDeposit = depositParams ? udenomToDenom(parseFloat(depositParams.find(x => x.denom === usdcDenom)?.amount || "") || 0) : 0;
   const minDeposit = { akt: aktMinDeposit, usdc: usdcMinDeposit };
 

@@ -3,14 +3,15 @@ import { atom } from "jotai";
 import { useAtom } from "jotai/index";
 import { atomWithStorage } from "jotai/utils";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
+import { MAINNET_ID, SANDBOX_ID, TESTNET_ID } from "@src/config/network.config";
 import { store } from "@src/store/global-store";
 import { Network } from "@src/types/network";
 import { ApiUrlService, mainnetNodes, sandboxNodes, testnetNodes } from "@src/utils/apiUtils";
-import { defaultNetworkId, mainnetId, sandboxId, testnetId } from "@src/utils/constants";
 
 export let networks: Network[] = [
   {
-    id: mainnetId,
+    id: MAINNET_ID,
     title: "Mainnet",
     description: "Akash Network mainnet network.",
     nodesUrl: mainnetNodes,
@@ -22,7 +23,7 @@ export let networks: Network[] = [
     version: null // Set asynchronously
   },
   {
-    id: testnetId,
+    id: TESTNET_ID,
     title: "GPU Testnet",
     description: "Testnet of the new GPU features.",
     nodesUrl: testnetNodes,
@@ -34,7 +35,7 @@ export let networks: Network[] = [
     version: null // Set asynchronously
   },
   {
-    id: sandboxId,
+    id: SANDBOX_ID,
     title: "Sandbox",
     description: "Sandbox of the mainnet version.",
     nodesUrl: sandboxNodes,
@@ -71,7 +72,7 @@ export const initiateNetworkData = async () => {
 
 const selectedNetworkId = atomWithStorage<Network["id"]>(
   "selectedNetworkId",
-  defaultNetworkId,
+  browserEnvConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID,
   // TODO: remove this once we have all clients using this store instead of the localstorage
   //   Issue: https://github.com/akash-network/console/issues/297
   typeof window !== "undefined"
@@ -84,8 +85,8 @@ const selectedNetworkId = atomWithStorage<Network["id"]>(
           const stored = localStorage.getItem(key) as Network["id"] | null;
 
           if (!stored) {
-            localStorage.setItem(key, defaultNetworkId);
-            return defaultNetworkId;
+            localStorage.setItem(key, browserEnvConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID);
+            return browserEnvConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID;
           }
 
           return stored;

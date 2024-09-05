@@ -10,11 +10,11 @@ import { event } from "nextjs-google-analytics";
 import { z } from "zod";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
+import { UAKT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { AllowanceType } from "@src/types/grant";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { uAktDenom } from "@src/utils/constants";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 
@@ -46,7 +46,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
   });
   const { handleSubmit, control, watch, clearErrors, setValue } = form;
   const { amount, granteeAddress, expiration } = watch();
-  const denomData = useDenomData(uAktDenom);
+  const denomData = useDenomData(UAKT_DENOM);
 
   const onDepositClick = event => {
     event.preventDefault();
@@ -64,7 +64,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
     if (editingAllowance) {
       messages.push(TransactionMessageData.getRevokeAllowanceMsg(address, granteeAddress));
     }
-    messages.push(TransactionMessageData.getGrantBasicAllowanceMsg(address, granteeAddress, spendLimit, uAktDenom, expirationDate));
+    messages.push(TransactionMessageData.getGrantBasicAllowanceMsg(address, granteeAddress, spendLimit, UAKT_DENOM, expirationDate));
     const response = await signAndBroadcastTx(messages);
 
     if (response) {
@@ -144,7 +144,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
                     min={0}
                     step={0.000001}
                     max={denomData?.inputMax}
-                    startIcon={<span className="text-xs pl-2">{denomData?.label}</span>}
+                    startIcon={<span className="pl-2 text-xs">{denomData?.label}</span>}
                   />
                 );
               }}
