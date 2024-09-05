@@ -3,8 +3,8 @@ import { Badge, Button } from "@akashnetwork/ui/components";
 import { Menu, Xmark } from "iconoir-react";
 import Link from "next/link";
 
+import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import useCookieTheme from "@src/hooks/useTheme";
-import { accountBarHeight } from "@src/utils/constants";
 import { UrlService } from "@src/utils/urlUtils";
 import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
 import { AccountMenu } from "./AccountMenu";
@@ -38,7 +38,7 @@ export const Nav = ({
           </Button>
         </div>
 
-        <div style={{ height: `${accountBarHeight}px` }} className={`hidden items-center md:flex`}>
+        <div style={{ height: `${ACCOUNT_BAR_HEIGHT}px` }} className={`hidden items-center md:flex`}>
           <div>
             <Link passHref href={UrlService.getStarted()}>
               <Button variant="outline" className="relative">

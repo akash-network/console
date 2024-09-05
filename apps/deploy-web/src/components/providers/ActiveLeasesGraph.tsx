@@ -7,10 +7,10 @@ import dynamic from "next/dynamic";
 import { DiffNumber } from "@src/components/shared/DiffNumber";
 import { DiffPercentageChip } from "@src/components/shared/DiffPercentageChip";
 import { TimeRange } from "@src/components/shared/TimeRange";
+import { SELECTED_RANGE_VALUES } from "@src/config/graph.config";
 import { useProviderActiveLeasesGraph } from "@src/queries/useProvidersQuery";
 import { ProviderSnapshots } from "@src/types";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
-import { selectedRangeValues } from "@src/utils/constants";
 import { percIncrease } from "@src/utils/mathHelpers";
 import { getSnapshotMetadata } from "@src/utils/providerUtils";
 import { Title } from "../shared/Title";
@@ -25,7 +25,7 @@ interface IProps {
 
 export const ActiveLeasesGraph: React.FunctionComponent<IProps> = ({ provider }) => {
   const { data: snapshotData, status } = useProviderActiveLeasesGraph(provider.owner);
-  const [selectedRange, setSelectedRange] = useState(selectedRangeValues["7D"]);
+  const [selectedRange, setSelectedRange] = useState(SELECTED_RANGE_VALUES["7D"]);
   const hasSnapshotData = snapshotData && snapshotData.snapshots.length > 0;
   const snapshotMetadata = hasSnapshotData && getSnapshotMetadata();
   const rangedData = hasSnapshotData && snapshotData.snapshots.slice(Math.max(snapshotData.snapshots.length - selectedRange, 0), snapshotData.snapshots.length);

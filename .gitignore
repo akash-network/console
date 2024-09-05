@@ -65,7 +65,6 @@ build.ps1
 .yarn-integrity
 
 # dotenv environment variable files
-apps/deploy-web/.env
 apps/indexer/.env
 apps/provider-console/.env
 apps/provider-proxy/.env

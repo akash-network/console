@@ -12,10 +12,10 @@ import Link from "next/link";
 
 import { LoginRequiredLink } from "@src/components/user/LoginRequiredLink";
 import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
-import { envConfig } from "@src/config/env.config";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { RouteStepKeys } from "@src/utils/constants";
+import { RouteStep } from "@src/types/route-steps.type";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { cn } from "@src/utils/styleUtils";
@@ -91,11 +91,11 @@ export const GetStartedStepper: React.FunctionComponent = () => {
           onClick={() => (activeStep > 0 ? onStepClick(0) : null)}
           classes={{ label: cn("text-xl tracking-tight", { ["cursor-pointer hover:text-primary"]: activeStep > 0, ["!font-bold"]: activeStep === 0 }) }}
         >
-          {envConfig.NEXT_PUBLIC_BILLING_ENABLED ? "Trial / Billing" : "Billing"}
+          {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED ? "Trial / Billing" : "Billing"}
         </StepLabel>
 
         <StepContent>
-          {envConfig.NEXT_PUBLIC_BILLING_ENABLED && !isWalletConnected && (
+          {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED && !isWalletConnected && (
             <p className="text-muted-foreground">
               You can pay using either USD (fiat) or with crypto ($AKT or $USDC). To pay with USD click "Start Trial". To pay with crypto, click "Connect
               Wallet"
@@ -158,7 +158,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                 <span>Billing is not set up</span>
               </div>
 
-              {envConfig.NEXT_PUBLIC_BILLING_ENABLED && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
+              {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
               <ConnectWalletButton />
             </div>
           )}
@@ -242,7 +242,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
           <div className="my-4 space-x-2">
             <Link
               className={cn("space-x-2", buttonVariants({ variant: "default" }))}
-              href={UrlService.newDeployment({ templateId: "hello-world", step: RouteStepKeys.editDeployment })}
+              href={UrlService.newDeployment({ templateId: "hello-world", step: RouteStep.editDeployment })}
             >
               <span>Deploy!</span>
               <Rocket className="rotate-45" />

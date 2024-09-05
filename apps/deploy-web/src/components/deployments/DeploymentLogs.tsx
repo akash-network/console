@@ -14,6 +14,7 @@ import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkele
 import { MemoMonaco } from "@src/components/shared/MemoMonaco";
 import { SelectCheckbox } from "@src/components/shared/SelectCheckbox";
 import ViewPanel from "@src/components/shared/ViewPanel";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useThrottledCallback } from "@src/hooks/useThrottle";
@@ -21,7 +22,6 @@ import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { LeaseDto } from "@src/types/deployment";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { LeaseSelect } from "./LeaseSelect";
 
@@ -57,7 +57,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   } = useLeaseStatus(providerInfo?.hostUri || "", selectedLease as LeaseDto, {
     enabled: false
   });
-  const { sendJsonMessage } = useWebSocket(PROVIDER_PROXY_URL_WS, {
+  const { sendJsonMessage } = useWebSocket(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL_WS, {
     onOpen: () => {},
     onMessage: onLogReceived,
     onError: error => console.error("error", error),

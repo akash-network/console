@@ -3,7 +3,7 @@ import React from "react";
 import { Check } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
-import { RouteStepKeys } from "@src/utils/constants";
+import { RouteStep } from "@src/types/route-steps.type";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 
@@ -24,7 +24,7 @@ export const CustomizedSteppers = ({ activeStep }: React.PropsWithChildren<{ act
     ev.preventDefault();
 
     if (step.id === 0) {
-      router.replace(UrlService.newDeployment({ step: RouteStepKeys.chooseTemplate }));
+      router.replace(UrlService.newDeployment({ step: RouteStep.chooseTemplate }));
     }
   }
 

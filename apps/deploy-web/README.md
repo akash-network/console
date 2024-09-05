@@ -14,21 +14,33 @@ The website should be accessible: [http://localhost:3000/](http://localhost:3000
 
 ## Environment Variables
 
-When running the api locally the following environment variables can be set in a `.env.local` file.
+### Overview
+Environment variables in this Next.js app follow the standard Next.js behavior, as documented in the [Next.js environment variables documentation](https://nextjs.org/docs/basic-features/environment-variables). This means that files like `.env.local` or `.env.production` will be automatically loaded based on the environment in which the app is running.
 
-It is possible to run the website locally without any environment variables, but the login feature will be unavailable.
+However, we have extended this functionality to support more granular environment-specific configurations. Environment variables are stored in the `./env` directory, where multiple `.env` files exist for different deployment environments (stages):
 
-|Name|Value|Note|
-|-|-|-
-|NEXT_PUBLIC_GA_MEASUREMENT_ID|ex: `G-87H3KK3D`|Google Analytics ID
-|NEXT_PUBLIC_SENTRY_DSN|ex: `"https://1234...789@z645.ingest.sentry.io/1234"`|[Sentry DSN](https://docs.sentry.io/product/sentry-basics/dsn-explainer/) used when initializing Sentry in [sentry.client.config.js](./sentry.client.config.js) and [sentry.server.config.js](./sentry.server.config.js)
-|AUTH0_SECRET||
-|AUTH0_BASE_URL||
-|AUTH0_ISSUER_BASE_URL||
-|AUTH0_CLIENT_ID||
-|AUTH0_CLIENT_SECRET||
-|AUTH0_AUDIENCE||
-|AUTH0_SCOPE||
-|AUTH0_M2M_DOMAIN||
-|AUTH0_M2M_CLIENT_ID||
-|AUTH0_M2M_CLIENT_SECRET||
+- `.env` - Loaded for any environment
+- `.env.production` - Loaded for the production stage
+- `.env.staging` - Loaded for the staging stage
+
+### How Environment Variables Are Loaded
+We use **dotenvx** to manage and load environment variables. This allows us to take advantage of its features, such as **variable interpolation** (i.e., using other environment variables within variable values).
+
+### Validation with Zod
+Environment variables are validated using **Zod** schemas, ensuring that all required variables are present and have valid values. The validation logic can be found in the file `src/config/env-config.schema.ts`.
+
+We use two separate Zod schemas:
+- **Static Build-Time Schema**: Validates variables at build time. If any variables are missing or invalid during the build process, the build will fail.
+- **Dynamic Server Runtime Schema**: Validates variables at server startup. If any variables are missing or invalid at this stage, the server will fail to start.
+
+This validation ensures that both build and runtime configurations are secure and complete before the app runs.
+
+### App Configuration
+App configurations, including environment variables, are located in the `src/config` directory. In our setup:
+- **Environment configs** are handled separately from **hardcoded configs**.
+- Hardcoded configs are organized by domain to maintain a clear structure and separation of concerns.
+
+### Sample Environment Variables
+All environment variables required for the app, along with their expected structure and types, can be found in the `env/.env.sample` file. This sample file serves as a template for setting up your environment variables and ensures that all necessary variables are accounted for in each environment.
+
+By organizing environment variables and configuration this way, we ensure a consistent, safe, and scalable approach to managing different deployment environments.

@@ -1,6 +1,7 @@
 import { useQuery } from "react-query";
 import axios from "axios";
 
+import { UAKT_DENOM } from "@src/config/denom.config";
 import { getUsdcDenom } from "@src/hooks/useDenom";
 import { Balances } from "@src/types";
 import {
@@ -11,7 +12,6 @@ import {
   RestApiUnbondingsResponseType
 } from "@src/types/balances";
 import { ApiUrlService } from "@src/utils/apiUtils";
-import { uAktDenom } from "@src/utils/constants";
 import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";
 
@@ -34,14 +34,16 @@ async function getBalances(apiEndpoint: string, address: string): Promise<Balanc
 
   // Balance
   const balanceData = balanceResponse.data;
-  const balance = balanceData.balances.some(b => b.denom === uAktDenom) ? parseFloat(balanceData.balances.find(b => b.denom === uAktDenom)?.amount || "0") : 0;
+  const balance = balanceData.balances.some(b => b.denom === UAKT_DENOM)
+    ? parseFloat(balanceData.balances.find(b => b.denom === UAKT_DENOM)?.amount || "0")
+    : 0;
   const balanceUsdc = balanceData.balances.some(b => b.denom === usdcIbcDenom)
     ? parseFloat(balanceData.balances.find(b => b.denom === usdcIbcDenom)?.amount || "0")
     : 0;
 
   // Rewards
   const rewardsData = rewardsResponse.data;
-  const rewards = rewardsData.total.some(b => b.denom === uAktDenom) ? parseFloat(rewardsData.total.find(b => b.denom === uAktDenom)?.amount || "0") : 0;
+  const rewards = rewardsData.total.some(b => b.denom === UAKT_DENOM) ? parseFloat(rewardsData.total.find(b => b.denom === UAKT_DENOM)?.amount || "0") : 0;
 
   // Redelegations
   const redelegationsData = redelegationsResponse.data;
@@ -64,9 +66,9 @@ async function getBalances(apiEndpoint: string, address: string): Promise<Balanc
     const delegationsResponse = await axios.get<RestApiDelegationsType>(ApiUrlService.delegations(apiEndpoint, address));
     const delegationsData = delegationsResponse.data;
 
-    delegations = delegationsData.delegation_responses.some(b => b.balance.denom === uAktDenom)
+    delegations = delegationsData.delegation_responses.some(b => b.balance.denom === UAKT_DENOM)
       ? delegationsData.delegation_responses
-          .filter(x => x.balance.denom === uAktDenom)
+          .filter(x => x.balance.denom === UAKT_DENOM)
           .map(x => parseFloat(x.balance.amount))
           .reduce((a, b) => a + b, 0)
       : 0;
