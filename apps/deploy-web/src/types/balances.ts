@@ -8,6 +8,22 @@ export type RestApiBalancesResponseType = {
   };
 };
 
+export type RestApiAuthzGrantsResponseType = {
+  grants: {
+    granter: string;
+    grantee: string;
+    authorization: {
+      "@type": string;
+      spend_limit: Coin;
+    };
+    expiration: string;
+  }[];
+  pagination: {
+    next_key: string;
+    total: string;
+  };
+};
+
 export type RestApiRewardsResponseType = {
   rewards: {
     reward: Coin[];

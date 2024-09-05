@@ -35,9 +35,8 @@ const goToCheckout = () => {
 const withBilling = browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
 export function WalletStatus() {
-  const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing, switchWalletType } =
-    useWallet();
-  const walletBalance = useTotalWalletBalance();
+  const { walletName, address, logout, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing, switchWalletType } = useWallet();
+  const totalBalance = useTotalWalletBalance();
   const router = useRouter();
   const whenLoggedIn = useLoginRequiredEventHandler();
 
@@ -111,13 +110,13 @@ export function WalletStatus() {
                   )}
                 </div>
 
-                {walletBalances && (
+                {totalBalance && (
                   <div className="ml-2 flex items-center whitespace-nowrap font-bold text-muted-foreground">
                     <Tooltip>
                       <TooltipTrigger>
                         <Badge className="h-5 text-xs font-bold" variant="secondary">
                           <FormattedNumber
-                            value={walletBalance}
+                            value={totalBalance.totalUsd}
                             // eslint-disable-next-line react/style-prop-object
                             style="currency"
                             currency="USD"
@@ -128,11 +127,11 @@ export function WalletStatus() {
                         <TooltipContent>
                           <div className="text-base">
                             <div>
-                              <FormattedDecimal value={udenomToDenom(walletBalances.uakt, 2)} />
+                              <FormattedDecimal value={totalBalance.totalUAKT} />
                               <span className="ml-1 text-xs">AKT</span>
                             </div>
                             <div>
-                              <FormattedDecimal value={udenomToDenom(walletBalances.usdc, 2)} />
+                              <FormattedDecimal value={totalBalance.totalUUSDC} />
                               <span className="ml-1 text-xs">USDC</span>
                             </div>
                           </div>

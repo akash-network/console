@@ -74,7 +74,7 @@ export function HomeContainer() {
           <WelcomePanel />
         </div>
         {isSettingsInit && isWalletLoaded ? (
-          <YourAccount isLoadingBalances={isLoadingBalances} balances={balances} activeDeployments={activeDeployments} leases={leases} providers={providers} />
+          <YourAccount isLoadingBalances={isLoadingBalances} activeDeployments={activeDeployments} leases={leases} providers={providers} />
         ) : (
           <div className="flex justify-center p-8">
             <Spinner size="large" />

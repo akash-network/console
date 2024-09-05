@@ -42,6 +42,7 @@ const ERROR_MESSAGES = {
 type Balances = {
   uakt: number;
   usdc: number;
+
 };
 
 type ContextType = {
