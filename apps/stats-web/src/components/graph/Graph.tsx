@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 
 
 import { createChart } from 'lightweight-charts';
@@ -31,24 +31,32 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   const intl = useIntl();
   const graphTheme = getTheme(resolvedTheme);
 
-  const graphData = snapshotData
+  const initialData = useMemo(() => snapshotData
     ? rangedData.map(_snapshot => (
       {
         time: format(_snapshot.date, 'yyyy-MM-dd'),
         value: roundDecimal(snapshotMetadata.unitFn(_snapshot.value).value),
       })).sort(function (a, b) {
         return Number(new Date(a.time)) - Number(new Date(b.time));
-      }) : [];
-
+      }) : [], [rangedData]);
+  
+  const totalGraphData = useMemo(() => snapshotData
+  ? snapshotData.snapshots.map(_snapshot => (
+    {
+      time: format(_snapshot.date, 'yyyy-MM-dd'),
+      value: roundDecimal(snapshotMetadata.unitFn(_snapshot.value).value),
+    })).sort(function (a, b) {
+      return Number(new Date(a.time)) - Number(new Date(b.time));
+    }) : [], [rangedData]);
 
   const chartContainerRef = useRef(null);
   const tooltipRef = useRef(null);
+  const timer = useRef<number | null>(null);
 
 
   useEffect(() => {
-    if (chartContainerRef.current) {
+    let graphData = [...initialData];
 
-    }
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       layout: {
@@ -142,6 +150,25 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
       }
     });
 
+    chart.timeScale().subscribeVisibleLogicalRangeChange(logicalRange => {
+      if(logicalRange === null) {
+        return;
+      }
+
+      if (timer.current !== null) {
+        return;
+      }
+
+      timer.current = window.setTimeout(() => {
+        const rangeFrom = Math.round(logicalRange.from)
+        const range = Math.max(graphData.length - rangeFrom, 0)
+        graphData = [...totalGraphData.slice(range, -graphData.length), ...graphData]
+        lineSeries.setData(graphData);
+
+        timer.current = null;
+      }, 500)
+    });
+
     // Handle resize
     const handleResize = () => {
       chart.applyOptions({ width: chartContainerRef.current.clientWidth });
@@ -151,9 +178,9 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      chart.remove();
+      if (timer.current === null) chart.remove();
     };
-  }, [graphData]);
+  }, [initialData]);
 
 
   return (
