@@ -5,18 +5,19 @@ import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { GithubRepository, IGithubDirectoryItem } from "../remoteTypes";
-import { PROXY_API_URL_AUTH, REDIRECT_URL } from "../utils";
+import { REDIRECT_URL } from "../utils";
 
 const Github_API_URL = "https://api.github.com";
+//from env
 
 export const CLIEND_ID = "Iv23liZYLYN9I2HrgeOh";
 
 export const handleLogin = () => {
-  window.location.href = "https://github.com/apps/akash-console/installations/new";
+  window.location.href = process.env.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL as string;
 };
 
 export const handleReLogin = () => {
-  window.location.href = `https://github.com/login/oauth/authorize?client_id=${CLIEND_ID}&redirect_uri=${REDIRECT_URL}`;
+  window.location.href = `https://github.com/login/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URL}`;
 };
 
 const axiosInstance = axios.create({
@@ -75,13 +76,15 @@ export const useFetchAccessToken = () => {
   const router = useRouter();
   return useMutation({
     mutationFn: async (code: string) => {
-      const response = await axios.post(`${PROXY_API_URL_AUTH}/authenticate`, {
+      const response = await axios.post(`/api/github/authenticate`, {
         code
       });
 
       return response.data;
     },
     onSuccess: data => {
+      console.log(data);
+
       setToken({
         access_token: data.access_token,
         refresh_token: data.refresh_token,
