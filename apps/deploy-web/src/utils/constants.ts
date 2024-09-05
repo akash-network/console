@@ -92,28 +92,28 @@ export const readableDenoms = {
 
 function getApiMainnetUrl() {
   if (ENV.API_MAINNET_BASE_URL) return ENV.API_MAINNET_BASE_URL;
-  if (typeof window === "undefined") return "https://api.cloudmos.io";
+  if (typeof window === "undefined") return "http://localhost:3080";
   if (productionHostnames.includes(window.location?.hostname)) return productionMainnetApiUrl;
-  return "https://api.cloudmos.io";
+  return "http://localhost:3080";
 }
 
 function getApiTestnetUrl() {
   if (ENV.API_TESTNET_BASE_URL) return ENV.API_TESTNET_BASE_URL;
-  if (typeof window === "undefined") return "https://api.cloudmos.io";
+  if (typeof window === "undefined") return "http://localhost:3080";
   if (productionHostnames.includes(window.location?.hostname)) return productionTestnetApiUrl;
-  return "https://api.cloudmos.io";
+  return "http://localhost:3080";
 }
 
 function getApiSandboxUrl() {
   if (ENV.API_SANDBOX_BASE_URL) return ENV.API_SANDBOX_BASE_URL;
-  if (typeof window === "undefined") return "https://api.cloudmos.io";
+  if (typeof window === "undefined") return "http://localhost:3080";
   if (productionHostnames.includes(window.location?.hostname)) return productionSandboxApiUrl;
-  return "https://api.cloudmos.io";
+  return "http://localhost:3080";
 }
 
 function getApiUrl() {
   if (ENV.API_BASE_URL) return ENV.API_BASE_URL;
-  if (typeof window === "undefined") return "https://api.cloudmos.io";
+  if (typeof window === "undefined") return "http://localhost:3080";
   if (productionHostnames.includes(window.location?.hostname)) {
     try {
       const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
@@ -123,7 +123,7 @@ function getApiUrl() {
       return productionMainnetApiUrl;
     }
   }
-  return "https://api.cloudmos.io";
+  return "http://localhost:3080";
 }
 
 function getStatsAppUrl() {
@@ -138,14 +138,14 @@ function getProviderProxyHttpUrl() {
   if (typeof window === "undefined") return "http://localhost:3040";
   if (window.location?.hostname === "deploybeta.cloudmos.io") return "https://deployproxybeta.cloudmos.io";
   if (productionHostnames.includes(window.location?.hostname)) return "https://providerproxy.cloudmos.io";
-  return "https://providerproxy.cloudmos.io";
+  return "http://localhost:3040";
 }
 
 function getProviderProxyWsUrl() {
   if (typeof window === "undefined") return "ws://localhost:3040";
   if (window.location?.hostname === "deploybeta.cloudmos.io") return "wss://deployproxybeta.cloudmos.io";
   if (productionHostnames.includes(window.location?.hostname)) return "wss://providerproxy.cloudmos.io";
-  return "wss://providerproxy.cloudmos.io";
+  return "ws://localhost:3040";
 }
 
 export let selectedNetworkId = "";
