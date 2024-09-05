@@ -39,12 +39,8 @@ export class HonoErrorHandlerService {
   }
 
   private async reportError<E extends Env = any>(error: Error, c: Context<E>): Promise<void> {
-    try {
-      const id = this.sentry.captureEvent(await this.getSentryEvent(error, c));
-      this.logger.info({ event: "SENTRY_EVENT_REPORTED", id });
-    } catch (e) {
-      this.logger.error(e);
-    }
+    const id = this.sentry.captureEvent(await this.getSentryEvent(error, c));
+    this.logger.info({ event: "SENTRY_EVENT_REPORTED", id });
   }
 
   private async getSentryEvent<E extends Env = any>(error: Error, c: Context<E>): Promise<Event> {
@@ -52,7 +48,7 @@ export class HonoErrorHandlerService {
       method: c.req.method,
       url: c.req.url,
       headers: omit(Object.fromEntries(c.req.raw.headers), ["x-anonymous-user-id"]),
-      body: await this.getSentryEventRequestBody(c)
+      body: await c.req.json()
     });
     const currentSpan = trace.getSpan(context.active());
 
@@ -68,19 +64,5 @@ export class HonoErrorHandlerService {
     }
 
     return event;
-  }
-
-  private async getSentryEventRequestBody<E extends Env = any>(c: Context<E>) {
-    switch (c.req.header("content-type")) {
-      case "text/plain":
-        return await c.req.text();
-      case "application/json":
-        return await c.req.json();
-      case "application/x-www-form-urlencoded":
-      case "multipart/form-data":
-        return await c.req.parseBody();
-      default:
-        return undefined;
-    }
   }
 }

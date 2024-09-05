@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import axios, { AxiosResponse } from "axios";
 import { useSnackbar } from "notistack";
 
@@ -13,7 +13,8 @@ export function useSaveSettings() {
   const { enqueueSnackbar } = useSnackbar();
   const { checkSession } = useCustomUser();
 
-  return useMutation<AxiosResponse<any, any>, unknown, UserSettings>(newSettings => axios.put("/api/proxy/user/updateSettings", newSettings), {
+  return useMutation({
+    mutationFn: (newSettings: UserSettings) => axios.put("/api/proxy/user/updateSettings", newSettings),
     onSuccess: () => {
       enqueueSnackbar("Settings saved", { variant: "success" });
 
@@ -33,5 +34,9 @@ async function getDepositParams(apiEndpoint: string) {
 
 export function useDepositParams(options = {}) {
   const { settings } = useSettings();
-  return useQuery(QueryKeys.getDepositParamsKey(), () => getDepositParams(settings.apiEndpoint), options);
+  return useQuery({
+    queryKey: QueryKeys.getDepositParamsKey(),
+    queryFn: () => getDepositParams(settings.apiEndpoint),
+    ...options,
+  });
 }

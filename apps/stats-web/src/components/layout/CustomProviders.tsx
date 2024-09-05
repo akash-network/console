@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { QueryClientProvider } from "react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { Provider } from "jotai";

@@ -1,6 +1,6 @@
 {
   "name": "akash-console",
-  "version": "2.13.0",
+  "version": "2.12.0",
   "private": true,
   "description": "Web UI to deploy on the Akash Network and view statistic about network usage.",
   "license": "Apache-2.0",
@@ -49,6 +49,7 @@
     "@sentry/nextjs": "^7.80.0",
     "@stripe/react-stripe-js": "^1.12.0",
     "@stripe/stripe-js": "^1.41.0",
+    "@tanstack/react-query": "^5.54.1",
     "@tanstack/react-table": "^8.13.2",
     "@textea/json-viewer": "^3.0.0",
     "auth0": "^4.3.1",

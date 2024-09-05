@@ -15,7 +15,7 @@ const route = createRoute({
       owner: z.string().openapi({ example: openApiExampleAddress })
     }),
     query: z.object({
-      dseq: z.string().regex(/^\d+$/, "Invalid dseq, must be a positive integer").optional().openapi({ type: "integer" }),
+      dseq: z.string().optional().openapi({ type: "number" }),
       startDate: z.string().optional().openapi({ format: "YYYY-MM-DD" }),
       endDate: z.string().optional().openapi({ format: "YYYY-MM-DD" })
     })
@@ -61,6 +61,10 @@ export default new OpenAPIHono().openapi(route, async c => {
   let endTime: Date = new Date("2100-01-01");
 
   const { dseq, startDate, endDate } = c.req.query();
+
+  if (dseq && isNaN(parseInt(dseq))) {
+    return c.text("Invalid dseq", 400);
+  }
 
   if (startDate) {
     if (!startDate.match(dateFormat)) return c.text("Invalid start date, must be in the following format: YYYY-MM-DD", 400);

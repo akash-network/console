@@ -1,4 +1,4 @@
-import { QueryKey, useQuery, UseQueryOptions } from "react-query";
+import { QueryKey, useQuery, UseQueryOptions } from "@tanstack/react-query";
 import axios from "axios";
 
 import { QueryKeys } from "./queryKeys";
@@ -12,5 +12,9 @@ async function getDashboardData(): Promise<DashboardData> {
 }
 
 export function useDashboardData(options?: Omit<UseQueryOptions<DashboardData, Error, any, QueryKey>, "queryKey" | "queryFn">) {
-  return useQuery<DashboardData, Error>(QueryKeys.getDashboardDataKey(), () => getDashboardData(), options);
+  return useQuery({
+    queryKey: QueryKeys.getDashboardDataKey(),
+    queryFn: () => getDashboardData(),
+    ...options
+  });
 }

@@ -25,6 +25,7 @@
     "stats:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\""
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.54.1",
     "drizzle-orm": "^0.31.2",
     "pg": "^8.11.6"
   },
