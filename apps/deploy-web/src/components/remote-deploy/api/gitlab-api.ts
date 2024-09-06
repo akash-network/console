@@ -4,14 +4,9 @@ import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
-import { PROXY_API_URL_AUTH } from "../utils";
-
-// ?step=edit-deployment&type=github
-const CLIEND_ID = "f8b7584c38a6aaba2315e3c377513debd589e0a06bf15cc3fd96b1dd713b19ca";
-const REDIRECT_URL = "https://akashconsole.vercel.app/new-deployment";
 
 export const handleGitLabLogin = () => {
-  window.location.href = `https://gitlab.com/oauth/authorize?client_id=${CLIEND_ID}&redirect_uri=${REDIRECT_URL}&response_type=code&scope=read_user+read_repository+read_api+api&state=gitlab`;
+  window.location.href = `https://gitlab.com/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID}&redirect_uri=${process.env.NEXT_PUBLIC_REDIRECT_URI}&response_type=code&scope=read_user+read_repository+read_api+api&state=gitlab`;
 };
 
 const axiosInstance = axios.create({
@@ -28,7 +23,7 @@ export const useGitLabFetchAccessToken = () => {
   const router = useRouter();
   return useMutation({
     mutationFn: async (code: string) => {
-      const response = await axios.post(`${PROXY_API_URL_AUTH}/gitlab/authenticate`, {
+      const response = await axios.post(`/api/gitlab/authenticate`, {
         code
       });
 
@@ -51,7 +46,7 @@ export const useFetchRefreshGitlabToken = () => {
 
   return useMutation({
     mutationFn: async () => {
-      const response = await axios.post(`${PROXY_API_URL_AUTH}/gitlab/refresh`, {
+      const response = await axios.post(`/api/gitlab/refresh`, {
         refreshToken: token?.refresh_token
       });
 
