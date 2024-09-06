@@ -38,8 +38,15 @@ export class LoggerService {
 
   protected toLoggableInput(message: any) {
     if (isHttpError(message)) {
-      return { status: message.status, message: message.message, stack: message.stack, data: message.data };
+      const loggableInput = { status: message.status, message: message.message, stack: message.stack, data: message.data };
+      return "originalError" in message
+        ? {
+            ...loggableInput,
+            originalError: message.stack
+          }
+        : loggableInput;
     }
+
     if (message instanceof Error) {
       return message.stack;
     }

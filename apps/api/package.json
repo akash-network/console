@@ -1,6 +1,6 @@
 {
   "name": "console-api",
-  "version": "2.22.0",
+  "version": "2.22.1",
   "description": "Api providing data to the deploy tool",
   "repository": {
     "type": "git",
@@ -36,7 +36,7 @@
     "@akashnetwork/database": "*",
     "@akashnetwork/http-sdk": "*",
     "@casl/ability": "^6.7.1",
-    "@chain-registry/assets": "^0.7.1",
+    "@chain-registry/assets": "^1.64.79",
     "@cosmjs/amino": "^0.32.4",
     "@cosmjs/crypto": "^0.32.4",
     "@cosmjs/encoding": "^0.32.4",
