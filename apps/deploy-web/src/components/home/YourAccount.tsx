@@ -45,7 +45,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
   const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
   const [costPerMonth, setCostPerMonth] = useState<number | null>(null);
   const [userProviders, setUserProviders] = useState<{ owner: string; name: string }[] | null>(null);
-  const walletBalance = useTotalWalletBalance();
+  const { walletBalance } = useTotalWalletBalance();
   const hasBalance = !!walletBalance && walletBalance.totalUsd > 0;
   const totalCpu = activeDeployments.map(d => d.cpuAmount).reduce((a, b) => a + b, 0);
   const totalGpu = activeDeployments.map(d => d.gpuAmount).reduce((a = 0, b = 0) => a + b, 0);
@@ -70,7 +70,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
         label: "Balance",
         denom: UAKT_DENOM,
         denomLabel: "AKT",
-        value: balances.totalUAKT,
+        value: balances.balanceUAKT,
         color: colors.balance_akt
       },
       {
@@ -277,19 +277,12 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
                         <div className="h-4 w-4 rounded-lg" />
                         <div className="ml-4 w-[90px] font-bold">Total</div>
                         <div className="ml-4 w-[100px]">
-                          <strong>{walletBalance.totalUAKT} AKT</strong>
+                          <strong>{uaktToAKT(walletBalance.totalUAKT, 2)} AKT</strong>
                         </div>
 
                         <div>
                           <strong>
-                            <PriceValue
-                              denom={UAKT_DENOM}
-                              value={
-                                walletBalance.totalUAKT +
-                                uaktToAKT(walletBalance.totalDeploymentEscrowUAKT) +
-                                uaktToAKT(walletBalance.totalDeploymentGrantsUAKT)
-                              }
-                            />
+                            <PriceValue denom={UAKT_DENOM} value={uaktToAKT(walletBalance.totalUAKT) + uaktToAKT(walletBalance.totalDeploymentGrantsUAKT)} />
                           </strong>
                         </div>
                       </div>
@@ -302,14 +295,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
 
                         <div>
                           <strong>
-                            <PriceValue
-                              denom={usdcIbcDenom}
-                              value={
-                                walletBalance.totalUUSDC +
-                                udenomToDenom(walletBalance.totalDeploymentEscrowUUSDC) +
-                                udenomToDenom(walletBalance.totalDeploymentGrantsUUSDC)
-                              }
-                            />
+                            <PriceValue denom={usdcIbcDenom} value={walletBalance.totalUUSDC + udenomToDenom(walletBalance.totalDeploymentGrantsUUSDC)} />
                           </strong>
                         </div>
                       </div>

@@ -23,10 +23,11 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
-import { udenomToDenom } from "@src/utils/mathHelpers";
 import { UrlService } from "@src/utils/urlUtils";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
+import { uaktToAKT } from "@src/utils/priceUtils";
+import { udenomToDenom } from "@src/utils/mathHelpers";
 
 const goToCheckout = () => {
   window.location.href = "/api/proxy/v1/checkout";
@@ -36,7 +37,7 @@ const withBilling = browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
 export function WalletStatus() {
   const { walletName, address, logout, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing, switchWalletType } = useWallet();
-  const totalBalance = useTotalWalletBalance();
+  const { walletBalance } = useTotalWalletBalance();
   const router = useRouter();
   const whenLoggedIn = useLoginRequiredEventHandler();
 
@@ -110,13 +111,13 @@ export function WalletStatus() {
                   )}
                 </div>
 
-                {totalBalance && (
+                {walletBalance && (
                   <div className="ml-2 flex items-center whitespace-nowrap font-bold text-muted-foreground">
                     <Tooltip>
                       <TooltipTrigger>
                         <Badge className="h-5 text-xs font-bold" variant="secondary">
                           <FormattedNumber
-                            value={totalBalance.totalUsd}
+                            value={walletBalance.totalUsd}
                             // eslint-disable-next-line react/style-prop-object
                             style="currency"
                             currency="USD"
@@ -127,11 +128,11 @@ export function WalletStatus() {
                         <TooltipContent>
                           <div className="text-base">
                             <div>
-                              <FormattedDecimal value={totalBalance.totalUAKT} />
+                              <FormattedDecimal value={uaktToAKT(walletBalance.totalUAKT, 2)} />
                               <span className="ml-1 text-xs">AKT</span>
                             </div>
                             <div>
-                              <FormattedDecimal value={totalBalance.totalUUSDC} />
+                              <FormattedDecimal value={udenomToDenom(walletBalance.totalUUSDC, 2)} />
                               <span className="ml-1 text-xs">USDC</span>
                             </div>
                           </div>

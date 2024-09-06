@@ -8,8 +8,6 @@ import { useWallet } from "@src/context/WalletProvider";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { useUsdcDenom } from "./useDenom";
-import { useDeploymentList } from "@src/queries/useDeploymentQuery";
-import { useGranteeGrants } from "@src/queries/useGrantsQuery";
 import { useBalances } from "@src/queries/useBalancesQuery";
 
 export type TotalWalletBalance = {
@@ -26,68 +24,78 @@ export type TotalWalletBalance = {
   totalDeploymentGrantsUSD: number;
 };
 
-export const useTotalWalletBalance = (): TotalWalletBalance | null => {
+export type TotalWalletBalanceReturnType = {
+  isLoadingBalances: boolean;
+  fetchBalances: () => void;
+  walletBalance: TotalWalletBalance | null;
+};
+
+export const useTotalWalletBalance = (): TotalWalletBalanceReturnType => {
   const { isLoaded, price } = usePricing();
   const { address } = useWallet();
   const usdcIbcDenom = useUsdcDenom();
-  const { data: balances } = useBalances(address, { enabled: !!address });
-  const { data: deployments } = useDeploymentList(address, { enabled: !!address });
-  const { data: deploymentGrants } = useGranteeGrants(address, { enabled: !!address });
+  const { data: balances, isFetching: isLoadingBalances } = useBalances(address, { enabled: !!address });
   const [walletBalance, setWalletBalance] = useState<TotalWalletBalance | null>(null);
 
   useEffect(() => {
-    if (isLoaded && balances && price && deployments && deploymentGrants) {
-      const aktUsdValue = uaktToAKT(balances.balance, 6) * price;
-      const totalUsdcValue = udenomToDenom(balances.balanceUsdc, 6);
-      const activeDeployments = deployments.filter(d => d.state === "active");
-      const aktActiveDeployments = activeDeployments.filter(d => d.denom === uAktDenom);
-      const usdcActiveDeployments = activeDeployments.filter(d => d.denom === usdcIbcDenom);
-      const totalDeploymentEscrowUAKT = aktActiveDeployments.reduce((acc, d) => acc + d.escrowBalance, 0);
-      const totalDeploymentEscrowUUSDC = usdcActiveDeployments.reduce((acc, d) => acc + d.escrowBalance, 0);
-      const totalDeploymentEscrowUSD = activeDeployments.reduce((acc, d) => acc + udenomToUsd(d.escrowAccount.funds.amount, d.escrowAccount.funds.denom), 0);
-      const totalDeploymentGrantsUSD = deploymentGrants.reduce(
+    fetchBalances();
+  }, [isLoaded, price, balances]);
+
+  const fetchBalances = () => {
+    if (isLoaded && balances && price) {
+      const aktUsdValue = uaktToAKT(balances.balanceUAKT, 6) * price;
+      const totalUsdcValue = udenomToDenom(balances.balanceUUSDC, 6);
+      const totalDeploymentEscrowUSD = balances.activeDeployments.reduce(
+        (acc, d) =>
+          acc +
+          udenomToUsd(d.escrowAccount.funds.amount, d.escrowAccount.funds.denom) +
+          udenomToUsd(d.escrowAccount.balance.amount, d.escrowAccount.balance.denom),
+        0
+      );
+      const totalDeploymentGrantsUSD = balances.deploymentGrants.grants.reduce(
         (acc, d) => acc + udenomToUsd(d.authorization.spend_limit.amount, d.authorization.spend_limit.denom),
         0
       );
-      const totalGrantsUAKT = deploymentGrants
+      const totalGrantsUAKT = balances.deploymentGrants.grants
         .filter(d => d.authorization.spend_limit.denom === uAktDenom)
         .reduce((acc, d) => acc + parseFloat(d.authorization.spend_limit.amount), 0);
-      const totalGrantsUUSDC = deploymentGrants
+      const totalGrantsUUSDC = balances.deploymentGrants.grants
         .filter(d => d.authorization.spend_limit.denom === usdcIbcDenom)
         .reduce((acc, d) => acc + parseFloat(d.authorization.spend_limit.amount), 0);
 
       setWalletBalance({
         totalUsd: aktUsdValue + totalUsdcValue + totalDeploymentEscrowUSD + totalDeploymentGrantsUSD,
-        balanceUAKT: balances.balance + totalGrantsUAKT,
-        balanceUUSDC: balances.balanceUsdc + totalGrantsUUSDC,
-        totalUAKT: balances.balance + totalDeploymentEscrowUAKT + totalGrantsUAKT,
-        totalUUSDC: balances.balanceUsdc + totalDeploymentEscrowUUSDC + totalGrantsUUSDC,
-        totalDeploymentEscrowUAKT: totalDeploymentEscrowUAKT,
-        totalDeploymentEscrowUUSDC: totalDeploymentEscrowUUSDC,
-        totalDeploymentEscrowUSD: activeDeployments.reduce((acc, d) => acc + udenomToUsd(d.escrowAccount.balance.amount, d.escrowAccount.balance.denom), 0),
+        balanceUAKT: balances.balanceUAKT + totalGrantsUAKT,
+        balanceUUSDC: balances.balanceUUSDC + totalGrantsUUSDC,
+        totalUAKT: balances.balanceUAKT + balances.deploymentEscrowUAKT + totalGrantsUAKT,
+        totalUUSDC: balances.balanceUUSDC + balances.deploymentEscrowUUSDC + totalGrantsUUSDC,
+        totalDeploymentEscrowUAKT: balances.deploymentEscrowUAKT,
+        totalDeploymentEscrowUUSDC: balances.deploymentEscrowUUSDC,
+        totalDeploymentEscrowUSD: totalDeploymentEscrowUSD,
         totalDeploymentGrantsUAKT: totalGrantsUAKT,
         totalDeploymentGrantsUUSDC: totalGrantsUUSDC,
-        totalDeploymentGrantsUSD: deploymentGrants.reduce(
-          (acc, d) => acc + udenomToUsd(d.authorization.spend_limit.amount, d.authorization.spend_limit.denom),
-          0
-        )
+        totalDeploymentGrantsUSD: totalDeploymentGrantsUSD
       });
     }
-  }, [isLoaded, price, balances, deployments, deploymentGrants]);
-
-  const udenomToUsd = (amount: string, denom: string) => {
-    let price = 0;
-
-    if (denom === uAktDenom) {
-      price = uaktToAKT(parseFloat(amount), 6) * price;
-    } else if (denom === usdcIbcDenom) {
-      price = udenomToDenom(parseFloat(amount), 6);
-    }
-
-    return price;
   };
 
-  return walletBalance;
+  const udenomToUsd = (amount: string, denom: string) => {
+    let value = 0;
+
+    if (denom === uAktDenom) {
+      value = uaktToAKT(parseFloat(amount), 6) * (price || 0);
+    } else if (denom === usdcIbcDenom) {
+      value = udenomToDenom(parseFloat(amount), 6);
+    }
+
+    return value;
+  };
+
+  return {
+    walletBalance,
+    isLoadingBalances,
+    fetchBalances
+  };
 };
 
 type DenomData = {

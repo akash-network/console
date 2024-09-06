@@ -11,12 +11,13 @@ import { removeEmptyFilters } from "@src/utils/urlUtils";
 import { deploymentRowSchema, DeploymentRowType } from "@src/utils/zod/deploymentRow";
 import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";
+import { RpcDeployment } from "@src/types/deployment";
 
 // Deployment list
 async function getDeploymentList(apiEndpoint: string, address: string) {
   if (!address) return [];
 
-  const deployments = await loadWithPagination(ApiUrlService.deploymentList(apiEndpoint, address), "deployments", 1000);
+  const deployments = await loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList(apiEndpoint, address), "deployments", 1000);
 
   return deployments.map(d => deploymentToDto(d));
 }

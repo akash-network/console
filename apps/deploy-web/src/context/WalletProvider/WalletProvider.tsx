@@ -42,7 +42,6 @@ const ERROR_MESSAGES = {
 type Balances = {
   uakt: number;
   usdc: number;
-
 };
 
 type ContextType = {
@@ -344,10 +343,9 @@ export const WalletProvider = ({ children }) => {
 
   async function refreshBalances(address?: string): Promise<{ uakt: number; usdc: number }> {
     if (isManaged && managedWallet) {
-      const wallet = await refetch();
       const walletBalances = {
         uakt: 0,
-        usdc: wallet.data?.creditAmount || managedWallet.creditAmount
+        usdc: 0
       };
 
       setWalletBalances(walletBalances);
