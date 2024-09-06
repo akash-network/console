@@ -32,16 +32,12 @@ export type TotalWalletBalanceReturnType = {
 
 export const useTotalWalletBalance = (): TotalWalletBalanceReturnType => {
   const { isLoaded, price } = usePricing();
-  const { address } = useWallet();
+  const { address, isManaged } = useWallet();
   const usdcIbcDenom = useUsdcDenom();
-  const { data: balances, isFetching: isLoadingBalances } = useBalances(address, { enabled: !!address });
+  const { data: balances, isFetching: isLoadingBalances, refetch: fetchBalances } = useBalances(address);
   const [walletBalance, setWalletBalance] = useState<TotalWalletBalance | null>(null);
 
   useEffect(() => {
-    fetchBalances();
-  }, [isLoaded, price, balances]);
-
-  const fetchBalances = () => {
     if (isLoaded && balances && price) {
       const aktUsdValue = uaktToAKT(balances.balanceUAKT, 6) * price;
       const totalUsdcValue = udenomToDenom(balances.balanceUUSDC, 6);
@@ -57,7 +53,7 @@ export const useTotalWalletBalance = (): TotalWalletBalanceReturnType => {
         0
       );
       const totalGrantsUAKT = balances.deploymentGrants.grants
-        .filter(d => d.authorization.spend_limit.denom === uAktDenom)
+        .filter(d => d.authorization.spend_limit.denom === UAKT_DENOM)
         .reduce((acc, d) => acc + parseFloat(d.authorization.spend_limit.amount), 0);
       const totalGrantsUUSDC = balances.deploymentGrants.grants
         .filter(d => d.authorization.spend_limit.denom === usdcIbcDenom)
@@ -77,12 +73,12 @@ export const useTotalWalletBalance = (): TotalWalletBalanceReturnType => {
         totalDeploymentGrantsUSD: totalDeploymentGrantsUSD
       });
     }
-  };
+  }, [isLoaded, price, balances, isManaged]);
 
   const udenomToUsd = (amount: string, denom: string) => {
     let value = 0;
 
-    if (denom === uAktDenom) {
+    if (denom === UAKT_DENOM) {
       value = uaktToAKT(parseFloat(amount), 6) * (price || 0);
     } else if (denom === usdcIbcDenom) {
       value = udenomToDenom(parseFloat(amount), 6);
@@ -107,29 +103,29 @@ type DenomData = {
 
 export const useDenomData = (denom: string) => {
   const { isLoaded, price } = usePricing();
-  const { walletBalances } = useWallet();
+  const { walletBalance } = useTotalWalletBalance();
   const [depositData, setDepositData] = useState<DenomData | null>(null);
   const usdcIbcDenom = useUsdcDenom();
   const { minDeposit } = useChainParam();
 
   useEffect(() => {
-    if (isLoaded && walletBalances && minDeposit?.akt && minDeposit?.usdc && price) {
+    if (isLoaded && walletBalance && minDeposit?.akt && minDeposit?.usdc && price) {
       let depositData: DenomData | null = null;
       switch (denom) {
         case UAKT_DENOM:
           depositData = {
             min: minDeposit.akt,
             label: "AKT",
-            balance: uaktToAKT(walletBalances.uakt, 6),
-            inputMax: uaktToAKT(Math.max(walletBalances.uakt - TX_FEE_BUFFER, 0), 6)
+            balance: uaktToAKT(walletBalance.balanceUAKT, 6),
+            inputMax: uaktToAKT(Math.max(walletBalance.balanceUAKT - TX_FEE_BUFFER, 0), 6)
           };
           break;
         case usdcIbcDenom:
           depositData = {
             min: minDeposit.usdc,
             label: "USDC",
-            balance: udenomToDenom(walletBalances.usdc, 6),
-            inputMax: udenomToDenom(Math.max(walletBalances.usdc - TX_FEE_BUFFER, 0), 6)
+            balance: udenomToDenom(walletBalance.balanceUUSDC, 6),
+            inputMax: udenomToDenom(Math.max(walletBalance.balanceUUSDC - TX_FEE_BUFFER, 0), 6)
           };
           break;
         default:
@@ -138,7 +134,7 @@ export const useDenomData = (denom: string) => {
 
       setDepositData(depositData);
     }
-  }, [denom, isLoaded, price, walletBalances, usdcIbcDenom, minDeposit]);
+  }, [denom, isLoaded, price, walletBalance, usdcIbcDenom, minDeposit]);
 
   return depositData;
 };

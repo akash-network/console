@@ -29,7 +29,7 @@ import { UAKT_DENOM } from "@src/config/denom.config";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
-import { useDenomData } from "@src/hooks/useWalletBalance";
+import { useDenomData, useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 import { useGranteeGrants } from "@src/queries/useGrantsQuery";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
@@ -73,7 +73,8 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   const { enqueueSnackbar } = useSnackbar();
   const [error, setError] = useState("");
   const [isCheckingDepositor, setIsCheckingDepositor] = useState(false);
-  const { walletBalances, address } = useWallet();
+  const { address } = useWallet();
+  const { walletBalance } = useTotalWalletBalance();
   const { data: granteeGrants } = useGranteeGrants(address);
   const depositData = useDenomData(denom);
   const form = useForm<z.infer<typeof formSchema>>({
@@ -167,8 +168,8 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
     setError("");
     clearErrors();
     const deposit = denomToUdenom(amount);
-    const uaktBalance = walletBalances?.uakt || 0;
-    const usdcBalance = walletBalances?.usdc || 0;
+    const uaktBalance = walletBalance?.balanceUAKT || 0;
+    const usdcBalance = walletBalance?.balanceUUSDC || 0;
 
     if (!disableMin && amount < (depositData?.min || 0)) {
       setError(`Deposit amount must be greater or equal than ${depositData?.min}.`);

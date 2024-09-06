@@ -8,13 +8,13 @@ import { Footer } from "@src/components/layout/Footer";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useBalances } from "@src/queries/useBalancesQuery";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { DeploymentDto } from "@src/types/deployment";
 import Layout from "../layout/Layout";
 import { WelcomePanel } from "./WelcomePanel";
+import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 
 const YourAccount = dynamic(() => import("./YourAccount"), {
   ssr: false
@@ -45,13 +45,12 @@ export function HomeContainer() {
   });
   const { settings, isSettingsInit } = useSettings();
   const { apiEndpoint } = settings;
-  const { data: balances, isFetching: isLoadingBalances, refetch: getBalances } = useBalances(address, { enabled: false });
+  const { walletBalance, isLoadingBalances } = useTotalWalletBalance();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
 
   useEffect(() => {
     if (address && isSettingsInit) {
-      getBalances();
       getLeases();
     }
 
@@ -74,7 +73,13 @@ export function HomeContainer() {
           <WelcomePanel />
         </div>
         {isSettingsInit && isWalletLoaded ? (
-          <YourAccount isLoadingBalances={isLoadingBalances} activeDeployments={activeDeployments} leases={leases} providers={providers} />
+          <YourAccount
+            isLoadingBalances={isLoadingBalances}
+            walletBalance={walletBalance}
+            activeDeployments={activeDeployments}
+            leases={leases}
+            providers={providers}
+          />
         ) : (
           <div className="flex justify-center p-8">
             <Spinner size="large" />

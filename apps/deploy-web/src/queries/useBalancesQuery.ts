@@ -1,4 +1,4 @@
-import { useQuery } from "react-query";
+import { QueryKey, useQuery, UseQueryOptions } from "react-query";
 import axios from "axios";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
@@ -61,7 +61,7 @@ async function getBalances(apiEndpoint: string, address: string): Promise<Balanc
   } as Balances;
 }
 
-export function useBalances(address: string, options) {
+export function useBalances(address: string, options?: Omit<UseQueryOptions<Balances, Error, any, QueryKey>, "queryKey" | "queryFn">) {
   const { settings } = useSettings();
   return useQuery(QueryKeys.getBalancesKey(address), () => getBalances(settings.apiEndpoint, address), options);
 }

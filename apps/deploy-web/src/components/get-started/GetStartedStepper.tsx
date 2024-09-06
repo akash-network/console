@@ -23,6 +23,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
+import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 
 const LiquidityModal = dynamic(
   () =>
@@ -48,10 +49,11 @@ const LiquidityModal = dynamic(
 
 export const GetStartedStepper: React.FunctionComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
-  const { isWalletConnected, walletBalances, address, refreshBalances, isManaged: isManagedWallet, isTrialing } = useWallet();
+  const { isWalletConnected, address, isManaged: isManagedWallet, isTrialing } = useWallet();
+  const { fetchBalances, walletBalance } = useTotalWalletBalance();
   const { minDeposit } = useChainParam();
-  const aktBalance = walletBalances ? uaktToAKT(walletBalances.uakt) : 0;
-  const usdcBalance = walletBalances ? udenomToDenom(walletBalances.usdc) : 0;
+  const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
+  const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;
 
   useEffect(() => {
     const getStartedStep = localStorage.getItem("getStartedStep");
@@ -163,7 +165,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
             </div>
           )}
 
-          {walletBalances && (
+          {walletBalance && (
             <div className="my-4 flex items-center space-x-2">
               {aktBalance >= minDeposit.akt || usdcBalance >= minDeposit.usdc ? (
                 <Check className="text-green-600" />
@@ -188,7 +190,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                   You have <strong>{aktBalance}</strong> AKT and <strong>{usdcBalance}</strong> USDC
                 </span>
               )}
-              {!isManagedWallet && <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} />}
+              {!isManagedWallet && <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={fetchBalances} />}
             </div>
           )}
         </StepContent>

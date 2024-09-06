@@ -35,9 +35,10 @@ type Props = {
   activeDeployments: Array<DeploymentDto>;
   leases: Array<LeaseDto> | null | undefined;
   providers: Array<ApiProviderList> | undefined;
+  walletBalance: TotalWalletBalance | null;
 };
 
-export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances, activeDeployments, leases, providers }) => {
+export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances, walletBalance, activeDeployments, leases, providers }) => {
   const { resolvedTheme } = useTheme();
   const tw = useTailwind();
   const { address, isManaged: isManagedWallet } = useWallet();
@@ -45,7 +46,6 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
   const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
   const [costPerMonth, setCostPerMonth] = useState<number | null>(null);
   const [userProviders, setUserProviders] = useState<{ owner: string; name: string }[] | null>(null);
-  const { walletBalance } = useTotalWalletBalance();
   const hasBalance = !!walletBalance && walletBalance.totalUsd > 0;
   const totalCpu = activeDeployments.map(d => d.cpuAmount).reduce((a, b) => a + b, 0);
   const totalGpu = activeDeployments.map(d => d.gpuAmount).reduce((a = 0, b = 0) => a + b, 0);
