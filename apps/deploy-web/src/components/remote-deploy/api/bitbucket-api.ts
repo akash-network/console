@@ -4,13 +4,11 @@ import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
-import { PROXY_API_URL_AUTH } from "../utils";
 
 const Bitbucket_API_URL = "https://api.bitbucket.org/2.0";
-const BitBucketKey = "HfxhSWx78u8juqs2Ta";
 
 export const handleLoginBit = () => {
-  window.location.href = `https://bitbucket.org/site/oauth2/authorize?client_id=${BitBucketKey}&response_type=code`;
+  window.location.href = `https://bitbucket.org/site/oauth2/authorize?client_id=${process.env.NEXT_PUBLIC_BITBUCKET_CLIENT_ID}&response_type=code`;
 };
 const axiosInstance = axios.create({
   baseURL: Bitbucket_API_URL,
@@ -25,7 +23,7 @@ export const useFetchRefreshBitToken = () => {
 
   return useMutation({
     mutationFn: async () => {
-      const response = await axios.post(`${PROXY_API_URL_AUTH}/bitbucket/refresh`, {
+      const response = await axios.post(`/api/bitbucket/refresh`, {
         refreshToken: token?.refresh_token
       });
 
@@ -37,6 +35,30 @@ export const useFetchRefreshBitToken = () => {
         refresh_token: data.refresh_token,
         type: "bitbucket"
       });
+    }
+  });
+};
+
+export const useBitFetchAccessToken = () => {
+  const [, setToken] = useAtom(remoteDeployStore.tokens);
+  const pathname = usePathname();
+  const router = useRouter();
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const response = await axios.post(`/api/bitbucket/authenticate`, {
+        code
+      });
+
+      return response.data;
+    },
+    onSuccess: data => {
+      setToken({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        type: "bitbucket"
+      });
+
+      router.replace(pathname.split("?")[0] + "?step=edit-deployment&type=github");
     }
   });
 };
@@ -76,30 +98,6 @@ export const useBitBucketCommits = (repo?: string) => {
       return response.data;
     },
     enabled: !!token?.access_token && token.type === "bitbucket" && !!repo
-  });
-};
-
-export const useBitFetchAccessToken = () => {
-  const [, setToken] = useAtom(remoteDeployStore.tokens);
-  const pathname = usePathname();
-  const router = useRouter();
-  return useMutation({
-    mutationFn: async (code: string) => {
-      const response = await axios.post(`${PROXY_API_URL_AUTH}/bitbucket/authenticate`, {
-        code
-      });
-
-      return response.data;
-    },
-    onSuccess: data => {
-      setToken({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-        type: "bitbucket"
-      });
-
-      router.replace(pathname.split("?")[0] + "?step=edit-deployment&type=github");
-    }
   });
 };
 
