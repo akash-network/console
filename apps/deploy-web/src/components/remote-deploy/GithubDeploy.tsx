@@ -50,19 +50,16 @@ const GithubDeploy = ({
   setIsRepoDataValidated?: Dispatch<boolean>;
 }) => {
   const [token, setToken] = useAtom(remoteDeployStore.tokens);
-  console.log(services);
 
   const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
   const { data: userProfileBit, isLoading: fetchingProfileBit } = useBitUserProfile();
   const { data: userProfileGitLab, isLoading: fetchingProfileGitLab } = useGitLabUserProfile();
-  console.log(userProfileGitLab);
 
   const { mutate: fetchAccessToken, isLoading: fetchingToken } = useFetchAccessToken();
   const { mutate: fetchAccessTokenBit, isLoading: fetchingTokenBit } = useBitFetchAccessToken();
   const { mutate: fetchAccessTokenGitLab, isLoading: fetchingTokenGitLab } = useGitLabFetchAccessToken();
 
   const [selectedTab, setSelectedTab] = useState("git");
-  console.log(services, "services");
 
   const [open, setOpen] = useState(false);
   useEffect(() => {

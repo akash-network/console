@@ -147,9 +147,10 @@ type Props = {
   control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
   hasSecretOption?: boolean;
   children?: ReactNode;
+  update?: boolean;
 };
 
-export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, envs: _envs, onClose, hasSecretOption = true }) => {
+export const EnvFormModal: React.FunctionComponent<Props> = ({ update, control, serviceIndex, envs: _envs, onClose, hasSecretOption = true }) => {
   const {
     fields: envs,
     remove: removeEnv,
@@ -180,12 +181,11 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
 
   const [currentEnvs, setCurrentEnvs] = useState<EnvironmentVariableType[]>();
 
-  console.log(currentEnvs, envs);
-
   useEffect(() => {
-    const cenvs = envs?.filter(e => !hiddenEnv.includes(e?.key?.trim()));
-    setCurrentEnvs(cenvs);
-    if (cenvs.length === 0) {
+    const CurEnvs = envs?.filter(e => !hiddenEnv.includes(e?.key?.trim()));
+    setCurrentEnvs(CurEnvs);
+
+    if (CurEnvs.length === 0 && !update) {
       onAddEnv();
     }
   }, [envs]);
@@ -219,7 +219,6 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
       <FormPaper contentClassName="bg-popover">
         {currentEnvs?.map((env, envIndex) => {
           const index = envs?.findIndex(e => e.id === env.id);
-          console.log(index);
 
           return (
             <div key={env.id} className={cn("flex", { ["mb-2"]: index + 1 !== currentEnvs.length })}>
