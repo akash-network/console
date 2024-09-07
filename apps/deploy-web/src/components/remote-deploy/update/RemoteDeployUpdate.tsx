@@ -87,6 +87,7 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
           <EnvVarList currentService={services[0]} setIsEditingEnv={setIsEditingEnv} />
           {isEditingEnv && (
             <EnvFormModal
+              update
               control={control}
               serviceIndex={0}
               envs={services[0]?.env ?? []}

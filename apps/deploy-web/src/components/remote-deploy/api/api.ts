@@ -62,7 +62,6 @@ export const useRepos = () => {
     },
     onError: (error: AxiosError<{ message: string }>) => {
       if (error?.response?.data?.message === "Bad credentials") {
-        console.log(error);
       }
     },
 
@@ -83,8 +82,6 @@ export const useFetchAccessToken = () => {
       return response.data;
     },
     onSuccess: data => {
-      console.log(data);
-
       setToken({
         access_token: data.access_token,
         refresh_token: data.refresh_token,
