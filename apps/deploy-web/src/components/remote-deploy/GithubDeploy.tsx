@@ -7,6 +7,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   Spinner,
   Tabs,
@@ -89,42 +91,14 @@ const GithubDeploy = ({
   return (
     <>
       <div className="mt-6 flex flex-col rounded border bg-card px-4 py-6 text-card-foreground md:px-6">
-        <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
+        <div className="flex items-center justify-between gap-6">
           <h2 className="font-semibold">Import Repository</h2>
-          {/* {token?.access_token && (
-            <div className="flex items-center gap-6">
-              <button
-                className="flex items-center gap-2 text-primary"
-                onClick={() => {
-                  setToken({
-                    access_token: null,
-                    refresh_token: null,
-                    type: "github",
-                    alreadyLoggedIn: token?.alreadyLoggedIn?.includes(token.type)
-                      ? token.alreadyLoggedIn
-                      : token?.alreadyLoggedIn && token?.alreadyLoggedIn?.length > 0
-                        ? [...token.alreadyLoggedIn, token.type]
-                        : [token.type]
-                  });
-                }}
-              >
-                <CoinsSwap className="text-sm" /> Switch Git Provider
-              </button>
-              <button
-                className="flex items-center gap-2 text-primary"
-                onClick={() => {
-                  setToken({
-                    access_token: null,
-                    refresh_token: null,
-                    type: "github",
-                    alreadyLoggedIn: []
-                  });
-                }}
-              >
-                <LogOut className="text-sm" /> Logout
-              </button>
+
+          {token?.access_token && (
+            <div className="md:hidden">
+              <AccountDropDown userProfile={userProfile} userProfileBit={userProfileBit} userProfileGitLab={userProfileGitLab} />
             </div>
-          )} */}
+          )}
         </div>
 
         {
@@ -147,54 +121,9 @@ const GithubDeploy = ({
                 </TabsTrigger>
               </TabsList>
               {token?.access_token && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger>
-                    <Button variant={"text"} className="flex h-auto items-center gap-2 py-1.5">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="size-8">
-                          <AvatarImage src={userProfile?.avatar_url || userProfileBit?.avatar_url || userProfileGitLab?.avatar_url} />
-                          <AvatarFallback>
-                            <User />
-                          </AvatarFallback>
-                        </Avatar>
-                        <p>{userProfile?.login || userProfileBit?.username || userProfileGitLab?.name}</p>
-                      </div>
-                      <ChevronDown />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setToken({
-                          access_token: null,
-                          refresh_token: null,
-                          type: "github",
-                          alreadyLoggedIn: token?.alreadyLoggedIn?.includes(token.type)
-                            ? token.alreadyLoggedIn
-                            : token?.alreadyLoggedIn && token?.alreadyLoggedIn?.length > 0
-                              ? [...token.alreadyLoggedIn, token.type]
-                              : [token.type]
-                        });
-                      }}
-                      className="flex cursor-pointer items-center gap-2"
-                    >
-                      <CoinsSwap className="text-sm" /> Switch Git Provider
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() =>
-                        setToken({
-                          access_token: null,
-                          refresh_token: null,
-                          type: "github",
-                          alreadyLoggedIn: []
-                        })
-                      }
-                      className="flex cursor-pointer items-center gap-2"
-                    >
-                      <LogOut className="text-sm" /> Logout
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="hidden md:block">
+                  <AccountDropDown userProfile={userProfile} userProfileBit={userProfileBit} userProfileGitLab={userProfileGitLab} />
+                </div>
               )}
             </div>
             <TabsContent value="git">
@@ -314,3 +243,59 @@ const GithubDeploy = ({
 };
 
 export default GithubDeploy;
+
+const AccountDropDown = ({ userProfile, userProfileBit, userProfileGitLab }) => {
+  const [token, setToken] = useAtom(remoteDeployStore.tokens);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger>
+        <Button variant={"text"} className="flex h-auto items-center gap-2 py-1.5">
+          <div className="flex items-center gap-2">
+            <Avatar className="size-8">
+              <AvatarImage src={userProfile?.avatar_url || userProfileBit?.avatar_url || userProfileGitLab?.avatar_url} />
+              <AvatarFallback>
+                <User />
+              </AvatarFallback>
+            </Avatar>
+            <p className="hidden md:block">{userProfile?.login || userProfileBit?.username || userProfileGitLab?.name}</p>
+          </div>
+          <ChevronDown />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuLabel className="md:hidden">{userProfile?.login || userProfileBit?.username || userProfileGitLab?.name}</DropdownMenuLabel>
+        <DropdownMenuSeparator className="md:hidden" />
+        <DropdownMenuItem
+          onClick={() => {
+            setToken({
+              access_token: null,
+              refresh_token: null,
+              type: "github",
+              alreadyLoggedIn: token?.alreadyLoggedIn?.includes(token.type)
+                ? token.alreadyLoggedIn
+                : token?.alreadyLoggedIn && token?.alreadyLoggedIn?.length > 0
+                  ? [...token.alreadyLoggedIn, token.type]
+                  : [token.type]
+            });
+          }}
+          className="flex cursor-pointer items-center gap-2"
+        >
+          <CoinsSwap className="text-sm" /> Switch Git Provider
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() =>
+            setToken({
+              access_token: null,
+              refresh_token: null,
+              type: "github",
+              alreadyLoggedIn: []
+            })
+          }
+          className="flex cursor-pointer items-center gap-2"
+        >
+          <LogOut className="text-sm" /> Logout
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
