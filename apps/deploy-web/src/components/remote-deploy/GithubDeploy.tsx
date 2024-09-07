@@ -20,7 +20,7 @@ import { Bitbucket, CoinsSwap, Github as GitIcon, GitlabFull, LogOut, User } fro
 import { useAtom } from "jotai";
 import { ChevronDown } from "lucide-react";
 
-import { useWhen } from "@src/hooks/useWhen";
+import { useWhenNot } from "@src/hooks/useWhenNot";
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { ServiceType } from "@src/types";
 import { handleLogin, handleReLogin, useFetchAccessToken, useUserProfile } from "./api/api";
@@ -66,11 +66,13 @@ const GithubDeploy = ({
     setOpen(true);
   }, []);
 
-  useWhen(
+  useWhenNot(
     services?.[0]?.env?.find(e => e.key === "REPO_URL" && services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")),
     () => {
       setIsRepoDataValidated?.(true);
-    }
+    },
+    [],
+    () => setIsRepoDataValidated?.(false)
   );
 
   useEffect(() => {
@@ -246,7 +248,7 @@ const AccountDropDown = ({ userProfile, userProfileBit, userProfileGitLab }) => 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger>
-        <Button variant={"text"} className="flex h-auto items-center gap-2 py-1.5">
+        <Button variant={"outline"} className="flex h-auto items-center gap-5 bg-popover py-1">
           <div className="flex items-center gap-2">
             <Avatar className="size-8">
               <AvatarImage src={userProfile?.avatar_url || userProfileBit?.avatar_url || userProfileGitLab?.avatar_url} />
@@ -256,7 +258,7 @@ const AccountDropDown = ({ userProfile, userProfileBit, userProfileGitLab }) => 
             </Avatar>
             <p className="hidden md:block">{userProfile?.login || userProfileBit?.username || userProfileGitLab?.name}</p>
           </div>
-          <ChevronDown />
+          <ChevronDown size={16} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>

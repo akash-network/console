@@ -60,7 +60,7 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
       }
     }
   };
-  return github.content.includes(services?.[0]?.image) ? (
+  return github.content.includes(services?.[0]?.image) && services?.[0]?.env && services?.[0]?.env?.length > 0 ? (
     <div className="flex flex-col gap-6 rounded border bg-card px-4 py-6 md:px-6">
       <div className="flex flex-col gap-3 rounded border bg-card px-6 py-6 text-card-foreground">
         <div className="flex items-center justify-between gap-5">
@@ -82,7 +82,7 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
         </div>
         <p className="text-sm text-muted-foreground">If checked, Console will automatically re-deploy your app on any code commits</p>
       </div>
-      {services[0]?.env?.length && (
+      {services[0]?.env?.length ? (
         <>
           <EnvVarList currentService={services[0]} setIsEditingEnv={setIsEditingEnv} />
           {isEditingEnv && (
@@ -97,7 +97,7 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
             />
           )}
         </>
-      )}
+      ) : null}
 
       {token.access_token && services[0]?.env?.find(e => e.key === "REPO_URL")?.value?.includes(token.type) && (
         <>
