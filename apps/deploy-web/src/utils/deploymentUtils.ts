@@ -1,8 +1,8 @@
 import axios from "axios";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { ApiProviderList } from "@src/types/provider";
-import { PROVIDER_PROXY_URL } from "./constants";
 import { wait } from "./timer";
 
 export const sendManifestToProvider = async (providerInfo: ApiProviderList, manifest: any, dseq: string, localCert: LocalCert) => {
@@ -20,7 +20,7 @@ export const sendManifestToProvider = async (providerInfo: ApiProviderList, mani
     console.log("Try #" + i);
     try {
       if (!response) {
-        response = await axios.post(PROVIDER_PROXY_URL, {
+        response = await axios.post(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL, {
           method: "PUT",
           url: providerInfo.hostUri + "/deployment/" + dseq + "/manifest",
           certPem: localCert?.certPem,

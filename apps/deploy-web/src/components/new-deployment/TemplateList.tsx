@@ -11,7 +11,7 @@ import { useTemplates } from "@src/context/TemplatesProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import sdlStore from "@src/store/sdlStore";
 import { ApiTemplate } from "@src/types";
-import { RouteStepKeys } from "@src/utils/constants";
+import { RouteStep } from "@src/types/route-steps.type";
 import { cn } from "@src/utils/styleUtils";
 import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
@@ -43,7 +43,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setGithub }) => {
   const previousRoute = usePreviousRoute();
   const handleGithubTemplate = async () => {
     setGithub(true);
-    router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, type: "github" }));
+    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, type: "github" }));
   };
   useEffect(() => {
     if (templates) {
@@ -54,7 +54,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setGithub }) => {
 
   function onSDLBuilderClick(page: NewDeploymentParams["page"] = "new-deployment") {
     setSdlEditMode("builder");
-    router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, page }));
+    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, page }));
   }
 
   function handleBackClick() {
@@ -67,7 +67,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setGithub }) => {
 
   return (
     <>
-      <CustomNextSeo title="Create Deployment - Template List" url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.chooseTemplate })}`} />
+      <CustomNextSeo title="Create Deployment - Template List" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.chooseTemplate })}`} />
 
       <div className="mb-8 mt-8 flex items-center">
         <Button aria-label="back" onClick={handleBackClick} size="icon" variant="ghost">
@@ -137,7 +137,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setGithub }) => {
             <TemplateBox
               key={template.id}
               template={template}
-              linkHref={UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: template?.id })}
+              linkHref={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: template?.id })}
             />
           ))}
         </div>

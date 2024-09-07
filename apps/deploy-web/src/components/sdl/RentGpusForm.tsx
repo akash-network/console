@@ -10,7 +10,7 @@ import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 
-import { envConfig } from "@src/config/env.config";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSettings } from "@src/context/SettingsProvider";
@@ -24,8 +24,8 @@ import sdlStore from "@src/store/sdlStore";
 import { ApiTemplate, ProfileGpuModelType, RentGpusFormValuesSchema, RentGpusFormValuesType, ServiceType } from "@src/types";
 import { DepositParams } from "@src/types/deployment";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
+import { RouteStep } from "@src/types/route-steps.type";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
@@ -79,7 +79,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
   const { createDeploymentConfirm } = useManagedDeploymentConfirm();
   const managedDenom = useManagedWalletDenom();
   const { data: depositParams } = useDepositParams();
-  const defaultDeposit = depositParams || defaultInitialDeposit;
+  const defaultDeposit = depositParams || browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
 
   useWhen(isManaged && sdlDenom === "uakt", () => {
     setSdlDenom(managedDenom);
@@ -212,7 +212,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
         return;
       }
 
-      await handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      await handleCreateClick(defaultDeposit, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
     } else {
       setIsCheckingPrerequisites(true);
     }
@@ -272,7 +272,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
 
         // Save the manifest
         saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.version, address, currentService.image);
-        router.push(UrlService.newDeployment({ step: RouteStepKeys.createLeases, dseq: dd.deploymentId.dseq }));
+        router.push(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
 
         event(AnalyticsEvents.CREATE_GPU_DEPLOYMENT, {
           category: "deployments",

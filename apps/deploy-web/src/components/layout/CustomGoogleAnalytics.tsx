@@ -2,7 +2,7 @@
 import { useReportWebVitals } from "next/web-vitals";
 import { event, GoogleAnalytics as GAnalytics } from "nextjs-google-analytics";
 
-// import { isProd } from "@src/utils/constants";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 
 export default function GoogleAnalytics() {
   useReportWebVitals(({ id, name, label, value }) => {
@@ -13,7 +13,6 @@ export default function GoogleAnalytics() {
       nonInteraction: true // avoids affecting bounce rate.
     });
   });
-  const isProd = false;
 
-  return <>{isProd && <GAnalytics trackPageViews />}</>;
+  return <>{browserEnvConfig.NEXT_PUBLIC_NODE_ENV === "production" && <GAnalytics trackPageViews />}</>;
 }

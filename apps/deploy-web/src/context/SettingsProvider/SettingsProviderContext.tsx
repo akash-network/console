@@ -1,14 +1,15 @@
 "use client";
 import React, { FC, ReactNode, useCallback, useEffect, useState } from "react";
+import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import axios from "axios";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { queryClient } from "@src/queries";
 import { initiateNetworkData, networks } from "@src/store/networkStore";
 import { NodeStatus } from "@src/types/node";
 import { mainnetNodes } from "@src/utils/apiUtils";
-import { defaultNetworkId } from "@src/utils/constants";
 import { initAppTypes } from "@src/utils/init";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 
@@ -58,7 +59,7 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [isSettingsInit, setIsSettingsInit] = useState(false);
   const [isRefreshingNodeStatus, setIsRefreshingNodeStatus] = useState(false);
   const { getLocalStorageItem, setLocalStorageItem } = useLocalStorage();
-  const [selectedNetworkId, setSelectedNetworkId] = useState(defaultNetworkId);
+  const [selectedNetworkId, setSelectedNetworkId] = useState<NetworkId>(browserEnvConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID);
   const { isCustomNode, customNode, nodes, apiEndpoint, rpcEndpoint } = settings;
 
   usePreviousRoute();
@@ -77,7 +78,7 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
       // Init app types based on the selected network id
       initAppTypes();
 
-      const _selectedNetworkId = localStorage.getItem("selectedNetworkId") || defaultNetworkId;
+      const _selectedNetworkId = (localStorage.getItem("selectedNetworkId") as NetworkId | null) || browserEnvConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID;
 
       setSelectedNetworkId(_selectedNetworkId);
 

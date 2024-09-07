@@ -8,7 +8,7 @@ import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
-import { RouteStepKeys } from "@src/utils/constants";
+import { RouteStep } from "@src/types/route-steps.type";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -61,7 +61,7 @@ export const NewDeploymentContainer: FC = () => {
     if (type === "github" || code || state === "gitlab") {
       if (!redeploy) {
         if (state === "gitlab") {
-          router.replace(`/new-deployment?step=${RouteStepKeys.editDeployment}&type=gitlab&code=${code}`);
+          router.replace(`/new-deployment?step=${RouteStep.editDeployment}&type=gitlab&code=${code}`);
         }
 
         setSelectedTemplate(hardcodedTemplates.find(t => t.title === "GitHub") as TemplateCreation);
@@ -77,11 +77,11 @@ export const NewDeploymentContainer: FC = () => {
     const _activeStep = getStepIndexByParam(queryStep);
     setActiveStep(_activeStep);
 
-    if ((redeployTemplate || galleryTemplate) && queryStep !== RouteStepKeys.editDeployment) {
+    if ((redeployTemplate || galleryTemplate) && queryStep !== RouteStep.editDeployment) {
       if (isRedeployImage(redeployTemplate?.content as string)) {
-        router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStepKeys.editDeployment, type: "github", redeploy: redeploy ?? "redeploy" }));
+        router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment, type: "github", redeploy: redeploy ?? "redeploy" }));
       } else {
-        router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStepKeys.editDeployment }));
+        router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -141,11 +141,11 @@ export const NewDeploymentContainer: FC = () => {
 
   function getStepIndexByParam(step) {
     switch (step) {
-      case RouteStepKeys.editDeployment:
+      case RouteStep.editDeployment:
         return 1;
-      case RouteStepKeys.createLeases:
+      case RouteStep.createLeases:
         return 2;
-      case RouteStepKeys.chooseTemplate:
+      case RouteStep.chooseTemplate:
       default:
         return 0;
     }

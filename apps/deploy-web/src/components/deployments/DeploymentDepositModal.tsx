@@ -25,13 +25,13 @@ import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
+import { UAKT_DENOM } from "@src/config/denom.config";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useGranteeGrants } from "@src/queries/useGrantsQuery";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { uAktDenom } from "@src/utils/constants";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { LinkTo } from "../shared/LinkTo";
@@ -185,7 +185,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
         category: "deployments",
         label: "Use depositor to deposit in deployment"
       });
-    } else if (denom === uAktDenom && deposit > uaktBalance) {
+    } else if (denom === UAKT_DENOM && deposit > uaktBalance) {
       setError(`You can't deposit more than you currently have in your balance. Current balance is: ${uaktToAKT(uaktBalance)} AKT.`);
       return;
     } else if (denom === usdcIbcDenom && deposit > usdcBalance) {

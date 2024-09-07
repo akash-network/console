@@ -44,3 +44,5 @@ sentry.properties
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+env-config.schema.js

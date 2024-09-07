@@ -15,8 +15,8 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { RouteStep } from "@src/types/route-steps.type";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { cn } from "@src/utils/styleUtils";
@@ -69,7 +69,7 @@ export function DeploymentDetail() {
       if (_leases) {
         // Redirect to select bids if has no lease
         if (deployment?.state === "active" && _leases.length === 0) {
-          router.replace(UrlService.newDeployment({ dseq, step: RouteStepKeys.createLeases }));
+          router.replace(UrlService.newDeployment({ dseq, step: RouteStep.createLeases }));
         }
 
         // Set the array of refs for lease rows

@@ -9,7 +9,8 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 
 import { LoginRequiredLink } from "@src/components/user/LoginRequiredLink";
-import { envConfig } from "@src/config/env.config";
+import { browserEnvConfig } from "@src/config/browser-env.config";
+import { UAKT_DENOM } from "@src/config/denom.config";
 import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
@@ -19,7 +20,6 @@ import { Balances } from "@src/types";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { customColors } from "@src/utils/colors";
-import { uAktDenom } from "@src/utils/constants";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, uaktToAKT } from "@src/utils/priceUtils";
 import { cn } from "@src/utils/styleUtils";
@@ -61,7 +61,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
   const [costPerMonth, setCostPerMonth] = useState<number | null>(null);
   const [userProviders, setUserProviders] = useState<{ owner: string; name: string }[] | null>(null);
   const escrowUAktSum = activeDeployments
-    .filter(x => x.escrowAccount.balance.denom === uAktDenom)
+    .filter(x => x.escrowAccount.balance.denom === UAKT_DENOM)
     .map(x => x.escrowBalance)
     .reduce((a, b) => a + b, 0);
   const escrowUsdcSum = activeDeployments
@@ -92,15 +92,16 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
       {
         id: "balance_akt",
         label: "Balance",
-        denom: uAktDenom,
+        denom: UAKT_DENOM,
         denomLabel: "AKT",
-        value: isManagedWallet && envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "uakt" ? balances.balance + managedWalletCreditAmount : balances.balance,
+        value:
+          isManagedWallet && browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "uakt" ? balances.balance + managedWalletCreditAmount : balances.balance,
         color: colors.balance_akt
       },
       {
         id: "deployment_akt",
         label: "Deployment",
-        denom: uAktDenom,
+        denom: UAKT_DENOM,
         denomLabel: "AKT",
         value: escrowUAktSum,
         color: colors.deployment_akt
@@ -115,7 +116,9 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
         denom: usdcIbcDenom,
         denomLabel: "USDC",
         value:
-          isManagedWallet && envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "usdc" ? balances.balanceUsdc + managedWalletCreditAmount : balances.balanceUsdc,
+          isManagedWallet && browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "usdc"
+            ? balances.balanceUsdc + managedWalletCreditAmount
+            : balances.balanceUsdc,
         color: colors.balance_usdc
       },
       {
@@ -128,8 +131,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
       }
     ];
   };
-  const aktData = balances && (!isManagedWallet || envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "uakt") ? getAktData(balances, escrowUAktSum) : [];
-  const usdcData = balances && (!isManagedWallet || envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "usdc") ? getUsdcData(balances, escrowUsdcSum) : [];
+  const aktData = balances && (!isManagedWallet || browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "uakt") ? getAktData(balances, escrowUAktSum) : [];
+  const usdcData = balances && (!isManagedWallet || browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "usdc") ? getUsdcData(balances, escrowUsdcSum) : [];
   const filteredAktData = aktData.filter(x => x.value);
   const filteredUsdcData = usdcData.filter(x => x.value);
   const allData = [...aktData, ...usdcData];
@@ -140,7 +143,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
       const totalCostPerBlock = activeLeases
         .map(x => {
           switch (x.price.denom) {
-            case uAktDenom:
+            case UAKT_DENOM:
               return udenomToDenom(x.price.amount, 10) * price;
             case usdcIbcDenom:
               return udenomToDenom(x.price.amount, 10);
@@ -307,7 +310,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
 
                     <div>
                       <strong>
-                        <PriceValue denom={uAktDenom} value={uaktToAKT(totalUAkt, 6)} />
+                        <PriceValue denom={UAKT_DENOM} value={uaktToAKT(totalUAkt, 6)} />
                       </strong>
                     </div>
                   </div>

@@ -30,11 +30,11 @@ import Image from "next/legacy/image";
 import Link from "next/link";
 
 import { SSHKeyFormControl } from "@src/components/sdl/SSHKeyFromControl";
+import { UAKT_DENOM } from "@src/config/denom.config";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { GpuVendor } from "@src/types/gpu";
-import { uAktDenom } from "@src/utils/constants";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { cn } from "@src/utils/styleUtils";
@@ -470,7 +470,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                   <div>
                                     <strong>
                                       ~
-                                      <PriceValue denom={uAktDenom} value={udenomToDenom(getAvgCostPerMonth(currentService.placement.pricing.amount))} />
+                                      <PriceValue denom={UAKT_DENOM} value={udenomToDenom(getAvgCostPerMonth(currentService.placement.pricing.amount))} />
                                     </strong>
                                     &nbsp; per month
                                   </div>

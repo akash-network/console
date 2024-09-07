@@ -6,9 +6,9 @@ import axios from "axios";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
+import { networkService } from "@src/services/network/network.service";
 import { RestApiCertificatesResponseType } from "@src/types/certificate";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { networkVersion } from "@src/utils/constants";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { getStorageWallets, updateWallet } from "@src/utils/walletUtils";
 import { useSettings } from "../SettingsProvider";
@@ -80,7 +80,7 @@ export const CertificateProvider = ({ children }) => {
 
       try {
         const response = await axios.get<RestApiCertificatesResponseType>(
-          `${apiEndpoint}/akash/cert/${networkVersion}/certificates/list?filter.state=valid&filter.owner=${address}`
+          `${apiEndpoint}/akash/cert/${networkService.networkVersion}/certificates/list?filter.state=valid&filter.owner=${address}`
         );
         const certs = (response.data.certificates || []).map(cert => {
           const parsed = atob(cert.certificate.cert);

@@ -3,10 +3,10 @@ import { useEffect, useState } from "react";
 import { Alert, Table, TableBody, TableCell, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Check } from "iconoir-react";
 
+import { MAINNET_ID } from "@src/config/network.config";
 import { useSettings } from "@src/context/SettingsProvider";
 import { BidDto, DeploymentDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
-import { mainnetId } from "@src/utils/constants";
 import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploymentDetailUtils";
 import { FormPaper } from "../sdl/FormPaper";
 import { LabelValueOld } from "../shared/LabelValueOld";
@@ -123,7 +123,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
           {fBids.map(bid => {
             const provider = providers && providers.find(x => x.owner === bid.provider);
             const showBid = provider?.isValidVersion && (!isSendingManifest || selectedBid?.id === bid.id);
-            return (showBid || selectedNetworkId !== mainnetId) && provider ? (
+            return (showBid || selectedNetworkId !== MAINNET_ID) && provider ? (
               <BidRow
                 key={bid.id}
                 bid={bid}

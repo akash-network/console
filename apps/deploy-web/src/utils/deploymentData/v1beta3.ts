@@ -1,6 +1,6 @@
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import networkStore from "@src/store/networkStore";
 import type { DepositParams } from "@src/types/deployment";
-import { defaultInitialDeposit } from "../constants";
 import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion } from "./helpers";
 
 export const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
@@ -29,7 +29,7 @@ export async function NewDeploymentData(
   yamlStr: string,
   dseq: string | null,
   fromAddress: string,
-  deposit: number | DepositParams[] = defaultInitialDeposit,
+  deposit: number | DepositParams[] = browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT,
   depositorAddress: string | null = null
 ) {
   try {

@@ -2,7 +2,7 @@ import { HttpService } from "@akashnetwork/http-sdk";
 import type { UserProfile } from "@auth0/nextjs-auth0/client";
 import { InternalAxiosRequestConfig } from "axios";
 
-import { ANONYMOUS_USER_TOKEN_KEY } from "@src/utils/constants";
+import { ANONYMOUS_USER_TOKEN_KEY } from "@src/config/auth.config";
 
 export class UserHttpService extends HttpService {
   constructor() {

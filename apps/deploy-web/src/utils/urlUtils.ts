@@ -1,5 +1,6 @@
+import { MAINNET_ID } from "@src/config/network.config";
 import { FaqAnchorType } from "@src/pages/faq";
-import { mainnetId, selectedNetworkId } from "./constants";
+import { networkService } from "@src/services/network/network.service";
 
 export type NewDeploymentParams = {
   step?: string;
@@ -11,12 +12,12 @@ export type NewDeploymentParams = {
 };
 
 function getSelectedNetworkQueryParam() {
-  if (selectedNetworkId) {
-    return selectedNetworkId;
+  if (networkService.selectedNetworkId) {
+    return networkService.selectedNetworkId;
   } else if (typeof window !== "undefined") {
     return new URLSearchParams(window.location.search).get("network");
   } else {
-    return mainnetId;
+    return MAINNET_ID;
   }
 }
 

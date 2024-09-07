@@ -5,9 +5,9 @@ import { IntlProvider } from "react-intl";
 import { ErrorFallback, Spinner } from "@akashnetwork/ui/components";
 import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 
+import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { accountBarHeight } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Nav } from "./Nav";
@@ -106,7 +106,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
       <WelcomeModal open={isShowingWelcome} onClose={onWelcomeClose} />
 
       <div className="h-full">
-        <div className="h-full w-full" style={{ marginTop: `${accountBarHeight}px` }}>
+        <div className="h-full w-full" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT}px` }}>
           <div className="h-full">
             <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} />
 

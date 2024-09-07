@@ -5,7 +5,6 @@ import { Spinner } from "@akashnetwork/ui/components";
 import dynamic from "next/dynamic";
 
 import { Footer } from "@src/components/layout/Footer";
-import { envConfig } from "@src/config/env.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
