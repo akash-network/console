@@ -3,13 +3,15 @@ import { Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger,
 import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
+// import { EnvVarList } from "../sdl/EnvVarList";
 import { EnvFormModal } from "./EnvFormModal";
+import { EnvVarList } from "./EnvList";
 
 const Advanced = ({ services, control }) => {
   const serviceIndex = 0;
   const [expanded, setExpanded] = useState(false);
   const currentService = services[serviceIndex];
-
+  const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(null);
   return (
     <Collapsible
       open={expanded}
@@ -28,14 +30,18 @@ const Advanced = ({ services, control }) => {
           {expanded && <Separator />}
           <CollapsibleContent>
             <div className="grid items-start gap-6 p-5">
-              <EnvFormModal
-                subComponent
-                control={control}
-                onClose={() => {}}
-                serviceIndex={serviceIndex}
-                envs={currentService.env || []}
-                // hasSecretOption={hasSecretOption}
-              />
+              {isEditingEnv === serviceIndex && (
+                <EnvFormModal
+                  control={control}
+                  onClose={() => setIsEditingEnv(null)}
+                  serviceIndex={serviceIndex}
+                  envs={currentService.env || []}
+                  // hasSecretOption={hasSecretOption}
+                />
+              )}
+              <div>
+                <EnvVarList currentService={currentService} setIsEditingEnv={setIsEditingEnv} serviceIndex={serviceIndex} />
+              </div>
             </div>
           </CollapsibleContent>
         </CardContent>
