@@ -5,11 +5,11 @@ import { UAKT_DENOM } from "@src/config/denom.config";
 import { getUsdcDenom } from "@src/hooks/useDenom";
 import { Balances } from "@src/types";
 import { RestApiAuthzGrantsResponseType, RestApiBalancesResponseType } from "@src/types";
+import { RpcDeployment } from "@src/types/deployment";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
+import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";
-import { RpcDeployment } from "@src/types/deployment";
-import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 
 // Account balances
 async function getBalances(apiEndpoint: string, address: string): Promise<Balances | undefined> {

@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { PaginatedResults } from "@src/types";
+import { RpcDeployment } from "@src/types/deployment";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 import { coinToUDenom } from "@src/utils/priceUtils";
@@ -11,7 +12,6 @@ import { removeEmptyFilters } from "@src/utils/urlUtils";
 import { deploymentRowSchema, DeploymentRowType } from "@src/utils/zod/deploymentRow";
 import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";
-import { RpcDeployment } from "@src/types/deployment";
 
 // Deployment list
 async function getDeploymentList(apiEndpoint: string, address: string) {

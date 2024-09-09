@@ -23,13 +23,13 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
+import { udenomToDenom } from "@src/utils/mathHelpers";
+import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
-import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
-import { uaktToAKT } from "@src/utils/priceUtils";
-import { udenomToDenom } from "@src/utils/mathHelpers";
 import { LinkTo } from "../shared/LinkTo";
 import { ManagedEscrowFaqModal } from "../shared/ManagedEscrowFaqModal";
+import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 
 const goToCheckout = () => {
   window.location.href = "/api/proxy/v1/checkout";

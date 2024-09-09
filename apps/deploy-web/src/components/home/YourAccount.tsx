@@ -15,6 +15,7 @@ import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import useTailwind from "@src/hooks/useTailwind";
+import { TotalWalletBalance, useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 import sdlStore from "@src/store/sdlStore";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
@@ -28,7 +29,6 @@ import { ConnectWallet } from "../shared/ConnectWallet";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
 import { StatusPill } from "../shared/StatusPill";
-import { TotalWalletBalance, useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 
 type Props = {
   isLoadingBalances: boolean;

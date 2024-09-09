@@ -1,10 +1,11 @@
 "use client";
 import React from "react";
+import { FormattedNumber } from "react-intl";
 import { Alert, Popup } from "@akashnetwork/ui/components";
+import { ArrowRight } from "iconoir-react";
+
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
-import { FormattedNumber } from "react-intl";
-import { ArrowRight } from "iconoir-react";
 
 export type Props = {
   onClose: () => void;

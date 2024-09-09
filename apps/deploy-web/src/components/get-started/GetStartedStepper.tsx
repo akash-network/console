@@ -15,6 +15,7 @@ import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManage
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 import { RouteStep } from "@src/types/route-steps.type";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
@@ -23,7 +24,6 @@ import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
-import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 
 const LiquidityModal = dynamic(
   () =>

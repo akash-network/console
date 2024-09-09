@@ -5,11 +5,11 @@ import { CheckCircle, WarningCircle } from "iconoir-react";
 
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt } from "@src/utils/priceUtils";
 import { ConnectWallet } from "./ConnectWallet";
 import { Title } from "./Title";
-import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 
 type Props = {
   onClose: () => void;

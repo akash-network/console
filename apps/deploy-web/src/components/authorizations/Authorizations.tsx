@@ -6,6 +6,7 @@ import { NextSeo } from "next-seo";
 
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { useWallet } from "@src/context/WalletProvider";
+import { useAllowance } from "@src/hooks/useAllowance";
 import { useAllowancesIssued, useGranteeGrants, useGranterGrants } from "@src/queries/useGrantsQuery";
 import { AllowanceType, GrantType } from "@src/types/grant";
 import { averageBlockTime } from "@src/utils/priceUtils";
@@ -20,7 +21,6 @@ import { DeploymentGrantTable } from "./DeploymentGrantTable";
 import { FeeGrantTable } from "./FeeGrantTable";
 import { GranteeRow } from "./GranteeRow";
 import { GrantModal } from "./GrantModal";
-import { useAllowance } from "@src/hooks/useAllowance";
 
 type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "allowancesGranted" | null;
 const defaultRefetchInterval = 30 * 1000;

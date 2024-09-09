@@ -5,10 +5,10 @@ import { TX_FEE_BUFFER } from "@src/config/tx.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useBalances } from "@src/queries/useBalancesQuery";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { useUsdcDenom } from "./useDenom";
-import { useBalances } from "@src/queries/useBalancesQuery";
 
 export type TotalWalletBalance = {
   totalUsd: number;

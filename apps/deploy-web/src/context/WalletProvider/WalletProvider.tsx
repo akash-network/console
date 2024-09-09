@@ -16,6 +16,7 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useAllowance } from "@src/hooks/useAllowance";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
+import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 import { useWhen } from "@src/hooks/useWhen";
 import { txHttpService } from "@src/services/http/http.service";
 import networkStore from "@src/store/networkStore";
@@ -24,7 +25,6 @@ import { UrlService } from "@src/utils/urlUtils";
 import { getSelectedStorageWallet, getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { useSettings } from "../SettingsProvider";
-import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
 
 const ERROR_MESSAGES = {
   5: "Insufficient funds",
