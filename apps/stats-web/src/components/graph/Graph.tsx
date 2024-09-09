@@ -1,9 +1,8 @@
 "use client";
-import React, { useRef, useEffect, useMemo } from "react";
-
-import { createChart } from "lightweight-charts";
-import { format } from "date-fns";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
+import { format } from "date-fns";
+import { createChart } from "lightweight-charts";
 import { useTheme } from "next-themes";
 
 import { customColors } from "@/lib/colors";
@@ -17,15 +16,12 @@ interface IGraphProps {
     legend?: string;
   };
   snapshotData: GraphResponse;
-  snapshot: Snapshots | ProviderSnapshots | "NOT_FOUND";
-  selectedRange: number;
 }
 
-const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetadata, snapshotData, snapshot, selectedRange }) => {
+const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetadata, snapshotData }) => {
   const { resolvedTheme } = useTheme();
   const intl = useIntl();
   const graphTheme = getTheme(resolvedTheme);
-
   const initialData = useMemo(
     () =>
       snapshotData
@@ -91,7 +87,11 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
         scaleMargins: {
           top: 0.05,
           bottom: 0.05
-        }
+        },
+        borderColor: graphTheme.axis.domain.line.stroke
+      },
+      timeScale: {
+        borderColor: graphTheme.axis.domain.line.stroke
       },
       crosshair: {
         // hide the horizontal crosshair line
@@ -190,7 +190,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
       isDisposed = true;
       chart.remove();
     };
-  }, [initialData]);
+  }, [initialData, resolvedTheme]);
 
   return (
     <div className="relative h-[400px]">
