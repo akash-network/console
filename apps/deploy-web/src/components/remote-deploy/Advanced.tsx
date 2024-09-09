@@ -23,7 +23,7 @@ const Advanced = ({ services, control }) => {
         <CardContent className="p-0">
           <CollapsibleTrigger asChild>
             <div className="flex items-center justify-between p-4">
-              <h1 className="font-semibold">Environment Variables</h1>
+              <h1 className="font-semibold">{!expanded && "Environment Variables"}</h1>
               <NavArrowDown fontSize="1rem" className={cn("transition-all duration-100", { ["rotate-180"]: expanded })} />
             </div>
           </CollapsibleTrigger>
