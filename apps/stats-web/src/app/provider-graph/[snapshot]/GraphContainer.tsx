@@ -86,7 +86,7 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
             <TimeRange selectedRange={selectedRange} onRangeChange={setSelectedRange} />
           </div>
 
-          <Graph rangedData={rangedData} snapshotMetadata={snapshotMetadata} snapshot={snapshot} snapshotData={snapshotData} selectedRange={selectedRange} />
+          <Graph rangedData={rangedData} snapshotMetadata={snapshotMetadata} snapshotData={snapshotData} />
           {snapshotData && (
             <div className="mt-8 text-right">
               <Button variant="outline" color="secondary" onClick={onDownloadCSVClick}>
