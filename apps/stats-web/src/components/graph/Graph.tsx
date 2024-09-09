@@ -52,6 +52,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
 
   useEffect(() => {
     let graphData = [...initialData];
+    let isDisposed = false;
 
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
@@ -140,8 +141,8 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
           top = y - toolTipHeight - toolTipMargin;
         }
 
-        toolTip.style.left = left + 'px';
-        toolTip.style.top = top + 'px';
+        toolTip.style.left = `${left}px`;
+        toolTip.style.top = `${top}px`;
         toolTip.style.display = 'block';
       }
     });
@@ -159,8 +160,9 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
         const rangeFrom = Math.round(logicalRange.from)
         const range = Math.max(graphData.length - rangeFrom, 0)
         graphData = [...totalGraphData.slice(range, -graphData.length), ...graphData]
-        lineSeries.setData(graphData);
-
+        if (!isDisposed && lineSeries) {
+          lineSeries.setData(graphData);
+        }
         timer.current = null;
       }, 500)
     });
@@ -174,7 +176,8 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      if (timer.current === null) chart.remove();
+      isDisposed = true;
+      chart.remove();
     };
   }, [initialData]);
 
