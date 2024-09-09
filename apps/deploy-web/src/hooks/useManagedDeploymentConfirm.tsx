@@ -3,8 +3,14 @@ import { usePopup } from "@akashnetwork/ui/context";
 import { LeaseSpecDetail } from "@src/components/shared/LeaseSpecDetail";
 import { useWallet } from "@src/context/WalletProvider";
 import { ServiceType } from "@src/types";
+import { useTotalWalletBalance } from "./useWalletBalance";
+import { useChainParam } from "@src/context/ChainParamProvider";
+import { Alert, AlertDescription, AlertTitle } from "@akashnetwork/ui/components";
+import { FormattedNumber } from "react-intl";
 
 export const useManagedDeploymentConfirm = () => {
+  const { minDeposit } = useChainParam();
+  const { walletBalance } = useTotalWalletBalance();
   const { isManaged } = useWallet();
   const { confirm } = usePopup();
 
@@ -32,13 +38,44 @@ export const useManagedDeploymentConfirm = () => {
 
   const createDeploymentConfirm = async (services: ServiceType[]) => {
     if (isManaged) {
+      const hasEnoughForDeposit = (walletBalance?.totalDeploymentGrantsUSD || 0) >= minDeposit.usdc;
+
       const isConfirmed = await confirm({
         title: "Confirm deployment creation?",
         message: (
           <div className="space-y-2">
+            {!hasEnoughForDeposit && (
+              <Alert variant="destructive" className="text-primary">
+                <AlertTitle className="font-bold">Insufficient funds</AlertTitle>
+                <AlertDescription>
+                  <p>
+                    You need more than{" "}
+                    <FormattedNumber
+                      value={minDeposit.usdc}
+                      // eslint-disable-next-line react/style-prop-object
+                      style="currency"
+                      currency="USD"
+                    />{" "}
+                    available to create a deployment.
+                  </p>
+                  <p>
+                    Current available balance:{" "}
+                    <span className="font-bold">
+                      <FormattedNumber
+                        value={walletBalance?.totalDeploymentGrantsUSD || 0}
+                        // eslint-disable-next-line react/style-prop-object
+                        style="currency"
+                        currency="USD"
+                      />
+                    </span>
+                  </p>
+                </AlertDescription>
+              </Alert>
+            )}
+
             {services.map(service => {
               return (
-                <div key={service.image} className="rounded border p-4">
+                <Alert key={service.image}>
                   <div className="mb-2 text-sm">
                     <span className="font-bold">{service.title}</span>:{service.image}
                   </div>
@@ -48,7 +85,7 @@ export const useManagedDeploymentConfirm = () => {
                     <LeaseSpecDetail type="ram" className="flex-shrink-0" value={`${service.profile?.ram} ${service.profile?.ramUnit}`} />
                     <LeaseSpecDetail type="storage" className="flex-shrink-0" value={`${service.profile?.storage} ${service.profile?.storageUnit}`} />
                   </div>
-                </div>
+                </Alert>
               );
             })}
           </div>

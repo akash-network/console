@@ -47,7 +47,14 @@ export const ManagedEscrowFaqModal: React.FunctionComponent<Props> = ({ onClose 
           <h2 className="font-bold">How do Akash deployments work?</h2>
           <p className="text-sm text-muted-foreground">
             Akash deployments use escrow accounts, also known as deployment deposits, as a way to ensure that a user has enough funds to cover the cost of
-            deploying and running their application on the Akash network. When you create a deployment, you deposit {minDeposit.usdc}$ into the account.
+            deploying and running their application on the Akash network. When you create a deployment, you deposit{" "}
+            <FormattedNumber
+              value={minDeposit.usdc}
+              // eslint-disable-next-line react/style-prop-object
+              style="currency"
+              currency="USD"
+            />{" "}
+            into the account.
           </p>
 
           <div>
