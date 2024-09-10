@@ -46,6 +46,7 @@ type ContextType = {
   logout: () => void;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<any>;
   isManaged: boolean;
+  isCustodial: boolean;
   isWalletLoading: boolean;
   isTrialing: boolean;
   creditAmount?: number;
@@ -59,7 +60,8 @@ const MESSAGE_STATES: Record<string, LoadingState> = {
   "/akash.deployment.v1beta3.MsgCloseDeployment": "closingDeployment",
   "/akash.deployment.v1beta3.MsgCreateDeployment": "searchingProviders",
   "/akash.market.v1beta4.MsgCreateLease": "creatingDeployment",
-  "/akash.deployment.v1beta3.MsgUpdateDeployment": "updatingDeployment"
+  "/akash.deployment.v1beta3.MsgUpdateDeployment": "updatingDeployment",
+  "/akash.deployment.v1beta3.MsgDepositDeployment": "depositingDeployment"
 };
 
 const initialWallet = getSelectedStorageWallet();
@@ -300,6 +302,7 @@ export const WalletProvider = ({ children }) => {
         logout,
         signAndBroadcastTx,
         isManaged,
+        isCustodial: !isManaged,
         isWalletLoading: isLoading,
         isTrialing: isManaged && !!managedWallet?.isTrialing,
         creditAmount: isManaged ? managedWallet?.creditAmount : 0,

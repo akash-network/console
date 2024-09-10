@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
-import { TX_FEE_BUFFER } from "@src/config/tx.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -9,6 +8,8 @@ import { useBalances } from "@src/queries/useBalancesQuery";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { useUsdcDenom } from "./useDenom";
+
+export const TX_FEE_BUFFER = 10000;
 
 export type WalletBalance = {
   totalUsd: number;
@@ -96,17 +97,19 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
 
 type DenomData = {
   min: number;
+  max: number;
   label: string;
   balance: number;
-  inputMax: number;
 };
 
 export const useDenomData = (denom: string) => {
-  const { isLoaded, price } = usePricing();
+  const { isLoaded, price, aktToUSD } = usePricing();
   const { balance: walletBalance } = useWalletBalance();
   const [depositData, setDepositData] = useState<DenomData | null>(null);
   const usdcIbcDenom = useUsdcDenom();
   const { minDeposit } = useChainParam();
+  const { isManaged } = useWallet();
+  const txFeeBuffer = isManaged ? 0 : TX_FEE_BUFFER;
 
   useEffect(() => {
     if (isLoaded && walletBalance && minDeposit?.akt && minDeposit?.usdc && price) {
@@ -117,7 +120,7 @@ export const useDenomData = (denom: string) => {
             min: minDeposit.akt,
             label: "AKT",
             balance: uaktToAKT(walletBalance.balanceUAKT, 6),
-            inputMax: uaktToAKT(Math.max(walletBalance.balanceUAKT - TX_FEE_BUFFER, 0), 6)
+            max: uaktToAKT(Math.max(walletBalance.balanceUAKT - txFeeBuffer, 0), 6)
           };
           break;
         case usdcIbcDenom:
@@ -125,11 +128,21 @@ export const useDenomData = (denom: string) => {
             min: minDeposit.usdc,
             label: "USDC",
             balance: udenomToDenom(walletBalance.balanceUUSDC, 6),
-            inputMax: udenomToDenom(Math.max(walletBalance.balanceUUSDC - TX_FEE_BUFFER, 0), 6)
+            max: udenomToDenom(Math.max(walletBalance.balanceUUSDC - txFeeBuffer, 0), 6)
           };
           break;
         default:
           break;
+      }
+
+      if (depositData && isManaged) {
+        depositData.label = "USD";
+
+        if (denom === UAKT_DENOM) {
+          depositData.balance = aktToUSD(depositData.balance) || 0;
+          depositData.min = aktToUSD(depositData.min) || 0;
+          depositData.max = aktToUSD(depositData.max) || 0;
+        }
       }
 
       setDepositData(depositData);

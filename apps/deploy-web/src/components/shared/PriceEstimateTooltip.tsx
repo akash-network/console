@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
+import { useWallet } from "@src/context/WalletProvider";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { averageDaysInMonth } from "@src/utils/dateUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -20,6 +21,7 @@ export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, de
   const perDayValue = _value * (60 / averageBlockTime) * 60 * 24;
   const perMonthValue = _value * (60 / averageBlockTime) * 60 * 24 * averageDaysInMonth;
   const denomData = useDenomData(denom);
+  const { isCustodial } = useWallet();
 
   return (
     <CustomTooltip
@@ -47,7 +49,7 @@ export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, de
             &nbsp; per month
           </div>
 
-          <div className="mt-2 text-xs">({`~${udenomToDenom(getAvgCostPerMonth(value as number))} ${denomData?.label}/month`})</div>
+          {isCustodial && <div className="mt-2 text-xs">({`~${udenomToDenom(getAvgCostPerMonth(value as number))} ${denomData?.label}/month`})</div>}
         </div>
       }
     >

@@ -12,6 +12,7 @@ type ContextType = {
   price: number | undefined;
   uaktToUSD: (amount: number) => number | null;
   aktToUSD: (amount: number) => number | null;
+  usdToAkt: (amount: number) => number | null;
   getPriceForDenom: (denom: string) => number;
 };
 
@@ -31,6 +32,11 @@ export const PricingProvider = ({ children }) => {
     return roundDecimal(amount * marketData.price, 2);
   }
 
+  function usdToAkt(amount: number) {
+    if (!marketData) return null;
+    return roundDecimal(amount / marketData.price, 2);
+  }
+
   const getPriceForDenom = (denom: string) => {
     switch (denom) {
       case UAKT_DENOM:
@@ -44,7 +50,7 @@ export const PricingProvider = ({ children }) => {
   };
 
   return (
-    <PricingProviderContext.Provider value={{ isLoaded: !!marketData, uaktToUSD, aktToUSD, price: marketData?.price, isLoading, getPriceForDenom }}>
+    <PricingProviderContext.Provider value={{ isLoaded: !!marketData, uaktToUSD, aktToUSD, usdToAkt, price: marketData?.price, isLoading, getPriceForDenom }}>
       {children}
     </PricingProviderContext.Provider>
   );
