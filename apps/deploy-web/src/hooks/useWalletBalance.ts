@@ -26,7 +26,7 @@ export type TotalWalletBalance = {
 
 export type TotalWalletBalanceReturnType = {
   isLoadingBalances: boolean;
-  fetchBalances: () => void;
+  refetch: () => void;
   walletBalance: TotalWalletBalance | null;
 };
 
@@ -34,7 +34,7 @@ export const useTotalWalletBalance = (): TotalWalletBalanceReturnType => {
   const { isLoaded, price } = usePricing();
   const { address, isManaged } = useWallet();
   const usdcIbcDenom = useUsdcDenom();
-  const { data: balances, isFetching: isLoadingBalances, refetch: fetchBalances } = useBalances(address);
+  const { data: balances, isFetching: isLoadingBalances, refetch } = useBalances(address);
   const [walletBalance, setWalletBalance] = useState<TotalWalletBalance | null>(null);
 
   useEffect(() => {
@@ -90,7 +90,7 @@ export const useTotalWalletBalance = (): TotalWalletBalanceReturnType => {
   return {
     walletBalance,
     isLoadingBalances,
-    fetchBalances
+    refetch
   };
 };
 

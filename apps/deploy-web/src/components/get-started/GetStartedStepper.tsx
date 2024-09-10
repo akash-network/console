@@ -50,7 +50,7 @@ const LiquidityModal = dynamic(
 export const GetStartedStepper: React.FunctionComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
   const { isWalletConnected, address, isManaged: isManagedWallet, isTrialing } = useWallet();
-  const { fetchBalances, walletBalance } = useTotalWalletBalance();
+  const { refetch: refetchBalances, walletBalance } = useTotalWalletBalance();
   const { minDeposit } = useChainParam();
   const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
   const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;
@@ -190,7 +190,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                   You have <strong>{aktBalance}</strong> AKT and <strong>{usdcBalance}</strong> USDC
                 </span>
               )}
-              {!isManagedWallet && <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={fetchBalances} />}
+              {!isManagedWallet && <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refetchBalances} />}
             </div>
           )}
         </StepContent>

@@ -70,7 +70,7 @@ export const WalletProvider = ({ children }) => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const router = useRouter();
   const { settings } = useSettings();
-  const { fetchBalances } = useTotalWalletBalance();
+  const { refetch: refetchBalances } = useTotalWalletBalance();
   const user = useUser();
   const userWallet = useSelectedChain();
   const { wallet: managedWallet, isLoading, create: createManagedWallet } = useManagedWallet();
@@ -260,7 +260,7 @@ export const WalletProvider = ({ children }) => {
 
       return false;
     } finally {
-      fetchBalances();
+      refetchBalances();
       if (pendingSnackbarKey) {
         closeSnackbar(pendingSnackbarKey);
       }
