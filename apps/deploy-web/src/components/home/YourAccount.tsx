@@ -15,7 +15,7 @@ import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import useTailwind from "@src/hooks/useTailwind";
-import { TotalWalletBalance, useTotalWalletBalance } from "@src/hooks/useWalletBalance";
+import { WalletBalance, useWalletBalance } from "@src/hooks/useWalletBalance";
 import sdlStore from "@src/store/sdlStore";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
@@ -35,7 +35,7 @@ type Props = {
   activeDeployments: Array<DeploymentDto>;
   leases: Array<LeaseDto> | null | undefined;
   providers: Array<ApiProviderList> | undefined;
-  walletBalance: TotalWalletBalance | null;
+  walletBalance: WalletBalance | null;
 };
 
 export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances, walletBalance, activeDeployments, leases, providers }) => {
@@ -63,7 +63,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
     deployment_usdc: tw.theme.colors.green[600]
   };
 
-  const getAktData = (balances: TotalWalletBalance) => {
+  const getAktData = (balances: WalletBalance) => {
     return [
       {
         id: "balance_akt",
@@ -83,7 +83,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
       }
     ];
   };
-  const getUsdcData = (balances: TotalWalletBalance) => {
+  const getUsdcData = (balances: WalletBalance) => {
     return [
       {
         id: "balance_usdc",

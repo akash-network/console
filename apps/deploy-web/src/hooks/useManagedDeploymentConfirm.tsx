@@ -6,11 +6,11 @@ import { LeaseSpecDetail } from "@src/components/shared/LeaseSpecDetail";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { ServiceType } from "@src/types";
-import { useTotalWalletBalance } from "./useWalletBalance";
+import { useWalletBalance } from "./useWalletBalance";
 
 export const useManagedDeploymentConfirm = () => {
   const { minDeposit } = useChainParam();
-  const { balance: walletBalance } = useTotalWalletBalance();
+  const { balance: walletBalance } = useWalletBalance();
   const { isManaged } = useWallet();
   const { confirm } = usePopup();
 

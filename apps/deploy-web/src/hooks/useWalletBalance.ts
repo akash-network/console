@@ -10,7 +10,7 @@ import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { useUsdcDenom } from "./useDenom";
 
-export type TotalWalletBalance = {
+export type WalletBalance = {
   totalUsd: number;
   balanceUAKT: number;
   balanceUUSDC: number;
@@ -24,18 +24,18 @@ export type TotalWalletBalance = {
   totalDeploymentGrantsUSD: number;
 };
 
-export type TotalWalletBalanceReturnType = {
+export type WalletBalanceReturnType = {
   isLoading: boolean;
   refetch: () => void;
-  balance: TotalWalletBalance | null;
+  balance: WalletBalance | null;
 };
 
-export const useTotalWalletBalance = (): TotalWalletBalanceReturnType => {
+export const useWalletBalance = (): WalletBalanceReturnType => {
   const { isLoaded, price } = usePricing();
   const { address, isManaged } = useWallet();
   const usdcIbcDenom = useUsdcDenom();
   const { data: balances, isFetching: isLoadingBalances, refetch } = useBalances(address);
-  const [walletBalance, setWalletBalance] = useState<TotalWalletBalance | null>(null);
+  const [walletBalance, setWalletBalance] = useState<WalletBalance | null>(null);
 
   useEffect(() => {
     if (isLoaded && balances && price) {
@@ -103,7 +103,7 @@ type DenomData = {
 
 export const useDenomData = (denom: string) => {
   const { isLoaded, price } = usePricing();
-  const { balance: walletBalance } = useTotalWalletBalance();
+  const { balance: walletBalance } = useWalletBalance();
   const [depositData, setDepositData] = useState<DenomData | null>(null);
   const usdcIbcDenom = useUsdcDenom();
   const { minDeposit } = useChainParam();

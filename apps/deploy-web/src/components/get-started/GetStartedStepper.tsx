@@ -15,7 +15,7 @@ import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManage
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
+import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { RouteStep } from "@src/types/route-steps.type";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
@@ -50,7 +50,7 @@ const LiquidityModal = dynamic(
 export const GetStartedStepper: React.FunctionComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
   const { isWalletConnected, address, isManaged: isManagedWallet, isTrialing } = useWallet();
-  const { refetch: refetchBalances, balance: walletBalance } = useTotalWalletBalance();
+  const { refetch: refetchBalances, balance: walletBalance } = useWalletBalance();
   const { minDeposit } = useChainParam();
   const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
   const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;

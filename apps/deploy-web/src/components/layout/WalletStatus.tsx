@@ -22,7 +22,7 @@ import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManage
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
-import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
+import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
@@ -39,7 +39,7 @@ const withBilling = browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
 export function WalletStatus() {
   const { walletName, address, logout, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing, switchWalletType } = useWallet();
-  const { balance: walletBalance } = useTotalWalletBalance();
+  const { balance: walletBalance } = useWalletBalance();
   const router = useRouter();
   const whenLoggedIn = useLoginRequiredEventHandler();
   const { showManagedEscrowFaqModal } = useManagedEscrowFaqModal();

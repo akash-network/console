@@ -5,14 +5,14 @@ import { Alert, Popup } from "@akashnetwork/ui/components";
 import { ArrowRight } from "iconoir-react";
 
 import { useChainParam } from "@src/context/ChainParamProvider";
-import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
+import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { usePopup } from "@akashnetwork/ui/context";
 
 export const useManagedEscrowFaqModal = (): {
   showManagedEscrowFaqModal: () => void;
 } => {
   const { minDeposit } = useChainParam();
-  const { balance: walletBalance } = useTotalWalletBalance();
+  const { balance: walletBalance } = useWalletBalance();
   const { createCustom } = usePopup();
 
   const showManagedEscrowFaqModal = () => {

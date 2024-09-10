@@ -5,7 +5,7 @@ import { CheckCircle, WarningCircle } from "iconoir-react";
 
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
+import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt } from "@src/utils/priceUtils";
 import { ConnectWallet } from "./ConnectWallet";
@@ -20,7 +20,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
   const [isLoadingPrerequisites, setIsLoadingPrerequisites] = useState(false);
   const [isBalanceValidated, setIsBalanceValidated] = useState<boolean | null>(null);
   const { address, isManaged } = useWallet();
-  const { balance: walletBalance } = useTotalWalletBalance();
+  const { balance: walletBalance } = useWalletBalance();
   const { minDeposit } = useChainParam();
 
   useEffect(() => {

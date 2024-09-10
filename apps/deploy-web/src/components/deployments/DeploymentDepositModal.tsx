@@ -29,7 +29,7 @@ import { UAKT_DENOM } from "@src/config/denom.config";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
-import { useDenomData, useTotalWalletBalance } from "@src/hooks/useWalletBalance";
+import { useDenomData, useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useGranteeGrants } from "@src/queries/useGrantsQuery";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
@@ -74,7 +74,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   const [error, setError] = useState("");
   const [isCheckingDepositor, setIsCheckingDepositor] = useState(false);
   const { address } = useWallet();
-  const { balance: walletBalance } = useTotalWalletBalance();
+  const { balance: walletBalance } = useWalletBalance();
   const { data: granteeGrants } = useGranteeGrants(address);
   const depositData = useDenomData(denom);
   const form = useForm<z.infer<typeof formSchema>>({

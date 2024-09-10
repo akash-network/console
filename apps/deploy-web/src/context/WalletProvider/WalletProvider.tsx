@@ -16,7 +16,7 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useAllowance } from "@src/hooks/useAllowance";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
-import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
+import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useWhen } from "@src/hooks/useWhen";
 import { txHttpService } from "@src/services/http/http.service";
 import networkStore from "@src/store/networkStore";
@@ -70,7 +70,7 @@ export const WalletProvider = ({ children }) => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const router = useRouter();
   const { settings } = useSettings();
-  const { refetch: refetchBalances } = useTotalWalletBalance();
+  const { refetch: refetchBalances } = useWalletBalance();
   const user = useUser();
   const userWallet = useSelectedChain();
   const { wallet: managedWallet, isLoading, create: createManagedWallet } = useManagedWallet();
