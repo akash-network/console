@@ -58,7 +58,7 @@ async function getBalances(apiEndpoint: string, address: string): Promise<Balanc
     deploymentGrantsUUSDC,
     activeDeployments,
     deploymentGrants
-  } as Balances;
+  };
 }
 
 export function useBalances(address: string, options?: Omit<UseQueryOptions<Balances, Error, any, QueryKey>, "queryKey" | "queryFn">) {
