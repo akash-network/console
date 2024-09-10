@@ -50,7 +50,7 @@ const LiquidityModal = dynamic(
 export const GetStartedStepper: React.FunctionComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
   const { isWalletConnected, address, isManaged: isManagedWallet, isTrialing } = useWallet();
-  const { refetch: refetchBalances, walletBalance } = useTotalWalletBalance();
+  const { refetch: refetchBalances, balance: walletBalance } = useTotalWalletBalance();
   const { minDeposit } = useChainParam();
   const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
   const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;

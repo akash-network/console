@@ -12,7 +12,7 @@ export const useManagedEscrowFaqModal = (): {
   showManagedEscrowFaqModal: () => void;
 } => {
   const { minDeposit } = useChainParam();
-  const { walletBalance } = useTotalWalletBalance();
+  const { balance: walletBalance } = useTotalWalletBalance();
   const { createCustom } = usePopup();
 
   const showManagedEscrowFaqModal = () => {

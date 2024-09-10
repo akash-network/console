@@ -74,7 +74,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   const [error, setError] = useState("");
   const [isCheckingDepositor, setIsCheckingDepositor] = useState(false);
   const { address } = useWallet();
-  const { walletBalance } = useTotalWalletBalance();
+  const { balance: walletBalance } = useTotalWalletBalance();
   const { data: granteeGrants } = useGranteeGrants(address);
   const depositData = useDenomData(denom);
   const form = useForm<z.infer<typeof formSchema>>({
@@ -215,7 +215,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
           color: "secondary",
           variant: "default",
           side: "right",
-          disabled: !amount || isCheckingDepositor || (useDepositor && validGrants.length === 0),
+          disabled: !amount || isCheckingDepositor || (useDepositor && validGrants.length === 0) || !walletBalance,
           isLoading: isCheckingDepositor,
           onClick: onDepositClick
         }

@@ -10,7 +10,7 @@ import { useTotalWalletBalance } from "./useWalletBalance";
 
 export const useManagedDeploymentConfirm = () => {
   const { minDeposit } = useChainParam();
-  const { walletBalance } = useTotalWalletBalance();
+  const { balance: walletBalance } = useTotalWalletBalance();
   const { isManaged } = useWallet();
   const { confirm } = usePopup();
 

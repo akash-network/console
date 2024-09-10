@@ -45,7 +45,7 @@ export function HomeContainer() {
   });
   const { settings, isSettingsInit } = useSettings();
   const { apiEndpoint } = settings;
-  const { walletBalance, isLoadingBalances } = useTotalWalletBalance();
+  const { balance: walletBalance, isLoading: isLoadingBalances } = useTotalWalletBalance();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
 

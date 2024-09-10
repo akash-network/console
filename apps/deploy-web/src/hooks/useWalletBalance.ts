@@ -25,9 +25,9 @@ export type TotalWalletBalance = {
 };
 
 export type TotalWalletBalanceReturnType = {
-  isLoadingBalances: boolean;
+  isLoading: boolean;
   refetch: () => void;
-  walletBalance: TotalWalletBalance | null;
+  balance: TotalWalletBalance | null;
 };
 
 export const useTotalWalletBalance = (): TotalWalletBalanceReturnType => {
@@ -88,8 +88,8 @@ export const useTotalWalletBalance = (): TotalWalletBalanceReturnType => {
   };
 
   return {
-    walletBalance,
-    isLoadingBalances,
+    balance: walletBalance,
+    isLoading: isLoadingBalances,
     refetch
   };
 };
@@ -103,7 +103,7 @@ type DenomData = {
 
 export const useDenomData = (denom: string) => {
   const { isLoaded, price } = usePricing();
-  const { walletBalance } = useTotalWalletBalance();
+  const { balance: walletBalance } = useTotalWalletBalance();
   const [depositData, setDepositData] = useState<DenomData | null>(null);
   const usdcIbcDenom = useUsdcDenom();
   const { minDeposit } = useChainParam();

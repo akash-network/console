@@ -20,7 +20,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
   const [isLoadingPrerequisites, setIsLoadingPrerequisites] = useState(false);
   const [isBalanceValidated, setIsBalanceValidated] = useState<boolean | null>(null);
   const { address, isManaged } = useWallet();
-  const { walletBalance } = useTotalWalletBalance();
+  const { balance: walletBalance } = useTotalWalletBalance();
   const { minDeposit } = useChainParam();
 
   useEffect(() => {

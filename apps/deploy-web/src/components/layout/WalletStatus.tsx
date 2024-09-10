@@ -39,7 +39,7 @@ const withBilling = browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
 export function WalletStatus() {
   const { walletName, address, logout, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing, switchWalletType } = useWallet();
-  const { walletBalance } = useTotalWalletBalance();
+  const { balance: walletBalance } = useTotalWalletBalance();
   const router = useRouter();
   const whenLoggedIn = useLoginRequiredEventHandler();
   const { showManagedEscrowFaqModal } = useManagedEscrowFaqModal();
