@@ -36,7 +36,7 @@ import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
-import { DeploymentDepositModal } from "./DeploymentDepositModal";
+import { DeploymentDepositModal, DeploymentDepositModalProps } from "./DeploymentDepositModal";
 import { LeaseChip } from "./LeaseChip";
 
 type Props = {
@@ -127,7 +127,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     setOpen(false);
   };
 
-  const onDeploymentDeposit = async (deposit, depositorAddress) => {
+  const onDeploymentDeposit: DeploymentDepositModalProps["onDeploymentDeposit"] = async (deposit, depositorAddress) => {
     setIsDepositingDeployment(false);
 
     const message = TransactionMessageData.getDepositDeploymentMsg(address, deployment.dseq, deposit, deployment.escrowAccount.balance.denom, depositorAddress);
@@ -213,13 +213,9 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                   title={
                     <>
                       Your deployment will close soon,{" "}
-                      {isManagedWallet ? (
-                        "Add funds"
-                      ) : (
-                        <a href="#" onClick={showDepositModal}>
-                          Add Funds
-                        </a>
-                      )}{" "}
+                      <a href="#" onClick={showDepositModal}>
+                        Add Funds
+                      </a>{" "}
                       to keep it running.
                     </>
                   }
@@ -336,7 +332,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                 >
                   <ClickAwayListener onClickAway={() => setOpen(false)}>
                     <div>
-                      {isActive && isManagedWallet && (
+                      {isActive && (
                         <CustomDropdownLinkItem onClick={showDepositModal} icon={<Plus fontSize="small" />}>
                           Add funds
                         </CustomDropdownLinkItem>

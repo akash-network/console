@@ -29,12 +29,11 @@ type Props = {
 export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address, loadDeploymentDetail, removeLeases, setActiveTab, deployment }) => {
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
   const router = useRouter();
-  const { signAndBroadcastTx, isManaged } = useWallet();
+  const { signAndBroadcastTx } = useWallet();
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const deploymentName = getDeploymentName(deployment?.dseq);
   const previousRoute = usePreviousRoute();
-  const wallet = useWallet();
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
 
   function handleBackClick() {
@@ -126,11 +125,9 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {!wallet.isManaged && (
-              <Button variant="default" className="ml-2 whitespace-nowrap" onClick={() => setIsDepositingDeployment(true)} size="sm">
-                Add funds
-              </Button>
-            )}
+            <Button variant="default" className="ml-2 whitespace-nowrap" onClick={() => setIsDepositingDeployment(true)} size="sm">
+              Add funds
+            </Button>
           </div>
         )}
 
