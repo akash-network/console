@@ -8,8 +8,8 @@ export class ApiUrlService {
   static depositParams(apiEndpoint: string) {
     return `${apiEndpoint}/cosmos/params/v1beta1/params?subspace=deployment&key=MinDeposits`;
   }
-  static deploymentList(apiEndpoint: string, address: string) {
-    return `${apiEndpoint}/akash/deployment/${networkService.networkVersion}/deployments/list?filters.owner=${address}`;
+  static deploymentList(apiEndpoint: string, address: string, isActive?: boolean) {
+    return `${apiEndpoint}/akash/deployment/${networkService.networkVersion}/deployments/list?filters.owner=${address}${isActive ? "&filters.state=active" : ""}`;
   }
   static deploymentDetail(apiEndpoint: string, address: string, dseq: string) {
     return `${apiEndpoint}/akash/deployment/${networkService.networkVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`;
@@ -142,7 +142,7 @@ export const mainnetNodes = ApiUrlService.mainnetNodes();
 export const testnetNodes = ApiUrlService.testnetNodes();
 export const sandboxNodes = ApiUrlService.sandboxNodes();
 
-export async function loadWithPagination(baseUrl: string, dataKey: string, limit: number) {
+export async function loadWithPagination<T>(baseUrl: string, dataKey: string, limit: number) {
   let items = [];
   let nextKey = null;
   // let callCount = 1;
@@ -169,7 +169,7 @@ export async function loadWithPagination(baseUrl: string, dataKey: string, limit
     // console.log(`Got ${items.length} of ${totalCount}`);
   } while (nextKey);
 
-  return items.filter(item => item);
+  return items.filter(item => item) as T;
 }
 
 function hasQueryParam(url: string) {

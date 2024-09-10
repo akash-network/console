@@ -1,3 +1,5 @@
+import { RestApiAuthzGrantsResponseType } from "./balances";
+import { DeploymentDto, RpcDeployment } from "./deployment";
 import { TransactionDetail } from "./transaction";
 import { IValidatorAddess } from "./validator";
 
@@ -36,10 +38,12 @@ export interface AssetDetail {
 }
 
 export interface Balances {
-  balance: number;
-  balanceUsdc: number;
-  rewards: number;
-  delegations: number;
-  redelegations: number;
-  unbondings: number;
+  balanceUAKT: number;
+  balanceUUSDC: number;
+  deploymentEscrowUAKT: number;
+  deploymentEscrowUUSDC: number;
+  deploymentGrantsUAKT: number;
+  deploymentGrantsUUSDC: number;
+  activeDeployments: DeploymentDto[];
+  deploymentGrants: RestApiAuthzGrantsResponseType;
 }
