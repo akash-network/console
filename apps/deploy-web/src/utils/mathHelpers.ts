@@ -1,5 +1,3 @@
-import { Coin } from "@src/types";
-
 export function nFormatter(num: number, digits: number) {
   const lookup = [
     { value: 1, symbol: "" },
@@ -29,10 +27,6 @@ export function denomToUdenom(amount: number, decimals: number = 1_000_000) {
   return amount * decimals;
 }
 
-export function randomInteger(min: number, max: number) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
 export function roundDecimal(value: number, precision = 2) {
   const multiplier = Math.pow(10, precision || 0);
   return Math.round((value + Number.EPSILON) * multiplier) / multiplier;
@@ -40,12 +34,6 @@ export function roundDecimal(value: number, precision = 2) {
 
 export function ceilDecimal(value: number) {
   return Math.ceil((value + Number.EPSILON) * 1000) / 1000;
-}
-
-export function coinsToAmount(coins: Coin[] | Coin, denom: string) {
-  const currentCoin = (coins as any).length !== undefined ? (coins as Coin[]).find(c => c.denom === denom) : (coins as Coin);
-  if (!currentCoin) return 0;
-  else return currentCoin.amount;
 }
 
 export function percIncrease(a: number, b: number) {
