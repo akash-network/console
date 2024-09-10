@@ -13,7 +13,7 @@ import { QueryKeys } from "./queryKeys";
 
 // Account balances
 async function getBalances(apiEndpoint: string, address: string): Promise<Balances | undefined> {
-  if (!address) return undefined;
+  if (!address || !apiEndpoint) return undefined;
   const usdcIbcDenom = getUsdcDenom();
 
   const balancePromise = axios.get<RestApiBalancesResponseType>(ApiUrlService.balance(apiEndpoint, address));

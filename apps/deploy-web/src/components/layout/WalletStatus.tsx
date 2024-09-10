@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import { FormattedNumber } from "react-intl";
 import {
   Address,
@@ -28,8 +28,8 @@ import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { LinkTo } from "../shared/LinkTo";
-import { ManagedEscrowFaqModal } from "../shared/ManagedEscrowFaqModal";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
+import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
 
 const goToCheckout = () => {
   window.location.href = "/api/proxy/v1/checkout";
@@ -38,11 +38,11 @@ const goToCheckout = () => {
 const withBilling = browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
 export function WalletStatus() {
-  const [isManagedEscrowFaqModalOpen, setIsManagedEscrowFaqModalOpen] = useState(false);
   const { walletName, address, logout, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing, switchWalletType } = useWallet();
   const { walletBalance } = useTotalWalletBalance();
   const router = useRouter();
   const whenLoggedIn = useLoginRequiredEventHandler();
+  const { showManagedEscrowFaqModal } = useManagedEscrowFaqModal();
 
   const onAuthorizeSpendingClick = () => {
     router.push(UrlService.settingsAuthorizations());
@@ -50,8 +50,6 @@ export function WalletStatus() {
 
   return (
     <>
-      {isManagedEscrowFaqModalOpen && <ManagedEscrowFaqModal onClose={() => setIsManagedEscrowFaqModalOpen(false)} />}
-
       {isWalletLoaded && !isWalletLoading ? (
         isWalletConnected ? (
           <>
@@ -172,7 +170,7 @@ export function WalletStatus() {
                             </div>
 
                             <div>
-                              <LinkTo className="text-xs italic" onClick={() => setIsManagedEscrowFaqModalOpen(true)}>
+                              <LinkTo className="text-xs italic" onClick={() => showManagedEscrowFaqModal()}>
                                 What's this?
                               </LinkTo>
                             </div>
