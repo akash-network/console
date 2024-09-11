@@ -40,7 +40,7 @@ appHono.use(
 const { PORT = 3080, BILLING_ENABLED } = process.env;
 
 const scheduler = new Scheduler({
-  healthchecksEnabled: env.HealthchecksEnabled === "true",
+  healthchecksEnabled: env.HEALTHCHECKS_ENABLED === "true",
   errorHandler: (task, error) => {
     console.error(`Task "${task.name}" failed: ${error}`);
     getSentry().captureException(error);

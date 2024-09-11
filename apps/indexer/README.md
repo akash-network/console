@@ -21,17 +21,17 @@ You can make sure the api is working by accessing the status endpoint: `http://l
 
 |Name|Value|Note|
 |-|-|-
-HealthchecksEnabled|`true` or `false`|Specify if the [Scheduler](./src/index.ts#L42) should send health check pings.
-SentryDSN|ex: `"https://1234...789@z645.ingest.sentry.io/1234"`|[Sentry DSN](https://docs.sentry.io/product/sentry-basics/dsn-explainer/) used when [initializing](./src/index.ts#L25) Sentry
-HealthChecks_SyncBlocks|ex: `041b2561-be28-4a36-bb3f-36a68f86224e`|[HealthChecks.io](https://healthchecks.io) check ID for the `SyncBlocks` task.
-HealthChecks_SyncAKTPriceHistory|ex: `041b2561-be28-4a36-bb3f-36a68f86224e`|[HealthChecks.io](https://healthchecks.io) check ID for the `SyncAKTPriceHistory` task.
-HealthChecks_SyncProviderInfo|ex: `041b2561-be28-4a36-bb3f-36a68f86224e`|[HealthChecks.io](https://healthchecks.io) check ID for the `SyncProviderInfo` task.
-HealthChecks_SyncKeybaseInfo|ex: `041b2561-be28-4a36-bb3f-36a68f86224e`|[HealthChecks.io](https://healthchecks.io) check ID for the `SyncKeybaseInfo` task.
-AkashDatabaseCS|ex: `postgres://user:password@localhost:5432/cloudmos-akash`|Akash Database Connection String
-ActiveChain|ex: `akash`|Chain code from [chainDefinitions.ts](../shared/chainDefinitions.ts)
-KeepCache|`true` or `false`|Specify if the [block & block response cache](#block-cache-structure) should be kept on drive. Takes a lot of space, but allow rebuilding the database without redownloading every blocks.
-Standby|`true` or `false`|If `true`, indexer will not start. Useful for stopping an indexer deployed on akash without needing to close the lease.
-DataFolder|ex: `./data/`|Directory where block cache and node statuses should be saved. Defaults to `./data/`.
+HEALTH_CHECKS_ENABLED|`true` or `false`|Specify if the [Scheduler](./src/index.ts#L42) should send health check pings.
+SENTRY_DSN|ex: `"https://1234...789@z645.ingest.sentry.io/1234"`|[Sentry DSN](https://docs.sentry.io/product/sentry-basics/dsn-explainer/) used when [initializing](./src/index.ts#L25) Sentry
+HEALTHCHECKS_SYNC_BLOCKS|ex: `041b2561-be28-4a36-bb3f-36a68f86224e`|[HealthChecks.io](https://healthchecks.io) check ID for the `SyncBlocks` task.
+HEALTHCHECKS_SYNC_AKT_PRICE_HISTORY|ex: `041b2561-be28-4a36-bb3f-36a68f86224e`|[HealthChecks.io](https://healthchecks.io) check ID for the `SyncAKTPriceHistory` task.
+HEALTHCHECKS_SYNC_PROVIDER_INFO|ex: `041b2561-be28-4a36-bb3f-36a68f86224e`|[HealthChecks.io](https://healthchecks.io) check ID for the `SyncProviderInfo` task.
+HEALTHCHECKS_SYNC_KEYBASE_INFO|ex: `041b2561-be28-4a36-bb3f-36a68f86224e`|[HealthChecks.io](https://healthchecks.io) check ID for the `SyncKeybaseInfo` task.
+AKASH_DATABASE_CS|ex: `postgres://user:password@localhost:5432/cloudmos-akash`|Akash Database Connection String
+ACTIVE_CHAIN|ex: `akash`|Chain code from [chainDefinitions.ts](../shared/chainDefinitions.ts)
+KEEP_CACHE|`true` or `false`|Specify if the [block & block response cache](#block-cache-structure) should be kept on drive. Takes a lot of space, but allow rebuilding the database without redownloading every blocks.
+STANDBY|`true` or `false`|If `true`, indexer will not start. Useful for stopping an indexer deployed on akash without needing to close the lease.
+DATA_FOLDER|ex: `./data/`|Directory where block cache and node statuses should be saved. Defaults to `./data/`.
 
 ## Scheduled Tasks
 

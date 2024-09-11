@@ -55,7 +55,7 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       "https://akash-rpc.kleomedes.network"
     ],
     cosmosDirectoryId: "akash",
-    connectionString: process.env.AkashDatabaseCS,
+    connectionString: process.env.AKASH_DATABASE_CS,
     genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/mainnet/genesis.json",
     coinGeckoId: "akash-network",
     logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
