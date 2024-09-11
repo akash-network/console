@@ -43,7 +43,7 @@ export default new OpenAPIHono().openapi(route, async c => {
     {
       type: QueryTypes.SELECT,
       replacements: {
-        grace_date: toUTC(sub(new Date(), { minutes: env.ProviderUptimeGracePeriodMinutes }))
+        grace_date: toUTC(sub(new Date(), { minutes: env.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES }))
       }
     }
   );

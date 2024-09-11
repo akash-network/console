@@ -113,7 +113,7 @@ export default new OpenAPIHono().openapi(route, async c => {
         memory_size: memory_size ?? null,
         provider_address: provider_address ?? null,
         provider_hosturi: provider_hosturi ?? null,
-        grace_date: toUTC(sub(new Date(), { minutes: env.ProviderUptimeGracePeriodMinutes }))
+        grace_date: toUTC(sub(new Date(), { minutes: env.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES }))
       }
     }
   );

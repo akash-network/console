@@ -13,9 +13,9 @@ function isValidNetwork(network: string): network is keyof typeof csMap {
 }
 
 const csMap = {
-  mainnet: env.AkashDatabaseCS,
-  testnet: env.AkashTestnetDatabaseCS,
-  sandbox: env.AkashSandboxDatabaseCS
+  mainnet: env.AKASH_DATABASE_CS,
+  testnet: env.AKASH_TESTNET_DATABASE_CS,
+  sandbox: env.AKASH_SANDBOX_DATABASE_CS
 };
 
 if (!isValidNetwork(env.NETWORK)) {
@@ -63,7 +63,7 @@ export const chainDbs: { [key: string]: Sequelize } = Object.keys(chainDefinitio
     {}
   );
 
-export const userDb = new Sequelize(env.UserDatabaseCS, {
+export const userDb = new Sequelize(env.USER_DATABASE_CS, {
   dialectModule: pg,
   logging,
   logQueryParameters: true,

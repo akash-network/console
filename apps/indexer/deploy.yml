@@ -5,15 +5,15 @@ services:
   syncer:
     image: redm4x/console-syncer:1.0.0
     env:
-      - HealthchecksEnabled=true
-      - SentryDSN=<SENTRY_DSN>
-      - SentryServerName=<SENTRY_SERVER_NAME>
-      - HealthChecks_SyncBlocks=<HEALTH_CHECKS_ID>
-      - HealthChecks_SyncAKTPriceHistory=<HEALTH_CHECKS_ID>
-      - HealthChecks_SyncProviderInfo=<HEALTH_CHECKS_ID>
-      - HealthChecks_SyncKeybaseInfo=<HEALTH_CHECKS_ID>
+      - HEALTH_CHECKS_ENABLED=true
+      - SENTRY_DSN=<SENTRY_DSN>
+      - SENTRY_SERVER_NAME=<SENTRY_SERVER_NAME>
+      - HEALTHCHECKS_SYNC_BLOCKS=<HEALTH_CHECKS_ID>
+      - HEALTHCHECKS_SYNC_AKT_PRICE_HISTORY=<HEALTH_CHECKS_ID>
+      - HEALTHCHECKS_SYNC_PROVIDER_INFO=<HEALTH_CHECKS_ID>
+      - HEALTHCHECKS_SYNC_KEYBASE_INFO=<HEALTH_CHECKS_ID>
       - ChainDatabaseCS=<DATABASE_CONNECTION_STRING>
-      - ActiveChain=<CHAIN>
+      - ACTIVE_CHAIN=<CHAIN>
     expose:
       - port: 3079
         as: 80
