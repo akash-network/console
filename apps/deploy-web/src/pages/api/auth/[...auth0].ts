@@ -33,7 +33,7 @@ export default handleAuth({
             }
 
             const userSettings = await axios.post(
-              `${serverEnvConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL}/user/tokenInfo`,
+              `${serverEnvConfig.BASE_API_MAINNET_URL}/user/tokenInfo`,
               {
                 wantedUsername: session.user.nickname,
                 email: session.user.email,

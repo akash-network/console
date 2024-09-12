@@ -1,3 +1,6 @@
+import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+
+import networkStore from "@src/store/networkStore";
 import { getSelectedStorageWallet } from "./walletUtils";
 
 export type LocalDeploymentData = {
@@ -8,7 +11,7 @@ export type LocalDeploymentData = {
 };
 
 export function getDeploymentLocalData(dseq: string | number): LocalDeploymentData | null {
-  const selectedNetworkId = localStorage.getItem("selectedNetworkId");
+  const selectedNetworkId: NetworkId = networkStore.getSelectedNetworkId();
   const selectedWallet = getSelectedStorageWallet();
 
   if (!selectedWallet) return null;
@@ -31,7 +34,7 @@ export function saveDeploymentManifest(dseq: string, manifest: string, version: 
 
   updateDeploymentLocalData(dseq, { owner: address, manifest: manifest, manifestVersion: version });
 
-  const selectedNetworkId = localStorage.getItem("selectedNetworkId");
+  const selectedNetworkId: NetworkId = networkStore.getSelectedNetworkId();
   const selectedWallet = getSelectedStorageWallet();
   localStorage.setItem(`${selectedNetworkId}/${selectedWallet.address}/deployments/${dseq}.data`, JSON.stringify(data));
 }
@@ -40,7 +43,7 @@ export function updateDeploymentLocalData(dseq: string, data: LocalDeploymentDat
   const oldData = getDeploymentLocalData(dseq) || {};
   const newData = { ...oldData, ...data };
 
-  const selectedNetworkId = localStorage.getItem("selectedNetworkId");
+  const selectedNetworkId: NetworkId = networkStore.getSelectedNetworkId();
   const selectedWallet = getSelectedStorageWallet();
   localStorage.setItem(`${selectedNetworkId}/${selectedWallet.address}/deployments/${dseq}.data`, JSON.stringify(newData));
 }

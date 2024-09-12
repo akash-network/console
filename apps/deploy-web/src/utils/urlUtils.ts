@@ -1,6 +1,5 @@
-import { MAINNET_ID } from "@src/config/network.config";
 import { FaqAnchorType } from "@src/pages/faq";
-import { networkService } from "@src/services/network/network.service";
+import networkStore from "@src/store/networkStore";
 
 export type NewDeploymentParams = {
   step?: string;
@@ -9,16 +8,6 @@ export type NewDeploymentParams = {
   templateId?: string;
   page?: "new-deployment" | "deploy-linux";
 };
-
-function getSelectedNetworkQueryParam() {
-  if (networkService.selectedNetworkId) {
-    return networkService.selectedNetworkId;
-  } else if (typeof window !== "undefined") {
-    return new URLSearchParams(window.location.search).get("network");
-  } else {
-    return MAINNET_ID;
-  }
-}
 
 export const domainName = "https://console.akash.network";
 
@@ -61,12 +50,11 @@ export class UrlService {
   // Deploy
   static deploymentList = () => `/deployments`;
   static deploymentDetails = (dseq: string, tab?: string, logsMode?: string) => `/deployments/${dseq}${appendSearchParams({ tab, logsMode })}`;
-  static publicDeploymentDetails = (owner: string, dseq: string) =>
-    `/deployment/${owner}/${dseq}${appendSearchParams({ network: getSelectedNetworkQueryParam() })}`;
+  static publicDeploymentDetails = (owner: string, dseq: string) => `/deployment/${owner}/${dseq}${appendSearchParams({ network: networkStore.apiVersion })}`;
   static templates = (category?: string, search?: string) => `/templates${appendSearchParams({ category, search })}`;
   static templateDetails = (templateId: string) => `/templates/${templateId}`;
   static providers = (sort?: string) => `/providers${appendSearchParams({ sort })}`;
-  static providerDetail = (owner: string) => `/providers/${owner}${appendSearchParams({ network: getSelectedNetworkQueryParam() })}`;
+  static providerDetail = (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.marketApiVersion })}`;
   static providerDetailLeases = (owner: string) => `/providers/${owner}/leases`;
   static providerDetailRaw = (owner: string) => `/providers/${owner}/raw`;
   static providerDetailEdit = (owner: string) => `/providers/${owner}/edit`;
@@ -104,18 +92,6 @@ export function removeEmptyFilters(obj: { [key: string]: string }) {
   });
 
   return copy;
-}
-
-export function isValidHttpUrl(str: string): boolean {
-  let url;
-
-  try {
-    url = new URL(str);
-  } catch (_) {
-    return false;
-  }
-
-  return url.protocol === "http:" || url.protocol === "https:";
 }
 
 export function handleDocClick(ev, url) {

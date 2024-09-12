@@ -6,7 +6,7 @@ import axios from "axios";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
-import { networkService } from "@src/services/network/network.service";
+import networkStore from "@src/store/networkStore";
 import { RestApiCertificatesResponseType } from "@src/types/certificate";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -73,6 +73,7 @@ export const CertificateProvider = ({ children }) => {
   const { enqueueSnackbar } = useSnackbar();
   const { address, signAndBroadcastTx } = useWallet();
   const { apiEndpoint } = settings;
+  const selectedNetwork = networkStore.useSelectedNetwork();
 
   const loadValidCertificates = useCallback(
     async (showSnackbar?: boolean) => {
@@ -80,7 +81,7 @@ export const CertificateProvider = ({ children }) => {
 
       try {
         const response = await axios.get<RestApiCertificatesResponseType>(
-          `${apiEndpoint}/akash/cert/${networkService.networkVersion}/certificates/list?filter.state=valid&filter.owner=${address}`
+          `${apiEndpoint}/akash/cert/${selectedNetwork.apiVersion}/certificates/list?filter.state=valid&filter.owner=${address}`
         );
         const certs = (response.data.certificates || []).map(cert => {
           const parsed = atob(cert.certificate.cert);

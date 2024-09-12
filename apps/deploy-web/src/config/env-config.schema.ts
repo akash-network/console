@@ -29,7 +29,10 @@ export const serverEnvSchema = browserEnvSchema.extend({
   AUTH0_CLIENT_ID: z.string(),
   AUTH0_CLIENT_SECRET: z.string(),
   AUTH0_AUDIENCE: z.string(),
-  AUTH0_SCOPE: z.string()
+  AUTH0_SCOPE: z.string(),
+  BASE_API_MAINNET_URL: z.string().url(),
+  BASE_API_TESTNET_URL: z.string().url(),
+  BASE_API_SANDBOX_URL: z.string().url()
 });
 
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;

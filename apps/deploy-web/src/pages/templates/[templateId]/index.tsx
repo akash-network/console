@@ -16,7 +16,7 @@ const TemplateDetailPage: React.FunctionComponent<Props> = ({ templateId, templa
 export default TemplateDetailPage;
 
 export async function getServerSideProps({ params }) {
-  const response = await axios.get(`${serverEnvConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL}/templates`);
+  const response = await axios.get(`${serverEnvConfig.BASE_API_MAINNET_URL}/templates`);
   const categories = response.data.filter(x => (x.templates || []).length > 0);
   categories.forEach(c => {
     c.templates.forEach(t => (t.category = c.title));
