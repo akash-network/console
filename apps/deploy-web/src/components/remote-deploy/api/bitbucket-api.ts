@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { BitBucketCommit } from "@src/types/remoteCommits";
+import { PackageJson } from "@src/types/remotedeploy";
 import { BitProfile } from "@src/types/remoteProfile";
 import { BitRepository, BitWorkspace } from "@src/types/remoteRepos";
 
@@ -156,7 +157,7 @@ export const useBitBranches = (repo?: string) => {
   });
 };
 
-export const useBitPackageJson = (onSettled: (data: any) => void, repo?: string, branch?: string, subFolder?: string) => {
+export const useBitPackageJson = (onSettled: (data: PackageJson) => void, repo?: string, branch?: string, subFolder?: string) => {
   const [token] = useAtom(remoteDeployStore.tokens);
 
   return useQuery({

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { GitCommit } from "@src/types/remoteCommits";
-import { GithubRepository, IGithubDirectoryItem } from "@src/types/remotedeploy";
+import { GithubRepository, IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { GitHubProfile } from "@src/types/remoteProfile";
 import { REDIRECT_URL } from "../utils";
 
@@ -127,7 +127,7 @@ export const useCommits = (repo: string, branch: string) => {
   });
 };
 
-export const usePackageJson = (onSettled: (data: any) => void, repo?: string, subFolder?: string) => {
+export const usePackageJson = (onSettled: (data: PackageJson) => void, repo?: string, subFolder?: string) => {
   const [token] = useAtom(remoteDeployStore.tokens);
   return useQuery({
     queryKey: ["packageJson", repo, subFolder],

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { GitLabCommit } from "@src/types/remoteCommits";
+import { PackageJson } from "@src/types/remotedeploy";
 import { GitLabProfile } from "@src/types/remoteProfile";
 import { GitlabGroup, GitlabRepo } from "@src/types/remoteRepos";
 
@@ -154,7 +155,7 @@ export const useGitLabCommits = (repo?: string, branch?: string) => {
   });
 };
 
-export const useGitlabPackageJson = (onSettled: (data: any) => void, repo?: string, subFolder?: string) => {
+export const useGitlabPackageJson = (onSettled: (data: PackageJson) => void, repo?: string, subFolder?: string) => {
   const [token] = useAtom(remoteDeployStore.tokens);
 
   return useQuery({
