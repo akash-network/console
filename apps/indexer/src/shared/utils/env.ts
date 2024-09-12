@@ -2,19 +2,19 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export const env = {
-  HealthChecks_SyncBlocks: process.env.HealthChecks_SyncBlocks,
-  HealthChecks_SyncAKTPriceHistory: process.env.HealthChecks_SyncAKTPriceHistory,
-  HealthChecks_SyncProviderInfo: process.env.HealthChecks_SyncProviderInfo,
-  HealthChecks_SyncKeybaseInfo: process.env.HealthChecks_SyncKeybaseInfo,
-  SentryDSN: process.env.SentryDSN,
+  HEALTHCHECKS_SYNC_BLOCKS: process.env.HEALTHCHECKS_SYNC_BLOCKS,
+  HEALTHCHECKS_SYNC_AKT_PRICE_HISTORY: process.env.HEALTHCHECKS_SYNC_AKT_PRICE_HISTORY,
+  HEALTHCHECKS_SYNC_PROVIDER_INFO: process.env.HEALTHCHECKS_SYNC_PROVIDER_INFO,
+  HEALTHCHECKS_SYNC_KEYBASE_INFO: process.env.HEALTHCHECKS_SYNC_KEYBASE_INFO,
+  SENTRY_DSN: process.env.SENTRY_DSN,
   NODE_ENV: process.env.NODE_ENV,
-  SentryServerName: process.env.SentryServerName,
-  HealthchecksEnabled: process.env.HealthchecksEnabled,
-  AkashDatabaseCS: process.env.AkashDatabaseCS,
-  PassageDatabaseCS: process.env.PassageDatabaseCS,
-  JunoDatabaseCS: process.env.JunoDatabaseCS,
-  ActiveChain: process.env.ActiveChain,
-  KeepCache: process.env.KeepCache === "true",
-  Standby: process.env.Standby === "true",
-  DataFolder: process.env.DataFolder ?? "./data"
+  SENTRY_SERVER_NAME: process.env.SENTRY_SERVER_NAME,
+  HEALTH_CHECKS_ENABLED: process.env.HEALTH_CHECKS_ENABLED,
+  AKASH_DATABASE_CS: process.env.AKASH_DATABASE_CS,
+  PASSAGE_DATABASE_CS: process.env.PASSAGE_DATABASE_CS,
+  JUNO_DATABASE_CS: process.env.JUNO_DATABASE_CS,
+  ACTIVE_CHAIN: process.env.ACTIVE_CHAIN,
+  KEEP_CACHE: process.env.KEEP_CACHE === "true",
+  STANDBY: process.env.STANDBY === "true",
+  DATA_FOLDER: process.env.DATA_FOLDER ?? "./data"
 };

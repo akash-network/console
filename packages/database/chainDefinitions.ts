@@ -55,7 +55,7 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       "https://akash-rpc.kleomedes.network"
     ],
     cosmosDirectoryId: "akash",
-    connectionString: process.env.AkashDatabaseCS,
+    connectionString: process.env.AKASH_DATABASE_CS,
     genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/mainnet/genesis.json",
     coinGeckoId: "akash-network",
     logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
@@ -88,7 +88,7 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
     code: "akash-testnet",
     rpcNodes: ["https://rpc.testnet-02.aksh.pw:443", "https://akash-testnet-rpc.cosmonautstakes.com:443"],
     cosmosDirectoryId: "akash",
-    connectionString: process.env.AkashTestnetDatabaseCS,
+    connectionString: process.env.AKASH_TESTNET_DATABASE_CS,
     genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/testnet-02/genesis.json",
     coinGeckoId: "akash-network",
     logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
@@ -121,7 +121,7 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
     code: "akash-sandbox",
     rpcNodes: ["https://rpc.sandbox-01.aksh.pw"],
     cosmosDirectoryId: "akash",
-    connectionString: process.env.AkashSandboxDatabaseCS,
+    connectionString: process.env.AKASH_SANDBOX_DATABASE_CS,
     genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/sandbox/genesis.json",
     coinGeckoId: "akash-network",
     logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
@@ -409,4 +409,4 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
   }
 };
 
-export const activeChain = chainDefinitions[process.env.ActiveChain || "akash"];
+export const activeChain = chainDefinitions[process.env.ACTIVE_CHAIN || "akash"];

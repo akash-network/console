@@ -19,6 +19,7 @@
     "format": "prettier --write ./*.{js,json} **/*.{ts,tsx,js,json}",
     "indexer:dev": "turbo dev --filter=\"./apps/indexer\"",
     "lint": "eslint .",
+    "lint:fix": "npm run lint -- --fix",
     "lint:api": "eslint ./apps/api",
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
     "stats:dev": "turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",

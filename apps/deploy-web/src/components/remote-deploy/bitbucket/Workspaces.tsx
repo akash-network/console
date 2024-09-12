@@ -3,6 +3,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Bitbucket } from "iconoir-react";
 
 import { useWorkspaces } from "../api/bitbucket-api";
+
 const WorkSpaces = ({ isLoading, setWorkSpaces }: { isLoading: boolean; workSpaces: string; setWorkSpaces: Dispatch<string> }) => {
   const [open, setOpen] = useState(false);
 
@@ -32,7 +33,7 @@ const WorkSpaces = ({ isLoading, setWorkSpaces }: { isLoading: boolean; workSpac
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
-            {data?.values?.map((work: any) => (
+            {data?.values?.map(work => (
               <SelectItem key={work.uuid} value={work.uuid}>
                 <div className="flex items-center">
                   <Bitbucket className="mr-2" />

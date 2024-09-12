@@ -1,13 +1,14 @@
 import { useState } from "react";
+import { Control } from "react-hook-form";
 import { Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
-// import { EnvVarList } from "../sdl/EnvVarList";
+import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { EnvFormModal } from "./EnvFormModal";
 import { EnvVarList } from "./EnvList";
 
-const Advanced = ({ services, control }) => {
+const Advanced = ({ services, control }: { services: ServiceType[]; control: Control<SdlBuilderFormValuesType> }) => {
   const serviceIndex = 0;
   const [expanded, setExpanded] = useState(false);
   const currentService = services[serviceIndex];
@@ -31,13 +32,7 @@ const Advanced = ({ services, control }) => {
           <CollapsibleContent>
             <div className="grid items-start gap-6 p-5">
               {isEditingEnv === serviceIndex && (
-                <EnvFormModal
-                  control={control}
-                  onClose={() => setIsEditingEnv(null)}
-                  serviceIndex={serviceIndex}
-                  envs={currentService.env || []}
-                  // hasSecretOption={hasSecretOption}
-                />
+                <EnvFormModal control={control} onClose={() => setIsEditingEnv(null)} serviceIndex={serviceIndex} envs={currentService.env || []} />
               )}
               <div>
                 <EnvVarList currentService={currentService} setIsEditingEnv={setIsEditingEnv} serviceIndex={serviceIndex} />

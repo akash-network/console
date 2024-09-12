@@ -1,14 +1,11 @@
 import { Dispatch, useState } from "react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Spinner } from "@akashnetwork/ui/components";
 import { GitlabFull } from "iconoir-react";
-import { useAtom } from "jotai";
 
-import remoteDeployStore from "@src/store/remoteDeployStore";
 import { useGitLabGroups } from "../api/gitlab-api";
-const Groups = ({ isLoading, group, setGroup }: { isLoading: boolean; group: string; setGroup: Dispatch<string> }) => {
+const Groups = ({ isLoading, setGroup }: { isLoading: boolean; setGroup: Dispatch<string> }) => {
   const [open, setOpen] = useState(false);
 
-  const [token] = useAtom(remoteDeployStore.tokens);
   const { data, isLoading: loadingWorkSpaces } = useGitLabGroups();
 
   return (
@@ -35,7 +32,7 @@ const Groups = ({ isLoading, group, setGroup }: { isLoading: boolean; group: str
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
-            {data?.map((work: any) => (
+            {data?.map(work => (
               <SelectItem key={work.path} value={work.path}>
                 <div className="flex items-center">
                   <GitlabFull className="mr-2" />

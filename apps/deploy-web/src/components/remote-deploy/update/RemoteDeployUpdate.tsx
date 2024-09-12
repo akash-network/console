@@ -17,11 +17,16 @@ import Branches from "../github/Branches";
 import GitBranches from "../gitlab/Branches";
 import { appendEnv } from "../utils";
 import Rollback from "./Rollback";
+
 const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: string; setEditedManifest: Dispatch<React.SetStateAction<string | null>> }) => {
   const [token] = useAtom(remoteDeployStore.tokens);
   const [, setIsInit] = useState(false);
+  const { enqueueSnackbar } = useSnackbar();
+  const [, setError] = useState<string | null>(null);
+  const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(false);
   const { control, watch, setValue } = useForm<SdlBuilderFormValuesType>({ defaultValues: { services: [defaultService] } });
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
+
   useEffect(() => {
     const { unsubscribe }: any = watch(data => {
       const sdl = generateSdl(data.services as ServiceType[]);
@@ -40,9 +45,7 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
       unsubscribe();
     };
   }, [watch, sdlString]);
-  const { enqueueSnackbar } = useSnackbar();
-  const [, setError] = useState<string | null>(null);
-  const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(false);
+
   const createAndValidateSdl = (yamlStr: string) => {
     try {
       if (!yamlStr) return [];
@@ -82,22 +85,19 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
         </div>
         <p className="text-sm text-muted-foreground">If checked, Console will automatically re-deploy your app on any code commits</p>
       </div>
-      {services[0]?.env?.length ? (
-        <>
-          <EnvVarList currentService={services[0]} setIsEditingEnv={setIsEditingEnv} />
-          {isEditingEnv && (
-            <EnvFormModal
-              update
-              control={control}
-              serviceIndex={0}
-              envs={services[0]?.env ?? []}
-              onClose={() => {
-                setIsEditingEnv(false);
-              }}
-            />
-          )}
-        </>
-      ) : null}
+
+      <EnvVarList currentService={services[0]} setIsEditingEnv={setIsEditingEnv} />
+      {isEditingEnv && (
+        <EnvFormModal
+          update
+          control={control}
+          serviceIndex={0}
+          envs={services[0]?.env ?? []}
+          onClose={() => {
+            setIsEditingEnv(false);
+          }}
+        />
+      )}
 
       {token.access_token && services[0]?.env?.find(e => e.key === "REPO_URL")?.value?.includes(token.type) && (
         <>

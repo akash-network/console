@@ -5,6 +5,7 @@ import { CheckCircle, WarningCircle } from "iconoir-react";
 
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt } from "@src/utils/priceUtils";
 import { ConnectWallet } from "./ConnectWallet";
@@ -18,15 +19,19 @@ type Props = {
 export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onContinue }) => {
   const [isLoadingPrerequisites, setIsLoadingPrerequisites] = useState(false);
   const [isBalanceValidated, setIsBalanceValidated] = useState<boolean | null>(null);
-  const { address, walletBalances, refreshBalances, isManaged } = useWallet();
+  const { address, isManaged } = useWallet();
+  const { balance: walletBalance } = useWalletBalance();
   const { minDeposit } = useChainParam();
 
   useEffect(() => {
-    async function loadPrerequisites() {
+    if (isManaged) {
+      onContinue();
+    }
+
+    if (address && minDeposit.akt && minDeposit.usdc && !!walletBalance) {
       setIsLoadingPrerequisites(true);
 
-      const balance = await refreshBalances();
-      const isBalanceValidated = balance.uakt >= aktToUakt(minDeposit.akt) || balance.usdc >= denomToUdenom(minDeposit.usdc);
+      const isBalanceValidated = walletBalance?.balanceUAKT >= aktToUakt(minDeposit.akt) || walletBalance?.balanceUUSDC >= denomToUdenom(minDeposit.usdc);
 
       setIsBalanceValidated(isBalanceValidated);
       setIsLoadingPrerequisites(false);
@@ -35,16 +40,8 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
         onContinue();
       }
     }
-
-    if (isManaged) {
-      onContinue();
-    }
-
-    if (address && minDeposit.akt && minDeposit.usdc && !!walletBalances) {
-      loadPrerequisites();
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, walletBalances?.uakt, walletBalances?.usdc, minDeposit.akt, minDeposit.usdc, isManaged]);
+  }, [address, walletBalance?.balanceUAKT, walletBalance?.balanceUUSDC, minDeposit.akt, minDeposit.usdc, isManaged]);
 
   return (
     <Popup

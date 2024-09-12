@@ -1,6 +1,6 @@
 {
   "name": "console-indexer",
-  "version": "1.9.3",
+  "version": "1.10.1",
   "description": "Indexer for any Cosmos based blockchain",
   "homepage": "https://github.com/akash-network/console",
   "bugs": {

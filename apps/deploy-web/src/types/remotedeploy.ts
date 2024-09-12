@@ -15,6 +15,11 @@ export interface IGithubDirectoryItem {
     self: string;
   };
 }
+export interface RollBackType {
+  name: string;
+  value: string;
+  date: Date;
+}
 
 export interface Owner {
   login: string;
@@ -134,4 +139,11 @@ export interface GithubRepository {
   watchers: number;
   default_branch: string;
   permissions: Permissions;
+}
+
+export interface PackageJson {
+  // this should any as we cannot know what dependencies are available
+  dependencies?: any;
+  devDependencies?: any;
+  scripts?: any;
 }

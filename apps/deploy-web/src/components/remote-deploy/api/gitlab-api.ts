@@ -1,9 +1,13 @@
 import { useMutation, useQuery } from "react-query";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
+import { GitLabCommit } from "@src/types/remoteCommits";
+import { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
+import { GitLabProfile } from "@src/types/remoteProfile";
+import { GitlabGroup, GitlabRepo } from "@src/types/remoteRepos";
 
 export const handleGitLabLogin = () => {
   window.location.href = `https://gitlab.com/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID}&redirect_uri=${process.env.NEXT_PUBLIC_REDIRECT_URI}&response_type=code&scope=read_user+read_repository+read_api+api&state=gitlab`;
@@ -70,7 +74,7 @@ export const useGitLabUserProfile = () => {
   return useQuery({
     queryKey: ["gitlab-user-Profile", token?.access_token],
     queryFn: async () => {
-      const response = await axiosInstance.get("/user", {
+      const response = await axiosInstance.get<GitLabProfile>("/user", {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }
@@ -78,7 +82,7 @@ export const useGitLabUserProfile = () => {
       return response.data;
     },
     enabled: !!token?.access_token && token.type === "gitlab",
-    onError: (error: any) => {
+    onError: (error: AxiosError) => {
       if (error.response?.status === 401) {
         mutate();
       }
@@ -91,7 +95,7 @@ export const useGitLabGroups = () => {
   return useQuery({
     queryKey: ["gitlab-repos", token?.access_token],
     queryFn: async () => {
-      const response = await axiosInstance.get(`/groups`, {
+      const response = await axiosInstance.get<GitlabGroup[]>(`/groups`, {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }
@@ -107,7 +111,7 @@ export const useGitLabReposByGroup = (group: string | undefined) => {
   return useQuery({
     queryKey: ["repos", token?.access_token, group],
     queryFn: async () => {
-      const response = await axiosInstance.get(`/groups/${group}/projects`, {
+      const response = await axiosInstance.get<GitlabRepo[]>(`/groups/${group}/projects`, {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }
@@ -139,7 +143,7 @@ export const useGitLabCommits = (repo?: string, branch?: string) => {
   return useQuery({
     queryKey: ["commits", repo, branch, token?.access_token, repo, branch],
     queryFn: async () => {
-      const response = await axiosInstance.get(`/projects/${repo}/repository/commits?ref_name=${branch}`, {
+      const response = await axiosInstance.get<GitLabCommit[]>(`/projects/${repo}/repository/commits?ref_name=${branch}`, {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }
@@ -151,7 +155,7 @@ export const useGitLabCommits = (repo?: string, branch?: string) => {
   });
 };
 
-export const useGitlabPackageJson = (onSettled: (data: any) => void, repo?: string, subFolder?: string) => {
+export const useGitlabPackageJson = (onSettled: (data: PackageJson) => void, repo?: string, subFolder?: string) => {
   const [token] = useAtom(remoteDeployStore.tokens);
 
   return useQuery({
@@ -174,7 +178,7 @@ export const useGitlabPackageJson = (onSettled: (data: any) => void, repo?: stri
   });
 };
 
-export const useGitlabSrcFolders = (onSettled: (data: any) => void, repo?: string) => {
+export const useGitlabSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void, repo?: string) => {
   const [token] = useAtom(remoteDeployStore.tokens);
 
   return useQuery({

@@ -61,11 +61,17 @@ export const NewDeploymentContainer: FC = () => {
     if (type === "github" || code || state === "gitlab") {
       if (!redeploy) {
         if (state === "gitlab") {
-          router.replace(`/new-deployment?step=${RouteStep.editDeployment}&type=gitlab&code=${code}`);
+          router.replace(
+            UrlService.newDeployment({
+              step: RouteStep.editDeployment,
+              type: "gitlab",
+              code
+            })
+          );
         }
-
-        setSelectedTemplate(hardcodedTemplates.find(t => t.title === "GitHub") as TemplateCreation);
-        setEditedManifest(hardcodedTemplates.find(t => t.title === "GitHub")?.content as string);
+        const githubTemplate = hardcodedTemplates.find(t => t.title === "GitHub");
+        setSelectedTemplate(githubTemplate as TemplateCreation);
+        setEditedManifest(githubTemplate?.content as string);
       }
 
       setGithub(true);

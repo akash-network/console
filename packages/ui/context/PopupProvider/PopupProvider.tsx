@@ -10,6 +10,7 @@ type PopupProviderContext = {
   confirm: (messageOrProps: ConfirmPopupProps) => Promise<boolean>;
   select: (props: SelectPopupProps) => Promise<string | undefined>;
   requireAction: (props: CustomPopupProps) => Promise<undefined>;
+  createCustom: (props: CustomPopupProps) => void;
 };
 
 const PopupContext = React.createContext<PopupProviderContext | undefined>(undefined);
@@ -107,7 +108,22 @@ export const PopupProvider = ({ children }: React.PropsWithChildren) => {
     },
     [setPopupProps]
   );
-  const context = useMemo(() => ({ confirm, select, requireAction }), [confirm, select, requireAction]);
+
+  const createCustom: PopupProviderContext["createCustom"] = useCallback(
+    (props: CustomPopupProps) => {
+      setPopupProps({
+        ...props,
+        variant: "custom",
+        open: true,
+        onClose: () => {
+          setPopupProps(undefined);
+        }
+      });
+    },
+    [setPopupProps]
+  );
+
+  const context = useMemo(() => ({ confirm, select, requireAction, createCustom }), [confirm, select, requireAction, createCustom]);
 
   return (
     <PopupContext.Provider value={context}>
