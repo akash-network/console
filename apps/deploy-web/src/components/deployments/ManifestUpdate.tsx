@@ -52,7 +52,6 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   setShowOutsideDeploymentMessage
 }) => {
   const [parsingError, setParsingError] = useState<string | null>(null);
-  console.log(showOutsideDeploymentMessage);
 
   const [isSendingManifest, setIsSendingManifest] = useState(false);
 
@@ -274,12 +273,14 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
             {parsingError && <Alert variant="warning">{parsingError}</Alert>}
 
             <LinearLoadingSkeleton isLoading={isSendingManifest} />
-            <RemoteDeployUpdate sdlString={editedManifest} setEditedManifest={setEditedManifest} />
-            {!remoteDeploy && (
-              <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
+
+            <ViewPanel stickToBottom style={{ overflow: remoteDeploy ? "unset" : "hidden" }}>
+              {remoteDeploy ? (
+                <RemoteDeployUpdate sdlString={editedManifest} setEditedManifest={setEditedManifest} />
+              ) : (
                 <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
-              </ViewPanel>
-            )}
+              )}
+            </ViewPanel>
           </div>
         </>
       )}

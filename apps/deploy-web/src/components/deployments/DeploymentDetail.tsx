@@ -6,7 +6,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { ArrowLeft } from "iconoir-react";
 import yaml from "js-yaml";
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
 
@@ -30,16 +30,19 @@ import { DeploymentSubHeader } from "./DeploymentSubHeader";
 import { LeaseRow } from "./LeaseRow";
 import { ManifestUpdate } from "./ManifestUpdate";
 
-export function DeploymentDetail() {
-  const dseq = (useParams()?.dseq as string) ?? "";
-  console.log(dseq);
-
+export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: string }>) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
+  const [editedManifest, setEditedManifest] = useState<string | null>(null);
+  const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
+  const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
   const { address, isWalletLoaded } = useWallet();
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
+  const remoteDeploy: boolean = editedManifest && isRedeployImage(editedManifest) ? true : false;
+  const repo: string | null = remoteDeploy ? getRepoUrl(editedManifest) : null;
+
   const {
     data: deployment,
     isFetching: isLoadingDeployment,
@@ -101,6 +104,25 @@ export function DeploymentDetail() {
   }, [isWalletLoaded, isSettingsInit]);
 
   useEffect(() => {
+    const init = async () => {
+      const localDeploymentData = getDeploymentLocalData(deployment?.dseq || "");
+
+      if (localDeploymentData && localDeploymentData.manifest) {
+        setShowOutsideDeploymentMessage(false);
+        setEditedManifest(localDeploymentData?.manifest);
+        const yamlVersion = yaml.load(localDeploymentData?.manifest);
+        const version = await deploymentData.getManifestVersion(yamlVersion);
+
+        setDeploymentVersion(version);
+      } else {
+        setShowOutsideDeploymentMessage(true);
+      }
+    };
+
+    init();
+  }, [deployment]);
+
+  useEffect(() => {
     if (leases && leases.some(l => l.state === "active")) {
       if (tabQuery) {
         setActiveTab(tabQuery);
@@ -135,41 +157,6 @@ export function DeploymentDetail() {
       label: `Navigate tab ${value} in deployment detail`
     });
   };
-  const [remoteDeploy, setRemoteDeploy] = useState<boolean>(false);
-  const [repo, setRepo] = useState<string | null>(null);
-  const [editedManifest, setEditedManifest] = useState<string | null>(null);
-  const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
-  const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
-
-  useEffect(() => {
-    const init = async () => {
-      const localDeploymentData = getDeploymentLocalData(deployment?.dseq || "");
-      console.log("localDeploymentData", !!localDeploymentData && !!localDeploymentData?.manifest);
-
-      if (localDeploymentData && localDeploymentData.manifest) {
-        setShowOutsideDeploymentMessage(false);
-        setEditedManifest(localDeploymentData?.manifest);
-        const yamlVersion = yaml.load(localDeploymentData?.manifest);
-        const version = await deploymentData.getManifestVersion(yamlVersion);
-
-        setDeploymentVersion(version);
-      } else {
-        console.log("klsj");
-
-        setShowOutsideDeploymentMessage(true);
-      }
-    };
-
-    init();
-  }, [deployment]);
-
-  useEffect(() => {
-    if (editedManifest && isRedeployImage(editedManifest)) {
-      setRepo(getRepoUrl(editedManifest));
-
-      setRemoteDeploy(true);
-    }
-  }, [editedManifest]);
 
   return (
     <Layout isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders} isUsingSettings isUsingWallet containerClassName="pb-0">
