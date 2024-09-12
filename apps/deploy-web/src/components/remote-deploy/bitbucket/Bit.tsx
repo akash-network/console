@@ -1,7 +1,7 @@
 import { Dispatch, useState } from "react";
 
 import { ServiceType } from "@src/types";
-import { BitProfile } from "@src/types/remotedeploy";
+import { BitProfile } from "@src/types/remoteProfile";
 import { useBitReposByWorkspace } from "../api/bitbucket-api";
 import Repos from "../Repos";
 import { ServiceControl, ServiceSetValue } from "../utils";
@@ -35,9 +35,8 @@ const Bit = ({
       <Repos
         isLoading={isLoading}
         repos={
-          repos?.values.map((repo: any) => ({
+          repos?.values.map(repo => ({
             name: repo.name,
-            id: repo.id,
             default_branch: repo?.mainbranch?.name,
             html_url: repo?.links?.html?.href,
             userName: profile?.username,

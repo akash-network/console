@@ -32,7 +32,7 @@ const Groups = ({ isLoading, setGroup }: { isLoading: boolean; setGroup: Dispatc
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
-            {data?.map((work: any) => (
+            {data?.map(work => (
               <SelectItem key={work.path} value={work.path}>
                 <div className="flex items-center">
                   <GitlabFull className="mr-2" />

@@ -32,9 +32,9 @@ const GitLab = ({
         services={services}
         isLoading={isLoading}
         repos={
-          repos?.map((repo: any) => ({
+          repos?.map(repo => ({
             name: repo.name,
-            id: repo.id,
+            id: repo.id?.toString(),
             default_branch: repo?.default_branch,
             html_url: repo?.web_url,
             userName: "gitlab",

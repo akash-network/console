@@ -15,7 +15,7 @@ import { useAtom } from "jotai";
 import { ChevronDown } from "lucide-react";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
-import { BitProfile, GitHubProfile, GitLabProfile } from "@src/types/remotedeploy";
+import { BitProfile, GitHubProfile, GitLabProfile } from "@src/types/remoteProfile";
 
 const AccountDropDown = ({
   userProfile,

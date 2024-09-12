@@ -1,11 +1,12 @@
 import { useMutation, useQuery } from "react-query";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { BitBucketCommit } from "@src/types/remoteCommits";
-import { BitProfile } from "@src/types/remotedeploy";
+import { BitProfile } from "@src/types/remoteProfile";
+import { BitRepository, BitWorkspace } from "@src/types/remoteRepos";
 
 const Bitbucket_API_URL = "https://api.bitbucket.org/2.0";
 
@@ -79,7 +80,7 @@ export const useBitUserProfile = () => {
       return response.data;
     },
     enabled: !!token?.access_token && token.type === "bitbucket",
-    onError: (error: any) => {
+    onError: (error: AxiosError) => {
       if (error.response?.status === 401) {
         mutate();
       }
@@ -108,7 +109,9 @@ export const useWorkspaces = () => {
   return useQuery({
     queryKey: ["workspaces", token.access_token],
     queryFn: async () => {
-      const response = await axiosInstance.get("/workspaces", {
+      const response = await axiosInstance.get<{
+        values: BitWorkspace[];
+      }>("/workspaces", {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }
@@ -124,7 +127,9 @@ export const useBitReposByWorkspace = (workspace: string) => {
   return useQuery({
     queryKey: ["repos", token.access_token, workspace],
     queryFn: async () => {
-      const response = await axiosInstance.get(`/repositories/${workspace}`, {
+      const response = await axiosInstance.get<{
+        values: BitRepository[];
+      }>(`/repositories/${workspace}`, {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }

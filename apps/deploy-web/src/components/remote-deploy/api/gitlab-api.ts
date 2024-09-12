@@ -1,11 +1,12 @@
 import { useMutation, useQuery } from "react-query";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { GitLabCommit } from "@src/types/remoteCommits";
-import { GitLabProfile } from "@src/types/remotedeploy";
+import { GitLabProfile } from "@src/types/remoteProfile";
+import { GitlabGroup, GitlabRepo } from "@src/types/remoteRepos";
 
 export const handleGitLabLogin = () => {
   window.location.href = `https://gitlab.com/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID}&redirect_uri=${process.env.NEXT_PUBLIC_REDIRECT_URI}&response_type=code&scope=read_user+read_repository+read_api+api&state=gitlab`;
@@ -80,7 +81,7 @@ export const useGitLabUserProfile = () => {
       return response.data;
     },
     enabled: !!token?.access_token && token.type === "gitlab",
-    onError: (error: any) => {
+    onError: (error: AxiosError) => {
       if (error.response?.status === 401) {
         mutate();
       }
@@ -93,7 +94,7 @@ export const useGitLabGroups = () => {
   return useQuery({
     queryKey: ["gitlab-repos", token?.access_token],
     queryFn: async () => {
-      const response = await axiosInstance.get(`/groups`, {
+      const response = await axiosInstance.get<GitlabGroup[]>(`/groups`, {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }
@@ -109,7 +110,7 @@ export const useGitLabReposByGroup = (group: string | undefined) => {
   return useQuery({
     queryKey: ["repos", token?.access_token, group],
     queryFn: async () => {
-      const response = await axiosInstance.get(`/groups/${group}/projects`, {
+      const response = await axiosInstance.get<GitlabRepo[]>(`/groups/${group}/projects`, {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }

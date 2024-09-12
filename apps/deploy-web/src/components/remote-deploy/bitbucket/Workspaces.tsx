@@ -33,7 +33,7 @@ const WorkSpaces = ({ isLoading, setWorkSpaces }: { isLoading: boolean; workSpac
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
-            {data?.values?.map((work: any) => (
+            {data?.values?.map(work => (
               <SelectItem key={work.uuid} value={work.uuid}>
                 <div className="flex items-center">
                   <Bitbucket className="mr-2" />
