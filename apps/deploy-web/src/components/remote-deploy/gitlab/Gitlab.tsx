@@ -2,8 +2,8 @@ import React, { Dispatch, useState } from "react";
 
 import { ServiceType } from "@src/types";
 import { useGitLabReposByGroup } from "../api/gitlab-api";
-import Repos from "../github/Repos";
-import { ServiceControl } from "../utils";
+import Repos from "../Repos";
+import { ServiceControl, ServiceSetValue } from "../utils";
 import Branches from "./Branches";
 import Groups from "./Groups";
 
@@ -18,7 +18,7 @@ const GitLab = ({
   setDeploymentName: Dispatch<string>;
   deploymentName: string;
   loading: boolean;
-  setValue: any;
+  setValue: ServiceSetValue;
   services: ServiceType[];
   control: ServiceControl;
 }) => {
@@ -27,7 +27,7 @@ const GitLab = ({
 
   return (
     <>
-      <Groups isLoading={loading} group={group} setGroup={setGroup} />
+      <Groups isLoading={loading} setGroup={setGroup} />
       <Repos
         services={services}
         isLoading={isLoading}
@@ -45,7 +45,6 @@ const GitLab = ({
         setDeploymentName={setDeploymentName}
         deploymentName={deploymentName}
         type="gitlab"
-        profile={{ username: "gitlab" }}
       />
       <Branches services={services} control={control} repos={repos} />
     </>

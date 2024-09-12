@@ -24,15 +24,15 @@ import { Globe2 } from "lucide-react";
 import { nanoid } from "nanoid";
 import Image from "next/image";
 
+import useRemoteDeployFramework from "@src/hooks/useRemoteDeployFramework";
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { useSrcFolders } from "../api/api";
-import { useBitSrcFolders } from "../api/bitbucket-api";
-import { useGitlabSrcFolders } from "../api/gitlab-api";
-import CustomInput from "../CustomInput";
-import useFramework from "../FrameworkDetection";
-import { IGithubDirectoryItem } from "../remoteTypes";
-import { appendEnv, removeEnv, removeInitialUrl, RepoType } from "../utils";
+import { IGithubDirectoryItem } from "@src/types/remotedeploy";
+import { useSrcFolders } from "./api/api";
+import { useBitSrcFolders } from "./api/bitbucket-api";
+import { useGitlabSrcFolders } from "./api/gitlab-api";
+import CustomInput from "./CustomInput";
+import { appendEnv, removeEnv, removeInitialUrl, RepoType } from "./utils";
 
 const Repos = ({
   repos,
@@ -49,48 +49,47 @@ const Repos = ({
   isLoading: boolean;
   setDeploymentName: Dispatch<string>;
   deploymentName: string;
-  profile: any;
+  profile?: {
+    name: string;
+    email: string;
+    avatar_url: string;
+    login: string;
+    html_url: string;
+  };
   type?: "github" | "gitlab" | "bitbucket";
 }) => {
   const [token] = useAtom(remoteDeployStore.tokens);
   const [search, setSearch] = useState("");
   const [filteredRepos, setFilteredRepos] = useState(repos);
-
+  const [currentAccount, setCurrentAccount] = useState<string>("");
+  const [directory, setDirectory] = useState<IGithubDirectoryItem[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const [accounts, setAccounts] = useState<string[]>([]);
+  const rootFolder = "akash-root-folder-repo-path";
   const currentRepo = services?.[0]?.env?.find(e => e.key === "REPO_URL");
   const repo = repos?.find(r => r.html_url === currentRepo?.value);
-  const [directory, setDirectory] = useState<IGithubDirectoryItem[] | null>(null);
   const currentFolder = services?.[0]?.env?.find(e => e.key === "FRONTEND_FOLDER");
-  const { currentFramework, isLoading: frameworkLoading } = useFramework({
+  const { currentFramework, isLoading: frameworkLoading } = useRemoteDeployFramework({
     services,
     setValue,
     repos,
     subFolder: currentFolder?.value
   });
 
-  const setFolders = (data: IGithubDirectoryItem[]) => {
-    if (data?.length > 0) {
-      setDirectory(data);
-    } else {
-      setDirectory(null);
-    }
-  };
-  const [currentAccount, setCurrentAccount] = useState<string>("");
-  const [accounts, setAccounts] = useState<string[]>([]);
-
   const { isLoading: isGettingDirectory, isFetching: isGithubLoading } = useSrcFolders(setFolders, removeInitialUrl(currentRepo?.value));
-
   const { isLoading: isGettingDirectoryBit, isFetching: isBitLoading } = useBitSrcFolders(
     setFolders,
     removeInitialUrl(currentRepo?.value),
     services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")?.value
   );
-  const [open, setOpen] = useState(false);
+
   const { isLoading: isGettingDirectoryGitlab, isFetching: isGitlabLoading } = useGitlabSrcFolders(
     setFolders,
     services?.[0]?.env?.find(e => e.key === "GITLAB_PROJECT_ID")?.value
   );
+
   const isLoadingDirectories = isGithubLoading || isGitlabLoading || isBitLoading || isGettingDirectory || isGettingDirectoryBit || isGettingDirectoryGitlab;
-  const rootFolder = "akash-root-folder-repo-path";
+
   useEffect(() => {
     if (type === "github") {
       const differentOwnersArray = repos?.map(repo => repo?.owner?.login || "");
@@ -103,7 +102,16 @@ const Repos = ({
       );
     }
     setFilteredRepos(repos);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repos, type, profile]);
+
+  function setFolders(data: IGithubDirectoryItem[]) {
+    if (data?.length > 0) {
+      setDirectory(data);
+    } else {
+      setDirectory(null);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">

@@ -2,9 +2,11 @@ import { Dispatch } from "react";
 import { Control } from "react-hook-form";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { GitHubProfile } from "@src/types/remotedeploy";
 import { useRepos } from "../api/api";
+import Repos from "../Repos";
+import { ServiceSetValue } from "../utils";
 import Branches from "./Branches";
-import Repos from "./Repos";
 
 const Github = ({
   control,
@@ -18,9 +20,9 @@ const Github = ({
   deploymentName: string;
   control: Control<SdlBuilderFormValuesType>;
 
-  setValue: any;
+  setValue: ServiceSetValue;
   services: ServiceType[];
-  profile: any;
+  profile?: GitHubProfile;
 }) => {
   const { data: repos, isLoading } = useRepos();
 

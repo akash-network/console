@@ -1,10 +1,12 @@
-import { Control } from "react-hook-form";
+import { Control, UseFormSetValue } from "react-hook-form";
 import { nanoid } from "nanoid";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { Owner } from "@src/types/remotedeploy";
 import { github } from "@src/utils/templates";
-import { Owner } from "./remoteTypes";
 
+export type ServiceControl = Control<SdlBuilderFormValuesType>;
+export type ServiceSetValue = UseFormSetValue<SdlBuilderFormValuesType>;
 export type OAuth = "github" | "gitlab" | "bitbucket";
 export const PROXY_API_URL_AUTH = "https://proxy-console-github.vercel.app";
 export const hiddenEnv = [
@@ -25,8 +27,7 @@ export const hiddenEnv = [
   "FRONTEND_FOLDER"
 ];
 export const REDIRECT_URL = `${process.env.NEXT_PUBLIC_REDIRECT_URI}?step=edit-deployment&type=github`;
-export type ServiceControl = Control<SdlBuilderFormValuesType>;
-export function appendEnv(key: string, value: string, isSecret: boolean, setValue: any, services: ServiceType[]) {
+export function appendEnv(key: string, value: string, isSecret: boolean, setValue: ServiceSetValue, services: ServiceType[]) {
   const previousEnv = services[0]?.env || [];
   if (previousEnv.find(e => e.key === key)) {
     previousEnv.map(e => {
@@ -44,7 +45,7 @@ export function appendEnv(key: string, value: string, isSecret: boolean, setValu
   setValue("services.0.env", previousEnv);
 }
 
-export function removeEnv(key: string, setValue: any, services: ServiceType[]) {
+export function removeEnv(key: string, setValue: ServiceSetValue, services: ServiceType[]) {
   const previousEnv = services[0]?.env || [];
   const newEnv = previousEnv.filter(e => e.key !== key);
   setValue("services.0.env", newEnv);
