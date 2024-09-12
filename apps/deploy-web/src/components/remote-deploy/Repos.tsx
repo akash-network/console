@@ -72,7 +72,6 @@ const Repos = ({
   const { currentFramework, isLoading: frameworkLoading } = useRemoteDeployFramework({
     services,
     setValue,
-    repos,
     subFolder: currentFolder?.value
   });
 

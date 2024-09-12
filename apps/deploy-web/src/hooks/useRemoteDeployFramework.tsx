@@ -3,67 +3,24 @@ import { useState } from "react";
 import { usePackageJson } from "@src/components/remote-deploy/api/api";
 import { useBitPackageJson } from "@src/components/remote-deploy/api/bitbucket-api";
 import { useGitlabPackageJson } from "@src/components/remote-deploy/api/gitlab-api";
-import { removeInitialUrl } from "@src/components/remote-deploy/utils";
+import { removeInitialUrl, ServiceSetValue, supportedFrameworks } from "@src/components/remote-deploy/utils";
 import { ServiceType } from "@src/types";
+import { PackageJson } from "@src/types/remotedeploy";
 
-const frameworks = [
-  {
-    title: "React",
-    value: "react",
-    image: "https://static-00.iconduck.com/assets.00/react-icon-512x456-2ynx529a.png"
-  },
-  {
-    title: "Vue",
-    value: "vue",
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Vue.js_Logo.svg/1200px-Vue.js_Logo.svg.png"
-  },
-  {
-    title: "Angular",
-    value: "angular",
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Angular_full_color_logo.svg/1200px-Angular_full_color_logo.svg.png"
-  },
-  {
-    title: "Svelte",
-    value: "svelte",
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Svelte_Logo.svg/1200px-Svelte_Logo.svg.png"
-  },
-  {
-    title: "Next.js",
-    value: "next",
-    image: "https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/nextjs-icon.png"
-  },
+const useRemoteDeployFramework = ({
+  services,
+  setValue,
+  subFolder
+}: {
+  services: ServiceType[];
+  setValue: ServiceSetValue;
 
-  {
-    title: "Astro",
-    value: "astro",
-    image: "https://icon.icepanel.io/Technology/png-shadow-512/Astro.png"
-  },
-  {
-    title: "Nuxt.js",
-    value: "nuxt",
-    image: "https://v2.nuxt.com/_nuxt/icons/icon_64x64.6dcbd4.png"
-  },
-
-  {
-    title: "Gridsome ",
-    value: "gridsome",
-    image: "https://gridsome.org/assets/static/favicon.b9532cc.c6d52b979318cc0b0524324281174df2.png"
-  },
-  {
-    title: "Vite",
-    value: "vite",
-    image: "https://vitejs.dev/logo.svg"
-  },
-  {
-    title: "Other",
-    value: "other"
-  }
-];
-const useRemoteDeployFramework = ({ services, setValue, subFolder }: { services: ServiceType[]; setValue: any; repos?: any; subFolder?: string }) => {
-  const [data, setData] = useState<any>(null);
+  subFolder?: string;
+}) => {
+  const [data, setData] = useState<PackageJson | null>(null);
   const selected = services?.[0]?.env?.find(e => e.key === "REPO_URL")?.value;
 
-  const setValueHandler = (data: any) => {
+  const setValueHandler = (data: PackageJson) => {
     if (data?.dependencies) {
       setData(data);
       const cpus = (Object.keys(data?.dependencies ?? {})?.length / 10 / 2)?.toFixed(1);
@@ -89,7 +46,7 @@ const useRemoteDeployFramework = ({ services, setValue, subFolder }: { services:
   );
 
   return {
-    currentFramework: frameworks.find(f => data?.scripts?.dev?.includes(f.value)) ?? {
+    currentFramework: supportedFrameworks.find(f => data?.scripts?.dev?.includes(f.value)) ?? {
       title: "Other",
       value: "other"
     },
