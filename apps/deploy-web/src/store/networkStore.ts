@@ -2,70 +2,25 @@ import axios from "axios";
 import { atom } from "jotai";
 import { useAtom } from "jotai/index";
 import { atomWithStorage } from "jotai/utils";
+import cloneDeep from "lodash/cloneDeep";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { MAINNET_ID, SANDBOX_ID, TESTNET_ID } from "@src/config/network.config";
+import { INITIAL_NETWORKS_CONFIG } from "@src/config/network.config";
 import { store } from "@src/store/global-store";
-import { Network } from "@src/types/network";
-import { ApiUrlService, mainnetNodes, sandboxNodes, testnetNodes } from "@src/utils/apiUtils";
+import type { Network } from "@src/types/network";
 
-export let networks: Network[] = [
-  {
-    id: MAINNET_ID,
-    title: "Mainnet",
-    description: "Akash Network mainnet network.",
-    nodesUrl: mainnetNodes,
-    chainId: "akashnet-2",
-    chainRegistryName: "akash",
-    versionUrl: ApiUrlService.mainnetVersion(),
-    rpcEndpoint: "https://rpc.cosmos.directory/akash",
-    enabled: true,
-    version: null // Set asynchronously
-  },
-  {
-    id: TESTNET_ID,
-    title: "GPU Testnet",
-    description: "Testnet of the new GPU features.",
-    nodesUrl: testnetNodes,
-    chainId: "testnet-02",
-    chainRegistryName: "akash-testnet",
-    versionUrl: ApiUrlService.testnetVersion(),
-    rpcEndpoint: "https://rpc.testnet-02.aksh.pw:443",
-    enabled: false,
-    version: null // Set asynchronously
-  },
-  {
-    id: SANDBOX_ID,
-    title: "Sandbox",
-    description: "Sandbox of the mainnet version.",
-    nodesUrl: sandboxNodes,
-    chainId: "sandbox-01",
-    chainRegistryName: "akash-sandbox",
-    versionUrl: ApiUrlService.sandboxVersion(),
-    rpcEndpoint: "https://rpc.sandbox-01.aksh.pw:443",
-    version: null, // Set asynchronously
-    enabled: true
-  }
-];
+export const networks: Network[] = cloneDeep(INITIAL_NETWORKS_CONFIG);
 
-/**
- * Get the actual versions and metadata of the available networks
- */
-export const initiateNetworkData = async () => {
-  networks = await Promise.all(
+export const initiateNetworkVersions = async () => {
+  await Promise.all(
     networks.map(async network => {
-      let version = null;
       try {
-        const response = await axios.get(network.versionUrl, { timeout: 10000 });
-        version = response.data;
+        const response = await axios.get<string>(network.versionUrl, { timeout: 10000 });
+        network.version = response.data;
+        return;
       } catch (error) {
-        console.log(error);
+        console.error(error);
       }
-
-      return {
-        ...network,
-        version
-      };
     })
   );
 };
@@ -113,5 +68,12 @@ export default {
   selectedNetworkId,
   selectedNetwork,
   getSelectedNetwork: () => store.get(selectedNetwork),
-  useSelectedNetwork: () => useAtom(selectedNetwork)[0]
+  getSelectedNetworkId: () => store.get(selectedNetwork).id,
+  useSelectedNetwork: () => useAtom(selectedNetwork)[0],
+  get apiVersion() {
+    return store.get(selectedNetwork).apiVersion;
+  },
+  get marketApiVersion() {
+    return store.get(selectedNetwork).marketApiVersion;
+  }
 };

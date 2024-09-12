@@ -29,7 +29,7 @@ export const getServerSideProps = async function getServerSideProps({ params, re
       };
     }
 
-    const response = await axios.get(`${serverEnvConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL}/user/template/${params?.id}`, config);
+    const response = await axios.get(`${serverEnvConfig.BASE_API_MAINNET_URL}/user/template/${params?.id}`, config);
 
     return {
       props: {

@@ -4,7 +4,7 @@ import { Alert, Table, TableBody, TableCell, TableHeader, TableRow } from "@akas
 import { Check } from "iconoir-react";
 
 import { MAINNET_ID } from "@src/config/network.config";
-import { useSettings } from "@src/context/SettingsProvider";
+import networkStore from "@src/store/networkStore";
 import { BidDto, DeploymentDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploymentDetailUtils";
@@ -46,7 +46,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
 }) => {
   const [resources, setResources] = useState<{ cpuAmount: number; gpuAmount: number; memoryAmount: number; storageAmount: number } | null>(null);
   const fBids = bids.filter(bid => filteredBids.includes(bid.id));
-  const { selectedNetworkId } = useSettings();
+  const { id: selectedNetworkId } = networkStore.useSelectedNetwork();
 
   useEffect(() => {
     const currentGroup = deploymentDetail?.groups.find(g => g.group_id.gseq === gseq);

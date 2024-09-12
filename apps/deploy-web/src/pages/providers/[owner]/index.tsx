@@ -1,3 +1,4 @@
+import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import axios from "axios";
 
 import { ProviderDetail } from "@src/components/providers/ProviderDetail";
@@ -16,7 +17,7 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
 export default ProviderDetailPage;
 
 export async function getServerSideProps({ params, query }) {
-  const apiUrl = serverApiUrlService.getBaseApiUrlFor(query.network as string);
+  const apiUrl = serverApiUrlService.getBaseApiUrlFor(query.network as NetworkId);
   const response = await axios.get(`${apiUrl}/v1/providers/${params?.owner}`);
 
   return {

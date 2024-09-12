@@ -22,8 +22,7 @@ services:
   deploy-web:
     restart: always
     environment:
-      API_BASE_URL: http://api:3080
-      PROVIDER_PROXY_URL: http://provider-proxy:3040
+      API_HOST: api
     env_file:
       - .env.sandbox.docker-compose-dev
     ports:

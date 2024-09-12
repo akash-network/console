@@ -1,15 +1,13 @@
 "use client";
-import React, { FC, ReactNode, useCallback, useEffect, useState } from "react";
-import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import React, { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { queryClient } from "@src/queries";
-import { initiateNetworkData, networks } from "@src/store/networkStore";
+import networkStore, { initiateNetworkVersions } from "@src/store/networkStore";
+import type { FCWithChildren } from "@src/types/component";
 import { NodeStatus } from "@src/types/node";
-import { mainnetNodes } from "@src/utils/apiUtils";
 import { initAppTypes } from "@src/utils/init";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 
@@ -38,8 +36,6 @@ type ContextType = {
   isSettingsInit: boolean;
   refreshNodeStatuses: (settingsOverride?: Settings) => Promise<void>;
   isRefreshingNodeStatus: boolean;
-  selectedNetworkId: string;
-  setSelectedNetworkId: (value: React.SetStateAction<string>) => void;
 };
 
 const SettingsProviderContext = React.createContext<ContextType>({} as ContextType);
@@ -53,14 +49,14 @@ const defaultSettings: Settings = {
   customNode: null
 };
 
-export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
+export const SettingsProvider: FCWithChildren = ({ children }) => {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSettingsInit, setIsSettingsInit] = useState(false);
   const [isRefreshingNodeStatus, setIsRefreshingNodeStatus] = useState(false);
   const { getLocalStorageItem, setLocalStorageItem } = useLocalStorage();
-  const [selectedNetworkId, setSelectedNetworkId] = useState<NetworkId>(browserEnvConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID);
   const { isCustomNode, customNode, nodes, apiEndpoint, rpcEndpoint } = settings;
+  const selectedNetwork = networkStore.useSelectedNetwork();
 
   usePreviousRoute();
 
@@ -69,8 +65,7 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const initiateSettings = async () => {
       setIsLoadingSettings(true);
 
-      // Set the versions and metadata of available networks
-      await initiateNetworkData();
+      await initiateNetworkVersions();
 
       // Apply local storage migrations
       migrateLocalStorage();
@@ -78,18 +73,11 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
       // Init app types based on the selected network id
       initAppTypes();
 
-      const _selectedNetworkId = (localStorage.getItem("selectedNetworkId") as NetworkId | null) || browserEnvConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID;
-
-      setSelectedNetworkId(_selectedNetworkId);
-
       const settingsStr = getLocalStorageItem("settings");
       const settings = { ...defaultSettings, ...JSON.parse(settingsStr || "{}") } as Settings;
 
-      // Set the available nodes list and default endpoints
-      const currentNetwork = networks.find(x => x.id === _selectedNetworkId);
-      const response = await axios.get(currentNetwork?.nodesUrl || mainnetNodes);
-      const nodes = response.data as Array<{ id: string; api: string; rpc: string }>;
-      const mappedNodes: Array<BlockchainNode> = await Promise.all(
+      const { data: nodes } = await axios.get<Array<{ id: string; api: string; rpc: string }>>(selectedNetwork.nodesUrl);
+      const nodesWithStatuses: Array<BlockchainNode> = await Promise.all(
         nodes.map(async node => {
           const nodeStatus = await loadNodeStatus(node.rpc);
 
@@ -98,7 +86,7 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
             status: nodeStatus.status,
             latency: nodeStatus.latency,
             nodeInfo: nodeStatus.nodeInfo
-          } as BlockchainNode;
+          };
         })
       );
 
@@ -120,12 +108,12 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
           id: customNodeUrl.hostname
         };
 
-        updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, customNode, nodes: mappedNodes });
+        updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, customNode, nodes: nodesWithStatuses });
       }
 
       // If the user has no settings or the selected node is inactive, use the fastest available active node
       if (!hasSettings || (hasSettings && settings.selectedNode?.status === "inactive")) {
-        const randomNode = getFastestNode(mappedNodes);
+        const randomNode = getFastestNode(nodesWithStatuses);
         // Use cosmos.directory as a backup if there's no active nodes in the list
         defaultApiNode = randomNode?.api || "https://rest.cosmos.directory/akash";
         defaultRpcNode = randomNode?.rpc || "https://rpc.cosmos.directory/akash";
@@ -137,12 +125,12 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
           nodeInfo: null,
           id: "https://rest.cosmos.directory/akash"
         };
-        updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, nodes: mappedNodes });
+        updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, nodes: nodesWithStatuses });
       } else {
         defaultApiNode = settings.apiEndpoint;
         defaultRpcNode = settings.rpcEndpoint;
         selectedNode = settings.selectedNode;
-        updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, nodes: mappedNodes });
+        updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, nodes: nodesWithStatuses });
       }
 
       setIsLoadingSettings(false);
@@ -297,8 +285,6 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
         isLoadingSettings,
         refreshNodeStatuses,
         isRefreshingNodeStatus,
-        selectedNetworkId,
-        setSelectedNetworkId,
         isSettingsInit
       }}
     >
