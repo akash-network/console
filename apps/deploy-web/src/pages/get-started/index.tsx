@@ -9,7 +9,6 @@ import Layout from "@src/components/layout/Layout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 
-
 const GetStarted: React.FunctionComponent = () => {
   return (
     <Layout>
