@@ -20,6 +20,6 @@ export const defaultNodeUrlMapping: { [key: string]: string } = {
   testnet: "https://api.testnet-02.aksh.pw"
 };
 
-export const apiNodeUrl = env.RestApiNodeUrl ?? defaultNodeUrlMapping[env.NETWORK] ?? defaultNodeUrlMapping.mainnet;
+export const apiNodeUrl = env.REST_API_NODE_URL ?? defaultNodeUrlMapping[env.NETWORK] ?? defaultNodeUrlMapping.mainnet;
 export const betaTypeVersion = "v1beta3";
 export const betaTypeVersionMarket = "v1beta4";

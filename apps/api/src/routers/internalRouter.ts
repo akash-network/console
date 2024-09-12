@@ -8,7 +8,7 @@ export const internalRouter = new OpenAPIHono();
 
 internalRouter.doc(`/doc`, {
   openapi: "3.0.0",
-  servers: [{ url: `${env.ServerOrigin}/internal` }],
+  servers: [{ url: `${env.SERVER_ORIGIN}/internal` }],
   info: {
     title: "Console Internal API",
     description: "APIs for internal use that are not part of the public API. There is no garantees of stability or backward compatibility.",

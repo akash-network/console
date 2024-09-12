@@ -53,7 +53,7 @@ export class AuthInterceptor implements HonoInterceptor {
 
   private async getValidUserId(bearer: string, c: Context) {
     const token = bearer.replace(/^Bearer\s+/i, "");
-    const jwks = await getJwks(env.Auth0JWKSUri || c.env?.JWKS_URI, useKVStore(kvStore || c.env?.VERIFY_RSA_JWT), c.env?.VERIFY_RSA_JWT_JWKS_CACHE_KEY);
+    const jwks = await getJwks(env.AUTH0_JWKS_URI || c.env?.JWKS_URI, useKVStore(kvStore || c.env?.VERIFY_RSA_JWT), c.env?.VERIFY_RSA_JWT_JWKS_CACHE_KEY);
     const result = await verify(token, jwks);
 
     return (result.payload as { sub: string }).sub;

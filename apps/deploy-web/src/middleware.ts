@@ -5,12 +5,13 @@ const { MAINTENANCE_MODE } = process.env;
 
 export function middleware(request: NextRequest) {
   const maintenancePage = "/maintenance";
-  if (MAINTENANCE_MODE && !request.nextUrl.pathname.startsWith(maintenancePage)) {
+  const isMaintenanceMode = MAINTENANCE_MODE === "true";
+  if (isMaintenanceMode && !request.nextUrl.pathname.startsWith(maintenancePage)) {
     const fromPath = request.nextUrl.pathname + request.nextUrl.search;
     console.log("Redirecting to maintenance page from " + fromPath);
 
     return NextResponse.redirect(new URL(`${maintenancePage}?return=${encodeURIComponent(fromPath)}`, request.url), 307); // 307 - temporary redirect
-  } else if (!MAINTENANCE_MODE && request.nextUrl.pathname.startsWith(maintenancePage)) {
+  } else if (!isMaintenanceMode && request.nextUrl.pathname.startsWith(maintenancePage)) {
     const returnPath = getReturnPath(request);
     console.log("Redirecting from maintenance page to " + returnPath);
 

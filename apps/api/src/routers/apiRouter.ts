@@ -11,7 +11,7 @@ function registerApiVersion(version: string, baseRouter: OpenAPIHono, versionRou
 
   versionRouter.doc(`/doc`, {
     openapi: "3.0.0",
-    servers: [{ url: `${env.ServerOrigin}/${version}` }],
+    servers: [{ url: `${env.SERVER_ORIGIN}/${version}` }],
     info: {
       title: "Console API",
       description: "Access Akash data from our indexer",
