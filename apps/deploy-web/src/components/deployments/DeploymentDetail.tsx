@@ -6,7 +6,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { ArrowLeft } from "iconoir-react";
 import yaml from "js-yaml";
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
 
@@ -30,8 +30,7 @@ import { DeploymentSubHeader } from "./DeploymentSubHeader";
 import { LeaseRow } from "./LeaseRow";
 import { ManifestUpdate } from "./ManifestUpdate";
 
-export function DeploymentDetail() {
-  const dseq = (useParams()?.dseq as string) ?? "";
+export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: string }>) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
@@ -43,6 +42,7 @@ export function DeploymentDetail() {
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
   const remoteDeploy: boolean = editedManifest && isRedeployImage(editedManifest) ? true : false;
   const repo: string | null = remoteDeploy ? getRepoUrl(editedManifest) : null;
+
   const {
     data: deployment,
     isFetching: isLoadingDeployment,
