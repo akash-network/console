@@ -61,8 +61,6 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
     const { data: gpuModels } = useGpuModels();
     const [serviceCollapsed, setServiceCollapsed] = useState(github ? [0] : []);
 
-    console.log(serviceCollapsed);
-
     const wallet = useWallet();
     const managedDenom = useManagedWalletDenom();
 
@@ -135,7 +133,6 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
           setError(err.message);
         } else {
           setError("Error while parsing SDL file");
-          console.error(err);
         }
       }
     };

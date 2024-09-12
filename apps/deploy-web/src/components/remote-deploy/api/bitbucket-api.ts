@@ -4,6 +4,8 @@ import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
+import { BitBucketCommit } from "@src/types/remoteCommits";
+import { BitProfile } from "@src/types/remotedeploy";
 
 const Bitbucket_API_URL = "https://api.bitbucket.org/2.0";
 
@@ -69,7 +71,7 @@ export const useBitUserProfile = () => {
   return useQuery({
     queryKey: ["userProfile", token.access_token],
     queryFn: async () => {
-      const response = await axiosInstance.get("/user", {
+      const response = await axiosInstance.get<BitProfile>("/user", {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }
@@ -90,7 +92,7 @@ export const useBitBucketCommits = (repo?: string) => {
   return useQuery({
     queryKey: ["commits", repo, token.access_token, repo],
     queryFn: async () => {
-      const response = await axiosInstance.get(`/repositories/${repo}/commits`, {
+      const response = await axiosInstance.get<BitBucketCommit>(`/repositories/${repo}/commits`, {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }

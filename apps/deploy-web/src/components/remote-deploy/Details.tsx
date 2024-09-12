@@ -3,10 +3,11 @@ import { Card, CardContent, Checkbox, Collapsible, CollapsibleContent, Collapsib
 import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
+import { ServiceType } from "@src/types";
 import CustomInput from "./CustomInput";
-import { appendEnv } from "./utils";
+import { appendEnv, ServiceSetValue } from "./utils";
 
-const Details = ({ services, setValue }) => {
+const Details = ({ services, setValue }: { services: ServiceType[]; setValue: ServiceSetValue }) => {
   const [expanded, setExpanded] = useState(false);
   const currentService = services[0];
   return (

@@ -1,10 +1,11 @@
 import { useState } from "react";
 
+import { usePackageJson } from "@src/components/remote-deploy/api/api";
+import { useBitPackageJson } from "@src/components/remote-deploy/api/bitbucket-api";
+import { useGitlabPackageJson } from "@src/components/remote-deploy/api/gitlab-api";
+import { removeInitialUrl } from "@src/components/remote-deploy/utils";
 import { ServiceType } from "@src/types";
-import { usePackageJson } from "./api/api";
-import { useBitPackageJson } from "./api/bitbucket-api";
-import { useGitlabPackageJson } from "./api/gitlab-api";
-import { removeInitialUrl } from "./utils";
+
 const frameworks = [
   {
     title: "React",
@@ -58,7 +59,7 @@ const frameworks = [
     value: "other"
   }
 ];
-const useFramework = ({ services, setValue, subFolder }: { services: ServiceType[]; setValue: any; repos?: any; subFolder?: string }) => {
+const useRemoteDeployFramework = ({ services, setValue, subFolder }: { services: ServiceType[]; setValue: any; repos?: any; subFolder?: string }) => {
   const [data, setData] = useState<any>(null);
   const selected = services?.[0]?.env?.find(e => e.key === "REPO_URL")?.value;
 
@@ -96,49 +97,4 @@ const useFramework = ({ services, setValue, subFolder }: { services: ServiceType
   };
 };
 
-export default useFramework;
-
-// <div className={clsx("flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground", token.type === "github" ? "col-span-2" : "")}>
-//       <div className="flex flex-col gap-2">
-//         <h1 className="font-semibold">Build Framework</h1>
-//         <p className="text-muted-foreground">Select your build framework</p>
-//       </div>
-
-//       <Select
-//         disabled={true}
-//         value={
-//           data?.scripts?.dev?.includes("next")
-//             ? "next"
-//             : data?.scripts?.dev?.includes("vue")
-//               ? "vue"
-//               : data?.scripts?.dev?.includes("astro")
-//                 ? "astro"
-//                 : data?.scripts?.dev?.includes("svelte")
-//                   ? "svelte"
-//                   : data?.scripts?.dev?.includes("angular")
-//                     ? "angular"
-//                     : data?.scripts?.dev?.includes("react")
-//                       ? "react"
-//                       : "other"
-//         }
-//       >
-//         <SelectTrigger className="w-full">
-//           <div className="flex items-center gap-2">
-//             {(isLoading || gitlabLoading || bitbucketLoading) && <Spinner size="small" />}
-//             <SelectValue placeholder={"Select "} />
-//           </div>
-//         </SelectTrigger>
-//         <SelectContent>
-//           <SelectGroup>
-//             {frameworks.map(framework => (
-//               <SelectItem key={framework.value} value={framework.value}>
-//                 <div className="flex items-center">
-//                   {framework.image ? <img src={framework.image} alt={framework.title} className="mr-2 h-6 w-6" /> : <Globe className="mr-2" />}
-//                   {framework.title}
-//                 </div>
-//               </SelectItem>
-//             ))}
-//           </SelectGroup>
-//         </SelectContent>
-//       </Select>
-//     </div>
+export default useRemoteDeployFramework;

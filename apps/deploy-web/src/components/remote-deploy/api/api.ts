@@ -4,13 +4,11 @@ import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
-import { GithubRepository, IGithubDirectoryItem } from "../remoteTypes";
+import { GitCommit } from "@src/types/remoteCommits";
+import { GitHubProfile, GithubRepository, IGithubDirectoryItem } from "@src/types/remotedeploy";
 import { REDIRECT_URL } from "../utils";
 
-const Github_API_URL = "https://api.github.com";
-//from env
-
-export const CLIEND_ID = "Iv23liZYLYN9I2HrgeOh";
+const GITHUB_API_URL = "https://api.github.com";
 
 export const handleLogin = () => {
   window.location.href = process.env.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL as string;
@@ -21,7 +19,7 @@ export const handleReLogin = () => {
 };
 
 const axiosInstance = axios.create({
-  baseURL: Github_API_URL,
+  baseURL: GITHUB_API_URL,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json"
@@ -33,7 +31,7 @@ export const useUserProfile = () => {
   return useQuery({
     queryKey: ["userProfile", token?.access_token],
     queryFn: async () => {
-      const response = await axiosInstance.get("/user", {
+      const response = await axiosInstance.get<GitHubProfile>("/user", {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }
@@ -111,14 +109,12 @@ export const useBranches = (repo?: string) => {
   });
 };
 
-//fetch all commits in a branch
-
 export const useCommits = (repo: string, branch: string) => {
   const [token] = useAtom(remoteDeployStore.tokens);
   return useQuery({
     queryKey: ["commits", repo, branch, token?.access_token, repo, branch],
     queryFn: async () => {
-      const response = await axiosInstance.get(`/repos/${repo}/commits?sha=${branch}`, {
+      const response = await axiosInstance.get<GitCommit[]>(`/repos/${repo}/commits?sha=${branch}`, {
         headers: {
           Authorization: `Bearer ${token?.access_token}`
         }

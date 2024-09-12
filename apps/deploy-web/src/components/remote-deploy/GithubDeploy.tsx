@@ -1,34 +1,19 @@
 import { Dispatch, useEffect, useState } from "react";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  Spinner,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger
-} from "@akashnetwork/ui/components";
-import { Bitbucket, CoinsSwap, Github as GitIcon, GitlabFull, LogOut, User } from "iconoir-react";
+import { Control, UseFormSetValue } from "react-hook-form";
+import { Button, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { Bitbucket, Github as GitIcon, GitlabFull } from "iconoir-react";
 import { useAtom } from "jotai";
-import { ChevronDown } from "lucide-react";
 
 import { useWhenNot } from "@src/hooks/useWhenNot";
 import remoteDeployStore from "@src/store/remoteDeployStore";
-import { ServiceType } from "@src/types";
+import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { handleLogin, handleReLogin, useFetchAccessToken, useUserProfile } from "./api/api";
 import { handleLoginBit, useBitFetchAccessToken, useBitUserProfile } from "./api/bitbucket-api";
 import { handleGitLabLogin, useGitLabFetchAccessToken, useGitLabUserProfile } from "./api/gitlab-api";
 import Bit from "./bitbucket/Bit";
 import Github from "./github/Github";
 import GitLab from "./gitlab/Gitlab";
+import AccountDropDown from "./AccountDropdown";
 import Advanced from "./Advanced";
 import CustomInput from "./CustomInput";
 import Details from "./Details";
@@ -42,14 +27,17 @@ const GithubDeploy = ({
   setDeploymentName,
   setIsRepoDataValidated
 }: {
-  setValue: any;
+  setValue: UseFormSetValue<SdlBuilderFormValuesType>;
   services: ServiceType[];
-  control: any;
+  control: Control<SdlBuilderFormValuesType>;
   setDeploymentName: Dispatch<string>;
   deploymentName: string;
   setIsRepoDataValidated?: Dispatch<boolean>;
 }) => {
   const [token, setToken] = useAtom(remoteDeployStore.tokens);
+  const [selectedTab, setSelectedTab] = useState("git");
+
+  const [open, setOpen] = useState(false);
 
   const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
   const { data: userProfileBit, isLoading: fetchingProfileBit } = useBitUserProfile();
@@ -59,13 +47,6 @@ const GithubDeploy = ({
   const { mutate: fetchAccessTokenBit, isLoading: fetchingTokenBit } = useBitFetchAccessToken();
   const { mutate: fetchAccessTokenGitLab, isLoading: fetchingTokenGitLab } = useGitLabFetchAccessToken();
 
-  const [selectedTab, setSelectedTab] = useState("git");
-
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    setOpen(true);
-  }, []);
-
   useWhenNot(
     services?.[0]?.env?.find(e => e.key === "REPO_URL" && services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")),
     () => {
@@ -74,6 +55,10 @@ const GithubDeploy = ({
     [],
     () => setIsRepoDataValidated?.(false)
   );
+
+  useEffect(() => {
+    setOpen(true);
+  }, []);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -115,7 +100,6 @@ const GithubDeploy = ({
                   Git Provider
                 </TabsTrigger>
                 <TabsTrigger value="public" className="w-full py-2.5 md:w-auto md:py-1.5">
-                  {" "}
                   Third-Party Git Repository
                 </TabsTrigger>
               </TabsList>
@@ -146,7 +130,6 @@ const GithubDeploy = ({
                           handleLoginBit();
                         }}
                         variant="outline"
-                        className=""
                       >
                         <Bitbucket className="mr-2" />
                         Bitbucket
@@ -157,7 +140,6 @@ const GithubDeploy = ({
                           handleGitLabLogin();
                         }}
                         variant="outline"
-                        className=""
                       >
                         <GitlabFull className="mr-2" />
                         GitLab
@@ -172,7 +154,6 @@ const GithubDeploy = ({
                           }
                         }}
                         variant="outline"
-                        className=""
                       >
                         <GitIcon className="mr-2" />
                         Github
@@ -242,59 +223,3 @@ const GithubDeploy = ({
 };
 
 export default GithubDeploy;
-
-const AccountDropDown = ({ userProfile, userProfileBit, userProfileGitLab }) => {
-  const [token, setToken] = useAtom(remoteDeployStore.tokens);
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger>
-        <Button variant={"outline"} className="flex h-auto items-center gap-5 bg-popover py-1">
-          <div className="flex items-center gap-2">
-            <Avatar className="size-8">
-              <AvatarImage src={userProfile?.avatar_url || userProfileBit?.avatar_url || userProfileGitLab?.avatar_url} />
-              <AvatarFallback>
-                <User />
-              </AvatarFallback>
-            </Avatar>
-            <p className="hidden md:block">{userProfile?.login || userProfileBit?.username || userProfileGitLab?.name}</p>
-          </div>
-          <ChevronDown size={16} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuLabel className="md:hidden">{userProfile?.login || userProfileBit?.username || userProfileGitLab?.name}</DropdownMenuLabel>
-        <DropdownMenuSeparator className="md:hidden" />
-        <DropdownMenuItem
-          onClick={() => {
-            setToken({
-              access_token: null,
-              refresh_token: null,
-              type: "github",
-              alreadyLoggedIn: token?.alreadyLoggedIn?.includes(token.type)
-                ? token.alreadyLoggedIn
-                : token?.alreadyLoggedIn && token?.alreadyLoggedIn?.length > 0
-                  ? [...token.alreadyLoggedIn, token.type]
-                  : [token.type]
-            });
-          }}
-          className="flex cursor-pointer items-center gap-2"
-        >
-          <CoinsSwap className="text-sm" /> Switch Git Provider
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() =>
-            setToken({
-              access_token: null,
-              refresh_token: null,
-              type: "github",
-              alreadyLoggedIn: []
-            })
-          }
-          className="flex cursor-pointer items-center gap-2"
-        >
-          <LogOut className="text-sm" /> Logout
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
