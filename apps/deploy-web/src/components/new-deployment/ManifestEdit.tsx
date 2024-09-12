@@ -59,7 +59,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
   const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
-
+  const [isRepoDataValidated, setIsRepoDataValidated] = useState(false);
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged } = useWallet();
@@ -79,6 +79,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const wallet = useWallet();
   const managedDenom = useManagedWalletDenom();
   const { createDeploymentConfirm } = useManagedDeploymentConfirm();
+  const { enqueueSnackbar } = useSnackbar();
 
   useWhen(wallet.isManaged && sdlDenom === "uakt", () => {
     setSdlDenom(managedDenom);
@@ -124,6 +125,13 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       fileUploadRef.current.click();
     }
   };
+
+  useEffect(() => {
+    if (github) {
+      setSelectedSdlEditMode("builder");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [github]);
 
   useEffect(() => {
     if (selectedTemplate?.name) {
@@ -180,10 +188,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       }
     }
   }
-
-  const [isRepoDataValidated, setIsRepoDataValidated] = useState(false);
-  const { enqueueSnackbar } = useSnackbar();
-  console.log(isRepoDataValidated);
 
   const handleCreateDeployment = async () => {
     if (github && !isRepoDataValidated) {
@@ -317,12 +321,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
     setSelectedSdlEditMode(mode);
   };
-
-  useEffect(() => {
-    if (github) {
-      setSelectedSdlEditMode("builder");
-    }
-  }, [github]);
 
   return (
     <>

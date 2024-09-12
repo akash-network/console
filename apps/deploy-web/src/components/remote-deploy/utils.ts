@@ -68,7 +68,8 @@ export const isRedeployImage = (yml: string) => {
   return github.content.includes(yml?.split("service-1:")?.[1]?.split("expose:")?.[0]?.split("image: ")?.[1]);
 };
 
-export const getRepoUrl = (yml: string) => {
+export const getRepoUrl = (yml?: string | null) => {
+  if (!yml) return null;
   const list = yml?.split("\n");
   const envIndex = list?.findIndex(item => item?.includes("env:"));
   const profileIndex = list?.findIndex(item => item?.includes("profiles:"));
