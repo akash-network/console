@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { GitLabCommit } from "@src/types/remoteCommits";
-import { PackageJson } from "@src/types/remotedeploy";
+import { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { GitLabProfile } from "@src/types/remoteProfile";
 import { GitlabGroup, GitlabRepo } from "@src/types/remoteRepos";
 
@@ -178,7 +178,7 @@ export const useGitlabPackageJson = (onSettled: (data: PackageJson) => void, rep
   });
 };
 
-export const useGitlabSrcFolders = (onSettled: (data: any) => void, repo?: string) => {
+export const useGitlabSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void, repo?: string) => {
   const [token] = useAtom(remoteDeployStore.tokens);
 
   return useQuery({
