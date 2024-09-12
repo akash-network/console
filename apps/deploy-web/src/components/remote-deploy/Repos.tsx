@@ -263,7 +263,7 @@ const Repos = ({
                     (directory && directory?.filter(item => item.type === "dir" || item.type === "commit_directory" || item.type === "tree")?.length > 0 ? (
                       <div className="flex flex-col">
                         <div className="flex items-center justify-between pb-3">
-                          <p className="text-muted-foregroun4 text-sm">Select Directory</p>
+                          <p className="text-sm text-muted-foreground">Select Directory</p>
                         </div>
 
                         <RadioGroup
