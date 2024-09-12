@@ -1,3 +1,6 @@
+import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+
+import networkStore from "@src/store/networkStore";
 import { ISnapshotMetadata, ProviderSnapshots } from "@src/types";
 import { ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
 import { bytesToShrink } from "./unitUtils";
@@ -32,7 +35,7 @@ export function getNetworkCapacityDto(networkCapacity) {
 }
 
 export function getProviderLocalData(): LocalProviderData {
-  const selectedNetworkId = localStorage.getItem("selectedNetworkId");
+  const selectedNetworkId: NetworkId = networkStore.getSelectedNetworkId();
   const dataStr = localStorage.getItem(`${selectedNetworkId}/provider.data`);
   if (!dataStr) {
     return { favorites: [] };
@@ -47,7 +50,7 @@ export function updateProviderLocalData(data: LocalProviderData) {
   const oldData = getProviderLocalData();
   const newData = { ...oldData, ...data };
 
-  const selectedNetworkId = localStorage.getItem("selectedNetworkId");
+  const selectedNetworkId: NetworkId = networkStore.getSelectedNetworkId();
   localStorage.setItem(`${selectedNetworkId}/provider.data`, JSON.stringify(newData));
 }
 
