@@ -57,10 +57,10 @@ export const removeInitialUrl = (url?: string) => {
 
 export interface RepoType {
   name: string;
-  id: string;
+  id?: string;
   default_branch: string;
   html_url: string;
-  userName: string;
+  userName?: string;
   private: boolean;
   owner?: Owner;
 }

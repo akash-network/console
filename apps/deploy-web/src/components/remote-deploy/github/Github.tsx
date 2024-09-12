@@ -2,7 +2,7 @@ import { Dispatch } from "react";
 import { Control } from "react-hook-form";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { GitHubProfile } from "@src/types/remotedeploy";
+import { GitHubProfile } from "@src/types/remoteProfile";
 import { useRepos } from "../api/api";
 import Repos from "../Repos";
 import { ServiceSetValue } from "../utils";
@@ -29,7 +29,16 @@ const Github = ({
   return (
     <>
       <Repos
-        repos={repos?.filter(repo => repo.owner?.login === profile?.login || repo?.owner?.type === "Organization") as any}
+        repos={repos
+          ?.filter(repo => repo.owner?.login === profile?.login || repo?.owner?.type === "Organization")
+          ?.map(repo => ({
+            name: repo.name,
+            default_branch: repo?.default_branch,
+            html_url: repo?.html_url,
+            private: repo?.private,
+            id: repo.id?.toString(),
+            owner: repo?.owner
+          }))}
         setValue={setValue}
         isLoading={isLoading}
         services={services}

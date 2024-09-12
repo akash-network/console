@@ -5,7 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 
 import remoteDeployStore from "@src/store/remoteDeployStore";
 import { GitCommit } from "@src/types/remoteCommits";
-import { GitHubProfile, GithubRepository, IGithubDirectoryItem } from "@src/types/remotedeploy";
+import { GithubRepository, IGithubDirectoryItem } from "@src/types/remotedeploy";
+import { GitHubProfile } from "@src/types/remoteProfile";
 import { REDIRECT_URL } from "../utils";
 
 const GITHUB_API_URL = "https://api.github.com";

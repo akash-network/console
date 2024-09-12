@@ -43,7 +43,7 @@ const Repos = ({
   profile,
   type = "github"
 }: {
-  repos: RepoType[];
+  repos?: RepoType[];
   setValue: UseFormSetValue<SdlBuilderFormValuesType>;
   services: ServiceType[];
   isLoading: boolean;
@@ -172,7 +172,7 @@ const Repos = ({
                 className="w-full flex-1"
                 onChange={e => {
                   setSearch(e.target.value);
-                  setFilteredRepos(repos.filter(repo => repo.name.toLowerCase().includes(e.target.value.toLowerCase())));
+                  setFilteredRepos(repos?.filter(repo => repo.name.toLowerCase().includes(e.target.value.toLowerCase())));
                 }}
               />
             </div>
