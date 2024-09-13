@@ -25,7 +25,7 @@ import { nanoid } from "nanoid";
 import Image from "next/image";
 
 import useRemoteDeployFramework from "@src/hooks/useRemoteDeployFramework";
-import remoteDeployStore from "@src/store/remoteDeployStore";
+import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { IGithubDirectoryItem } from "@src/types/remotedeploy";
 import { useSrcFolders } from "./api/api";
@@ -58,7 +58,7 @@ const Repos = ({
   };
   type?: "github" | "gitlab" | "bitbucket";
 }) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   const [search, setSearch] = useState("");
   const [filteredRepos, setFilteredRepos] = useState(repos);
   const [currentAccount, setCurrentAccount] = useState<string>("");

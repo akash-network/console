@@ -1,28 +1,22 @@
-import axios from "axios";
+import { NextApiRequest, NextApiResponse } from "next";
 
-const githubApi = "https://github.com";
+import GitHubAuth from "@src/services/auth/github.service";
 
-export default function handler(req, res) {
-  const { code } = req.body;
-  const { NEXT_PUBLIC_GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, NEXT_PUBLIC_REDIRECT_URI } = process.env;
+const { NEXT_PUBLIC_GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, NEXT_PUBLIC_REDIRECT_URI } = process.env;
 
-  if (code) {
-    axios
-      .post(`${githubApi}/login/oauth/access_token`, {
-        client_id: NEXT_PUBLIC_GITHUB_CLIENT_ID,
-        client_secret: GITHUB_CLIENT_SECRET,
-        code,
-        redirect_uri: NEXT_PUBLIC_REDIRECT_URI
-      })
-      .then(response => {
-        const params = new URLSearchParams(response.data);
-        const access_token = params.get("access_token");
-        res.status(200).json({ access_token });
-      })
-      .catch(() => {
-        res.status(500).send("Something went wrong");
-      });
-  } else {
-    res.status(400).send("No code provided");
+export default async function exchangeGitHubCodeForTokenHandler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
+  const { code }: { code: string } = req.body;
+
+  if (!code) {
+    return res.status(400).send("No authorization code provided");
+  }
+
+  const gitHubAuth = new GitHubAuth(NEXT_PUBLIC_GITHUB_CLIENT_ID as string, GITHUB_CLIENT_SECRET as string, NEXT_PUBLIC_REDIRECT_URI as string);
+
+  try {
+    const access_token = await gitHubAuth.exchangeAuthorizationCodeForToken(code);
+    res.status(200).json({ access_token });
+  } catch (error) {
+    res.status(500).send("Something went wrong");
   }
 }
