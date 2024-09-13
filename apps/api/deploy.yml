@@ -6,7 +6,7 @@ services:
     image: <IMAGE_NAME>:<IMAGE_TAG>
     depends-on: cloud-sql-proxy
     env:
-      - AkashlyticsGithubPAT=
+      - ConsoleGithubPAT=
       - AkashSandboxDatabaseCS=
       - UserDatabaseCS=
       - SecretToken=
@@ -23,7 +23,7 @@ services:
       - port: 3080
         as: 80
         accept:
-          - api-sandbox-staging.cloudmos.io
+          - console-api-sandbox-staging.akash.network
         to:
           - global: true
   cloud-sql-proxy:

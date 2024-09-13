@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const env = z
   .object({
-    AKASHLYTICS_CORS_WEBSITE_URLS: z.string().optional(),
+    CONSOLE_CORS_WEBSITE_URLS: z.string().optional(),
     NODE_ENV: z.string().optional(),
     HEALTHCHECKS_ENABLED: z.string().optional(),
     AKASH_DATABASE_CS: z.string().optional(),

@@ -21,7 +21,6 @@ const whitelist = [
   "http://localhost:3000",
   "https://cloudmos.grafana.net",
   "https://console.akash.network",
-  "https://beta.cloudmos.io",
   "https://staging-console.akash.network",
   "https://akashconsole.vercel.app",
   "https://console-beta.akash.network"

@@ -2,7 +2,7 @@ export const mainnetId = "mainnet";
 export const testnetId = "testnet";
 export const sandboxId = "sandbox";
 
-const productionHostnames = ["deploy.cloudmos.io", "console.akash.network", "staging-console.akash.network", "beta.cloudmos.io"];
+const productionHostnames = ["console.akash.network", "staging-console.akash.network"];
 
 export const selectedRangeValues: { [key: string]: number } = {
   "7D": 7,

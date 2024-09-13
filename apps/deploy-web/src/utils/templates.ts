@@ -11,7 +11,7 @@ export const helloWorldTemplate = {
   code: "hello-world",
   category: "General",
   description: "Simple next.js web application showing hello world.",
-  githubUrl: "https://github.com/maxmaxlabs/hello-akash-world",
+  githubUrl: "https://github.com/akash-network/hello-akash-world",
   valuesToChange: [],
   content: `# Welcome to the Akash Network! 🚀☁
 # This file is called a Stack Definition Laguage (SDL)
