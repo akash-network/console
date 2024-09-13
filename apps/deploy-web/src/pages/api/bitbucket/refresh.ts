@@ -1,31 +1,23 @@
-import axios from "axios";
+import { NextApiRequest, NextApiResponse } from "next";
 
-export default function handler(req, res) {
-  const tokenUrl = "https://bitbucket.org/site/oauth2/access_token";
-  const { refreshToken } = req.body;
-  const params = new URLSearchParams();
-  params.append("grant_type", "refresh_token");
-  params.append("refresh_token", refreshToken);
+import BitbucketAuth from "@src/services/auth/bitbucket.service";
 
-  const { NEXT_PUBLIC_BITBUCKET_CLIENT_ID, BITBUCKET_CLIENT_SECRET } = process.env;
-  const headers = {
-    Authorization: `Basic ${Buffer.from(`${NEXT_PUBLIC_BITBUCKET_CLIENT_ID}:${BITBUCKET_CLIENT_SECRET}`).toString("base64")}`,
-    "Content-Type": "application/x-www-form-urlencoded"
-  };
+const NEXT_PUBLIC_BITBUCKET_CLIENT_ID: string = process.env.NEXT_PUBLIC_BITBUCKET_CLIENT_ID as string;
+const BITBUCKET_CLIENT_SECRET: string = process.env.BITBUCKET_CLIENT_SECRET as string;
 
-  if (refreshToken) {
-    axios
-      .post(tokenUrl, params.toString(), { headers })
-      .then(response => {
-        const params = new URLSearchParams(response.data);
-        const access_token = params.get("access_token");
-        const refresh_token = params.get("refresh_token");
-        res.status(200).json({ access_token, refresh_token });
-      })
-      .catch(() => {
-        res.status(500).send("Something went wrong");
-      });
-  } else {
-    res.status(400).send("No code provided");
+export default async function refreshTokensHandler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
+  const { refreshToken }: { refreshToken: string } = req.body;
+
+  if (!refreshToken) {
+    return res.status(400).send("No refresh token provided");
+  }
+
+  const bitbucketAuth = new BitbucketAuth(NEXT_PUBLIC_BITBUCKET_CLIENT_ID, BITBUCKET_CLIENT_SECRET);
+
+  try {
+    const { access_token, refresh_token } = await bitbucketAuth.refreshTokensUsingRefreshToken(refreshToken);
+    res.status(200).json({ access_token, refresh_token });
+  } catch (error) {
+    res.status(500).send("Something went wrong");
   }
 }

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Dispatch, useEffect, useState } from "react";
 import { Alert, Button, CustomTooltip, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { InfoCircle, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
@@ -34,9 +34,9 @@ type Props = {
   showOutsideDeploymentMessage: boolean;
   editedManifest: string;
   deploymentVersion: string | null;
-  setDeploymentVersion: (value: React.SetStateAction<string | null>) => void;
-  setEditedManifest: (value: React.SetStateAction<string>) => void;
-  setShowOutsideDeploymentMessage: (value: React.SetStateAction<boolean>) => void;
+  setDeploymentVersion: Dispatch<React.SetStateAction<string | null>>;
+  setEditedManifest: Dispatch<React.SetStateAction<string>>;
+  setShowOutsideDeploymentMessage: Dispatch<React.SetStateAction<boolean>>;
 };
 
 export const ManifestUpdate: React.FunctionComponent<Props> = ({

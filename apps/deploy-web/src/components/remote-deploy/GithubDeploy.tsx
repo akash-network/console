@@ -4,8 +4,8 @@ import { Button, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from "@akas
 import { Bitbucket, Github as GitIcon, GitlabFull } from "iconoir-react";
 import { useAtom } from "jotai";
 
-import { useWhenNot } from "@src/hooks/useWhenNot";
-import remoteDeployStore from "@src/store/remoteDeployStore";
+import { useWhen } from "@src/hooks/useWhen";
+import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { handleLogin, handleReLogin, useFetchAccessToken, useUserProfile } from "./api/api";
 import { handleLoginBit, useBitFetchAccessToken, useBitUserProfile } from "./api/bitbucket-api";
@@ -34,10 +34,10 @@ const GithubDeploy = ({
   deploymentName: string;
   setIsRepoDataValidated?: Dispatch<boolean>;
 }) => {
-  const [token, setToken] = useAtom(remoteDeployStore.tokens);
+  const [token, setToken] = useAtom(tokens);
   const [selectedTab, setSelectedTab] = useState("git");
 
-  const [open, setOpen] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
   const { data: userProfileBit, isLoading: fetchingProfileBit } = useBitUserProfile();
@@ -47,17 +47,18 @@ const GithubDeploy = ({
   const { mutate: fetchAccessTokenBit, isLoading: fetchingTokenBit } = useBitFetchAccessToken();
   const { mutate: fetchAccessTokenGitLab, isLoading: fetchingTokenGitLab } = useGitLabFetchAccessToken();
 
-  useWhenNot(
+  useWhen(
     services?.[0]?.env?.find(e => e.key === "REPO_URL" && services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")),
     () => {
       setIsRepoDataValidated?.(true);
-    },
-    [],
-    () => setIsRepoDataValidated?.(false)
+    }
   );
+  useWhen(!services?.[0]?.env?.find(e => e.key === "REPO_URL" && services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")), () => {
+    setIsRepoDataValidated?.(false);
+  });
 
   useEffect(() => {
-    setOpen(true);
+    setHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -65,12 +66,12 @@ const GithubDeploy = ({
 
     const code = url.searchParams.get("code");
 
-    if (code && !token?.access_token && open) {
+    if (code && !token?.access_token && hydrated) {
       if (token?.type === "github") fetchAccessToken(code);
       if (token?.type === "bitbucket") fetchAccessTokenBit(code);
       if (token?.type === "gitlab") fetchAccessTokenGitLab(code);
     }
-  }, [open]);
+  }, [hydrated]);
 
   return (
     <>
