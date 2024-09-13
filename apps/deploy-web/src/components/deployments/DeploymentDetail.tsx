@@ -41,7 +41,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
-  const remoteDeploy: boolean = editedManifest && isRedeployImage(editedManifest) ? true : false;
+  const remoteDeploy: boolean = !!editedManifest && isRedeployImage(editedManifest);
   const repo: string | null = remoteDeploy ? getRepoUrl(editedManifest) : null;
 
   const {
@@ -108,7 +108,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
     const init = async () => {
       const localDeploymentData = getDeploymentLocalData(deployment?.dseq || "");
 
-      if (localDeploymentData && localDeploymentData.manifest) {
+      if (localDeploymentData?.manifest) {
         setShowOutsideDeploymentMessage(false);
         setEditedManifest(localDeploymentData?.manifest);
         const yamlVersion = yaml.load(localDeploymentData?.manifest);

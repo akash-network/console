@@ -4,7 +4,7 @@ import { Checkbox, Label, Snackbar } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 import { useSnackbar } from "notistack";
 
-import remoteDeployStore from "@src/store/remoteDeployStore";
+import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
@@ -19,7 +19,7 @@ import { appendEnv } from "../utils";
 import Rollback from "./Rollback";
 
 const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: string; setEditedManifest: Dispatch<React.SetStateAction<string | null>> }) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   const [, setIsInit] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
   const [, setError] = useState<string | null>(null);

@@ -3,7 +3,7 @@ import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
-import remoteDeployStore from "@src/store/remoteDeployStore";
+import { tokens } from "@src/store/remoteDeployStore";
 import { BitBucketCommit } from "@src/types/remoteCommits";
 import { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { BitProfile } from "@src/types/remoteProfile";
@@ -23,7 +23,7 @@ const axiosInstance = axios.create({
 });
 
 export const useFetchRefreshBitToken = () => {
-  const [token, setToken] = useAtom(remoteDeployStore.tokens);
+  const [token, setToken] = useAtom(tokens);
 
   return useMutation({
     mutationFn: async () => {
@@ -44,7 +44,7 @@ export const useFetchRefreshBitToken = () => {
 };
 
 export const useBitFetchAccessToken = () => {
-  const [, setToken] = useAtom(remoteDeployStore.tokens);
+  const [, setToken] = useAtom(tokens);
   const pathname = usePathname();
   const router = useRouter();
   return useMutation({
@@ -68,7 +68,7 @@ export const useBitFetchAccessToken = () => {
 };
 
 export const useBitUserProfile = () => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   const { mutate } = useFetchRefreshBitToken();
   return useQuery({
     queryKey: ["userProfile", token.access_token],
@@ -90,7 +90,7 @@ export const useBitUserProfile = () => {
 };
 
 export const useBitBucketCommits = (repo?: string) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["commits", repo, token.access_token, repo],
     queryFn: async () => {
@@ -106,7 +106,7 @@ export const useBitBucketCommits = (repo?: string) => {
 };
 
 export const useWorkspaces = () => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["workspaces", token.access_token],
     queryFn: async () => {
@@ -124,7 +124,7 @@ export const useWorkspaces = () => {
 };
 
 export const useBitReposByWorkspace = (workspace: string) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["repos", token.access_token, workspace],
     queryFn: async () => {
@@ -142,7 +142,7 @@ export const useBitReposByWorkspace = (workspace: string) => {
 };
 
 export const useBitBranches = (repo?: string) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["branches", repo],
     queryFn: async () => {
@@ -158,7 +158,7 @@ export const useBitBranches = (repo?: string) => {
 };
 
 export const useBitPackageJson = (onSettled: (data: PackageJson) => void, repo?: string, branch?: string, subFolder?: string) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
 
   return useQuery({
     queryKey: ["packageJson", repo, branch, subFolder],
@@ -178,7 +178,7 @@ export const useBitPackageJson = (onSettled: (data: PackageJson) => void, repo?:
 };
 
 export const useBitSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void, repo?: string, branch?: string) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
 
   return useQuery({
     queryKey: ["src-folders-bit", repo, branch],

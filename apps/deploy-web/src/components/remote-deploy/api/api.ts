@@ -3,7 +3,7 @@ import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
-import remoteDeployStore from "@src/store/remoteDeployStore";
+import { tokens } from "@src/store/remoteDeployStore";
 import { GitCommit } from "@src/types/remoteCommits";
 import { GithubRepository, IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { GitHubProfile } from "@src/types/remoteProfile";
@@ -28,7 +28,7 @@ const axiosInstance = axios.create({
 });
 
 export const useUserProfile = () => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["userProfile", token?.access_token],
     queryFn: async () => {
@@ -44,7 +44,7 @@ export const useUserProfile = () => {
 };
 
 export const useRepos = () => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["repos", token?.access_token],
     queryFn: async () => {
@@ -70,7 +70,7 @@ export const useRepos = () => {
 };
 
 export const useFetchAccessToken = () => {
-  const [, setToken] = useAtom(remoteDeployStore.tokens);
+  const [, setToken] = useAtom(tokens);
   const pathname = usePathname();
   const router = useRouter();
   return useMutation({
@@ -93,7 +93,7 @@ export const useFetchAccessToken = () => {
 };
 
 export const useBranches = (repo?: string) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
 
   return useQuery({
     queryKey: ["branches", repo, token?.access_token],
@@ -111,7 +111,7 @@ export const useBranches = (repo?: string) => {
 };
 
 export const useCommits = (repo: string, branch: string) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["commits", repo, branch, token?.access_token, repo, branch],
     queryFn: async () => {
@@ -128,7 +128,7 @@ export const useCommits = (repo: string, branch: string) => {
 };
 
 export const usePackageJson = (onSettled: (data: PackageJson) => void, repo?: string, subFolder?: string) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["packageJson", repo, subFolder],
     queryFn: async () => {
@@ -149,7 +149,7 @@ export const usePackageJson = (onSettled: (data: PackageJson) => void, repo?: st
   });
 };
 export const useSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void, repo?: string) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["srcFolders", repo],
     queryFn: async () => {

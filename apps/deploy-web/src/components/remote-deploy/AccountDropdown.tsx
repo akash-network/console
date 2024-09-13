@@ -14,7 +14,7 @@ import { CoinsSwap, LogOut, User } from "iconoir-react";
 import { useAtom } from "jotai";
 import { ChevronDown } from "lucide-react";
 
-import remoteDeployStore from "@src/store/remoteDeployStore";
+import { tokens } from "@src/store/remoteDeployStore";
 import { BitProfile, GitHubProfile, GitLabProfile } from "@src/types/remoteProfile";
 
 const AccountDropDown = ({
@@ -26,7 +26,7 @@ const AccountDropDown = ({
   userProfileBit?: BitProfile;
   userProfileGitLab?: GitLabProfile;
 }) => {
-  const [token, setToken] = useAtom(remoteDeployStore.tokens);
+  const [token, setToken] = useAtom(tokens);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger>

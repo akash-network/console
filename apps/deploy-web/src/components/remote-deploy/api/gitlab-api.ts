@@ -3,7 +3,7 @@ import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
-import remoteDeployStore from "@src/store/remoteDeployStore";
+import { tokens } from "@src/store/remoteDeployStore";
 import { GitLabCommit } from "@src/types/remoteCommits";
 import { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { GitLabProfile } from "@src/types/remoteProfile";
@@ -22,7 +22,7 @@ const axiosInstance = axios.create({
 });
 
 export const useGitLabFetchAccessToken = () => {
-  const [, setToken] = useAtom(remoteDeployStore.tokens);
+  const [, setToken] = useAtom(tokens);
   const pathname = usePathname();
   const router = useRouter();
   return useMutation({
@@ -46,7 +46,7 @@ export const useGitLabFetchAccessToken = () => {
 };
 
 export const useFetchRefreshGitlabToken = () => {
-  const [token, setToken] = useAtom(remoteDeployStore.tokens);
+  const [token, setToken] = useAtom(tokens);
 
   return useMutation({
     mutationFn: async () => {
@@ -67,7 +67,7 @@ export const useFetchRefreshGitlabToken = () => {
 };
 
 export const useGitLabUserProfile = () => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
 
   const { mutate } = useFetchRefreshGitlabToken();
 
@@ -91,7 +91,7 @@ export const useGitLabUserProfile = () => {
 };
 
 export const useGitLabGroups = () => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["gitlab-repos", token?.access_token],
     queryFn: async () => {
@@ -107,7 +107,7 @@ export const useGitLabGroups = () => {
 };
 
 export const useGitLabReposByGroup = (group: string | undefined) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["repos", token?.access_token, group],
     queryFn: async () => {
@@ -123,7 +123,7 @@ export const useGitLabReposByGroup = (group: string | undefined) => {
 };
 
 export const useGitLabBranches = (repo?: string) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["branches", repo],
     queryFn: async () => {
@@ -139,7 +139,7 @@ export const useGitLabBranches = (repo?: string) => {
 };
 
 export const useGitLabCommits = (repo?: string, branch?: string) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["commits", repo, branch, token?.access_token, repo, branch],
     queryFn: async () => {
@@ -156,7 +156,7 @@ export const useGitLabCommits = (repo?: string, branch?: string) => {
 };
 
 export const useGitlabPackageJson = (onSettled: (data: PackageJson) => void, repo?: string, subFolder?: string) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
 
   return useQuery({
     queryKey: ["packageJson-gitlab", repo, subFolder],
@@ -179,7 +179,7 @@ export const useGitlabPackageJson = (onSettled: (data: PackageJson) => void, rep
 };
 
 export const useGitlabSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void, repo?: string) => {
-  const [token] = useAtom(remoteDeployStore.tokens);
+  const [token] = useAtom(tokens);
 
   return useQuery({
     queryKey: ["src-folders-gitlab", repo],
