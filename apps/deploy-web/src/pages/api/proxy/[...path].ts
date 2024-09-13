@@ -19,7 +19,7 @@ export default async (req, res) => {
 
   const proxy = httpProxy.createProxyServer({
     changeOrigin: true,
-    target: serverEnvConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL,
+    target: serverEnvConfig.BASE_API_MAINNET_URL,
     secure: false,
     autoRewrite: false
   });

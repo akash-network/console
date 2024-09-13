@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import {
   Button,
   Checkbox,
@@ -36,7 +36,7 @@ import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
-import { DeploymentDepositModal } from "./DeploymentDepositModal";
+import { DeploymentDepositModal, DeploymentDepositModalProps } from "./DeploymentDepositModal";
 import { LeaseChip } from "./LeaseChip";
 
 type Props = {
@@ -127,7 +127,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     setOpen(false);
   };
 
-  const onDeploymentDeposit = async (deposit, depositorAddress) => {
+  const onDeploymentDeposit: DeploymentDepositModalProps["onDeploymentDeposit"] = async (deposit, depositorAddress) => {
     setIsDepositingDeployment(false);
 
     const message = TransactionMessageData.getDepositDeploymentMsg(address, deployment.dseq, deposit, deployment.escrowAccount.balance.denom, depositorAddress);
@@ -172,11 +172,22 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     router.push(url);
   };
 
-  function onDepositClicked(e?: React.MouseEvent) {
+  function showDepositModal(e?: React.MouseEvent) {
     e?.preventDefault();
     e?.stopPropagation();
     setIsDepositingDeployment(true);
   }
+
+  const escrowBalanceInDenom = useMemo(() => {
+    let uDenomBalance: number | undefined;
+
+    if (isActive && hasActiveLeases && realTimeLeft) {
+      uDenomBalance = realTimeLeft?.escrow;
+    } else {
+      uDenomBalance = escrowBalance;
+    }
+    return uDenomBalance && udenomToDenom(uDenomBalance, 6);
+  }, [isActive, hasActiveLeases, realTimeLeft, escrowBalance]);
 
   return (
     <>
@@ -202,13 +213,9 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                   title={
                     <>
                       Your deployment will close soon,{" "}
-                      {isManagedWallet ? (
-                        "Add funds"
-                      ) : (
-                        <a href="#" onClick={onDepositClicked}>
-                          Add Funds
-                        </a>
-                      )}{" "}
+                      <a href="#" onClick={showDepositModal}>
+                        Add Funds
+                      </a>{" "}
                       to keep it running.
                     </>
                   }
@@ -220,25 +227,30 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
           )}
         </TableCell>
         <TableCell className="text-center">
-          {isActive && !!escrowBalance && (
+          {isActive && !!escrowBalanceInDenom && !!escrowBalance && (
             <div className="inline-flex">
-              <PriceValue
-                denom={deployment.escrowAccount.balance.denom}
-                value={udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.escrow : escrowBalance, 6)}
-              />
+              <PriceValue denom={deployment.escrowAccount.balance.denom} value={escrowBalanceInDenom} />
               <CustomTooltip
                 title={
                   <div className="text-left">
                     <div className="space-x-2">
                       <span>Balance:</span>
                       <strong>
-                        {udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.escrow : escrowBalance, 6)}&nbsp;{denomData?.label}
+                        {isManagedWallet ? (
+                          <PriceValue denom={deployment.escrowAccount.balance.denom} value={escrowBalanceInDenom} />
+                        ) : (
+                          `${escrowBalanceInDenom}&nbsp;{denomData?.label}`
+                        )}
                       </strong>
                     </div>
                     <div className="space-x-2">
                       <span>Spent:</span>
                       <strong>
-                        {udenomToDenom(amountSpent || 0, 2)} {denomData?.label}
+                        {isManagedWallet ? (
+                          <PriceValue denom={deployment.escrowAccount.balance.denom} value={udenomToDenom(amountSpent || 0, 2)} />
+                        ) : (
+                          `${udenomToDenom(amountSpent || 0, 2)}&nbsp;${denomData?.label}`
+                        )}
                       </strong>
                     </div>
                     <br />
@@ -265,15 +277,17 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
               <div className="flex items-center">
                 <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={udenomToDenom(deploymentCost, 10)} className="whitespace-nowrap" />
 
-                <CustomTooltip
-                  title={
-                    <span>
-                      {avgCost} {denomData?.label} / month
-                    </span>
-                  }
-                >
-                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
-                </CustomTooltip>
+                {!isManagedWallet && (
+                  <CustomTooltip
+                    title={
+                      <span>
+                        {avgCost} {denomData?.label} / month
+                      </span>
+                    }
+                  >
+                    <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                  </CustomTooltip>
+                )}
               </div>
             </div>
           )}
@@ -318,8 +332,8 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                 >
                   <ClickAwayListener onClickAway={() => setOpen(false)}>
                     <div>
-                      {isActive && !isManagedWallet && (
-                        <CustomDropdownLinkItem onClick={onDepositClicked} icon={<Plus fontSize="small" />}>
+                      {isActive && (
+                        <CustomDropdownLinkItem onClick={showDepositModal} icon={<Plus fontSize="small" />}>
                           Add funds
                         </CustomDropdownLinkItem>
                       )}

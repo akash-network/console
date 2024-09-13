@@ -85,7 +85,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         a[b.gseq] = [...(a[b.gseq] || []), b];
         return a as { [key: number]: BidDto };
       }, {} as any) || {};
-  const dseqList = Object.keys(groupedBids).map(g => parseInt(g));
+  const dseqList = Object.keys(groupedBids).map(group => parseInt(group));
   const allClosed = (bids?.length || 0) > 0 && bids?.every(bid => bid.state === "closed");
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const wallet = useWallet();
