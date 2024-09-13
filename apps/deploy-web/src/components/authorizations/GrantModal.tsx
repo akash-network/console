@@ -100,7 +100,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
 
   const onBalanceClick = () => {
     clearErrors();
-    setValue("amount", denomData?.inputMax || 0);
+    setValue("amount", denomData?.max || 0);
   };
 
   return (
@@ -187,7 +187,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
                     autoFocus
                     min={0}
                     step={0.000001}
-                    max={denomData?.inputMax}
+                    max={denomData?.max}
                     startIcon={<span className="pl-2 text-xs">{denomData?.label}</span>}
                     className="ml-4 flex-grow"
                   />

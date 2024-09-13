@@ -9,6 +9,7 @@ import { LabelValue } from "@src/components/shared/LabelValue";
 import { PricePerMonth } from "@src/components/shared/PricePerMonth";
 import { PriceValue } from "@src/components/shared/PriceValue";
 import { StatusPill } from "@src/components/shared/StatusPill";
+import { useWallet } from "@src/context/WalletProvider";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -28,6 +29,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const isActive = deployment.state === "active";
   const hasActiveLeases = hasLeases && leases.some(l => l.state === "active");
   const denomData = useDenomData(deployment.escrowAccount.balance.denom);
+  const { isCustodial } = useWallet();
 
   return (
     <div className="grid grid-cols-2 gap-4 p-4">
@@ -41,19 +43,22 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
                 denom={deployment.escrowAccount.balance.denom}
                 value={udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.escrow : deployment.escrowBalance, 6)}
               />
-              <CustomTooltip
-                title={
-                  <>
-                    <strong>
-                      {udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.escrow : deployment.escrowBalance, 6)}&nbsp;{denomData?.label}
-                    </strong>
-                    <br />
-                    The escrow account balance will be fully returned to your wallet balance when the deployment is closed.{" "}
-                  </>
-                }
-              >
-                <InfoCircle className="text-xs text-muted-foreground" />
-              </CustomTooltip>
+              {isCustodial && (
+                <CustomTooltip
+                  title={
+                    <>
+                      <strong>
+                        {udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.escrow : deployment.escrowBalance, 6)}&nbsp;
+                        {denomData?.label}
+                      </strong>
+                      <br />
+                      The escrow account balance will be fully returned to your wallet balance when the deployment is closed.{" "}
+                    </>
+                  }
+                >
+                  <InfoCircle className="text-xs text-muted-foreground" />
+                </CustomTooltip>
+              )}
 
               {isActive && hasActiveLeases && !!realTimeLeft && realTimeLeft.escrow <= 0 && (
                 <CustomTooltip title="Your deployment is out of funds and can be closed by your provider at any time now. You can add funds to keep active.">
@@ -71,15 +76,17 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
               <div className="flex items-center space-x-2">
                 <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={udenomToDenom(deploymentCost, 10)} />
 
-                <CustomTooltip
-                  title={
-                    <span>
-                      {avgCost} {denomData?.label} / month
-                    </span>
-                  }
-                >
-                  <InfoCircle className="text-xs text-muted-foreground" />
-                </CustomTooltip>
+                {isCustodial && (
+                  <CustomTooltip
+                    title={
+                      <span>
+                        {avgCost} {denomData?.label} / month
+                      </span>
+                    }
+                  >
+                    <InfoCircle className="text-xs text-muted-foreground" />
+                  </CustomTooltip>
+                )}
               </div>
             )
           }
@@ -94,16 +101,18 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
                 value={udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount), 6)}
               />
 
-              <CustomTooltip
-                title={
-                  <span>
-                    {udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount), 6)}{" "}
-                    {denomData?.label}
-                  </span>
-                }
-              >
-                <InfoCircle className="text-xs text-muted-foreground" />
-              </CustomTooltip>
+              {isCustodial && (
+                <CustomTooltip
+                  title={
+                    <span>
+                      {udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount), 6)}{" "}
+                      {denomData?.label}
+                    </span>
+                  }
+                >
+                  <InfoCircle className="text-xs text-muted-foreground" />
+                </CustomTooltip>
+              )}
             </div>
           }
         />

@@ -1,6 +1,5 @@
 import { ApiWalletOutput, ManagedWalletHttpService as ManagedWalletHttpServiceOriginal } from "@akashnetwork/http-sdk";
 import { AxiosRequestConfig } from "axios";
-import { debounce } from "lodash";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { browserApiUrlService } from "@src/services/api-url/browser-api-url.service";
@@ -13,7 +12,6 @@ class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
     super(config);
 
     this.extractSessionResults();
-    this.getWallet = debounce(this.getWallet.bind(this));
   }
 
   private extractSessionResults() {

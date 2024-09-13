@@ -2,25 +2,22 @@ import { useEffect, useState } from "react";
 import { useEventListener } from "usehooks-ts";
 
 import { useWallet } from "@src/context/WalletProvider";
+import networkStore from "@src/store/networkStore";
 
 export const useLocalStorage = () => {
   const { address } = useWallet();
+  const selectedNetwork = networkStore.useSelectedNetwork();
 
   const getLocalStorageItem = (key: string) => {
-    const selectedNetworkId = localStorage.getItem("selectedNetworkId");
-
-    return localStorage.getItem(`${selectedNetworkId}${address ? "/" + address : ""}/${key}`);
+    return localStorage.getItem(`${selectedNetwork.id}${address ? "/" + address : ""}/${key}`);
   };
 
   const setLocalStorageItem = (key: string, value: string) => {
-    const selectedNetworkId = localStorage.getItem("selectedNetworkId");
-
-    localStorage.setItem(`${selectedNetworkId}${address ? "/" + address : ""}/${key}`, value);
+    localStorage.setItem(`${selectedNetwork.id}${address ? "/" + address : ""}/${key}`, value);
   };
 
   const removeLocalStorageItem = (key: string) => {
-    const selectedNetworkId = localStorage.getItem("selectedNetworkId");
-    localStorage.removeItem(`${selectedNetworkId}${address ? "/" + address : ""}/${key}`);
+    localStorage.removeItem(`${selectedNetwork.id}${address ? "/" + address : ""}/${key}`);
   };
 
   return {
