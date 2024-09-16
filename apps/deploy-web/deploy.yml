@@ -24,7 +24,7 @@ services:
       - port: 3040
         as: 80
         accept:
-          - provider-proxy.console.akash.network
+          - console-provider-proxy.akash.network
         to:
           - global: true
 profiles:

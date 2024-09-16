@@ -7,7 +7,7 @@ Those endpoints are used for debugging and analytics purposes.
 
 ## GPU Stats
 
-Url: https://api.console.akash.network/internal/gpu
+Url: https://console-api.akash.network/internal/gpu
 
 Returns a summary of the gpus on the network.
 
@@ -54,11 +54,11 @@ Returns a summary of the gpus on the network.
 | memory_size | Ex: `16Gi`                                                                                                                                 |
 
 All query parameters can be combined, ex:
-`https://api.console.akash.network/internal/gpu?provider=akash175llqyjvxfle9qwt740vm46772dzaznpzgm576&vendor=nvidia&model=rtx3060ti&memory_size=8Gi`
+`https://console-api.akash.network/internal/gpu?provider=akash175llqyjvxfle9qwt740vm46772dzaznpzgm576&vendor=nvidia&model=rtx3060ti&memory_size=8Gi`
 
 ## Provider Versions
 
-Url: https://api.console.akash.network/internal/provider-versions
+Url: https://console-api.akash.network/internal/provider-versions
 
 Returns a list of versions and the providers that are currently on that version. The `<UNKNOWN>` version corresponds to providers where the version could not be determined. The `/version` endpoint was broken for a long time, but is now fixed in [v0.5.0-rc11](https://github.com/akash-network/provider/releases/tag/v0.5.0-rc11)
 

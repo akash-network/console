@@ -64,7 +64,7 @@ Directory: [provider-proxy](/provider-proxy/)
 
 Provides data to the deploy website. The data is fetched from our Indexer database + coingecko for market data. This api also provides the endpoint for the [Web3 Index](https://web3index.org/) integration.  
 
-Url: [api.console.akash.network](https://api.console.akash.network)  
+Url: [console-api.akash.network](https://console-api.akash.network)  
 Directory: [api](/api/)
 
 ## Indexer

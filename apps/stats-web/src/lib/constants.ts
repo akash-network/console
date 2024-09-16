@@ -8,9 +8,9 @@ export const selectedRangeValues: { [key: string]: number } = {
   ALL: Number.MAX_SAFE_INTEGER
 };
 
-const productionMainnetApiUrl = "https://api.console.akash.network";
-const productionTestnetApiUrl = "https://api-testnet.console.akash.network";
-const productionSandboxApiUrl = "https://api-sandbox.console.akash.network";
+const productionMainnetApiUrl = "https://console-api.akash.network";
+const productionTestnetApiUrl = "https://console-api-testnet.akash.network";
+const productionSandboxApiUrl = "https://console-api-sandbox.akash.network";
 const productionHostnames = ["stats.akash.network"];
 
 export const isProd = process.env.NODE_ENV === "production";

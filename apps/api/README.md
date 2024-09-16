@@ -94,14 +94,14 @@ src/
 
 ### Api Versioning
 
-The public api version will now be included in the url like so: api.console.akash.network/**v1**/\<endpoint>
+The public api version will now be included in the url like so: console-api.akash.network/**v1**/\<endpoint>
 
 Changes that are backward compatible like adding a new endpoint will be done in the existing version.
 Changes that are **not** backward compatible, such as removing an endpoint, will be done in a new version. When releasing a new version, a list of breaking changes will be made available. We will keep the old version available for a while to give users enough time to migrate their applications to the latest version.
 
 ### Swagger Documentation
 
-A swagger documentation is now available at https://api.console.akash.network/v1/swagger. You can use it to see the list of available endpoints and try them directly in your browser.
+A swagger documentation is now available at https://console-api.akash.network/v1/swagger. You can use it to see the list of available endpoints and try them directly in your browser.
 
 ### Route Changes
 
