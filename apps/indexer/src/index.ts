@@ -1,3 +1,5 @@
+import "@akashnetwork/env-loader";
+
 import { activeChain, chainDefinitions } from "@akashnetwork/database/chainDefinitions";
 import * as Sentry from "@sentry/node";
 import express from "express";

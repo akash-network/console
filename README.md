@@ -16,6 +16,7 @@
 </div>
 
 - [Quick Start](#quick-start)
+- [Apps Configuration](./doc/apps-configuration.md)
 - [Services](#services)
 - [Monitoring](#monitoring)
 - [Example SQL Queries](#example-sql-queries)
