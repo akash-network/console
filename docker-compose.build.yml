@@ -3,7 +3,7 @@ services:
     image: console-api:${API_TAG:-latest}
     build:
       dockerfile: docker/Dockerfile.node
-      target: production
+      target: production-nginx
       args:
         WORKSPACE: apps/api
 
@@ -19,7 +19,7 @@ services:
     image: console-provider-proxy:${PROVIDER_PROXY_TAG:-latest}
     build:
       dockerfile: docker/Dockerfile.node
-      target: production
+      target: production-nginx
       args:
         WORKSPACE: apps/provider-proxy
 
