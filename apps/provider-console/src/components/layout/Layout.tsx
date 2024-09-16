@@ -95,7 +95,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
               <Sidebar onOpenMenuClick={onOpenMenuClick} isNavOpen={isNavOpen} handleDrawerToggle={handleDrawerToggle} isMobileOpen={isMobileOpen} />
 
               <div
-                className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300", {
+                className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300 bg-popover dark:bg-background", {
                   ["md:ml-[240px]"]: isNavOpen,
                   ["md:ml-[57px]"]: !isNavOpen
                 })}

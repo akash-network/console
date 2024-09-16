@@ -79,3 +79,6 @@ apps/stats-web/.env
 
 # Data Folder
 data
+
+# Mac DS store
+.DS_Store
