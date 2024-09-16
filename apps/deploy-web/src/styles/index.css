@@ -129,7 +129,7 @@ body {
   pointer-events: all !important;
 }
 
-.leap-ui.dark {
+#leap-elements-portal.leap-ui.dark {
   /* hsl(357deg, 100%, 62.9%) */
   --primary: 357 100% 62.9%;
   /* hsl(0deg, 85.7%, 97.3%) */
