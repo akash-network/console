@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Spinner } from "@akashnetwork/ui/components";
 import { useWallet as useConnectedWallet, useWalletClient } from "@cosmos-kit/react";
-import * as Elements from "@leapwallet/elements-umd-types";
+// import * as Elements from "@leapwallet/elements-umd-types";
 import { Modal } from "@mui/material";
 import { event } from "nextjs-google-analytics";
 
@@ -29,7 +29,9 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
   );
 };
 
-const convertWalletType = (walletName: string | undefined): Elements.WalletType | undefined => {
+// TODO: Fix the elements types
+// const convertWalletType = (walletName: string | undefined): Elements.WalletType | undefined => {
+const convertWalletType = (walletName: string | undefined): any => {
   if (!window.LeapElements) {
     return undefined;
   }
@@ -48,7 +50,8 @@ const convertWalletType = (walletName: string | undefined): Elements.WalletType 
   }
 };
 
-const getTabsConfig = (txnLifecycleHooks: Partial<Elements.TxnLifecycleHooks<unknown>>) => {
+// const getTabsConfig = (txnLifecycleHooks: Partial<Elements.TxnLifecycleHooks<unknown>>) => {
+const getTabsConfig = (txnLifecycleHooks: any) => {
   return {
     aggregated: {
       enabled: true,
@@ -97,7 +100,8 @@ const getTabsConfig = (txnLifecycleHooks: Partial<Elements.TxnLifecycleHooks<unk
       },
       txnLifecycleHooks
     }
-  } satisfies Elements.TabsConfig;
+  };
+  // } satisfies Elements.TabsConfig;
 };
 
 type Props = { address: string; aktBalance: number; refreshBalances: () => void };
@@ -126,7 +130,8 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
   }, [isWalletConnected, walletClient]);
 
   const tabsConfig = useMemo(() => {
-    const txnLifecycleHooks: Partial<Elements.TxnLifecycleHooks<never>> = {
+    // const txnLifecycleHooks: Partial<Elements.TxnLifecycleHooks<never>> = {
+    const txnLifecycleHooks: any = {
       onTxnComplete: () => {
         refreshBalances();
         event(AnalyticsEvents.LEAP_TRANSACTION_COMPLETE, {
