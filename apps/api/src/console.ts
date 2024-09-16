@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import "./dotenv";
+import "@akashnetwork/env-loader";
 import "./open-telemetry";
 
 import { context, trace } from "@opentelemetry/api";
