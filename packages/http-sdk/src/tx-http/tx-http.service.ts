@@ -1,4 +1,4 @@
-import { ApiHttpService } from "@akashnetwork/http-sdk";
+import { ApiHttpService } from "../api-http/api-http.service";
 import type { Registry } from "@cosmjs/proto-signing";
 import type { EncodeObject } from "@cosmjs/proto-signing/build/registry";
 import type { DeliverTxResponse } from "@cosmjs/stargate";

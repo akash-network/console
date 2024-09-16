@@ -1,4 +1,4 @@
-import { HttpService } from "@akashnetwork/http-sdk";
+import { HttpService } from "../http/http.service";
 import { AxiosRequestConfig, AxiosResponse } from "axios";
 
 export interface ApiOutput<T> {
