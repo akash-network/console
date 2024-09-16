@@ -46,6 +46,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setGithub }) => {
     setGithub(true);
     router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, type: "github" }));
   };
+
   useEffect(() => {
     if (templates) {
       const _previewTemplates = previewTemplateIds.map(x => templates.find(y => x === y.id)).filter(x => !!x);

@@ -53,6 +53,9 @@ const GithubDeploy = ({
       setIsRepoDataValidated?.(true);
     }
   );
+  useWhen(services?.[0]?.env?.find(e => e.key === "REPO_URL")?.value === "https://github.com/onwidget/astrowind", () => {
+    setValue("services.0.env", []);
+  });
   useWhen(!services?.[0]?.env?.find(e => e.key === "REPO_URL" && services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")), () => {
     setIsRepoDataValidated?.(false);
   });
