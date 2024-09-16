@@ -69,9 +69,6 @@ export const NewDeploymentContainer: FC = () => {
             })
           );
         }
-        const githubTemplate = hardcodedTemplates.find(t => t.title === "GitHub");
-        setSelectedTemplate(githubTemplate as TemplateCreation);
-        setEditedManifest(githubTemplate?.content as string);
       }
 
       setGithub(true);

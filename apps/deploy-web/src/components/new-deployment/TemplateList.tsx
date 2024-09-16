@@ -1,8 +1,7 @@
 "use client";
 import React, { Dispatch, useEffect, useState } from "react";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
-import { ArrowRight, Cpu, Linux, Rocket, Wrench } from "iconoir-react";
-import { NavArrowLeft } from "iconoir-react";
+import { ArrowRight, Cpu, Linux, NavArrowLeft, Rocket, Wrench } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,8 +42,11 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setGithub }) => {
   const previousRoute = usePreviousRoute();
   const handleGithubTemplate = async () => {
     setGithub(true);
-    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, type: "github" }));
+    router.push(
+      UrlService.newDeployment({ step: RouteStep.editDeployment, type: "github", templateId: "akash-network-awesome-akash-automatic-deployment-CICD-template" })
+    );
   };
+
   useEffect(() => {
     if (templates) {
       const _previewTemplates = previewTemplateIds.map(x => templates.find(y => x === y.id)).filter(x => !!x);
