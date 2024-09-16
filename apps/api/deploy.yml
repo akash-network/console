@@ -6,10 +6,10 @@ services:
     image: <IMAGE_NAME>:<IMAGE_TAG>
     depends-on: cloud-sql-proxy
     env:
-      - ConsoleGithubPAT=
-      - AkashSandboxDatabaseCS=
-      - UserDatabaseCS=
-      - SecretToken=
+      - GITHUB_PAT=
+      - AKASH_SANDBOX_DATABASE_CS=
+      - USER_DATABASE_CS=
+      - SECRET_TOKEN=
       - NETWORK=<sandbox|mainnet>
       - MASTER_WALLET_MNEMONIC=
       - POSTGRES_DB_URI=
