@@ -1,5 +1,6 @@
-import { HttpService } from "../http/http.service";
 import { AxiosRequestConfig, AxiosResponse } from "axios";
+
+import { HttpService } from "../http/http.service";
 
 export interface ApiOutput<T> {
   data: T;

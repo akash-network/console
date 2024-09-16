@@ -8,6 +8,7 @@ import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
 import { Check, HandCard, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
 import Link from "next/link";
+
 import { LoginRequiredLink } from "@src/components/user/LoginRequiredLink";
 import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
 import { browserEnvConfig } from "@src/config/browser-env.config";

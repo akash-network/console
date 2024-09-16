@@ -1,7 +1,8 @@
-import { ApiOutput } from "../api-http/api-http.service";
-import { HttpService } from "../http/http.service";
 import type { AxiosRequestConfig } from "axios";
 import memoize from "lodash/memoize";
+
+import { ApiOutput } from "../api-http/api-http.service";
+import { HttpService } from "../http/http.service";
 
 export interface UserOutput {
   id: string;
