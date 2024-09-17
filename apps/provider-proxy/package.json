@@ -1,6 +1,6 @@
 {
   "name": "console-provider-proxy",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Proxy that allows communication between the Web UI and providers",
   "license": "Apache-2.0",
   "author": "Akash Network",
