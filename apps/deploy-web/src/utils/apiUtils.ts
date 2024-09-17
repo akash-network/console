@@ -121,7 +121,7 @@ export class ApiUrlService {
   }
 
   static get baseApiUrl() {
-    return browserApiUrlService.getBaseApiUrlFor(networkStore.getSelectedNetworkId());
+    return browserApiUrlService.getBaseApiUrlFor(networkStore.selectedNetworkId);
   }
 }
 

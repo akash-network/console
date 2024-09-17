@@ -1,5 +1,4 @@
 import { useEffect, useMemo } from "react";
-import { useAtom } from "jotai/index";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useUser } from "@src/hooks/useUser";
@@ -17,7 +16,7 @@ export const useManagedWallet = () => {
   const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => queried || created, [queried, created]);
   const isLoading = isFetching || isCreating;
-  const [selectedNetworkId, setSelectedNetworkId] = useAtom(networkStore.selectedNetworkId);
+  const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore({ reloadOnChange: true });
 
   useEffect(() => {
     if (!isBillingEnabled) {
