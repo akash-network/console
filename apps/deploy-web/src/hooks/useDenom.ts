@@ -2,13 +2,11 @@ import { USDC_IBC_DENOMS } from "@src/config/denom.config";
 import networkStore from "@src/store/networkStore";
 
 export const useUsdcDenom = () => {
-  const selectedNetwork = networkStore.useSelectedNetwork();
-  return USDC_IBC_DENOMS[selectedNetwork.id];
+  return USDC_IBC_DENOMS[networkStore.selectedNetworkId];
 };
 
 export const getUsdcDenom = () => {
-  const selectedNetwork = networkStore.getSelectedNetwork();
-  return USDC_IBC_DENOMS[selectedNetwork.id];
+  return USDC_IBC_DENOMS[networkStore.selectedNetworkId];
 };
 
 export const useSdlDenoms = () => {
