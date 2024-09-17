@@ -1,6 +1,5 @@
 import type { MainnetNetworkId, SandboxNetworkId } from "@akashnetwork/akashjs/build/types/network";
-
-import { MAINNET_ID, SANDBOX_ID } from "@src/config/network.config";
+import { MAINNET_ID, SANDBOX_ID } from "@akashnetwork/network-store";
 
 export const UAKT_DENOM = "uakt";
 export const USDC_IBC_DENOMS: Record<MainnetNetworkId | SandboxNetworkId, string> = {

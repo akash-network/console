@@ -327,8 +327,8 @@ export function useWallet() {
 }
 
 const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
-  const selectedNetwork = networkStore.useSelectedNetwork();
-  const txUrl = transactionHash && `${browserEnvConfig.NEXT_PUBLIC_STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetwork.id}`;
+  const selectedNetworkId = networkStore.useSelectedNetworkId();
+  const txUrl = transactionHash && `${browserEnvConfig.NEXT_PUBLIC_STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetworkId}`;
 
   return (
     <>

@@ -1,14 +1,13 @@
 "use client";
 import { useState } from "react";
+import { MAINNET_ID } from "@akashnetwork/network-store";
 import { Alert, AlertDescription, AlertTitle, Badge, buttonVariants, Popup, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
-import { useAtom } from "jotai/index";
 
-import { MAINNET_ID } from "@src/config/network.config";
-import networkStore, { networks } from "@src/store/networkStore";
+import networkStore from "@src/store/networkStore";
 import { cn } from "@src/utils/styleUtils";
 
 export const SelectNetworkModal = ({ onClose }) => {
-  const [selectedNetworkId, setSelectedNetworkId] = useAtom(networkStore.selectedNetworkId);
+  const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore({ reloadOnChange: true });
   const [formSelectedNetworkId, setFormSelectedNetworkId] = useState(selectedNetworkId);
 
   const save = () => {
@@ -45,7 +44,7 @@ export const SelectNetworkModal = ({ onClose }) => {
     >
       <RadioGroup>
         <ul>
-          {networks.map(network => {
+          {networkStore.networks.map(network => {
             return (
               <li
                 key={network.id}
