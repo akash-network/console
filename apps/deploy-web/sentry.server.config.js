@@ -10,8 +10,7 @@ Sentry.init({
   dsn: SENTRY_DSN,
   // Adjust this value in production, or use tracesSampler for greater control
   tracesSampleRate: 0.01,
-  serverName: process.env.NEXT_PUBLIC_SENTRY_SERVER_NAME,
-  enabled: process.env.NODE_ENV === "production",
+  enabled: process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true",
   integrations: [
     Sentry.thirdPartyErrorFilterIntegration({
       filterKeys: [process.env.NEXT_PUBLIC_SENTRY_APPLICATION_KEY],
