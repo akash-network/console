@@ -1,22 +1,65 @@
 import { isHttpError } from "http-errors";
-import pino, { Bindings, LoggerOptions } from "pino";
+import pino, { Bindings } from "pino";
+import pinoFluentd from "pino-fluentd";
 import pretty from "pino-pretty";
+import { Writable } from "stream";
 
 import { config } from "@src/core/config";
 
 export class LoggerService {
   protected pino: pino.Logger;
 
-  readonly isPretty = config.LOG_FORMAT === "pretty";
-
   constructor(bindings?: Bindings) {
-    const options: LoggerOptions = { level: config.LOG_LEVEL };
+    this.pino = this.initPino(bindings);
+  }
 
-    this.pino = pino(options, config.NODE_ENV === "production" ? undefined : pretty({ sync: true }));
+  private initPino(bindings?: Bindings): pino.Logger {
+    const destinations: Writable[] = [];
+
+    if (config.STD_OUT_LOG_FORMAT === "pretty") {
+      destinations.push(pretty({ sync: true }));
+    } else {
+      destinations.push(process.stdout);
+    }
+
+    const fluentd = this.initFluentd();
+
+    if (fluentd) {
+      destinations.push(fluentd);
+    }
+
+    let instance = pino({ level: config.LOG_LEVEL }, this.combineDestinations(destinations));
 
     if (bindings) {
-      this.pino = this.pino.child(bindings);
+      instance = instance.child(bindings);
     }
+
+    return instance;
+  }
+
+  private initFluentd(): Writable | undefined {
+    const isFluentdEnabled = !!(config.FLUENTD_HOST && config.FLUENTD_PORT && config.FLUENTD_TAG);
+
+    if (isFluentdEnabled) {
+      return pinoFluentd({
+        tag: config.FLUENTD_TAG,
+        host: config.FLUENTD_HOST,
+        port: config.FLUENTD_PORT,
+        "trace-level": config.LOG_LEVEL
+      });
+    }
+  }
+
+  private combineDestinations(destinations: Writable[]): Writable {
+    return new Writable({
+      write(chunk, encoding, callback) {
+        for (const destination of destinations) {
+          destination.write(chunk, encoding);
+        }
+
+        callback();
+      }
+    });
   }
 
   info(message: any) {

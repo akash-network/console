@@ -18,7 +18,7 @@ module.exports = {
     extensions: [".ts", ".js"],
     alias: hq.get("webpack")
   },
-  externals: [nodeExternals()],
+  externals: [nodeExternals(), { "winston-transport": "commonjs winston-transport" }],
   module: {
     rules: [
       {
