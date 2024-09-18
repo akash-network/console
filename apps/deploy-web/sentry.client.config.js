@@ -11,7 +11,13 @@ Sentry.init({
   // Adjust this value in production, or use tracesSampler for greater control
   tracesSampleRate: 0.01,
   serverName: process.env.NEXT_PUBLIC_SENTRY_SERVER_NAME,
-  enabled: process.env.NODE_ENV === "production"
+  enabled: process.env.NODE_ENV === "production",
+  integrations: [
+    Sentry.thirdPartyErrorFilterIntegration({
+      filterKeys: [process.env.NEXT_PUBLIC_SENTRY_APPLICATION_KEY],
+      behaviour: "drop-error-if-contains-third-party-frames"
+    })
+  ]
   // ...
   // Note: if you want to override the automatic release value, do not set a
   // `release` value here - use the environment variable `SENTRY_RELEASE`, so
