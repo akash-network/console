@@ -25,13 +25,15 @@ import {
 import { cn } from "@akashnetwork/ui/utils";
 import restClient from "@src/utils/restClient";
 import { Loader2 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import providerProcessStore from "@src/store/providerProcessStore";
+import { useAtom } from "jotai/react";
 
 const baseSchema = z.object({
-  ip: z.string().min(2, { message: "IP must be at least 2 characters." }).max(30, { message: "IP must not be longer than 30 characters." }),
+  hostname: z.string().min(2, { message: "IP must be at least 2 characters." }).max(30, { message: "IP must not be longer than 30 characters." }),
   port: z.number().optional(),
   username: z.string(),
   saveInformation: z.boolean().optional()
@@ -54,69 +56,129 @@ type AccountFormValues = z.infer<typeof accountFormSchema>;
 
 interface ServerFormProp {
   currentServerNumber: number;
-  onSubmit: (data: AccountFormValues) => void;
-  defaultValues?: any;
+  onSubmit: () => void;
 }
 
-export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentServerNumber, onSubmit, defaultValues }) => {
-  console.log(defaultValues);
+export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentServerNumber, onSubmit }) => {
+  const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [storedFileContent, setStoredFileContent] = useState<string | null>(null);
+  
+  const getDefaultValues = () => {
+    if (currentServerNumber === 0 || !providerProcess?.storeInformation) {
+      return {
+        hostname: "",
+        authType: "password",
+        username: "",
+        port: 22,
+      };
+    }
+    
+    const firstServer = providerProcess.machines[0]?.access;
+    return {
+      ...firstServer,
+      hostname: "", // Reset hostname for new server
+      authType: firstServer.file ? "file" : "password",
+      password: firstServer.authType === "password" ? firstServer.password : undefined,
+    };
+  };
+
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
-    defaultValues: {
-      ...defaultValues,
-      authType: defaultValues.file && defaultValues?.file[0]?.name ? "file" : "password"
-    }
+    defaultValues: getDefaultValues()
   });
 
-  const [selectedFile, setSelectedFile] = useState({ name: "" });
+  useEffect(() => {
+    if (currentServerNumber > 0 && providerProcess?.storeInformation) {
+      const firstServer = providerProcess.machines[0]?.access;
+      if (firstServer.file) {
+        setStoredFileContent(firstServer.file);
+        form.setValue("authType", "file");
+      }
+    }
+  }, [currentServerNumber, providerProcess, form]);
 
   const [verificationError, setVerificationError] = useState<{ message: string; details: string[] } | null>(null);
   const [verificationResult, setVerificationResult] = useState(null);
   const [isVerifying, setIsVerifying] = useState(false);
 
+  useEffect(() => {
+    console.log(providerProcess);
+  });
+
   const submitForm = async (formValues: any) => {
     setIsVerifying(true);
-    // Clear any existing errors
     setVerificationError(null);
     setVerificationResult(null);
     try {
-      const formData = new FormData();
-      formData.append("hostname", formValues.ip);
-      if (!formValues.port) formValues.port = 22;
-      formData.append("port", formValues.port);
-      formData.append("username", formValues.username);
+      const jsonData: any = {
+        hostname: formValues.hostname,
+        port: formValues.port || 22,
+        username: formValues.username
+      };
+
       if (formValues.password) {
-        formData.append("password", formValues.password);
+        jsonData.password = formValues.password;
       }
+
       if (formValues.file && formValues.file[0]) {
-        formData.append("keyfile", formValues.file[0]);
+        const fileContent = await readFileAsBase64(formValues.file[0]);
+        jsonData.keyfile = fileContent;
+      } else if (storedFileContent) {
+        jsonData.keyfile = storedFileContent;
       }
+
       if (formValues.passphrase) {
-        formData.append("passphrase", formValues.passphrase);
+        jsonData.passphrase = formValues.passphrase;
       }
 
-      const response = await restClient.post("/verify/control-machine", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data"
-        }
-      });
+      let response: any;
 
-      setVerificationResult(response.data);
-
-      if (response.data.success) {
-        onSubmit(formValues);
+      if (currentServerNumber === 0) {
+        // For the first server (control plane)
+        response = await restClient.post("/verify/control-machine", jsonData, {
+          headers: { "Content-Type": "application/json" }
+        });
       } else {
-        // Handle verification failure
-        setVerificationError({
-          message: response.data.detail?.message || "Verification failed",
-          details: response.data.detail?.details || []
+        // For subsequent servers (worker nodes)
+        const controlMachine = providerProcess?.machines[0]?.access;
+        const payload = {
+          control_machine: {
+            hostname: controlMachine.hostname,
+            port: controlMachine.port || 22,
+            username: controlMachine.username,
+            password: controlMachine.password,
+            keyfile: controlMachine.file ? await readFileAsBase64(controlMachine.file[0]) : undefined,
+            passphrase: controlMachine.passphrase
+          },
+          worker_node: jsonData
+        };
+        response = await restClient.post("/verify/control-and-worker", payload, {
+          headers: { "Content-Type": "application/json" }
         });
       }
+
+      if (response.status === 200) {
+        const machines = [...(providerProcess?.machines ?? [])];
+        machines[currentServerNumber] = {
+          access: {
+            ...formValues,
+            file: formValues.file && formValues.file[0] ? await readFileAsBase64(formValues.file[0]) : storedFileContent
+          },
+          systemInfo: response.data.data.system_info
+        };
+
+        setProviderProcess({
+          machines,
+          storeInformation: currentServerNumber === 0 ? formValues.saveInformation : providerProcess?.storeInformation,
+          process: providerProcess.process
+        });
+        onSubmit();
+      }
     } catch (error: any) {
-      console.error("Error during verification:", error);
       setVerificationError({
-        message: error.response?.data?.detail?.message || "An error occurred during verification.",
-        details: error.response?.data?.detail?.details || []
+        message: error.response?.data?.detail?.error?.message || "An error occurred during verification.",
+        details: error.response?.data?.detail?.error?.details?.details || []
       });
     } finally {
       setIsVerifying(false);
@@ -124,13 +186,22 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
   };
 
   const fileChange = (event, field) => {
-    field.onChange(event.target.files);
     const file = event.target.files[0];
     if (file) {
-      setSelectedFile(event.target.files[0]);
-      defaultValues.file = [];
-      defaultValues.file[0] = event.target.files[0];
+      setSelectedFile(file);
+      setStoredFileContent(null); // Clear stored content when a new file is selected
+      field.onChange([file]); // Update form value
     }
+  };
+
+  // Helper function to read file as base64
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+      reader.readAsDataURL(file);
+    });
   };
 
   return (
@@ -153,7 +224,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
               <div className="col-span-2">
                 <FormField
                   control={form.control}
-                  name="ip"
+                  name="hostname"
                   render={({ field }) => (
                     <FormItem className="flex flex-col space-y-2">
                       <FormLabel>
@@ -180,7 +251,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
                           type="number"
                           placeholder="22"
                           {...field}
-                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                          onChange={e => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -212,7 +283,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
               </p>
               <div className="rounded-md border">
                 <Tabs
-                  defaultValue={defaultValues.file && defaultValues?.file[0]?.name ? "file" : "password"}
+                  defaultValue={form.getValues("authType")}
                   className="space-y-4 p-4"
                   onValueChange={value => form.setValue("authType", value as "password" | "file")}
                 >
@@ -254,7 +325,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
                       )}
                     />
                     <p className="pl-2 pt-4 text-sm">
-                      Selected file : {defaultValues.file && defaultValues?.file[0] ? defaultValues?.file[0]?.name : selectedFile.name}
+                      Selected file: {selectedFile ? selectedFile.name : storedFileContent ? "Using stored file" : "No file selected"}
                     </p>
                     <FormField
                       control={form.control}

@@ -40,12 +40,13 @@ export function WalletStatus() {
 
   // Define your custom function to call on successful connection
   const onWalletConnectSuccess = async () => {
+    console.log("Attempting wallet connection...");
     if (!localStorage.getItem("accessToken")) {
-      //check if accesstoken is not expired
-
+      console.log("No access token found, initiating authentication process");
       // Get Nonce
       const response = await authClient.get(`users/nonce/${address}`);
       if (response.data.nonce) {
+        console.log("Nonce received:", response.data.nonce);
         // Get Address
         let url: string;
         if (process.env.NODE_ENV === "development") {
@@ -56,6 +57,7 @@ export function WalletStatus() {
         console.log(wallet);
 
         const message = `${url} wants you to sign in with your Keplr account - ${address} using Nonce - ${response.data.nonce}`;
+        console.log("Signing message with wallet:", wallet?.name);
         let result;
         if (wallet?.name == "leap-extension") {
           result = await leapSignArbitrary(address, message);
@@ -63,19 +65,22 @@ export function WalletStatus() {
           result = await keplrSignArbitrary(address, message);
         }
 
-        console.log(result);
+        console.log("Signature result:", result);
         if (result) {
+          console.log("Verifying signature with server");
           const verifySign = await authClient.post("auth/verify", { signer: address, ...result });
           if (verifySign.data) {
+            console.log("Authentication successful, storing tokens");
             localStorage.setItem("accessToken", verifySign.data.access_token);
             localStorage.setItem("refreshToken", verifySign.data.refresh_token);
           } else {
-            console.log("There is some error in signing");
+            console.error("Error in signature verification");
             logout();
           }
         }
       }
     } else {
+      console.log("Access Token found, skipping authentication process");
       // TODO Probably more work needs to be done for refresh token
 
       console.log("Access Token Found");
@@ -89,14 +94,16 @@ export function WalletStatus() {
   };
 
   useEffect(() => {
-    if (isWalletConnected) {
+    console.log("WalletStatus: Wallet connection status changed:", isWalletConnected);
+    if (isWalletConnected && address) {
       onWalletConnectSuccess();
-    } else {
-      console.log("Disconnected");
+    } else if (!isWalletConnected) {
+      console.log("Wallet disconnected");
     }
-  }, [isWalletConnected]); // Ensure to include address as a dependency if needed
+  }, [isWalletConnected, address]);
 
   function onDisconnectClick() {
+    console.log("Disconnecting wallet");
     logout();
   }
 

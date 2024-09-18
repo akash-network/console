@@ -8,13 +8,13 @@ const errorNotification = (error = "Error Occurred") => {
 };
 
 const restClient = axios.create({
-  baseURL: `https://6b46-99-209-150-74.ngrok-free.app`,
+  baseURL: `https://8b1f-99-209-150-74.ngrok-free.app`,
   timeout: 60000
 });
 
 restClient.interceptors.response.use(
   response => {
-    return response.data;
+    return response;
   },
   error => {
     // whatever you want to do with the error

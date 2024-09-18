@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
 
 import Layout from "@src/components/layout/Layout";
@@ -11,30 +11,67 @@ import { ProviderConfig } from "@src/components/become-provider/provider-config"
 import { ProviderAttributes } from "@src/components/become-provider/provider-attributes";
 import { ProviderPricing } from "@src/components/become-provider/provider-pricing";
 import { ProviderProcess } from "@src/components/become-provider/provider-process";
+import { useSelectedChain } from "@src/context/CustomChainProvider";
+
+import { useRouter } from "next/router";
+import providerProcessStore from "@src/store/providerProcessStore";
+import { useAtom } from "jotai";
 
 const GetStarted: React.FunctionComponent = () => {
-  const [activeStep, setActiveStep] = useState<number>(5);
+  const { isWalletConnected, wallet } = useSelectedChain();
+  const [activeStep, setActiveStep] = useState<number>(0);
+  const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
+  const router = useRouter();
 
-  const [serverInformation, setServerInformation] = useState();
+  useEffect(() => {
+    if (!isWalletConnected) {
+      // Store the current page URL before redirecting
+      // localStorage.setItem('returnUrl', router.asPath);
+      // router.push('/connect-wallet');
+    }
+  }, [isWalletConnected, router]);
 
-  const finishServerAccess = info => {
-    changeStep(1);
-    setServerInformation(info);
+  useEffect(() => {
+    const steps = [
+      { key: 'serverAccess', component: ServerAccess },
+      { key: 'walletImport', component: WalletImport },
+      { key: 'providerConfig', component: ProviderConfig },
+      { key: 'providerAttribute', component: ProviderAttributes },
+      { key: 'providerPricing', component: ProviderPricing },
+    ];
+
+    const currentStepIndex = steps.findIndex(step => !providerProcess.process[step.key]);
+    setActiveStep(currentStepIndex === -1 ? steps.length : currentStepIndex);
+  }, [providerProcess.process]);
+
+  const handleStepChange = () => {
+    setProviderProcess(prev => ({
+      ...prev,
+      process: {
+        ...prev.process,
+        [steps[activeStep].key]: true
+      }
+    }));
   };
 
-  const changeStep = (step: number) => {
-    setActiveStep(step);
-  };
+  const steps = [
+    { key: 'serverAccess', component: ServerAccess },
+    { key: 'walletImport', component: WalletImport },
+    { key: 'providerConfig', component: ProviderConfig },
+    { key: 'providerAttribute', component: ProviderAttributes },
+    { key: 'providerPricing', component: ProviderPricing },
+  ];
 
   return (
     <Layout>
       <CustomizedSteppers activeStep={activeStep} />
-      {activeStep === 0 && <ServerAccess stepChange={info => finishServerAccess(info)} />}
-      {activeStep === 1 && <WalletImport stepChange={() => console.log("finished")} />}
-      {activeStep === 2 && <ProviderConfig stepChange={() => console.log("finished")} />}
-      {activeStep === 3 && <ProviderAttributes stepChange={() => console.log("finished")} />}
-      {activeStep === 4 && <ProviderPricing stepChange={() => console.log("finished")} />}
-      {activeStep === 5 && <ProviderProcess />}
+      {activeStep < steps.length ? (
+        React.createElement(steps[activeStep].component, {
+          stepChange: handleStepChange
+        })
+      ) : (
+        <ProviderProcess />
+      )}
     </Layout>
   );
 };

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { ServerForm } from "./server-form";
 
 interface ServerAccessProps {
-  stepChange: (serverInformation) => void;
+  stepChange: () => void;
 }
 
 export const ServerAccess: React.FunctionComponent<ServerAccessProps> = ({ stepChange }) => {
@@ -16,32 +16,33 @@ export const ServerAccess: React.FunctionComponent<ServerAccessProps> = ({ stepC
 
   const [serverInformation, setServerInformation] = useState<any[]>([]);
 
-  const serverFormSubmitted = (data: any) => {
-    console.log("Submitted Server", currentServer);
-    console.log("Total Server", numberOfServer);
-    console.log("Submitted data", data);
+  const serverFormSubmitted = () => {
+    // console.log("Submitted Server", currentServer);
+    // console.log("Total Server", numberOfServer);
+    // console.log("Submitted data", data);
+    // console.log(currentServer)
 
-    if (currentServer == 0) {
-      if (data.saveInformation) {
-        console.log("storing information");
-        const savingData = JSON.parse(JSON.stringify(data));
-        savingData.ip = null;
-        savingData.saveInformation = null;
-        setDefaultServerDetails(savingData);
-      }
-    }
+    // if (currentServer == 0) {
+    //   if (data.access.saveInformation) {
+    //     console.log("storing information");
+    //     const savingData = data.access;
+    //     savingData.ip = null;
+    //     savingData.saveInformation = null;
+    //     console.log(savingData)
+    //     setDefaultServerDetails(savingData);
+    //   }
+    // }
 
-    const updatedServerInformation = [...serverInformation];
-    updatedServerInformation[currentServer] = data;
-    setServerInformation(updatedServerInformation);
+    // const updatedServerInformation = [...serverInformation];
+    // updatedServerInformation[currentServer] = data;
+    // setServerInformation(updatedServerInformation);
 
     if (currentServer + 1 >= numberOfServer) {
       console.log("changing step");
-      stepChange(updatedServerInformation);
+      stepChange();
     }
 
     console.log("Updated Server Information", serverInformation);
-
     setCurrentServer(currentServer + 1);
   };
 
@@ -64,12 +65,7 @@ export const ServerAccess: React.FunctionComponent<ServerAccessProps> = ({ stepC
       )}
 
       {activateServerForm && (
-        <ServerForm
-          key={currentServer}
-          currentServerNumber={currentServer}
-          defaultValues={defaultServerDetails}
-          onSubmit={value => serverFormSubmitted(value)}
-        />
+        <ServerForm key={currentServer} currentServerNumber={currentServer} defaultValues={defaultServerDetails} onSubmit={() => serverFormSubmitted()} />
       )}
     </div>
   );

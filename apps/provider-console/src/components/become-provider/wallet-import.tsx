@@ -19,6 +19,32 @@ import { ServerForm } from "./server-form";
 import { Form, useForm } from "react-hook-form";
 import { ChevronDownIcon, HomeIcon } from "lucide-react";
 import { z } from "zod";
+import { useAtom } from "jotai";
+import providerProcessStore from "@src/store/providerProcessStore";
+import restClient from "@src/utils/restClient";
+
+
+// Add this function at the top of the file, outside of any component
+async function encrypt(data: string, publicKey: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const encodedData = encoder.encode(data);
+  
+  const importedKey = await crypto.subtle.importKey(
+    "spki",
+    Buffer.from(publicKey, 'base64'),
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    false,
+    ["encrypt"]
+  );
+
+  const encryptedData = await crypto.subtle.encrypt(
+    { name: "RSA-OAEP" },
+    importedKey,
+    encodedData
+  );
+
+  return Buffer.from(encryptedData).toString('base64');
+}
 
 interface WalletImportProps {
   stepChange: (serverInformation) => void;
@@ -42,6 +68,8 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
   const [showSeedForm, setShowSeedForm] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
+  const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
+
   const defaultValues: Partial<AppearanceFormValues> = {
     walletMode: "seed"
   };
@@ -57,7 +85,33 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
   };
 
   const submitForm = async (data: SeedFormValues) => {
-    console.log(data);
+    try {
+      if (providerProcess.machines && providerProcess.machines.length > 0) {
+        const publicKey = providerProcess.machines[0].systemInfo.public_key;
+        const encryptedSeedPhrase = await encrypt(data.seedPhrase, publicKey);
+
+        const response = await restClient.post("/verify/wallet", {
+          encryptedSeedPhrase
+        });
+
+        if (response.ok) {
+          // Handle successful verification
+          console.log("Wallet verified successfully");
+          // You might want to update the providerProcess state or move to the next step
+          stepChange(response.data);
+        } else {
+          // Handle verification error
+          console.error("Wallet verification failed");
+          // You might want to show an error message to the user
+        }
+      } else {
+        console.error("No machine information available");
+        // Handle the case when machine information is not available
+      }
+    } catch (error) {
+      console.error("Error during wallet verification:", error);
+      // Handle any errors that occurred during the process
+    }
   };
 
   useEffect(() => {
@@ -198,13 +252,13 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
               <li>Navigate to your control machine's directory root.</li>
               <li>
                 Run the following command to import your wallet:
-                <div className="bg-secondary rounded-md p-4 mt-2">
+                <div className="bg-secondary mt-2 rounded-md p-4">
                   <code className="text-sm">~/bin/provider-services --keyring-backend file keys add wallet_name --recover</code>
                 </div>
               </li>
               <li>
                 Run the following command to import your wallet:
-                <div className="bg-secondary rounded-md p-4 mt-2">
+                <div className="bg-secondary mt-2 rounded-md p-4">
                   <code className="text-sm">echo passphrase &gt; ~/.praetor/wallet_phrase_password.txt</code>
                 </div>
               </li>
