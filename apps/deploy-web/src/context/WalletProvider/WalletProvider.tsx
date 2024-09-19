@@ -16,8 +16,8 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useAllowance } from "@src/hooks/useAllowance";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
-import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useWhen } from "@src/hooks/useWhen";
+import { useBalances } from "@src/queries/useBalancesQuery";
 import { txHttpService } from "@src/services/http/http.service";
 import networkStore from "@src/store/networkStore";
 import { AnalyticsEvents } from "@src/utils/analytics";
@@ -72,7 +72,6 @@ export const WalletProvider = ({ children }) => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const router = useRouter();
   const { settings } = useSettings();
-  const { refetch: refetchBalances } = useWalletBalance();
   const user = useUser();
   const userWallet = useSelectedChain();
   const { wallet: managedWallet, isLoading, create: createManagedWallet } = useManagedWallet();
@@ -84,6 +83,7 @@ export const WalletProvider = ({ children }) => {
     username,
     isWalletConnected
   } = useMemo(() => (selectedWalletType === "managed" && managedWallet) || userWallet, [managedWallet, userWallet, selectedWalletType]);
+  const { refetch: refetchBalances } = useBalances(walletAddress);
   const { addEndpoints } = useManager();
   const isManaged = useMemo(() => !!managedWallet && managedWallet?.address === walletAddress, [walletAddress, managedWallet]);
 

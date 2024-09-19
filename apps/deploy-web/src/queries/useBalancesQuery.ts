@@ -12,7 +12,7 @@ import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";
 
 // Account balances
-async function getBalances(apiEndpoint: string, address: string): Promise<Balances | undefined> {
+async function getBalances(apiEndpoint: string, address?: string): Promise<Balances | undefined> {
   if (!address || !apiEndpoint) return undefined;
   const usdcIbcDenom = getUsdcDenom();
 
@@ -61,7 +61,10 @@ async function getBalances(apiEndpoint: string, address: string): Promise<Balanc
   };
 }
 
-export function useBalances(address: string, options?: Omit<UseQueryOptions<Balances, Error, any, QueryKey>, "queryKey" | "queryFn">) {
+export function useBalances(address?: string, options?: Omit<UseQueryOptions<Balances, Error, any, QueryKey>, "queryKey" | "queryFn">) {
   const { settings } = useSettings();
-  return useQuery(QueryKeys.getBalancesKey(address), () => getBalances(settings.apiEndpoint, address), options);
+  return useQuery(QueryKeys.getBalancesKey(address), () => getBalances(settings.apiEndpoint, address), {
+    enabled: !!address,
+    ...options
+  });
 }
