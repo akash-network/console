@@ -1,5 +1,5 @@
 import "@akashnetwork/env-loader";
 
-import { castToValidatedOnStartup } from "./env-config.schema";
+import { validateRuntimeEnvVars } from "./env-config.schema";
 
-export const serverEnvConfig = castToValidatedOnStartup(process.env);
+export const serverEnvConfig = validateRuntimeEnvVars(process.env);

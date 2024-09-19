@@ -1,6 +1,6 @@
-import { castToValidatedDuringBuild } from "./env-config.schema";
+import { validateStaticEnvVars } from "./env-config.schema";
 
-export const browserEnvConfig = castToValidatedDuringBuild({
+export const browserEnvConfig = validateStaticEnvVars({
   NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
   NEXT_PUBLIC_STATS_APP_URL: process.env.NEXT_PUBLIC_STATS_APP_URL,
   NEXT_PUBLIC_PROVIDER_PROXY_URL: process.env.NEXT_PUBLIC_PROVIDER_PROXY_URL,
