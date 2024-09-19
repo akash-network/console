@@ -24,10 +24,10 @@ export const useManagedWallet = () => {
       return;
     }
 
-    if (isFetched && isCreated && !wallet) {
-      deleteManagedWalletFromStorage();
-    } else if (wallet && isCreated) {
+    if (wallet && isCreated) {
       updateStorageManagedWallet({ ...wallet, selected: true });
+    } else if (isFetched && !wallet) {
+      deleteManagedWalletFromStorage();
     } else if (wallet) {
       updateStorageManagedWallet(wallet);
     }
