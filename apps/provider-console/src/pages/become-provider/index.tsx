@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
+import { Card, CardContent, CardHeader, CardTitle, Popup } from "@akashnetwork/ui/components";
+import { useAtom } from "jotai";
 
 import Layout from "@src/components/layout/Layout";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -15,13 +16,14 @@ import { useSelectedChain } from "@src/context/CustomChainProvider";
 
 import { useRouter } from "next/router";
 import providerProcessStore from "@src/store/providerProcessStore";
-import { useAtom } from "jotai";
 
 const GetStarted: React.FunctionComponent = () => {
   const { isWalletConnected, wallet } = useSelectedChain();
   const [activeStep, setActiveStep] = useState<number>(0);
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const router = useRouter();
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [, resetProcess] = useAtom(providerProcessStore.resetProviderProcess);
 
   useEffect(() => {
     if (!isWalletConnected) {
@@ -33,11 +35,11 @@ const GetStarted: React.FunctionComponent = () => {
 
   useEffect(() => {
     const steps = [
-      { key: 'serverAccess', component: ServerAccess },
-      { key: 'walletImport', component: WalletImport },
-      { key: 'providerConfig', component: ProviderConfig },
-      { key: 'providerAttribute', component: ProviderAttributes },
-      { key: 'providerPricing', component: ProviderPricing },
+      { key: "serverAccess", component: ServerAccess },
+      { key: "providerConfig", component: ProviderConfig },
+      { key: "providerAttribute", component: ProviderAttributes },
+      { key: "providerPricing", component: ProviderPricing },
+      { key: "walletImport", component: WalletImport },
     ];
 
     const currentStepIndex = steps.findIndex(step => !providerProcess.process[step.key]);
@@ -54,13 +56,36 @@ const GetStarted: React.FunctionComponent = () => {
     }));
   };
 
+  const handleReset = () => {
+    setIsResetModalOpen(true);
+  };
+
+  const confirmReset = () => {
+    resetProcess();
+    setActiveStep(0);
+    setIsResetModalOpen(false);
+  };
+
+  const cancelReset = () => {
+    setIsResetModalOpen(false);
+  };
+
   const steps = [
-    { key: 'serverAccess', component: ServerAccess },
-    { key: 'walletImport', component: WalletImport },
-    { key: 'providerConfig', component: ProviderConfig },
-    { key: 'providerAttribute', component: ProviderAttributes },
-    { key: 'providerPricing', component: ProviderPricing },
+    { key: "serverAccess", component: ServerAccess },
+    { key: "providerConfig", component: ProviderConfig },
+    { key: "providerAttribute", component: ProviderAttributes },
+    { key: "providerPricing", component: ProviderPricing },
+    { key: "walletImport", component: WalletImport },
   ];
+
+  const popupProps: ConfirmProps & { open: boolean } = {
+    variant: "confirm",
+    title: "Confirm Reset",
+    message: "Are you sure you want to reset the provider process?",
+    onValidate: confirmReset,
+    onCancel: cancelReset,
+    open: isResetModalOpen
+  };
 
   return (
     <Layout>
@@ -72,6 +97,8 @@ const GetStarted: React.FunctionComponent = () => {
       ) : (
         <ProviderProcess />
       )}
+      <button onClick={handleReset}>Reset</button> {/* Added reset button */}
+      <Popup {...popupProps} />
     </Layout>
   );
 };
