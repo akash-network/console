@@ -121,11 +121,10 @@ export const WalletProvider = ({ children }) => {
   }
 
   function connectManagedWallet() {
-    if (managedWallet) {
-      selectWalletType("managed");
-    } else {
+    if (!managedWallet) {
       createManagedWallet();
     }
+    selectWalletType("managed");
   }
 
   function logout() {
