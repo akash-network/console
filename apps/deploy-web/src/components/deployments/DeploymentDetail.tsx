@@ -12,6 +12,7 @@ import { event } from "nextjs-google-analytics";
 
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";
+import { useTemplates } from "@src/context/TemplatesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
@@ -21,7 +22,7 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
-import { getRepoUrl, isRedeployImage } from "../remote-deploy/utils";
+import { ciCdTemplateId, getRepoUrl, isRedeployImage } from "../remote-deploy/utils";
 import { Title } from "../shared/Title";
 import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
@@ -41,7 +42,9 @@ export function DeploymentDetail() {
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
-  const remoteDeploy: boolean = !!editedManifest && isRedeployImage(editedManifest);
+  const { getTemplateById } = useTemplates();
+  const remoteDeployTemplate = getTemplateById(ciCdTemplateId);
+  const remoteDeploy: boolean = !!editedManifest && !!isRedeployImage(editedManifest, remoteDeployTemplate?.deploy);
   const repo: string | null = remoteDeploy ? getRepoUrl(editedManifest) : null;
 
   const {
