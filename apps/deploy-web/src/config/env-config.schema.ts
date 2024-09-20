@@ -20,7 +20,11 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_BASE_API_MAINNET_URL: z.string().url(),
   NEXT_PUBLIC_BASE_API_TESTNET_URL: z.string().url(),
   NEXT_PUBLIC_BASE_API_SANDBOX_URL: z.string().url(),
-  NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional()
+  NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional(),
+  NEXT_PUBLIC_REDIRECT_URI: z.string().url(),
+  NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL: z.string().url(),
+  NEXT_PUBLIC_BITBUCKET_CLIENT_ID: z.string().optional(),
+  NEXT_PUBLIC_GITLAB_CLIENT_ID: z.string().optional()
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({
@@ -34,7 +38,10 @@ export const serverEnvSchema = browserEnvSchema.extend({
   AUTH0_SCOPE: z.string(),
   BASE_API_MAINNET_URL: z.string().url(),
   BASE_API_TESTNET_URL: z.string().url(),
-  BASE_API_SANDBOX_URL: z.string().url()
+  BASE_API_SANDBOX_URL: z.string().url(),
+  GITHUB_CLIENT_SECRET: z.string(),
+  BITBUCKET_CLIENT_SECRET: z.string(),
+  GITLAB_CLIENT_SECRET: z.string()
 });
 
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;
