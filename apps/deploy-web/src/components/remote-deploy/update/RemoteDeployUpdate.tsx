@@ -4,6 +4,9 @@ import { Checkbox, Label, Snackbar } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 import { useSnackbar } from "notistack";
 
+import { EnvFormModal } from "@src/components/sdl/EnvFormModal";
+import { EnvVarList } from "@src/components/sdl/EnvVarList";
+import { SdlBuilderProvider } from "@src/context/SdlBuilderProvider";
 import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
@@ -11,8 +14,6 @@ import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { github } from "@src/utils/templates";
 import BitBranches from "../bitbucket/Branches";
-import { EnvFormModal } from "../EnvFormModal";
-import { EnvVarList } from "../EnvList";
 import Branches from "../github/Branches";
 import GitBranches from "../gitlab/Branches";
 import { appendEnv } from "../utils";
@@ -85,11 +86,13 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
         </div>
         <p className="text-sm text-muted-foreground">If checked, Console will automatically re-deploy your app on any code commits</p>
       </div>
-
-      <EnvVarList currentService={services[0]} setIsEditingEnv={setIsEditingEnv} />
+      <SdlBuilderProvider>
+        <EnvVarList currentService={services[0]} setIsEditingEnv={setIsEditingEnv} hideEnvs />
+      </SdlBuilderProvider>
       {isEditingEnv && (
         <EnvFormModal
           update
+          hideEnvs
           control={control}
           serviceIndex={0}
           envs={services[0]?.env ?? []}
