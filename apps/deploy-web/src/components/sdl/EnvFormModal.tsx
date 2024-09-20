@@ -5,8 +5,9 @@ import { Button, CustomNoDivTooltip, FormField, FormInput, Popup, Switch } from 
 import { Bin } from "iconoir-react";
 import { nanoid } from "nanoid";
 
-import { EnvironmentVariableType, RentGpusFormValuesType,SdlBuilderFormValuesType } from "@src/types";
+import { EnvironmentVariableType, RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
+import { hiddenEnv } from "../remote-deploy/utils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
@@ -16,9 +17,11 @@ type Props = {
   control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
   hasSecretOption?: boolean;
   children?: ReactNode;
+  hideEnvs?: boolean;
+  update?: boolean;
 };
 
-export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, envs: _envs, onClose, hasSecretOption = true }) => {
+export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, envs: _envs, onClose, hasSecretOption = true, hideEnvs, update }) => {
   const {
     fields: envs,
     remove: removeEnv,
@@ -30,7 +33,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
   });
 
   useEffect(() => {
-    if (_envs.length === 0) {
+    if (_envs.length === 0 || (hideEnvs && _envs.filter(e => !hiddenEnv.includes(e.key)).length === 0 && !update)) {
       onAddEnv();
     }
   }, []);
@@ -80,83 +83,87 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
       enableCloseOnBackdropClick
     >
       <FormPaper contentClassName="bg-popover">
-        {envs.map((env, envIndex) => {
-          return (
-            <div key={env.id} className={cn("flex", { ["mb-2"]: envIndex + 1 !== envs.length })}>
-              <div className="flex flex-grow flex-col items-end sm:flex-row">
-                <FormField
-                  control={control}
-                  name={`services.${serviceIndex}.env.${envIndex}.key`}
-                  render={({ field }) => (
-                    <div className="basis-[40%]">
-                      <FormInput
-                        type="text"
-                        label="Key"
-                        color="secondary"
-                        value={field.value}
-                        onChange={event => field.onChange(event.target.value)}
-                        className="w-full"
-                      />
-                    </div>
-                  )}
-                />
-
-                <FormField
-                  control={control}
-                  name={`services.${serviceIndex}.env.${envIndex}.value`}
-                  render={({ field }) => (
-                    <div className="ml-2 flex-grow">
-                      <FormInput
-                        type="text"
-                        label="Value"
-                        color="secondary"
-                        value={field.value}
-                        onChange={event => field.onChange(event.target.value)}
-                        className="w-full"
-                      />
-                    </div>
-                  )}
-                />
-              </div>
-
-              <div
-                className={cn("flex w-[50px] flex-col items-start pl-2", {
-                  ["justify-between"]: envIndex > 0,
-                  ["justify-end"]: envIndex === 0 || !hasSecretOption
-                })}
-              >
-                {envIndex > 0 && (
-                  <Button onClick={() => removeEnv(envIndex)} size="icon" variant="ghost">
-                    <Bin />
-                  </Button>
-                )}
-
-                {hasSecretOption && (
-                  <Controller
+        {envs
+          ?.filter(e => !hideEnvs || !hiddenEnv.includes(e?.key?.trim()))
+          ?.map((env, envIndex) => {
+            const currentEnvIndex = envs.findIndex(e => e.id === env.id);
+            const isLastEnv = envIndex + 1 === envs?.filter(e => !hideEnvs || !hiddenEnv.includes(e?.key?.trim())).length;
+            return (
+              <div key={env.id} className={cn("flex", { ["mb-2"]: !isLastEnv })}>
+                <div className="flex flex-grow flex-col items-end sm:flex-row">
+                  <FormField
                     control={control}
-                    name={`services.${serviceIndex}.env.${envIndex}.isSecret`}
+                    name={`services.${serviceIndex}.env.${currentEnvIndex}.key`}
                     render={({ field }) => (
-                      <CustomNoDivTooltip
-                        title={
-                          <>
-                            <p>
-                              <strong>Secret</strong>
-                            </p>
-                            <p className="text-sm">
-                              This is for secret variables containing sensitive information you don't want to be saved in your template.
-                            </p>
-                          </>
-                        }
-                      >
-                        <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-                      </CustomNoDivTooltip>
+                      <div className="basis-[40%]">
+                        <FormInput
+                          type="text"
+                          label="Key"
+                          color="secondary"
+                          value={field.value}
+                          onChange={event => field.onChange(event.target.value)}
+                          className="w-full"
+                        />
+                      </div>
                     )}
                   />
-                )}
+
+                  <FormField
+                    control={control}
+                    name={`services.${serviceIndex}.env.${currentEnvIndex}.value`}
+                    render={({ field }) => (
+                      <div className="ml-2 flex-grow">
+                        <FormInput
+                          type="text"
+                          label="Value"
+                          color="secondary"
+                          value={field.value}
+                          onChange={event => field.onChange(event.target.value)}
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+                  />
+                </div>
+
+                <div
+                  className={cn("flex w-[50px] flex-col items-start pl-2", {
+                    ["justify-between"]: envIndex > 0,
+                    ["justify-end"]: envIndex === 0 || !hasSecretOption
+                  })}
+                >
+                  {envIndex > 0 && (
+                    <Button onClick={() => removeEnv(currentEnvIndex)} size="icon" variant="ghost">
+                      <Bin />
+                    </Button>
+                  )}
+
+                  {hasSecretOption && (
+                    <Controller
+                      control={control}
+                      name={`services.${serviceIndex}.env.${currentEnvIndex}.isSecret`}
+                      render={({ field }) => (
+                        <CustomNoDivTooltip
+                          title={
+                            <>
+                              <p>
+                                <strong>Secret</strong>
+                              </p>
+                              <p className="text-sm">
+                                This is for secret variables containing sensitive information you don't want to be saved in your template.
+                              </p>
+                            </>
+                          }
+                        >
+                          <Switch checked={!!field.value} onCheckedChange={field.onChange} />
+                        </CustomNoDivTooltip>
+                      )}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
       </FormPaper>
     </Popup>
   );
