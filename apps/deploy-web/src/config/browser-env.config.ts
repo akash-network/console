@@ -1,6 +1,6 @@
-import { castToValidatedDuringBuild } from "./env-config.schema";
+import { validateStaticEnvVars } from "./env-config.schema";
 
-export const browserEnvConfig = castToValidatedDuringBuild({
+export const browserEnvConfig = validateStaticEnvVars({
   NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
   NEXT_PUBLIC_STATS_APP_URL: process.env.NEXT_PUBLIC_STATS_APP_URL,
   NEXT_PUBLIC_PROVIDER_PROXY_URL: process.env.NEXT_PUBLIC_PROVIDER_PROXY_URL,
@@ -14,5 +14,9 @@ export const browserEnvConfig = castToValidatedDuringBuild({
   NEXT_PUBLIC_NODE_ENV: process.env.NEXT_PUBLIC_NODE_ENV,
   NEXT_PUBLIC_BASE_API_MAINNET_URL: process.env.NEXT_PUBLIC_BASE_API_MAINNET_URL,
   NEXT_PUBLIC_BASE_API_TESTNET_URL: process.env.NEXT_PUBLIC_BASE_API_TESTNET_URL,
-  NEXT_PUBLIC_BASE_API_SANDBOX_URL: process.env.NEXT_PUBLIC_BASE_API_SANDBOX_URL
+  NEXT_PUBLIC_BASE_API_SANDBOX_URL: process.env.NEXT_PUBLIC_BASE_API_SANDBOX_URL,
+  NEXT_PUBLIC_REDIRECT_URI: process.env.NEXT_PUBLIC_REDIRECT_URI,
+  NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL: process.env.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL,
+  NEXT_PUBLIC_BITBUCKET_CLIENT_ID: process.env.NEXT_PUBLIC_BITBUCKET_CLIENT_ID,
+  NEXT_PUBLIC_GITLAB_CLIENT_ID: process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID
 });

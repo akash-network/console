@@ -22,6 +22,7 @@ import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManage
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
+import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
@@ -29,7 +30,6 @@ import { UrlService } from "@src/utils/urlUtils";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { LinkTo } from "../shared/LinkTo";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
-import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
 
 const goToCheckout = () => {
   window.location.href = "/api/proxy/v1/checkout";
