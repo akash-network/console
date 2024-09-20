@@ -6,7 +6,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { ArrowLeft } from "iconoir-react";
 import yaml from "js-yaml";
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
 
@@ -31,8 +31,7 @@ import { DeploymentSubHeader } from "./DeploymentSubHeader";
 import { LeaseRow } from "./LeaseRow";
 import { ManifestUpdate } from "./ManifestUpdate";
 
-export function DeploymentDetail() {
-  const dseq: any = useParams()?.dseq;
+export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: string }>) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
