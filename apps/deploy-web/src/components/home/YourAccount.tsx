@@ -15,7 +15,7 @@ import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import useTailwind from "@src/hooks/useTailwind";
-import { WalletBalance, useWalletBalance } from "@src/hooks/useWalletBalance";
+import { useWalletBalance,WalletBalance } from "@src/hooks/useWalletBalance";
 import sdlStore from "@src/store/sdlStore";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";

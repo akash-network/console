@@ -2,11 +2,11 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
 import { Alert, Popup } from "@akashnetwork/ui/components";
+import { usePopup } from "@akashnetwork/ui/context";
 import { ArrowRight } from "iconoir-react";
 
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
-import { usePopup } from "@akashnetwork/ui/context";
 
 export const useManagedEscrowFaqModal = (): {
   showManagedEscrowFaqModal: () => void;
