@@ -38,5 +38,12 @@ export const serverEnvSchema = browserEnvSchema.extend({
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;
 export type ServerEnvConfig = z.infer<typeof serverEnvSchema>;
 
-export const castToValidatedDuringBuild = (config: Record<string, unknown>) => config as unknown as BrowserEnvConfig;
-export const castToValidatedOnStartup = (config: Record<string, unknown>) => config as unknown as ServerEnvConfig;
+export const validateStaticEnvVars = (config: Record<string, unknown>) => browserEnvSchema.parse(config);
+export const validateRuntimeEnvVars = (config: Record<string, unknown>) => {
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    console.log("Skipping validation of serverEnvConfig during build");
+    return config as ServerEnvConfig;
+  } else {
+    return serverEnvSchema.parse(config);
+  }
+};
