@@ -5,8 +5,10 @@ import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { EnvFormModal } from "./EnvFormModal";
-import { EnvVarList } from "./EnvList";
+import { EnvFormModal } from "../sdl/EnvFormModal";
+import { EnvVarList } from "../sdl/EnvVarList";
+// import { EnvFormModal } from "./EnvFormModal";
+// import { EnvVarList } from "./EnvList";
 
 const Advanced = ({ services, control }: { services: ServiceType[]; control: Control<SdlBuilderFormValuesType> }) => {
   const serviceIndex = 0;
@@ -32,10 +34,10 @@ const Advanced = ({ services, control }: { services: ServiceType[]; control: Con
           <CollapsibleContent>
             <div className="grid items-start gap-6 p-5">
               {isEditingEnv === serviceIndex && (
-                <EnvFormModal control={control} onClose={() => setIsEditingEnv(null)} serviceIndex={serviceIndex} envs={currentService.env || []} />
+                <EnvFormModal hideEnvs control={control} onClose={() => setIsEditingEnv(null)} serviceIndex={serviceIndex} envs={currentService.env || []} />
               )}
               <div>
-                <EnvVarList currentService={currentService} setIsEditingEnv={setIsEditingEnv} serviceIndex={serviceIndex} />
+                <EnvVarList hideEnvs currentService={currentService} setIsEditingEnv={setIsEditingEnv} serviceIndex={serviceIndex} />
               </div>
             </div>
           </CollapsibleContent>

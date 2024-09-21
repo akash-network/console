@@ -12,7 +12,7 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
-import { isRedeployImage } from "../remote-deploy/utils";
+import { ciCdTemplateId, isRedeployImage } from "../remote-deploy/utils";
 import { CreateLease } from "./CreateLease";
 import { ManifestEdit } from "./ManifestEdit";
 import { CustomizedSteppers } from "./Stepper";
@@ -81,7 +81,7 @@ export const NewDeploymentContainer: FC = () => {
     setActiveStep(_activeStep);
 
     if ((redeployTemplate || galleryTemplate) && queryStep !== RouteStep.editDeployment) {
-      if (isRedeployImage(redeployTemplate?.content as string)) {
+      if (isRedeployImage(redeployTemplate?.content as string, getTemplateById(ciCdTemplateId)?.deploy)) {
         router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment, type: "github", redeploy: redeploy ?? "redeploy" }));
       } else {
         router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));

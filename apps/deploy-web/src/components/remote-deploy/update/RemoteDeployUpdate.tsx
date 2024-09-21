@@ -4,18 +4,19 @@ import { Checkbox, Label, Snackbar } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 import { useSnackbar } from "notistack";
 
+import { EnvFormModal } from "@src/components/sdl/EnvFormModal";
+import { EnvVarList } from "@src/components/sdl/EnvVarList";
+import { SdlBuilderProvider } from "@src/context/SdlBuilderProvider";
+import { useTemplates } from "@src/context/TemplatesProvider";
 import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
-import { github } from "@src/utils/templates";
 import BitBranches from "../bitbucket/Branches";
-import { EnvFormModal } from "../EnvFormModal";
-import { EnvVarList } from "../EnvList";
 import Branches from "../github/Branches";
 import GitBranches from "../gitlab/Branches";
-import { appendEnv } from "../utils";
+import { appendEnv, ciCdTemplateId } from "../utils";
 import Rollback from "./Rollback";
 
 const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: string; setEditedManifest: Dispatch<React.SetStateAction<string | null>> }) => {
@@ -26,7 +27,8 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(false);
   const { control, watch, setValue } = useForm<SdlBuilderFormValuesType>({ defaultValues: { services: [defaultService] } });
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
-
+  const { getTemplateById } = useTemplates();
+  const remoteDeployTemplate = getTemplateById(ciCdTemplateId);
   useEffect(() => {
     const { unsubscribe }: any = watch(data => {
       const sdl = generateSdl(data.services as ServiceType[]);
@@ -63,7 +65,7 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
       }
     }
   };
-  return github.content.includes(services?.[0]?.image) && services?.[0]?.env && services?.[0]?.env?.length > 0 ? (
+  return remoteDeployTemplate?.deploy?.includes(services?.[0]?.image) && services?.[0]?.env && services?.[0]?.env?.length > 0 ? (
     <div className="flex flex-col gap-6 rounded border bg-card px-4 py-6 md:px-6">
       <div className="flex flex-col gap-3 rounded border bg-card px-6 py-6 text-card-foreground">
         <div className="flex items-center justify-between gap-5">
@@ -85,11 +87,13 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
         </div>
         <p className="text-sm text-muted-foreground">If checked, Console will automatically re-deploy your app on any code commits</p>
       </div>
-
-      <EnvVarList currentService={services[0]} setIsEditingEnv={setIsEditingEnv} />
+      <SdlBuilderProvider>
+        <EnvVarList currentService={services[0]} setIsEditingEnv={setIsEditingEnv} hideEnvs />
+      </SdlBuilderProvider>
       {isEditingEnv && (
         <EnvFormModal
           update
+          hideEnvs
           control={control}
           serviceIndex={0}
           envs={services[0]?.env ?? []}

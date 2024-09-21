@@ -3,8 +3,7 @@ import { nanoid } from "nanoid";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { Owner } from "@src/types/remotedeploy";
-import { github } from "@src/utils/templates";
-
+export const ciCdTemplateId = "akash-network-awesome-akash-automatic-deployment-CICD-template";
 export type ServiceControl = Control<SdlBuilderFormValuesType>;
 export type ServiceSetValue = UseFormSetValue<SdlBuilderFormValuesType>;
 export type OAuth = "github" | "gitlab" | "bitbucket";
@@ -65,8 +64,8 @@ export interface RepoType {
   owner?: Owner;
 }
 
-export const isRedeployImage = (yml: string) => {
-  return github.content.includes(yml?.split("service-1:")?.[1]?.split("expose:")?.[0]?.split("image: ")?.[1]);
+export const isRedeployImage = (yml: string, ciCdYml?: string) => {
+  return ciCdYml?.includes(yml?.split("service-1:")?.[1]?.split("expose:")?.[0]?.split("image: ")?.[1]);
 };
 
 export const getRepoUrl = (yml?: string | null) => {
