@@ -24,7 +24,7 @@
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
     "stats:dev": "turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
     "stats:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "dependencies": {
     "drizzle-orm": "^0.31.2",
