@@ -31,16 +31,17 @@ export const NewDeploymentContainer: FC = () => {
   const { toggleCmp, hasComponent } = useSdlBuilder();
 
   useEffect(() => {
+    const queryStep = searchParams?.get("step");
+    const _activeStep = getStepIndexByParam(queryStep);
+    setActiveStep(_activeStep);
+  }, [searchParams]);
+
+  useEffect(() => {
     if (!templates || editedManifest) return;
 
     const template = getRedeployTemplate() || getGalleryTemplate();
-    const queryStep = searchParams?.get("step");
-    const _activeStep = getStepIndexByParam(queryStep);
-
-    setActiveStep(_activeStep);
 
     if (template) {
-      // If it's a redeployment, set the template from local storage
       setSelectedTemplate(template as TemplateCreation);
       setEditedManifest(template.content as string);
 
@@ -48,12 +49,12 @@ export const NewDeploymentContainer: FC = () => {
         toggleCmp("ssh");
       }
 
+      const queryStep = searchParams?.get("step");
       if (queryStep !== RouteStep.editDeployment) {
         router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, templates, editedManifest]);
+  }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent]);
 
   const getRedeployTemplate = () => {
     let template: Partial<TemplateCreation> | null = null;
