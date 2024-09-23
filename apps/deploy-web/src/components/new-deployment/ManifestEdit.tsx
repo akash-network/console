@@ -77,12 +77,12 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const { createDeploymentConfirm } = useManagedDeploymentConfirm();
 
   useWhen(
-    wallet.isManaged && sdlDenom === "uakt",
+    wallet.isManaged && sdlDenom === "uakt" && editedManifest,
     () => {
       setEditedManifest(prev => (prev ? prev.replace(/uakt/g, managedDenom) : prev));
       setSdlDenom(managedDenom);
     },
-    [editedManifest]
+    [editedManifest, wallet.isManaged, sdlDenom]
   );
 
   useWhen(hasComponent("ssh"), () => {
