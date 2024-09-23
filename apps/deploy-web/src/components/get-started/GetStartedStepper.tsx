@@ -217,7 +217,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
         <StepContent>
           <p className="text-muted-foreground">
             Deploy your first web app on Akash! This is a simple Next.js app and you can see the{" "}
-            <ExternalLink href="https://github.com/maxmaxlabs/hello-akash-world" text="source code here" />.
+            <ExternalLink href="https://github.com/akash-network/hello-akash-world" text="source code here" />.
           </p>
           <div className="my-4 space-x-2">
             <Link
