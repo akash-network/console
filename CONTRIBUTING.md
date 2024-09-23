@@ -32,9 +32,9 @@ Follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/
 fix: resolved bug in node dockerfile
 
 # Notes:
-If your commit targets a specific application, add it to your commit like so:
+If your commit targets a specific feature/domain, add it to your commit like so:
 
-feat(deploy-web): add a new component
+feat(wallet): add a new function to compute wallet balance
 ```
 ### V. Code Quality and Readability
 
