@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Badge, CustomTooltip } from "@akashnetwork/ui/components";
+import { Badge, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
 import { getSplitText } from "@src/hooks/useShortText";
@@ -34,6 +34,7 @@ export const LeaseChip: React.FunctionComponent<Props> = ({ lease, providers }) 
       }}
     >
       <Badge variant="outline" className="whitespace-nowrap text-xs hover:bg-primary/20">
+        {!providerName && <Spinner size="xSmall" />}
         <span>
           {providerName?.length > 20 ? (
             <CustomTooltip title={providerName}>
