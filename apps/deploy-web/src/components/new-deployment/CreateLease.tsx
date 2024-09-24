@@ -59,7 +59,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
   const [isFilteringAudited, setIsFilteringAudited] = useState(false);
   const [isCreatingLeases, setIsCreatingLeases] = useState(false);
-  const [isLeaseCreated, setIsLeaseCreated] = useState(false);
   const [selectedBids, setSelectedBids] = useState<{ [gseq: string]: BidDto }>({});
   const [filteredBids, setFilteredBids] = useState<Array<string>>([]);
   const [search, setSearch] = useState("");
@@ -203,7 +202,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         category: "deployments",
         label: "Create lease"
       });
-      setIsLeaseCreated(true);
       await sendManifest();
     } finally {
       setIsCreatingLeases(false);

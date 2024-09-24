@@ -213,7 +213,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(({ lease, setActi
             label="Provider:"
             value={
               <>
-                {isLeaseActive && isLoadingProviderStatus && <Spinner size="small" />}
+                {isLeaseActive && isLoadingProviderStatus && <Spinner size="small" className="mr-2" />}
                 {provider && (
                   <div className="flex items-center space-x-2">
                     <Link href={UrlService.providerDetail(lease.provider)}>
