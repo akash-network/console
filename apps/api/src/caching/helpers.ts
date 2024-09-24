@@ -1,7 +1,10 @@
 import * as Sentry from "@sentry/node";
 import { differenceInSeconds } from "date-fns";
 
+import { LoggerService } from "@src/core";
 import MemoryCacheEngine from "./memoryCacheEngine";
+
+const logger = new LoggerService({ context: "Caching" });
 
 export const cacheEngine = new MemoryCacheEngine();
 const pendingRequests: { [key: string]: Promise<unknown> } = {};
@@ -30,20 +33,24 @@ export const Memoize = (options?: MemoizeOptions) => (target: object, propertyNa
 export async function cacheResponse<T>(seconds: number, key: string, refreshRequest: () => Promise<T>, keepData?: boolean): Promise<T> {
   const duration = seconds * 1000;
   const cachedObject = cacheEngine.getFromCache(key) as CachedObject<T> | undefined;
-  // console.log(`Cache key: ${key}`);
+  logger.debug(`Request for key: ${key}`);
 
   // If first time or expired, must refresh data if not already refreshing
   const cacheExpired = Math.abs(differenceInSeconds(cachedObject?.date, new Date())) > seconds;
   if ((!cachedObject || cacheExpired) && !(key in pendingRequests)) {
-    // console.log(`Making request: ${key}`);
+    logger.debug(`Object was not in cache or is expired, making new request for key: ${key}`);
     pendingRequests[key] = refreshRequest()
       .then(data => {
         cacheEngine.storeInCache(key, { date: new Date(), data: data }, keepData ? undefined : duration);
         return data;
       })
       .catch(err => {
-        console.error(`Error making cache request ${err}`);
-        Sentry.captureException(err);
+        if (cachedObject) {
+          logger.error(`Error making cache request ${err}`);
+          Sentry.captureException(err);
+        } else {
+          throw err;
+        }
       })
       .finally(() => {
         delete pendingRequests[key];
@@ -52,10 +59,10 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
 
   // If there is data in cache, return it even if it is expired. Otherwise, wait for the refresh request to finish
   if (cachedObject) {
-    // console.log(`Cache hit: ${key}`);
+    logger.debug(`Returning cached object for key: ${key}`);
     return cachedObject.data;
   } else {
-    // console.log(`Waiting for pending request: ${key}`);
+    logger.debug(`Waiting for pending request for key: ${key}`);
     return (await pendingRequests[key]) as T;
   }
 }
