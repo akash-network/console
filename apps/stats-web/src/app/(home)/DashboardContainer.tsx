@@ -23,7 +23,7 @@ export const DashboardContainer: React.FunctionComponent = () => {
 
           <div className="mb-8">
             <p className="text-italic text-sm italic text-muted-foreground">
-              Last updated: <FormattedDate value={dashboardData.now.date} /> <FormattedTime value={dashboardData.now.date} />
+              Last updated: {!!dashboardData?.now?.date && <FormattedDate value={dashboardData.now.date} />} {!!dashboardData?.now?.date && <FormattedTime value={dashboardData.now.date} />}
             </p>
           </div>
 
