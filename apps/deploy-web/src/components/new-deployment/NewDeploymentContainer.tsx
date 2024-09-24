@@ -51,27 +51,24 @@ export const NewDeploymentContainer: FC = () => {
 
       const queryStep = searchParams?.get("step");
       if (queryStep !== RouteStep.editDeployment) {
-        router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
+        router.replace(UrlService.newDeployment({ ...Object.fromEntries(searchParams.entries()), step: RouteStep.editDeployment }));
       }
     }
-  }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent]);
+  }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent, getDeploymentData, getTemplateById]);
 
-  const getRedeployTemplate = () => {
-    let template: Partial<TemplateCreation> | null = null;
+  const getRedeployTemplate = (): Partial<TemplateCreation> | null => {
     const queryRedeploy = searchParams?.get("redeploy");
     if (queryRedeploy) {
-      const deploymentData = getDeploymentData(queryRedeploy as string);
-
+      const deploymentData = getDeploymentData(queryRedeploy);
       if (deploymentData && deploymentData.manifest) {
-        template = {
+        return {
           name: deploymentData.name,
           code: "empty",
           content: deploymentData.manifest
         };
       }
     }
-
-    return template;
+    return null;
   };
 
   const getGalleryTemplate = (): Partial<{
