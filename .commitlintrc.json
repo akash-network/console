@@ -14,7 +14,8 @@
         "provider",
         "deployment",
         "certificate",
-        "dx"
+        "dx",
+        "stats"
       ]
     ]
   }
