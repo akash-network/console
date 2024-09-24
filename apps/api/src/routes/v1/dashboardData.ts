@@ -1,10 +1,16 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 
+import { LoggerService } from "@src/core/services/logger/logger.service";
 import { getBlocks } from "@src/services/db/blocksService";
 import { getNetworkCapacity } from "@src/services/db/providerStatusService";
 import { getDashboardData, getProviderGraphData } from "@src/services/db/statsService";
 import { getTransactions } from "@src/services/db/transactionsService";
 import { getChainStats } from "@src/services/external/apiNodeService";
+import { createLoggingExecutor } from "@src/utils/logging";
+
+
+const logger = new LoggerService({ context: "Dashboard" });
+const runOrLog = createLoggingExecutor(logger)
 
 const route = createRoute({
   method: "get",
@@ -144,22 +150,30 @@ const route = createRoute({
 });
 
 export default new OpenAPIHono().openapi(route, async c => {
-  const chainStatsQuery = await getChainStats();
-  const dashboardData = await getDashboardData();
-  const networkCapacity = await getNetworkCapacity();
-  const networkCapacityStats = await getProviderGraphData("count");
-  const latestBlocks = await getBlocks(5);
-  const latestTransactions = await getTransactions(5);
-
+  const [{ now, compare }, chainStatsQuery, networkCapacity, networkCapacityStats, latestBlocks, latestTransactions] = await Promise.all([
+    runOrLog(getDashboardData),
+    runOrLog(getChainStats, {
+      bondedTokens: undefined,
+      totalSupply: undefined,
+      communityPool: undefined,
+      inflation: undefined,
+      stakingAPR: undefined
+    }),
+    runOrLog(getNetworkCapacity),
+    runOrLog(() => getProviderGraphData("count")),
+    runOrLog(() => getBlocks(5)),
+    runOrLog(() => getTransactions(5))
+  ]);
   const chainStats = {
-    height: latestBlocks[0].height,
-    transactionCount: latestBlocks[0].totalTransactionCount,
-    ...chainStatsQuery
-  };
+    ...chainStatsQuery,
+    height: latestBlocks && latestBlocks.length > 0 ? latestBlocks[0].height : undefined,
+    transactionCount: latestBlocks && latestBlocks.length > 0 ? latestBlocks[0].totalTransactionCount : undefined,
+  }
 
   return c.json({
     chainStats,
-    ...dashboardData,
+    now,
+    compare,
     networkCapacity,
     networkCapacityStats,
     latestBlocks,
