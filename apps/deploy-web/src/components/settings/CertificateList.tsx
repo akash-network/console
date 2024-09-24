@@ -1,6 +1,7 @@
 "use client";
+import { useState, useEffect } from "react";
 import { FormattedDate } from "react-intl";
-import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, CustomPagination } from "@akashnetwork/ui/components";
 import { Check } from "iconoir-react";
 
 import { ConnectWallet } from "@src/components/shared/ConnectWallet";
@@ -11,6 +12,24 @@ import { CertificateDisplay } from "./CertificateDisplay";
 export const CertificateList: React.FunctionComponent = () => {
   const { validCertificates, localCert, selectedCertificate, revokeCertificate, revokeAllCertificates, isLoadingCertificates } = useCertificate();
   const { address } = useWallet();
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const sortedValidCertificates = [...validCertificates].sort((a, b) => {
+    return new Date(b.pem.issuedOn).getTime() - new Date(a.pem.issuedOn).getTime();
+  });
+  const start = pageIndex * pageSize;
+  const end = start + pageSize;
+  const currentPageCertificates = sortedValidCertificates.slice(start, end);
+  const pageCount = Math.ceil(sortedValidCertificates.length / pageSize);
+
+  const handleChangePage = (newPage: number) => {
+    setPageIndex(newPage);
+  };
+
+  const onPageSizeChange = (value: number) => {
+    setPageSize(value);
+    setPageIndex(0);
+  };
 
   return (
     <div>
@@ -37,7 +56,7 @@ export const CertificateList: React.FunctionComponent = () => {
             </TableHeader>
 
             <TableBody>
-              {validCertificates.map(cert => {
+              {currentPageCertificates.map(cert => {
                 const isCurrentCert = cert.serial === selectedCertificate?.serial;
                 return (
                   <TableRow key={cert.serial}>
@@ -72,6 +91,18 @@ export const CertificateList: React.FunctionComponent = () => {
           {!isLoadingCertificates && validCertificates.length === 0 && (
             <div className="mt-4 w-full text-center">
               <p>No certificates.</p>
+            </div>
+          )}
+
+          {validCertificates.length > 0 && (
+            <div className="flex items-center justify-center py-8">
+              <CustomPagination
+                totalPageCount={pageCount}
+                setPageIndex={handleChangePage}
+                pageIndex={pageIndex}
+                pageSize={pageSize}
+                setPageSize={onPageSizeChange}
+              />
             </div>
           )}
         </div>
