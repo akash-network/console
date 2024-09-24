@@ -8,6 +8,9 @@ export class ApiUrlService {
   static depositParams(apiEndpoint: string) {
     return `${apiEndpoint}/cosmos/params/v1beta1/params?subspace=deployment&key=MinDeposits`;
   }
+  static certificatesList(apiEndpoint: string, address: string) {
+    return `${apiEndpoint}/akash/cert/${networkStore.apiVersion}/certificates/list?filter.state=valid&filter.owner=${address}`;
+  }
   static deploymentList(apiEndpoint: string, address: string, isActive?: boolean) {
     return `${apiEndpoint}/akash/deployment/${networkStore.apiVersion}/deployments/list?filters.owner=${address}${isActive ? "&filters.state=active" : ""}`;
   }
