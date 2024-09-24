@@ -47,13 +47,17 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
     const init = async () => {
       const localDeploymentData = getDeploymentLocalData(deployment.dseq);
 
-      if (localDeploymentData && localDeploymentData.manifest) {
-        setEditedManifest(localDeploymentData?.manifest);
+      if (localDeploymentData?.manifest) {
+        setEditedManifest(localDeploymentData.manifest);
 
-        const yamlVersion = yaml.load(localDeploymentData?.manifest);
-        const version = await deploymentData.getManifestVersion(yamlVersion);
-
-        setDeploymentVersion(version);
+        try {
+          const yamlVersion = yaml.load(localDeploymentData.manifest);
+          const version = await deploymentData.getManifestVersion(yamlVersion);
+          setDeploymentVersion(version);
+        } catch (error) {
+          console.error(error);
+          setParsingError("Error getting manifest version.");
+        }
       } else {
         setShowOutsideDeploymentMessage(true);
       }

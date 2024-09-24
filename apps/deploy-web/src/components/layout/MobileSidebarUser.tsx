@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Avatar, buttonVariants, Separator, Spinner } from "@akashnetwork/ui/components";
-import { BookStack, LogOut, MediaImageList, Settings } from "iconoir-react";
+import { LogOut, MediaImageList, Settings } from "iconoir-react";
 import Link from "next/link";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";

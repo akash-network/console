@@ -31,34 +31,30 @@ export const NewDeploymentContainer: FC = () => {
   const { toggleCmp, hasComponent } = useSdlBuilder();
 
   useEffect(() => {
-    if (!templates) return;
-
-    const redeployTemplate = getRedeployTemplate();
-    const galleryTemplate = getGalleryTemplate();
-
-    if (redeployTemplate) {
-      // If it's a redeployment, set the template from local storage
-      setSelectedTemplate(redeployTemplate as TemplateCreation);
-      setEditedManifest(redeployTemplate.content as string);
-    } else if (galleryTemplate) {
-      // If it's a deployment from the template gallery, load from template data
-      setSelectedTemplate(galleryTemplate as TemplateCreation);
-      setEditedManifest(galleryTemplate.content as string);
-
-      if (galleryTemplate.config?.ssh || (!galleryTemplate.config?.ssh && hasComponent("ssh"))) {
-        toggleCmp("ssh");
-      }
-    }
-
     const queryStep = searchParams?.get("step");
     const _activeStep = getStepIndexByParam(queryStep);
     setActiveStep(_activeStep);
+  }, [searchParams]);
 
-    if ((redeployTemplate || galleryTemplate) && queryStep !== RouteStep.editDeployment) {
-      router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
+  useEffect(() => {
+    if (!templates || editedManifest) return;
+
+    const template = getRedeployTemplate() || getGalleryTemplate();
+
+    if (template) {
+      setSelectedTemplate(template as TemplateCreation);
+      setEditedManifest(template.content as string);
+
+      if ("config" in template && (template.config?.ssh || (!template.config?.ssh && hasComponent("ssh")))) {
+        toggleCmp("ssh");
+      }
+
+      const queryStep = searchParams?.get("step");
+      if (queryStep !== RouteStep.editDeployment) {
+        router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, templates]);
+  }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent]);
 
   const getRedeployTemplate = () => {
     let template: Partial<TemplateCreation> | null = null;
