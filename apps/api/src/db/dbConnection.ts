@@ -5,6 +5,7 @@ import pg from "pg";
 import { Transaction as DbTransaction } from "sequelize";
 import { Sequelize } from "sequelize-typescript";
 
+import { config } from "@src/core/config";
 import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
 import { env } from "@src/utils/env";
 
@@ -26,7 +27,7 @@ if (!csMap[env.NETWORK]) {
   throw new Error(`Missing connection string for network: ${env.NETWORK}`);
 }
 
-const logger = new PostgresLoggerService({ orm: "sequelize" });
+const logger = new PostgresLoggerService({ orm: "sequelize", useFormat: config.SQL_LOG_FORMAT === "pretty" });
 const logging = (msg: string) => logger.write(msg);
 
 pg.defaults.parseInt8 = true;

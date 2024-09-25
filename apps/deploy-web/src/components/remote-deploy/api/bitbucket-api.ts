@@ -1,13 +1,16 @@
 import { useMutation, useQuery } from "react-query";
 import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import { tokens } from "@src/store/remoteDeployStore";
 import { BitBucketCommit } from "@src/types/remoteCommits";
 import { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { BitProfile } from "@src/types/remoteProfile";
 import { BitRepository, BitWorkspace } from "@src/types/remoteRepos";
+import { RouteStep } from "@src/types/route-steps.type";
+import { UrlService } from "@src/utils/urlUtils";
+import { ciCdTemplateId } from "../utils";
 
 const Bitbucket_API_URL = "https://api.bitbucket.org/2.0";
 
@@ -45,7 +48,7 @@ export const useFetchRefreshBitToken = () => {
 
 export const useBitFetchAccessToken = () => {
   const [, setToken] = useAtom(tokens);
-  const pathname = usePathname();
+
   const router = useRouter();
   return useMutation({
     mutationFn: async (code: string) => {
@@ -62,7 +65,13 @@ export const useBitFetchAccessToken = () => {
         type: "bitbucket"
       });
 
-      router.replace(pathname.split("?")[0] + "?step=edit-deployment&type=github");
+      router.replace(
+        UrlService.newDeployment({
+          step: RouteStep.editDeployment,
+          type: "githab",
+          templateId: ciCdTemplateId
+        })
+      );
     }
   });
 };

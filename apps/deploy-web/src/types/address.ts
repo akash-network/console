@@ -1,5 +1,5 @@
 import { RestApiAuthzGrantsResponseType } from "./balances";
-import { DeploymentDto, RpcDeployment } from "./deployment";
+import { DeploymentDto } from "./deployment";
 import { TransactionDetail } from "./transaction";
 import { IValidatorAddess } from "./validator";
 

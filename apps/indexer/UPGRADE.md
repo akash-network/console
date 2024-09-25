@@ -295,7 +295,7 @@ CREATE INDEX IF NOT EXISTS block_totaluusdspent_is_null
 
 ## v1.3.0
 
-Add columns to support multi-denom deployments ([PR #5](https://github.com/akash-network/console/pull/5)) and change fee type to numeric ([PR #40 in old repo](https://github.com/maxmaxlabs/cloudmos-mono/pull/40))
+Add columns to support multi-denom deployments ([PR #5](https://github.com/akash-network/console/pull/5)) and change fee type to numeric
 
 ```
 ALTER TABLE public.block ADD COLUMN "totalUUsdcSpent" double precision DEFAULT 0;

@@ -2,7 +2,7 @@ export const mainnetId = "mainnet";
 export const testnetId = "testnet";
 export const sandboxId = "sandbox";
 
-const productionHostnames = ["deploy.cloudmos.io", "console.akash.network", "staging-console.akash.network", "beta.cloudmos.io"];
+const productionHostnames = ["console.akash.network", "staging-console.akash.network"];
 
 export const selectedRangeValues: { [key: string]: number } = {
   "7D": 7,
@@ -11,9 +11,9 @@ export const selectedRangeValues: { [key: string]: number } = {
 };
 
 
-const productionMainnetApiUrl = "https://api.cloudmos.io";
-const productionTestnetApiUrl = "https://api-testnet.cloudmos.io";
-const productionSandboxApiUrl = "https://api-sandbox.cloudmos.io";
+const productionMainnetApiUrl = "https://console-api.akash.network";
+const productionTestnetApiUrl = "https://console-api-testnet.akash.network";
+const productionSandboxApiUrl = "https://console-api-sandbox.akash.network";
 export const BASE_API_MAINNET_URL = getApiMainnetUrl();
 export const BASE_API_TESTNET_URL = getApiTestnetUrl();
 export const BASE_API_SANDBOX_URL = getApiSandboxUrl();

@@ -2,7 +2,7 @@
 
 echo "DB_SEEDER: Importing databases from cloud storage..."
 
-BASE_URL="https://storage.googleapis.com/cloudmos-postgresql-backups"
+BASE_URL="https://storage.googleapis.com/console-postgresql-backups"
 
 if [ -z "${POSTGRES_USER:-}" ]; then
     echo "DB_SEEDER: POSTGRES_USER is not set. Skipping seeding."

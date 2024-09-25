@@ -1,13 +1,15 @@
 import { useMutation, useQuery } from "react-query";
 import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import { tokens } from "@src/store/remoteDeployStore";
 import { GitCommit } from "@src/types/remoteCommits";
 import { GithubRepository, IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { GitHubProfile } from "@src/types/remoteProfile";
-import { REDIRECT_URL } from "../utils";
+import { RouteStep } from "@src/types/route-steps.type";
+import { UrlService } from "@src/utils/urlUtils";
+import { ciCdTemplateId, REDIRECT_URL } from "../utils";
 
 const GITHUB_API_URL = "https://api.github.com";
 
@@ -71,7 +73,7 @@ export const useRepos = () => {
 
 export const useFetchAccessToken = () => {
   const [, setToken] = useAtom(tokens);
-  const pathname = usePathname();
+
   const router = useRouter();
   return useMutation({
     mutationFn: async (code: string) => {
@@ -87,7 +89,14 @@ export const useFetchAccessToken = () => {
         refresh_token: data.refresh_token,
         type: "github"
       });
-      router.replace(pathname.split("?")[0] + "?step=edit-deployment&type=github");
+
+      router.replace(
+        UrlService.newDeployment({
+          step: RouteStep.editDeployment,
+          type: "githab",
+          templateId: ciCdTemplateId
+        })
+      );
     }
   });
 };

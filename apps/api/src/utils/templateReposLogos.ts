@@ -2,7 +2,7 @@ export function getLogoFromPath(path: string) {
   return path in logos ? logoBaseUrl + logos[path] : null;
 }
 
-const logoBaseUrl = "https://storage.googleapis.com/akashlytics-deploy-public/template_logos/";
+const logoBaseUrl = "https://storage.googleapis.com/console-deploy-public/template_logos/";
 const logos: { [key: string]: string } = {
   "speedtest-cli": "speedtest-by-ookla.jpg",
   fast: "fast.svg",

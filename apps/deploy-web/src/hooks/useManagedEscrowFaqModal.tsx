@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { Alert, Popup } from "@akashnetwork/ui/components";
+import { Alert } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { ArrowRight } from "iconoir-react";
 

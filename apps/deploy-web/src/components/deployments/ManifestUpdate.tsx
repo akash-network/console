@@ -19,7 +19,7 @@ import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { deploymentData } from "@src/utils/deploymentData";
-import { saveDeploymentManifest } from "@src/utils/deploymentLocalDataUtils";
+import { getDeploymentLocalData, saveDeploymentManifest } from "@src/utils/deploymentLocalDataUtils";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import RemoteDeployUpdate from "../remote-deploy/update/RemoteDeployUpdate";
@@ -60,6 +60,29 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const { data: providers } = useProviderList();
   const { localCert, isLocalCertMatching, createCertificate, isCreatingCert } = useCertificate();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+
+  useEffect(() => {
+    const init = async () => {
+      const localDeploymentData = getDeploymentLocalData(deployment.dseq);
+
+      if (localDeploymentData?.manifest) {
+        setEditedManifest(localDeploymentData.manifest);
+
+        try {
+          const yamlVersion = yaml.load(localDeploymentData.manifest);
+          const version = await deploymentData.getManifestVersion(yamlVersion);
+          setDeploymentVersion(version);
+        } catch (error) {
+          console.error(error);
+          setParsingError("Error getting manifest version.");
+        }
+      } else {
+        setShowOutsideDeploymentMessage(true);
+      }
+    };
+
+    init();
+  }, [deployment]);
 
   /**
    * Validate the manifest periodically
