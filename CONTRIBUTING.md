@@ -14,8 +14,6 @@ Thank you for considering contributing to the Akash Network Console repository. 
 2. **Keep it Small**: Limit changes per PR. Multiple small PRs are preferred over large ones.
 3. **Link to Issue**: Reference the related issue in your PR description.
 
-
-
 ### III. Monorepo
 
 Akash Console repo is a monorepo which contains multiple applications under the `/apps` folder. There's also a `/packages` folder that contains re-used projects between applications. Please take the time to review all the available packages to make sure you don't duplicate code that is already available.
