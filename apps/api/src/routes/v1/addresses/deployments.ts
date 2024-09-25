@@ -1,6 +1,7 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 
 import { getAddressDeployments } from "@src/services/external/apiNodeService";
+import { isValidBech32Address } from "@src/utils/addresses";
 import { openApiExampleAddress } from "@src/utils/constants";
 
 const maxLimit = 100;
@@ -59,15 +60,28 @@ const route = createRoute({
           })
         }
       }
+    },
+    400: {
+      description: "Invalid address"
     }
   }
 });
 
 export default new OpenAPIHono().openapi(route, async c => {
+  if (!isValidBech32Address(c.req.valid("param").address, "akash")) {
+    return c.text("Invalid address", 400);
+  }
+
   const skip = parseInt(c.req.valid("param").skip);
   const limit = Math.min(maxLimit, parseInt(c.req.valid("param").limit));
 
-  // TODO Add param validation
+  if (isNaN(skip)) {
+    return c.text("Invalid skip.", 400);
+  }
+
+  if (isNaN(limit)) {
+    return c.text("Invalid limit.", 400);
+  }
 
   const deployments = await getAddressDeployments(c.req.valid("param").address, skip, limit, c.req.valid("query").reverseSorting === "true", {
     status: c.req.valid("query").status

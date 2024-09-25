@@ -86,10 +86,11 @@ export const WalletProvider = ({ children }) => {
   const { refetch: refetchBalances } = useBalances(walletAddress);
   const { addEndpoints } = useManager();
   const isManaged = useMemo(() => !!managedWallet && managedWallet?.address === walletAddress, [walletAddress, managedWallet]);
-
   const {
     fee: { default: feeGranter }
   } = useAllowance(walletAddress as string, isManaged);
+
+  useWhen(walletAddress, loadWallet);
 
   useEffect(() => {
     if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
@@ -100,6 +101,12 @@ export const WalletProvider = ({ children }) => {
       "akash-testnet": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] }
     });
   }, [addEndpoints, settings.apiEndpoint, settings.rpcEndpoint]);
+
+  useEffect(() => {
+    if (isWalletLoaded && !isLoading && !isWalletConnected && !!managedWallet && !isManaged) {
+      connectManagedWallet();
+    }
+  }, [isWalletLoaded, isLoading, isWalletConnected, managedWallet, connectManagedWallet, isManaged]);
 
   function switchWalletType() {
     if (selectedWalletType === "custodial" && !managedWallet) {
@@ -149,8 +156,6 @@ export const WalletProvider = ({ children }) => {
       label: "Connect wallet"
     });
   }
-
-  useWhen(walletAddress, loadWallet);
 
   async function loadWallet(): Promise<void> {
     let currentWallets = getStorageWallets();

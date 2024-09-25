@@ -33,62 +33,59 @@ export const NewDeploymentContainer: FC = () => {
   const { toggleCmp, hasComponent } = useSdlBuilder();
 
   useEffect(() => {
-    if (!templates) return;
-
-    const redeployTemplate = getRedeployTemplate();
-    const galleryTemplate = getGalleryTemplate();
-
-    if (redeployTemplate) {
-      // If it's a redeployment, set the template from local storage
-      setSelectedTemplate(redeployTemplate as TemplateCreation);
-
-      setEditedManifest(redeployTemplate.content as string);
-    } else if (galleryTemplate) {
-      // If it's a deployment from the template gallery, load from template data
-      setSelectedTemplate(galleryTemplate as TemplateCreation);
-      setEditedManifest(galleryTemplate.content as string);
-
-      if (galleryTemplate.config?.ssh || (!galleryTemplate.config?.ssh && hasComponent("ssh"))) {
-        toggleCmp("ssh");
-      }
-    }
-
-    const code = searchParams?.get("code");
-    const type = searchParams?.get("type");
-    const state = searchParams?.get("state");
-    const redeploy = searchParams?.get("redeploy");
-
-    if (type === "github" || code || state === "gitlab") {
-      if (!redeploy) {
-        if (state === "gitlab") {
-          router.replace(
-            UrlService.newDeployment({
-              step: RouteStep.editDeployment,
-              type: "gitlab",
-              code
-            })
-          );
-        }
-      }
-
-      setGithub(true);
-    } else {
-      setGithub(false);
-    }
-
     const queryStep = searchParams?.get("step");
     const _activeStep = getStepIndexByParam(queryStep);
     setActiveStep(_activeStep);
+    const state = searchParams?.get("state");
+    const redeploy = searchParams?.get("redeploy");
+    const code = searchParams?.get("code");
 
-    if ((redeployTemplate || galleryTemplate) && queryStep !== RouteStep.editDeployment) {
-      if (isRedeployImage(redeployTemplate?.content as string, getTemplateById(ciCdTemplateId)?.deploy)) {
-        router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment, type: "github", redeploy: redeploy ?? "redeploy" }));
+    if (!redeploy && state === "gitlab" && code) {
+      router.replace(
+        UrlService.newDeployment({
+          step: RouteStep.editDeployment,
+          type: "gitlab",
+          code,
+          templateId: ciCdTemplateId
+        })
+      );
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!templates || editedManifest) return;
+
+    const template = getRedeployTemplate() || getGalleryTemplate();
+
+    if (template) {
+      setSelectedTemplate(template as TemplateCreation);
+      setEditedManifest(template.content as string);
+
+      if ("config" in template && (template.config?.ssh || (!template.config?.ssh && hasComponent("ssh")))) {
+        toggleCmp("ssh");
+      }
+
+      const code = searchParams?.get("code");
+      const type = searchParams?.get("type");
+      const state = searchParams?.get("state");
+      const redeploy = searchParams?.get("redeploy");
+
+      if (type === "github" || code || state === "gitlab") {
+        setGithub(true);
       } else {
-        router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
+        setGithub(false);
+      }
+
+      const queryStep = searchParams?.get("step");
+      if (queryStep !== RouteStep.editDeployment) {
+        if (isRedeployImage(template?.content as string, getTemplateById(ciCdTemplateId)?.deploy)) {
+          router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment, type: "github", redeploy: redeploy ?? "redeploy" }));
+        } else {
+          router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
+        }
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, templates]);
+  }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent]);
 
   const getRedeployTemplate = () => {
     let template: Partial<TemplateCreation> | null = null;

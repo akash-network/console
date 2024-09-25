@@ -15,7 +15,7 @@ const migrationClient = postgres(config.POSTGRES_DB_URI, { max: 1, onnotice: log
 const appClient = postgres(config.POSTGRES_DB_URI, { max: config.POSTGRES_MAX_CONNECTIONS, onnotice: logger.info.bind(logger) });
 
 const schema = { ...userSchemas, ...billingSchemas };
-const drizzleOptions = { logger: new DefaultLogger({ writer: new PostgresLoggerService() }), schema };
+const drizzleOptions = { logger: new DefaultLogger({ writer: new PostgresLoggerService({ useFormat: config.SQL_LOG_FORMAT === "pretty" }) }), schema };
 
 const pgMigrationDatabase = drizzle(migrationClient, drizzleOptions);
 export const migratePG = () => migrate(pgMigrationDatabase, { migrationsFolder: config.DRIZZLE_MIGRATIONS_FOLDER });

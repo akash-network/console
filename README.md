@@ -64,7 +64,7 @@ Directory: [provider-proxy](/provider-proxy/)
 
 Provides data to the deploy website. The data is fetched from our Indexer database + coingecko for market data. This api also provides the endpoint for the [Web3 Index](https://web3index.org/) integration.  
 
-Url: [api.cloudmos.io](https://api.cloudmos.io)  
+Url: [console-api.akash.network](https://console-api.akash.network)  
 Directory: [api](/api/)
 
 ## Indexer
@@ -138,9 +138,9 @@ Due to the extensive time required to index Akash from block #1, it's recommende
 
 ### Available Backups
 
-- **Mainnet Database (~30 GB):** [cloudmos-akash-mainnet.sql.gz](https://storage.googleapis.com/cloudmos-postgresql-backups/console-akash-mainnet.sql.gz)
+- **Mainnet Database (~30 GB):** [console-akash-mainnet.sql.gz](https://storage.googleapis.com/console-postgresql-backups/console-akash-mainnet.sql.gz)
   - Suitable for scenarios requiring complete data.
-- **Sandbox Database (< 300 MB):** [cloudmos-akash-sandbox.sql.gz](https://storage.googleapis.com/cloudmos-postgresql-backups/console-akash-sandbox.sql.gz)
+- **Sandbox Database (< 300 MB):** [console-akash-sandbox.sql.gz](https://storage.googleapis.com/console-postgresql-backups/console-akash-sandbox.sql.gz)
   - Ideal for most development needs, although it may lack recent chain updates.
 
 ### Restoration Steps
@@ -150,7 +150,7 @@ Due to the extensive time required to index Akash from block #1, it's recommende
 
 For a .sql.gz file:
 ```sh
-gunzip -c /path/to/cloudmos-akash-sandbox.sql.gz | psql --host "localhost" --port "5432" --username "postgres" --dbname "cloudmos-akash"
+gunzip -c /path/to/console-akash-sandbox.sql.gz | psql --host "localhost" --port "5432" --username "postgres" --dbname "console-akash"
 ```
 After restoring the database, you can proceed with the specific project's README instructions for further setup and running the application.
 

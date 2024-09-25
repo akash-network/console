@@ -3,6 +3,8 @@ FROM node:20-alpine AS base
 ARG WORKSPACE
 ENV WORKSPACE $WORKSPACE
 
+ENV HUSKY 0
+
 WORKDIR /app
 
 FROM base AS development
