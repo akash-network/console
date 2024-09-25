@@ -14,6 +14,8 @@ Thank you for considering contributing to the Akash Network Console repository. 
 2. **Keep it Small**: Limit changes per PR. Multiple small PRs are preferred over large ones.
 3. **Link to Issue**: Reference the related issue in your PR description.
 
+
+
 ### III. Monorepo
 
 Akash Console repo is a monorepo which contains multiple applications under the `/apps` folder. There's also a `/packages` folder that contains re-used projects between applications. Please take the time to review all the available packages to make sure you don't duplicate code that is already available.
@@ -41,6 +43,17 @@ feat(wallet): add a new function to compute wallet balance
 - **Apply Best Practices for Code Readability**: Ensure your code follows established best practices for coding standards, documentation, and formatting.
 - **Include Unit Tests (When Applicable)**: Verifiable unit tests aid in maintaining code quality and prevent additional bugs from being introduced.
 - **Linting**: Run `npm run lint:fix` to make sure your code is properly formatted.
+
+### Big Features
+
+For large features or significant changes:
+
+1. Create a fork of the main repository.
+2. Implement your feature in small, incremental pull requests to your fork.
+3. This allows us to gradually review the changes and provide guidance throughout the development process.
+4. Once the feature is complete and has gone through the review process on the fork, we can then merge it into the main repository.
+
+This approach helps manage complex features more effectively and ensures that large changes are thoroughly reviewed before being integrated into the main codebase.
 
 ### Contribution Process Overview
 
