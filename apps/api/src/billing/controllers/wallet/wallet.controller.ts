@@ -3,7 +3,7 @@ import { Lifecycle, scoped } from "tsyringe";
 
 import { Protected } from "@src/auth/services/auth.service";
 import type { WalletListOutputResponse, WalletOutputResponse } from "@src/billing/http-schemas/wallet.schema";
-import type { CreateWalletRequestInput, SignTxRequestInput, SignTxResponseOutput } from "@src/billing/routes";
+import type { SignTxRequestInput, SignTxResponseOutput, StartTrialRequestInput } from "@src/billing/routes";
 import { GetWalletQuery } from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
 import { WalletInitializerService } from "@src/billing/services";
 import { RefillService } from "@src/billing/services/refill/refill.service";
@@ -22,7 +22,7 @@ export class WalletController {
 
   @WithTransaction()
   @Protected([{ action: "create", subject: "UserWallet" }])
-  async create({ data: { userId } }: CreateWalletRequestInput): Promise<WalletOutputResponse> {
+  async create({ data: { userId } }: StartTrialRequestInput): Promise<WalletOutputResponse> {
     return {
       data: await this.walletInitializer.initializeAndGrantTrialLimits(userId)
     };

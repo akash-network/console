@@ -73,8 +73,8 @@ if (BILLING_ENABLED === "true") {
   const { AuthInterceptor } = require("./auth/services/auth.interceptor");
   appHono.use(container.resolve<HonoInterceptor>(AuthInterceptor).intercept());
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createWalletRouter, getWalletListRouter, signAndBroadcastTxRouter, checkoutRouter, stripeWebhook } = require("./billing");
-  appHono.route("/", createWalletRouter);
+  const { startTrialRouter, getWalletListRouter, signAndBroadcastTxRouter, checkoutRouter, stripeWebhook } = require("./billing");
+  appHono.route("/", startTrialRouter);
   appHono.route("/", getWalletListRouter);
   appHono.route("/", signAndBroadcastTxRouter);
   appHono.route("/", checkoutRouter);
