@@ -16,7 +16,7 @@ const route = createRoute({
   method: "get",
   path: "/v1/wallets",
   summary: "Get a list of wallets",
-  tags: ["Wallets"],
+  tags: ["Wallet"],
   request: {
     query: GetWalletRequestQuerySchema
   },

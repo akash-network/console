@@ -41,7 +41,7 @@ const route = createRoute({
   method: "post",
   path: "/v1/tx",
   summary: "Signs a transaction via a user managed wallet",
-  tags: ["Wallets"],
+  tags: ["Wallet"],
   request: {
     body: {
       content: {

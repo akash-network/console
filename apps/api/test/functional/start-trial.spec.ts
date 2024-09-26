@@ -10,7 +10,7 @@ import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 
 jest.setTimeout(20000);
 
-describe("wallets", () => {
+describe("start trial", () => {
   const userWalletsTable = resolveTable("UserWallets");
   const config = container.resolve<BillingConfig>(BILLING_CONFIG);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
@@ -22,7 +22,7 @@ describe("wallets", () => {
     await dbService.cleanAll();
   });
 
-  describe("POST /v1/wallets", () => {
+  describe("POST /v1/start-trial", () => {
     it("should create a wallet for a user", async () => {
       const userResponse = await app.request("/v1/anonymous-users", {
         method: "POST",
@@ -33,7 +33,7 @@ describe("wallets", () => {
         token
       } = await userResponse.json();
       const headers = new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` });
-      const createWalletResponse = await app.request("/v1/wallets", {
+      const createWalletResponse = await app.request("/v1/start-trial", {
         method: "POST",
         body: JSON.stringify({ data: { userId } }),
         headers
@@ -102,7 +102,7 @@ describe("wallets", () => {
     });
 
     it("should throw 401 provided no auth header ", async () => {
-      const createWalletResponse = await app.request("/v1/wallets", {
+      const createWalletResponse = await app.request("/v1/start-trial", {
         method: "POST",
         body: JSON.stringify({ data: { userId: faker.string.uuid() } }),
         headers: new Headers({ "Content-Type": "application/json" })
