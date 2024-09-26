@@ -13,8 +13,9 @@
         "billing",
         "provider",
         "deployment",
-        "certificate",
-        "dx"
+        "dx",
+        "release",
+        "certificate"
       ]
     ]
   }

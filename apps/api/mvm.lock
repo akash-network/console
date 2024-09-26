@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@akashnetwork/database": "1.0.0",
+    "@akashnetwork/http-sdk": "1.0.7"
+  },
+  "devDependencies": {
+    "@akashnetwork/dev-config": "1.0.0"
+  }
+}

@@ -9,13 +9,11 @@
     "console:dev": "turbo dev --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/provider-proxy/\"",
     "console:dev:full-no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/indexer\" --filter=\"./apps/provider-proxy/\"",
     "console:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/provider-proxy/\"",
-    "dc:build": "docker compose -f docker-compose.build.yml build",
-    "dc:down": "docker compose -p console down",
-    "dc:up:db": "cross-env-shell '[ \\\"$SKIP_DC_DB\\\" != \\\"true\\\" ] && npm run dc:up:prod -- -d db || echo \\\"Skipping DB setup\\\"'",
-    "dc:up:dev": "docker compose -p console -f docker-compose.build.yml -f docker-compose.prod.yml -f docker-compose.prod-with-db.yml -f docker-compose.yml up",
-    "dc:up:dev:no-db": "docker compose -p console -f docker-compose.build.yml -f docker-compose.prod.yml -f docker-compose.yml up",
-    "dc:up:prod": "docker compose -p console -f docker-compose.build.yml -f docker-compose.prod.yml -f docker-compose.prod-with-db.yml up",
-    "dc:up:prod:no-db": "docker compose -p console -f docker-compose.build.yml -f docker-compose.prod.yml up",
+    "dc:build": "dc build",
+    "dc:down": "dc down",
+    "dc:up:db": "dc up:db",
+    "dc:up:dev": "dc up:dev",
+    "dc:up:prod": "dc up:prod",
     "format": "prettier --write ./*.{js,json} **/*.{ts,tsx,js,json}",
     "indexer:dev": "turbo dev --filter=\"./apps/indexer\"",
     "lint": "eslint .",
@@ -24,7 +22,9 @@
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
     "stats:dev": "turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
     "stats:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
-    "prepare": "husky || true"
+    "update-apps-local-deps": "turbo update-apps-local-deps --filter=\"./packages/*\"",
+    "prepare": "husky || true",
+    "dc": "dc"
   },
   "dependencies": {
     "drizzle-orm": "^0.31.2",
@@ -34,8 +34,11 @@
     "@akashnetwork/dev-config": "*",
     "@commitlint/cli": "^19.5.0",
     "@commitlint/config-conventional": "^19.5.0",
+    "@release-it/conventional-changelog": "github:ygrishajev/conventional-changelog#feature/tag-prefix",
     "cross-env": "^7.0.3",
     "husky": "^9.1.6",
+    "mvm": "^0.2.0",
+    "release-it": "^17.6.0",
     "turbo": "^2.0.3"
   },
   "engines": {

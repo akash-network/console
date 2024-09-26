@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@akashnetwork/database": "1.0.0"
+  },
+  "devDependencies": {
+    "@akashnetwork/dev-config": "1.0.0"
+  }
+}

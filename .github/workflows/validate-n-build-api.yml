@@ -1,8 +1,6 @@
 name: Validate and Build API
 
 on:
-  push:
-    branches: ["main"]
   pull_request:
     branches: ["main"]
 

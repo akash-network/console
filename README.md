@@ -22,6 +22,7 @@
 - [Running the Application](#running-the-application)
 - [How to run](#how-to-run)
 - [Database Structure](#database-structure)
+- [Release Workflow](./doc/release-workflow.md)
 
 # Quick start
 

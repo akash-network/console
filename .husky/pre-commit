@@ -1,0 +1,4 @@
+if [[ "$CI" != "true" ]]; then
+    npm run update-apps-local-deps
+    git add --all
+fi

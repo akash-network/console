@@ -6,7 +6,8 @@
   "author": "Akash Network",
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "update-apps-local-deps": "mvm-update"
   },
   "dependencies": {
     "dotenv": "^12.0.4",
