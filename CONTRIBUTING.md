@@ -42,6 +42,17 @@ feat(wallet): add a new function to compute wallet balance
 - **Include Unit Tests (When Applicable)**: Verifiable unit tests aid in maintaining code quality and prevent additional bugs from being introduced.
 - **Linting**: Run `npm run lint:fix` to make sure your code is properly formatted.
 
+### Big Features
+
+For large features or significant changes:
+
+1. Create a fork of the main repository.
+2. Implement your feature in small, incremental pull requests to your fork.
+3. This allows us to gradually review the changes and provide guidance throughout the development process.
+4. Once the feature is complete and has gone through the review process on the fork, we can then merge it into the main repository.
+
+This approach helps manage complex features more effectively and ensures that large changes are thoroughly reviewed before being integrated into the main codebase.
+
 ### Contribution Process Overview
 
 If you're ready to contribute, follow our guidelines:
