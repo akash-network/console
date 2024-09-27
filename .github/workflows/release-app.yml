@@ -17,7 +17,10 @@ on:
           - stable
           - beta
         default: stable
-        required: true
+      force-build:
+        type: boolean
+        description: Rebuild the Docker image
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -71,4 +74,9 @@ jobs:
             prerelease="--preRelease=beta"
           fi
           
-          npm run release -w apps/${{ github.event.inputs.app }} -- $pre_release --verbose --ci -r ${{ secrets.API_REGISTRY }}
+          force_build=""
+          if [[ "${{ github.event.inputs.force-build }}" == 'true' ]]; then
+              force_build="--forceBuild"
+          fi
+          
+          npm run release -w apps/${{ github.event.inputs.app }} -- $pre_release $force_build --verbose --ci -r ${{ secrets.API_REGISTRY }}
