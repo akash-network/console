@@ -76,7 +76,7 @@ jobs:
           
           force_build=""
           if [[ "${{ github.event.inputs.force-build }}" == 'true' ]]; then
-              force_build="--forceBuild"
+              force_build="-f"
           fi
           
           npm run release -w apps/${{ github.event.inputs.app }} -- $pre_release $force_build --verbose --ci -r ${{ secrets.API_REGISTRY }}

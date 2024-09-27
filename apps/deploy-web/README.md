@@ -44,3 +44,5 @@ App configurations, including environment variables, are located in the `src/con
 All environment variables required for the app, along with their expected structure and types, can be found in the `env/.env.sample` file. This sample file serves as a template for setting up your environment variables and ensures that all necessary variables are accounted for in each environment.
 
 By organizing environment variables and configuration this way, we ensure a consistent, safe, and scalable approach to managing different deployment environments.
+
+FOO
