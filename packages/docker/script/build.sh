@@ -59,7 +59,7 @@ if [[ -z "$REPO" || -z "$TAG" || -z "$APP" ]]; then
   exit 1
 fi
 
-commits=$(git log -n 10 --pretty=format:"%H %s")
+commits=$(git log -n 10 --pretty=format:"%H %s" -- "$(git rev-parse --show-toplevel)"/apps/${APP})
 
 while IFS= read -r commit; do
   MESSAGE=$(echo $commit | cut -d' ' -f2-)
