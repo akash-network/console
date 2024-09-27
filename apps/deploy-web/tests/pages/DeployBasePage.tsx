@@ -13,8 +13,8 @@ export class DeployBasePage {
 
   async gotoInteractive() {
     if (this.cardTestId) {
-      await this.page.goto("http://localhost:3000");
-      await this.page.getByTestId("welcome-modal-accept-button").click();
+      // await this.page.goto("http://localhost:3000");
+      // await this.page.getByTestId("welcome-modal-accept-button").click();
       await this.page.getByTestId("sidebar-deploy-button").first().click();
       await this.page.getByTestId(this.cardTestId).click();
     }

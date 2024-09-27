@@ -1,21 +1,25 @@
-import { test as base, BrowserContext, chromium, selectors } from "@playwright/test";
+import { test as base, BrowserContext, chromium, selectors, Page } from "@playwright/test";
 import path from "path";
+import { nanoid } from "nanoid";
 
 export const test = base.extend<{
   context: BrowserContext;
   extensionId: string;
+  extPage: Page;
 }>({
   context: async ({}, use) => {
     console.log("context");
     const pathToExtension = path.join(__dirname, "Leap");
-    const context = await chromium.launchPersistentContext("", {
+    const contextName = nanoid();
+    const userDataDir = path.join(__dirname, "./testdata/tmp/" + contextName);
+    const context = await chromium.launchPersistentContext(userDataDir, {
       headless: false,
       args: [`--disable-extensions-except=${pathToExtension}`, `--load-extension=${pathToExtension}`]
     });
     console.log("using context");
     await use(context);
 
-    await context.close();
+    // await context.close();
   },
   extensionId: async ({ context }, use) => {
     console.log("extensionId");
@@ -34,6 +38,25 @@ export const test = base.extend<{
     await use(extensionId);
 
     context.route;
-  }
+  },
+  extPage: [
+    async ({ context }, use, workerInfo) => {
+      const pageList = context.pages();
+      if (pageList && pageList.length > 1) {
+        const extensionPage = pageList.filter(page => page.url().includes("extension")) || [];
+        if (extensionPage[0]) {
+          await extensionPage[0].waitForLoadState();
+          await use(extensionPage[0]);
+        }
+      } else {
+        const page = await context.waitForEvent("page");
+        await page.waitForLoadState();
+        if (page.url().includes("extension")) {
+          await use(page);
+        }
+      }
+    },
+    { scope: "test" }
+  ]
 });
 export const expect = test.expect;
