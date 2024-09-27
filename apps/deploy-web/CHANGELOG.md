@@ -1,5 +1,12 @@
 
 
+## [2.17.2-beta.0](https://github.com/ygrishajev/console/compare/console-web/v2.17.1...console-web/v2.17.2-beta.0) (2024-09-27)
+
+
+### Bug Fixes
+
+* **release:** properly use force-build option ([19c8723](https://github.com/ygrishajev/console/commit/19c8723c0b945c84eb39a57da9bd6fcea9b9eca3))
+
 ## [2.17.1](https://github.com/ygrishajev/console/compare/console-web/v2.17.0...console-web/v2.17.1) (2024-09-27)
 
 ## [v2.17.0](https://github.com/ygrishajev/console/compare/console-web/v2.17.0-beta.0...console-web/v2.17.0) (2024-09-27)
