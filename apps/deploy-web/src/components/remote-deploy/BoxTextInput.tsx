@@ -1,6 +1,6 @@
 import React from "react";
 import { Input } from "@akashnetwork/ui/components";
-const CustomInput = ({
+const BoxTextInput = ({
   label,
   description,
   placeholder,
@@ -22,4 +22,4 @@ const CustomInput = ({
   );
 };
 
-export default CustomInput;
+export default BoxTextInput;

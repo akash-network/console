@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { nanoid } from "nanoid";
 
 import { SdlBuilderFormValuesType } from "@src/types";
+import { protectedEnvironmentVariables } from "./helper-functions";
 const SelectBranches = ({
   control,
 
@@ -23,6 +24,8 @@ const SelectBranches = ({
     name: "services.0.env",
     keyName: "id"
   });
+
+  const currentBranch = fields.find(e => e.key === protectedEnvironmentVariables.BRANCH_NAME);
   return (
     <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
       <div className="flex flex-col gap-2">
@@ -32,12 +35,12 @@ const SelectBranches = ({
 
       <Select
         disabled={!selected}
-        value={fields.find(e => e.key === "BRANCH_NAME")?.value}
+        value={currentBranch?.value}
         onValueChange={value => {
-          const branch = { id: nanoid(), key: "BRANCH_NAME", value: value, isSecret: false };
-          if (fields.find(e => e.key === "BRANCH_NAME")) {
+          const branch = { id: nanoid(), key: protectedEnvironmentVariables.BRANCH_NAME, value: value, isSecret: false };
+          if (currentBranch) {
             update(
-              fields.findIndex(e => e.key === "BRANCH_NAME"),
+              fields.findIndex(e => e.key === protectedEnvironmentVariables.BRANCH_NAME),
               branch
             );
           } else {

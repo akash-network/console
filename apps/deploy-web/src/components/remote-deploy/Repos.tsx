@@ -28,11 +28,11 @@ import useRemoteDeployFramework from "@src/hooks/useRemoteDeployFramework";
 import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { IGithubDirectoryItem } from "@src/types/remotedeploy";
-import { useSrcFolders } from "./api/api";
-import { useBitSrcFolders } from "./api/bitbucket-api";
-import { useGitlabSrcFolders } from "./api/gitlab-api";
-import CustomInput from "./CustomInput";
-import { appendEnv, removeEnv, removeInitialUrl, RepoType } from "./utils";
+import { useBitSrcFolders } from "./remote-deploy-api-queries/bit-bucket-queries";
+import { useSrcFolders } from "./remote-deploy-api-queries/github-queries";
+import { useGitlabSrcFolders } from "./remote-deploy-api-queries/gitlab-queries";
+import CustomInput from "./BoxTextInput";
+import { appendEnv, protectedEnvironmentVariables, removeEnv, removeInitialUrl, RepoType } from "./helper-functions";
 
 const Repos = ({
   repos,
@@ -66,9 +66,9 @@ const Repos = ({
   const [open, setOpen] = useState(false);
   const [accounts, setAccounts] = useState<string[]>([]);
   const rootFolder = "akash-root-folder-repo-path";
-  const currentRepo = services?.[0]?.env?.find(e => e.key === "REPO_URL");
+  const currentRepo = services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.REPO_URL);
   const repo = repos?.find(r => r.html_url === currentRepo?.value);
-  const currentFolder = services?.[0]?.env?.find(e => e.key === "FRONTEND_FOLDER");
+  const currentFolder = services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.FRONTEND_FOLDER);
   const { currentFramework, isLoading: frameworkLoading } = useRemoteDeployFramework({
     services,
     setValue,
@@ -79,12 +79,12 @@ const Repos = ({
   const { isLoading: isGettingDirectoryBit, isFetching: isBitLoading } = useBitSrcFolders(
     setFolders,
     removeInitialUrl(currentRepo?.value),
-    services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")?.value
+    services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.BRANCH_NAME)?.value
   );
 
   const { isLoading: isGettingDirectoryGitlab, isFetching: isGitlabLoading } = useGitlabSrcFolders(
     setFolders,
-    services?.[0]?.env?.find(e => e.key === "GITLAB_PROJECT_ID")?.value
+    services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.GITLAB_PROJECT_ID)?.value
   );
 
   const isLoadingDirectories = isGithubLoading || isGitlabLoading || isBitLoading || isGettingDirectory || isGettingDirectoryBit || isGettingDirectoryGitlab;
@@ -215,32 +215,32 @@ const Repos = ({
                         disabled={currentRepo?.value === repo.html_url}
                         onClick={() => {
                           setDirectory(null);
-                          const repoUrl = { id: nanoid(), key: "REPO_URL", value: repo.html_url, isSecret: false };
-                          const branchName = { id: nanoid(), key: "BRANCH_NAME", value: repo.default_branch, isSecret: false };
+                          const repoUrl = { id: nanoid(), key: protectedEnvironmentVariables.REPO_URL, value: repo.html_url, isSecret: false };
+                          const branchName = { id: nanoid(), key: protectedEnvironmentVariables.BRANCH_NAME, value: repo.default_branch, isSecret: false };
                           if (type === "github") {
                             setValue("services.0.env", [
                               repoUrl,
                               branchName,
 
-                              { id: nanoid(), key: "GITHUB_ACCESS_TOKEN", value: token?.access_token || "", isSecret: false }
+                              { id: nanoid(), key: protectedEnvironmentVariables.GITHUB_ACCESS_TOKEN, value: token?.access_token || "", isSecret: false }
                             ]);
                           }
                           if (type === "bitbucket") {
                             setValue("services.0.env", [
                               repoUrl,
                               branchName,
-                              { id: nanoid(), key: "BITBUCKET_ACCESS_TOKEN", value: token?.access_token || "", isSecret: false },
-                              { id: nanoid(), key: "BITBUCKET_USER", value: repo?.userName || "", isSecret: false }
+                              { id: nanoid(), key: protectedEnvironmentVariables.BITBUCKET_ACCESS_TOKEN, value: token?.access_token || "", isSecret: false },
+                              { id: nanoid(), key: protectedEnvironmentVariables.BITBUCKET_USER, value: repo?.userName || "", isSecret: false }
                             ]);
                           }
                           if (type === "gitlab") {
                             setValue("services.0.env", [
                               repoUrl,
                               branchName,
-                              { id: nanoid(), key: "GITLAB_ACCESS_TOKEN", value: token?.access_token || "", isSecret: false },
+                              { id: nanoid(), key: protectedEnvironmentVariables.GITLAB_ACCESS_TOKEN, value: token?.access_token || "", isSecret: false },
                               {
                                 id: nanoid(),
-                                key: "GITLAB_PROJECT_ID",
+                                key: protectedEnvironmentVariables.GITLAB_PROJECT_ID,
                                 value: repo?.id?.toString(),
                                 isSecret: false
                               }
@@ -270,9 +270,9 @@ const Repos = ({
                           className="gap-0"
                           onValueChange={value => {
                             if (value === rootFolder) {
-                              removeEnv("FRONTEND_FOLDER", setValue, services);
+                              removeEnv(protectedEnvironmentVariables.FRONTEND_FOLDER, setValue, services);
                             } else {
-                              appendEnv("FRONTEND_FOLDER", value, false, setValue, services);
+                              appendEnv(protectedEnvironmentVariables.FRONTEND_FOLDER, value, false, setValue, services);
                             }
                           }}
                           value={currentFolder?.value || rootFolder}
@@ -299,7 +299,7 @@ const Repos = ({
                       </div>
                     ) : (
                       <CustomInput
-                        onChange={e => appendEnv("FRONTEND_FOLDER", e.target.value, false, setValue, services)}
+                        onChange={e => appendEnv(protectedEnvironmentVariables.FRONTEND_FOLDER, e.target.value, false, setValue, services)}
                         label="Frontend Folder"
                         description="By default we use ./, Change the version if needed"
                         placeholder="eg. app"

@@ -1,6 +1,6 @@
 import { atomWithStorage } from "jotai/utils";
 
-import { OAuth } from "@src/components/remote-deploy/utils";
+import { OAuth } from "@src/components/remote-deploy/helper-functions";
 
 export const tokens = atomWithStorage<{
   access_token: string | null;

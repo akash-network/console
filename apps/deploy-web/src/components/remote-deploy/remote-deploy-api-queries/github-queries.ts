@@ -9,7 +9,7 @@ import { GithubRepository, IGithubDirectoryItem, PackageJson } from "@src/types/
 import { GitHubProfile } from "@src/types/remoteProfile";
 import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
-import { ciCdTemplateId, REDIRECT_URL } from "../utils";
+import { ciCdTemplateId, REDIRECT_URL } from "../helper-functions";
 
 const GITHUB_API_URL = "https://api.github.com";
 
@@ -93,7 +93,7 @@ export const useFetchAccessToken = () => {
       router.replace(
         UrlService.newDeployment({
           step: RouteStep.editDeployment,
-          type: "githab",
+          gitProvider: "github",
           templateId: ciCdTemplateId
         })
       );

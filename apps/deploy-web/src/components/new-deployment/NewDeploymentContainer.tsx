@@ -12,7 +12,7 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
-import { ciCdTemplateId, isRedeployImage } from "../remote-deploy/utils";
+import { ciCdTemplateId, isRedeployImage } from "../remote-deploy/helper-functions";
 import { CreateLease } from "./CreateLease";
 import { ManifestEdit } from "./ManifestEdit";
 import { CustomizedSteppers } from "./Stepper";
@@ -44,8 +44,8 @@ export const NewDeploymentContainer: FC = () => {
       router.replace(
         UrlService.newDeployment({
           step: RouteStep.editDeployment,
-          type: "gitlab",
-          code,
+          gitProvider: "gitlab",
+          gitProviderCode: code,
           templateId: ciCdTemplateId
         })
       );
@@ -66,11 +66,12 @@ export const NewDeploymentContainer: FC = () => {
       }
 
       const code = searchParams?.get("code");
-      const type = searchParams?.get("type");
+      const gitProvider = searchParams?.get("gitProvider");
       const state = searchParams?.get("state");
-      const redeploy = searchParams?.get("redeploy");
 
-      if (type === "github" || code || state === "gitlab") {
+      const templateId = searchParams?.get("templateId");
+
+      if (gitProvider === "github" || code || state === "gitlab" || (templateId && templateId === ciCdTemplateId)) {
         setGithub(true);
       } else {
         setGithub(false);
@@ -79,7 +80,14 @@ export const NewDeploymentContainer: FC = () => {
       const queryStep = searchParams?.get("step");
       if (queryStep !== RouteStep.editDeployment) {
         if (isRedeployImage(template?.content as string, getTemplateById(ciCdTemplateId)?.deploy)) {
-          router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment, type: "github", redeploy: redeploy ?? "redeploy" }));
+          router.replace(
+            UrlService.newDeployment({
+              ...searchParams,
+              step: RouteStep.editDeployment,
+              gitProvider: "github"
+            })
+          );
+          setGithub(true);
         } else {
           router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
         }

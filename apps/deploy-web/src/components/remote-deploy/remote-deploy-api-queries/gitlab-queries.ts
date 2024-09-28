@@ -1,13 +1,16 @@
 import { useMutation, useQuery } from "react-query";
 import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import { tokens } from "@src/store/remoteDeployStore";
 import { GitLabCommit } from "@src/types/remoteCommits";
 import { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { GitLabProfile } from "@src/types/remoteProfile";
 import { GitlabGroup, GitlabRepo } from "@src/types/remoteRepos";
+import { RouteStep } from "@src/types/route-steps.type";
+import { UrlService } from "@src/utils/urlUtils";
+import { ciCdTemplateId } from "../helper-functions";
 
 export const handleGitLabLogin = () => {
   window.location.href = `https://gitlab.com/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID}&redirect_uri=${process.env.NEXT_PUBLIC_REDIRECT_URI}&response_type=code&scope=read_user+read_repository+read_api+api&state=gitlab`;
@@ -23,7 +26,7 @@ const axiosInstance = axios.create({
 
 export const useGitLabFetchAccessToken = () => {
   const [, setToken] = useAtom(tokens);
-  const pathname = usePathname();
+
   const router = useRouter();
   return useMutation({
     mutationFn: async (code: string) => {
@@ -39,8 +42,13 @@ export const useGitLabFetchAccessToken = () => {
         refresh_token: data.refresh_token,
         type: "gitlab"
       });
-
-      router.replace(pathname.split("?")[0] + "?step=edit-deployment&type=github");
+      router.replace(
+        UrlService.newDeployment({
+          step: RouteStep.editDeployment,
+          gitProvider: "github",
+          templateId: ciCdTemplateId
+        })
+      );
     }
   });
 };

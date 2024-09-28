@@ -10,7 +10,7 @@ import { BitProfile } from "@src/types/remoteProfile";
 import { BitRepository, BitWorkspace } from "@src/types/remoteRepos";
 import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
-import { ciCdTemplateId } from "../utils";
+import { ciCdTemplateId } from "../helper-functions";
 
 const Bitbucket_API_URL = "https://api.bitbucket.org/2.0";
 
@@ -68,7 +68,7 @@ export const useBitFetchAccessToken = () => {
       router.replace(
         UrlService.newDeployment({
           step: RouteStep.editDeployment,
-          type: "githab",
+          gitProvider: "github",
           templateId: ciCdTemplateId
         })
       );

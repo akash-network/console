@@ -8,23 +8,26 @@ export type ServiceControl = Control<SdlBuilderFormValuesType>;
 export type ServiceSetValue = UseFormSetValue<SdlBuilderFormValuesType>;
 export type OAuth = "github" | "gitlab" | "bitbucket";
 export const PROXY_API_URL_AUTH = "https://proxy-console-github.vercel.app";
-export const hiddenEnv = [
-  "REPO_URL",
-  "BRANCH_NAME",
-  "ACCESS_TOKEN",
-  "BUILD_DIRECTORY",
-  "BUILD_COMMAND",
-  "NODE_VERSION",
-  "CUSTOM_SRC",
-  "COMMIT_HASH",
-  "GITLAB_PROJECT_ID",
-  "GITLAB_ACCESS_TOKEN",
-  "BITBUCKET_ACCESS_TOKEN",
-  "BITBUCKET_USER",
-  "DISABLE_PULL",
-  "GITHUB_ACCESS_TOKEN",
-  "FRONTEND_FOLDER"
-];
+
+export const protectedEnvironmentVariables = {
+  REPO_URL: "REPO_URL",
+  BRANCH_NAME: "BRANCH_NAME",
+  ACCESS_TOKEN: "ACCESS_TOKEN",
+  BUILD_DIRECTORY: "BUILD_DIRECTORY",
+  BUILD_COMMAND: "BUILD_COMMAND",
+  NODE_VERSION: "NODE_VERSION",
+  CUSTOM_SRC: "CUSTOM_SRC",
+  COMMIT_HASH: "COMMIT_HASH",
+  GITLAB_PROJECT_ID: "GITLAB_PROJECT_ID",
+  GITLAB_ACCESS_TOKEN: "GITLAB_ACCESS_TOKEN",
+  BITBUCKET_ACCESS_TOKEN: "BITBUCKET_ACCESS_TOKEN",
+  BITBUCKET_USER: "BITBUCKET_USER",
+  DISABLE_PULL: "DISABLE_PULL",
+  GITHUB_ACCESS_TOKEN: "GITHUB_ACCESS_TOKEN",
+  FRONTEND_FOLDER: "FRONTEND_FOLDER",
+  INSTALL_COMMAND: "INSTALL_COMMAND"
+};
+
 export const REDIRECT_URL = `${process.env.NEXT_PUBLIC_REDIRECT_URI}?step=edit-deployment&type=github`;
 export function appendEnv(key: string, value: string, isSecret: boolean, setValue: ServiceSetValue, services: ServiceType[]) {
   const previousEnv = services[0]?.env || [];
