@@ -142,7 +142,7 @@ export interface GithubRepository {
 }
 
 export interface PackageJson {
-  dependencies?: any;
-  devDependencies?: any;
-  scripts?: any;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  scripts?: Record<string, string>;
 }

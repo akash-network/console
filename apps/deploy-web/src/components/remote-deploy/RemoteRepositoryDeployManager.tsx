@@ -7,19 +7,19 @@ import { useAtom } from "jotai";
 import { useWhen } from "@src/hooks/useWhen";
 import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { handleLogin, handleReLogin, useFetchAccessToken, useUserProfile } from "./api/api";
-import { handleLoginBit, useBitFetchAccessToken, useBitUserProfile } from "./api/bitbucket-api";
-import { handleGitLabLogin, useGitLabFetchAccessToken, useGitLabUserProfile } from "./api/gitlab-api";
-import Bit from "./bitbucket/Bit";
-import Github from "./github/Github";
-import GitLab from "./gitlab/Gitlab";
+import BitBucketManager from "./bitbucket/BitBucketManager";
+import RemoteBuildInstallConfig from "./deployment-configurations/RemoteBuildInstallConfig";
+import RemoteDeployEnvDropdown from "./deployment-configurations/RemoteDeployEnvDropdown";
+import GithubManager from "./github/GithubManager";
+import GitlabManager from "./gitlab/GitlabManager";
+import { handleLoginBit, useBitFetchAccessToken, useBitUserProfile } from "./remote-deploy-api-queries/bit-bucket-queries";
+import { handleLogin, handleReLogin, useFetchAccessToken, useUserProfile } from "./remote-deploy-api-queries/github-queries";
+import { handleGitLabLogin, useGitLabFetchAccessToken, useGitLabUserProfile } from "./remote-deploy-api-queries/gitlab-queries";
 import AccountDropDown from "./AccountDropdown";
-import Advanced from "./Advanced";
-import CustomInput from "./CustomInput";
-import Details from "./Details";
-import { appendEnv } from "./utils";
+import CustomInput from "./BoxTextInput";
+import { appendEnv, protectedEnvironmentVariables } from "./helper-functions";
 
-const GithubDeploy = ({
+const RemoteRepositoryDeployManager = ({
   setValue,
   services,
   control,
@@ -48,17 +48,24 @@ const GithubDeploy = ({
   const { mutate: fetchAccessTokenGitLab, isLoading: fetchingTokenGitLab } = useGitLabFetchAccessToken();
 
   useWhen(
-    services?.[0]?.env?.find(e => e.key === "REPO_URL" && services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")),
+    services?.[0]?.env?.find(
+      e => e.key === protectedEnvironmentVariables.REPO_URL && services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.BRANCH_NAME)
+    ),
     () => {
       setIsRepoDataValidated?.(true);
     }
   );
-  useWhen(services?.[0]?.env?.find(e => e.key === "REPO_URL")?.value === "https://github.com/onwidget/astrowind", () => {
+  useWhen(services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.REPO_URL)?.value === "https://github.com/onwidget/astrowind", () => {
     setValue("services.0.env", []);
   });
-  useWhen(!services?.[0]?.env?.find(e => e.key === "REPO_URL" && services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")), () => {
-    setIsRepoDataValidated?.(false);
-  });
+  useWhen(
+    !services?.[0]?.env?.find(
+      e => e.key === protectedEnvironmentVariables.REPO_URL && services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.BRANCH_NAME)
+    ),
+    () => {
+      setIsRepoDataValidated?.(false);
+    }
+  );
 
   useEffect(() => {
     setHydrated(true);
@@ -188,7 +195,7 @@ const GithubDeploy = ({
           <div className="grid gap-6 md:grid-cols-2">
             {token?.type === "github" ? (
               <>
-                <Github
+                <GithubManager
                   setValue={setValue}
                   services={services}
                   control={control}
@@ -198,7 +205,7 @@ const GithubDeploy = ({
                 />
               </>
             ) : token?.type === "bitbucket" ? (
-              <Bit
+              <BitBucketManager
                 loading={fetchingProfileBit}
                 setValue={setValue}
                 services={services}
@@ -208,7 +215,7 @@ const GithubDeploy = ({
                 profile={userProfileBit}
               />
             ) : (
-              <GitLab
+              <GitlabManager
                 loading={fetchingProfileGitLab}
                 setValue={setValue}
                 services={services}
@@ -220,10 +227,10 @@ const GithubDeploy = ({
           </div>
         )}
       </div>
-      <Details services={services} setValue={setValue} />
-      <Advanced services={services} control={control} />
+      <RemoteBuildInstallConfig services={services} setValue={setValue} />
+      <RemoteDeployEnvDropdown services={services} control={control} />
     </>
   );
 };
 
-export default GithubDeploy;
+export default RemoteRepositoryDeployManager;

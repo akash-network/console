@@ -22,13 +22,14 @@ import { nanoid } from "nanoid";
 
 import { SdlBuilderFormValuesType } from "@src/types";
 import { RollBackType } from "@src/types/remotedeploy";
+import { protectedEnvironmentVariables } from "../helper-functions";
 
 const RollbackModal = ({ data, control }: { data?: RollBackType[] | null; control: Control<SdlBuilderFormValuesType> }) => {
   const [filteredData, setFilteredData] = useState<RollBackType[]>([]);
   const [value, setValue] = useState<string>("");
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
   const { append, update } = useFieldArray({ control, name: "services.0.env", keyName: "id" });
-  const currentHash = services[0]?.env?.find(e => e.key === "COMMIT_HASH");
+  const currentHash = services[0]?.env?.find(e => e.key === protectedEnvironmentVariables.COMMIT_HASH);
   useEffect(() => {
     if (data) {
       setFilteredData(
@@ -43,7 +44,7 @@ const RollbackModal = ({ data, control }: { data?: RollBackType[] | null; contro
     <div className="flex items-center gap-6">
       <Dialog>
         <DialogTrigger asChild>
-          <Button variant="outline" className="flex w-full justify-between bg-popover">
+          <Button variant="outline" className="line-clamp-1 flex w-full justify-between bg-popover">
             <span>{currentHash?.value ? data?.find(item => item.value === currentHash?.value)?.name ?? currentHash?.value : "Select"}</span>
             <GitGraph size={18} />
           </Button>
@@ -77,10 +78,10 @@ const RollbackModal = ({ data, control }: { data?: RollBackType[] | null; contro
                   <RadioGroup
                     value={currentHash?.value}
                     onValueChange={value => {
-                      const hash = { id: nanoid(), key: "COMMIT_HASH", value: value, isSecret: false };
+                      const hash = { id: nanoid(), key: protectedEnvironmentVariables.COMMIT_HASH, value: value, isSecret: false };
 
                       if (currentHash) {
-                        update(services[0]?.env?.findIndex(e => e.key === "COMMIT_HASH") as number, hash);
+                        update(services[0]?.env?.findIndex(e => e.key === protectedEnvironmentVariables.COMMIT_HASH) as number, hash);
                       } else {
                         append(hash);
                       }
@@ -108,9 +109,9 @@ const RollbackModal = ({ data, control }: { data?: RollBackType[] | null; contro
                   value={currentHash?.value}
                   placeholder="Commit Hash"
                   onChange={e => {
-                    const hash = { id: nanoid(), key: "COMMIT_HASH", value: e.target.value, isSecret: false };
+                    const hash = { id: nanoid(), key: protectedEnvironmentVariables.COMMIT_HASH, value: e.target.value, isSecret: false };
                     if (currentHash) {
-                      update(services[0]?.env?.findIndex(e => e.key === "COMMIT_HASH") as number, hash);
+                      update(services[0]?.env?.findIndex(e => e.key === protectedEnvironmentVariables.COMMIT_HASH) as number, hash);
                     } else {
                       append(hash);
                     }

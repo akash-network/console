@@ -16,11 +16,19 @@ type Props = {
   control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
   hasSecretOption?: boolean;
   children?: ReactNode;
-  hideEnvs?: boolean;
+  isRemoteDeployEnvHidden?: boolean;
   update?: boolean;
 };
 
-export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, envs: _envs, onClose, hasSecretOption = true, hideEnvs, update }) => {
+export const EnvFormModal: React.FunctionComponent<Props> = ({
+  control,
+  serviceIndex,
+  envs: _envs,
+  onClose,
+  hasSecretOption = true,
+  isRemoteDeployEnvHidden,
+  update
+}) => {
   const {
     fields: envs,
     remove: removeEnv,
@@ -32,7 +40,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
   });
 
   useEffect(() => {
-    if (_envs.length === 0 || (hideEnvs && _envs.filter(e => !hiddenEnv.includes(e.key)).length === 0 && !update)) {
+    if (_envs.length === 0 || (isRemoteDeployEnvHidden && _envs.filter(e => !(e?.key?.trim() in protectedEnvironmentVariables)).length === 0 && !update)) {
       onAddEnv();
     }
   }, []);
@@ -83,10 +91,10 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
     >
       <FormPaper contentClassName="bg-popover">
         {envs
-          ?.filter(e => !hideEnvs || !hiddenEnv.includes(e?.key?.trim()))
+          ?.filter(e => !isRemoteDeployEnvHidden || !(e?.key?.trim() in protectedEnvironmentVariables))
           ?.map((env, envIndex) => {
             const currentEnvIndex = envs.findIndex(e => e.id === env.id);
-            const isLastEnv = envIndex + 1 === envs?.filter(e => !hideEnvs || !hiddenEnv.includes(e?.key?.trim())).length;
+            const isLastEnv = envIndex + 1 === envs?.filter(e => !isRemoteDeployEnvHidden || !(e?.key?.trim() in protectedEnvironmentVariables)).length;
             return (
               <div key={env.id} className={cn("flex", { ["mb-2"]: !isLastEnv })}>
                 <div className="flex flex-grow flex-col items-end sm:flex-row">

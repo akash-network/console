@@ -6,7 +6,7 @@ import { InfoCircle } from "iconoir-react";
 
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { ServiceType } from "@src/types";
-import { hiddenEnv } from "../remote-deploy/utils";
+import { protectedEnvironmentVariables } from "../remote-deploy/helper-functions";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
@@ -14,14 +14,14 @@ type Props = {
   serviceIndex?: number;
   children?: ReactNode;
   setIsEditingEnv: Dispatch<SetStateAction<boolean | number>>;
-  hideEnvs?: boolean;
+  isRemoteDeployEnvHidden?: boolean;
 };
 
-export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, setIsEditingEnv, serviceIndex, hideEnvs }) => {
+export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, setIsEditingEnv, serviceIndex, isRemoteDeployEnvHidden }) => {
   const { hasComponent } = useSdlBuilder();
-  const currentEnvs = currentService.env?.filter(e => !hideEnvs || !hiddenEnv.includes(e?.key?.trim()));
+  const currentEnvs = currentService.env?.filter(e => !isRemoteDeployEnvHidden || !(e?.key?.trim() in protectedEnvironmentVariables));
   return (
-    <FormPaper className={clsx("whitespace-break-spaces break-all", hideEnvs && "!bg-card")}>
+    <FormPaper className={clsx("whitespace-break-spaces break-all", isRemoteDeployEnvHidden && "!bg-card")}>
       <div className="mb-2 flex items-center">
         <strong className="text-sm">Environment Variables</strong>
 

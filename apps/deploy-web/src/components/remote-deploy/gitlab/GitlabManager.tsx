@@ -1,13 +1,13 @@
 import React, { Dispatch, useState } from "react";
 
 import { ServiceType } from "@src/types";
-import { useGitLabReposByGroup } from "../api/gitlab-api";
+import { ServiceControl, ServiceSetValue } from "../helper-functions";
+import { useGitLabReposByGroup } from "../remote-deploy-api-queries/gitlab-queries";
 import Repos from "../Repos";
-import { ServiceControl, ServiceSetValue } from "../utils";
-import Branches from "./Branches";
+import GitlabBranches from "./GitlabBranches";
 import Groups from "./Groups";
 
-const GitLab = ({
+const GitlabManager = ({
   loading,
   setValue,
   services,
@@ -46,9 +46,9 @@ const GitLab = ({
         deploymentName={deploymentName}
         type="gitlab"
       />
-      <Branches services={services} control={control} repos={repos} />
+      <GitlabBranches services={services} control={control} repos={repos} />
     </>
   );
 };
 
-export default GitLab;
+export default GitlabManager;

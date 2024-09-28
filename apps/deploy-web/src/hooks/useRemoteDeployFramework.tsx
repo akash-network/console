@@ -1,9 +1,9 @@
 import { useState } from "react";
 
-import { usePackageJson } from "@src/components/remote-deploy/api/api";
-import { useBitPackageJson } from "@src/components/remote-deploy/api/bitbucket-api";
-import { useGitlabPackageJson } from "@src/components/remote-deploy/api/gitlab-api";
-import { removeInitialUrl, ServiceSetValue, supportedFrameworks } from "@src/components/remote-deploy/utils";
+import { removeInitialUrl, ServiceSetValue, supportedFrameworks } from "@src/components/remote-deploy/helper-functions";
+import { useBitPackageJson } from "@src/components/remote-deploy/remote-deploy-api-queries/bit-bucket-queries";
+import { usePackageJson } from "@src/components/remote-deploy/remote-deploy-api-queries/github-queries";
+import { useGitlabPackageJson } from "@src/components/remote-deploy/remote-deploy-api-queries/gitlab-queries";
 import { ServiceType } from "@src/types";
 import { PackageJson } from "@src/types/remotedeploy";
 

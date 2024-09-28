@@ -22,7 +22,7 @@ import { AnalyticsEvents } from "@src/utils/analytics";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
-import { ciCdTemplateId, getRepoUrl, isRedeployImage } from "../remote-deploy/utils";
+import { ciCdTemplateId, getRepoUrl, isRedeployImage } from "../remote-deploy/helper-functions";
 import { Title } from "../shared/Title";
 import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";

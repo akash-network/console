@@ -12,7 +12,7 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
-import { ciCdTemplateId, isRedeployImage } from "../remote-deploy/utils";
+import { ciCdTemplateId, isRedeployImage } from "../remote-deploy/helper-functions";
 import { CreateLease } from "./CreateLease";
 import { ManifestEdit } from "./ManifestEdit";
 import { CustomizedSteppers } from "./Stepper";

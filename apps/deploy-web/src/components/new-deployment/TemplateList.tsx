@@ -15,7 +15,7 @@ import { ApiTemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils";
-import { ciCdTemplateId } from "../remote-deploy/utils";
+import { ciCdTemplateId } from "../remote-deploy/helper-functions";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";

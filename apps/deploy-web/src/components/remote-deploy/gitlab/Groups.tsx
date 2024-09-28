@@ -2,7 +2,7 @@ import { Dispatch, useState } from "react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Spinner } from "@akashnetwork/ui/components";
 import { GitlabFull } from "iconoir-react";
 
-import { useGitLabGroups } from "../api/gitlab-api";
+import { useGitLabGroups } from "../remote-deploy-api-queries/gitlab-queries";
 const Groups = ({ isLoading, setGroup }: { isLoading: boolean; setGroup: Dispatch<string> }) => {
   const [open, setOpen] = useState(false);
 
