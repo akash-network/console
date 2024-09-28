@@ -17,6 +17,6 @@ export default async function exchangeGitLabCodeForTokensHandler(req: NextApiReq
     const { access_token, refresh_token } = await gitlabAuth.exchangeAuthorizationCodeForTokens(code);
     res.status(200).json({ access_token, refresh_token });
   } catch (error) {
-    res.status(500).send(error);
+    res.status(500).send("Something went wrong");
   }
 }
