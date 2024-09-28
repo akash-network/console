@@ -7,8 +7,6 @@ import { NavArrowDown } from "iconoir-react";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { EnvFormModal } from "../sdl/EnvFormModal";
 import { EnvVarList } from "../sdl/EnvVarList";
-// import { EnvFormModal } from "./EnvFormModal";
-// import { EnvVarList } from "./EnvList";
 
 const Advanced = ({ services, control }: { services: ServiceType[]; control: Control<SdlBuilderFormValuesType> }) => {
   const serviceIndex = 0;
