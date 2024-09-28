@@ -5,7 +5,7 @@ export class WalletTestingService {
 
   async createUserAndWallet() {
     const { user, token } = await this.createUser();
-    const walletResponse = await this.app.request("/v1/wallets", {
+    const walletResponse = await this.app.request("/v1/start-trial", {
       method: "POST",
       body: JSON.stringify({
         data: { userId: user.id }

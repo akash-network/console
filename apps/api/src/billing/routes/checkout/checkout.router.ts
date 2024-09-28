@@ -8,7 +8,7 @@ const route = createRoute({
   method: "get",
   path: "/v1/checkout",
   summary: "Creates a stripe checkout session and redirects to checkout",
-  tags: ["Wallets"],
+  tags: ["Wallet"],
   request: {},
   responses: {
     301: {
