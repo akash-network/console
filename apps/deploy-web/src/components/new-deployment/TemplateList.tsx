@@ -43,7 +43,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setGithub }) => {
   const previousRoute = usePreviousRoute();
   const handleGithubTemplate = async () => {
     setGithub(true);
-    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, type: "github", templateId: ciCdTemplateId }));
+    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, gitProvider: "github", templateId: ciCdTemplateId }));
   };
 
   useEffect(() => {
