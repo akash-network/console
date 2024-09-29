@@ -5,12 +5,10 @@ import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { EnvFormModal } from "../sdl/EnvFormModal";
-import { EnvVarList } from "../sdl/EnvVarList";
-// import { EnvFormModal } from "./EnvFormModal";
-// import { EnvVarList } from "./EnvList";
+import { EnvFormModal } from "../../sdl/EnvFormModal";
+import { EnvVarList } from "../../sdl/EnvVarList";
 
-const Advanced = ({ services, control }: { services: ServiceType[]; control: Control<SdlBuilderFormValuesType> }) => {
+const RemoteDeployEnvDropdown = ({ services, control }: { services: ServiceType[]; control: Control<SdlBuilderFormValuesType> }) => {
   const serviceIndex = 0;
   const [expanded, setExpanded] = useState(false);
   const currentService = services[serviceIndex];
@@ -34,10 +32,16 @@ const Advanced = ({ services, control }: { services: ServiceType[]; control: Con
           <CollapsibleContent>
             <div className="grid items-start gap-6 p-5">
               {isEditingEnv === serviceIndex && (
-                <EnvFormModal hideEnvs control={control} onClose={() => setIsEditingEnv(null)} serviceIndex={serviceIndex} envs={currentService.env || []} />
+                <EnvFormModal
+                  isRemoteDeployEnvHidden
+                  control={control}
+                  onClose={() => setIsEditingEnv(null)}
+                  serviceIndex={serviceIndex}
+                  envs={currentService.env || []}
+                />
               )}
               <div>
-                <EnvVarList hideEnvs currentService={currentService} setIsEditingEnv={setIsEditingEnv} serviceIndex={serviceIndex} />
+                <EnvVarList isRemoteDeployEnvHidden currentService={currentService} setIsEditingEnv={setIsEditingEnv} serviceIndex={serviceIndex} />
               </div>
             </div>
           </CollapsibleContent>
@@ -47,4 +51,4 @@ const Advanced = ({ services, control }: { services: ServiceType[]; control: Con
   );
 };
 
-export default Advanced;
+export default RemoteDeployEnvDropdown;

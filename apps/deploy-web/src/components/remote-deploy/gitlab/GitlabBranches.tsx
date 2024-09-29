@@ -2,10 +2,10 @@ import { Control } from "react-hook-form";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { GitlabRepo } from "@src/types/remoteRepos";
-import { useGitLabBranches } from "../api/gitlab-api";
+import { useGitLabBranches } from "../remote-deploy-api-queries/gitlab-queries";
 import SelectBranches from "../SelectBranches";
 
-const Branches = ({ repos, services, control }: { repos?: GitlabRepo[]; services: ServiceType[]; control: Control<SdlBuilderFormValuesType> }) => {
+const GitlabBranches = ({ repos, services, control }: { repos?: GitlabRepo[]; services: ServiceType[]; control: Control<SdlBuilderFormValuesType> }) => {
   const selected =
     repos && repos?.length > 0
       ? repos?.find(e => e.web_url === services?.[0]?.env?.find(e => e.key === "REPO_URL")?.value)?.id?.toString()
@@ -16,4 +16,4 @@ const Branches = ({ repos, services, control }: { repos?: GitlabRepo[]; services
   return <SelectBranches control={control} selected={selected} loading={branchesLoading} branches={branches} />;
 };
 
-export default Branches;
+export default GitlabBranches;

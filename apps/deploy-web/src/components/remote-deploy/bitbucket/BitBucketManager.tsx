@@ -2,13 +2,13 @@ import { Dispatch, useState } from "react";
 
 import { ServiceType } from "@src/types";
 import { BitProfile } from "@src/types/remoteProfile";
-import { useBitReposByWorkspace } from "../api/bitbucket-api";
+import { ServiceControl, ServiceSetValue } from "../helper-functions";
+import { useBitReposByWorkspace } from "../remote-deploy-api-queries/bit-bucket-queries";
 import Repos from "../Repos";
-import { ServiceControl, ServiceSetValue } from "../utils";
-import Branches from "./Branches";
+import BitBucketBranches from "./BitBucketBranches";
 import WorkSpaces from "./Workspaces";
 
-const Bit = ({
+const BitBucketManager = ({
   loading,
   setValue,
   services,
@@ -49,9 +49,9 @@ const Bit = ({
         deploymentName={deploymentName}
         services={services}
       />
-      <Branches services={services} control={control} />
+      <BitBucketBranches services={services} control={control} />
     </>
   );
 };
 
-export default Bit;
+export default BitBucketManager;

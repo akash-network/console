@@ -13,13 +13,15 @@ import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
-import BitBranches from "../bitbucket/Branches";
-import Branches from "../github/Branches";
-import GitBranches from "../gitlab/Branches";
-import { appendEnv, ciCdTemplateId } from "../utils";
+import BitBranches from "../bitbucket/BitBucketBranches";
+import GithubBranches from "../github/GithubBranches";
+import GitBranches from "../gitlab/GitlabBranches";
+import { appendEnv, ciCdTemplateId, protectedEnvironmentVariables } from "../helper-functions";
 import Rollback from "./Rollback";
 
 const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: string; setEditedManifest: Dispatch<React.SetStateAction<string | null>> }) => {
+  console.log(sdlString);
+
   const [token] = useAtom(tokens);
   const [, setIsInit] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
@@ -75,10 +77,10 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
 
           <Checkbox
             id="disable-pull"
-            checked={services[0]?.env?.find(e => e.key === "DISABLE_PULL")?.value !== "yes"}
+            checked={services[0]?.env?.find(e => e.key === protectedEnvironmentVariables.DISABLE_PULL)?.value !== "yes"}
             onCheckedChange={value => {
               const pull = !value ? "yes" : "no";
-              appendEnv("DISABLE_PULL", pull, false, setValue, services);
+              appendEnv(protectedEnvironmentVariables.DISABLE_PULL, pull, false, setValue, services);
               enqueueSnackbar(<Snackbar title={"Info"} subTitle="You need to click update deployment button to apply changes" iconVariant="info" />, {
                 variant: "info"
               });
@@ -88,12 +90,12 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
         <p className="text-sm text-muted-foreground">If checked, Console will automatically re-deploy your app on any code commits</p>
       </div>
       <SdlBuilderProvider>
-        <EnvVarList currentService={services[0]} setIsEditingEnv={setIsEditingEnv} hideEnvs />
+        <EnvVarList currentService={services[0]} setIsEditingEnv={setIsEditingEnv} isRemoteDeployEnvHidden />
       </SdlBuilderProvider>
       {isEditingEnv && (
         <EnvFormModal
           update
-          hideEnvs
+          isRemoteDeployEnvHidden
           control={control}
           serviceIndex={0}
           envs={services[0]?.env ?? []}
@@ -103,7 +105,7 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
         />
       )}
 
-      {token.access_token && services[0]?.env?.find(e => e.key === "REPO_URL")?.value?.includes(token.type) && (
+      {token.access_token && services[0]?.env?.find(e => e.key === protectedEnvironmentVariables.REPO_URL)?.value?.includes(token.type) && (
         <>
           <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
             <div className="flex flex-col gap-2">
@@ -113,7 +115,7 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
             <Rollback control={control} services={services} />
           </div>
           {token?.type === "github" ? (
-            <Branches services={services} control={control} />
+            <GithubBranches services={services} control={control} />
           ) : token?.type === "gitlab" ? (
             <GitBranches control={control} services={services} />
           ) : (

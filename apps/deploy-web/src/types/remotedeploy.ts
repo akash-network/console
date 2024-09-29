@@ -142,8 +142,7 @@ export interface GithubRepository {
 }
 
 export interface PackageJson {
-  // this should any as we cannot know what dependencies are available
-  dependencies?: any;
-  devDependencies?: any;
-  scripts?: any;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  scripts?: Record<string, string>;
 }

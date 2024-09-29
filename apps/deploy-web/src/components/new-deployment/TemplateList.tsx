@@ -13,7 +13,7 @@ import { ApiTemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { cn } from "@src/utils/styleUtils";
 import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils";
-import { ciCdTemplateId } from "../remote-deploy/utils";
+import { ciCdTemplateId } from "../remote-deploy/helper-functions";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";
@@ -43,7 +43,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setGithub }) => {
   const previousRoute = usePreviousRoute();
   const handleGithubTemplate = async () => {
     setGithub(true);
-    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, type: "github", templateId: ciCdTemplateId }));
+    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, gitProvider: "github", templateId: ciCdTemplateId }));
   };
 
   useEffect(() => {

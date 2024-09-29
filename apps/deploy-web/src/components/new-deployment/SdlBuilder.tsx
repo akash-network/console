@@ -16,7 +16,7 @@ import { defaultService, defaultSshVMService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { transformCustomSdlFields, TransformError } from "@src/utils/sdl/transformCustomSdlFields";
-import GithubDeploy from "../remote-deploy/GithubDeploy";
+import RemoteRepositoryDeployManager from "../remote-deploy/RemoteRepositoryDeployManager";
 import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
 
 interface Props {
@@ -154,7 +154,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
         ) : (
           <>
             {github && (
-              <GithubDeploy
+              <RemoteRepositoryDeployManager
                 setValue={setValue}
                 services={formServices as ServiceType[]}
                 control={control}

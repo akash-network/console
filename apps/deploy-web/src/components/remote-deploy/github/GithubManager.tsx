@@ -3,12 +3,12 @@ import { Control } from "react-hook-form";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { GitHubProfile } from "@src/types/remoteProfile";
-import { useRepos } from "../api/api";
+import { ServiceSetValue } from "../helper-functions";
+import { useRepos } from "../remote-deploy-api-queries/github-queries";
 import Repos from "../Repos";
-import { ServiceSetValue } from "../utils";
-import Branches from "./Branches";
+import GithubBranches from "./GithubBranches";
 
-const Github = ({
+const GithubManager = ({
   control,
   setValue,
   services,
@@ -46,9 +46,9 @@ const Github = ({
         deploymentName={deploymentName}
         profile={profile}
       />
-      <Branches services={services} control={control} />
+      <GithubBranches services={services} control={control} />
     </>
   );
 };
 
-export default Github;
+export default GithubManager;
