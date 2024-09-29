@@ -12,7 +12,7 @@ test("ssh keys generation", async ({ page }) => {
   expect(download.suggestedFilename()).toBe("keypair.zip");
   await expect(input).toHaveValue(/ssh-/);
 
-  await plainLinuxPage.submit();
+  await plainLinuxPage.createDeployment();
 
   await expect(plainLinuxPage.page.getByTestId("connect-wallet-btn").first()).toBeVisible();
 });

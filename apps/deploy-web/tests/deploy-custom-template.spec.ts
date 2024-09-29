@@ -14,7 +14,7 @@ test("ssh keys generation", async ({ page }) => {
   expect(download.suggestedFilename()).toBe("keypair.zip");
   await expect(input).toHaveValue(/ssh-/);
 
-  await customTemplatePage.submit();
+  await customTemplatePage.createDeployment();
 
   await expect(customTemplatePage.page.getByTestId("connect-wallet-btn").first()).toBeVisible();
 });

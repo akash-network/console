@@ -1,6 +1,8 @@
-import { selectors, type BrowserContext, type Page } from "@playwright/test";
+import { type BrowserContext, type Page, selectors } from "@playwright/test";
 
-export const setupLeap = async (context: BrowserContext, page: Page, extensionId: string) => {
+const WALLET_PASSWORD = "12345678";
+
+export const setupLeap = async (context: BrowserContext, page: Page) => {
   page.waitForLoadState("domcontentloaded");
   selectors.setTestIdAttribute("data-testing-id");
 
@@ -24,8 +26,8 @@ export const setupLeap = async (context: BrowserContext, page: Page, extensionId
   await page.getByTestId("btn-select-wallet-proceed").click();
 
   // Set password
-  await page.getByTestId("input-password").fill("12345678");
-  await page.getByTestId("input-confirm-password").fill("12345678");
+  await page.getByTestId("input-password").fill(WALLET_PASSWORD);
+  await page.getByTestId("input-confirm-password").fill(WALLET_PASSWORD);
   await page.getByTestId("btn-password-proceed").click();
 
   await page.waitForLoadState("domcontentloaded");
@@ -43,6 +45,12 @@ export const setupLeap = async (context: BrowserContext, page: Page, extensionId
   // Connect to Leap
   const popupPage = await context.waitForEvent("page");
   await popupPage.waitForLoadState("domcontentloaded");
+
+  if (await popupPage.isVisible("text=Unlock wallet", { timeout: 5000 })) {
+    await page.locator("input").fill(WALLET_PASSWORD);
+    await popupPage.getByRole("button", { name: "Unlock wallet" }).click();
+  }
+
   await popupPage.getByRole("button", { name: "Connect" }).click();
 
   // await page.pause();

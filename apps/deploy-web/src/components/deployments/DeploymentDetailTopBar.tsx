@@ -106,7 +106,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
           <div className="flex items-center">
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="ghost" className="rounded-full">
+                <Button size="icon" variant="ghost" className="rounded-full" data-testid="deployment-detail-dropdown">
                   <MoreHoriz />
                 </Button>
               </DropdownMenuTrigger>
@@ -119,7 +119,11 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
                     Redeploy
                   </CustomDropdownLinkItem>
                 )}
-                <CustomDropdownLinkItem onClick={() => onCloseDeployment()} icon={<XmarkSquare fontSize="small" />}>
+                <CustomDropdownLinkItem
+                  onClick={() => onCloseDeployment()}
+                  icon={<XmarkSquare fontSize="small" />}
+                  data-testid="deployment-detail-close-button"
+                >
                   Close
                 </CustomDropdownLinkItem>
               </DropdownMenuContent>
