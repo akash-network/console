@@ -83,7 +83,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       }
     ];
 
-    if (wallet.isWalletConnected && !wallet.isManaged) {
+    if (!wallet.isWalletConnected || (wallet.isWalletConnected && !wallet.isManaged)) {
       routes.push({
         title: "Settings",
         icon: props => <Settings {...props} />,

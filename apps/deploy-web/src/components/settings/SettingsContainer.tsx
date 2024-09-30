@@ -25,7 +25,7 @@ export const SettingsContainer: React.FunctionComponent = () => {
   const wallet = useWallet();
   const router = useRouter();
 
-  useWhen(!wallet.isWalletConnected || wallet.isManaged, () => router.push("/"));
+  useWhen(wallet.isManaged, () => router.push("/"));
 
   const onSelectNetworkModalClose = () => {
     setIsSelectingNetwork(false);
