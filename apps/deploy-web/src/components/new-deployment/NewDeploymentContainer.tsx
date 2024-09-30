@@ -22,6 +22,7 @@ export const NewDeploymentContainer: FC = () => {
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
+  const [isInit, setIsInit] = useState(false);
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const { getDeploymentData } = useLocalNotes();
   const { getTemplateById } = useTemplates();
@@ -37,7 +38,7 @@ export const NewDeploymentContainer: FC = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!templates || editedManifest) return;
+    if (!templates || editedManifest || isInit) return;
 
     const template = getRedeployTemplate() || getGalleryTemplate();
 
@@ -53,8 +54,11 @@ export const NewDeploymentContainer: FC = () => {
       if (queryStep !== RouteStep.editDeployment) {
         router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
       }
+
+      setIsInit(true);
     }
-  }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent, isInit]);
 
   const getRedeployTemplate = () => {
     let template: Partial<TemplateCreation> | null = null;
