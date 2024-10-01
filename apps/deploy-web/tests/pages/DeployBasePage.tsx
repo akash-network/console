@@ -12,10 +12,12 @@ export class DeployBasePage {
     await this.page.goto(`http://localhost:3000/${this.path}`);
   }
 
-  async gotoInteractive() {
+  async gotoInteractive(skipInit?: boolean) {
     if (this.cardTestId) {
-      // await this.page.goto("http://localhost:3000");
-      // await this.page.getByTestId("welcome-modal-accept-button").click();
+      if (skipInit) {
+        await this.page.goto("http://localhost:3000");
+        await this.page.getByTestId("welcome-modal-accept-button").click();
+      }
       await this.page.getByTestId("sidebar-deploy-button").first().click();
       await this.page.getByTestId(this.cardTestId).click();
     }

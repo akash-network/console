@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 
 import { PlainLinuxPage } from "./pages/PlainLinuxPage";
 
-test("ssh keys generation", async ({ page }) => {
-  const plainLinuxPage = new PlainLinuxPage(page, "deploy-linux", "plain-linux-card");
+test("ssh keys generation", async ({ page, context }) => {
+  const plainLinuxPage = new PlainLinuxPage(context, page, "deploy-linux", "plain-linux-card");
   await plainLinuxPage.gotoInteractive();
   await plainLinuxPage.selectDistro("Ubuntu 24.04");
 
