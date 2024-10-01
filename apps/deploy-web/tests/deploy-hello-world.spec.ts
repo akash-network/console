@@ -1,10 +1,10 @@
+import { test } from "./fixture/fixture";
+import { setupLeap } from "./fixture/wallet-setup";
 import { DeployHelloWorldPage } from "./pages/DeployHelloWorldPage";
-import { test } from "./utils/fixture";
-import { setupLeap } from "./utils/wallet";
 
 // test.describe.configure({ mode: "serial" });
 
-test.only("deploy hello world", async ({ extPage: page, context }) => {
+test("deploy hello world", async ({ extPage: page, context }) => {
   await setupLeap(context, page);
 
   const customTemplatePage = new DeployHelloWorldPage(context, page, "new-deployment", "hello-world-card");
