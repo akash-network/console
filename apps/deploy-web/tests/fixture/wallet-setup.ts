@@ -1,5 +1,7 @@
 import { type BrowserContext, type Page, selectors } from "@playwright/test";
 
+import { testEnvConfig } from "./test-env.config";
+
 const WALLET_PASSWORD = "12345678";
 
 export const setupLeap = async (context: BrowserContext, page: Page) => {
@@ -8,7 +10,7 @@ export const setupLeap = async (context: BrowserContext, page: Page) => {
 
   await page.getByTestId("import-seed-phrase").click();
 
-  const mnemonic = process.env.TEST_WALLET_MNEMONIC;
+  const mnemonic = testEnvConfig.TEST_WALLET_MNEMONIC;
   if (!mnemonic) {
     throw new Error("TEST_WALLET_MNEMONIC is not set");
   }

@@ -1,4 +1,5 @@
 import { type BrowserContext as Context, expect, type Page } from "@playwright/test";
+import { testEnvConfig } from "tests/fixture/test-env.config";
 
 export class DeployBasePage {
   constructor(
@@ -9,13 +10,13 @@ export class DeployBasePage {
   ) {}
 
   async goto() {
-    await this.page.goto(`http://localhost:3000/${this.path}`);
+    await this.page.goto(`${testEnvConfig.BASE_URL}/${this.path}`);
   }
 
   async gotoInteractive(skipInit?: boolean) {
     if (this.cardTestId) {
       if (skipInit) {
-        await this.page.goto("http://localhost:3000");
+        await this.page.goto(testEnvConfig.BASE_URL);
         await this.page.getByTestId("welcome-modal-accept-button").click();
       }
       await this.page.getByTestId("sidebar-deploy-button").first().click();
@@ -45,7 +46,7 @@ export class DeployBasePage {
   }
 
   async validateLease() {
-    await this.page.waitForURL(/http:\/\/localhost:3000\/deployments\/\d+/);
+    await this.page.waitForURL(new RegExp(`${testEnvConfig.BASE_URL}/deployments/\\d+`));
     await expect(this.page.getByText("SuccessfulCreate", { exact: true })).toBeVisible({ timeout: 10000 });
     await this.page.getByTestId("deployment-tab-leases").click();
     await this.page.getByTestId("lease-list-row-0").isVisible();
