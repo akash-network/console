@@ -21,7 +21,7 @@ import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { PricePerMonth } from "../shared/PricePerMonth";
 
 type Props = {
-  index: number;
+  testIndex: number;
   bid: BidDto;
   selectedBid: BidDto;
   handleBidSelected: (bid: BidDto) => void;
@@ -30,7 +30,7 @@ type Props = {
   isSendingManifest: boolean;
 };
 
-export const BidRow: React.FunctionComponent<Props> = ({ index, bid, selectedBid, handleBidSelected, disabled, provider, isSendingManifest }) => {
+export const BidRow: React.FunctionComponent<Props> = ({ testIndex, bid, selectedBid, handleBidSelected, disabled, provider, isSendingManifest }) => {
   const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
   const isFavorite = favoriteProviders.some(x => provider.owner === x);
   const isCurrentBid = selectedBid?.id === bid.id;
@@ -73,7 +73,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ index, bid, selectedBid
         [`border bg-green-100 dark:bg-green-900`]: isCurrentBid
       })}
       onClick={onRowClick}
-      data-testid={`bid-list-row-${index}`}
+      data-testid={`bid-list-row-${testIndex}`}
     >
       <TableCell align="center">
         <div className="flex items-center justify-center whitespace-nowrap">
@@ -190,7 +190,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ index, bid, selectedBid
                     checked={isCurrentBid}
                     onChange={() => handleBidSelected(bid)}
                     disabled={bid.state !== "open" || disabled}
-                    data-testid={`bid-list-row-radio-${index}`}
+                    data-testid={`bid-list-row-radio-${testIndex}`}
                   />
                 </RadioGroup>
               )}
