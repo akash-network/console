@@ -1,11 +1,5 @@
 import { MAINNET_ID, SANDBOX_ID, TESTNET_ID } from "@akashnetwork/network-store";
 
-export const selectedRangeValues: { [key: string]: number } = {
-  "7D": 7,
-  "1M": 30,
-  ALL: Number.MAX_SAFE_INTEGER
-};
-
 const productionMainnetApiUrl = "https://console-api.akash.network";
 const productionTestnetApiUrl = "https://console-api-testnet.akash.network";
 const productionSandboxApiUrl = "https://console-api-sandbox.akash.network";
