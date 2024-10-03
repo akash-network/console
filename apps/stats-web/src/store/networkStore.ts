@@ -1,13 +1,13 @@
+import { MAINNET_ID, SANDBOX_ID, TESTNET_ID } from "@akashnetwork/network-store";
 import axios from "axios";
 import { atom } from "jotai";
 
 import { ApiUrlService } from "@/lib/apiUtils";
-import { mainnetId, sandboxId, testnetId } from "@/lib/constants";
 import { Network } from "@/types/network";
 
 export let networks: Network[] = [
   {
-    id: mainnetId,
+    id: MAINNET_ID,
     title: "Mainnet",
     description: "Akash Network mainnet network.",
     chainId: "akashnet-2",
@@ -17,7 +17,7 @@ export let networks: Network[] = [
     version: null // Set asynchronously
   },
   {
-    id: testnetId,
+    id: TESTNET_ID,
     title: "GPU Testnet",
     description: "Testnet of the new GPU features.",
     chainId: "testnet-02",
@@ -26,7 +26,7 @@ export let networks: Network[] = [
     version: null // Set asynchronously
   },
   {
-    id: sandboxId,
+    id: SANDBOX_ID,
     title: "Sandbox",
     description: "Sandbox of the mainnet version.",
     chainId: "sandbox-01",

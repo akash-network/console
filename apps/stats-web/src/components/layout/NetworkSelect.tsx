@@ -1,8 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { MAINNET_ID, Network } from "@akashnetwork/network-store";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Spinner } from "@akashnetwork/ui/components";
 
-import { mainnetId, setNetworkVersion } from "@/lib/constants";
+import { setNetworkVersion } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { initiateNetworkData, networks } from "@/store/networkStore";
 
@@ -12,14 +13,14 @@ interface NetworkSelectProps {
 
 const NetworkSelect: React.FC<NetworkSelectProps> = ({ className }) => {
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
-  const [selectedNetworkId, setSelectedNetworkId] = useState(mainnetId);
+  const [selectedNetworkId, setSelectedNetworkId] = useState<Network["id"]>(MAINNET_ID);
 
   useEffect(() => {
     async function init() {
       await initiateNetworkData();
       setNetworkVersion();
 
-      const selectedNetworkId = localStorage.getItem("selectedNetworkId");
+      const selectedNetworkId = localStorage.getItem("selectedNetworkId") as Network["id"];
       if (selectedNetworkId) {
         setSelectedNetworkId(selectedNetworkId);
       }
@@ -30,7 +31,7 @@ const NetworkSelect: React.FC<NetworkSelectProps> = ({ className }) => {
     init();
   }, []);
 
-  const onSelectNetworkChange = (networkId: string) => {
+  const onSelectNetworkChange = (networkId: Network["id"]) => {
     setSelectedNetworkId(networkId);
 
     // Set in the settings and local storage
