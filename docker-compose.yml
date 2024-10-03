@@ -42,3 +42,4 @@ services:
       - /app/node_modules
       - /app/apps/stats-web/node_modules
       - /app/apps/stats-web/.next
+      - ./packages:/app/packages

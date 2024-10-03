@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@akashnetwork/ui": "*",
+    "@akashnetwork/network-store": "*",
     "@cosmjs/encoding": "^0.32.4",
     "@json2csv/plainjs": "^7.0.4",
     "@nivo/line": "^0.87.0",
