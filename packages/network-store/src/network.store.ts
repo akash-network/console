@@ -33,7 +33,7 @@ export class NetworkStore {
 
   readonly networksStore = atom<NetworksStore>({ isLoading: true, error: undefined, data: INITIAL_NETWORKS_CONFIG });
 
-  private readonly selectedNetworkIdStore = atomWithStorage<Network["id"]>("selectedNetworkId", this.options.defaultNetworkId, undefined, { getOnInit: true });
+  private readonly selectedNetworkIdStore = atomWithStorage<Network["id"]>("selectedNetworkId", this.getInitialNetworkId());
 
   private readonly selectedNetworkStore = atom<Network, [Network], void>(
     get => {
@@ -42,8 +42,8 @@ export class NetworkStore {
 
       return networks.find(n => n.id === networkId) ?? networks[0];
     },
-    async (get, set, next) => {
-      await set(this.selectedNetworkIdStore, next.id);
+    (get, set, next) => {
+      set(this.selectedNetworkIdStore, next.id);
     }
   );
 
@@ -99,6 +99,26 @@ export class NetworkStore {
     } else {
       this.store.set(this.networksStore, { data: networks, isLoading: false, error: undefined });
     }
+  }
+
+  private getInitialNetworkId(): Network["id"] {
+    if (typeof window === "undefined") {
+      return this.options.defaultNetworkId;
+    }
+
+    const url = new URL(window.location.href);
+
+    if (!url.searchParams.has("network")) {
+      return this.options.defaultNetworkId;
+    }
+
+    const raw = url.searchParams.get("network");
+
+    if (this.networks.some(({ id }) => id === raw)) {
+      return raw as Network["id"];
+    }
+
+    return this.options.defaultNetworkId;
   }
 
   useNetworksStore() {

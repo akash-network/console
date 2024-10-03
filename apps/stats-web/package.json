@@ -3,7 +3,8 @@
   "version": "0.20.0",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "build": "npm run build-env-schemas && next build",
+    "build-env-schemas": "tsc src/config/env-config.schema.ts --outDir . --skipLibCheck",
     "dev": "next dev",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",

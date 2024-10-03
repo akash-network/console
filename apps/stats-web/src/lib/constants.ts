@@ -1,4 +1,6 @@
-import { MAINNET_ID, SANDBOX_ID, TESTNET_ID } from "@akashnetwork/network-store";
+import { SANDBOX_ID, TESTNET_ID } from "@akashnetwork/network-store";
+
+import { networkStore } from "@/store/network.store";
 
 const productionMainnetApiUrl = "https://console-api.akash.network";
 const productionTestnetApiUrl = "https://console-api-testnet.akash.network";
@@ -50,39 +52,11 @@ function getApiUrl() {
   if (typeof window === "undefined") return "http://localhost:3080";
   if (productionHostnames.includes(window.location?.hostname)) {
     try {
-      const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
-      return getNetworkBaseApiUrl(_selectedNetworkId);
+      return getNetworkBaseApiUrl(networkStore.selectedNetworkId);
     } catch (e) {
       console.error(e);
       return productionMainnetApiUrl;
     }
   }
   return "http://localhost:3080";
-}
-
-export let selectedNetworkId = "";
-export let networkVersion: "v1beta2" | "v1beta3";
-
-export function setNetworkVersion() {
-  const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
-
-  switch (_selectedNetworkId) {
-    case MAINNET_ID:
-      networkVersion = "v1beta3";
-      selectedNetworkId = MAINNET_ID;
-      break;
-    case TESTNET_ID:
-      networkVersion = "v1beta3";
-      selectedNetworkId = TESTNET_ID;
-      break;
-    case SANDBOX_ID:
-      networkVersion = "v1beta3";
-      selectedNetworkId = SANDBOX_ID;
-      break;
-
-    default:
-      networkVersion = "v1beta3";
-      selectedNetworkId = MAINNET_ID;
-      break;
-  }
 }
