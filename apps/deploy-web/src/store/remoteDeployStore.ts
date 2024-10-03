@@ -1,11 +1,9 @@
 import { atomWithStorage } from "jotai/utils";
 
-import { OAuth } from "@src/components/remote-deploy/helper-functions";
-
 export const tokens = atomWithStorage<{
   access_token: string | null;
   refresh_token: string | null;
-  type: OAuth;
+  type: "bitbucket" | "github" | "gitlab";
   alreadyLoggedIn?: string[];
 }>("remote-deploy-tokens", {
   access_token: null,

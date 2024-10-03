@@ -3,23 +3,26 @@ import { Control, UseFormSetValue } from "react-hook-form";
 import { Button, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { Bitbucket, Github as GitIcon, GitlabFull } from "iconoir-react";
 import { useAtom } from "jotai";
+import { useRouter } from "next/navigation";
 
-import { CURRENT_SERVICE, DEFAULT_ENV_IN_YML, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
+import { CI_CD_TEMPLATE_ID, CURRENT_SERVICE, DEFAULT_ENV_IN_YML, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { useWhen } from "@src/hooks/useWhen";
+import { BitbucketService } from "@src/services/remote-deploy/bitbucket-http.service";
 import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { RouteStep } from "@src/types/route-steps.type";
+import { UrlService } from "@src/utils/urlUtils";
+import { useBitFetchAccessToken, useBitUserProfile } from "../../queries/useBitBucketQuery";
 import BitBucketManager from "./bitbucket/BitBucketManager";
 import RemoteBuildInstallConfig from "./deployment-configurations/RemoteBuildInstallConfig";
 import RemoteDeployEnvDropdown from "./deployment-configurations/RemoteDeployEnvDropdown";
 import GithubManager from "./github/GithubManager";
 import GitlabManager from "./gitlab/GitlabManager";
-import { handleLoginBit, useBitFetchAccessToken, useBitUserProfile } from "./remote-deploy-api-queries/bit-bucket-queries";
 import { handleLogin, handleReLogin, useFetchAccessToken, useUserProfile } from "./remote-deploy-api-queries/github-queries";
 import { handleGitLabLogin, useGitLabFetchAccessToken, useGitLabUserProfile } from "./remote-deploy-api-queries/gitlab-queries";
 import AccountDropDown from "./AccountDropdown";
 import CustomInput from "./BoxTextInput";
-
 const RemoteRepositoryDeployManager = ({
   setValue,
   services,
@@ -37,36 +40,45 @@ const RemoteRepositoryDeployManager = ({
 }) => {
   const [token, setToken] = useAtom(tokens);
   const [selectedTab, setSelectedTab] = useState("git");
+  const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
-  const envVarUpdater = new EnvVarUpdater(services);
+  const isRepoAndBranchPresent = (env: Array<{ key: string }>) =>
+    env.some(e => e.key === protectedEnvironmentVariables.REPO_URL) && env.some(e => e.key === protectedEnvironmentVariables.BRANCH_NAME);
 
+  const isValid = isRepoAndBranchPresent(services?.[0]?.env || []);
+  const isRepoUrlDefault = (env: ServiceType["env"]) => env?.some(e => e.key === protectedEnvironmentVariables.REPO_URL && e.value === DEFAULT_ENV_IN_YML);
+
+  const shouldResetValue = isRepoUrlDefault(services?.[0]?.env || []);
+
+  const envVarUpdater = new EnvVarUpdater(services);
+  const bitbucketService = new BitbucketService();
   const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
   const { data: userProfileBit, isLoading: fetchingProfileBit } = useBitUserProfile();
   const { data: userProfileGitLab, isLoading: fetchingProfileGitLab } = useGitLabUserProfile();
 
   const { mutate: fetchAccessToken, isLoading: fetchingToken } = useFetchAccessToken();
-  const { mutate: fetchAccessTokenBit, isLoading: fetchingTokenBit } = useBitFetchAccessToken();
+  const { mutate: fetchAccessTokenBit, isLoading: fetchingTokenBit } = useBitFetchAccessToken(() => {
+    router.replace(
+      UrlService.newDeployment({
+        step: RouteStep.editDeployment,
+        gitProvider: "github",
+        templateId: CI_CD_TEMPLATE_ID
+      })
+    );
+  });
   const { mutate: fetchAccessTokenGitLab, isLoading: fetchingTokenGitLab } = useGitLabFetchAccessToken();
 
-  useWhen(
-    services?.[0]?.env?.find(
-      e => e.key === protectedEnvironmentVariables.REPO_URL && services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.BRANCH_NAME)
-    ),
-    () => {
-      setIsRepoInputValid?.(true);
-    }
-  );
-  useWhen(services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.REPO_URL)?.value === DEFAULT_ENV_IN_YML, () => {
+  useWhen(isValid, () => {
+    setIsRepoInputValid?.(true);
+  });
+
+  useWhen(!isValid, () => {
+    setIsRepoInputValid?.(false);
+  });
+
+  useWhen(shouldResetValue, () => {
     setValue(CURRENT_SERVICE, []);
   });
-  useWhen(
-    !services?.[0]?.env?.find(
-      e => e.key === protectedEnvironmentVariables.REPO_URL && services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.BRANCH_NAME)
-    ),
-    () => {
-      setIsRepoInputValid?.(false);
-    }
-  );
 
   useEffect(() => {
     setHydrated(true);
@@ -139,7 +151,7 @@ const RemoteRepositoryDeployManager = ({
                         onClick={() => {
                           setToken({ access_token: null, refresh_token: null, type: "bitbucket", alreadyLoggedIn: token?.alreadyLoggedIn });
 
-                          handleLoginBit();
+                          bitbucketService.handleLogin();
                         }}
                         variant="outline"
                       >
