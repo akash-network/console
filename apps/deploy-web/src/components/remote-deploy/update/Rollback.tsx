@@ -5,7 +5,7 @@ import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config"
 import { formatUrlWithoutInitialPath } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { RollBackType } from "@src/types/remotedeploy";
-import { useBitBucketCommits } from "../remote-deploy-api-queries/bit-bucket-queries";
+import { useBitBucketCommits } from "../../../queries/useBitBucketQuery";
 import { useCommits } from "../remote-deploy-api-queries/github-queries";
 import { useGitLabCommits } from "../remote-deploy-api-queries/gitlab-queries";
 import RollbackModal from "./RollbackModal";

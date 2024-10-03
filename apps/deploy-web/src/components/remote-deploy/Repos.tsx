@@ -30,7 +30,7 @@ import { EnvVarUpdater, formatUrlWithoutInitialPath } from "@src/services/remote
 import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { IGithubDirectoryItem, Repo } from "@src/types/remotedeploy";
-import { useBitSrcFolders } from "./remote-deploy-api-queries/bit-bucket-queries";
+import { useBitSrcFolders } from "../../queries/useBitBucketQuery";
 import { useSrcFolders } from "./remote-deploy-api-queries/github-queries";
 import { useGitlabSrcFolders } from "./remote-deploy-api-queries/gitlab-queries";
 import CustomInput from "./BoxTextInput";

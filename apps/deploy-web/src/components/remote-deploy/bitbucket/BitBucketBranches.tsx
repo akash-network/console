@@ -3,7 +3,7 @@ import { Control } from "react-hook-form";
 import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { formatUrlWithoutInitialPath } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { useBitBranches } from "../remote-deploy-api-queries/bit-bucket-queries";
+import { useBitBranches } from "../../../queries/useBitBucketQuery";
 import SelectBranches from "../SelectBranches";
 
 const BitBucketBranches = ({ services, control }: { services: ServiceType[]; control: Control<SdlBuilderFormValuesType> }) => {

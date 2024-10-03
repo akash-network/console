@@ -3,7 +3,7 @@ import { Control, UseFormSetValue } from "react-hook-form";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { BitProfile } from "@src/types/remoteProfile";
-import { useBitReposByWorkspace } from "../remote-deploy-api-queries/bit-bucket-queries";
+import { useBitReposByWorkspace } from "../../../queries/useBitBucketQuery";
 import Repos from "../Repos";
 import BitBucketBranches from "./BitBucketBranches";
 import WorkSpaces from "./Workspaces";
