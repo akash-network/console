@@ -24,15 +24,16 @@ import { Globe2 } from "lucide-react";
 import { nanoid } from "nanoid";
 import Image from "next/image";
 
+import { CURRENT_SERVICE, protectedEnvironmentVariables, ROOT_FOLDER_NAME } from "@src/config/remote-deploy.config";
 import useRemoteDeployFramework from "@src/hooks/useRemoteDeployFramework";
+import { EnvVarUpdater, formatUrlWithoutInitialPath } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { IGithubDirectoryItem } from "@src/types/remotedeploy";
+import { IGithubDirectoryItem, Repo } from "@src/types/remotedeploy";
 import { useBitSrcFolders } from "./remote-deploy-api-queries/bit-bucket-queries";
 import { useSrcFolders } from "./remote-deploy-api-queries/github-queries";
 import { useGitlabSrcFolders } from "./remote-deploy-api-queries/gitlab-queries";
 import CustomInput from "./BoxTextInput";
-import { appendEnv, protectedEnvironmentVariables, removeEnv, removeInitialUrl, RepoType } from "./helper-functions";
 
 const Repos = ({
   repos,
@@ -43,7 +44,7 @@ const Repos = ({
   profile,
   type = "github"
 }: {
-  repos?: RepoType[];
+  repos?: Repo[];
   setValue: UseFormSetValue<SdlBuilderFormValuesType>;
   services: ServiceType[];
   isLoading: boolean;
@@ -58,6 +59,9 @@ const Repos = ({
   };
   type?: "github" | "gitlab" | "bitbucket";
 }) => {
+  const currentServiceEnv = services?.[0]?.env || [];
+  const currentRepoUrl = currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.REPO_URL)?.value;
+  const currentBranchName = currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.BRANCH_NAME)?.value;
   const [token] = useAtom(tokens);
   const [search, setSearch] = useState("");
   const [filteredRepos, setFilteredRepos] = useState(repos);
@@ -65,26 +69,27 @@ const Repos = ({
   const [directory, setDirectory] = useState<IGithubDirectoryItem[] | null>(null);
   const [open, setOpen] = useState(false);
   const [accounts, setAccounts] = useState<string[]>([]);
-  const rootFolder = "akash-root-folder-repo-path";
-  const currentRepo = services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.REPO_URL);
-  const repo = repos?.find(r => r.html_url === currentRepo?.value);
-  const currentFolder = services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.FRONTEND_FOLDER);
+  const envVarUpdater = new EnvVarUpdater(services);
+  const repo = repos?.find(r => r.html_url === currentRepoUrl);
+  const currentFolder = currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.FRONTEND_FOLDER);
   const { currentFramework, isLoading: frameworkLoading } = useRemoteDeployFramework({
-    services,
-    setValue,
-    subFolder: currentFolder?.value
+    currentRepoUrl,
+    currentBranchName,
+    currentGitlabProjectId: currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.GITLAB_PROJECT_ID)?.value,
+    subFolder: currentFolder?.value,
+    setCpus: (cpus: number) => setValue("services.0.profile.cpu", +cpus > 2 ? +cpus : 2)
   });
 
-  const { isLoading: isGettingDirectory, isFetching: isGithubLoading } = useSrcFolders(setFolders, removeInitialUrl(currentRepo?.value));
+  const { isLoading: isGettingDirectory, isFetching: isGithubLoading } = useSrcFolders(setFolders, formatUrlWithoutInitialPath(currentRepoUrl));
   const { isLoading: isGettingDirectoryBit, isFetching: isBitLoading } = useBitSrcFolders(
     setFolders,
-    removeInitialUrl(currentRepo?.value),
-    services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.BRANCH_NAME)?.value
+    formatUrlWithoutInitialPath(currentRepoUrl),
+    currentBranchName
   );
 
   const { isLoading: isGettingDirectoryGitlab, isFetching: isGitlabLoading } = useGitlabSrcFolders(
     setFolders,
-    services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.GITLAB_PROJECT_ID)?.value
+    currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.GITLAB_PROJECT_ID)?.value
   );
 
   const isLoadingDirectories = isGithubLoading || isGitlabLoading || isBitLoading || isGettingDirectory || isGettingDirectoryBit || isGettingDirectoryGitlab;
@@ -95,7 +100,7 @@ const Repos = ({
       const uniqueOwners = Array.from(new Set(differentOwnersArray));
       setAccounts(uniqueOwners);
       setCurrentAccount(
-        repos?.find(repo => currentRepo?.value?.includes(repo?.html_url?.replace("https://github.com/", "")))?.owner?.login ||
+        repos?.find(repo => currentRepoUrl?.includes(repo?.html_url?.replace("https://github.com/", "")))?.owner?.login ||
           uniqueOwners?.find(account => profile?.login === account) ||
           uniqueOwners?.[0]
       );
@@ -184,7 +189,7 @@ const Repos = ({
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
-                        {currentFramework && !frameworkLoading && currentRepo?.value === repo.html_url ? (
+                        {currentFramework && !frameworkLoading && currentRepoUrl === repo.html_url ? (
                           currentFramework?.image ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={currentFramework.image} alt={currentFramework.title} className="h-6 w-6" />
@@ -198,7 +203,7 @@ const Repos = ({
                         {repo.private && <Lock className="ml-1 text-xs" />}
                       </div>
                     </div>
-                    {currentRepo?.value === repo?.html_url ? (
+                    {currentRepoUrl === repo?.html_url ? (
                       <Button
                         variant="default"
                         size="sm"
@@ -212,7 +217,7 @@ const Repos = ({
                       <Button
                         variant="default"
                         size="sm"
-                        disabled={currentRepo?.value === repo.html_url}
+                        disabled={currentRepoUrl === repo.html_url}
                         onClick={() => {
                           setDirectory(null);
                           const repoUrl = { id: nanoid(), key: protectedEnvironmentVariables.REPO_URL, value: repo.html_url, isSecret: false };
@@ -253,13 +258,13 @@ const Repos = ({
                       </Button>
                     )}
                   </div>
-                  {isLoadingDirectories && currentRepo?.value === repo.html_url && (
+                  {isLoadingDirectories && currentRepoUrl === repo.html_url && (
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-muted-foreground">Fetching Directory</p>
                       <Spinner size="small" />
                     </div>
                   )}
-                  {currentRepo?.value === repo.html_url &&
+                  {currentRepoUrl === repo.html_url &&
                     (directory && directory?.filter(item => item.type === "dir" || item.type === "commit_directory" || item.type === "tree")?.length > 0 ? (
                       <div className="flex flex-col">
                         <div className="flex items-center justify-between pb-3">
@@ -269,20 +274,23 @@ const Repos = ({
                         <RadioGroup
                           className="gap-0"
                           onValueChange={value => {
-                            if (value === rootFolder) {
-                              removeEnv(protectedEnvironmentVariables.FRONTEND_FOLDER, setValue, services);
+                            if (value === ROOT_FOLDER_NAME) {
+                              setValue(CURRENT_SERVICE, envVarUpdater?.deleteEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER));
                             } else {
-                              appendEnv(protectedEnvironmentVariables.FRONTEND_FOLDER, value, false, setValue, services);
+                              setValue(
+                                CURRENT_SERVICE,
+                                envVarUpdater?.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER, value, false)
+                              );
                             }
                           }}
-                          value={currentFolder?.value || rootFolder}
+                          value={currentFolder?.value || ROOT_FOLDER_NAME}
                         >
                           <div className="flex items-center justify-between border-card-foreground py-1">
-                            <Label htmlFor={rootFolder} className="flex items-center gap-2">
+                            <Label htmlFor={ROOT_FOLDER_NAME} className="flex items-center gap-2">
                               <Folder />
                               ./
                             </Label>
-                            <RadioGroupItem value={rootFolder} id={rootFolder} />
+                            <RadioGroupItem value={ROOT_FOLDER_NAME} id={ROOT_FOLDER_NAME} />
                           </div>
                           {directory
                             ?.filter(item => item.type === "dir" || item.type === "commit_directory" || item.type === "tree")
@@ -299,7 +307,12 @@ const Repos = ({
                       </div>
                     ) : (
                       <CustomInput
-                        onChange={e => appendEnv(protectedEnvironmentVariables.FRONTEND_FOLDER, e.target.value, false, setValue, services)}
+                        onChange={e =>
+                          setValue(
+                            CURRENT_SERVICE,
+                            envVarUpdater?.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER, e.target.value, false)
+                          )
+                        }
                         label="Frontend Folder"
                         description="By default we use ./, Change the version if needed"
                         placeholder="eg. app"

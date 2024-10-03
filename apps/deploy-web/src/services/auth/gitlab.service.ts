@@ -31,7 +31,7 @@ class GitlabAuth {
       const { access_token, refresh_token }: Tokens = response.data;
       return { access_token, refresh_token };
     } catch (error) {
-      throw new Error("Failed to exchange authorization code for tokens");
+      throw new Error(error);
     }
   }
 
@@ -47,7 +47,7 @@ class GitlabAuth {
       const { access_token, refresh_token }: Tokens = response.data;
       return { access_token, refresh_token };
     } catch (error) {
-      throw new Error("Failed to refresh tokens using refresh token");
+      throw new Error(error);
     }
   }
 }

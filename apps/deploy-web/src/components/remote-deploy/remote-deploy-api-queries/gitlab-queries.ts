@@ -3,6 +3,7 @@ import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
 import { useRouter } from "next/navigation";
 
+import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { tokens } from "@src/store/remoteDeployStore";
 import { GitLabCommit } from "@src/types/remoteCommits";
 import { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
@@ -10,7 +11,6 @@ import { GitLabProfile } from "@src/types/remoteProfile";
 import { GitlabGroup, GitlabRepo } from "@src/types/remoteRepos";
 import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
-import { ciCdTemplateId } from "../helper-functions";
 
 export const handleGitLabLogin = () => {
   window.location.href = `https://gitlab.com/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID}&redirect_uri=${process.env.NEXT_PUBLIC_REDIRECT_URI}&response_type=code&scope=read_user+read_repository+read_api+api&state=gitlab`;
@@ -46,7 +46,7 @@ export const useGitLabFetchAccessToken = () => {
         UrlService.newDeployment({
           step: RouteStep.editDeployment,
           gitProvider: "github",
-          templateId: ciCdTemplateId
+          templateId: CI_CD_TEMPLATE_ID
         })
       );
     }

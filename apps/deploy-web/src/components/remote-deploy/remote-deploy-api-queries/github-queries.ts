@@ -3,13 +3,13 @@ import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
 import { useRouter } from "next/navigation";
 
+import { CI_CD_TEMPLATE_ID, REDIRECT_URL } from "@src/config/remote-deploy.config";
 import { tokens } from "@src/store/remoteDeployStore";
 import { GitCommit } from "@src/types/remoteCommits";
 import { GithubRepository, IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { GitHubProfile } from "@src/types/remoteProfile";
 import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
-import { ciCdTemplateId, REDIRECT_URL } from "../helper-functions";
 
 const GITHUB_API_URL = "https://api.github.com";
 
@@ -94,7 +94,7 @@ export const useFetchAccessToken = () => {
         UrlService.newDeployment({
           step: RouteStep.editDeployment,
           gitProvider: "github",
-          templateId: ciCdTemplateId
+          templateId: CI_CD_TEMPLATE_ID
         })
       );
     }
@@ -119,7 +119,7 @@ export const useBranches = (repo?: string) => {
   });
 };
 
-export const useCommits = (repo: string, branch: string) => {
+export const useCommits = (repo?: string, branch?: string) => {
   const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["commits", repo, branch, token?.access_token, repo, branch],

@@ -66,7 +66,7 @@ type Props = {
   setValue: UseFormSetValue<SdlBuilderFormValuesType>;
   gpuModels: GpuVendor[] | undefined;
   hasSecretOption?: boolean;
-  github?: boolean;
+  isGitProviderTemplate?: boolean;
 };
 
 export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
@@ -80,7 +80,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   setValue,
   gpuModels,
   hasSecretOption,
-  github
+  isGitProviderTemplate
 }) => {
   const [isEditingCommands, setIsEditingCommands] = useState<number | boolean | null>(null);
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(null);
@@ -145,8 +145,14 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
             />
           )}
 
-          <div className={cn("flex justify-between p-4", { ["border-b border-muted-foreground/20"]: expanded }, github ? "items-center" : "items-end")}>
-            {github ? (
+          <div
+            className={cn(
+              "flex justify-between p-4",
+              { ["border-b border-muted-foreground/20"]: expanded },
+              isGitProviderTemplate ? "items-center" : "items-end"
+            )}
+          >
+            {isGitProviderTemplate ? (
               <h1 className="font-semibold">Build Server Specs</h1>
             ) : (
               <FormField
@@ -212,7 +218,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <div className="grid gap-4">
-                    {!github && (
+                    {!isGitProviderTemplate && (
                       <div className="flex items-end">
                         <FormField
                           control={control}
@@ -323,7 +329,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                 </div>
 
                 <div>
-                  {!github && (
+                  {!isGitProviderTemplate && (
                     <>
                       <div className="grid gap-4">
                         {(hasComponent("ssh") || hasComponent("ssh-toggle")) && (

@@ -3,6 +3,7 @@ import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
 import { useRouter } from "next/navigation";
 
+import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { tokens } from "@src/store/remoteDeployStore";
 import { BitBucketCommit } from "@src/types/remoteCommits";
 import { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
@@ -10,7 +11,6 @@ import { BitProfile } from "@src/types/remoteProfile";
 import { BitRepository, BitWorkspace } from "@src/types/remoteRepos";
 import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
-import { ciCdTemplateId } from "../helper-functions";
 
 const Bitbucket_API_URL = "https://api.bitbucket.org/2.0";
 
@@ -69,7 +69,7 @@ export const useBitFetchAccessToken = () => {
         UrlService.newDeployment({
           step: RouteStep.editDeployment,
           gitProvider: "github",
-          templateId: ciCdTemplateId
+          templateId: CI_CD_TEMPLATE_ID
         })
       );
     }
