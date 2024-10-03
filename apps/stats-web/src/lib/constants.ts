@@ -1,6 +1,4 @@
-export const mainnetId = "mainnet";
-export const testnetId = "testnet";
-export const sandboxId = "sandbox";
+import { MAINNET_ID, SANDBOX_ID, TESTNET_ID } from "@akashnetwork/network-store";
 
 export const selectedRangeValues: { [key: string]: number } = {
   "7D": 7,
@@ -23,9 +21,9 @@ export const BASE_API_URL = getApiUrl();
 
 export function getNetworkBaseApiUrl(network: string | null) {
   switch (network) {
-    case testnetId:
+    case TESTNET_ID:
       return BASE_API_TESTNET_URL;
-    case sandboxId:
+    case SANDBOX_ID:
       return BASE_API_SANDBOX_URL;
     default:
       return BASE_API_MAINNET_URL;
@@ -34,8 +32,8 @@ export function getNetworkBaseApiUrl(network: string | null) {
 
 export const uAktDenom = "uakt";
 export const usdcIbcDenoms: { [key: string]: string } = {
-  [mainnetId]: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1",
-  [sandboxId]: "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84"
+  [MAINNET_ID]: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1",
+  [SANDBOX_ID]: "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84"
 };
 
 function getApiMainnetUrl() {
@@ -81,22 +79,22 @@ export function setNetworkVersion() {
   const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
 
   switch (_selectedNetworkId) {
-    case mainnetId:
+    case MAINNET_ID:
       networkVersion = "v1beta3";
-      selectedNetworkId = mainnetId;
+      selectedNetworkId = MAINNET_ID;
       break;
-    case testnetId:
+    case TESTNET_ID:
       networkVersion = "v1beta3";
-      selectedNetworkId = testnetId;
+      selectedNetworkId = TESTNET_ID;
       break;
-    case sandboxId:
+    case SANDBOX_ID:
       networkVersion = "v1beta3";
-      selectedNetworkId = sandboxId;
+      selectedNetworkId = SANDBOX_ID;
       break;
 
     default:
       networkVersion = "v1beta3";
-      selectedNetworkId = mainnetId;
+      selectedNetworkId = MAINNET_ID;
       break;
   }
 }
