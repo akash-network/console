@@ -19,6 +19,7 @@
     "lint": "eslint .",
     "migrate": "node-pg-migrate",
     "migration:gen": "drizzle-kit generate",
+    "prod": "doppler run -- node dist/server.js",
     "start": "webpack --config webpack.dev.js --watch",
     "test": "jest --selectProjects unit functional",
     "test:cov": "jest --selectProjects unit functional --coverage",
