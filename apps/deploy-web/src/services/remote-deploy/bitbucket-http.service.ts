@@ -28,7 +28,7 @@ export class BitbucketService {
   }
 
   async fetchAccessToken(code: string) {
-    const response = await this.axiosInstance.post(`/api/bitbucket/authenticate`, { code });
+    const response = await axios.post(`/api/bitbucket/authenticate`, { code });
     return response.data;
   }
 
