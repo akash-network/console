@@ -1,8 +1,7 @@
-import { useSelectedNetwork } from "./useSelectedNetwork";
-
 import { USDC_IBC_DENOMS } from "@/config/denom.config";
+import { networkStore } from "@/store/network.store";
 
 export const useUsdcDenom = () => {
-  const selectedNetwork = useSelectedNetwork();
-  return USDC_IBC_DENOMS[selectedNetwork.id];
+  const selectedNetworkId = networkStore.useSelectedNetworkId();
+  return USDC_IBC_DENOMS[selectedNetworkId];
 };
