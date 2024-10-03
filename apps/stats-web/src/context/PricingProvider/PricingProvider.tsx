@@ -2,8 +2,8 @@
 
 import React from "react";
 
+import { UAKT_DENOM } from "@/config/denom.config";
 import { useUsdcDenom } from "@/hooks/useDenom";
-import { uAktDenom } from "@/lib/constants";
 import { roundDecimal } from "@/lib/mathHelpers";
 import { useMarketData } from "@/queries";
 
@@ -42,7 +42,7 @@ export const PricingProvider: React.FC<any> = ({ children }) => {
 
   const getPriceForDenom = (denom: string): number => {
     switch (denom) {
-      case uAktDenom:
+      case UAKT_DENOM:
         return marketData?.price || 0;
       case usdcIbcDenom:
         return 1; // TODO Get price from API
