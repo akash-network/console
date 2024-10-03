@@ -1,11 +1,15 @@
 import { z } from "zod";
 
-const networkId = z.enum(["mainnet", "sandbox", "testnet"]);
+export const networkId = z.enum(["mainnet", "sandbox", "testnet"]);
 const coercedBoolean = () => z.enum(["true", "false"]).transform(val => val === "true");
 
 export const browserEnvSchema = z.object({
   NEXT_PUBLIC_DEFAULT_NETWORK_ID: networkId.optional().default("mainnet"),
-  NEXT_PUBLIC_API_BASE_URL: z.string().url()
+  NEXT_PUBLIC_API_BASE_URL: z.string().url(),
+  NEXT_PUBLIC_NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development"),
+  NEXT_PUBLIC_BASE_API_TESTNET_URL: z.string().url(),
+  NEXT_PUBLIC_BASE_API_SANDBOX_URL: z.string().url(),
+  NEXT_PUBLIC_BASE_API_MAINNET_URL: z.string().url()
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({

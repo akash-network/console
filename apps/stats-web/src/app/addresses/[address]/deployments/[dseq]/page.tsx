@@ -1,19 +1,28 @@
+import type { Network } from "@akashnetwork/network-store";
 import { Metadata } from "next";
+import { z } from "zod";
 
 import { DeploymentInfo } from "./DeploymentInfo";
 
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { getNetworkBaseApiUrl } from "@/lib/constants";
+import { networkId } from "@/config/env-config.schema";
 import { UrlService } from "@/lib/urlUtils";
+import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import { DeploymentDetail } from "@/types";
 
-interface IProps {
-  params: { address: string; dseq: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-}
+const DeploymentDetailPageSchema = z.object({
+  params: z.object({
+    address: z.string(),
+    dseq: z.string()
+  }),
+  searchParams: z.object({
+    network: networkId
+  })
+});
+type DeploymentDetailPageProps = z.infer<typeof DeploymentDetailPageSchema>;
 
-export async function generateMetadata({ params: { address, dseq } }: IProps): Promise<Metadata> {
+export async function generateMetadata({ params: { address, dseq } }: DeploymentDetailPageProps): Promise<Metadata> {
   const url = `https://stats.akash.network${UrlService.deployment(address, dseq)}`;
 
   return {
@@ -27,8 +36,8 @@ export async function generateMetadata({ params: { address, dseq } }: IProps): P
   };
 }
 
-async function fetchDeploymentData(address: string, dseq: string, network: string): Promise<DeploymentDetail> {
-  const apiUrl = getNetworkBaseApiUrl(network);
+async function fetchDeploymentData(address: string, dseq: string, network: Network["id"]): Promise<DeploymentDetail> {
+  const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await fetch(`${apiUrl}/v1/deployment/${address}/${dseq}`);
 
   if (!response.ok) {
@@ -39,8 +48,12 @@ async function fetchDeploymentData(address: string, dseq: string, network: strin
   return response.json();
 }
 
-export default async function DeploymentDetailPage({ params: { address, dseq }, searchParams: { network } }: IProps) {
-  const deployment = await fetchDeploymentData(address, dseq, network as string);
+export default async function DeploymentDetailPage(props: DeploymentDetailPageProps) {
+  const {
+    params: { address, dseq },
+    searchParams: { network }
+  } = DeploymentDetailPageSchema.parse(props);
+  const deployment = await fetchDeploymentData(address, dseq, network);
 
   return (
     <PageContainer>
