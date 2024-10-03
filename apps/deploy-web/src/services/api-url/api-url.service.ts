@@ -1,7 +1,7 @@
 import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import { SANDBOX_ID, TESTNET_ID } from "@akashnetwork/network-store";
 
 import type { BrowserEnvConfig, ServerEnvConfig } from "@src/config/env-config.schema";
-import { SANDBOX_ID, TESTNET_ID } from "@src/config/network.config";
 
 export class ApiUrlService {
   constructor(

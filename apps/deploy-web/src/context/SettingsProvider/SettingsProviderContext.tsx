@@ -5,9 +5,9 @@ import axios from "axios";
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { queryClient } from "@src/queries";
-import networkStore, { initiateNetworkVersions } from "@src/store/networkStore";
+import networkStore from "@src/store/networkStore";
 import type { FCWithChildren } from "@src/types/component";
-import { NodeStatus } from "@src/types/node";
+import type { NodeStatus } from "@src/types/node";
 import { initAppTypes } from "@src/utils/init";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 
@@ -57,15 +57,18 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
   const { getLocalStorageItem, setLocalStorageItem } = useLocalStorage();
   const { isCustomNode, customNode, nodes, apiEndpoint, rpcEndpoint } = settings;
   const selectedNetwork = networkStore.useSelectedNetwork();
+  const [{ isLoading: isLoadingNetworks }] = networkStore.useNetworksStore();
 
   usePreviousRoute();
 
   // load settings from localStorage or set default values
   useEffect(() => {
+    if (isLoadingNetworks) {
+      return;
+    }
+
     const initiateSettings = async () => {
       setIsLoadingSettings(true);
-
-      await initiateNetworkVersions();
 
       // Apply local storage migrations
       migrateLocalStorage();
@@ -139,7 +142,7 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
 
     initiateSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isLoadingNetworks]);
 
   /**
    * Load the node status from status rpc endpoint

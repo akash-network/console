@@ -43,6 +43,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@akashnetwork/akashjs": "@akashnetwork/akashjs",
     "@akashnetwork/dev-config": "*",
     "@types/json2csv": "^5.0.7",
     "@types/node": "20.14.0",

@@ -42,7 +42,7 @@ export const SettingsContainer: React.FunctionComponent = () => {
             <LabelValue
               value={
                 <div className="inline-flex items-center">
-                  <strong>{selectedNetwork?.title}</strong>
+                  <strong>{selectedNetwork.title}</strong>
 
                   <Button onClick={() => setIsSelectingNetwork(true)} size="icon" className="ml-4" variant="outline">
                     <Edit className="text-sm" />

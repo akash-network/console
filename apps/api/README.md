@@ -13,23 +13,6 @@
 
 You can make sure the api is working by accessing the status endpoint: `http://localhost:3080/status`
 
-## Environment Variables
-
-This app utilizes `.env*` files to manage environment variables. The list of environment variables can be found in the `env/.env.sample` file. These files are included in version control and should only contain non-sensitive values. Sensitive values are provided by the deployment system.
-
-### Important Notes:
-- **Sensitive Values**: The only env file that's ignored by Git is `env/.env.local`, which is intended for sensitive values used in development.
-- **Loading Order**: Environment files are loaded in a specific order, depending on two environment variables: `DEPLOYMENT_ENV` and `NETWORK`.
-
-### Loading Order:
-1. `env/.env.local` - Contains sensitive values for development.
-2. `env/.env` - Default values applicable to all environments.
-3. `env/.env.${DEPLOYMENT_ENV}` - Values specific to the deployment environment.
-4. `env/.env.${NETWORK}` - Values specific to the network.
-
-### Additional Details:
-- **Variable Precedence**: If a variable is already set in the environment, it will not be overridden by values in the `.env*` files. This behavior is critical when adjusting the loading order of these files.
-
 ## Testing
 
 Project is configured to use [Jest](https://jestjs.io/) for testing. It is intended to be covered with unit and functional tests where applicable.
