@@ -24,12 +24,6 @@ export function getNetworkBaseApiUrl(network: string | null) {
   }
 }
 
-export const uAktDenom = "uakt";
-export const usdcIbcDenoms: { [key: string]: string } = {
-  [MAINNET_ID]: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1",
-  [SANDBOX_ID]: "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84"
-};
-
 function getApiMainnetUrl() {
   if (process.env.API_MAINNET_BASE_URL) return process.env.API_MAINNET_BASE_URL;
   if (typeof window === "undefined") return "http://localhost:3080";
