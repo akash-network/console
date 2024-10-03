@@ -12,12 +12,13 @@ import { CustomIntlProvider } from "./CustomIntlProvider";
 import { PricingProvider } from "@/context/PricingProvider";
 import { customColors } from "@/lib/colors";
 import { queryClient } from "@/queries";
+import { store } from "@/store/global.store";
 
 function Providers({ children }: React.PropsWithChildren) {
   return (
     <CustomIntlProvider>
       <QueryClientProvider client={queryClient}>
-        <Provider>
+        <Provider store={store}>
           <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
             <CustomSnackbarProvider>
               <PricingProvider>
