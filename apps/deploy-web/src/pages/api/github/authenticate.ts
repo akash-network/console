@@ -1,14 +1,18 @@
 import { NextApiRequest, NextApiResponse } from "next";
 
+import { serverEnvConfig } from "@src/config/server-env.config";
 import GitHubAuth from "@src/services/auth/github.service";
 
-const { NEXT_PUBLIC_GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, NEXT_PUBLIC_REDIRECT_URI } = process.env;
+const { NEXT_PUBLIC_GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, NEXT_PUBLIC_REDIRECT_URI } = serverEnvConfig;
 
 export default async function exchangeGitHubCodeForTokenHandler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
   const { code }: { code: string } = req.body;
 
   if (!code) {
-    return res.status(400).send("No authorization code provided");
+    return res.status(400).send({
+      error: "BadRequestError",
+      message: "No authorization code provided"
+    });
   }
 
   const gitHubAuth = new GitHubAuth(NEXT_PUBLIC_GITHUB_CLIENT_ID as string, GITHUB_CLIENT_SECRET as string, NEXT_PUBLIC_REDIRECT_URI as string);
@@ -17,6 +21,9 @@ export default async function exchangeGitHubCodeForTokenHandler(req: NextApiRequ
     const access_token = await gitHubAuth.exchangeAuthorizationCodeForToken(code);
     res.status(200).json({ access_token });
   } catch (error) {
-    res.status(500).send("Something went wrong");
+    res.status(500).send({
+      error: "Something went wrong",
+      message: error
+    });
   }
 }

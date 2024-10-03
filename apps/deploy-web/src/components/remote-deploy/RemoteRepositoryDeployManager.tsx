@@ -4,7 +4,9 @@ import { Button, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from "@akas
 import { Bitbucket, Github as GitIcon, GitlabFull } from "iconoir-react";
 import { useAtom } from "jotai";
 
+import { CURRENT_SERVICE, DEFAULT_ENV_IN_YML, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { useWhen } from "@src/hooks/useWhen";
+import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import BitBucketManager from "./bitbucket/BitBucketManager";
@@ -17,7 +19,6 @@ import { handleLogin, handleReLogin, useFetchAccessToken, useUserProfile } from 
 import { handleGitLabLogin, useGitLabFetchAccessToken, useGitLabUserProfile } from "./remote-deploy-api-queries/gitlab-queries";
 import AccountDropDown from "./AccountDropdown";
 import CustomInput from "./BoxTextInput";
-import { appendEnv, protectedEnvironmentVariables } from "./helper-functions";
 
 const RemoteRepositoryDeployManager = ({
   setValue,
@@ -25,19 +26,19 @@ const RemoteRepositoryDeployManager = ({
   control,
   deploymentName,
   setDeploymentName,
-  setIsRepoDataValidated
+  setIsRepoInputValid
 }: {
   setValue: UseFormSetValue<SdlBuilderFormValuesType>;
   services: ServiceType[];
   control: Control<SdlBuilderFormValuesType>;
   setDeploymentName: Dispatch<string>;
   deploymentName: string;
-  setIsRepoDataValidated?: Dispatch<boolean>;
+  setIsRepoInputValid?: Dispatch<boolean>;
 }) => {
   const [token, setToken] = useAtom(tokens);
   const [selectedTab, setSelectedTab] = useState("git");
-
   const [hydrated, setHydrated] = useState(false);
+  const envVarUpdater = new EnvVarUpdater(services);
 
   const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
   const { data: userProfileBit, isLoading: fetchingProfileBit } = useBitUserProfile();
@@ -52,18 +53,18 @@ const RemoteRepositoryDeployManager = ({
       e => e.key === protectedEnvironmentVariables.REPO_URL && services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.BRANCH_NAME)
     ),
     () => {
-      setIsRepoDataValidated?.(true);
+      setIsRepoInputValid?.(true);
     }
   );
-  useWhen(services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.REPO_URL)?.value === "https://github.com/onwidget/astrowind", () => {
-    setValue("services.0.env", []);
+  useWhen(services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.REPO_URL)?.value === DEFAULT_ENV_IN_YML, () => {
+    setValue(CURRENT_SERVICE, []);
   });
   useWhen(
     !services?.[0]?.env?.find(
       e => e.key === protectedEnvironmentVariables.REPO_URL && services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.BRANCH_NAME)
     ),
     () => {
-      setIsRepoDataValidated?.(false);
+      setIsRepoInputValid?.(false);
     }
   );
 
@@ -100,7 +101,7 @@ const RemoteRepositoryDeployManager = ({
           <Tabs
             onValueChange={value => {
               setSelectedTab(value);
-              setValue("services.0.env", []);
+              setValue(CURRENT_SERVICE, []);
             }}
             defaultValue="git"
             className="mt-6"
@@ -174,18 +175,23 @@ const RemoteRepositoryDeployManager = ({
                 )
               )}
             </TabsContent>
+
             <TabsContent value="public" className="grid gap-6 lg:grid-cols-2">
               <CustomInput
                 label="Repository URL"
                 description="The link of the public repo to be deployed"
                 placeholder="eg. https://github.com/username/repo.git"
-                onChange={e => appendEnv("REPO_URL", e.target.value, false, setValue, services)}
+                onChange={e =>
+                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.REPO_URL, e.target.value, false))
+                }
               />
               <CustomInput
                 label="Branch Name"
                 description="The git branch branch which is to be deployed"
                 placeholder="eg. main"
-                onChange={e => appendEnv("BRANCH_NAME", e.target.value, false, setValue, services)}
+                onChange={e =>
+                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.BRANCH_NAME, e.target.value, false))
+                }
               />
             </TabsContent>
           </Tabs>

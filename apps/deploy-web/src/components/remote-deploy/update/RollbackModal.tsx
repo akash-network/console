@@ -20,32 +20,32 @@ import {
 import { GitCommitVertical, GitGraph, Info } from "lucide-react";
 import { nanoid } from "nanoid";
 
+import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { SdlBuilderFormValuesType } from "@src/types";
 import { RollBackType } from "@src/types/remotedeploy";
-import { protectedEnvironmentVariables } from "../helper-functions";
 
-const RollbackModal = ({ data, control }: { data?: RollBackType[] | null; control: Control<SdlBuilderFormValuesType> }) => {
+const RollbackModal = ({ commits, control }: { commits?: RollBackType[] | null; control: Control<SdlBuilderFormValuesType> }) => {
   const [filteredData, setFilteredData] = useState<RollBackType[]>([]);
   const [value, setValue] = useState<string>("");
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
   const { append, update } = useFieldArray({ control, name: "services.0.env", keyName: "id" });
   const currentHash = services[0]?.env?.find(e => e.key === protectedEnvironmentVariables.COMMIT_HASH);
   useEffect(() => {
-    if (data) {
+    if (commits) {
       setFilteredData(
-        data?.filter(item => {
+        commits?.filter(item => {
           return item.name.toLowerCase().includes(value.toLowerCase());
         })
       );
     }
-  }, [data, value]);
+  }, [commits, value]);
 
   return (
     <div className="flex items-center gap-6">
       <Dialog>
         <DialogTrigger asChild>
           <Button variant="outline" className="line-clamp-1 flex w-full justify-between bg-popover">
-            <span>{currentHash?.value ? data?.find(item => item.value === currentHash?.value)?.name ?? currentHash?.value : "Select"}</span>
+            <span>{currentHash?.value ? commits?.find(item => item.value === currentHash?.value)?.name ?? currentHash?.value : "Select"}</span>
             <GitGraph size={18} />
           </Button>
         </DialogTrigger>

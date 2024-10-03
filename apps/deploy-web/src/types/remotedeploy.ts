@@ -146,3 +146,13 @@ export interface PackageJson {
   devDependencies?: Record<string, string>;
   scripts?: Record<string, string>;
 }
+
+export interface Repo {
+  name: string;
+  id?: string;
+  default_branch: string;
+  html_url: string;
+  userName?: string;
+  private: boolean;
+  owner?: Owner;
+}

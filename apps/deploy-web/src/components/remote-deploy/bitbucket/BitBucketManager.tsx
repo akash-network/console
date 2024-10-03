@@ -1,8 +1,8 @@
 import { Dispatch, useState } from "react";
+import { Control, UseFormSetValue } from "react-hook-form";
 
-import { ServiceType } from "@src/types";
+import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { BitProfile } from "@src/types/remoteProfile";
-import { ServiceControl, ServiceSetValue } from "../helper-functions";
 import { useBitReposByWorkspace } from "../remote-deploy-api-queries/bit-bucket-queries";
 import Repos from "../Repos";
 import BitBucketBranches from "./BitBucketBranches";
@@ -20,9 +20,9 @@ const BitBucketManager = ({
   setDeploymentName: Dispatch<string>;
   deploymentName: string;
   loading: boolean;
-  setValue: ServiceSetValue;
+  setValue: UseFormSetValue<SdlBuilderFormValuesType>;
+  control: Control<SdlBuilderFormValuesType>;
   services: ServiceType[];
-  control: ServiceControl;
   profile?: BitProfile;
 }) => {
   const [workSpace, setWorkSpace] = useState<string>("");

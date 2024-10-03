@@ -1,5 +1,5 @@
 "use client";
-import { Dispatch, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Button, CustomTooltip, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { InfoCircle, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
@@ -31,30 +31,15 @@ type Props = {
   leases: LeaseDto[];
   closeManifestEditor: () => void;
   remoteDeploy: boolean;
-  showOutsideDeploymentMessage: boolean;
   editedManifest: string;
-  deploymentVersion: string | null;
-  setDeploymentVersion: Dispatch<React.SetStateAction<string | null>>;
-  setEditedManifest: Dispatch<React.SetStateAction<string>>;
-  setShowOutsideDeploymentMessage: Dispatch<React.SetStateAction<boolean>>;
+  onManifestChange: (value: string) => void;
 };
 
-export const ManifestUpdate: React.FunctionComponent<Props> = ({
-  deployment,
-  leases,
-  closeManifestEditor,
-  remoteDeploy,
-  showOutsideDeploymentMessage,
-  editedManifest,
-  deploymentVersion,
-  setDeploymentVersion,
-  setEditedManifest,
-  setShowOutsideDeploymentMessage
-}) => {
+export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, leases, closeManifestEditor, remoteDeploy, editedManifest, onManifestChange }) => {
   const [parsingError, setParsingError] = useState<string | null>(null);
-
+  const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
+  const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
   const [isSendingManifest, setIsSendingManifest] = useState(false);
-
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged: isManagedWallet } = useWallet();
   const { data: providers } = useProviderList();
@@ -66,7 +51,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       const localDeploymentData = getDeploymentLocalData(deployment.dseq);
 
       if (localDeploymentData?.manifest) {
-        setEditedManifest(localDeploymentData.manifest);
+        onManifestChange(localDeploymentData.manifest);
 
         try {
           const yamlVersion = yaml.load(localDeploymentData.manifest);
@@ -117,7 +102,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   }, [editedManifest, deployment.dseq, settings.apiEndpoint, address]);
 
   function handleTextChange(value) {
-    setEditedManifest(value);
+    onManifestChange(value);
 
     if (deploymentVersion) {
       setDeploymentVersion(null);
@@ -276,7 +261,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
             <ViewPanel stickToBottom style={{ overflow: remoteDeploy ? "unset" : "hidden" }}>
               {remoteDeploy ? (
-                <RemoteDeployUpdate sdlString={editedManifest} setEditedManifest={setEditedManifest} />
+                <RemoteDeployUpdate sdlString={editedManifest} onManifestChange={onManifestChange} />
               ) : (
                 <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
               )}

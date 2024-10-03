@@ -24,7 +24,8 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_REDIRECT_URI: z.string().url(),
   NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL: z.string().url(),
   NEXT_PUBLIC_BITBUCKET_CLIENT_ID: z.string().optional(),
-  NEXT_PUBLIC_GITLAB_CLIENT_ID: z.string().optional()
+  NEXT_PUBLIC_GITLAB_CLIENT_ID: z.string().optional(),
+  NEXT_PUBLIC_GITHUB_CLIENT_ID: z.string().optional()
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({

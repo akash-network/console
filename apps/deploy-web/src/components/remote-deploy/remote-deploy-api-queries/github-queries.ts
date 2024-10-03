@@ -3,6 +3,7 @@ import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
+import { CI_CD_TEMPLATE_ID, REDIRECT_URL } from "@src/config/remote-deploy.config";
 import { tokens } from "@src/store/remoteDeployStore";
 import { GitCommit } from "@src/types/remoteCommits";
 import { GithubRepository, IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
@@ -110,7 +111,7 @@ export const useBranches = (repo?: string) => {
   });
 };
 
-export const useCommits = (repo: string, branch: string) => {
+export const useCommits = (repo?: string, branch?: string) => {
   const [token] = useAtom(tokens);
   return useQuery({
     queryKey: ["commits", repo, branch, token?.access_token, repo, branch],

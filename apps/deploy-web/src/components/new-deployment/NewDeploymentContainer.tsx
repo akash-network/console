@@ -3,23 +3,24 @@ import { FC, useEffect, useState } from "react";
 import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
 import { useTemplates } from "@src/context/TemplatesProvider";
+import { isImageInYaml } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
-import { ciCdTemplateId, isRedeployImage } from "../remote-deploy/helper-functions";
 import { CreateLease } from "./CreateLease";
 import { ManifestEdit } from "./ManifestEdit";
 import { CustomizedSteppers } from "./Stepper";
 import { TemplateList } from "./TemplateList";
 
 export const NewDeploymentContainer: FC = () => {
-  const [github, setGithub] = useState<boolean>(false);
+  const [isGitProviderTemplate, setIsGitProviderTemplate] = useState<boolean>(false);
   const { isLoading: isLoadingTemplates, templates } = useTemplates();
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
@@ -129,15 +130,14 @@ export const NewDeploymentContainer: FC = () => {
     <Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet containerClassName="pb-0">
       <div className="flex w-full items-center">{activeStep !== null && <CustomizedSteppers activeStep={activeStep} />}</div>
 
-      {activeStep === 0 && <TemplateList setGithub={setGithub} />}
+      {activeStep === 0 && <TemplateList onChangeGitProvider={setIsGitProviderTemplate} />}
       {activeStep === 1 && (
         <ManifestEdit
           selectedTemplate={selectedTemplate}
           onTemplateSelected={setSelectedTemplate}
           editedManifest={editedManifest}
           setEditedManifest={setEditedManifest}
-          setGithub={setGithub}
-          github={github}
+          isGitProviderTemplate={isGitProviderTemplate}
         />
       )}
       {activeStep === 2 && <CreateLease dseq={dseq as string} />}

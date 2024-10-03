@@ -3,6 +3,7 @@ import axios, { AxiosError } from "axios";
 import { useAtom } from "jotai";
 import { usePathname, useRouter } from "next/navigation";
 
+import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { tokens } from "@src/store/remoteDeployStore";
 import { BitBucketCommit } from "@src/types/remoteCommits";
 import { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";

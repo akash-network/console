@@ -22,10 +22,10 @@ import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
 interface Props {
   sdlString: string | null;
   setEditedManifest: Dispatch<string>;
-  github?: boolean;
+  isGitProviderTemplate?: boolean;
   setDeploymentName: Dispatch<string>;
   deploymentName: string;
-  setIsRepoDataValidated?: Dispatch<boolean>;
+  setIsRepoInputValid?: Dispatch<boolean>;
 }
 
 export type SdlBuilderRefType = {
@@ -34,7 +34,7 @@ export type SdlBuilderRefType = {
 };
 
 export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
-  ({ sdlString, setEditedManifest, github, setDeploymentName, deploymentName, setIsRepoDataValidated }, ref) => {
+  ({ sdlString, setEditedManifest, isGitProviderTemplate, setDeploymentName, deploymentName, setIsRepoInputValid }, ref) => {
     const [error, setError] = useState<string | null>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const [isInit, setIsInit] = useState(false);
@@ -59,7 +59,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
     });
     const { services: formServices = [] } = watch();
     const { data: gpuModels } = useGpuModels();
-    const [serviceCollapsed, setServiceCollapsed] = useState(github ? [0] : []);
+    const [serviceCollapsed, setServiceCollapsed] = useState(isGitProviderTemplate ? [0] : []);
 
     const wallet = useWallet();
     const managedDenom = useManagedWalletDenom();
@@ -153,14 +153,14 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
           </div>
         ) : (
           <>
-            {github && (
+            {isGitProviderTemplate && (
               <RemoteRepositoryDeployManager
                 setValue={setValue}
                 services={formServices as ServiceType[]}
                 control={control}
                 setDeploymentName={setDeploymentName}
                 deploymentName={deploymentName}
-                setIsRepoDataValidated={setIsRepoDataValidated}
+                setIsRepoInputValid={setIsRepoInputValid}
               />
             )}
             <Form {...form}>
@@ -179,7 +179,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
                       serviceCollapsed={serviceCollapsed}
                       setServiceCollapsed={setServiceCollapsed}
                       hasSecretOption={false}
-                      github={github}
+                      isGitProviderTemplate={isGitProviderTemplate}
                     />
                   ))}
 
@@ -189,7 +189,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
                   </Alert>
                 )}
 
-                {!hasComponent("ssh") && !github && (
+                {!hasComponent("ssh") && !isGitProviderTemplate && (
                   <div className="flex items-center justify-end pt-4">
                     <div>
                       <Button variant="default" size="sm" type="button" onClick={onAddService}>
