@@ -173,7 +173,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
                 </TabsTrigger>
               )}
               {isActive && (
-                <TabsTrigger value="SHELL" data-testid="deployment-tab-events">
+                <TabsTrigger value="SHELL" data-testid="deployment-tab-shell">
                   Shell
                 </TabsTrigger>
               )}
