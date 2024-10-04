@@ -1,12 +1,13 @@
-import { test as base, BrowserContext, chromium, selectors, Page } from "@playwright/test";
-import path from "path";
+import { BrowserContext, chromium, Page, test as base } from "@playwright/test";
 import { nanoid } from "nanoid";
+import path from "path";
 
 export const test = base.extend<{
   context: BrowserContext;
   extensionId: string;
   extPage: Page;
 }>({
+  // eslint-disable-next-line no-empty-pattern
   context: async ({}, use) => {
     console.log("context");
     const pathToExtension = path.join(__dirname, "Leap");
@@ -40,7 +41,7 @@ export const test = base.extend<{
     context.route;
   },
   extPage: [
-    async ({ context }, use, workerInfo) => {
+    async ({ context }, use) => {
       const pageList = context.pages();
       if (pageList && pageList.length > 1) {
         const extensionPage = pageList.filter(page => page.url().includes("extension")) || [];

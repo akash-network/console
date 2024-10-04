@@ -1,13 +1,12 @@
 import { DeployBasePage } from "./DeployBasePage";
 
 export class DeployHelloWorldPage extends DeployBasePage {
-  async createDeployment() {
-    await this.gotoInteractive(true);
+  async createDeploymentAndSign() {
     await this.createDeployment();
     await this.signTransaction();
   }
 
-  async createLease() {
+  async createLeaseAndSign() {
     await this.createLease();
     await this.signTransaction();
   }

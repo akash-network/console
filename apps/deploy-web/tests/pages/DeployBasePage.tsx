@@ -15,7 +15,7 @@ export class DeployBasePage {
 
   async gotoInteractive(skipInit?: boolean) {
     if (this.cardTestId) {
-      if (skipInit) {
+      if (!skipInit) {
         await this.page.goto(testEnvConfig.BASE_URL);
         await this.page.getByTestId("welcome-modal-accept-button").click();
       }

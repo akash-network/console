@@ -5,11 +5,10 @@ import { DeployHelloWorldPage } from "./pages/DeployHelloWorldPage";
 test("deploy hello world", async ({ extPage: page, context }) => {
   await setupLeap(context, page);
 
-  const customTemplatePage = new DeployHelloWorldPage(context, page, "new-deployment", "hello-world-card");
+  const helloWorldPage = new DeployHelloWorldPage(context, page, "new-deployment", "hello-world-card");
 
-  await customTemplatePage.createDeployment();
-  await customTemplatePage.createLease(); 
-  await customTemplatePage.validateLeaseAndClose();
-
-  await page.pause();
+  await helloWorldPage.gotoInteractive(true);
+  await helloWorldPage.createDeploymentAndSign();
+  await helloWorldPage.createLeaseAndSign();
+  await helloWorldPage.validateLeaseAndClose();
 });
