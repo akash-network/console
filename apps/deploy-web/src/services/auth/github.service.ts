@@ -23,8 +23,8 @@ class GitHubAuth {
       });
 
       const params = new URLSearchParams(response.data);
-      const access_token = params.get("access_token");
-      return access_token as string;
+      const accessToken = params.get("access_token");
+      return accessToken as string;
     } catch (error) {
       throw new Error(error);
     }

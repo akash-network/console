@@ -18,7 +18,7 @@ export class BitbucketService {
 
   constructor() {}
 
-  public handleLogin() {
+  public loginWithBitBucket() {
     window.location.href = `https://bitbucket.org/site/oauth2/authorize?client_id=${browserEnvConfig.NEXT_PUBLIC_BITBUCKET_CLIENT_ID}&response_type=code`;
   }
 

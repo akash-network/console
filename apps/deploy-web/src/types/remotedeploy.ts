@@ -156,3 +156,8 @@ export interface Repo {
   private: boolean;
   owner?: Owner;
 }
+
+export interface GitProviderTokens {
+  accessToken: string;
+  refreshToken: string;
+}

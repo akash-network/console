@@ -17,11 +17,11 @@ const axiosInstance = axios.create({
 });
 
 export class GitHubService {
-  handleLogin() {
+  loginWithGithub() {
     window.location.href = browserEnvConfig.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL;
   }
 
-  handleReLogin() {
+  reLoginWithGithub() {
     window.location.href = `https://github.com/login/oauth/authorize?client_id=${browserEnvConfig.NEXT_PUBLIC_GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URL}`;
   }
 

@@ -7,7 +7,7 @@ export const ROOT_FOLDER_NAME = "akash-root-folder-repo-path";
 export const protectedEnvironmentVariables = {
   REPO_URL: "REPO_URL",
   BRANCH_NAME: "BRANCH_NAME",
-  ACCESS_TOKEN: "ACCESS_TOKEN",
+  accessToken: "accessToken",
   BUILD_DIRECTORY: "BUILD_DIRECTORY",
   BUILD_COMMAND: "BUILD_COMMAND",
   NODE_VERSION: "NODE_VERSION",

@@ -41,6 +41,7 @@ const RemoteRepositoryDeployManager = ({
   setIsRepoInputValid?: Dispatch<boolean>;
 }) => {
   const [token, setToken] = useAtom(tokens);
+
   const [selectedTab, setSelectedTab] = useState("git");
   const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
@@ -54,12 +55,12 @@ const RemoteRepositoryDeployManager = ({
 
   const envVarUpdater = new EnvVarUpdater(services);
 
-  const { handleReLogin, handleLogin } = new GitHubService();
+  const { reLoginWithGithub, loginWithGithub } = new GitHubService();
 
   const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
   const { mutate: fetchAccessToken, isLoading: fetchingToken } = useFetchAccessToken(navigateToNewDeployment);
 
-  const bitbucketService = new BitbucketService();
+  const { loginWithBitBucket } = new BitbucketService();
   const { data: userProfileBit, isLoading: fetchingProfileBit } = useBitUserProfile();
   const { mutate: fetchAccessTokenBit, isLoading: fetchingTokenBit } = useBitFetchAccessToken(navigateToNewDeployment);
 
@@ -88,7 +89,7 @@ const RemoteRepositoryDeployManager = ({
 
     const code = url.searchParams.get("code");
 
-    if (code && !token?.access_token && hydrated) {
+    if (code && !token?.accessToken && hydrated) {
       if (token?.type === "github") fetchAccessToken(code);
       if (token?.type === "bitbucket") fetchAccessTokenBit(code);
       if (token?.type === "gitlab") fetchAccessTokenGitLab(code);
@@ -111,7 +112,7 @@ const RemoteRepositoryDeployManager = ({
         <div className="flex items-center justify-between gap-6">
           <h2 className="font-semibold">Import Repository</h2>
 
-          {token?.access_token && (
+          {token?.accessToken && (
             <div className="md:hidden">
               <AccountDropDown userProfile={userProfile} userProfileBit={userProfileBit} userProfileGitLab={userProfileGitLab} />
             </div>
@@ -136,7 +137,7 @@ const RemoteRepositoryDeployManager = ({
                   Third-Party Git Repository
                 </TabsTrigger>
               </TabsList>
-              {token?.access_token && (
+              {token?.accessToken && (
                 <div className="hidden md:block">
                   <AccountDropDown userProfile={userProfile} userProfileBit={userProfileBit} userProfileGitLab={userProfileGitLab} />
                 </div>
@@ -149,7 +150,7 @@ const RemoteRepositoryDeployManager = ({
                   <p className="text-muted-foreground">Loading...</p>
                 </div>
               ) : (
-                !token?.access_token && (
+                !token?.accessToken && (
                   <div className="flex flex-col justify-center gap-6 rounded-sm border px-4 py-8 md:items-center">
                     <div className="flex flex-col items-center justify-center">
                       <h1 className="text-lg font-bold text-primary">Connect Account</h1>
@@ -158,9 +159,9 @@ const RemoteRepositoryDeployManager = ({
                     <div className="flex flex-col gap-3 md:flex-row">
                       <Button
                         onClick={() => {
-                          setToken({ access_token: null, refresh_token: null, type: "bitbucket", alreadyLoggedIn: token?.alreadyLoggedIn });
+                          setToken({ accessToken: null, refreshToken: null, type: "bitbucket", alreadyLoggedIn: token?.alreadyLoggedIn });
 
-                          bitbucketService.handleLogin();
+                          loginWithBitBucket();
                         }}
                         variant="outline"
                       >
@@ -169,7 +170,7 @@ const RemoteRepositoryDeployManager = ({
                       </Button>
                       <Button
                         onClick={() => {
-                          setToken({ access_token: null, refresh_token: null, type: "gitlab", alreadyLoggedIn: token?.alreadyLoggedIn });
+                          setToken({ accessToken: null, refreshToken: null, type: "gitlab", alreadyLoggedIn: token?.alreadyLoggedIn });
                           handleGitLabLogin();
                         }}
                         variant="outline"
@@ -179,11 +180,11 @@ const RemoteRepositoryDeployManager = ({
                       </Button>
                       <Button
                         onClick={() => {
-                          setToken({ access_token: null, refresh_token: null, type: "github", alreadyLoggedIn: token?.alreadyLoggedIn });
+                          setToken({ accessToken: null, refreshToken: null, type: "github", alreadyLoggedIn: token?.alreadyLoggedIn });
                           if (token?.alreadyLoggedIn?.includes("github")) {
-                            handleReLogin();
+                            reLoginWithGithub();
                           } else {
-                            handleLogin();
+                            loginWithGithub();
                           }
                         }}
                         variant="outline"
@@ -218,7 +219,7 @@ const RemoteRepositoryDeployManager = ({
           </Tabs>
         }
 
-        {selectedTab === "git" && token?.access_token && (
+        {selectedTab === "git" && token?.accessToken && (
           <div className="grid gap-6 md:grid-cols-2">
             {token?.type === "github" ? (
               <>

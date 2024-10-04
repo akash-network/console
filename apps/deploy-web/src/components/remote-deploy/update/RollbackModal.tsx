@@ -26,7 +26,7 @@ import { RollBackType } from "@src/types/remotedeploy";
 
 const RollbackModal = ({ commits, control }: { commits?: RollBackType[] | null; control: Control<SdlBuilderFormValuesType> }) => {
   const [filteredData, setFilteredData] = useState<RollBackType[]>([]);
-  const [value, setValue] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
   const { append, update } = useFieldArray({ control, name: "services.0.env", keyName: "id" });
   const currentHash = services[0]?.env?.find(e => e.key === protectedEnvironmentVariables.COMMIT_HASH);
@@ -34,11 +34,11 @@ const RollbackModal = ({ commits, control }: { commits?: RollBackType[] | null; 
     if (commits) {
       setFilteredData(
         commits?.filter(item => {
-          return item.name.toLowerCase().includes(value.toLowerCase());
+          return item.name.toLowerCase().includes(searchQuery.toLowerCase());
         })
       );
     }
-  }, [commits, value]);
+  }, [commits, searchQuery]);
 
   return (
     <div className="flex items-center gap-6">
@@ -68,9 +68,9 @@ const RollbackModal = ({ commits, control }: { commits?: RollBackType[] | null; 
                   <Input
                     placeholder="Search"
                     className="w-full"
-                    value={value}
+                    value={searchQuery}
                     onChange={e => {
-                      setValue(e.target.value);
+                      setSearchQuery(e.target.value);
                     }}
                   />
                 </div>

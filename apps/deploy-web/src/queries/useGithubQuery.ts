@@ -12,18 +12,18 @@ export const useUserProfile = () => {
   const [token] = useAtom(tokens);
 
   return useQuery({
-    queryKey: QueryKeys.getUserProfileKey(token.access_token),
-    queryFn: () => githubService.fetchUserProfile(token?.access_token),
-    enabled: !!token?.access_token && token.type === OAuthType
+    queryKey: QueryKeys.getUserProfileKey(token.accessToken),
+    queryFn: () => githubService.fetchUserProfile(token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType
   });
 };
 
 export const useRepos = () => {
   const [token] = useAtom(tokens);
   return useQuery({
-    queryKey: QueryKeys.getReposKey(token.access_token),
-    queryFn: () => githubService.fetchRepos(token?.access_token),
-    enabled: !!token?.access_token && token.type === OAuthType
+    queryKey: QueryKeys.getReposKey(token.accessToken),
+    queryFn: () => githubService.fetchRepos(token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType
   });
 };
 
@@ -31,9 +31,9 @@ export const useBranches = (repo?: string) => {
   const [token] = useAtom(tokens);
 
   return useQuery({
-    queryKey: QueryKeys.getBranchesKey(repo, token?.access_token),
-    queryFn: () => githubService.fetchBranches(repo!, token?.access_token),
-    enabled: !!token?.access_token && token.type === OAuthType && !!repo
+    queryKey: QueryKeys.getBranchesKey(repo, token?.accessToken),
+    queryFn: () => githubService.fetchBranches(repo!, token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo
   });
 };
 
@@ -41,24 +41,25 @@ export const useCommits = (repo?: string, branch?: string) => {
   const [token] = useAtom(tokens);
 
   return useQuery({
-    queryKey: QueryKeys.getCommitsByBranchKey(repo, branch, token?.access_token),
-    queryFn: () => githubService.fetchCommits(repo!, branch!, token?.access_token),
-    enabled: !!token?.access_token && token.type === OAuthType && !!repo && !!branch
+    queryKey: QueryKeys.getCommitsByBranchKey(repo, branch, token?.accessToken),
+    queryFn: () => githubService.fetchCommits(repo!, branch!, token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo && !!branch
   });
 };
 
-export const usePackageJson = (onSettled: (data: PackageJson) => void, repo?: string, subFolder?: string) => {
+export const usePackageJson = (onSuccess: (data: PackageJson) => void, repo?: string, subFolder?: string) => {
   const [token] = useAtom(tokens);
 
   return useQuery({
-    queryKey: QueryKeys.getPackageJsonKey(repo, "main", subFolder, token?.access_token),
-    queryFn: () => githubService.fetchPackageJson(repo!, subFolder, token?.access_token),
-    enabled: !!token?.access_token && token.type === OAuthType && !!repo,
+    queryKey: QueryKeys.getPackageJsonKey(repo, OAuthType, subFolder),
+    queryFn: () => githubService.fetchPackageJson(repo, subFolder, token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo,
     onSettled: data => {
       if (data?.content === undefined) return;
       const content = atob(data.content);
       const parsed = JSON.parse(content);
-      onSettled(parsed);
+
+      onSuccess(parsed);
     }
   });
 };
@@ -67,9 +68,9 @@ export const useSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void,
   const [token] = useAtom(tokens);
 
   return useQuery({
-    queryKey: QueryKeys.getSrcFoldersKey(repo, "main", token?.access_token),
-    queryFn: () => githubService.fetchSrcFolders(repo!, token?.access_token),
-    enabled: !!token?.access_token && token.type === OAuthType && !!repo,
+    queryKey: QueryKeys.getSrcFoldersKey(repo, OAuthType),
+    queryFn: () => githubService.fetchSrcFolders(repo!, token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo,
     onSettled: data => {
       onSettled(data);
     }
@@ -85,8 +86,8 @@ export const useFetchAccessToken = (onSuccess: () => void) => {
     },
     onSuccess: data => {
       setToken({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
         type: OAuthType
       });
 

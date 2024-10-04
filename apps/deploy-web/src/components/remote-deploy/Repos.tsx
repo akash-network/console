@@ -228,14 +228,14 @@ const Repos = ({
                               repoUrl,
                               branchName,
 
-                              { id: nanoid(), key: protectedEnvironmentVariables.GITHUB_ACCESS_TOKEN, value: token?.access_token || "", isSecret: false }
+                              { id: nanoid(), key: protectedEnvironmentVariables.GITHUB_ACCESS_TOKEN, value: token?.accessToken || "", isSecret: false }
                             ]);
                           }
                           if (type === "bitbucket") {
                             setValue("services.0.env", [
                               repoUrl,
                               branchName,
-                              { id: nanoid(), key: protectedEnvironmentVariables.BITBUCKET_ACCESS_TOKEN, value: token?.access_token || "", isSecret: false },
+                              { id: nanoid(), key: protectedEnvironmentVariables.BITBUCKET_ACCESS_TOKEN, value: token?.accessToken || "", isSecret: false },
                               { id: nanoid(), key: protectedEnvironmentVariables.BITBUCKET_USER, value: repo?.userName || "", isSecret: false }
                             ]);
                           }
@@ -243,7 +243,7 @@ const Repos = ({
                             setValue("services.0.env", [
                               repoUrl,
                               branchName,
-                              { id: nanoid(), key: protectedEnvironmentVariables.GITLAB_ACCESS_TOKEN, value: token?.access_token || "", isSecret: false },
+                              { id: nanoid(), key: protectedEnvironmentVariables.GITLAB_ACCESS_TOKEN, value: token?.accessToken || "", isSecret: false },
                               {
                                 id: nanoid(),
                                 key: protectedEnvironmentVariables.GITLAB_PROJECT_ID,
