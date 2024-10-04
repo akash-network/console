@@ -1,8 +1,8 @@
 import React, { Dispatch, useState } from "react";
 import { Control, UseFormSetValue } from "react-hook-form";
 
+import { useGitLabReposByGroup } from "@src/queries/useGitlabQuery";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { useGitLabReposByGroup } from "../remote-deploy-api-queries/gitlab-queries";
 import Repos from "../Repos";
 import GitlabBranches from "./GitlabBranches";
 import Groups from "./Groups";

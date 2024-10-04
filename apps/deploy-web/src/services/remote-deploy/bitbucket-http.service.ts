@@ -23,7 +23,7 @@ export class BitbucketService {
   }
 
   async fetchRefreshToken(refreshToken?: string | null) {
-    const response = await this.axiosInstance.post(`/api/bitbucket/refresh`, { refreshToken });
+    const response = await axios.post(`/api/bitbucket/refresh`, { refreshToken });
     return response.data;
   }
 

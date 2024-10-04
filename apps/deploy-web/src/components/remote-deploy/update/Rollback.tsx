@@ -2,21 +2,21 @@ import { useMemo } from "react";
 import { Control } from "react-hook-form";
 
 import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
+import { useCommits } from "@src/queries/useGithubQuery";
+import { useGitLabCommits } from "@src/queries/useGitlabQuery";
 import { formatUrlWithoutInitialPath } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { RollBackType } from "@src/types/remotedeploy";
 import { useBitBucketCommits } from "../../../queries/useBitBucketQuery";
-import { useCommits } from "../remote-deploy-api-queries/github-queries";
-import { useGitLabCommits } from "../remote-deploy-api-queries/gitlab-queries";
 import RollbackModal from "./RollbackModal";
 
 const Rollback = ({ services, control }: { services: ServiceType[]; control: Control<SdlBuilderFormValuesType> }) => {
   const repoUrl = services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.REPO_URL)?.value;
   const branchName = services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.BRANCH_NAME)?.value;
+
   const { data } = useCommits(repoUrl?.replace("https://github.com/", ""), branchName);
   const { data: labCommits } = useGitLabCommits(services?.[0]?.env?.find(e => e.key === protectedEnvironmentVariables.GITLAB_PROJECT_ID)?.value, branchName);
   const { data: bitbucketCommits } = useBitBucketCommits(formatUrlWithoutInitialPath(repoUrl));
-
   const commits: RollBackType[] | null = useMemo(() => {
     if (data?.length) {
       return formatCommits(data, commit => ({

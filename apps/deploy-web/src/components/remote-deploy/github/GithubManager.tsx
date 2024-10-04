@@ -1,9 +1,9 @@
 import { Dispatch } from "react";
 import { Control, UseFormSetValue } from "react-hook-form";
 
+import { useRepos } from "@src/queries/useGithubQuery";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { GitHubProfile } from "@src/types/remoteProfile";
-import { useRepos } from "../remote-deploy-api-queries/github-queries";
 import Repos from "../Repos";
 import GithubBranches from "./GithubBranches";
 

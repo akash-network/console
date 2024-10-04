@@ -7,7 +7,11 @@ import { useRouter } from "next/navigation";
 
 import { CI_CD_TEMPLATE_ID, CURRENT_SERVICE, DEFAULT_ENV_IN_YML, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { useWhen } from "@src/hooks/useWhen";
+import { useFetchAccessToken, useUserProfile } from "@src/queries/useGithubQuery";
+import { useGitLabFetchAccessToken, useGitLabUserProfile } from "@src/queries/useGitlabQuery";
 import { BitbucketService } from "@src/services/remote-deploy/bitbucket-http.service";
+import { GitHubService } from "@src/services/remote-deploy/github-http.service";
+import { GitLabService } from "@src/services/remote-deploy/gitlab-http.service";
 import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -19,8 +23,6 @@ import RemoteBuildInstallConfig from "./deployment-configurations/RemoteBuildIns
 import RemoteDeployEnvDropdown from "./deployment-configurations/RemoteDeployEnvDropdown";
 import GithubManager from "./github/GithubManager";
 import GitlabManager from "./gitlab/GitlabManager";
-import { handleLogin, handleReLogin, useFetchAccessToken, useUserProfile } from "./remote-deploy-api-queries/github-queries";
-import { handleGitLabLogin, useGitLabFetchAccessToken, useGitLabUserProfile } from "./remote-deploy-api-queries/gitlab-queries";
 import AccountDropDown from "./AccountDropdown";
 import CustomInput from "./BoxTextInput";
 const RemoteRepositoryDeployManager = ({
@@ -51,22 +53,19 @@ const RemoteRepositoryDeployManager = ({
   const shouldResetValue = isRepoUrlDefault(services?.[0]?.env || []);
 
   const envVarUpdater = new EnvVarUpdater(services);
-  const bitbucketService = new BitbucketService();
-  const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
-  const { data: userProfileBit, isLoading: fetchingProfileBit } = useBitUserProfile();
-  const { data: userProfileGitLab, isLoading: fetchingProfileGitLab } = useGitLabUserProfile();
 
-  const { mutate: fetchAccessToken, isLoading: fetchingToken } = useFetchAccessToken();
-  const { mutate: fetchAccessTokenBit, isLoading: fetchingTokenBit } = useBitFetchAccessToken(() => {
-    router.replace(
-      UrlService.newDeployment({
-        step: RouteStep.editDeployment,
-        gitProvider: "github",
-        templateId: CI_CD_TEMPLATE_ID
-      })
-    );
-  });
-  const { mutate: fetchAccessTokenGitLab, isLoading: fetchingTokenGitLab } = useGitLabFetchAccessToken();
+  const { handleReLogin, handleLogin } = new GitHubService();
+
+  const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
+  const { mutate: fetchAccessToken, isLoading: fetchingToken } = useFetchAccessToken(navigateToNewDeployment);
+
+  const bitbucketService = new BitbucketService();
+  const { data: userProfileBit, isLoading: fetchingProfileBit } = useBitUserProfile();
+  const { mutate: fetchAccessTokenBit, isLoading: fetchingTokenBit } = useBitFetchAccessToken(navigateToNewDeployment);
+
+  const { handleGitLabLogin } = new GitLabService();
+  const { data: userProfileGitLab, isLoading: fetchingProfileGitLab } = useGitLabUserProfile();
+  const { mutate: fetchAccessTokenGitLab, isLoading: fetchingTokenGitLab } = useGitLabFetchAccessToken(navigateToNewDeployment);
 
   useWhen(isValid, () => {
     setIsRepoInputValid?.(true);
@@ -95,6 +94,16 @@ const RemoteRepositoryDeployManager = ({
       if (token?.type === "gitlab") fetchAccessTokenGitLab(code);
     }
   }, [hydrated]);
+
+  function navigateToNewDeployment() {
+    router.replace(
+      UrlService.newDeployment({
+        step: RouteStep.editDeployment,
+        gitProvider: "github",
+        templateId: CI_CD_TEMPLATE_ID
+      })
+    );
+  }
 
   return (
     <>
