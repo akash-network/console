@@ -22,7 +22,7 @@ const Rollback = ({ services, control }: { services: ServiceType[]; control: Con
       return formatCommits(data, commit => ({
         name: commit.commit.message,
         value: commit.sha,
-        date: new Date(commit.commit.author.date)
+        date: new Date(commit?.commit?.author?.date || "")
       }));
     } else if (labCommits?.length) {
       return formatCommits(labCommits, commit => ({
