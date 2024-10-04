@@ -31,7 +31,8 @@ import { useGitlabSrcFolders } from "@src/queries/useGitlabQuery";
 import { EnvVarUpdater, formatUrlWithoutInitialPath } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { IGithubDirectoryItem, Repo } from "@src/types/remotedeploy";
+import { CustomRepo, IGithubDirectoryItem } from "@src/types/remotedeploy";
+import { GitHubProfile } from "@src/types/remoteProfile";
 import { useBitSrcFolders } from "../../queries/useBitBucketQuery";
 import CustomInput from "./BoxTextInput";
 
@@ -44,19 +45,13 @@ const Repos = ({
   profile,
   type = "github"
 }: {
-  repos?: Repo[];
+  repos?: CustomRepo[];
   setValue: UseFormSetValue<SdlBuilderFormValuesType>;
   services: ServiceType[];
   isLoading: boolean;
   setDeploymentName: Dispatch<string>;
   deploymentName: string;
-  profile?: {
-    name: string;
-    email: string;
-    avatar_url: string;
-    login: string;
-    html_url: string;
-  };
+  profile?: GitHubProfile;
   type?: "github" | "gitlab" | "bitbucket";
 }) => {
   const currentServiceEnv = services?.[0]?.env || [];

@@ -5,7 +5,6 @@ import { REDIRECT_URL } from "@src/config/remote-deploy.config";
 import { GitCommit } from "@src/types/remoteCommits";
 import { GithubRepository } from "@src/types/remotedeploy";
 import { GitHubProfile } from "@src/types/remoteProfile";
-
 const GITHUB_API_URL = "https://api.github.com";
 
 const axiosInstance = axios.create({
