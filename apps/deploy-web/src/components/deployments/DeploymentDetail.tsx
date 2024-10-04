@@ -4,7 +4,7 @@ import { createRef, useEffect, useState } from "react";
 import { Alert, Button, buttonVariants, Spinner, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { ArrowLeft } from "iconoir-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
 
@@ -31,7 +31,8 @@ import { DeploymentSubHeader } from "./DeploymentSubHeader";
 import { LeaseRow } from "./LeaseRow";
 import { ManifestUpdate } from "./ManifestUpdate";
 
-export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: string }>) {
+export function DeploymentDetail() {
+  const dseq = useParams()?.dseq as string;
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
