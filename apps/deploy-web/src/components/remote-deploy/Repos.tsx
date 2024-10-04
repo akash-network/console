@@ -26,13 +26,13 @@ import Image from "next/image";
 
 import { CURRENT_SERVICE, protectedEnvironmentVariables, ROOT_FOLDER_NAME } from "@src/config/remote-deploy.config";
 import useRemoteDeployFramework from "@src/hooks/useRemoteDeployFramework";
+import { useSrcFolders } from "@src/queries/useGithubQuery";
+import { useGitlabSrcFolders } from "@src/queries/useGitlabQuery";
 import { EnvVarUpdater, formatUrlWithoutInitialPath } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { IGithubDirectoryItem, Repo } from "@src/types/remotedeploy";
 import { useBitSrcFolders } from "../../queries/useBitBucketQuery";
-import { useSrcFolders } from "./remote-deploy-api-queries/github-queries";
-import { useGitlabSrcFolders } from "./remote-deploy-api-queries/gitlab-queries";
 import CustomInput from "./BoxTextInput";
 
 const Repos = ({
@@ -72,6 +72,7 @@ const Repos = ({
   const envVarUpdater = new EnvVarUpdater(services);
   const repo = repos?.find(r => r.html_url === currentRepoUrl);
   const currentFolder = currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.FRONTEND_FOLDER);
+
   const { currentFramework, isLoading: frameworkLoading } = useRemoteDeployFramework({
     currentRepoUrl,
     currentBranchName,

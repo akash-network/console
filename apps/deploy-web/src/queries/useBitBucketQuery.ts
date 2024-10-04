@@ -7,9 +7,11 @@ import { tokens } from "@src/store/remoteDeployStore";
 import { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { QueryKeys } from "./queryKeys";
 
+const bitbucketService = new BitbucketService();
+
 export const useFetchRefreshBitToken = () => {
   const [token, setToken] = useAtom(tokens);
-  const bitbucketService = new BitbucketService();
+
   return useMutation({
     mutationFn: async () => bitbucketService.fetchRefreshToken(token?.refresh_token),
     onSuccess: data => {
@@ -24,7 +26,6 @@ export const useFetchRefreshBitToken = () => {
 
 export const useBitFetchAccessToken = (onSuccess: () => void) => {
   const [, setToken] = useAtom(tokens);
-  const bitbucketService = new BitbucketService();
 
   return useMutation({
     mutationFn: async (code: string) => bitbucketService.fetchAccessToken(code),
@@ -42,7 +43,7 @@ export const useBitFetchAccessToken = (onSuccess: () => void) => {
 
 export const useBitUserProfile = () => {
   const [token] = useAtom(tokens);
-  const bitbucketService = new BitbucketService();
+
   const { mutate } = useFetchRefreshBitToken();
   return useQuery({
     queryKey: QueryKeys.getUserProfileKey(token.access_token),
@@ -58,7 +59,7 @@ export const useBitUserProfile = () => {
 
 export const useBitBucketCommits = (repo?: string) => {
   const [token] = useAtom(tokens);
-  const bitbucketService = new BitbucketService();
+
   return useQuery({
     queryKey: QueryKeys.getCommitsKey(repo, token.access_token),
     queryFn: async () => bitbucketService.fetchCommits(repo, token.access_token),
@@ -68,7 +69,7 @@ export const useBitBucketCommits = (repo?: string) => {
 
 export const useWorkspaces = () => {
   const [token] = useAtom(tokens);
-  const bitbucketService = new BitbucketService();
+
   return useQuery({
     queryKey: QueryKeys.getWorkspacesKey(token.access_token),
     queryFn: async () => bitbucketService.fetchWorkspaces(token.access_token),
@@ -78,7 +79,7 @@ export const useWorkspaces = () => {
 
 export const useBitReposByWorkspace = (workspace: string) => {
   const [token] = useAtom(tokens);
-  const bitbucketService = new BitbucketService();
+
   return useQuery({
     queryKey: QueryKeys.getReposByWorkspaceKey(workspace, token.access_token),
     queryFn: async () => bitbucketService.fetchReposByWorkspace(workspace, token.access_token),
@@ -88,7 +89,7 @@ export const useBitReposByWorkspace = (workspace: string) => {
 
 export const useBitBranches = (repo?: string) => {
   const [token] = useAtom(tokens);
-  const bitbucketService = new BitbucketService();
+
   return useQuery({
     queryKey: QueryKeys.getBranchesKey(repo, token.access_token),
     queryFn: async () => bitbucketService.fetchBranches(repo, token.access_token),
@@ -98,7 +99,7 @@ export const useBitBranches = (repo?: string) => {
 
 export const useBitPackageJson = (onSettled: (data: PackageJson) => void, repo?: string, branch?: string, subFolder?: string) => {
   const [token] = useAtom(tokens);
-  const bitbucketService = new BitbucketService();
+
   return useQuery({
     queryKey: QueryKeys.getPackageJsonKey(repo, branch, subFolder, token.access_token),
     queryFn: async () => bitbucketService.fetchPackageJson(repo, branch, subFolder, token.access_token),
@@ -111,7 +112,7 @@ export const useBitPackageJson = (onSettled: (data: PackageJson) => void, repo?:
 
 export const useBitSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void, repo?: string, branch?: string) => {
   const [token] = useAtom(tokens);
-  const bitbucketService = new BitbucketService();
+
   return useQuery({
     queryKey: QueryKeys.getSrcFoldersKey(repo, branch, token.access_token),
 

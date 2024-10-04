@@ -1,3 +1,5 @@
+import { browserEnvConfig } from "./browser-env.config";
+
 export const CI_CD_TEMPLATE_ID = "akash-network-awesome-akash-automatic-deployment-CICD-template";
 export const CURRENT_SERVICE = "services.0.env";
 export const DEFAULT_ENV_IN_YML = "https://github.com/onwidget/astrowind";
@@ -21,7 +23,7 @@ export const protectedEnvironmentVariables = {
   INSTALL_COMMAND: "INSTALL_COMMAND"
 };
 
-export const REDIRECT_URL = `${process.env.NEXT_PUBLIC_REDIRECT_URI}?step=edit-deployment&type=github`;
+export const REDIRECT_URL = `${browserEnvConfig.NEXT_PUBLIC_REDIRECT_URI}?step=edit-deployment&type=github`;
 
 export const supportedFrameworks = [
   {
