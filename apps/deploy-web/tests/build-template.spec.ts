@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 
 import { BuildTemplatePage } from "./pages/BuildTemplatePage";
 
-test("ssh function absence", async ({ page }) => {
-  const plainLinuxPage = new BuildTemplatePage(page, "sdl-builder");
+test("ssh function absence", async ({ page, context }) => {
+  const plainLinuxPage = new BuildTemplatePage(context, page, "sdl-builder");
   await plainLinuxPage.gotoInteractive();
 
   await expect(page.getByTestId("generate-ssh-keys-btn")).not.toBeVisible();
