@@ -1,5 +1,6 @@
 import axios, { AxiosResponse } from "axios";
 
+import { GitProviderTokens } from "@src/types/remotedeploy";
 interface Tokens {
   access_token: string;
   refresh_token: string;
@@ -18,7 +19,7 @@ class GitlabAuth {
     this.redirectUri = redirectUri;
   }
 
-  async exchangeAuthorizationCodeForTokens(authorizationCode: string): Promise<Tokens> {
+  async exchangeAuthorizationCodeForTokens(authorizationCode: string): Promise<GitProviderTokens> {
     try {
       const response: AxiosResponse = await axios.post(this.tokenUrl, {
         client_id: this.clientId,
@@ -29,23 +30,29 @@ class GitlabAuth {
       });
 
       const { access_token, refresh_token }: Tokens = response.data;
-      return { access_token, refresh_token };
+      return {
+        accessToken: access_token,
+        refreshToken: refresh_token
+      };
     } catch (error) {
       throw new Error(error);
     }
   }
 
-  async refreshTokensUsingRefreshToken(refreshToken: string): Promise<Tokens> {
+  async refreshTokensUsingRefreshToken(token: string): Promise<GitProviderTokens> {
     try {
       const response: AxiosResponse = await axios.post(this.tokenUrl, {
         client_id: this.clientId,
         client_secret: this.clientSecret,
-        refresh_token: refreshToken,
-        grant_type: "refresh_token"
+        refresh_token: token,
+        grant_type: "refreshToken"
       });
 
       const { access_token, refresh_token }: Tokens = response.data;
-      return { access_token, refresh_token };
+      return {
+        accessToken: access_token,
+        refreshToken: refresh_token
+      };
     } catch (error) {
       throw new Error(error);
     }

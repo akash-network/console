@@ -57,12 +57,6 @@ export class QueryKeys {
   static getReposByWorkspaceKey = (workspace: string, accessToken: string | null) => ["REPOS", accessToken, workspace];
   static getReposKey = (accessToken?: string | null) => ["REPOS", accessToken];
   static getBranchesKey = (repo?: string, accessToken?: string | null) => ["BRANCHES", repo, accessToken];
-  static getPackageJsonKey = (repo?: string, branch?: string, subFolder?: string, accessToken?: string | null) => [
-    "PACKAGE_JSON",
-    repo,
-    branch,
-    subFolder,
-    accessToken
-  ];
-  static getSrcFoldersKey = (repo?: string, branch?: string, accessToken?: string | null) => ["SRC_FOLDERS", repo, branch, accessToken];
+  static getPackageJsonKey = (repo?: string, branch?: string, subFolder?: string) => ["PACKAGE_JSON", repo, branch, subFolder];
+  static getSrcFoldersKey = (repo?: string, branch?: string) => ["SRC_FOLDERS", repo, branch];
 }

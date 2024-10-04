@@ -19,8 +19,8 @@ export default async function refreshTokensHandler(req: NextApiRequest, res: Nex
   const bitbucketAuth = new BitbucketAuth(NEXT_PUBLIC_BITBUCKET_CLIENT_ID, BITBUCKET_CLIENT_SECRET);
 
   try {
-    const { access_token, refresh_token } = await bitbucketAuth.refreshTokensUsingRefreshToken(refreshToken);
-    res.status(200).json({ access_token, refresh_token });
+    const tokens = await bitbucketAuth.refreshTokensUsingRefreshToken(refreshToken);
+    res.status(200).json(tokens);
   } catch (error) {
     res.status(500).send({
       error: error.response?.data?.error,

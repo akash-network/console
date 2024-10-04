@@ -1,5 +1,6 @@
 import axios from "axios";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { GitLabCommit } from "@src/types/remoteCommits";
 import { GitLabProfile } from "@src/types/remoteProfile";
 import { GitlabGroup, GitlabRepo } from "@src/types/remoteRepos";
@@ -14,7 +15,7 @@ export class GitLabService {
   });
 
   public handleGitLabLogin() {
-    window.location.href = `https://gitlab.com/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID}&redirect_uri=${process.env.NEXT_PUBLIC_REDIRECT_URI}&response_type=code&scope=read_user+read_repository+read_api+api&state=gitlab`;
+    window.location.href = `https://gitlab.com/oauth/authorize?client_id=${browserEnvConfig.NEXT_PUBLIC_GITLAB_CLIENT_ID}&redirect_uri=${process.env.NEXT_PUBLIC_REDIRECT_URI}&response_type=code&scope=read_user+read_repository+read_api+api&state=gitlab`;
   }
 
   public async fetchAccessToken(code: string) {

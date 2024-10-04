@@ -16,8 +16,8 @@ export const useGitLabFetchAccessToken = (onSuccess: () => void) => {
     mutationFn: (code: string) => gitLabService.fetchAccessToken(code),
     onSuccess: data => {
       setToken({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
         type: OAuthType
       });
 
@@ -30,11 +30,11 @@ export const useFetchRefreshToken = () => {
   const [token, setToken] = useAtom(tokens);
 
   return useMutation({
-    mutationFn: () => gitLabService.refreshToken(token?.refresh_token),
+    mutationFn: () => gitLabService.refreshToken(token?.refreshToken),
     onSuccess: data => {
       setToken({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
         type: OAuthType
       });
     }
@@ -46,9 +46,9 @@ export const useGitLabUserProfile = () => {
   const { mutate } = useFetchRefreshToken();
 
   return useQuery({
-    queryKey: QueryKeys.getUserProfileKey(token?.access_token),
-    queryFn: () => gitLabService.fetchUserProfile(token?.access_token),
-    enabled: !!token?.access_token && token.type === OAuthType,
+    queryKey: QueryKeys.getUserProfileKey(token?.accessToken),
+    queryFn: () => gitLabService.fetchUserProfile(token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType,
     onError: (error: AxiosError) => {
       if (error.response?.status === 401) {
         mutate();
@@ -60,36 +60,36 @@ export const useGitLabUserProfile = () => {
 export const useGitLabGroups = () => {
   const [token] = useAtom(tokens);
   return useQuery({
-    queryKey: QueryKeys.getGroupsKey(token?.access_token),
-    queryFn: () => gitLabService.fetchGitLabGroups(token?.access_token),
-    enabled: !!token?.access_token && token.type === OAuthType
+    queryKey: QueryKeys.getGroupsKey(token?.accessToken),
+    queryFn: () => gitLabService.fetchGitLabGroups(token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType
   });
 };
 
 export const useGitLabReposByGroup = (group: string | undefined) => {
   const [token] = useAtom(tokens);
   return useQuery({
-    queryKey: QueryKeys.getReposByGroupKey(group, token?.access_token),
-    queryFn: () => gitLabService.fetchReposByGroup(group, token?.access_token),
-    enabled: !!token?.access_token && token.type === OAuthType && !!group
+    queryKey: QueryKeys.getReposByGroupKey(group, token?.accessToken),
+    queryFn: () => gitLabService.fetchReposByGroup(group, token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType && !!group
   });
 };
 
 export const useGitLabBranches = (repo?: string) => {
   const [token] = useAtom(tokens);
   return useQuery({
-    queryKey: QueryKeys.getBranchesKey(repo, token?.access_token),
-    queryFn: () => gitLabService.fetchBranches(repo, token?.access_token),
-    enabled: !!token?.access_token && token.type === OAuthType && !!repo
+    queryKey: QueryKeys.getBranchesKey(repo, token?.accessToken),
+    queryFn: () => gitLabService.fetchBranches(repo, token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo
   });
 };
 
 export const useGitLabCommits = (repo?: string, branch?: string) => {
   const [token] = useAtom(tokens);
   return useQuery({
-    queryKey: QueryKeys.getCommitsByBranchKey(repo, branch, token?.access_token),
-    queryFn: () => gitLabService.fetchCommits(repo, branch, token?.access_token),
-    enabled: !!token?.access_token && token.type === OAuthType && !!repo && !!branch
+    queryKey: QueryKeys.getCommitsByBranchKey(repo, branch, token?.accessToken),
+    queryFn: () => gitLabService.fetchCommits(repo, branch, token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo && !!branch
   });
 };
 
@@ -97,9 +97,9 @@ export const useGitlabPackageJson = (onSettled: (data: PackageJson) => void, rep
   const [token] = useAtom(tokens);
 
   return useQuery({
-    queryKey: QueryKeys.getPackageJsonKey(repo, "main", subFolder, token?.access_token),
-    queryFn: () => gitLabService.fetchPackageJson(repo, subFolder, token?.access_token),
-    enabled: !!token?.access_token && token.type === OAuthType && !!repo,
+    queryKey: QueryKeys.getPackageJsonKey(repo, OAuthType, subFolder),
+    queryFn: () => gitLabService.fetchPackageJson(repo, subFolder, token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo,
     onSettled: data => {
       if (data?.content === undefined) return;
       const content = atob(data.content);
@@ -113,9 +113,9 @@ export const useGitlabSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) =>
   const [token] = useAtom(tokens);
 
   return useQuery({
-    queryKey: QueryKeys.getSrcFoldersKey(repo, "main", token?.access_token),
-    queryFn: () => gitLabService.fetchSrcFolders(repo, token?.access_token),
-    enabled: !!token?.access_token && token.type === OAuthType && !!repo,
+    queryKey: QueryKeys.getSrcFoldersKey(repo, OAuthType),
+    queryFn: () => gitLabService.fetchSrcFolders(repo, token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo,
     onSettled: data => {
       onSettled(data);
     }

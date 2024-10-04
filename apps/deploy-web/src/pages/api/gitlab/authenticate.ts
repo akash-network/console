@@ -18,8 +18,8 @@ export default async function exchangeGitLabCodeForTokensHandler(req: NextApiReq
   const gitlabAuth = new GitlabAuth(NEXT_PUBLIC_GITLAB_CLIENT_ID as string, GITLAB_CLIENT_SECRET as string, NEXT_PUBLIC_REDIRECT_URI as string);
 
   try {
-    const { access_token, refresh_token } = await gitlabAuth.exchangeAuthorizationCodeForTokens(code);
-    res.status(200).json({ access_token, refresh_token });
+    const tokens = await gitlabAuth.exchangeAuthorizationCodeForTokens(code);
+    res.status(200).json(tokens);
   } catch (error) {
     res.status(500).send({
       error: error.response?.data?.error,

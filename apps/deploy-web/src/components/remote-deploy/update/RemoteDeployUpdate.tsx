@@ -105,7 +105,7 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
         />
       )}
 
-      {token.access_token && services[0]?.env?.find(e => e.key === protectedEnvironmentVariables.REPO_URL)?.value?.includes(token.type) && (
+      {token.accessToken && services[0]?.env?.find(e => e.key === protectedEnvironmentVariables.REPO_URL)?.value?.includes(token.type) && (
         <>
           <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
             <div className="flex flex-col gap-2">

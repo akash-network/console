@@ -49,8 +49,8 @@ const AccountDropDown = ({
         <DropdownMenuItem
           onClick={() => {
             setToken({
-              access_token: null,
-              refresh_token: null,
+              accessToken: null,
+              refreshToken: null,
               type: "github",
               alreadyLoggedIn: token?.alreadyLoggedIn?.includes(token.type)
                 ? token.alreadyLoggedIn
@@ -66,8 +66,8 @@ const AccountDropDown = ({
         <DropdownMenuItem
           onClick={() =>
             setToken({
-              access_token: null,
-              refresh_token: null,
+              accessToken: null,
+              refreshToken: null,
               type: "github",
               alreadyLoggedIn: []
             })

@@ -45,20 +45,21 @@ export const NewDeploymentContainer: FC = () => {
     const templateId = searchParams?.get("templateId");
     const shouldRedirectToGitlab = !redeploy && state === "gitlab" && code;
     const isGitProvider = gitProvider === "github" || code || state === "gitlab" || (templateId && templateId === CI_CD_TEMPLATE_ID);
-    if (isGitProvider) {
-      if (shouldRedirectToGitlab) {
-        router.replace(
-          UrlService.newDeployment({
-            step: RouteStep.editDeployment,
-            gitProvider: "gitlab",
-            gitProviderCode: code,
-            templateId: CI_CD_TEMPLATE_ID
-          })
-        );
-      }
-      setIsGitProviderTemplate(true);
+    if (shouldRedirectToGitlab) {
+      router.replace(
+        UrlService.newDeployment({
+          step: RouteStep.editDeployment,
+          gitProvider: "github",
+          gitProviderCode: code,
+          templateId: CI_CD_TEMPLATE_ID
+        })
+      );
     } else {
-      setIsGitProviderTemplate(false);
+      if (isGitProvider) {
+        setIsGitProviderTemplate(true);
+      } else {
+        setIsGitProviderTemplate(false);
+      }
     }
   }, [searchParams]);
 
