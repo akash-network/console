@@ -59,6 +59,7 @@
     "clsx": "^2.0.0",
     "cosmjs-types": "^0.9.0",
     "date-fns": "^2.29.3",
+    "dotenv": "^16.4.5",
     "file-saver": "^2.0.5",
     "geist": "^1.3.0",
     "http-proxy": "^1.18.1",
