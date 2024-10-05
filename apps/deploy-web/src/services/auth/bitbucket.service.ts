@@ -1,6 +1,8 @@
 import axios, { AxiosResponse } from "axios";
 import { URLSearchParams } from "url";
 
+import { GitProviderTokens } from "@src/types/remotedeploy";
+
 interface Tokens {
   access_token: string;
   refresh_token: string;
@@ -17,7 +19,7 @@ class BitbucketAuth {
     this.clientSecret = clientSecret;
   }
 
-  async exchangeAuthorizationCodeForTokens(authorizationCode: string): Promise<Tokens> {
+  async exchangeAuthorizationCodeForTokens(authorizationCode: string): Promise<GitProviderTokens> {
     const params = new URLSearchParams();
     params.append("grant_type", "authorization_code");
     params.append("code", authorizationCode);
@@ -30,13 +32,16 @@ class BitbucketAuth {
     try {
       const response: AxiosResponse = await axios.post(this.tokenUrl, params.toString(), { headers });
       const { access_token, refresh_token }: Tokens = response.data;
-      return { access_token, refresh_token };
+      return {
+        accessToken: access_token,
+        refreshToken: refresh_token
+      };
     } catch (error) {
-      throw new Error("Failed to exchange authorization code for tokens");
+      throw new Error(error);
     }
   }
 
-  async refreshTokensUsingRefreshToken(refreshToken: string): Promise<Tokens> {
+  async refreshTokensUsingRefreshToken(refreshToken: string): Promise<GitProviderTokens> {
     const params = new URLSearchParams();
     params.append("grant_type", "refresh_token");
     params.append("refresh_token", refreshToken);
@@ -49,9 +54,12 @@ class BitbucketAuth {
     try {
       const response: AxiosResponse = await axios.post(this.tokenUrl, params.toString(), { headers });
       const { access_token, refresh_token }: Tokens = response.data;
-      return { access_token, refresh_token };
+      return {
+        accessToken: access_token,
+        refreshToken: refresh_token
+      };
     } catch (error) {
-      throw new Error("Failed to refresh tokens using refresh token");
+      throw new Error(error);
     }
   }
 }

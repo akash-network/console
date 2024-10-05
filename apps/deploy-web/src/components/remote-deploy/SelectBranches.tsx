@@ -3,8 +3,9 @@ import { Control, useFieldArray } from "react-hook-form";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Spinner } from "@akashnetwork/ui/components";
 import { nanoid } from "nanoid";
 
+import { CURRENT_SERVICE, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { SdlBuilderFormValuesType } from "@src/types";
-import { protectedEnvironmentVariables } from "./helper-functions";
+
 const SelectBranches = ({
   control,
 
@@ -21,7 +22,7 @@ const SelectBranches = ({
 }) => {
   const { fields, append, update } = useFieldArray({
     control,
-    name: "services.0.env",
+    name: CURRENT_SERVICE,
     keyName: "id"
   });
 

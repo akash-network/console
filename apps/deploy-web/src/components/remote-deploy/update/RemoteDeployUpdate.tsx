@@ -1,4 +1,4 @@
-import React, { Dispatch, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Checkbox, Label, Snackbar } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
@@ -6,8 +6,10 @@ import { useSnackbar } from "notistack";
 
 import { EnvFormModal } from "@src/components/sdl/EnvFormModal";
 import { EnvVarList } from "@src/components/sdl/EnvVarList";
+import { CI_CD_TEMPLATE_ID, CURRENT_SERVICE, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { SdlBuilderProvider } from "@src/context/SdlBuilderProvider";
 import { useTemplates } from "@src/context/TemplatesProvider";
+import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
@@ -16,25 +18,22 @@ import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import BitBranches from "../bitbucket/BitBucketBranches";
 import GithubBranches from "../github/GithubBranches";
 import GitBranches from "../gitlab/GitlabBranches";
-import { appendEnv, ciCdTemplateId, protectedEnvironmentVariables } from "../helper-functions";
 import Rollback from "./Rollback";
 
-const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: string; setEditedManifest: Dispatch<React.SetStateAction<string | null>> }) => {
-  console.log(sdlString);
-
+const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string; onManifestChange: (value: string) => void }) => {
   const [token] = useAtom(tokens);
-  const [, setIsInit] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
-  const [, setError] = useState<string | null>(null);
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(false);
   const { control, watch, setValue } = useForm<SdlBuilderFormValuesType>({ defaultValues: { services: [defaultService] } });
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
+  const envVarUpdater = new EnvVarUpdater(services);
   const { getTemplateById } = useTemplates();
-  const remoteDeployTemplate = getTemplateById(ciCdTemplateId);
+  const remoteDeployTemplate = getTemplateById(CI_CD_TEMPLATE_ID);
+
   useEffect(() => {
     const { unsubscribe }: any = watch(data => {
       const sdl = generateSdl(data.services as ServiceType[]);
-      setEditedManifest(sdl);
+      onManifestChange(sdl);
     });
     try {
       if (sdlString) {
@@ -42,9 +41,9 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
         setValue("services", services as ServiceType[]);
       }
     } catch (error) {
-      setError("Error importing SDL");
+      enqueueSnackbar(<Snackbar title="Error while parsing SDL file" />, { variant: "error" });
     }
-    setIsInit(true);
+
     return () => {
       unsubscribe();
     };
@@ -54,16 +53,15 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
     try {
       if (!yamlStr) return [];
       const services = importSimpleSdl(yamlStr);
-      setError(null);
+
       return services;
     } catch (err) {
       if (err.name === "YAMLException" || err.name === "CustomValidationError") {
-        setError(err.message);
+        enqueueSnackbar(<Snackbar title={err.message} />, { variant: "error" });
       } else if (err.name === "TemplateValidation") {
-        setError(err.message);
+        enqueueSnackbar(<Snackbar title={err.message} />, { variant: "error" });
       } else {
-        setError("Error while parsing SDL file");
-        console.error(err);
+        enqueueSnackbar(<Snackbar title="Error while parsing SDL file" />, { variant: "error" });
       }
     }
   };
@@ -80,7 +78,8 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
             checked={services[0]?.env?.find(e => e.key === protectedEnvironmentVariables.DISABLE_PULL)?.value !== "yes"}
             onCheckedChange={value => {
               const pull = !value ? "yes" : "no";
-              appendEnv(protectedEnvironmentVariables.DISABLE_PULL, pull, false, setValue, services);
+
+              setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.DISABLE_PULL, pull, false));
               enqueueSnackbar(<Snackbar title={"Info"} subTitle="You need to click update deployment button to apply changes" iconVariant="info" />, {
                 variant: "info"
               });
@@ -94,7 +93,7 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
       </SdlBuilderProvider>
       {isEditingEnv && (
         <EnvFormModal
-          update
+          isUpdate
           isRemoteDeployEnvHidden
           control={control}
           serviceIndex={0}
@@ -105,7 +104,7 @@ const RemoteDeployUpdate = ({ sdlString, setEditedManifest }: { sdlString: strin
         />
       )}
 
-      {token.access_token && services[0]?.env?.find(e => e.key === protectedEnvironmentVariables.REPO_URL)?.value?.includes(token.type) && (
+      {token.accessToken && services[0]?.env?.find(e => e.key === protectedEnvironmentVariables.REPO_URL)?.value?.includes(token.type) && (
         <>
           <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
             <div className="flex flex-col gap-2">

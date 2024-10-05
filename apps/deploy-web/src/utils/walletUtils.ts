@@ -87,7 +87,7 @@ export function getStorageWallets(networkId?: NetworkId) {
     return [];
   }
 
-  const selectedNetworkId: NetworkId = networkId || networkStore.getSelectedNetworkId();
+  const selectedNetworkId: NetworkId = networkId || networkStore.selectedNetworkId;
   const wallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`) || "[]") as LocalWallet[];
 
   return wallets || [];
@@ -106,12 +106,12 @@ export function updateWallet(address: string, func: (w: LocalWallet) => LocalWal
 }
 
 export function updateStorageWallets(wallets: LocalWallet[], networkId?: string) {
-  const selectedNetworkId = networkId || networkStore.getSelectedNetworkId();
+  const selectedNetworkId = networkId || networkStore.selectedNetworkId;
   localStorage.setItem(`${selectedNetworkId}/wallets`, JSON.stringify(wallets));
 }
 
 export function deleteWalletFromStorage(address: string, deleteDeployments: boolean, networkId?: NetworkId) {
-  const selectedNetworkId = networkId || networkStore.getSelectedNetworkId();
+  const selectedNetworkId = networkId || networkStore.selectedNetworkId;
   const wallets = getStorageWallets();
   const newWallets = wallets.filter(w => w.address !== address).map((w, i) => ({ ...w, selected: i === 0 }));
 

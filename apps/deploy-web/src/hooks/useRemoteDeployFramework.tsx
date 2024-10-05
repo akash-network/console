@@ -1,52 +1,44 @@
 import { useState } from "react";
 
-import { removeInitialUrl, ServiceSetValue, supportedFrameworks } from "@src/components/remote-deploy/helper-functions";
-import { useBitPackageJson } from "@src/components/remote-deploy/remote-deploy-api-queries/bit-bucket-queries";
-import { usePackageJson } from "@src/components/remote-deploy/remote-deploy-api-queries/github-queries";
-import { useGitlabPackageJson } from "@src/components/remote-deploy/remote-deploy-api-queries/gitlab-queries";
-import { ServiceType } from "@src/types";
+import { supportedFrameworks } from "@src/config/remote-deploy.config";
+import { useBitPackageJson } from "@src/queries/useBitBucketQuery";
+import { usePackageJson } from "@src/queries/useGithubQuery";
+import { useGitlabPackageJson } from "@src/queries/useGitlabQuery";
+import { formatUrlWithoutInitialPath } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { PackageJson } from "@src/types/remotedeploy";
 
 const useRemoteDeployFramework = ({
-  services,
-  setValue,
-  subFolder
+  currentRepoUrl,
+  currentBranchName,
+  currentGitlabProjectId,
+  subFolder,
+  setCpus
 }: {
-  services: ServiceType[];
-  setValue: ServiceSetValue;
-
+  currentRepoUrl?: string;
+  currentBranchName?: string;
+  currentGitlabProjectId?: string;
   subFolder?: string;
+  setCpus: (cpu: number) => void;
 }) => {
-  const [data, setData] = useState<PackageJson | null>(null);
-  const selected = services?.[0]?.env?.find(e => e.key === "REPO_URL")?.value;
+  const [packageJson, setPackageJson] = useState<PackageJson | null>(null);
 
-  const setValueHandler = (data: PackageJson) => {
+  const { isLoading } = usePackageJson(setValueHandler, formatUrlWithoutInitialPath(currentRepoUrl), subFolder);
+  const { isLoading: gitlabLoading, isFetching } = useGitlabPackageJson(setValueHandler, currentGitlabProjectId, subFolder);
+
+  const { isLoading: bitbucketLoading } = useBitPackageJson(setValueHandler, formatUrlWithoutInitialPath(currentRepoUrl), currentBranchName, subFolder);
+
+  function setValueHandler(data: PackageJson) {
     if (data?.dependencies) {
-      setData(data);
+      setPackageJson(data);
       const cpus = (Object.keys(data?.dependencies ?? {})?.length / 10 / 2)?.toFixed(1);
 
-      setValue("services.0.profile.cpu", +cpus > 2 ? +cpus : 2);
+      setCpus(+cpus > 2 ? +cpus : 2);
     } else {
-      setData(null);
+      setPackageJson(null);
     }
-  };
-
-  const { isLoading } = usePackageJson(setValueHandler, removeInitialUrl(selected), subFolder);
-  const { isLoading: gitlabLoading, isFetching } = useGitlabPackageJson(
-    setValueHandler,
-    services?.[0]?.env?.find(e => e.key === "GITLAB_PROJECT_ID")?.value,
-    subFolder
-  );
-
-  const { isLoading: bitbucketLoading } = useBitPackageJson(
-    setValueHandler,
-    removeInitialUrl(selected),
-    services?.[0]?.env?.find(e => e.key === "BRANCH_NAME")?.value,
-    subFolder
-  );
-
+  }
   return {
-    currentFramework: supportedFrameworks.find(f => data?.scripts?.dev?.includes(f.value)) ?? {
+    currentFramework: supportedFrameworks.find(f => packageJson?.scripts?.dev?.includes(f.value)) ?? {
       title: "Other",
       value: "other"
     },

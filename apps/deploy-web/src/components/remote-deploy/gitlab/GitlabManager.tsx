@@ -1,8 +1,8 @@
 import React, { Dispatch, useState } from "react";
+import { Control, UseFormSetValue } from "react-hook-form";
 
-import { ServiceType } from "@src/types";
-import { ServiceControl, ServiceSetValue } from "../helper-functions";
-import { useGitLabReposByGroup } from "../remote-deploy-api-queries/gitlab-queries";
+import { useGitLabReposByGroup } from "@src/queries/useGitlabQuery";
+import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import Repos from "../Repos";
 import GitlabBranches from "./GitlabBranches";
 import Groups from "./Groups";
@@ -18,9 +18,9 @@ const GitlabManager = ({
   setDeploymentName: Dispatch<string>;
   deploymentName: string;
   loading: boolean;
-  setValue: ServiceSetValue;
+  setValue: UseFormSetValue<SdlBuilderFormValuesType>;
   services: ServiceType[];
-  control: ServiceControl;
+  control: Control<SdlBuilderFormValuesType>;
 }) => {
   const [group, setGroup] = useState<string>("");
   const { data: repos, isLoading } = useGitLabReposByGroup(group);

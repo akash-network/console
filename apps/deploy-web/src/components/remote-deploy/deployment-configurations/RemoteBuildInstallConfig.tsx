@@ -1,15 +1,18 @@
 import { useState } from "react";
+import { UseFormSetValue } from "react-hook-form";
 import { Card, CardContent, Checkbox, Collapsible, CollapsibleContent, CollapsibleTrigger, Label, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
-import { ServiceType } from "@src/types";
+import { CURRENT_SERVICE, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
+import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
+import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import BoxTextInput from "../BoxTextInput";
-import { appendEnv, protectedEnvironmentVariables, ServiceSetValue } from "../helper-functions";
 
-const RemoteBuildInstallConfig = ({ services, setValue }: { services: ServiceType[]; setValue: ServiceSetValue }) => {
+const RemoteBuildInstallConfig = ({ services, setValue }: { services: ServiceType[]; setValue: UseFormSetValue<SdlBuilderFormValuesType> }) => {
   const [expanded, setExpanded] = useState(false);
   const currentService = services[0];
+  const envVarUpdater = new EnvVarUpdater(services);
   return (
     <Collapsible
       open={expanded}
@@ -29,27 +32,37 @@ const RemoteBuildInstallConfig = ({ services, setValue }: { services: ServiceTyp
           <CollapsibleContent>
             <div className="grid gap-6 p-5 md:grid-cols-2">
               <BoxTextInput
-                onChange={e => appendEnv(protectedEnvironmentVariables.INSTALL_COMMAND, e.target.value, false, setValue, services)}
+                onChange={e =>
+                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.INSTALL_COMMAND, e.target.value, false))
+                }
                 label="Install Command"
                 placeholder="npm install"
               />
               <BoxTextInput
-                onChange={e => appendEnv(protectedEnvironmentVariables.BUILD_DIRECTORY, e.target.value, false, setValue, services)}
+                onChange={e =>
+                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.BUILD_DIRECTORY, e.target.value, false))
+                }
                 label="Build Directory"
                 placeholder="dist"
               />
               <BoxTextInput
-                onChange={e => appendEnv(protectedEnvironmentVariables.BUILD_COMMAND, e.target.value, false, setValue, services)}
+                onChange={e =>
+                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.BUILD_COMMAND, e.target.value, false))
+                }
                 label="Build Command"
                 placeholder="npm run build"
               />
               <BoxTextInput
-                onChange={e => appendEnv(protectedEnvironmentVariables.CUSTOM_SRC, e.target.value, false, setValue, services)}
+                onChange={e =>
+                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.CUSTOM_SRC, e.target.value, false))
+                }
                 label="Start Command"
                 placeholder="npm start"
               />
               <BoxTextInput
-                onChange={e => appendEnv(protectedEnvironmentVariables.NODE_VERSION, e.target.value, false, setValue, services)}
+                onChange={e =>
+                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.NODE_VERSION, e.target.value, false))
+                }
                 label="Node Version"
                 placeholder="21"
               />
@@ -65,7 +78,7 @@ const RemoteBuildInstallConfig = ({ services, setValue }: { services: ServiceTyp
                     defaultChecked={false}
                     onCheckedChange={value => {
                       const pull = !value ? "yes" : "no";
-                      appendEnv(protectedEnvironmentVariables.DISABLE_PULL, pull, false, setValue, services);
+                      setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.DISABLE_PULL, pull, false));
                     }}
                   />
                 </div>

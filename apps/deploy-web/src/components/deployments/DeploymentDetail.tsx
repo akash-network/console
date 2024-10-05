@@ -3,12 +3,12 @@
 import { createRef, useEffect, useState } from "react";
 import { Alert, Button, buttonVariants, Spinner, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { ArrowLeft } from "iconoir-react";
-import yaml from "js-yaml";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
 
+import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useTemplates } from "@src/context/TemplatesProvider";
@@ -16,14 +16,13 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { extractRepositoryUrl, isImageInYaml } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { RouteStep } from "@src/types/route-steps.type";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { deploymentData } from "@src/utils/deploymentData";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
-import { ciCdTemplateId, getRepoUrl, isRedeployImage } from "../remote-deploy/helper-functions";
 import { Title } from "../shared/Title";
 import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
@@ -36,16 +35,14 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
-  const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
-  const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
   const { address, isWalletLoaded } = useWallet();
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
   const { getTemplateById } = useTemplates();
-  const remoteDeployTemplate = getTemplateById(ciCdTemplateId);
-  const remoteDeploy: boolean = !!editedManifest && !!isRedeployImage(editedManifest, remoteDeployTemplate?.deploy);
-  const repo: string | null = remoteDeploy ? getRepoUrl(editedManifest) : null;
+  const remoteDeployTemplate = getTemplateById(CI_CD_TEMPLATE_ID);
+  const remoteDeploy: boolean = !!editedManifest && !!isImageInYaml(editedManifest, remoteDeployTemplate?.deploy);
+  const repo: string | null = remoteDeploy ? extractRepositoryUrl(editedManifest) : null;
 
   const {
     data: deployment,
@@ -57,7 +54,6 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
       if (_deploymentDetail) {
         getLeases();
         getProviders();
-
         const deploymentData = getDeploymentLocalData(dseq);
         setDeploymentManifest(deploymentData?.manifest || "");
       }
@@ -96,6 +92,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
   const { isLocalCertMatching, localCert, isCreatingCert, createCertificate } = useCertificate();
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
   const isActive = deployment?.state === "active" && leases?.some(x => x.state === "active");
+
   const searchParams = useSearchParams();
   const tabQuery = searchParams?.get("tab");
   const logsModeQuery = searchParams?.get("logsMode");
@@ -106,25 +103,6 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWalletLoaded, isSettingsInit]);
-
-  useEffect(() => {
-    const init = async () => {
-      const localDeploymentData = getDeploymentLocalData(deployment?.dseq || "");
-
-      if (localDeploymentData?.manifest) {
-        setShowOutsideDeploymentMessage(false);
-        setEditedManifest(localDeploymentData?.manifest);
-        const yamlVersion = yaml.load(localDeploymentData?.manifest);
-        const version = await deploymentData.getManifestVersion(yamlVersion);
-
-        setDeploymentVersion(version);
-      } else {
-        setShowOutsideDeploymentMessage(true);
-      }
-    };
-
-    init();
-  }, [deployment]);
 
   useEffect(() => {
     if (leases && leases.some(l => l.state === "active")) {
@@ -195,21 +173,33 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
 
           <Tabs value={activeTab} onValueChange={onChangeTab}>
             <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="LEASES">Leases</TabsTrigger>
-              {isActive && <TabsTrigger value="LOGS">Logs</TabsTrigger>}
-              {isActive && <TabsTrigger value="SHELL">Shell</TabsTrigger>}
-              {isActive && <TabsTrigger value="EVENTS">Events</TabsTrigger>}
-              <TabsTrigger value="EDIT">Update</TabsTrigger>
+              <TabsTrigger value="LEASES" data-testid="deployment-tab-leases">
+                Leases
+              </TabsTrigger>
+              {isActive && (
+                <TabsTrigger value="LOGS" data-testid="deployment-tab-logs">
+                  Logs
+                </TabsTrigger>
+              )}
+              {isActive && (
+                <TabsTrigger value="SHELL" data-testid="deployment-tab-shell">
+                  Shell
+                </TabsTrigger>
+              )}
+              {isActive && (
+                <TabsTrigger value="EVENTS" data-testid="deployment-tab-events">
+                  Events
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="EDIT" data-testid="deployment-tab-update">
+                Update
+              </TabsTrigger>
             </TabsList>
 
             {activeTab === "EDIT" && deployment && leases && (
               <ManifestUpdate
                 editedManifest={editedManifest as string}
-                deploymentVersion={deploymentVersion}
-                setEditedManifest={setEditedManifest}
-                setDeploymentVersion={setDeploymentVersion}
-                setShowOutsideDeploymentMessage={setShowOutsideDeploymentMessage}
-                showOutsideDeploymentMessage={showOutsideDeploymentMessage}
+                onManifestChange={setEditedManifest}
                 remoteDeploy={remoteDeploy}
                 deployment={deployment}
                 leases={leases}
@@ -239,6 +229,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
                     <LeaseRow
                       repo={repo}
                       key={lease.id}
+                      index={i}
                       lease={lease}
                       setActiveTab={setActiveTab}
                       ref={leaseRefs[i]}

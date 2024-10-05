@@ -2,10 +2,10 @@
 import { Button } from "@akashnetwork/ui/components";
 import { useRouter } from "next/navigation";
 
+import { useSettings } from "@src/context/SettingsProvider";
 import { getSplitText } from "@src/hooks/useShortText";
 import networkStore from "@src/store/networkStore";
 import { UrlService } from "@src/utils/urlUtils";
-import { useSettings } from "../../context/SettingsProvider";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { NodeStatus } from "../shared/NodeStatus";
 

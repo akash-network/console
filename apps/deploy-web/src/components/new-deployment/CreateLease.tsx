@@ -283,6 +283,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
                 onClick={hasActiveBid ? sendManifest : createLease}
                 className="w-full whitespace-nowrap md:w-auto"
                 disabled={hasActiveBid ? false : dseqList.some(gseq => !selectedBids[gseq]) || isSendingManifest || isCreatingLeases}
+                data-testid="create-lease-button"
               >
                 {isCreatingLeases || isSendingManifest ? (
                   <Spinner size="small" />
@@ -343,7 +344,12 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
               </div>
 
               <div className="ml-4 flex items-center space-x-2">
-                <Checkbox checked={isFilteringAudited} onCheckedChange={value => setIsFilteringAudited(value as boolean)} id="provider-audited" />
+                <Checkbox
+                  checked={isFilteringAudited}
+                  onCheckedChange={value => setIsFilteringAudited(value as boolean)}
+                  id="provider-audited"
+                  data-testid="create-lease-filter-audited"
+                />
                 <label
                   htmlFor="provider-audited"
                   className="inline-flex cursor-pointer items-center text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"

@@ -1,10 +1,9 @@
 import { Dispatch } from "react";
-import { Control } from "react-hook-form";
+import { Control, UseFormSetValue } from "react-hook-form";
 
+import { useRepos } from "@src/queries/useGithubQuery";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { GitHubProfile } from "@src/types/remoteProfile";
-import { ServiceSetValue } from "../helper-functions";
-import { useRepos } from "../remote-deploy-api-queries/github-queries";
 import Repos from "../Repos";
 import GithubBranches from "./GithubBranches";
 
@@ -20,7 +19,7 @@ const GithubManager = ({
   deploymentName: string;
   control: Control<SdlBuilderFormValuesType>;
 
-  setValue: ServiceSetValue;
+  setValue: UseFormSetValue<SdlBuilderFormValuesType>;
   services: ServiceType[];
   profile?: GitHubProfile;
 }) => {

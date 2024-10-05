@@ -2,7 +2,7 @@ import { Dispatch, useState } from "react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Spinner } from "@akashnetwork/ui/components";
 import { Bitbucket } from "iconoir-react";
 
-import { useWorkspaces } from "../remote-deploy-api-queries/bit-bucket-queries";
+import { useWorkspaces } from "../../../queries/useBitBucketQuery";
 
 const WorkSpaces = ({ isLoading, setWorkSpaces }: { isLoading: boolean; workSpaces: string; setWorkSpaces: Dispatch<string> }) => {
   const [open, setOpen] = useState(false);

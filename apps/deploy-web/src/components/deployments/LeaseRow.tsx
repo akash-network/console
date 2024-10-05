@@ -35,6 +35,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 
 type Props = {
+  index: number;
   lease: LeaseDto;
   setActiveTab: (value: SetStateAction<string>) => void;
   deploymentManifest: string;
@@ -50,7 +51,7 @@ export type AcceptRefType = {
 };
 
 export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
-  ({ lease, setActiveTab, deploymentManifest, dseq, providers, loadDeploymentDetail, remoteDeploy, repo }, ref) => {
+  ({ index, lease, setActiveTab, deploymentManifest, dseq, providers, loadDeploymentDetail, remoteDeploy, repo }, ref) => {
     const provider = providers?.find(p => p.owner === lease?.provider);
     const { localCert } = useCertificate();
     const isLeaseActive = lease.state === "active";
@@ -170,7 +171,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
         <CardHeader className="bg-secondary py-2">
           <div className="flex items-center">
             <div className="inline-flex items-center text-xs text-muted-foreground">
-              <span>{lease.state}</span>
+              <span data-testid={`lease-row-${index}-state`}>{lease.state}</span>
               <StatusPill state={lease.state} size="small" />
 
               <span className="ml-4 text-muted-foreground">GSEQ:</span>
@@ -216,7 +217,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
               label="Provider:"
               value={
                 <>
-                  {isLeaseActive && isLoadingProviderStatus && <Spinner size="small" />}
+                  {isLeaseActive && isLoadingProviderStatus && <Spinner size="small" className="mr-2" />}
                   {provider && (
                     <div className="flex items-center space-x-2">
                       <Link href={UrlService.providerDetail(lease.provider)}>
@@ -327,10 +328,10 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                     </div>
                   </div>
 
-                  {leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0 && !remoteDeploy && (
+                  {leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0 && (
                     <div className={cn({ ["mb-4"]: service.uris?.length > 0 })}>
                       <LabelValueOld
-                        label={remoteDeploy ? "View Logs:" : "Forwarded Ports:"}
+                        label="Forwarded Ports:"
                         value={
                           <div className="inline-flex items-center space-x-2">
                             {leaseStatus.forwarded_ports[service.name].map(p => (
@@ -358,20 +359,16 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                   )}
 
                   {remoteDeploy && repo && (
-                    <>
-                      <div className="mt-2">
-                        <LabelValueOld label="Deployed Repo:" />
-                        <ul className="mt-2 space-y-2">
-                          <li className="flex items-center">
-                            <Link href={repo} target="_blank" className="inline-flex items-center space-x-2 truncate text-sm">
-                              <span>{repo?.replace("https://github.com/", "")?.replace("https://gitlab.com/", "")} </span>
-
-                              <OpenInWindow className="text-xs" />
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </>
+                    <div className="mt-2">
+                      <LabelValueOld label="Deployed Repo:" />
+                      <ul className="mt-2 space-y-2">
+                        <li className="flex items-center">
+                          <Link href={repo} target="_blank" className="inline-flex items-center space-x-2 truncate text-sm">
+                            <span>{repo?.replace("https://github.com/", "")?.replace("https://gitlab.com/", "")}</span> <OpenInWindow className="text-xs" />
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
                   )}
                   {service.uris?.length > 0 && (
                     <>

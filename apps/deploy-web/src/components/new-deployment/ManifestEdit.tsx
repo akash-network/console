@@ -48,18 +48,23 @@ type Props = {
   selectedTemplate: TemplateCreation | null;
   editedManifest: string | null;
   setEditedManifest: Dispatch<SetStateAction<string>>;
-  github?: boolean;
-  setGithub?: Dispatch<boolean>;
+  isGitProviderTemplate?: boolean;
 };
 
-export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, setEditedManifest, onTemplateSelected, selectedTemplate, github }) => {
+export const ManifestEdit: React.FunctionComponent<Props> = ({
+  editedManifest,
+  setEditedManifest,
+  onTemplateSelected,
+  selectedTemplate,
+  isGitProviderTemplate
+}) => {
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentName, setDeploymentName] = useState("");
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
   const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
-  const [isRepoDataValidated, setIsRepoDataValidated] = useState(false);
+  const [isRepoInputValid, setIsRepoInputValid] = useState(false);
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged } = useWallet();
@@ -93,6 +98,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     setSelectedSdlEditMode("builder");
   });
 
+  useWhen(isGitProviderTemplate, () => {
+    setSelectedSdlEditMode("builder");
+  }, [isGitProviderTemplate]);
+
   const propagateUploadedSdl = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = event.target.files ?? [];
     const hasFileSelected = selectedFiles.length > 0;
@@ -122,13 +131,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       fileUploadRef.current.click();
     }
   };
-
-  useEffect(() => {
-    if (github) {
-      setSelectedSdlEditMode("builder");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [github]);
 
   useEffect(() => {
     if (selectedTemplate?.name) {
@@ -187,7 +189,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   }
 
   const handleCreateDeployment = async () => {
-    if (github && !isRepoDataValidated) {
+    if (isGitProviderTemplate && !isRepoInputValid) {
       enqueueSnackbar(<Snackbar title={"Please Fill All Required Fields"} subTitle="You need fill repo url and branch to deploy" iconVariant="error" />, {
         variant: "error"
       });
@@ -368,7 +370,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
         </div>
       </div>
 
-      {!github && (
+      {!isGitProviderTemplate && (
         <div className="mb-2 flex gap-2">
           {hasComponent("yml-editor") && (
             <div className="flex items-center">
@@ -420,11 +422,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
         <SdlBuilder
           sdlString={editedManifest}
           ref={sdlBuilderRef}
-          github={github}
+          isGitProviderTemplate={isGitProviderTemplate}
           setEditedManifest={setEditedManifest}
           setDeploymentName={setDeploymentName}
           deploymentName={deploymentName}
-          setIsRepoDataValidated={setIsRepoDataValidated}
+          setIsRepoInputValid={setIsRepoInputValid}
         />
       )}
 

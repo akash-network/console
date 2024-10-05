@@ -23,15 +23,10 @@ class GitHubAuth {
       });
 
       const params = new URLSearchParams(response.data);
-      const access_token = params.get("access_token");
-
-      if (!access_token) {
-        throw new Error("No access token returned from GitHub");
-      }
-
-      return access_token;
+      const accessToken = params.get("access_token");
+      return accessToken as string;
     } catch (error) {
-      throw new Error("Failed to exchange authorization code for access token");
+      throw new Error(error);
     }
   }
 }

@@ -1,19 +1,20 @@
 "use client";
-import React, { Dispatch, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { ArrowRight, Cpu, Linux, NavArrowLeft, Rocket, Wrench } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import sdlStore from "@src/store/sdlStore";
 import { ApiTemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { cn } from "@src/utils/styleUtils";
+import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils";
-import { ciCdTemplateId } from "../remote-deploy/helper-functions";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";
@@ -33,17 +34,17 @@ const previewTemplateIds = [
   "akash-network-awesome-akash-FastChat"
 ];
 type Props = {
-  setGithub: Dispatch<boolean>;
+  onChangeGitProvider: (gh: boolean) => void;
 };
-export const TemplateList: React.FunctionComponent<Props> = ({ setGithub }) => {
+export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvider }) => {
   const { templates } = useTemplates();
   const router = useRouter();
   const [previewTemplates, setPreviewTemplates] = useState<ApiTemplate[]>([]);
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const previousRoute = usePreviousRoute();
   const handleGithubTemplate = async () => {
-    setGithub(true);
-    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, gitProvider: "github", templateId: ciCdTemplateId }));
+    onChangeGitProvider(true);
+    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, gitProvider: "github", templateId: CI_CD_TEMPLATE_ID }));
   };
 
   useEffect(() => {
@@ -81,12 +82,6 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setGithub }) => {
 
       <div className="mb-8">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
-          {/* <DeployOptionBox
-            title={helloWorldTemplate.title}
-            description={helloWorldTemplate.description}
-            icon={<Rocket className="rotate-45" />}
-            onClick={() => router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: helloWorldTemplate.code }))}
-          /> */}
           <DeployOptionBox
             title={"Build and Deploy"}
             description={"Deploy directly from GitHub/BitBucket/GitLab"}
@@ -134,6 +129,13 @@ export const TemplateList: React.FunctionComponent<Props> = ({ setGithub }) => {
 
       <div className="mb-8">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
+          <DeployOptionBox
+            title={helloWorldTemplate.title}
+            description={helloWorldTemplate.description}
+            icon={<Rocket className="rotate-45" />}
+            testId="hello-world-card"
+            onClick={() => router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code }))}
+          />
           {previewTemplates.map(template => (
             <TemplateBox
               key={template.id}

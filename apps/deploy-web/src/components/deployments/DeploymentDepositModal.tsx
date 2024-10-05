@@ -220,7 +220,8 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
           side: "right",
           disabled: !amount || isCheckingDepositor || (useDepositor && validGrants.length === 0) || !walletBalance,
           isLoading: isCheckingDepositor,
-          onClick: onDepositClick
+          onClick: onDepositClick,
+          "data-testid": "deposit-modal-continue-button"
         }
       ]}
       onClose={onClose}
