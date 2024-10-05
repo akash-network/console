@@ -64,7 +64,7 @@ const RemoteRepositoryDeployManager = ({
   const { data: userProfileBit, isLoading: fetchingProfileBit } = useBitUserProfile();
   const { mutate: fetchAccessTokenBit, isLoading: fetchingTokenBit } = useBitFetchAccessToken(navigateToNewDeployment);
 
-  const { handleGitLabLogin } = new GitLabService();
+  const { loginWithGitLab } = new GitLabService();
   const { data: userProfileGitLab, isLoading: fetchingProfileGitLab } = useGitLabUserProfile();
   const { mutate: fetchAccessTokenGitLab, isLoading: fetchingTokenGitLab } = useGitLabFetchAccessToken(navigateToNewDeployment);
 
@@ -171,7 +171,7 @@ const RemoteRepositoryDeployManager = ({
                       <Button
                         onClick={() => {
                           setToken({ accessToken: null, refreshToken: null, type: "gitlab", alreadyLoggedIn: token?.alreadyLoggedIn });
-                          handleGitLabLogin();
+                          loginWithGitLab();
                         }}
                         variant="outline"
                       >

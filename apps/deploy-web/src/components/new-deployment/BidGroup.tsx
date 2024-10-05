@@ -120,11 +120,12 @@ export const BidGroup: React.FunctionComponent<Props> = ({
         </TableHeader>
 
         <TableBody>
-          {fBids.map(bid => {
+          {fBids.map((bid, i) => {
             const provider = providers && providers.find(x => x.owner === bid.provider);
             const showBid = provider?.isValidVersion && (!isSendingManifest || selectedBid?.id === bid.id);
             return (showBid || selectedNetworkId !== MAINNET_ID) && provider ? (
               <BidRow
+                testIndex={i}
                 key={bid.id}
                 bid={bid}
                 provider={provider}

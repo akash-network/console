@@ -133,6 +133,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
             title={helloWorldTemplate.title}
             description={helloWorldTemplate.description}
             icon={<Rocket className="rotate-45" />}
+            testId="hello-world-card"
             onClick={() => router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code }))}
           />
           {previewTemplates.map(template => (

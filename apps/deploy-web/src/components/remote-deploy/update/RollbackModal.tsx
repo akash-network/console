@@ -25,14 +25,15 @@ import { SdlBuilderFormValuesType } from "@src/types";
 import { RollBackType } from "@src/types/remotedeploy";
 
 const RollbackModal = ({ commits, control }: { commits?: RollBackType[] | null; control: Control<SdlBuilderFormValuesType> }) => {
-  const [filteredData, setFilteredData] = useState<RollBackType[]>([]);
+  const [filteredCommits, setFilteredCommits] = useState<RollBackType[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
   const { append, update } = useFieldArray({ control, name: "services.0.env", keyName: "id" });
   const currentHash = services[0]?.env?.find(e => e.key === protectedEnvironmentVariables.COMMIT_HASH);
+
   useEffect(() => {
     if (commits) {
-      setFilteredData(
+      setFilteredCommits(
         commits?.filter(item => {
           return item.name.toLowerCase().includes(searchQuery.toLowerCase());
         })
@@ -74,7 +75,7 @@ const RollbackModal = ({ commits, control }: { commits?: RollBackType[] | null; 
                     }}
                   />
                 </div>
-                {filteredData?.length > 0 ? (
+                {filteredCommits?.length > 0 ? (
                   <RadioGroup
                     value={currentHash?.value}
                     onValueChange={value => {
@@ -87,7 +88,7 @@ const RollbackModal = ({ commits, control }: { commits?: RollBackType[] | null; 
                       }
                     }}
                   >
-                    {filteredData?.map(item => (
+                    {filteredCommits?.map(item => (
                       <div className="flex justify-between gap-4 border-b px-5 py-4" key={item.value}>
                         <Label htmlFor={item.value} className="flex flex-1 items-center gap-3 text-sm">
                           <GitCommitVertical />

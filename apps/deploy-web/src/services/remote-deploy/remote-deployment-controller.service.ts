@@ -35,8 +35,8 @@ export function formatUrlWithoutInitialPath(url?: string): string | undefined {
   return url?.split("/").slice(-2).join("/");
 }
 
-export function isImageInYaml(yml: string, ciCdYml?: string): boolean | undefined {
-  return ciCdYml?.includes(yml?.split("service-1:")?.[1]?.split("expose:")?.[0]?.split("image: ")?.[1]);
+export function isImageInYaml(yml: string, cicdYml?: string): boolean | undefined {
+  return cicdYml?.includes(yml?.split("service-1:")?.[1]?.split("expose:")?.[0]?.split("image: ")?.[1]);
 }
 
 export function extractRepositoryUrl(yml?: string | null): string | null {

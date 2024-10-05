@@ -22,15 +22,14 @@ import Rollback from "./Rollback";
 
 const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string; onManifestChange: (value: string) => void }) => {
   const [token] = useAtom(tokens);
-
   const { enqueueSnackbar } = useSnackbar();
-
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(false);
   const { control, watch, setValue } = useForm<SdlBuilderFormValuesType>({ defaultValues: { services: [defaultService] } });
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
   const envVarUpdater = new EnvVarUpdater(services);
   const { getTemplateById } = useTemplates();
   const remoteDeployTemplate = getTemplateById(CI_CD_TEMPLATE_ID);
+
   useEffect(() => {
     const { unsubscribe }: any = watch(data => {
       const sdl = generateSdl(data.services as ServiceType[]);

@@ -1,0 +1,48 @@
+{
+"update_url": "https://clients2.google.com/service/update2/crx",
+
+  "manifest_version": 3,
+  "name": "Leap Cosmos Wallet",
+  "description": "A crypto wallet for Cosmos blockchains.",
+  "version": "0.13.7",
+  "options_page": "index.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["injectLeap.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "action": {
+    "default_icon": {
+      "128": "/icons/icon-128.png"
+    },
+    "default_popup": "index.html"
+  },
+  "icons": {
+    "16": "/icons/icon-16.png",
+    "48": "/icons/icon-48.png",
+    "128": "/icons/icon-128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/*", "http://*/*"],
+      "js": ["contentScripts.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L"
+      }
+    }
+  },
+  "permissions": ["storage"],
+  "content_security_policy": {
+    "extension_pages": "object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; img-src * 'self' data: https:; font-src https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com  data: 'unsafe-inline'; connect-src * data: blob: filesystem:; media-src * data: blob: filesystem:; form-action 'self'; frame-ancestors 'none';frame-src https://newassets.hcaptcha.com https://www.google.com/; base-uri 'self'; default-src 'none'"
+  }
+}
