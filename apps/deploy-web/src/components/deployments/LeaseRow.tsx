@@ -42,7 +42,7 @@ type Props = {
   dseq: string;
   providers: ApiProviderList[];
   loadDeploymentDetail: () => void;
-  remoteDeploy?: boolean;
+  isRemoteDeploy?: boolean;
   repo?: string | null;
 };
 

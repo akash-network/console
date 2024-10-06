@@ -30,12 +30,19 @@ type Props = {
   deployment: DeploymentDto;
   leases: LeaseDto[];
   closeManifestEditor: () => void;
-  remoteDeploy: boolean;
+  isRemoteDeploy: boolean;
   editedManifest: string;
   onManifestChange: (value: string) => void;
 };
 
-export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, leases, closeManifestEditor, remoteDeploy, editedManifest, onManifestChange }) => {
+export const ManifestUpdate: React.FunctionComponent<Props> = ({
+  deployment,
+  leases,
+  closeManifestEditor,
+  isRemoteDeploy,
+  editedManifest,
+  onManifestChange
+}) => {
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
   const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
@@ -259,8 +266,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
             <LinearLoadingSkeleton isLoading={isSendingManifest} />
 
-            <ViewPanel stickToBottom style={{ overflow: remoteDeploy ? "unset" : "hidden" }}>
-              {remoteDeploy ? (
+            <ViewPanel stickToBottom style={{ overflow: isRemoteDeploy ? "unset" : "hidden" }}>
+              {isRemoteDeploy ? (
                 <RemoteDeployUpdate sdlString={editedManifest} onManifestChange={onManifestChange} />
               ) : (
                 <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
