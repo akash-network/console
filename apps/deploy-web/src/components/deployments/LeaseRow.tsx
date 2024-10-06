@@ -42,7 +42,7 @@ type Props = {
   dseq: string;
   providers: ApiProviderList[];
   loadDeploymentDetail: () => void;
-  remoteDeploy?: boolean;
+  isRemoteDeploy?: boolean;
   repo?: string | null;
 };
 
@@ -51,7 +51,7 @@ export type AcceptRefType = {
 };
 
 export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
-  ({ index, lease, setActiveTab, deploymentManifest, dseq, providers, loadDeploymentDetail, remoteDeploy, repo }, ref) => {
+  ({ index, lease, setActiveTab, deploymentManifest, dseq, providers, loadDeploymentDetail, isRemoteDeploy, repo }, ref) => {
     const provider = providers?.find(p => p.owner === lease?.provider);
     const { localCert } = useCertificate();
     const isLeaseActive = lease.state === "active";
@@ -358,7 +358,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                     </div>
                   )}
 
-                  {remoteDeploy && repo && (
+                  {isRemoteDeploy && repo && (
                     <div className="mt-2">
                       <LabelValueOld label="Deployed Repo:" />
                       <ul className="mt-2 space-y-2">
