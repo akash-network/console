@@ -41,8 +41,8 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
   const { getTemplateById } = useTemplates();
   const remoteDeployTemplate = getTemplateById(CI_CD_TEMPLATE_ID);
-  const remoteDeploy: boolean = !!editedManifest && !!isImageInYaml(editedManifest, remoteDeployTemplate?.deploy);
-  const repo: string | null = remoteDeploy ? extractRepositoryUrl(editedManifest) : null;
+  const isRemoteDeploy: boolean = !!editedManifest && !!isImageInYaml(editedManifest, remoteDeployTemplate?.deploy);
+  const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
 
   const {
     data: deployment,
@@ -200,7 +200,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
               <ManifestUpdate
                 editedManifest={editedManifest as string}
                 onManifestChange={setEditedManifest}
-                remoteDeploy={remoteDeploy}
+                isRemoteDeploy={isRemoteDeploy}
                 deployment={deployment}
                 leases={leases}
                 closeManifestEditor={() => {
@@ -237,7 +237,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
                       dseq={dseq}
                       providers={providers || []}
                       loadDeploymentDetail={loadDeploymentDetail}
-                      remoteDeploy={remoteDeploy}
+                      isRemoteDeploy={isRemoteDeploy}
                     />
                   ))}
 
