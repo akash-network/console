@@ -12,26 +12,13 @@ import { useChain } from "@cosmos-kit/react";
 import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
 import networkStore from "@src/store/networkStore";
 import { customRegistry } from "@src/utils/customRegistry";
-import { useEffect, useState } from "react";
-import { CosmosMetamaskExtensionWallet } from "@cosmos-kit/cosmos-extension-metamask";
+import { wallets as metamask } from "@cosmos-kit/cosmos-extension-metamask";
 
 type Props = {
   children: React.ReactNode;
 };
 
 export function CustomChainProvider({ children }: Props) {
-  const [metamask, setMetamask] = useState<CosmosMetamaskExtensionWallet[]>([]);
-
-  useEffect(() => {
-    import("@cosmos-kit/cosmos-extension-metamask").then(module => {
-      setMetamask(module.wallets);
-    });
-  }, []);
-
-  if (!metamask.length) {
-    return null;
-  }
-
   return (
     <ChainProvider
       chains={[akash, akashSandbox, akashTestnet]}
