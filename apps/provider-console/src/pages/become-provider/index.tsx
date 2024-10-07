@@ -16,22 +16,15 @@ import { useSelectedChain } from "@src/context/CustomChainProvider";
 
 import { useRouter } from "next/router";
 import providerProcessStore from "@src/store/providerProcessStore";
+import withAuth from "@src/components/shared/withAuth";
+
 
 const GetStarted: React.FunctionComponent = () => {
   const { isWalletConnected, wallet } = useSelectedChain();
   const [activeStep, setActiveStep] = useState<number>(0);
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const router = useRouter();
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [, resetProcess] = useAtom(providerProcessStore.resetProviderProcess);
 
-  useEffect(() => {
-    if (!isWalletConnected) {
-      // Store the current page URL before redirecting
-      // localStorage.setItem('returnUrl', router.asPath);
-      // router.push('/connect-wallet');
-    }
-  }, [isWalletConnected, router]);
 
   useEffect(() => {
     const steps = [
@@ -39,11 +32,13 @@ const GetStarted: React.FunctionComponent = () => {
       { key: "providerConfig", component: ProviderConfig },
       { key: "providerAttribute", component: ProviderAttributes },
       { key: "providerPricing", component: ProviderPricing },
-      { key: "walletImport", component: WalletImport },
+      { key: "walletImport", component: WalletImport }
     ];
 
     const currentStepIndex = steps.findIndex(step => !providerProcess.process[step.key]);
     setActiveStep(currentStepIndex === -1 ? steps.length : currentStepIndex);
+
+    console.log("Process", providerProcess);
   }, [providerProcess.process]);
 
   const handleStepChange = () => {
@@ -56,36 +51,13 @@ const GetStarted: React.FunctionComponent = () => {
     }));
   };
 
-  const handleReset = () => {
-    setIsResetModalOpen(true);
-  };
-
-  const confirmReset = () => {
-    resetProcess();
-    setActiveStep(0);
-    setIsResetModalOpen(false);
-  };
-
-  const cancelReset = () => {
-    setIsResetModalOpen(false);
-  };
-
   const steps = [
     { key: "serverAccess", component: ServerAccess },
     { key: "providerConfig", component: ProviderConfig },
     { key: "providerAttribute", component: ProviderAttributes },
     { key: "providerPricing", component: ProviderPricing },
-    { key: "walletImport", component: WalletImport },
+    { key: "walletImport", component: WalletImport }
   ];
-
-  const popupProps: ConfirmProps & { open: boolean } = {
-    variant: "confirm",
-    title: "Confirm Reset",
-    message: "Are you sure you want to reset the provider process?",
-    onValidate: confirmReset,
-    onCancel: cancelReset,
-    open: isResetModalOpen
-  };
 
   return (
     <Layout>
@@ -97,10 +69,8 @@ const GetStarted: React.FunctionComponent = () => {
       ) : (
         <ProviderProcess />
       )}
-      <button onClick={handleReset}>Reset</button> {/* Added reset button */}
-      <Popup {...popupProps} />
     </Layout>
   );
 };
 
-export default GetStarted;
+export default withAuth(GetStarted); // Wrap with the HOC

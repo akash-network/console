@@ -2,6 +2,7 @@
 import { Button, Input, Separator } from "@akashnetwork/ui/components";
 import React, { useState } from "react";
 import { ServerForm } from "./server-form";
+import ResetProviderForm from "./reset-provider-form";
 
 interface ServerAccessProps {
   stepChange: () => void;
@@ -10,39 +11,14 @@ interface ServerAccessProps {
 export const ServerAccess: React.FunctionComponent<ServerAccessProps> = ({ stepChange }) => {
   const [numberOfServer, setNumberOfServer] = useState<any>(1);
   const [activateServerForm, setActivateServerForm] = useState<boolean>(false);
-
   const [currentServer, setCurrentServer] = useState<number>(0);
-  const [defaultServerDetails, setDefaultServerDetails] = useState<any>({});
-
-  const [serverInformation, setServerInformation] = useState<any[]>([]);
 
   const serverFormSubmitted = () => {
-    // console.log("Submitted Server", currentServer);
-    // console.log("Total Server", numberOfServer);
-    // console.log("Submitted data", data);
-    // console.log(currentServer)
-
-    // if (currentServer == 0) {
-    //   if (data.access.saveInformation) {
-    //     console.log("storing information");
-    //     const savingData = data.access;
-    //     savingData.ip = null;
-    //     savingData.saveInformation = null;
-    //     console.log(savingData)
-    //     setDefaultServerDetails(savingData);
-    //   }
-    // }
-
-    // const updatedServerInformation = [...serverInformation];
-    // updatedServerInformation[currentServer] = data;
-    // setServerInformation(updatedServerInformation);
-
     if (currentServer + 1 >= numberOfServer) {
       console.log("changing step");
       stepChange();
     }
 
-    console.log("Updated Server Information", serverInformation);
     setCurrentServer(currentServer + 1);
   };
 
@@ -58,15 +34,18 @@ export const ServerAccess: React.FunctionComponent<ServerAccessProps> = ({ stepC
           <div className="">
             <Separator />
           </div>
-          <div className="flex justify-end">
-            <Button onClick={() => setActivateServerForm(true)}>Next</Button>
+          <div className="flex w-full justify-between">
+            <div className="flex justify-start">
+              <ResetProviderForm />
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={() => setActivateServerForm(true)}>Next</Button>
+            </div>
           </div>
         </div>
       )}
 
-      {activateServerForm && (
-        <ServerForm key={currentServer} currentServerNumber={currentServer} defaultValues={defaultServerDetails} onSubmit={() => serverFormSubmitted()} />
-      )}
+      {activateServerForm && <ServerForm key={currentServer} currentServerNumber={currentServer} onSubmit={() => serverFormSubmitted()} />}
     </div>
   );
 };

@@ -16,11 +16,26 @@ interface ProviderConfig {
   email: string
 }
 
+interface ProviderPricing {
+  cpu: number,
+  memory: number,
+  storage: number,
+  gpu: number,
+  persistentStorage: number,
+  ipScalePrice: number,
+  endpointBidPrice: number
+}
+
+interface ProviderAttribute { key: string, value: string, customKey: string }
+
 interface ProviderProcess {
   machines: MachineInformation[],
   storeInformation: boolean,
   process: ProviderSteps,
-  config: ProviderConfig
+  config: ProviderConfig,
+  pricing: ProviderPricing,
+  attributes: ProviderAttribute[],
+  jobId: string | null
 }
 
 const providerProcessAtom = atomWithStorage<ProviderProcess>("providerProcess", {
@@ -37,7 +52,18 @@ const providerProcessAtom = atomWithStorage<ProviderProcess>("providerProcess", 
     providerAttribute: false,
     providerPricing: false,
     walletImport: false,
-  }
+  },
+  pricing: {
+    cpu: 1.6,
+    memory: 0.8,
+    storage: 0.02,
+    gpu: 100,
+    persistentStorage: 0.3,
+    ipScalePrice: 5,
+    endpointBidPrice: 0.5
+  },
+  attributes: [],
+  jobId: null
 });
 
 const resetProviderProcess = atom(
@@ -57,7 +83,18 @@ const resetProviderProcess = atom(
         providerAttribute: false,
         providerPricing: false,
         walletImport: false,
-      }
+      },
+      pricing: {
+        cpu: 1.6,
+        memory: 0.8,
+        storage: 0.02,
+        gpu: 100,
+        persistentStorage: 0.3,
+        ipScalePrice: 5,
+        endpointBidPrice: 0.5
+      },
+      attributes: [],
+      jobId: null
     });
   }
 );

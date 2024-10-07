@@ -10,7 +10,7 @@ interface ProviderProcessProps {
 interface ProcessStep {
   name: string;
   status: "completed" | "in-progress" | "pending";
-  logs?: string; // Add this line
+  // logs?: string; // Comment this line
 }
 
 export const ProviderProcess: React.FunctionComponent<ProviderProcessProps> = () => {
@@ -18,10 +18,10 @@ export const ProviderProcess: React.FunctionComponent<ProviderProcessProps> = ()
   const [openAccordions, setOpenAccordions] = useState<boolean[]>([]); // Add this line
 
   const [steps, setSteps] = useState<ProcessStep[]>([
-    { name: "Logs...", status: "completed", logs: "Sample logs for step 1..." },
-    { name: "Checking System for Akash Provider", status: "in-progress", logs: "Sample logs for step 2..." },
-    { name: "Installing Provider Helm Chart", status: "pending", logs: "Sample logs for step 3..." },
-    { name: "Installing K3S", status: "pending", logs: "Sample logs for step 4..." },
+    // { name: "Logs...", status: "completed", logs: "Sample logs for step 1..." },
+    { name: "Checking System for Akash Provider", status: "in-progress" /*, logs: "Sample logs for step 2..." */ },
+    { name: "Installing Provider Helm Chart", status: "pending" /*, logs: "Sample logs for step 3..." */ },
+    { name: "Installing K3S", status: "pending" /*, logs: "Sample logs for step 4..." */ },
   ]);
 
   useEffect(() => {
@@ -74,8 +74,8 @@ export const ProviderProcess: React.FunctionComponent<ProviderProcessProps> = ()
             {steps.map((step, index) => (
               <div key={index}>
                 <div 
-                  className="flex items-center justify-between p-4 cursor-pointer bg-white"
-                  onClick={() => step.logs && toggleAccordion(index)}
+                  className="flex items-center justify-between p-4 cursor-pointer"
+                  onClick={() => /* step.logs && */ toggleAccordion(index)}
                 >
                   <div className="flex items-center">
                     {step.logs && (
@@ -87,7 +87,7 @@ export const ProviderProcess: React.FunctionComponent<ProviderProcessProps> = ()
                   </div>
                   <div className="flex items-center">
                     {step.status === "completed" && (
-                      <div className="bg-gray-200 rounded-full p-1">
+                      <div className=" rounded-full p-1">
                         <CheckIcon className="h-4 w-4 text-green-500" />
                       </div>
                     )}
@@ -95,12 +95,12 @@ export const ProviderProcess: React.FunctionComponent<ProviderProcessProps> = ()
                       <Loader2Icon className="h-5 w-5 text-blue-500 animate-spin" />
                     )}
                     {step.status === "pending" && (
-                      <div className="h-5 w-5 rounded-full border-2 border-gray-300"></div>
+                      <div className="h-5 w-5 rounded-full border-2 "></div>
                     )}
                   </div>
                 </div>
                 {step.logs && openAccordions[index] && (
-                  <div className="p-4 bg-gray-100 border-t">
+                  <div className="p-4  border-t">
                     <pre className="whitespace-pre-wrap text-sm">
                       <code>{step.logs}</code>
                     </pre>

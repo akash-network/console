@@ -13,15 +13,17 @@ import {
   SelectContent
 } from "@akashnetwork/ui/components";
 import React, { useState } from "react";
-import { Form, useForm, useFieldArray, Controller } from "react-hook-form";
+import { Form, useForm, useFieldArray, Controller, SubmitHandler } from "react-hook-form";
 import { PlusIcon, TrashIcon } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";
+import { useAtom } from "jotai";
+import providerProcessStore from "@src/store/providerProcessStore";
+import ResetProviderForm from "./reset-provider-form";
 
-// Extract keys and their corresponding schemas from providerAttributesFormValuesSchema
-const attributeSchemas = providerAttributesFormValuesSchema.shape;
-const attributeKeys = Object.keys(attributeSchemas);
+// Extract keys from providerAttributesFormValuesSchema
+const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 
 interface ProviderAttributesProps {
   stepChange: (providerInformation: ProviderFormValues) => void;
@@ -40,6 +42,7 @@ const providerFormSchema = z.object({
 type ProviderFormValues = z.infer<typeof providerFormSchema>;
 
 export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps> = ({ stepChange }) => {
+  const [providerPricing, setProviderPricing] = useAtom(providerProcessStore.providerProcessAtom);
   const form = useForm<ProviderFormValues>({
     resolver: zodResolver(providerFormSchema),
     defaultValues: {
@@ -54,8 +57,13 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
     name: "attributes"
   });
 
-  const onSubmit = (data: ProviderFormValues) => {
-    stepChange(data);
+  const onSubmit: SubmitHandler<ProviderFormValues> = async (data) => {
+    const updatedProviderPricing = {
+      ...providerPricing,
+      attributes: data.attributes
+    };
+    setProviderPricing(updatedProviderPricing);
+    stepChange(updatedProviderPricing);
   };
 
   return (
@@ -116,18 +124,14 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
                     <FormField
                       control={form.control}
                       name={`attributes.${index}.value`}
-                      render={({ field }) => {
-                        const key = form.watch(`attributes.${index}.key`);
-                        const schema = attributeSchemas[key] || z.string().min(1, "Value is required");
-                        return (
-                          <FormItem className="flex-1">
-                            <FormControl>
-                              <Input placeholder="Value" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        );
-                      }}
+                      render={({ field }) => (
+                        <FormItem className="flex-1">
+                          <FormControl>
+                            <Input placeholder="Value" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                     <Button type="button" variant="outline" size="icon" onClick={() => remove(index)}>
                       <TrashIcon className="h-4 w-4" />
@@ -143,8 +147,13 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
             <div className="">
               <Separator />
             </div>
-            <div className="flex justify-end">
-              <Button type="submit">Submit</Button>
+            <div className="flex w-full justify-between">
+              <div className="flex justify-start">
+                <ResetProviderForm />
+              </div>
+              <div className="flex justify-end">
+                <Button type="submit">Next</Button>
+              </div>
             </div>
           </Form>
         </div>

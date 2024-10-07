@@ -6,6 +6,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
 import providerProcessStore from "@src/store/providerProcessStore";
+import ResetProviderForm from "./reset-provider-form";
 
 interface ProviderConfigProps {
   stepChange: () => void;
@@ -123,8 +124,13 @@ export const ProviderConfig: React.FunctionComponent<ProviderConfigProps> = ({ s
             <div className="">
               <Separator />
             </div>
-            <div className="flex justify-end">
-              <Button type="submit">Submit</Button>
+            <div className="flex w-full justify-between">
+              <div className="flex justify-start">
+                <ResetProviderForm />
+              </div>
+              <div className="flex justify-end">
+                <Button type="submit">Next</Button>
+              </div>
             </div>
           </Form>
         </div>

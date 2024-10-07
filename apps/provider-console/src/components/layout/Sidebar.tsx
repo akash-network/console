@@ -110,7 +110,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           className={cn(buttonVariants({ variant: "default", size: _isNavOpen ? "lg" : "icon" }), "h-[45px] w-full leading-4", {
             ["h-[45px] w-[45px] min-w-0 pb-2 pt-2"]: !_isNavOpen
           })}
-          href="#"
+          href="/become-provider"
         >
           {_isNavOpen && "Become Provider "}
           <Rocket className={cn("rotate-45", { ["ml-4"]: _isNavOpen })} fontSize="small" />

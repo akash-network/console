@@ -31,6 +31,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import providerProcessStore from "@src/store/providerProcessStore";
 import { useAtom } from "jotai/react";
+import ResetProviderForm from "./reset-provider-form";
 
 const baseSchema = z.object({
   hostname: z.string().min(2, { message: "IP must be at least 2 characters." }).max(30, { message: "IP must not be longer than 30 characters." }),
@@ -63,23 +64,23 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [storedFileContent, setStoredFileContent] = useState<string | null>(null);
-  
+
   const getDefaultValues = () => {
     if (currentServerNumber === 0 || !providerProcess?.storeInformation) {
       return {
         hostname: "",
         authType: "password",
         username: "",
-        port: 22,
+        port: 22
       };
     }
-    
+
     const firstServer = providerProcess.machines[0]?.access;
     return {
       ...firstServer,
       hostname: "", // Reset hostname for new server
       authType: firstServer.file ? "file" : "password",
-      password: firstServer.authType === "password" ? firstServer.password : undefined,
+      password: firstServer.authType === "password" ? firstServer.password : undefined
     };
   };
 
@@ -140,22 +141,31 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
           headers: { "Content-Type": "application/json" }
         });
       } else {
+        console.log("Form is coming here");
         // For subsequent servers (worker nodes)
         const controlMachine = providerProcess?.machines[0]?.access;
+        console.log(controlMachine);
+
+        const keyfile = controlMachine.file ? controlMachine.file : undefined;
+
         const payload = {
           control_machine: {
             hostname: controlMachine.hostname,
             port: controlMachine.port || 22,
             username: controlMachine.username,
             password: controlMachine.password,
-            keyfile: controlMachine.file ? await readFileAsBase64(controlMachine.file[0]) : undefined,
+            keyfile: keyfile,
             passphrase: controlMachine.passphrase
           },
           worker_node: jsonData
         };
+
+        console.log(payload);
         response = await restClient.post("/verify/control-and-worker", payload, {
           headers: { "Content-Type": "application/json" }
         });
+
+        console.log(response);
       }
 
       if (response.status === 200) {
@@ -346,16 +356,23 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
               </div>
             </div>
             <div className="flex justify-end">
-              <Button type="submit" disabled={isVerifying}>
-                {isVerifying ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  "Next"
-                )}
-              </Button>
+              <div className="flex w-full justify-between">
+                <div className="flex justify-start">
+                  <ResetProviderForm />
+                </div>
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isVerifying}>
+                    {isVerifying ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      "Next"
+                    )}
+                  </Button>
+                </div>
+              </div>
             </div>
             <div className="flex justify-start">
               {verificationError && (
