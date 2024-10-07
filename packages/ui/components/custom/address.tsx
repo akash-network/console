@@ -43,7 +43,7 @@ export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, d
       {...rest}
     >
       <span>{formattedAddress}</span>
-      {isCopyable && <Copy className={cn("ml-2 opacity-0", { ["opacity-100"]: isOver || showIcon })} />}
+      {isCopyable && <Copy className={cn("ml-2 opacity-0 text-xs", { ["opacity-100"]: isOver || showIcon })} />}
     </span>
   );
 

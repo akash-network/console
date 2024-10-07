@@ -30,6 +30,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { LinkTo } from "../shared/LinkTo";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
+import { getSplitText } from "@src/hooks/useShortText";
 
 const goToCheckout = () => {
   window.location.href = "/api/proxy/v1/checkout";
@@ -104,10 +105,15 @@ export function WalletStatus() {
                     <Link className="ml-2 cursor-pointer leading-4" href={`https://stats.akash.network/addresses/${address}`} target="_blank">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span>{walletName}</span>
+                          {walletName?.length > 20 ? (
+                            <span className="text-xs">{getSplitText(walletName, 4, 4)}</span>
+                          ) : (
+                            <span className="text-xs">{walletName}</span>
+                          )}
                         </TooltipTrigger>
                         <TooltipContent>
-                          <Address address={address} isCopyable disableTooltip />
+                          <div className="text-xs">{walletName}</div>
+                          <Address address={address} isCopyable disableTooltip disableTruncate />
                         </TooltipContent>
                       </Tooltip>
                     </Link>
