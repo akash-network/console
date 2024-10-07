@@ -7,11 +7,11 @@ import { useSnackbar } from "notistack";
 
 import { RestApiCertificate } from "@src/types/certificate";
 import { AnalyticsEvents } from "@src/utils/analytics";
+import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { getStorageWallets, updateWallet } from "@src/utils/walletUtils";
 import { useSettings } from "../SettingsProvider";
 import { useWallet } from "../WalletProvider";
-import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 
 export type LocalCert = {
   certPem: string;

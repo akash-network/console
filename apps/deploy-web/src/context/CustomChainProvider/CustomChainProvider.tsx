@@ -3,6 +3,7 @@ import "@interchain-ui/react/styles";
 import "@interchain-ui/react/globalStyles";
 
 import { GasPrice } from "@cosmjs/stargate";
+import { wallets as metamask } from "@cosmos-kit/cosmos-extension-metamask";
 import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
 import { wallets as keplr } from "@cosmos-kit/keplr";
 import { wallets as leap } from "@cosmos-kit/leap";
@@ -22,7 +23,7 @@ export function CustomChainProvider({ children }: Props) {
     <ChainProvider
       chains={[akash, akashSandbox, akashTestnet]}
       assetLists={assetLists}
-      wallets={[...keplr, ...leap, ...cosmostation]}
+      wallets={[...keplr, ...leap, ...cosmostation, ...metamask]}
       sessionOptions={{
         duration: 31_556_926_000, // 1 year
         callback: () => {
