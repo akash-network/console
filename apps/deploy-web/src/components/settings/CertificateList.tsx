@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect,useState } from "react";
 import { FormattedDate } from "react-intl";
-import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, CustomPagination } from "@akashnetwork/ui/components";
+import { Button, CustomPagination,Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Check } from "iconoir-react";
 
 import { ConnectWallet } from "@src/components/shared/ConnectWallet";

@@ -5,7 +5,7 @@ module.exports = {
   },
   extends: ["eslint:recommended"],
   plugins: ["simple-import-sort"],
-  ignorePatterns: ["node_modules", "dist", "build", "public"],
+  ignorePatterns: ["node_modules", "dist", "build", "public", "Leap"],
   rules: {
     "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true }],
     "simple-import-sort/imports": [

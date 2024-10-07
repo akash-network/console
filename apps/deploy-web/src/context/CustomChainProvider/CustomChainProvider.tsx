@@ -3,6 +3,7 @@ import "@interchain-ui/react/styles";
 import "@interchain-ui/react/globalStyles";
 
 import { GasPrice } from "@cosmjs/stargate";
+import { wallets as metamask } from "@cosmos-kit/cosmos-extension-metamask";
 import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
 import { wallets as keplr } from "@cosmos-kit/keplr";
 import { wallets as leap } from "@cosmos-kit/leap";
@@ -12,7 +13,6 @@ import { useChain } from "@cosmos-kit/react";
 import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
 import networkStore from "@src/store/networkStore";
 import { customRegistry } from "@src/utils/customRegistry";
-import { wallets as metamask } from "@cosmos-kit/cosmos-extension-metamask";
 
 type Props = {
   children: React.ReactNode;
