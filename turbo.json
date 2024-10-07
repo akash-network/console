@@ -8,6 +8,9 @@
       "dependsOn": ["//#dc:up:db"],
       "env": ["SKIP_DB"]
     },
-    "//#dc:up:db": {}
+    "//#dc:up:db": {},
+    "update-apps-local-deps": {
+      "outputs": ["mvm.lock"]
+    }
   }
 }
