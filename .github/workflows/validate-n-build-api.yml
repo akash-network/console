@@ -1,8 +1,6 @@
 name: Validate and Build API
 
 on:
-  push:
-    branches: ["main"]
   pull_request:
     branches: ["main"]
 
@@ -55,4 +53,4 @@ jobs:
 
       - name: Build the Docker image for API
         if: steps.filter.outputs.api == 'true'
-        run: npm run dc:build -- api
+        run: packages/docker/script/dc.sh build api

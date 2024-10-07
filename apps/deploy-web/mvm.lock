@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@akashnetwork/env-loader": "1.0.1",
+    "@akashnetwork/http-sdk": "1.0.7",
+    "@akashnetwork/ui": "1.0.0"
+  },
+  "devDependencies": {
+    "@akashnetwork/dev-config": "1.0.0"
+  }
+}

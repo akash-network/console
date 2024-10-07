@@ -22,6 +22,7 @@
 - [Running the Application](#running-the-application)
 - [Manual Database Restoration](#manual-database-restoration)
 - [Database Structure](./doc/database-structure.md)
+- [Release Workflow](./doc/release-workflow.md)
 - [Contributing](#contributing)
 - [License](#license)
 
