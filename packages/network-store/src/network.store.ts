@@ -105,7 +105,7 @@ export class NetworkStore {
     }
   }
 
-  private initiateNetworkFromUrlQuery(): Network["id"] {
+  private initiateNetworkFromUrlQuery(): Network["id"] | undefined {
     if (typeof window === "undefined") {
       return;
     }
