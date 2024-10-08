@@ -45,7 +45,7 @@ class GitlabAuth {
         client_id: this.clientId,
         client_secret: this.clientSecret,
         refresh_token: token,
-        grant_type: "refreshToken"
+        grant_type: "refresh_token"
       });
 
       const { access_token, refresh_token }: Tokens = response.data;
