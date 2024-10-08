@@ -38,22 +38,37 @@ npm run dc:up:dev -- deploy-web
 
 This will start the deploy-web service in development mode with all the necessary dependencies (API, indexer, PostgreSQL). It will also import a backup of the sandbox database by default to speed up the process.
 
-## Services
+## Project Structure and Services
 
-### Dataflow between services
+This project is structured as a monorepo, allowing us to manage multiple related applications and shared packages in a single repository.
 
 ![Dataflow between services](infra.drawio.png)
 
+## Applications
+
 All services are Node.js applications written in TypeScript and deployed using Docker. Both databases are PostgreSQL.
 
-- [Console](./apps/deploy-web/) The main website for deploying on Akash, built using the Next.js framework. Data is fetched from a combination of our API and Akash nodes (REST).
+- [Console](./apps/deploy-web/): The main website for deploying on Akash, built using the Next.js framework. Data is fetched from a combination of our API and Akash nodes (REST).
   - [console.akash.network](https://console.akash.network)
-- [Stats](./apps/stats/) The stats website built using Next.js, displaying for the usage data of the Akash Network from the Indexer database.
+- [Stats](./apps/stats/): The stats website built using Next.js, displaying the usage data of the Akash Network from the Indexer database.
   - [stats.akash.network](https://stats.akash.network)
-- [Api](./apps/api/) Provides data to the deploy website, fetching from our Indexer database.
+- [Api](./apps/api/): Provides data to the deploy website, fetching from our Indexer database.
   - [console-api.akash.network](https://console-api.akash.network/v1/swagger)
-- [Indexer](./apps/indexer/) Fetches the latest blocks from RPC nodes and saves blocks & stats to our Indexer Database. For details on how the indexer works, see the [Indexer README](./indexer/README.md).
-- [Provider Proxy](./apps/provider-proxy/) Used in the deploy website to proxy requests to providers. This is necessary since it's not possible to use the cert authentication system from the browser.
+- [Indexer](./apps/indexer/): Fetches the latest blocks from RPC nodes and saves blocks & stats to our Indexer Database. For details on how the indexer works, see the [Indexer README](./indexer/README.md).
+- [Provider Proxy](./apps/provider-proxy/): Used in the deploy website to proxy requests to providers. This is necessary since it's not possible to use the cert authentication system from the browser.
+
+## Shared Packages
+
+We utilize a `/packages` folder to define reusable packages that can be shared between applications. This approach promotes code reuse, maintainability, and consistency across our services. Some examples of shared packages include:
+
+- Common utilities
+- Shared types and interfaces
+- Reusable UI components
+- Shared configuration files
+
+By leveraging this monorepo structure with shared packages, we can efficiently manage dependencies, streamline development workflows, and ensure consistency across our various applications.
+
+For more information on how to use or contribute to shared packages, please refer to the code within each package in the `/packages` directory.
 
 ## Running the Application
 
