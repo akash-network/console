@@ -6,7 +6,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
 import providerProcessStore from "@src/store/providerProcessStore";
-import ResetProviderForm from "./reset-provider-form";
+import ResetProviderForm from "./ResetProviderProcess";
 
 interface ProviderConfigProps {
   stepChange: () => void;

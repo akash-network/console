@@ -3,7 +3,7 @@ import React from "react";
 import { useRouter } from 'next/router'; // Import useRouter
 
 import Layout from "@src/components/layout/Layout";
-import withAuth from "@src/components/shared/withAuth";
+import withAuth from "@src/components/shared/WithAuth";
 import { Card } from "@akashnetwork/ui/components";
 
 const Remedies: React.FunctionComponent = () => {

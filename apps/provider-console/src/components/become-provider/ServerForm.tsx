@@ -31,7 +31,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import providerProcessStore from "@src/store/providerProcessStore";
 import { useAtom } from "jotai/react";
-import ResetProviderForm from "./reset-provider-form";
+import ResetProviderForm from "./ResetProviderProcess";
 
 const baseSchema = z.object({
   hostname: z.string().min(2, { message: "IP must be at least 2 characters." }).max(30, { message: "IP must not be longer than 30 characters." }),

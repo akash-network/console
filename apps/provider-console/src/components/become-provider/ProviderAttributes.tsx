@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectContent
 } from "@akashnetwork/ui/components";
-import React, { useState } from "react";
+import React from "react";
 import { Form, useForm, useFieldArray, Controller, SubmitHandler } from "react-hook-form";
 import { PlusIcon, TrashIcon } from "lucide-react";
 import { z } from "zod";
@@ -20,13 +20,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";
 import { useAtom } from "jotai";
 import providerProcessStore from "@src/store/providerProcessStore";
-import ResetProviderForm from "./reset-provider-form";
+import ResetProviderForm from "./ResetProviderProcess";
 
 // Extract keys from providerAttributesFormValuesSchema
 const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 
 interface ProviderAttributesProps {
-  stepChange: (providerInformation: ProviderFormValues) => void;
+  stepChange: () => void;
 }
 
 const providerFormSchema = z.object({
@@ -60,10 +60,13 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
   const onSubmit: SubmitHandler<ProviderFormValues> = async (data) => {
     const updatedProviderPricing = {
       ...providerPricing,
-      attributes: data.attributes
+      attributes: data.attributes.map(attr => ({
+        ...attr,
+        customKey: attr.customKey || '' // Provide a default empty string
+      }))
     };
     setProviderPricing(updatedProviderPricing);
-    stepChange(updatedProviderPricing);
+    stepChange();
   };
 
   return (

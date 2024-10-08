@@ -8,7 +8,7 @@ const errorNotification = (error = "Error Occurred") => {
 };
 
 const restClient = axios.create({
-  baseURL: `https://2c26-99-209-150-74.ngrok-free.app`,
+  baseURL: `https://553a-99-209-150-74.ngrok-free.app`,
   timeout: 60000
 });
 

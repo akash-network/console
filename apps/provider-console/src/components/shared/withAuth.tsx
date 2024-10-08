@@ -4,7 +4,8 @@ import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { Spinner } from "@akashnetwork/ui/components";
 import axios from "axios";
-import jwtDecode from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
+import authClient from "@src/utils/authClient";
 
 const withAuth = (WrappedComponent: React.ComponentType) => {
   const AuthComponent: React.FC = props => {
@@ -27,27 +28,31 @@ const withAuth = (WrappedComponent: React.ComponentType) => {
           return;
         }
 
-        // try {
-        //   const { exp } = jwtDecode<{ exp: number }>(accessToken);
-        //   if (Date.now() >= exp * 1000) {
-        //     if (refreshToken) {
-        //       const response = await axios.post("/auth/refresh", { token: refreshToken });
-        //       localStorage.setItem("accessToken", response.data.accessToken);
-        //     } else {
-        //       router.push("/");
-        //       return;
-        //     }
-        //   }
-        // } catch (error) {
-        //   console.error("Token validation error:", error);
-        //   router.push("/");
-        //   return;
-        // }
+        try {
+          console.log("accessToken", accessToken);
+          const { exp } = jwtDecode<{ exp: number }>(accessToken);
+
+          console.log("expired", exp);
+          if (Date.now() >= exp * 1000) {
+            if (refreshToken) {
+              const response = await authClient.post("/auth/refresh", { address, refresh_token: refreshToken });
+              localStorage.setItem("accessToken", response.data.access_token);
+              localStorage.setItem("refreshToken", response.data.refresh_token);
+            } else {
+              router.push("/");
+              return;
+            }
+          }
+        } catch (error) {
+          console.error("Token validation error:", error);
+          router.push("/");
+          return;
+        }
 
         setLoading(false);
       };
 
-      const timer = setTimeout(checkAuth, 3000); // Wait for 3 seconds before redirecting
+      const timer = setTimeout(checkAuth, 1500); // Wait for 3 seconds before redirecting
 
       return () => clearTimeout(timer); // Cleanup the timer on component unmount
     }, [isWalletConnected, address, router]);

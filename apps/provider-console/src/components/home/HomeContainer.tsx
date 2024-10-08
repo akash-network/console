@@ -10,7 +10,7 @@ import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import networkStore from "@src/store/networkStore";
 import { useAtomValue } from "jotai";
 import restClient from "@src/utils/restClient";
-import { ProviderProcess } from "../become-provider/provider-process";
+import { ProviderProcess } from "../become-provider/ProviderProcess";
 
 export function HomeContainer() {
   const router = useRouter();
@@ -73,7 +73,7 @@ export function HomeContainer() {
               </div>
             </Card>
           )}
-          {isWalletConnected && providerStatus && providerStatus.job_id && <ProviderProcess />}
+          {isWalletConnected && providerStatus && providerStatus.job_id && <ProviderProcess jobId={providerStatus.job_id} />}
           {isWalletConnected && providerStatus && !providerStatus.provider && (
             <div>
               <Card className="mt-4 p-4">

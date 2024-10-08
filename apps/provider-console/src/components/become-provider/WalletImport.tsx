@@ -15,7 +15,7 @@ import {
   Textarea
 } from "@akashnetwork/ui/components";
 import React, { useState, useEffect } from "react";
-import { ServerForm } from "./server-form";
+import { ServerForm } from "./ServerForm";
 import { Form, useForm } from "react-hook-form";
 import { ChevronDownIcon, HomeIcon } from "lucide-react";
 import { z } from "zod";
@@ -23,8 +23,8 @@ import { useAtom } from "jotai";
 import providerProcessStore from "@src/store/providerProcessStore";
 import restClient from "@src/utils/restClient";
 import { zodResolver } from "@hookform/resolvers/zod";
-import ResetButton from "./reset-provider-form";
-import ResetProviderForm from "./reset-provider-form";
+import ResetButton from "./ResetProviderProcess";
+import ResetProviderForm from "./ResetProviderProcess";
 
 // Utility function to decode Base64
 function decodeBase64(base64: string): string {
@@ -77,6 +77,7 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
   const [mode, setMode] = useState<string>("");
   const [showSeedForm, setShowSeedForm] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
 
@@ -97,6 +98,7 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
   };
 
   const submitForm = async (data: SeedFormValues) => {
+    setIsLoading(true);
     try {
       if (providerProcess.machines && providerProcess.machines.length > 0) {
         const publicKey = providerProcess.machines[0].systemInfo.public_key;
@@ -146,6 +148,8 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
     } catch (error) {
       console.error("Error during wallet verification:", error);
       // Handle any errors that occurred during the process
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -269,7 +273,9 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
                   <ResetProviderForm />
                 </div>
                 <div className="flex justify-end">
-                  <Button type="submit">Next</Button>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? "Loading..." : "Next"}
+                  </Button>
                 </div>
               </div>
             </div>
