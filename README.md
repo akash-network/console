@@ -21,8 +21,7 @@
 - [Services](#services)
 - [Running the Application](#running-the-application)
 - [Manual Database Restoration](#manual-database-restoration)
-- [Database Structure](#database-structure)
-- [Environment Variables](#environment-variables)
+- [Database Structure](./doc/database-structure.md)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -133,14 +132,6 @@ We utilize a `/packages` folder to define reusable packages that can be shared b
 By leveraging this monorepo structure with shared packages, we can efficiently manage dependencies, streamline development workflows, and ensure consistency across our various applications.
 
 For more information on how to use or contribute to shared packages, please refer to the code within each package in the `/packages` directory.
-
-## Database Structure
-
-Please refer to the [database structure document.](./doc/database-structure.md.md)
-
-## Environment Variables
-
-Please refer to the [app configuration document.](./doc/apps-configuration.md)
 
 ## Contributing
 
