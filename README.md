@@ -114,7 +114,7 @@ gunzip -c /path/to/console-akash-sandbox.sql.gz | psql --host "localhost" --port
 ```
 After restoring the database, you can proceed with the specific project's README instructions for further setup and running the application.
 
-## Project Structure and Services
+## Services
 
 This project is structured as a monorepo, allowing us to manage multiple related applications and shared packages in a single repository.
 
