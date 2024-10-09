@@ -38,12 +38,6 @@ npm run dc:up:dev -- deploy-web
 
 This will start the deploy-web service in development mode with all the necessary dependencies (API, indexer, PostgreSQL). It will also import a backup of the sandbox database by default to speed up the process.
 
-## Project Structure and Services
-
-This project is structured as a monorepo, allowing us to manage multiple related applications and shared packages in a single repository.
-
-![Dataflow between services](infra.drawio.png)
-
 ## Applications
 
 All services are Node.js applications written in TypeScript and deployed using Docker. Both databases are PostgreSQL.
@@ -56,19 +50,6 @@ All services are Node.js applications written in TypeScript and deployed using D
   - [console-api.akash.network](https://console-api.akash.network/v1/swagger)
 - [Indexer](./apps/indexer/): Fetches the latest blocks from RPC nodes and saves blocks & stats to our Indexer Database. For details on how the indexer works, see the [Indexer README](./indexer/README.md).
 - [Provider Proxy](./apps/provider-proxy/): Used in the deploy website to proxy requests to providers. This is necessary since it's not possible to use the cert authentication system from the browser.
-
-## Shared Packages
-
-We utilize a `/packages` folder to define reusable packages that can be shared between applications. This approach promotes code reuse, maintainability, and consistency across our services. Some examples of shared packages include:
-
-- Common utilities
-- Shared types and interfaces
-- Reusable UI components
-- Shared configuration files
-
-By leveraging this monorepo structure with shared packages, we can efficiently manage dependencies, streamline development workflows, and ensure consistency across our various applications.
-
-For more information on how to use or contribute to shared packages, please refer to the code within each package in the `/packages` directory.
 
 ## Running the Application
 
@@ -134,50 +115,32 @@ gunzip -c /path/to/console-akash-sandbox.sql.gz | psql --host "localhost" --port
 ```
 After restoring the database, you can proceed with the specific project's README instructions for further setup and running the application.
 
+## Project Structure and Services
+
+This project is structured as a monorepo, allowing us to manage multiple related applications and shared packages in a single repository.
+
+![Dataflow between services](infra.drawio.png)
+
+## Shared Packages
+
+We utilize a `/packages` folder to define reusable packages that can be shared between applications. This approach promotes code reuse, maintainability, and consistency across our services. Some examples of shared packages include:
+
+- Common utilities
+- Shared types and interfaces
+- Reusable UI components
+- Shared configuration files
+
+By leveraging this monorepo structure with shared packages, we can efficiently manage dependencies, streamline development workflows, and ensure consistency across our various applications.
+
+For more information on how to use or contribute to shared packages, please refer to the code within each package in the `/packages` directory.
+
 ## Database Structure
 
-Our project uses a dual ORM approach for database management:
-
-1. **Sequelize-TypeScript**: 
-   - Used for defining the primary database schema.
-   - Schema definitions are located in [/shared/dbSchemas/](./shared/dbSchemas/).
-   - Models are organized into the following folders:
-     - **base**: Tables which are Cosmos generic and used for every chain
-     - **akash**: Tables which are Akash-specific
-     - **user**: Tables which are user-specific, containing tables for user settings and templates
-
-2. **Drizzle ORM**:
-   - Utilized in the API for database operations.
-   - Configuration can be found in `drizzle.config.ts` in the API directory.
-
-The use of both ORMs allows us to leverage the strengths of each:
-- Sequelize-TypeScript provides robust schema definition and migration capabilities.
-- Drizzle ORM offers type-safe queries and improved performance for API operations.
-
-For more details on the Drizzle ORM setup and usage, refer to the `drizzle.config.ts` file in the API directory.
-
-Note: We're planning on migrating all the models to drizzle eventually, so when you want to add new tables please add them using drizzle.
+Please refer to the [database structure document.](./doc/database-structure.md.md)
 
 ## Environment Variables
 
-Our project uses a structured approach to manage environment variables across different applications and environments:
-
-1. Each app under the `apps/` directory has its own `/env` folder.
-2. Inside each `/env` folder, you'll find:
-   - `.env.sample`: A template file showing the required environment variables.
-   - `.env.local`: For local development (git-ignored).
-   - `.env.staging`: For staging environment.
-   - `.env.production`: For production environment.
-
-We use **dotenvx** for managing and loading environment variables, which allows for features like variable interpolation.
-
-Environment variables follow the standard Next.js behavior, with files like `.env.local` or `.env.production` automatically loaded based on the current environment.
-
-To set up your local environment:
-1. Copy `.env.sample` to `.env.local` in the respective app's `/env` folder.
-2. Fill in the required values in `.env.local`.
-
-Note: Never commit sensitive information in `.env.sample` or any non-local .env files to version control.
+Please refer to the [app configuration document.](./doc/apps-configuration.md)
 
 ## Contributing
 
