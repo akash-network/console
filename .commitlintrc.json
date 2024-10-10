@@ -16,7 +16,8 @@
         "certificate",
         "dx",
         "config",
-        "stats"
+        "stats",
+        "release"
       ]
     ]
   }

@@ -24,4 +24,4 @@ jobs:
 
       - name: Build the Docker image
         if: steps.filter.outputs.provider-proxy == 'true'
-        run: npm run dc:build -- provider-proxy
+        run: packages/docker/script/dc.sh build provider-proxy
