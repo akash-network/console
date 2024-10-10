@@ -28,7 +28,6 @@
     "react-dom": "^18",
     "react-hook-form": "^7.52.2",
     "react-query": "^3.39.3",
-    "styled-components": "^6.1.13",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
     "ts-loader": "^9.5.1"
