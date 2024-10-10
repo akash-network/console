@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { UseFormSetValue } from "react-hook-form";
 import { Card, CardContent, Checkbox, Collapsible, CollapsibleContent, CollapsibleTrigger, Label, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -12,7 +12,7 @@ import BoxTextInput from "../BoxTextInput";
 const RemoteBuildInstallConfig = ({ services, setValue }: { services: ServiceType[]; setValue: UseFormSetValue<SdlBuilderFormValuesType> }) => {
   const [expanded, setExpanded] = useState(false);
   const currentService = services[0];
-  const envVarUpdater = new EnvVarUpdater(services);
+  const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
   return (
     <Collapsible
       open={expanded}
