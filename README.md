@@ -140,5 +140,3 @@ If you'd like to contribute to the development of Akash Console, please refer to
 ## License
 
 This project is licensed under the [Apache License 2.0](./LICENSE).
-
-For more detailed information about the project, including example SQL queries, manual database restoration, and specific upgrade instructions, please refer to the full README and other documentation files in the repository.
