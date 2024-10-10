@@ -1,4 +1,4 @@
-import { Dispatch, useEffect, useState } from "react";
+import { Dispatch, useEffect, useMemo, useState } from "react";
 import { Control, UseFormSetValue } from "react-hook-form";
 import { Button, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { Bitbucket, Github as GitIcon, GitlabFull } from "iconoir-react";
@@ -53,7 +53,7 @@ const RemoteRepositoryDeployManager = ({
 
   const shouldResetValue = isRepoUrlDefault(services?.[0]?.env || []);
 
-  const envVarUpdater = new EnvVarUpdater(services);
+  const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
 
   const { reLoginWithGithub, loginWithGithub } = new GitHubService();
 

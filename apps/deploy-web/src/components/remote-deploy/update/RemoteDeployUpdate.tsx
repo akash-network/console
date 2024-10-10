@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Checkbox, Label, Snackbar } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
@@ -26,9 +26,9 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(false);
   const { control, watch, setValue } = useForm<SdlBuilderFormValuesType>({ defaultValues: { services: [defaultService] } });
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
-  const envVarUpdater = new EnvVarUpdater(services);
   const { getTemplateById } = useTemplates();
   const remoteDeployTemplate = getTemplateById(CI_CD_TEMPLATE_ID);
+  const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
 
   useEffect(() => {
     const { unsubscribe }: any = watch(data => {
