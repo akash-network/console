@@ -3,7 +3,7 @@ import { z } from "zod";
 import { memoryUnits, validationConfig } from "@src/utils/akash/units";
 import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 
-const VALID_IMAGE_NAME = /^[a-z0-9\-_/:.]+$/;
+const VALID_IMAGE_NAME = /^(?:(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])(?:(?:\.(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]))+)?(?::[0-9]+)?\/)?[a-z0-9]+(?:(?:(?:[._]|__|[-]*)[a-z0-9]+)+)?(?:\/[a-z0-9]+(?:(?:(?:[._]|__|[-]*)[a-z0-9]+)+)?)*(?::[a-zA-Z0-9_.-]+)?(?:@[a-zA-Z0-9_.:+-]+)?$/;
 
 export const ProfileGpuModelSchema = z.object({
   vendor: z.string().min(1, { message: "Vendor is required." }),
@@ -390,3 +390,4 @@ export type ExposeType = z.infer<typeof ExposeSchema>;
 export type PlacementType = z.infer<typeof PlacementSchema>;
 export type ProviderRegionValueType = z.infer<typeof ProviderRegionValueSchema>;
 export type RentGpusFormValuesType = z.infer<typeof RentGpusFormValuesSchema>;
+
