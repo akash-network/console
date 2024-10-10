@@ -10,11 +10,11 @@ import { WalletImport } from "@src/components/become-provider/WalletImport";
 import { ProviderConfig } from "@src/components/become-provider/ProviderConfig";
 import { ProviderAttributes } from "@src/components/become-provider/ProviderAttributes";
 import { ProviderPricing } from "@src/components/become-provider/ProviderPricing";
-import { ProviderProcess } from "@src/components/become-provider/ProviderProcess";
 
 // Import state management
 import providerProcessStore from "@src/store/providerProcessStore";
 import withAuth from "@src/components/shared/withAuth";
+import { ProviderActionDetails } from "@src/components/shared/ProviderActionDetails";
 
 const BecomeProvider: React.FunctionComponent = () => {
   // State for managing the current step
@@ -67,7 +67,7 @@ const BecomeProvider: React.FunctionComponent = () => {
           stepChange: handleStepChange
         })
       ) : (
-        <ProviderProcess actionId={providerProcess.actionId} />
+        <ProviderActionDetails actionId={providerProcess.actionId} />
       )}
     </Layout>
   );

@@ -10,7 +10,8 @@ import {
   RadioGroup,
   RadioGroupItem,
   Separator,
-  Textarea
+  Textarea,
+  Form
 } from "@akashnetwork/ui/components";
 import React, { useState, useEffect } from "react";
 import { useAtom } from "jotai";
@@ -19,7 +20,7 @@ import restClient from "@src/utils/restClient";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import ResetProviderForm from "./ResetProviderProcess";
-import { Form, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { HomeIcon } from "lucide-react";
 
 // Utility function to decode Base64
@@ -122,14 +123,14 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
         };
 
         // Make a POST request using restClient
-        const response = await restClient.post("/build-provider", finalRequest, {
+        const response: any = await restClient.post("/build-provider", finalRequest, {
           headers: { "Content-Type": "application/json" }
         });
 
-        if (response.status === 200 && response.data.action_id) {
+        if (response.action_id) {
           setProviderProcess(prev => ({
             ...prev,
-            actionId: response.data.action_id,
+            actionId: response.action_id,
             process: {
               ...prev.process,
               walletImport: true
@@ -239,8 +240,8 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
 
       {mode === "seed" && (
         <div className="space-y-6">
-          <Form {...seedForm} className="space-y-6">
-            <form onSubmit={seedForm.handleSubmit(submitForm)}>
+          <Form {...seedForm}>
+            <form onSubmit={seedForm.handleSubmit(submitForm)} className="space-y-6">
               <div className="space-y-8">
                 <div>
                   <h3 className="text-xl font-bold">Seed Mode - Import Wallet</h3>

@@ -1,7 +1,7 @@
 "use client";
-import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, Input, Separator, Slider } from "@akashnetwork/ui/components";
+import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, Input, Separator, Slider, Form } from "@akashnetwork/ui/components";
 import React, { useEffect, useState } from "react";
-import { Form, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { ChevronDownIcon } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -139,8 +139,8 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange }) 
         <div className="">
           <Separator />
         </div>
-        <Form {...form} className="space-y-6">
-          <form onSubmit={form.handleSubmit(submit)}>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(submit)} className="space-y-6">
             <div className="grid grid-cols-5 gap-8">
               <div className="col-span-3 space-y-6">
                 <FormField

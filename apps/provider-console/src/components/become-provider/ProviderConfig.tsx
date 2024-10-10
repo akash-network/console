@@ -1,7 +1,7 @@
 "use client";
-import { Button, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Separator } from "@akashnetwork/ui/components";
+import { Button, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Separator, Form } from "@akashnetwork/ui/components";
 import React from "react";
-import { Form, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
@@ -39,14 +39,14 @@ export const ProviderConfig: React.FunctionComponent<ProviderConfigProps> = ({ s
 
   const [, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
 
-  const submitForm = async (data: ProviderConfigValues) => {
+  const submitForm = async (formValues: ProviderConfigValues) => {
     console.log("Hi");
     setProviderProcess(prev => ({
       ...prev,
       config: {
-        domain: data.domainName,
-        organization: data.organizationName,
-        email: data.emailAddress || ""
+        domain: formValues.domainName,
+        organization: formValues.organizationName,
+        email: formValues.emailAddress || ""
       },
       process: {
         ...prev.process,
@@ -67,8 +67,8 @@ export const ProviderConfig: React.FunctionComponent<ProviderConfigProps> = ({ s
           <Separator />
         </div>
         <div>
-          <Form {...form} className="space-y-6">
-            <form onSubmit={form.handleSubmit(submitForm)}>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(submitForm)} className="space-y-6">
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-2">
                   <FormField

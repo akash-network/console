@@ -10,10 +10,11 @@ import {
   Select,
   SelectItem,
   SelectTrigger,
-  SelectContent
+  SelectContent,
+  Form
 } from "@akashnetwork/ui/components";
 import React from "react";
-import { Form, useForm, useFieldArray, Controller, SubmitHandler } from "react-hook-form";
+import { useForm, useFieldArray, Controller, SubmitHandler } from "react-hook-form";
 import { PlusIcon, TrashIcon } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -57,7 +58,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
     name: "attributes"
   });
 
-  const onSubmit: SubmitHandler<ProviderFormValues> = async (data) => {
+  const onSubmit: SubmitHandler<ProviderFormValues> = async data => {
     const updatedProviderPricing = {
       ...providerPricing,
       attributes: data.attributes.map(attr => ({

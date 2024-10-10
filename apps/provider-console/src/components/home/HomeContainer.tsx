@@ -7,10 +7,10 @@ import { useWallet } from "@src/context/WalletProvider";
 import networkStore from "@src/store/networkStore";
 import { useAtomValue } from "jotai";
 import restClient from "@src/utils/restClient";
-import { ProviderProcess } from "../become-provider/ProviderProcess";
 import { WalletNotConnected } from "./WalletNotConnected";
-import { NotAProvider } from "./NotaProvider";
+import { NotAProvider } from "./NotAProvider";
 import { Spinner } from "@akashnetwork/ui/components";
+import { ProviderActionDetails } from "../shared/ProviderActionDetails";
 
 export function HomeContainer() {
   const router = useRouter();
@@ -75,7 +75,7 @@ export function HomeContainer() {
             <>
               {!isWalletConnected && <WalletNotConnected />}
               {isWalletConnected && !isProvider && <NotAProvider />}
-              {isProvider && !isOnline && actions?.length > 0 && <ProviderProcess actionId={actions[0].action_id} />}
+              {isProvider && !isOnline && actions?.length > 0 && <ProviderActionDetails actionId={actions[0].action_id} />}
               {isProvider && isOnline && <p>Provider is online and ready.</p>}
             </>
           )}

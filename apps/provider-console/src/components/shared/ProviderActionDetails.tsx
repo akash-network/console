@@ -63,7 +63,7 @@ const formatTimeLapse = (start: string, end: string | null) => {
   }
 };
 
-export const ProviderProcess: React.FunctionComponent<{ actionId: string | null }> = ({ actionId }) => {
+export const ProviderActionDetails: React.FunctionComponent<{ actionId: string | null }> = ({ actionId }) => {
   const [processData, setProcessData] = useState<ApiResponse | null>(null);
   const [openAccordions, setOpenAccordions] = useState<boolean[]>([]);
 
