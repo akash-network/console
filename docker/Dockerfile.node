@@ -44,11 +44,15 @@ RUN npm ci --workspace $WORKSPACE --omit=dev
 RUN apk add --no-cache libcap; \
     setcap cap_net_bind_service=+ep `readlink -f \`which node\``
 
+RUN wget -q -t3 'https://packages.doppler.com/public/cli/rsa.8004D9FF50437357.key' -O /etc/apk/keys/cli@doppler-8004D9FF50437357.rsa.pub && \
+    echo 'https://packages.doppler.com/public/cli/alpine/any-version/main' | tee -a /etc/apk/repositories && \
+    apk add doppler
+
 USER $APP_USER
 
 WORKDIR /app/$WORKSPACE
 
-CMD ["node", "dist/server.js"]
+CMD ["npm", "run", "prod"]
 
 FROM production AS production-nginx
 
@@ -62,4 +66,7 @@ RUN apk add --no-cache libcap nginx openssl \
 
 COPY $WORKSPACE/nginx.conf /etc/nginx/nginx.conf
 
-CMD sed -i "s/127.0.0.1/$(hostname -i)/" /etc/nginx/nginx.conf && sed -i "s/:3000/:$PORT/" /etc/nginx/nginx.conf && nginx && node dist/server.js
+ARG PORT=3000
+ENV PORT=${PORT}
+
+CMD sed -i "s/127.0.0.1/$(hostname -i)/" /etc/nginx/nginx.conf && sed -i "s/:3000/:$PORT/" /etc/nginx/nginx.conf && nginx && npm run prod

@@ -6,19 +6,8 @@ services:
     image: <IMAGE_NAME>:<IMAGE_TAG>
     depends-on: cloud-sql-proxy
     env:
-      - GITHUB_PAT=
-      - AKASH_SANDBOX_DATABASE_CS=
-      - USER_DATABASE_CS=
-      - SECRET_TOKEN=
-      - NETWORK=<sandbox|mainnet>
-      - MASTER_WALLET_MNEMONIC=
-      - POSTGRES_DB_URI=
-      - ANONYMOUS_USER_TOKEN_SECRET=
-      - SENTRY_DSN=
+      - DOPPLER_TOKEN=
       - SENTRY_SERVER_NAME=
-      - DEPLOYMENT_ENV=<staging|production>
-      - STRIPE_SECRET_KEY=
-      - STRIPE_WEBHOOK_SECRET=
     expose:
       - port: 3080
         as: 80

@@ -1,28 +1,36 @@
+import type { Network } from "@akashnetwork/network-store";
 import { Card, CardContent, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { SearchX } from "lucide-react";
-import { Metadata } from "next";
+import type { Metadata } from "next";
+import { z } from "zod";
 
 import { BlockInfo } from "./BlockInfo";
 
 import { TransactionRow } from "@/components/blockchain/TransactionRow";
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { getNetworkBaseApiUrl } from "@/lib/constants";
+import { networkId } from "@/config/env-config.schema";
+import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import { BlockDetail } from "@/types";
 
-interface IProps {
-  params: { height: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-}
+const BlockDetailPageSchema = z.object({
+  params: z.object({
+    height: z.string()
+  }),
+  searchParams: z.object({
+    network: networkId
+  })
+});
+type BlockDetailPageProps = z.infer<typeof BlockDetailPageSchema>;
 
-export async function generateMetadata({ params: { height } }: IProps): Promise<Metadata> {
+export async function generateMetadata({ params: { height } }: BlockDetailPageProps): Promise<Metadata> {
   return {
     title: `Block #${height}`
   };
 }
 
-async function fetchBlockData(height: string, network: string): Promise<BlockDetail> {
-  const apiUrl = getNetworkBaseApiUrl(network);
+async function fetchBlockData(height: string, network: Network["id"]): Promise<BlockDetail> {
+  const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await fetch(`${apiUrl}/v1/blocks/${height}`);
 
   if (!response.ok) {
@@ -33,8 +41,12 @@ async function fetchBlockData(height: string, network: string): Promise<BlockDet
   return response.json();
 }
 
-export default async function BlockDetailPage({ params: { height }, searchParams: { network } }: IProps) {
-  const block = await fetchBlockData(height, network as string);
+export default async function BlockDetailPage(props: BlockDetailPageProps) {
+  const {
+    params: { height },
+    searchParams: { network }
+  } = BlockDetailPageSchema.parse(props);
+  const block = await fetchBlockData(height, network);
 
   return (
     <PageContainer>
