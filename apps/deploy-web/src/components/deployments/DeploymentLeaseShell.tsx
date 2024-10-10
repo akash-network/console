@@ -283,12 +283,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
               <ViewPanel stickToBottom className="overflow-hidden">
                 {isConnectionClosed && (
                   <Alert variant="warning" className="rounded-none">
-                    The connection to your Akash Console Shell was lost. (
-                    <Link href={UrlService.faq("shell-lost")} target="_blank" className="inline-flex items-center space-x-2">
-                      <span>More Info</span>
-                      <OpenNewWindow className="text-xs" alignmentBaseline="middle" />
-                    </Link>
-                    )
+                    The connection to your Akash Console Shell was not established or lost.
                   </Alert>
                 )}
                 <XTerm ref={terminalRef} onKey={onTerminalKey} onTerminalPaste={onTerminalPaste} />

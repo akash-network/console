@@ -9,7 +9,7 @@ import dynamic from "next/dynamic";
 import { DiffNumber } from "@/components/DiffNumber";
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { TimeRange } from "@/components/graph/TimeRange";
-import { selectedRangeValues } from "@/lib/constants";
+import { SELECTED_RANGE_VALUES } from "@/config/date.config";
 import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
 import { SNAPSHOT_NOT_FOUND } from "@/lib/snapshotsUrlHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
@@ -25,7 +25,7 @@ export interface IGraphProps {
 }
 
 export default function GraphContainer({ snapshot }: IGraphProps) {
-  const [selectedRange, setSelectedRange] = useState(selectedRangeValues["7D"]);
+  const [selectedRange, setSelectedRange] = useState(SELECTED_RANGE_VALUES["7D"]);
   const { data: snapshotData, status } = useGraphSnapshot(snapshot);
   const snapshotMetadata = snapshotData && getSnapshotMetadata(snapshot as Snapshots);
   const rangedData = snapshotData && snapshotData.snapshots.slice(Math.max(snapshotData.snapshots.length - selectedRange, 0), snapshotData.snapshots.length);
@@ -50,7 +50,7 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
     const csvContent = parser.parse(rangedData.map(d => ({ date: d.date, value: snapshotMetadata.unitFn(d.value).value })));
 
     const datePart = new Date().toISOString().substring(0, 10).replaceAll("-", "");
-    const rangePart = Object.keys(selectedRangeValues).find(key => selectedRangeValues[key] === selectedRange);
+    const rangePart = Object.keys(SELECTED_RANGE_VALUES).find(key => SELECTED_RANGE_VALUES[key] === selectedRange);
     const fileName = `${snapshot}-${datePart}-${rangePart}.csv`;
 
     const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);

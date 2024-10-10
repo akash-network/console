@@ -1,4 +1,4 @@
-import { Dispatch, useEffect, useState } from "react";
+import { Dispatch, useEffect, useMemo, useState } from "react";
 import { UseFormSetValue } from "react-hook-form";
 import {
   Button,
@@ -64,10 +64,8 @@ const Repos = ({
   const [directory, setDirectory] = useState<IGithubDirectoryItem[] | null>(null);
   const [open, setOpen] = useState(false);
   const [accounts, setAccounts] = useState<string[]>([]);
-  const envVarUpdater = new EnvVarUpdater(services);
   const repo = repos?.find(r => r.html_url === currentRepoUrl);
   const currentFolder = currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.FRONTEND_FOLDER);
-
   const { currentFramework, isLoading: frameworkLoading } = useRemoteDeployFramework({
     currentRepoUrl,
     currentBranchName,
@@ -75,20 +73,18 @@ const Repos = ({
     subFolder: currentFolder?.value,
     setCpus: (cpus: number) => setValue("services.0.profile.cpu", +cpus > 2 ? +cpus : 2)
   });
-
   const { isLoading: isGettingDirectory, isFetching: isGithubLoading } = useSrcFolders(setFolders, formatUrlWithoutInitialPath(currentRepoUrl));
   const { isLoading: isGettingDirectoryBit, isFetching: isBitLoading } = useBitSrcFolders(
     setFolders,
     formatUrlWithoutInitialPath(currentRepoUrl),
     currentBranchName
   );
-
   const { isLoading: isGettingDirectoryGitlab, isFetching: isGitlabLoading } = useGitlabSrcFolders(
     setFolders,
     currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.GITLAB_PROJECT_ID)?.value
   );
-
   const isLoadingDirectories = isGithubLoading || isGitlabLoading || isBitLoading || isGettingDirectory || isGettingDirectoryBit || isGettingDirectoryGitlab;
+  const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
 
   useEffect(() => {
     if (type === "github") {

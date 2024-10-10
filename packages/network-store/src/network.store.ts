@@ -2,6 +2,7 @@ import axios from "axios";
 import { atom } from "jotai";
 import { getDefaultStore, useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
+import cloneDeep from "lodash/cloneDeep";
 
 import { INITIAL_NETWORKS_CONFIG } from "./network.config";
 import type { Network } from "./network.type";
@@ -31,9 +32,11 @@ export class NetworkStore {
     return new NetworkStore(options);
   }
 
-  readonly networksStore = atom<NetworksStore>({ isLoading: true, error: undefined, data: INITIAL_NETWORKS_CONFIG });
+  private readonly STORAGE_KEY = "selectedNetworkId";
 
-  private readonly selectedNetworkIdStore = atomWithStorage<Network["id"]>("selectedNetworkId", this.options.defaultNetworkId, undefined, { getOnInit: true });
+  readonly networksStore = atom<NetworksStore>({ isLoading: true, error: undefined, data: cloneDeep(INITIAL_NETWORKS_CONFIG) });
+
+  private readonly selectedNetworkIdStore = atomWithStorage<Network["id"]>(this.STORAGE_KEY, this.options.defaultNetworkId);
 
   private readonly selectedNetworkStore = atom<Network, [Network], void>(
     get => {
@@ -42,8 +45,8 @@ export class NetworkStore {
 
       return networks.find(n => n.id === networkId) ?? networks[0];
     },
-    async (get, set, next) => {
-      await set(this.selectedNetworkIdStore, next.id);
+    (get, set, next) => {
+      set(this.selectedNetworkIdStore, next.id);
     }
   );
 
@@ -71,13 +74,14 @@ export class NetworkStore {
 
   constructor(private readonly options: NetworkStoreOptions) {
     this.store = options.store || getDefaultStore();
+    this.initiateNetworkFromUrlQuery();
     this.initiateNetworks();
   }
 
   private async initiateNetworks() {
     const errors: { network: Network; error: Error }[] = [];
     const networks = await Promise.all(
-      INITIAL_NETWORKS_CONFIG.map(async network => {
+      cloneDeep(INITIAL_NETWORKS_CONFIG).map(async network => {
         try {
           network.versionUrl = this.options.apiBaseUrl + network.versionUrl;
           network.nodesUrl = this.options.apiBaseUrl + network.nodesUrl;
@@ -98,6 +102,24 @@ export class NetworkStore {
       this.store.set(this.networksStore, { data: this.networks, isLoading: false, error: new NetworkStoreVersionsInitError(errors) });
     } else {
       this.store.set(this.networksStore, { data: networks, isLoading: false, error: undefined });
+    }
+  }
+
+  private initiateNetworkFromUrlQuery(): void {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+
+    if (!url.searchParams.has("network")) {
+      return;
+    }
+
+    const raw = url.searchParams.get("network");
+
+    if (INITIAL_NETWORKS_CONFIG.some(({ id }) => id === raw)) {
+      window.localStorage.setItem(this.STORAGE_KEY, JSON.stringify(raw));
     }
   }
 

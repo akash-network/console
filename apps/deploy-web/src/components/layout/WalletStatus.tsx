@@ -23,6 +23,7 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
+import { getSplitText } from "@src/hooks/useShortText";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
@@ -104,10 +105,15 @@ export function WalletStatus() {
                     <Link className="ml-2 cursor-pointer leading-4" href={`https://stats.akash.network/addresses/${address}`} target="_blank">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span>{walletName}</span>
+                          {walletName?.length > 20 ? (
+                            <span className="text-xs">{getSplitText(walletName, 4, 4)}</span>
+                          ) : (
+                            <span className="text-xs">{walletName}</span>
+                          )}
                         </TooltipTrigger>
                         <TooltipContent>
-                          <Address address={address} isCopyable disableTooltip />
+                          <div className="text-xs">{walletName}</div>
+                          <Address address={address} isCopyable disableTooltip disableTruncate />
                         </TooltipContent>
                       </Tooltip>
                     </Link>

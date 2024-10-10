@@ -1,4 +1,6 @@
-import { Metadata } from "next";
+import type { Network } from "@akashnetwork/network-store";
+import type { Metadata } from "next";
+import { z } from "zod";
 
 import { AddressInfo } from "./AddressInfo";
 import AddressLayout from "./AddressLayout";
@@ -7,16 +9,23 @@ import { AssetList } from "./AssetList";
 import { LatestTransactions } from "./LatestTransactions";
 
 import { Title } from "@/components/Title";
-import { getNetworkBaseApiUrl } from "@/lib/constants";
+import { networkId } from "@/config/env-config.schema";
 import { UrlService } from "@/lib/urlUtils";
+import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import { AddressDetail } from "@/types";
 
-interface IProps {
-  params: { address: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-}
+const AddressDetailPageSchema = z.object({
+  params: z.object({
+    address: z.string(),
+    dseq: z.string()
+  }),
+  searchParams: z.object({
+    network: networkId
+  })
+});
+type AddressDetailPageProps = z.infer<typeof AddressDetailPageSchema>;
 
-export async function generateMetadata({ params: { address } }: IProps): Promise<Metadata> {
+export async function generateMetadata({ params: { address } }: AddressDetailPageProps): Promise<Metadata> {
   const url = `https://stats.akash.network${UrlService.address(address)}`;
 
   return {
@@ -30,8 +39,8 @@ export async function generateMetadata({ params: { address } }: IProps): Promise
   };
 }
 
-async function fetchAddressData(address: string, network: string): Promise<AddressDetail> {
-  const apiUrl = getNetworkBaseApiUrl(network);
+async function fetchAddressData(address: string, network: Network["id"]): Promise<AddressDetail> {
+  const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await fetch(`${apiUrl}/v1/addresses/${address}`);
 
   if (!response.ok) {
@@ -42,8 +51,12 @@ async function fetchAddressData(address: string, network: string): Promise<Addre
   return response.json();
 }
 
-export default async function AddressDetailPage({ params: { address }, searchParams: { network } }: IProps) {
-  const addressDetail = await fetchAddressData(address, network as string);
+export default async function AddressDetailPage(props: AddressDetailPageProps) {
+  const {
+    params: { address },
+    searchParams: { network }
+  } = AddressDetailPageSchema.parse(props);
+  const addressDetail = await fetchAddressData(address, network);
 
   return (
     <AddressLayout page="address" address={address}>

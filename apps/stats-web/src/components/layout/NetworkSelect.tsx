@@ -1,49 +1,22 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Spinner } from "@akashnetwork/ui/components";
 
-import { mainnetId, setNetworkVersion } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { initiateNetworkData, networks } from "@/store/networkStore";
+import { networkStore } from "@/store/network.store";
 
 interface NetworkSelectProps {
   className?: string;
 }
 
 const NetworkSelect: React.FC<NetworkSelectProps> = ({ className }) => {
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
-  const [selectedNetworkId, setSelectedNetworkId] = useState(mainnetId);
-
-  useEffect(() => {
-    async function init() {
-      await initiateNetworkData();
-      setNetworkVersion();
-
-      const selectedNetworkId = localStorage.getItem("selectedNetworkId");
-      if (selectedNetworkId) {
-        setSelectedNetworkId(selectedNetworkId);
-      }
-
-      setIsLoadingSettings(false);
-    }
-
-    init();
-  }, []);
-
-  const onSelectNetworkChange = (networkId: string) => {
-    setSelectedNetworkId(networkId);
-
-    // Set in the settings and local storage
-    localStorage.setItem("selectedNetworkId", networkId);
-    // Reset the ui to reload the settings for the currently selected network
-
-    location.reload();
-  };
+  const [{ isLoading: isLoadingNetworks, data: networks }] = networkStore.useNetworksStore();
+  const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore({ reloadOnChange: true });
 
   return (
-    <Select value={selectedNetworkId} disabled={isLoadingSettings} onValueChange={onSelectNetworkChange}>
+    <Select value={selectedNetworkId} disabled={isLoadingNetworks} onValueChange={setSelectedNetworkId}>
       <SelectTrigger className={cn("h-[30px] min-w-[180px] max-w-[200px]", className)}>
-        {isLoadingSettings && <Spinner size="small" />}
+        {isLoadingNetworks && <Spinner size="small" />}
         <SelectValue placeholder="Select network" />
       </SelectTrigger>
       <SelectContent>
