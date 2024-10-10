@@ -8,15 +8,15 @@ const errorNotification = (error = "Error Occurred") => {
 };
 
 const restClient = axios.create({
-  baseURL: `https://553a-99-209-150-74.ngrok-free.app`,
+  baseURL: `https://06bf-216-209-229-234.ngrok-free.app`,
   timeout: 60000
 });
 
 restClient.interceptors.response.use(
   response => {
-    return response;
+    return response.data;
   },
-  error => {
+  async error => {
     // whatever you want to do with the error
     if (typeof error.response === "undefined") {
       errorNotification("Server is not reachable or CORS is not enable on the server!");
@@ -29,42 +29,35 @@ restClient.interceptors.response.use(
       if (error.response.status === 401 && error.response.data.detail === "Signature has expired" && !originalRequest.retry) {
         originalRequest.retry = true;
 
+        try {
+          const refreshToken = localStorage.getItem("refreshToken");
+          const walletAddress = localStorage.getItem("walletAddress");
 
-        // TODO Refresh Token Login Goes here
-        // if (window.refreshingToken) {
-        //   setTimeout(() => {
-        //     originalRequest.headers.Authorization = `Bearer ${localStorage.getItem("accessToken")}`;
-        //     return restClient.request(originalRequest);
-        //   }, 1500);
-        // } else {
-        //   window.refreshingToken = true;
-        //   return authClient
-        //     .post("/auth/refresh", {
-        //       refresh_token: localStorage.getItem("refreshToken"),
-        //       address: localStorage.getItem("walletAddress")
-        //     })
-        //     .then(res => {
-        //       if (res.status === "success") {
-        //         // 1) put token to LocalStorage
-        //         localStorage.setItem("accessToken", res.data.access_token);
-        //         localStorage.setItem("refreshToken", res.data.refresh_token);
-        //         window.refreshingToken = false;
-        //         // 2) Change Authorization header
-        //         originalRequest.headers.Authorization = `Bearer ${getStorageItem("accessToken")}`;
-        //         // 3) return originalRequest object with Axios.
-        //         return restClient.request(originalRequest);
-        //       }
-        //       if (res.status === "error") {
-        //         // purgeStorage();
-        //         localStorage.removeItem("accessToken");
-        //         localStorage.removeItem("refreshToken");
-        //         // history.push("/auth/login");
-        //       }
-        //       return false;
-        //     });
-        // }
+          const refreshResponse = await authClient.post("/auth/refresh", {
+            refresh_token: refreshToken,
+            address: walletAddress
+          });
 
+          if (refreshResponse.data.status === "success") {
+            localStorage.setItem("accessToken", refreshResponse.data.access_token);
+            localStorage.setItem("refreshToken", refreshResponse.data.refresh_token);
 
+            originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.access_token}`;
+            return restClient.request(originalRequest);
+          } else {
+            // Handle refresh token failure
+            localStorage.removeItem("accessToken");
+            localStorage.removeItem("refreshToken");
+            localStorage.removeItem("walletAddress");
+            // Redirect to login page or handle as needed
+            // history.push("/auth/login");
+            throw new Error("Refresh token failed");
+          }
+        } catch (refreshError) {
+          // Handle refresh token request error
+          console.error("Error refreshing token:", refreshError);
+          throw refreshError;
+        }
       }
 
       if (error.response.status === 401 && error.response.data.detail !== "Signature has expired") {
@@ -93,6 +86,7 @@ restClient.interceptors.response.use(
 );
 
 restClient.interceptors.request.use(async request => {
+  request.headers = request.headers ?? {};
   request.headers.Authorization = `Bearer ${localStorage.getItem("accessToken")}`;
   request.headers["ngrok-skip-browser-warning"] = "69420";
   return request;

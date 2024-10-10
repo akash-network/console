@@ -1,7 +1,6 @@
 "use client";
 import React from "react";
 import { Check, InfoCircleSolid } from "iconoir-react";
-import { cn } from "@src/utils/styleUtils";
 
 // Define the structure for a step in the stepper
 interface Step {

@@ -5,11 +5,8 @@ import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 
 import { accountBarHeight } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
-import Spinner from "../shared/Spinner";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
-import { useRouter } from "next/router";
-import restClient from "@src/utils/restClient";
 
 type Props = {
   isLoading?: boolean;
@@ -22,38 +19,11 @@ type Props = {
 
 const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName }) => {
   const [locale, setLocale] = useState("en-US");
-  const router = useRouter();
   useEffect(() => {
     if (navigator?.language) {
       setLocale(navigator?.language);
     }
   }, []);
-
-  useEffect(() => {
-    const checkProviderStatus = async () => {
-      if (router.pathname !== "/") {
-        try {
-          const response = await restClient.get("/provider/status");
-          const { provider, online } = response.data;
-
-          if (provider && online) {
-            if (router.pathname !== "/dashboard") {
-              router.push("/dashboard");
-            }
-          } else if (provider && !online) {
-            if (router.pathname !== "/provider-remedies") {
-              router.push("/provider-remedies");
-            }
-          }
-          // If provider is false, we don't redirect
-        } catch (error) {
-          console.error("Error checking provider status:", error);
-        }
-      }
-    };
-
-    checkProviderStatus();
-  }, [router.pathname]);
 
   return (
     <IntlProvider locale={locale} defaultLocale="en-US">
@@ -72,7 +42,6 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
 
 const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName = "" }) => {
   const muiTheme = useMuiTheme();
-  const [isShowingWelcome, setIsShowingWelcome] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
@@ -84,19 +53,6 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
       setIsNavOpen(_isNavOpen === "true");
     }
   });
-
-  useEffect(() => {
-    const agreedToTerms = localStorage.getItem("agreedToTerms") === "true";
-
-    if (!agreedToTerms) {
-      setIsShowingWelcome(true);
-    }
-  }, []);
-
-  const onWelcomeClose = () => {
-    localStorage.setItem("agreedToTerms", "true");
-    setIsShowingWelcome(false);
-  };
 
   const onOpenMenuClick = () => {
     setIsNavOpen(prev => {
@@ -135,19 +91,6 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
         </div>
       </div>
     </>
-  );
-};
-
-const Loading: React.FunctionComponent<{ text: string }> = ({ text }) => {
-  return (
-    <div className="flex h-full w-full flex-col items-center justify-center pb-12 pt-12">
-      <div className="pb-4">
-        <Spinner size="large" />
-      </div>
-      <div>
-        <h5>{text}</h5>
-      </div>
-    </div>
   );
 };
 

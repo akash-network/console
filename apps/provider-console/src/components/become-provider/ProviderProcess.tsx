@@ -3,7 +3,6 @@ import { Separator } from "@akashnetwork/ui/components";
 import React, { useState, useEffect } from "react";
 import { CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import restClient from "@src/utils/restClient";
-import { formatDistanceStrict } from "date-fns";
 
 interface Task {
   title: string;
@@ -14,13 +13,12 @@ interface Task {
 }
 
 interface ApiResponse {
-  job_id: string;
+  action_id: string;
   tasks: Task[];
 }
 
 const formatLocalTime = (utcTime: string | null) => {
   if (!utcTime) return null;
-
   // Parse the UTC time string
   const [datePart, timePart] = utcTime.split("T");
   const [year, month, day] = datePart.split("-").map(Number);
@@ -44,8 +42,8 @@ const formatLocalTime = (utcTime: string | null) => {
 };
 
 const formatTimeLapse = (start: string, end: string | null) => {
-  const startDate = new Date(start + 'Z');  // Append 'Z' to ensure UTC interpretation
-  const endDate = end ? new Date(end + 'Z') : new Date();  // Use current time in UTC for in-progress tasks
+  const startDate = new Date(start + "Z"); // Append 'Z' to ensure UTC interpretation
+  const endDate = end ? new Date(end + "Z") : new Date(); // Use current time in UTC for in-progress tasks
 
   const durationMs = endDate.getTime() - startDate.getTime();
   const hours = Math.floor(durationMs / (1000 * 60 * 60));
@@ -61,7 +59,7 @@ const formatTimeLapse = (start: string, end: string | null) => {
   }
 };
 
-export const ProviderProcess: React.FunctionComponent<{ jobId: string | null }> = ({ jobId }) => {
+export const ProviderProcess: React.FunctionComponent<{ actionId: string | null }> = ({ actionId }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [openAccordions, setOpenAccordions] = useState<boolean[]>([]);
   const [progress, setProgress] = useState(0);
@@ -69,7 +67,7 @@ export const ProviderProcess: React.FunctionComponent<{ jobId: string | null }> 
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const response = await restClient.get(`/build-provider-status/${jobId}`);
+        const response = await restClient.get(`/build-provider-status/${actionId}`);
         setTasks(response.data.tasks);
         updateProgress(response.data.tasks);
       } catch (error) {
@@ -97,7 +95,7 @@ export const ProviderProcess: React.FunctionComponent<{ jobId: string | null }> 
     });
   };
 
-  if (jobId === null) {
+  if (actionId === null) {
     return (
       <div className="flex w-full flex-col items-center pt-10">
         <div className="w-full max-w-2xl">
@@ -138,12 +136,12 @@ export const ProviderProcess: React.FunctionComponent<{ jobId: string | null }> 
                   </div>
                   <div className="flex items-center">
                     {task.start_time && (
-                      <p className="text-xs text-gray-500 mr-2">
+                      <p className="mr-2 text-xs text-gray-500">
                         {task.status === "in_progress"
                           ? formatTimeLapse(task.start_time, null)
                           : task.end_time
-                          ? formatTimeLapse(task.start_time, task.end_time)
-                          : ""}
+                            ? formatTimeLapse(task.start_time, task.end_time)
+                            : ""}
                       </p>
                     )}
                     {task.status === "completed" && (

@@ -62,7 +62,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
       ...providerPricing,
       attributes: data.attributes.map(attr => ({
         ...attr,
-        customKey: attr.customKey || '' // Provide a default empty string
+        customKey: attr.customKey || "" // Provide a default empty string
       }))
     };
     setProviderPricing(updatedProviderPricing);
@@ -80,84 +80,86 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
           <Separator />
         </div>
         <div>
-          <Form {...form} onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div>
-              <h4 className="mb-2 text-lg font-semibold">Attributes</h4>
-              {fields.map((field, index) => {
-                const selectedKeys = form.watch("attributes").map(attr => attr.key);
-                const availableKeys = attributeKeys.filter(key => !selectedKeys.includes(key) || key === field.key || key === "unknown-attributes");
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div>
+                <h4 className="mb-2 text-lg font-semibold">Attributes</h4>
+                {fields.map((field, index) => {
+                  const selectedKeys = form.watch("attributes").map(attr => attr.key);
+                  const availableKeys = attributeKeys.filter(key => !selectedKeys.includes(key) || key === field.key || key === "unknown-attributes");
 
-                return (
-                  <div key={field.id} className="mb-2 flex space-x-2">
-                    <Controller
-                      control={form.control}
-                      name={`attributes.${index}.key`}
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormControl>
-                            <Select value={field.value} onValueChange={value => field.onChange(value)}>
-                              <SelectTrigger>{field.value || "Select Key"}</SelectTrigger>
-                              <SelectContent>
-                                {availableKeys.map(key => (
-                                  <SelectItem key={key} value={key}>
-                                    {key}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    {form.watch(`attributes.${index}.key`) === "unknown-attributes" && (
-                      <FormField
+                  return (
+                    <div key={field.id} className="mb-2 flex space-x-2">
+                      <Controller
                         control={form.control}
-                        name={`attributes.${index}.customKey`}
+                        name={`attributes.${index}.key`}
                         render={({ field }) => (
                           <FormItem className="flex-1">
                             <FormControl>
-                              <Input placeholder="Custom Key" {...field} />
+                              <Select value={field.value} onValueChange={value => field.onChange(value)}>
+                                <SelectTrigger>{field.value || "Select Key"}</SelectTrigger>
+                                <SelectContent>
+                                  {availableKeys.map(key => (
+                                    <SelectItem key={key} value={key}>
+                                      {key}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    )}
-                    <FormField
-                      control={form.control}
-                      name={`attributes.${index}.value`}
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormControl>
-                            <Input placeholder="Value" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                      {form.watch(`attributes.${index}.key`) === "unknown-attributes" && (
+                        <FormField
+                          control={form.control}
+                          name={`attributes.${index}.customKey`}
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormControl>
+                                <Input placeholder="Custom Key" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       )}
-                    />
-                    <Button type="button" variant="outline" size="icon" onClick={() => remove(index)}>
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </div>
-                );
-              })}
-              <Button type="button" variant="outline" size="sm" onClick={() => append({ key: "", value: "", customKey: "" })}>
-                <PlusIcon className="mr-2 h-4 w-4" />
-                Add Attribute
-              </Button>
-            </div>
-            <div className="">
-              <Separator />
-            </div>
-            <div className="flex w-full justify-between">
-              <div className="flex justify-start">
-                <ResetProviderForm />
+                      <FormField
+                        control={form.control}
+                        name={`attributes.${index}.value`}
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormControl>
+                              <Input placeholder="Value" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button type="button" variant="outline" size="icon" onClick={() => remove(index)}>
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
+                <Button type="button" variant="outline" size="sm" onClick={() => append({ key: "", value: "", customKey: "" })}>
+                  <PlusIcon className="mr-2 h-4 w-4" />
+                  Add Attribute
+                </Button>
               </div>
-              <div className="flex justify-end">
-                <Button type="submit">Next</Button>
+              <div className="">
+                <Separator />
               </div>
-            </div>
+              <div className="flex w-full justify-between">
+                <div className="flex justify-start">
+                  <ResetProviderForm />
+                </div>
+                <div className="flex justify-end">
+                  <Button type="submit">Next</Button>
+                </div>
+              </div>
+            </form>
           </Form>
         </div>
       </div>

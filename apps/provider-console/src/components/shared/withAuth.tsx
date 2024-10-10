@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { Spinner } from "@akashnetwork/ui/components";
-import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import authClient from "@src/utils/authClient";
 
@@ -38,6 +36,7 @@ const withAuth = (WrappedComponent: React.ComponentType) => {
               const response = await authClient.post("/auth/refresh", { address, refresh_token: refreshToken });
               localStorage.setItem("accessToken", response.data.access_token);
               localStorage.setItem("refreshToken", response.data.refresh_token);
+              localStorage.setItem("walletAddress", address);
             } else {
               router.push("/");
               return;

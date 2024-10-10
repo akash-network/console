@@ -67,71 +67,73 @@ export const ProviderConfig: React.FunctionComponent<ProviderConfigProps> = ({ s
           <Separator />
         </div>
         <div>
-          <Form {...form} onSubmit={form.handleSubmit(submitForm)} className="space-y-6">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
-                <FormField
-                  control={form.control}
-                  name="domainName"
-                  render={({ field, fieldState }) => (
-                    <FormItem className="flex flex-col space-y-2">
-                      <FormLabel>Domain Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="example.com" {...field} />
-                      </FormControl>
-                      <FormMessage>{fieldState.error?.message}</FormMessage>
-                    </FormItem>
-                  )}
-                />
+          <Form {...form} className="space-y-6">
+            <form onSubmit={form.handleSubmit(submitForm)}>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2">
+                  <FormField
+                    control={form.control}
+                    name="domainName"
+                    render={({ field, fieldState }) => (
+                      <FormItem className="flex flex-col space-y-2">
+                        <FormLabel>Domain Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="example.com" {...field} />
+                        </FormControl>
+                        <FormMessage>{fieldState.error?.message}</FormMessage>
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
-                <FormField
-                  control={form.control}
-                  name="organizationName"
-                  render={({ field, fieldState }) => (
-                    <FormItem>
-                      <FormLabel>Organization Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Your Organization" {...field} />
-                      </FormControl>
-                      <FormMessage>{fieldState.error?.message}</FormMessage>
-                    </FormItem>
-                  )}
-                />
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2">
+                  <FormField
+                    control={form.control}
+                    name="organizationName"
+                    render={({ field, fieldState }) => (
+                      <FormItem>
+                        <FormLabel>Organization Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Your Organization" {...field} />
+                        </FormControl>
+                        <FormMessage>{fieldState.error?.message}</FormMessage>
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
-                <FormField
-                  control={form.control}
-                  name="emailAddress"
-                  render={({ field, fieldState }) => (
-                    <FormItem>
-                      <FormLabel>Email Address (Optional)</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="your@email.com" {...field} />
-                      </FormControl>
-                      <FormMessage>{fieldState.error?.message}</FormMessage>
-                    </FormItem>
-                  )}
-                />
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2">
+                  <FormField
+                    control={form.control}
+                    name="emailAddress"
+                    render={({ field, fieldState }) => (
+                      <FormItem>
+                        <FormLabel>Email Address (Optional)</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="your@email.com" {...field} />
+                        </FormControl>
+                        <FormMessage>{fieldState.error?.message}</FormMessage>
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="">
-              <Separator />
-            </div>
-            <div className="flex w-full justify-between">
-              <div className="flex justify-start">
-                <ResetProviderForm />
+              <div className="">
+                <Separator />
               </div>
-              <div className="flex justify-end">
-                <Button type="submit">Next</Button>
+              <div className="flex w-full justify-between">
+                <div className="flex justify-start">
+                  <ResetProviderForm />
+                </div>
+                <div className="flex justify-end">
+                  <Button type="submit">Next</Button>
+                </div>
               </div>
-            </div>
+            </form>
           </Form>
         </div>
       </div>

@@ -29,7 +29,7 @@ const BecomeProvider: React.FunctionComponent = () => {
       { key: "providerConfig", component: ProviderConfig },
       { key: "providerAttribute", component: ProviderAttributes },
       { key: "providerPricing", component: ProviderPricing },
-      { key: "walletImport", component: WalletImport },
+      { key: "walletImport", component: WalletImport }
     ];
 
     // Find the first incomplete step
@@ -67,7 +67,7 @@ const BecomeProvider: React.FunctionComponent = () => {
           stepChange: handleStepChange
         })
       ) : (
-        <ProviderProcess jobId={providerProcess.jobId} />
+        <ProviderProcess actionId={providerProcess.actionId} />
       )}
     </Layout>
   );

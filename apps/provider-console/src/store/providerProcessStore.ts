@@ -35,7 +35,7 @@ interface ProviderProcess {
   config: ProviderConfig,
   pricing: ProviderPricing,
   attributes: ProviderAttribute[],
-  jobId: string | null
+  actionId: string | null
 }
 
 const providerProcessAtom = atomWithStorage<ProviderProcess>("providerProcess", {
@@ -63,7 +63,7 @@ const providerProcessAtom = atomWithStorage<ProviderProcess>("providerProcess", 
     endpointBidPrice: 0.5
   },
   attributes: [],
-  jobId: null
+  actionId: null
 });
 
 const resetProviderProcess = atom(
@@ -94,7 +94,7 @@ const resetProviderProcess = atom(
         endpointBidPrice: 0.5
       },
       attributes: [],
-      jobId: null
+      actionId: null
     });
   }
 );

@@ -14,10 +14,9 @@ import {
   TooltipContent,
   TooltipTrigger
 } from "@akashnetwork/ui/components";
-import { useChainWallet, useWalletClient } from "@cosmos-kit/react";
-import { Bank, LogOut, MoreHoriz, Wallet } from "iconoir-react";
+import { useChainWallet } from "@cosmos-kit/react";
+import { LogOut, MoreHoriz, Wallet } from "iconoir-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -33,7 +32,6 @@ export function WalletStatus() {
   const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected } = useWallet();
   const { wallet } = useSelectedChain();
   const walletBalance = useTotalWalletBalance();
-  const router = useRouter();
 
   const { signArbitrary: keplrSignArbitrary } = useChainWallet("akash", "keplr-extension");
   const { signArbitrary: leapSignArbitrary } = useChainWallet("akash", "leap-extension");
@@ -46,7 +44,6 @@ export function WalletStatus() {
   const handleWalletConnectSuccess = async () => {
     if (!localStorage.getItem("accessToken")) {
       const response: any = await authClient.get(`users/nonce/${address}`);
-      console.log(response);
       if (response?.data?.nonce) {
         const message = getNonceMessage(response.data.nonce);
         const signArbitrary = wallet?.name === "leap-extension" ? leapSignArbitrary : keplrSignArbitrary;
@@ -58,19 +55,17 @@ export function WalletStatus() {
             if (verifySign.data) {
               localStorage.setItem("accessToken", verifySign.data.access_token);
               localStorage.setItem("refreshToken", verifySign.data.refresh_token);
+              localStorage.setItem("walletAddress", address);
             } else {
               logout();
             }
           } else {
-            console.log("This is the error");
             logout();
           }
         } catch (error) {
-          console.error("Error during wallet connection:", error);
           logout();
         }
       } else {
-        console.log(response);
         if (response.status === 404 && response.error.code === "N4040") {
           authClient.post("users", { address });
           handleWalletConnectSuccess();

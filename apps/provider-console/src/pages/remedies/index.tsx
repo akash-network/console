@@ -1,16 +1,19 @@
 "use client";
 import React from "react";
 import { useRouter } from 'next/router'; // Import useRouter
-
+import { useAtom } from "jotai";
 import Layout from "@src/components/layout/Layout";
-import withAuth from "@src/components/shared/WithAuth";
+import withAuth from "@src/components/shared/withAuth";
 import { Card } from "@akashnetwork/ui/components";
+import providerProcessStore from "@src/store/providerProcessStore";
 
 const Remedies: React.FunctionComponent = () => {
   const router = useRouter(); // Initialize useRouter
+  const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
 
   const handleBecomeProvider = () => {
     // Redirect to the /become-provider page
+    resetProviderProcess();
     router.push('/become-provider');
   };
 

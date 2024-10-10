@@ -1,30 +1,26 @@
 "use client";
 import {
   Button,
-  buttonVariants,
   FormControl,
   FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-  Input,
   RadioGroup,
   RadioGroupItem,
   Separator,
   Textarea
 } from "@akashnetwork/ui/components";
 import React, { useState, useEffect } from "react";
-import { ServerForm } from "./ServerForm";
-import { Form, useForm } from "react-hook-form";
-import { ChevronDownIcon, HomeIcon } from "lucide-react";
-import { z } from "zod";
 import { useAtom } from "jotai";
 import providerProcessStore from "@src/store/providerProcessStore";
 import restClient from "@src/utils/restClient";
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import ResetButton from "./ResetProviderProcess";
 import ResetProviderForm from "./ResetProviderProcess";
+import { Form, useForm } from "react-hook-form";
+import { HomeIcon } from "lucide-react";
 
 // Utility function to decode Base64
 function decodeBase64(base64: string): string {
@@ -130,10 +126,10 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
           headers: { "Content-Type": "application/json" }
         });
 
-        if (response.status === 200 && response.data.job_id) {
+        if (response.status === 200 && response.data.action_id) {
           setProviderProcess(prev => ({
             ...prev,
-            jobId: response.data.job_id,
+            actionId: response.data.action_id,
             process: {
               ...prev.process,
               walletImport: true
@@ -165,120 +161,124 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
     <div className="flex flex-col items-center pt-10">
       {!mode && (
         <div className="space-y-6">
-          <Form {...form} onSubmit={form.handleSubmit(submitData)}>
-            <div className="space-y-8">
-              <div>
-                <h3 className="text-xl font-bold">Import Wallet</h3>
-                <p className="text-muted-foreground text-sm">Provider needs to import their wallet into their control machine in order to become provider.</p>
-              </div>
-              <div className="">
-                <Separator />
-              </div>
-              <div className="">
-                <FormField
-                  control={form.control}
-                  name="walletMode"
-                  render={({ field }) => (
-                    <FormItem className="space-y-1">
-                      <FormLabel>Wallet Mode</FormLabel>
-                      <FormDescription>Choose which mode do you want to use to import wallet</FormDescription>
-                      <FormMessage />
-                      <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid max-w-md grid-cols-2 gap-8 pt-2">
-                        <FormItem>
-                          <FormLabel className="[&:has([data-state=checked])>div]:border-primary">
-                            <FormControl>
-                              <RadioGroupItem value="seed" className="sr-only" />
-                            </FormControl>
-                            <div className="border-muted hover:border-accent items-center rounded-md border-2 p-1">
-                              <div className="space-y-2 rounded-sm p-2">
-                                <div className="space-y-2 rounded-md p-4 shadow-sm">
-                                  <HomeIcon />
-                                  <h4 className="text-md">Seed Phrase Mode</h4>
-                                  <p>Provider Console will auto import using secure end-to-end encryption. Seed Phrase is Required.</p>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(submitData)}>
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-xl font-bold">Import Wallet</h3>
+                  <p className="text-muted-foreground text-sm">Provider needs to import their wallet into their control machine in order to become provider.</p>
+                </div>
+                <div className="">
+                  <Separator />
+                </div>
+                <div className="">
+                  <FormField
+                    control={form.control}
+                    name="walletMode"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel>Wallet Mode</FormLabel>
+                        <FormDescription>Choose which mode do you want to use to import wallet</FormDescription>
+                        <FormMessage />
+                        <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid max-w-md grid-cols-2 gap-8 pt-2">
+                          <FormItem>
+                            <FormLabel className="[&:has([data-state=checked])>div]:border-primary">
+                              <FormControl>
+                                <RadioGroupItem value="seed" className="sr-only" />
+                              </FormControl>
+                              <div className="border-muted hover:border-accent items-center rounded-md border-2 p-1">
+                                <div className="space-y-2 rounded-sm p-2">
+                                  <div className="space-y-2 rounded-md p-4 shadow-sm">
+                                    <HomeIcon />
+                                    <h4 className="text-md">Seed Phrase Mode</h4>
+                                    <p>Provider Console will auto import using secure end-to-end encryption. Seed Phrase is Required.</p>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem>
-                          <FormLabel className="[&:has([data-state=checked])>div]:border-primary">
-                            <FormControl>
-                              <RadioGroupItem value="manual" className="sr-only" />
-                            </FormControl>
-                            <div className="border-muted bg-popover hover:bg-accent hover:text-accent-foreground items-center rounded-md border-2 p-1">
-                              <div className="space-y-2 rounded-sm bg-slate-950 p-2">
-                                <div className="space-y-2 rounded-sm bg-slate-800 p-4 text-white">
-                                  <HomeIcon />
-                                  <h4 className="text-md">Manual Mode</h4>
-                                  <p>You need to login to control machine and follow the instruction to import wallet. Seed Phrase is not Required.</p>
+                            </FormLabel>
+                          </FormItem>
+                          <FormItem>
+                            <FormLabel className="[&:has([data-state=checked])>div]:border-primary">
+                              <FormControl>
+                                <RadioGroupItem value="manual" className="sr-only" />
+                              </FormControl>
+                              <div className="border-muted bg-popover hover:bg-accent hover:text-accent-foreground items-center rounded-md border-2 p-1">
+                                <div className="space-y-2 rounded-sm bg-slate-950 p-2">
+                                  <div className="space-y-2 rounded-sm bg-slate-800 p-4 text-white">
+                                    <HomeIcon />
+                                    <h4 className="text-md">Manual Mode</h4>
+                                    <p>You need to login to control machine and follow the instruction to import wallet. Seed Phrase is not Required.</p>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </FormLabel>
-                        </FormItem>
-                      </RadioGroup>
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="">
-                <Separator />
-              </div>
-              <div className="flex w-full justify-between">
-                <div className="flex justify-start">
-                  <ResetProviderForm />
+                            </FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormItem>
+                    )}
+                  />
                 </div>
-                <div className="flex justify-end">
-                  <Button type="button" onClick={form.handleSubmit(submitData)}>
-                    Next
-                  </Button>
+                <div className="">
+                  <Separator />
+                </div>
+                <div className="flex w-full justify-between">
+                  <div className="flex justify-start">
+                    <ResetProviderForm />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button type="button" onClick={form.handleSubmit(submitData)}>
+                      Next
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </form>
           </Form>
         </div>
       )}
 
       {mode === "seed" && (
         <div className="space-y-6">
-          <Form {...seedForm} onSubmit={seedForm.handleSubmit(submitForm)} className="space-y-6">
-            <div className="space-y-8">
-              <div>
-                <h3 className="text-xl font-bold">Seed Mode - Import Wallet</h3>
-                <p className="text-muted-foreground text-sm">Seed Mode uses end-to-end encryption to ensure secure wallet import in your machine.</p>
-              </div>
-              <div className="">
-                <Separator />
-              </div>
-              <div className="">
-                <FormField
-                  control={seedForm.control}
-                  name="seedPhrase"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col space-y-2">
-                      <FormLabel>Seed Phrase</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Enter your seed phrase" {...field} rows={4} />
-                      </FormControl>
-                      <FormMessage /> {/* Ensure this is placed correctly */}
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="">
-                <Separator />
-              </div>
-              <div className="flex w-full justify-between">
-                <div className="flex justify-start">
-                  <ResetProviderForm />
+          <Form {...seedForm} className="space-y-6">
+            <form onSubmit={seedForm.handleSubmit(submitForm)}>
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-xl font-bold">Seed Mode - Import Wallet</h3>
+                  <p className="text-muted-foreground text-sm">Seed Mode uses end-to-end encryption to ensure secure wallet import in your machine.</p>
                 </div>
-                <div className="flex justify-end">
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "Loading..." : "Next"}
-                  </Button>
+                <div className="">
+                  <Separator />
+                </div>
+                <div className="">
+                  <FormField
+                    control={seedForm.control}
+                    name="seedPhrase"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col space-y-2">
+                        <FormLabel>Seed Phrase</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Enter your seed phrase" {...field} rows={4} />
+                        </FormControl>
+                        <FormMessage /> {/* Ensure this is placed correctly */}
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="">
+                  <Separator />
+                </div>
+                <div className="flex w-full justify-between">
+                  <div className="flex justify-start">
+                    <ResetProviderForm />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? "Loading..." : "Next"}
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </form>
           </Form>
         </div>
       )}

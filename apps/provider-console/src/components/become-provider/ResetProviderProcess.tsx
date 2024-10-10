@@ -31,8 +31,8 @@ const ResetProviderForm: React.FunctionComponent = () => {
 
   return (
     <>
-      <button type="button" onClick={handleReset}>Reset</button> {/* Ensure type is "button" */}
-      <Popup {...popupProps} />
+      <button type="button" onClick={handleReset}>Reset</button>
+      <Popup {...popupProps} variant="confirm" />
     </>
   );
 };

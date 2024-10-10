@@ -13,16 +13,12 @@ import {
   FormLabel,
   FormMessage,
   Input,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
   Separator,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger
 } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import restClient from "@src/utils/restClient";
 import { Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -70,7 +66,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
       return {
         hostname: "",
         authType: "password",
-        username: "",
+        username: "root", // Set default username to "root"
         port: 22
       };
     }
@@ -80,20 +76,23 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
       ...firstServer,
       hostname: "", // Reset hostname for new server
       authType: firstServer.file ? "file" : "password",
-      password: firstServer.authType === "password" ? firstServer.password : undefined
+      password: firstServer.password,
+      username: "root" // Ensure username is set to "root" even when copying from previous server
     };
   };
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
-    defaultValues: getDefaultValues()
+    defaultValues: getDefaultValues() as any // Temporary fix
   });
 
   useEffect(() => {
     if (currentServerNumber > 0 && providerProcess?.storeInformation) {
       const firstServer = providerProcess.machines[0]?.access;
       if (firstServer.file) {
-        setStoredFileContent(firstServer.file);
+        const reader = new FileReader();
+        reader.onload = e => setStoredFileContent(e.target?.result as string);
+        reader.readAsText(firstServer.file);
         form.setValue("authType", "file");
       }
     }
@@ -102,10 +101,6 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
   const [verificationError, setVerificationError] = useState<{ message: string; details: string[] } | null>(null);
   const [verificationResult, setVerificationResult] = useState(null);
   const [isVerifying, setIsVerifying] = useState(false);
-
-  useEffect(() => {
-    console.log(providerProcess);
-  });
 
   const submitForm = async (formValues: any) => {
     setIsVerifying(true);
@@ -134,20 +129,15 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
       }
 
       let response: any;
-
       if (currentServerNumber === 0) {
         // For the first server (control plane)
         response = await restClient.post("/verify/control-machine", jsonData, {
           headers: { "Content-Type": "application/json" }
         });
       } else {
-        console.log("Form is coming here");
         // For subsequent servers (worker nodes)
         const controlMachine = providerProcess?.machines[0]?.access;
-        console.log(controlMachine);
-
         const keyfile = controlMachine.file ? controlMachine.file : undefined;
-
         const payload = {
           control_machine: {
             hostname: controlMachine.hostname,
@@ -160,25 +150,23 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
           worker_node: jsonData
         };
 
-        console.log(payload);
         response = await restClient.post("/verify/control-and-worker", payload, {
           headers: { "Content-Type": "application/json" }
         });
-
-        console.log(response);
       }
 
-      if (response.status === 200) {
+      if (response.status === "success") {
         const machines = [...(providerProcess?.machines ?? [])];
         machines[currentServerNumber] = {
           access: {
             ...formValues,
             file: formValues.file && formValues.file[0] ? await readFileAsBase64(formValues.file[0]) : storedFileContent
           },
-          systemInfo: response.data.data.system_info
+          systemInfo: response.data.system_info
         };
 
         setProviderProcess({
+          ...providerProcess,
           machines,
           storeInformation: currentServerNumber === 0 ? formValues.saveInformation : providerProcess?.storeInformation,
           process: providerProcess.process
@@ -228,7 +216,6 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
       </div>
       <div>
         <Form {...form}>
-          {/* Pass form.handleSubmit(onSubmit) to form's onSubmit */}
           <form onSubmit={form.handleSubmit(submitForm)} className="space-y-6">
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-2">
@@ -281,6 +268,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
                       <FormControl>
                         <Input placeholder="Input your username" {...field} />
                       </FormControl>
+                      <FormDescription>The username must be "root" for proper setup.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -397,11 +385,6 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
                   <h4 className="text-lg font-bold">Heads up!</h4>
                   <p className="text-sm">You can apply information from Control Plane 1 to all remaining nodes by checking the option below.</p>
                   <div>
-                    {/* <Checkbox id="options" />
-                    <label htmlFor="options" className="pl-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Yes
-                    </label> */}
-
                     <FormField
                       control={form.control}
                       name="saveInformation"

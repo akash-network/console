@@ -1,23 +1,27 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-
 import { Footer } from "@src/components/layout/Footer";
 import Layout from "../layout/Layout";
 import { useWallet } from "@src/context/WalletProvider";
-import { Card } from "@akashnetwork/ui/components";
-import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import networkStore from "@src/store/networkStore";
 import { useAtomValue } from "jotai";
 import restClient from "@src/utils/restClient";
 import { ProviderProcess } from "../become-provider/ProviderProcess";
+import { WalletNotConnected } from "./WalletNotConnected";
+import { NotAProvider } from "./NotaProvider";
+import { Spinner } from "@akashnetwork/ui/components";
 
 export function HomeContainer() {
   const router = useRouter();
   const { isWalletConnected } = useWallet();
   const [isLoading, setIsLoading] = useState(false);
-  const [providerStatus, setProviderStatus] = useState<any>(null);
+  const [isProvider, setIsProvider] = useState(false);
+  const [provider, setProvider] = useState<any>(null);
+  const [isOnline, setIsOnline] = useState(false);
+  const [actions, setActions] = useState<any>(null);
   const selectedNetwork = useAtomValue(networkStore.selectedNetwork); // or similar method to get the value
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (isWalletConnected) {
@@ -28,74 +32,52 @@ export function HomeContainer() {
 
   const fetchProviderStatus = async () => {
     try {
-      const response = await restClient.get(`/provider/status?chainid=${selectedNetwork.chainId}`);
-      console.log(response);
-      setProviderStatus(response.data);
-      // setProviderStatus(response);
+      setLoadingMessage("Checking provider status...");
+      const isProviderResponse: any = await restClient.get(`/provider/status/onchain?chainid=${selectedNetwork.chainId}`);
+      setIsProvider(isProviderResponse.provider ? true : false);
+      setProvider(isProviderResponse.provider);
+
+      if (isProviderResponse.provider) {
+        setLoadingMessage("Provider found, Checking online status...");
+        const isOnlineResponse: any = await restClient.get(`/provider/status/online?chainid=${selectedNetwork.chainId}`);
+        setIsOnline(isOnlineResponse.online);
+
+        if (!isOnlineResponse.online) {
+          setLoadingMessage("Provider is offline <br/> Getting provider actions...");
+          const actionsResponse: any = await restClient.get(`/actions`);
+          setActions(actionsResponse.actions);
+        }
+      }
     } catch (error) {
-      console.error("Failed to fetch provider status:", error);
+      setLoadingMessage("Error fetching provider status");
     } finally {
       setIsLoading(false);
+      setLoadingMessage(null);
     }
   };
 
   useEffect(() => {
-    if (providerStatus) {
-      console.log(providerStatus);
-      const { provider, online, job_id } = providerStatus.data;
-      if (job_id) {
-        // Render ProviderProcess component
-      } else if (!provider) {
-        // Show become provider card
-      } else if (!online) {
-        router.push("/remedies");
-      } else {
-        router.push("/dashboard");
-      }
+    if (isProvider && !isOnline && actions?.length === 0) {
+      router.push("/remedies");
     }
-  }, [providerStatus, router]);
+  }, [actions, isProvider, isOnline, router]);
 
   return (
     <Layout containerClassName="flex h-full flex-col justify-between" isLoading={isLoading}>
-      <div>
+      <div className="flex flex-grow items-center justify-center">
         <div className="mb-4">
-          {!isWalletConnected && (
-            <Card className="mt-4 p-4">
-              <h2 className="text-lg font-bold">Connect Your Wallet</h2>
-              <p>To become a provider or access the provider dashboard, you need to connect your wallet.</p>
-              <ul className="list-disc pl-5">
-                <li>Securely connect your wallet to manage your provider account.</li>
-                <li>Access exclusive provider features and tools.</li>
-                <li>Ensure your transactions and data are protected.</li>
-              </ul>
-              <div>
-                <ConnectWalletButton className="mt-5 w-full md:w-auto" />
-              </div>
-            </Card>
-          )}
-          {isWalletConnected && providerStatus && providerStatus.job_id && <ProviderProcess jobId={providerStatus.job_id} />}
-          {isWalletConnected && providerStatus && !providerStatus.provider && (
-            <div>
-              <Card className="mt-4 p-4">
-                <h2 className="text-lg font-bold">Become a Provider</h2>
-                <p>Join the Akash Network and offer your compute resources.</p>
-                <ul className="list-disc pl-5">
-                  <li>Earn by leasing your compute power.</li>
-                  <li>Utilize a streamlined UI with the Praetor App.</li>
-                  <li>Access detailed provider documentation.</li>
-                  <li>Monitor provider status and earnings.</li>
-                  <li>Participate in a decentralized cloud marketplace.</li>
-                  <li>Contribute to a sustainable and open-source ecosystem.</li>
-                  <li>Gain exposure to a global network of developers and businesses.</li>
-                  <li>Benefit from low operational costs and high scalability.</li>
-                </ul>
-                <div>
-                  <button onClick={() => router.push("/become-provider")} className="bg-primary mt-4 rounded px-4 py-2 text-white">
-                    Become a Provider
-                  </button>
-                </div>
-              </Card>
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center">
+              <Spinner />
+              <p className="mt-2">{loadingMessage}</p>
             </div>
+          ) : (
+            <>
+              {!isWalletConnected && <WalletNotConnected />}
+              {isWalletConnected && !isProvider && <NotAProvider />}
+              {isProvider && !isOnline && actions?.length > 0 && <ProviderProcess actionId={actions[0].action_id} />}
+              {isProvider && isOnline && <p>Provider is online and ready.</p>}
+            </>
           )}
         </div>
       </div>
