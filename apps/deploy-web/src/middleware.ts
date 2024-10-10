@@ -1,10 +1,11 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { isMaintenanceMode } from "./utils/constants";
+const { MAINTENANCE_MODE } = process.env;
 
 export function middleware(request: NextRequest) {
   const maintenancePage = "/maintenance";
+  const isMaintenanceMode = MAINTENANCE_MODE === "true";
   if (isMaintenanceMode && !request.nextUrl.pathname.startsWith(maintenancePage)) {
     const fromPath = request.nextUrl.pathname + request.nextUrl.search;
     console.log("Redirecting to maintenance page from " + fromPath);

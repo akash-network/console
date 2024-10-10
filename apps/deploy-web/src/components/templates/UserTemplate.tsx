@@ -16,8 +16,8 @@ import { getShortText } from "@src/hooks/useShortText";
 import { useDeleteTemplate } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
 import { ITemplate } from "@src/types";
+import { RouteStep } from "@src/types/route-steps.type";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { RouteStepKeys } from "@src/utils/constants";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { cn } from "@src/utils/styleUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
@@ -135,7 +135,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
               content: template.sdl
             });
 
-            router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment }));
+            router.push(UrlService.newDeployment({ step: RouteStep.editDeployment }));
           }}
         >
           Deploy

@@ -2,6 +2,7 @@ import { DepositDeploymentAuthorization } from "@akashnetwork/akash-api/v1beta3"
 import { MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 import { BasicAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
 import { MsgGrantAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
+import addYears from "date-fns/addYears";
 import { singleton } from "tsyringe";
 
 export interface SpendingAuthorizationMsgOptions {
@@ -43,7 +44,7 @@ export class RpcMessageService {
     };
   }
 
-  getDepositDeploymentGrantMsg({ denom, limit, expiration, granter, grantee }: SpendingAuthorizationMsgOptions) {
+  getDepositDeploymentGrantMsg({ denom, limit, expiration = addYears(new Date(), 10), granter, grantee }: SpendingAuthorizationMsgOptions) {
     return {
       typeUrl: "/cosmos.authz.v1beta1.MsgGrant",
       value: {

@@ -1,21 +1,29 @@
-import { Metadata } from "next";
+import type { Network } from "@akashnetwork/network-store";
+import type { Metadata } from "next";
+import { z } from "zod";
 
 import { ValidatorsInfo } from "./ValidatorInfo";
 
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { getNetworkBaseApiUrl } from "@/lib/constants";
+import { networkId } from "@/config/env-config.schema";
 import { UrlService } from "@/lib/urlUtils";
+import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import { ValidatorDetail } from "@/types";
 
-interface IProps {
-  params: { address: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-}
+const ValidatorDetailPageSchema = z.object({
+  params: z.object({
+    address: z.string()
+  }),
+  searchParams: z.object({
+    network: networkId
+  })
+});
+type ValidatorDetailPageProps = z.infer<typeof ValidatorDetailPageSchema>;
 
-export async function generateMetadata({ params: { address }, searchParams: { network } }: IProps): Promise<Metadata> {
+export async function generateMetadata({ params: { address }, searchParams: { network } }: ValidatorDetailPageProps): Promise<Metadata> {
   const url = `https://stats.akash.network${UrlService.validator(address)}`;
-  const apiUrl = getNetworkBaseApiUrl(network as string);
+  const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await fetch(`${apiUrl}/v1/validators/${address}`);
   const data = (await response.json()) as ValidatorDetail;
 
@@ -30,8 +38,8 @@ export async function generateMetadata({ params: { address }, searchParams: { ne
   };
 }
 
-async function fetchValidatorData(address: string, network: string): Promise<ValidatorDetail> {
-  const apiUrl = getNetworkBaseApiUrl(network);
+async function fetchValidatorData(address: string, network: Network["id"]): Promise<ValidatorDetail> {
+  const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await fetch(`${apiUrl}/v1/validators/${address}`);
 
   if (!response.ok) {
@@ -42,8 +50,12 @@ async function fetchValidatorData(address: string, network: string): Promise<Val
   return response.json();
 }
 
-export default async function ValidatorDetailPage({ params: { address }, searchParams: { network } }: IProps) {
-  const validator = await fetchValidatorData(address, network as string);
+export default async function ValidatorDetailPage(props: ValidatorDetailPageProps) {
+  const {
+    params: { address },
+    searchParams: { network }
+  } = ValidatorDetailPageSchema.parse(props);
+  const validator = await fetchValidatorData(address, network);
 
   return (
     <PageContainer>

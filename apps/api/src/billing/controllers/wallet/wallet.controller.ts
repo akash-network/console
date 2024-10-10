@@ -1,38 +1,37 @@
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { Lifecycle, scoped } from "tsyringe";
 
-import { AuthService, Protected } from "@src/auth/services/auth.service";
+import { Protected } from "@src/auth/services/auth.service";
 import type { WalletListOutputResponse, WalletOutputResponse } from "@src/billing/http-schemas/wallet.schema";
-import { UserWalletRepository } from "@src/billing/repositories";
-import type { CreateWalletRequestInput, SignTxRequestInput, SignTxResponseOutput } from "@src/billing/routes";
+import type { SignTxRequestInput, SignTxResponseOutput, StartTrialRequestInput } from "@src/billing/routes";
 import { GetWalletQuery } from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
 import { WalletInitializerService } from "@src/billing/services";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
+import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import { WithTransaction } from "@src/core";
 
 @scoped(Lifecycle.ResolutionScoped)
 export class WalletController {
   constructor(
-    private readonly userWalletRepository: UserWalletRepository,
     private readonly walletInitializer: WalletInitializerService,
     private readonly signerService: TxSignerService,
     private readonly refillService: RefillService,
-    private readonly authService: AuthService
+    private readonly walletReaderService: WalletReaderService
   ) {}
 
+  @WithTransaction()
   @Protected([{ action: "create", subject: "UserWallet" }])
-  async create({ data: { userId } }: CreateWalletRequestInput): Promise<WalletOutputResponse> {
+  async create({ data: { userId } }: StartTrialRequestInput): Promise<WalletOutputResponse> {
     return {
-      data: await this.walletInitializer.initialize(userId)
+      data: await this.walletInitializer.initializeAndGrantTrialLimits(userId)
     };
   }
 
   @Protected([{ action: "read", subject: "UserWallet" }])
   async getWallets(query: GetWalletQuery): Promise<WalletListOutputResponse> {
-    const wallets = await this.userWalletRepository.accessibleBy(this.authService.ability, "read").find(query);
-
     return {
-      data: wallets.map(wallet => this.userWalletRepository.toPublic(wallet))
+      data: await this.walletReaderService.getWallets(query as GetWalletOptions)
     };
   }
 
@@ -44,6 +43,6 @@ export class WalletController {
   }
 
   async refillWallets() {
-    await this.refillService.refillAll();
+    await this.refillService.refillAllFees();
   }
 }

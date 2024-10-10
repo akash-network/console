@@ -1,8 +1,8 @@
 import axios from "axios";
 
 import { UserProfile } from "@src/components/user/UserProfile";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { IUserSetting } from "@src/types/user";
-import { BASE_API_MAINNET_URL } from "@src/utils/constants";
 
 type Props = {
   username: string;
@@ -37,6 +37,6 @@ export async function getServerSideProps({ params }) {
 }
 
 async function fetchUser(username: string) {
-  const response = await axios.get(`${BASE_API_MAINNET_URL}/user/byUsername/${username}`);
+  const response = await axios.get(`${browserEnvConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL}/user/byUsername/${username}`);
   return response.data;
 }

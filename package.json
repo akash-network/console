@@ -19,10 +19,12 @@
     "format": "prettier --write ./*.{js,json} **/*.{ts,tsx,js,json}",
     "indexer:dev": "turbo dev --filter=\"./apps/indexer\"",
     "lint": "eslint .",
+    "lint:fix": "npm run lint -- --fix",
     "lint:api": "eslint ./apps/api",
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
     "stats:dev": "turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
-    "stats:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\""
+    "stats:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
+    "prepare": "husky || true"
   },
   "dependencies": {
     "drizzle-orm": "^0.31.2",
@@ -30,7 +32,10 @@
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
     "cross-env": "^7.0.3",
+    "husky": "^9.1.6",
     "turbo": "^2.0.3"
   },
   "engines": {

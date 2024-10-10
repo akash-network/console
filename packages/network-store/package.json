@@ -1,0 +1,20 @@
+{
+  "name": "@akashnetwork/network-store",
+  "version": "1.0.0",
+  "description": "Package containing browser storage for Akash Network",
+  "keywords": [],
+  "license": "Apache-2.0",
+  "author": "",
+  "main": "src/index.ts",
+  "scripts": {
+    "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "@akashnetwork/akashjs": "^0.10.0"
+  }
+}

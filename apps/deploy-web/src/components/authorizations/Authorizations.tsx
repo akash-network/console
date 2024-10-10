@@ -27,7 +27,10 @@ const defaultRefetchInterval = 30 * 1000;
 const refreshingInterval = 1000;
 
 export const Authorizations: React.FunctionComponent = () => {
-  const { address, signAndBroadcastTx } = useWallet();
+  const { address, signAndBroadcastTx, isManaged } = useWallet();
+  const {
+    fee: { all: allowancesGranted, isLoading: isLoadingAllowancesGranted, setDefault, default: defaultAllowance }
+  } = useAllowance(address, isManaged);
   const [editingGrant, setEditingGrant] = useState<GrantType | null>(null);
   const [editingAllowance, setEditingAllowance] = useState<AllowanceType | null>(null);
   const [showGrantModal, setShowGrantModal] = useState(false);
@@ -46,9 +49,6 @@ export const Authorizations: React.FunctionComponent = () => {
   const { data: allowancesIssued, isLoading: isLoadingAllowancesIssued } = useAllowancesIssued(address, {
     refetchInterval: isRefreshing === "allowancesIssued" ? refreshingInterval : defaultRefetchInterval
   });
-  const {
-    fee: { all: allowancesGranted, isLoading: isLoadingAllowancesGranted, setDefault, default: defaultAllowance }
-  } = useAllowance();
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;

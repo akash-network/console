@@ -7,7 +7,8 @@ import { WalletListResponseOutputSchema } from "@src/billing/http-schemas/wallet
 import { OpenApiHonoHandled } from "@src/core/services/open-api-hono-handled/open-api-hono-handled";
 
 export const GetWalletRequestQuerySchema = z.object({
-  userId: z.string().openapi({})
+  userId: z.string().openapi({}),
+  awaitSessionId: z.string().optional().openapi({})
 });
 export type GetWalletQuery = z.infer<typeof GetWalletRequestQuerySchema>;
 
@@ -15,7 +16,7 @@ const route = createRoute({
   method: "get",
   path: "/v1/wallets",
   summary: "Get a list of wallets",
-  tags: ["Wallets"],
+  tags: ["Wallet"],
   request: {
     query: GetWalletRequestQuerySchema
   },

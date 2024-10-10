@@ -15,7 +15,7 @@ import { getSentry, sentryOptions } from "@src/core/providers/sentry.provider";
 import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
 import { HttpLoggerService } from "@src/core/services/http-logger/http-logger.service";
 import { LoggerService } from "@src/core/services/logger/logger.service";
-import { RequestContextInterceptor } from "@src/core/services/request-storage/request-context.interceptor";
+import { RequestContextInterceptor } from "@src/core/services/request-context-interceptor/request-context.interceptor";
 import { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import packageJson from "../package.json";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
@@ -33,14 +33,14 @@ const appHono = new Hono();
 appHono.use(
   "/*",
   cors({
-    origin: env.AKASHLYTICS_CORS_WEBSITE_URLS?.split(",") || ["http://localhost:3000", "http://localhost:3001"]
+    origin: env.CORS_WEBSITE_URLS?.split(",") || ["http://localhost:3000", "http://localhost:3001"]
   })
 );
 
 const { PORT = 3080, BILLING_ENABLED } = process.env;
 
 const scheduler = new Scheduler({
-  healthchecksEnabled: env.HealthchecksEnabled === "true",
+  healthchecksEnabled: env.HEALTHCHECKS_ENABLED === "true",
   errorHandler: (task, error) => {
     console.error(`Task "${task.name}" failed: ${error}`);
     getSentry().captureException(error);
@@ -73,10 +73,12 @@ if (BILLING_ENABLED === "true") {
   const { AuthInterceptor } = require("./auth/services/auth.interceptor");
   appHono.use(container.resolve<HonoInterceptor>(AuthInterceptor).intercept());
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createWalletRouter, getWalletListRouter, signAndBroadcastTxRouter } = require("./billing");
-  appHono.route("/", createWalletRouter);
+  const { startTrialRouter, getWalletListRouter, signAndBroadcastTxRouter, checkoutRouter, stripeWebhook } = require("./billing");
+  appHono.route("/", startTrialRouter);
   appHono.route("/", getWalletListRouter);
   appHono.route("/", signAndBroadcastTxRouter);
+  appHono.route("/", checkoutRouter);
+  appHono.route("/", stripeWebhook);
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { createAnonymousUserRouter, getAnonymousUserRouter } = require("./user");
   appHono.route("/", createAnonymousUserRouter);

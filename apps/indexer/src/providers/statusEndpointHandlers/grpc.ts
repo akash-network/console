@@ -3,13 +3,13 @@ import { ResourcesMetric, Status } from "@akashnetwork/akash-api/akash/provider/
 import { ProviderRPCClient } from "@akashnetwork/akash-api/akash/provider/v1/grpc-js";
 import { Empty } from "@akashnetwork/akash-api/google/protobuf";
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import minutesToMilliseconds from "date-fns/minutesToMilliseconds";
 import memoize from "lodash/memoize";
 import { promisify } from "util";
 
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
 import { FakeInsecureCredentials } from "./fake-insecure-credentials";
 import { ProviderStatusInfo } from "./types";
-import minutesToMilliseconds from "date-fns/minutesToMilliseconds";
 
 export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
   const data = await queryStatus(provider.hostUri, timeout);

@@ -14,8 +14,8 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { RouteStep } from "@src/types/route-steps.type";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { RouteStepKeys } from "@src/utils/constants";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
@@ -63,7 +63,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
       if (_leases) {
         // Redirect to select bids if has no lease
         if (deployment?.state === "active" && _leases.length === 0) {
-          router.replace(UrlService.newDeployment({ dseq, step: RouteStepKeys.createLeases }));
+          router.replace(UrlService.newDeployment({ dseq, step: RouteStep.createLeases }));
         }
 
         // Set the array of refs for lease rows
@@ -164,11 +164,27 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
 
           <Tabs value={activeTab} onValueChange={onChangeTab}>
             <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="LEASES">Leases</TabsTrigger>
-              {isActive && <TabsTrigger value="LOGS">Logs</TabsTrigger>}
-              {isActive && <TabsTrigger value="SHELL">Shell</TabsTrigger>}
-              {isActive && <TabsTrigger value="EVENTS">Events</TabsTrigger>}
-              <TabsTrigger value="EDIT">Update</TabsTrigger>
+              <TabsTrigger value="LEASES" data-testid="deployment-tab-leases">
+                Leases
+              </TabsTrigger>
+              {isActive && (
+                <TabsTrigger value="LOGS" data-testid="deployment-tab-logs">
+                  Logs
+                </TabsTrigger>
+              )}
+              {isActive && (
+                <TabsTrigger value="SHELL" data-testid="deployment-tab-shell">
+                  Shell
+                </TabsTrigger>
+              )}
+              {isActive && (
+                <TabsTrigger value="EVENTS" data-testid="deployment-tab-events">
+                  Events
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="EDIT" data-testid="deployment-tab-update">
+                Update
+              </TabsTrigger>
             </TabsList>
 
             {activeTab === "EDIT" && deployment && leases && (
@@ -200,6 +216,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
                   leases.map((lease, i) => (
                     <LeaseRow
                       key={lease.id}
+                      index={i}
                       lease={lease}
                       setActiveTab={setActiveTab}
                       ref={leaseRefs[i]}

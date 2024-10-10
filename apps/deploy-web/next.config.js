@@ -1,4 +1,4 @@
-require("./env.config");
+require("@akashnetwork/env-loader");
 const withBundleAnalyzer = require("@next/bundle-analyzer")({
   enabled: process.env.ANALYZE === "true"
 });
@@ -9,6 +9,16 @@ const withPWA = require("next-pwa")({
   disable: isDev
 });
 const { withSentryConfig } = require("@sentry/nextjs");
+
+try {
+  const { browserEnvSchema } = require("./env-config.schema");
+
+  browserEnvSchema.parse(process.env);
+} catch (error) {
+  if (error.message.includes("Cannot find module")) {
+    console.warn("No env-config.schema.js found, skipping env validation");
+  }
+}
 
 /**
  * @type {import('next').NextConfig}
@@ -30,10 +40,9 @@ const moduleExports = {
     ignoreDuringBuilds: true
   },
   transpilePackages: ["geist", "@akashnetwork/ui"],
-  // experimental: {
-  //   // outputStandalone: true,
-  //   externalDir: true // to make the import from shared parent folder work https://github.com/vercel/next.js/issues/9474#issuecomment-810212174
-  // },
+  experimental: {
+    instrumentationHook: true
+  },
   publicRuntimeConfig: {
     version
   },
@@ -142,7 +151,10 @@ const sentryWebpackPluginOptions = {
 
   silent: true, // Suppresses all logs,
   dryRun: true,
-  release: require("./package.json").version
+  release: require("./package.json").version,
+  unstable_sentryWebpackPluginOptions: {
+    applicationKey: process.env.NEXT_PUBLIC_SENTRY_APPLICATION_KEY
+  }
 
   // For all available options, see:
   // https://github.com/getsentry/sentry-webpack-plugin#options.

@@ -1,24 +1,25 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FormattedNumber, FormattedPlural } from "react-intl";
 import { Badge, buttonVariants, Card, CardContent, CardHeader, CardTitle, Spinner } from "@akashnetwork/ui/components";
 import { ResponsivePie } from "@nivo/pie";
-import { Rocket } from "iconoir-react";
+import { HandCard, Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 
-import { envConfig } from "@src/config/env.config";
+import { LoginRequiredLink } from "@src/components/user/LoginRequiredLink";
+import { browserEnvConfig } from "@src/config/browser-env.config";
+import { UAKT_DENOM } from "@src/config/denom.config";
 import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import useTailwind from "@src/hooks/useTailwind";
+import { WalletBalance } from "@src/hooks/useWalletBalance";
 import sdlStore from "@src/store/sdlStore";
-import { Balances } from "@src/types";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { customColors } from "@src/utils/colors";
-import { uAktDenom } from "@src/utils/constants";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, uaktToAKT } from "@src/utils/priceUtils";
 import { cn } from "@src/utils/styleUtils";
@@ -29,47 +30,23 @@ import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
 import { StatusPill } from "../shared/StatusPill";
 
-// const LiquidityModal = dynamic(() => import("../liquidity-modal"), {
-//   ssr: false,
-//   loading: props => {
-//     if (props.isLoading) {
-//       return (
-//         <Button variant="default" disabled size="sm">
-//           <span>Get More</span>
-//           <Spinner size="small" className="ml-2" />
-//         </Button>
-//       );
-//     } else return null;
-//   }
-// });
-
 type Props = {
-  balances: Balances | undefined;
   isLoadingBalances: boolean;
   activeDeployments: Array<DeploymentDto>;
   leases: Array<LeaseDto> | null | undefined;
   providers: Array<ApiProviderList> | undefined;
+  walletBalance: WalletBalance | null;
 };
 
-export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadingBalances, activeDeployments, leases, providers }) => {
+export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances, walletBalance, activeDeployments, leases, providers }) => {
   const { resolvedTheme } = useTheme();
   const tw = useTailwind();
-  const { address, isManaged: isManagedWallet, creditAmount: managedWalletCreditAmount = 0 } = useWallet();
+  const { address, isManaged: isManagedWallet } = useWallet();
   const usdcIbcDenom = useUsdcDenom();
   const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
   const [costPerMonth, setCostPerMonth] = useState<number | null>(null);
   const [userProviders, setUserProviders] = useState<{ owner: string; name: string }[] | null>(null);
-  const escrowUAktSum = activeDeployments
-    .filter(x => x.escrowAccount.balance.denom === uAktDenom)
-    .map(x => x.escrowBalance)
-    .reduce((a, b) => a + b, 0);
-  const escrowUsdcSum = activeDeployments
-    .filter(x => x.escrowAccount.balance.denom === usdcIbcDenom)
-    .map(x => x.escrowBalance)
-    .reduce((a, b) => a + b, 0);
-  const totalUAkt = balances ? balances.balance + escrowUAktSum : 0;
-  const totalUsdc = balances ? balances.balanceUsdc + escrowUsdcSum : 0;
-  const hasBalance = balances && totalUAkt !== 0;
+  const hasBalance = !!walletBalance && walletBalance.totalUsd > 0;
   const totalCpu = activeDeployments.map(d => d.cpuAmount).reduce((a, b) => a + b, 0);
   const totalGpu = activeDeployments.map(d => d.gpuAmount).reduce((a = 0, b = 0) => a + b, 0);
   const totalMemory = activeDeployments.map(d => d.memoryAmount).reduce((a, b) => a + b, 0);
@@ -86,48 +63,48 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
     deployment_usdc: tw.theme.colors.green[600]
   };
 
-  const getAktData = (balances: Balances, escrowUAktSum: number) => {
+  const getAktData = (balances: WalletBalance) => {
     return [
       {
         id: "balance_akt",
         label: "Balance",
-        denom: uAktDenom,
+        denom: UAKT_DENOM,
         denomLabel: "AKT",
-        value: isManagedWallet && envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "uakt" ? balances.balance + managedWalletCreditAmount : balances.balance,
+        value: balances.balanceUAKT,
         color: colors.balance_akt
       },
       {
         id: "deployment_akt",
-        label: "Deployment",
-        denom: uAktDenom,
+        label: "Deployments",
+        denom: UAKT_DENOM,
         denomLabel: "AKT",
-        value: escrowUAktSum,
+        value: balances.totalDeploymentEscrowUAKT,
         color: colors.deployment_akt
       }
     ];
   };
-  const getUsdcData = (balances: Balances, escrowUsdcSum: number) => {
+  const getUsdcData = (balances: WalletBalance) => {
     return [
       {
         id: "balance_usdc",
         label: "Balance",
         denom: usdcIbcDenom,
         denomLabel: "USDC",
-        value: isManagedWallet && envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "usdc" ? balances.balanceUsdc + managedWalletCreditAmount : balances.balance,
+        value: balances.balanceUUSDC,
         color: colors.balance_usdc
       },
       {
         id: "deployment_usdc",
-        label: "Deployment",
+        label: "Deployments",
         denom: usdcIbcDenom,
         denomLabel: "USDC",
-        value: escrowUsdcSum,
+        value: balances.totalDeploymentEscrowUUSDC,
         color: colors.deployment_usdc
       }
     ];
   };
-  const aktData = balances && (!isManagedWallet || envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "uakt") ? getAktData(balances, escrowUAktSum) : [];
-  const usdcData = balances && (!isManagedWallet || envConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "usdc") ? getUsdcData(balances, escrowUsdcSum) : [];
+  const aktData = walletBalance && (!isManagedWallet || browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "uakt") ? getAktData(walletBalance) : [];
+  const usdcData = walletBalance && (!isManagedWallet || browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM === "usdc") ? getUsdcData(walletBalance) : [];
   const filteredAktData = aktData.filter(x => x.value);
   const filteredUsdcData = usdcData.filter(x => x.value);
   const allData = [...aktData, ...usdcData];
@@ -138,7 +115,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
       const totalCostPerBlock = activeLeases
         .map(x => {
           switch (x.price.denom) {
-            case uAktDenom:
+            case UAKT_DENOM:
               return udenomToDenom(x.price.amount, 10) * price;
             case usdcIbcDenom:
               return udenomToDenom(x.price.amount, 10);
@@ -184,7 +161,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
       <CardContent>
         {address && (
           <div className="flex flex-col justify-between lg:flex-row">
-            {isLoadingBalances && !balances && (
+            {isLoadingBalances && !walletBalance && (
               <div className="flex h-[200px] basis-[220px] items-center justify-center">
                 <Spinner size="large" />
               </div>
@@ -246,22 +223,32 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                   </div>
                 </>
               ) : (
-                <Link href={UrlService.newDeployment()} className={cn("mt-4", buttonVariants({ variant: "default" }))} onClick={onDeployClick}>
+                <Link href={UrlService.newDeployment()} className={cn("mr-2 mt-4", buttonVariants({ variant: "default" }))} onClick={onDeployClick}>
                   Deploy
-                  <Rocket className="ml-4 rotate-45 text-sm" />
+                  <Rocket className="ml-4rotate-45 text-sm" />
                 </Link>
+              )}
+              {isManagedWallet && (
+                <LoginRequiredLink
+                  className={cn("mt-4", buttonVariants({ variant: "default" }))}
+                  href="/api/proxy/v1/checkout"
+                  message="Sign In or Sign Up to top up your balance"
+                >
+                  Top up balance
+                  <HandCard className="ml-4 rotate-45 text-sm" />
+                </LoginRequiredLink>
               )}
             </div>
 
             <div className="mt-4 flex basis-3/5 flex-col items-center md:mt-0 md:flex-row">
-              {hasBalance && (
+              {!!hasBalance && (
                 <div>
                   {filteredAktData.length > 0 && <BalancePie data={filteredAktData} getColor={_getColor} label="AKT" />}
                   {filteredUsdcData.length > 0 && <BalancePie data={filteredUsdcData} getColor={_getColor} label={isManagedWallet ? "$" : "USDC"} />}
                 </div>
               )}
 
-              {balances && (
+              {walletBalance && (
                 <div className={cn({ ["p-4"]: !hasBalance })} onMouseLeave={() => setSelectedDataId(null)}>
                   {allData.map((balance, i) => (
                     <div
@@ -284,36 +271,36 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     </div>
                   ))}
 
-                  <div className="mb-2 flex items-center text-sm leading-5 transition-opacity duration-200 ease-in-out">
-                    <div className="h-4 w-4 rounded-lg" />
-                    <div className="ml-4 w-[90px] font-bold">Total</div>
-                    {!isManagedWallet && (
-                      <div className="ml-4 w-[100px]">
-                        <strong>{uaktToAKT(totalUAkt, 2)} AKT</strong>
-                      </div>
-                    )}
+                  {!isManagedWallet && (
+                    <>
+                      <div className="mb-2 flex items-center text-sm leading-5 transition-opacity duration-200 ease-in-out">
+                        <div className="h-4 w-4 rounded-lg" />
+                        <div className="ml-4 w-[90px] font-bold">Total</div>
+                        <div className="ml-4 w-[100px]">
+                          <strong>{uaktToAKT(walletBalance.totalUAKT, 2)} AKT</strong>
+                        </div>
 
-                    <div>
-                      <strong>
-                        <PriceValue denom={uAktDenom} value={uaktToAKT(totalUAkt, 6)} />
-                      </strong>
-                    </div>
-                  </div>
-                  <div className="mb-2 flex items-center text-sm leading-5 transition-opacity duration-200 ease-in-out">
-                    <div className="h-4 w-4 rounded-lg" />
-                    <div className="ml-4 w-[90px] font-bold"></div>
-                    {!isManagedWallet && (
-                      <div className="ml-4 w-[100px]">
-                        <strong>{udenomToDenom(totalUsdc, 2)} USDC</strong>
+                        <div>
+                          <strong>
+                            <PriceValue denom={UAKT_DENOM} value={uaktToAKT(walletBalance.totalUAKT) + uaktToAKT(walletBalance.totalDeploymentGrantsUAKT)} />
+                          </strong>
+                        </div>
                       </div>
-                    )}
+                      <div className="mb-2 flex items-center text-sm leading-5 transition-opacity duration-200 ease-in-out">
+                        <div className="h-4 w-4 rounded-lg" />
+                        <div className="ml-4 w-[90px] font-bold"></div>
+                        <div className="ml-4 w-[100px]">
+                          <strong>{walletBalance.totalUUSDC} USDC</strong>
+                        </div>
 
-                    <div>
-                      <strong>
-                        <PriceValue denom={usdcIbcDenom} value={udenomToDenom(totalUsdc, 6)} />
-                      </strong>
-                    </div>
-                  </div>
+                        <div>
+                          <strong>
+                            <PriceValue denom={usdcIbcDenom} value={walletBalance.totalUUSDC + udenomToDenom(walletBalance.totalDeploymentGrantsUUSDC)} />
+                          </strong>
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <div className="mb-2 mt-2 flex items-center border-t border-muted-foreground pt-2 text-sm leading-5 transition-opacity duration-200 ease-in-out">
                     <div className="h-4 w-4 rounded-lg" />
@@ -323,7 +310,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                     <div>
                       <strong>
                         <FormattedNumber
-                          value={udenomToDenom(totalUsdc, 6) + udenomToDenom(totalUAkt, 6) * (price || 0)}
+                          value={walletBalance.totalUsd}
                           // eslint-disable-next-line react/style-prop-object
                           style="currency"
                           currency="USD"
@@ -331,10 +318,6 @@ export const YourAccount: React.FunctionComponent<Props> = ({ balances, isLoadin
                       </strong>
                     </div>
                   </div>
-
-                  {/* <div className="flex items-center justify-end">
-                    <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refreshBalances} />
-                  </div> */}
                 </div>
               )}
             </div>

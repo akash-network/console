@@ -6,6 +6,7 @@ import fetch from "node-fetch";
 import { Op } from "sequelize";
 
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
+import { LoggerService } from "@src/core/services/logger/logger.service";
 import { getTransactionByAddress } from "@src/services/db/transactionsService";
 import {
   CosmosGovProposalResponse,
@@ -28,45 +29,87 @@ import { CosmosMintInflationResponse } from "@src/types/rest/cosmosMintInflation
 import { CosmosStakingPoolResponse } from "@src/types/rest/cosmosStakingPoolResponse";
 import { coinToAsset } from "@src/utils/coin";
 import { apiNodeUrl, averageBlockCountInAMonth, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/constants";
+import { createLoggingExecutor } from "@src/utils/logging";
 import { getDeploymentRelatedMessages } from "../db/deploymentService";
 import { getProviderList } from "../db/providerStatusService";
 
 export async function getChainStats() {
+  const logger = new LoggerService({ context: "ApiNode" })
+  const runOrLog = createLoggingExecutor(logger)
+
   const result = await cacheResponse(
     60 * 5, // 5 minutes
     cacheKeys.getChainStats,
     async () => {
-      const bondedTokensQuery = axios.get<CosmosStakingPoolResponse>(`${apiNodeUrl}/cosmos/staking/v1beta1/pool`);
-      const supplyQuery = axios.get<CosmosBankSupplyResponse>(`${apiNodeUrl}/cosmos/bank/v1beta1/supply`);
-      const communityPoolQuery = axios.get<CosmosDistributionCommunityPoolResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
-      const inflationQuery = axios.get<CosmosMintInflationResponse>(`${apiNodeUrl}/cosmos/mint/v1beta1/inflation`);
-      const distributionQuery = axios.get<CosmosDistributionParamsResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/params`);
+      const bondedTokensAsPromised = await runOrLog(async () => {
+        const bondedTokensQuery = await axios.get<CosmosStakingPoolResponse>(
+          `${apiNodeUrl}/cosmos/staking/v1beta1/pool`
+        );
+        return parseInt(bondedTokensQuery.data.pool.bonded_tokens);
+      });
 
-      const [bondedTokensResponse, supplyResponse, communityPoolResponse, inflationResponse, distributionResponse] = await Promise.all([
-        bondedTokensQuery,
-        supplyQuery,
-        communityPoolQuery,
-        inflationQuery,
-        distributionQuery
+      const totalSupplyAsPromised = await runOrLog(async () => {
+        const supplyQuery = await axios.get<CosmosBankSupplyResponse>(
+          `${apiNodeUrl}/cosmos/bank/v1beta1/supply?pagination.limit=1000`
+        );
+        return parseInt(
+          supplyQuery.data.supply.find((x) => x.denom === "uakt")?.amount || "0"
+        );
+      });
+
+      const communityPoolAsPromised = await runOrLog(async () => {
+        const communityPoolQuery = await axios.get<CosmosDistributionCommunityPoolResponse>(
+          `${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`
+        );
+        return parseFloat(
+          communityPoolQuery.data.pool.find((x) => x.denom === "uakt")?.amount || "0"
+        );
+      });
+
+      const inflationAsPromised = await runOrLog(async () => {
+        const inflationQuery = await axios.get<CosmosMintInflationResponse>(
+          `${apiNodeUrl}/cosmos/mint/v1beta1/inflation`
+        );
+        return parseFloat(inflationQuery.data.inflation || "0");
+      });
+
+      const communityTaxAsPromised = await runOrLog(async () => {
+        const distributionQuery = await axios.get<CosmosDistributionParamsResponse>(
+          `${apiNodeUrl}/cosmos/distribution/v1beta1/params`
+        );
+        return parseFloat(distributionQuery.data.params.community_tax || "0");
+      });
+
+      const [bondedTokens, totalSupply, communityPool, inflation, communityTax] = await Promise.all([
+        bondedTokensAsPromised,
+        totalSupplyAsPromised,
+        communityPoolAsPromised,
+        inflationAsPromised,
+        communityTaxAsPromised
       ]);
 
       return {
-        communityPool: parseFloat(communityPoolResponse.data.pool.find(x => x.denom === "uakt").amount),
-        inflation: parseFloat(inflationResponse.data.inflation),
-        communityTax: parseFloat(distributionResponse.data.params.community_tax),
-        bondedTokens: parseInt(bondedTokensResponse.data.pool.bonded_tokens),
-        totalSupply: parseInt(supplyResponse.data.supply.find(x => x.denom === "uakt").amount)
+        communityPool,
+        inflation,
+        communityTax,
+        bondedTokens,
+        totalSupply,
       };
     },
     true
   );
+
+  let stakingAPR: number | undefined;
+  if (result.bondedTokens && result.bondedTokens > 0 && result.inflation && result.communityTax && result.totalSupply) {
+    stakingAPR = result.inflation * (1 - result.communityTax) * result.totalSupply / result.bondedTokens
+  }
 
   return {
     bondedTokens: result.bondedTokens,
     totalSupply: result.totalSupply,
     communityPool: result.communityPool,
     inflation: result.inflation,
-    stakingAPR: (result.inflation * (1 - result.communityTax)) / (result.bondedTokens / result.totalSupply)
+    stakingAPR,
   };
 }
 

@@ -5,6 +5,7 @@ import { OpenInWindow, OpenNewWindow } from "iconoir-react";
 import Link from "next/link";
 
 import ViewPanel from "@src/components/shared/ViewPanel";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useCustomWebSocket } from "@src/hooks/useCustomWebSocket";
 import { XTerm } from "@src/lib/XTerm";
@@ -13,7 +14,6 @@ import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
-import { PROVIDER_PROXY_URL_WS } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { LeaseSelect } from "./LeaseSelect";
@@ -47,7 +47,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   });
   const currentUrl = useRef<string | null>(null);
   const terminalRef = useRef<XTermRefType>(null);
-  const { sendJsonMessage } = useCustomWebSocket(PROVIDER_PROXY_URL_WS, {
+  const { sendJsonMessage } = useCustomWebSocket(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL_WS, {
     onOpen: () => {
       console.log("opened");
     },
@@ -283,12 +283,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
               <ViewPanel stickToBottom className="overflow-hidden">
                 {isConnectionClosed && (
                   <Alert variant="warning" className="rounded-none">
-                    The connection to your Akash Console Shell was lost. (
-                    <Link href={UrlService.faq("shell-lost")} target="_blank" className="inline-flex items-center space-x-2">
-                      <span>More Info</span>
-                      <OpenNewWindow className="text-xs" alignmentBaseline="middle" />
-                    </Link>
-                    )
+                    The connection to your Akash Console Shell was not established or lost.
                   </Alert>
                 )}
                 <XTerm ref={terminalRef} onKey={onTerminalKey} onTerminalPaste={onTerminalPaste} />

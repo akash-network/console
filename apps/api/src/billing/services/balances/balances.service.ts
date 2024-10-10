@@ -14,30 +14,38 @@ export class BalancesService {
     private readonly allowanceHttpService: AllowanceHttpService
   ) {}
 
-  async updateUserWalletLimits(userWallet: UserWalletOutput): Promise<void> {
-    const update = await this.getLimitsUpdate(userWallet);
+  async refreshUserWalletLimits(userWallet: UserWalletOutput, options?: { endTrial: boolean }): Promise<void> {
+    const update = await this.getFreshLimitsUpdate(userWallet);
 
-    if (Object.keys(update).length > 0) {
-      await this.userWalletRepository.updateById(userWallet.id, update);
+    if (!Object.keys(update).length) {
+      return;
     }
+
+    if (options?.endTrial && userWallet.isTrialing) {
+      update.isTrialing = false;
+    }
+
+    await this.userWalletRepository.updateById(userWallet.id, update);
   }
 
-  async getLimitsUpdate(userWallet: UserWalletOutput): Promise<Partial<UserWalletInput>> {
-    const [feeLimit, deploymentLimit] = await Promise.all([this.calculateFeeLimit(userWallet), this.calculateDeploymentLimit(userWallet)]);
-
+  async getFreshLimitsUpdate(userWallet: UserWalletOutput): Promise<Partial<UserWalletInput>> {
+    const limits = await this.getFreshLimits(userWallet);
     const update: Partial<UserWalletInput> = {};
 
-    const feeLimitStr = feeLimit;
-
-    if (userWallet.feeAllowance !== feeLimitStr) {
-      update.feeAllowance = feeLimitStr;
+    if (userWallet.feeAllowance !== limits.fee) {
+      update.feeAllowance = limits.fee;
     }
 
-    if (userWallet.deploymentAllowance !== deploymentLimit) {
-      update.deploymentAllowance = deploymentLimit;
+    if (userWallet.deploymentAllowance !== limits.deployment) {
+      update.deploymentAllowance = limits.deployment;
     }
 
     return update;
+  }
+
+  async getFreshLimits(userWallet: UserWalletOutput): Promise<{ fee: number; deployment: number }> {
+    const [fee, deployment] = await Promise.all([this.calculateFeeLimit(userWallet), this.calculateDeploymentLimit(userWallet)]);
+    return { fee, deployment };
   }
 
   private async calculateFeeLimit(userWallet: UserWalletOutput): Promise<number> {
@@ -59,7 +67,7 @@ export class BalancesService {
     }, 0);
   }
 
-  private async calculateDeploymentLimit(userWallet: UserWalletOutput): Promise<number> {
+  async calculateDeploymentLimit(userWallet: UserWalletOutput): Promise<number> {
     const deploymentAllowance = await this.allowanceHttpService.getDeploymentAllowancesForGrantee(userWallet.address);
     const masterWalletAddress = await this.masterWalletService.getFirstAddress();
 

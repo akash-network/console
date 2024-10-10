@@ -1,10 +1,10 @@
 import { useQuery } from "react-query";
 import axios from "axios";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
-import { LeaseDto } from "@src/types/deployment";
+import { LeaseDto, RpcLease } from "@src/types/deployment";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
-import { PROVIDER_PROXY_URL } from "@src/utils/constants";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { useCertificate } from "../context/CertificateProvider";
 import { useSettings } from "../context/SettingsProvider";
@@ -16,7 +16,7 @@ async function getDeploymentLeases(apiEndpoint: string, address: string, deploym
     return null;
   }
 
-  const response = await loadWithPagination(ApiUrlService.leaseList(apiEndpoint, address, deployment?.dseq), "leases", 1000);
+  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList(apiEndpoint, address, deployment?.dseq), "leases", 1000);
 
   const leases = response.map(l => leaseToDto(l, deployment));
 
@@ -34,7 +34,7 @@ async function getAllLeases(apiEndpoint: string, address: string, deployment?) {
     return null;
   }
 
-  const response = await loadWithPagination(ApiUrlService.leaseList(apiEndpoint, address, deployment?.dseq), "leases", 1000);
+  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList(apiEndpoint, address, deployment?.dseq), "leases", 1000);
 
   const leases = response.map(l => leaseToDto(l, deployment));
 
@@ -50,7 +50,7 @@ async function getLeaseStatus(providerUri: string, lease: LeaseDto, localCert: L
   if (!providerUri) return null;
 
   const leaseStatusPath = `${providerUri}/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`;
-  const response = await axios.post(PROVIDER_PROXY_URL, {
+  const response = await axios.post(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL, {
     method: "GET",
     url: leaseStatusPath,
     certPem: localCert?.certPem,

@@ -7,6 +7,34 @@ import { Title } from "@src/components/shared/Title";
 
 const FaqEntries = [
   {
+    anchor: "cpu-support",
+    title: "Which CPUs are officially supported?",
+    content: (
+      <>
+        <p>
+          <Link href="https://akash.network/docs/deployments/akash-cli/installation/#cpu-support" target="_blank">
+            Only x86_64 processors
+          </Link>{" "}
+          are officially supported for Akash deployments. This may change in the future and when ARM processors are supported it will be announced and
+          documented.
+        </p>
+        <p>
+          If you're on MacOS or linux, you can specify the{" "}
+          <Link
+            href="https://stackoverflow.com/questions/69054921/docker-on-mac-m1-gives-the-requested-images-platform-linux-amd64-does-not-m/69119815#69119815"
+            target="_blank"
+          >
+            target platform
+          </Link>{" "}
+          when building your docker image. For example, if you're using a Dockerfile you can use the following command:
+        </p>
+        <p>
+          <code>docker build -t my-image --platform linux/amd64 .</code>
+        </p>
+      </>
+    )
+  },
+  {
     anchor: "lease-closed",
     title: "My lease is closed, but the deployment isn't.",
     content: (
@@ -31,36 +59,6 @@ const FaqEntries = [
           </Link>{" "}
           discord channel.
         </p>
-      </>
-    )
-  },
-  {
-    anchor: "shell-lost",
-    title: "Can't access shell: 'The connection to your Akash Console Shell was lost.'",
-    content: (
-      <>
-        <p>
-          There is a{" "}
-          <a href="https://github.com/akash-network/support/issues/87" target="_blank">
-            known issue
-          </a>{" "}
-          where the shell access will stop working if the provider pod gets restarted. Here's two workarounds you can try:
-        </p>
-        <ul className="list-disc py-4 pl-8">
-          <li>
-            You can try the "UPDATE DEPLOYMENT" button in the "UPDATE" tab of your deployment. Even without changing your SDL, this should temporarily restore
-            the shell access.
-            <br />
-            <Image src="/images/faq/update-deployment-btn.png" alt="Update Deployment" width={500} height={116} />
-          </li>
-          <li>
-            A permanent solution would be to add your own ssh access to your deployment, here is an{" "}
-            <Link href="https://gist.github.com/arno01/f33b7c618ecf090108a33deea38c3c10" target="_blank">
-              example SDL
-            </Link>{" "}
-            with ssh.
-          </li>
-        </ul>
       </>
     )
   },
@@ -130,23 +128,25 @@ export default function FaqPage() {
       <NextSeo title={`Frequently Asked Questions`} />
       <Title>Frequently Asked Questions</Title>
 
-      <ul className="list-disc py-4 pl-8">
-        {FaqEntries.map(entry => (
-          <li key={entry.anchor}>
-            <Link href={"#" + entry.anchor}>{entry.title}</Link>
-          </li>
-        ))}
-      </ul>
+      <div className="prose dark:prose-invert prose-code:before:hidden prose-code:after:hidden">
+        <ul className="list-disc py-4 pl-8">
+          {FaqEntries.map(entry => (
+            <li key={entry.anchor}>
+              <Link href={"#" + entry.anchor}>{entry.title}</Link>
+            </li>
+          ))}
+        </ul>
 
-      <div className="pb-8">
-        {FaqEntries.map(entry => (
-          <div key={entry.anchor}>
-            <Title subTitle id={entry.anchor} className="my-4">
-              {entry.title}
-            </Title>
-            {entry.content}
-          </div>
-        ))}
+        <div className="pb-8">
+          {FaqEntries.map(entry => (
+            <div key={entry.anchor}>
+              <Title subTitle id={entry.anchor} className="my-4">
+                {entry.title}
+              </Title>
+              {entry.content}
+            </div>
+          ))}
+        </div>
       </div>
     </Layout>
   );

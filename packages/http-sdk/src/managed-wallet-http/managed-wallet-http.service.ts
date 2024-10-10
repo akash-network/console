@@ -10,7 +10,7 @@ export interface ApiWalletOutput {
 
 export class ManagedWalletHttpService extends ApiHttpService {
   async createWallet(userId: string) {
-    return this.addWalletEssentials(this.extractApiData(await this.post<ApiWalletOutput>("v1/wallets", { data: { userId } })));
+    return this.addWalletEssentials(this.extractApiData(await this.post<ApiWalletOutput>("v1/start-trial", { data: { userId } })));
   }
 
   async getWallet(userId: string) {
@@ -19,7 +19,7 @@ export class ManagedWalletHttpService extends ApiHttpService {
     return wallet && this.addWalletEssentials(wallet);
   }
 
-  private addWalletEssentials(input: ApiWalletOutput): ApiWalletOutput & { username: "Managed Wallet"; isWalletConnected: true } {
+  protected addWalletEssentials(input: ApiWalletOutput): ApiWalletOutput & { username: "Managed Wallet"; isWalletConnected: true } {
     return {
       ...input,
       username: "Managed Wallet",

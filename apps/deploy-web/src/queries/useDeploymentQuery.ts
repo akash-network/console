@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { PaginatedResults } from "@src/types";
+import { RpcDeployment } from "@src/types/deployment";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 import { coinToUDenom } from "@src/utils/priceUtils";
@@ -16,7 +17,7 @@ import { QueryKeys } from "./queryKeys";
 async function getDeploymentList(apiEndpoint: string, address: string) {
   if (!address) return [];
 
-  const deployments = await loadWithPagination(ApiUrlService.deploymentList(apiEndpoint, address), "deployments", 1000);
+  const deployments = await loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList(apiEndpoint, address), "deployments", 1000);
 
   return deployments.map(d => deploymentToDto(d));
 }

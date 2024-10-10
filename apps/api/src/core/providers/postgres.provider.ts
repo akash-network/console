@@ -15,7 +15,7 @@ const migrationClient = postgres(config.POSTGRES_DB_URI, { max: 1, onnotice: log
 const appClient = postgres(config.POSTGRES_DB_URI, { max: config.POSTGRES_MAX_CONNECTIONS, onnotice: logger.info.bind(logger) });
 
 const schema = { ...userSchemas, ...billingSchemas };
-const drizzleOptions = { logger: new DefaultLogger({ writer: new PostgresLoggerService() }), schema };
+const drizzleOptions = { logger: new DefaultLogger({ writer: new PostgresLoggerService({ useFormat: config.SQL_LOG_FORMAT === "pretty" }) }), schema };
 
 const pgMigrationDatabase = drizzle(migrationClient, drizzleOptions);
 export const migratePG = () => migrate(pgMigrationDatabase, { migrationsFolder: config.DRIZZLE_MIGRATIONS_FOLDER });
@@ -25,9 +25,15 @@ const pgDatabase = drizzle(appClient, drizzleOptions);
 export const POSTGRES_DB = "POSTGRES_DB";
 container.register(POSTGRES_DB, { useValue: pgDatabase });
 
+type TableName = keyof typeof schema;
+const tableNames = Object.keys(schema) as TableName[];
+tableNames.forEach(key => container.register(key, { useValue: schema[key] }));
+
+export const InjectPgTable = (name: TableName) => inject(name);
 export const InjectPg = () => inject(POSTGRES_DB);
 
 export type ApiPgDatabase = typeof pgDatabase;
-export type ApiPgSchema = typeof schema;
+export type ApiPgTables = typeof schema;
+export const resolveTable = <T extends TableName>(name: T) => container.resolve<ApiPgTables[T]>(name);
 
 export const closeConnections = async () => await Promise.all([migrationClient.end(), appClient.end()]);

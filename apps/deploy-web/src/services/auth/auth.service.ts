@@ -1,6 +1,6 @@
 import { InternalAxiosRequestConfig } from "axios";
 
-import { ANONYMOUS_USER_TOKEN_KEY } from "@src/utils/constants";
+import { ANONYMOUS_USER_TOKEN_KEY } from "@src/config/auth.config";
 
 export class AuthService {
   constructor() {

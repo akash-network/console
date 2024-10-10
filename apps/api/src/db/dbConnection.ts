@@ -1,10 +1,11 @@
 import { chainDefinitions } from "@akashnetwork/database/chainDefinitions";
 import { chainModels, getChainModels, userModels } from "@akashnetwork/database/dbSchemas";
-import { Template, TemplateFavorite, UserAddressName, UserSetting } from "@akashnetwork/database/dbSchemas/user";
+import { Template, TemplateFavorite, UserSetting } from "@akashnetwork/database/dbSchemas/user";
 import pg from "pg";
 import { Transaction as DbTransaction } from "sequelize";
 import { Sequelize } from "sequelize-typescript";
 
+import { config } from "@src/core/config";
 import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
 import { env } from "@src/utils/env";
 
@@ -13,9 +14,9 @@ function isValidNetwork(network: string): network is keyof typeof csMap {
 }
 
 const csMap = {
-  mainnet: env.AkashDatabaseCS,
-  testnet: env.AkashTestnetDatabaseCS,
-  sandbox: env.AkashSandboxDatabaseCS
+  mainnet: env.AKASH_DATABASE_CS,
+  testnet: env.AKASH_TESTNET_DATABASE_CS,
+  sandbox: env.AKASH_SANDBOX_DATABASE_CS
 };
 
 if (!isValidNetwork(env.NETWORK)) {
@@ -26,7 +27,7 @@ if (!csMap[env.NETWORK]) {
   throw new Error(`Missing connection string for network: ${env.NETWORK}`);
 }
 
-const logger = new PostgresLoggerService({ orm: "sequelize" });
+const logger = new PostgresLoggerService({ orm: "sequelize", useFormat: config.SQL_LOG_FORMAT === "pretty" });
 const logging = (msg: string) => logger.write(msg);
 
 pg.defaults.parseInt8 = true;
@@ -63,7 +64,7 @@ export const chainDbs: { [key: string]: Sequelize } = Object.keys(chainDefinitio
     {}
   );
 
-export const userDb = new Sequelize(env.UserDatabaseCS, {
+export const userDb = new Sequelize(env.USER_DATABASE_CS, {
   dialectModule: pg,
   logging,
   logQueryParameters: true,
@@ -77,7 +78,6 @@ export const userDb = new Sequelize(env.UserDatabaseCS, {
 
 export async function syncUserSchema() {
   await UserSetting.sync();
-  await UserAddressName.sync();
   await Template.sync();
   await TemplateFavorite.sync();
 }

@@ -1,10 +1,10 @@
 import { useQuery } from "react-query";
 import axios from "axios";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { ApiProviderDetail, ApiProviderList, ApiProviderRegion, Auditor } from "@src/types/provider";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { ApiUrlService } from "@src/utils/apiUtils";
-import { PROVIDER_PROXY_URL } from "@src/utils/constants";
 import { getNetworkCapacityDto, providerStatusToDto } from "@src/utils/providerUtils";
 import { QueryKeys } from "./queryKeys";
 
@@ -24,8 +24,8 @@ async function getProviderStatus(providerUri: string) {
   if (!providerUri) return null;
 
   try {
-    const statusResponse = await axios.post(PROVIDER_PROXY_URL, { url: `${providerUri}/status`, method: "GET" });
-    const versionResponse = await axios.post(PROVIDER_PROXY_URL, { url: `${providerUri}/version`, method: "GET" });
+    const statusResponse = await axios.post(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL, { url: `${providerUri}/status`, method: "GET" });
+    const versionResponse = await axios.post(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL, { url: `${providerUri}/version`, method: "GET" });
     return providerStatusToDto(statusResponse.data, versionResponse?.data || {});
   } catch (error) {
     console.log(error);

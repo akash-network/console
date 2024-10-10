@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
+import { MAINNET_ID } from "@akashnetwork/network-store";
 import { Alert, Table, TableBody, TableCell, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Check } from "iconoir-react";
 
-import { useSettings } from "@src/context/SettingsProvider";
+import networkStore from "@src/store/networkStore";
 import { BidDto, DeploymentDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
-import { mainnetId } from "@src/utils/constants";
 import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploymentDetailUtils";
 import { FormPaper } from "../sdl/FormPaper";
 import { LabelValueOld } from "../shared/LabelValueOld";
@@ -46,7 +46,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
 }) => {
   const [resources, setResources] = useState<{ cpuAmount: number; gpuAmount: number; memoryAmount: number; storageAmount: number } | null>(null);
   const fBids = bids.filter(bid => filteredBids.includes(bid.id));
-  const { selectedNetworkId } = useSettings();
+  const selectedNetworkId = networkStore.useSelectedNetworkId();
 
   useEffect(() => {
     const currentGroup = deploymentDetail?.groups.find(g => g.group_id.gseq === gseq);
@@ -120,11 +120,12 @@ export const BidGroup: React.FunctionComponent<Props> = ({
         </TableHeader>
 
         <TableBody>
-          {fBids.map(bid => {
+          {fBids.map((bid, i) => {
             const provider = providers && providers.find(x => x.owner === bid.provider);
             const showBid = provider?.isValidVersion && (!isSendingManifest || selectedBid?.id === bid.id);
-            return (showBid || selectedNetworkId !== mainnetId) && provider ? (
+            return (showBid || selectedNetworkId !== MAINNET_ID) && provider ? (
               <BidRow
+                testIndex={i}
                 key={bid.id}
                 bid={bid}
                 provider={provider}

@@ -1,9 +1,9 @@
 "use client";
 import React from "react";
 
+import { UAKT_DENOM } from "@src/config/denom.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useMarketData } from "@src/queries";
-import { uAktDenom } from "@src/utils/constants";
 import { roundDecimal } from "@src/utils/mathHelpers";
 
 type ContextType = {
@@ -12,6 +12,7 @@ type ContextType = {
   price: number | undefined;
   uaktToUSD: (amount: number) => number | null;
   aktToUSD: (amount: number) => number | null;
+  usdToAkt: (amount: number) => number | null;
   getPriceForDenom: (denom: string) => number;
 };
 
@@ -31,9 +32,14 @@ export const PricingProvider = ({ children }) => {
     return roundDecimal(amount * marketData.price, 2);
   }
 
+  function usdToAkt(amount: number) {
+    if (!marketData) return null;
+    return roundDecimal(amount / marketData.price, 2);
+  }
+
   const getPriceForDenom = (denom: string) => {
     switch (denom) {
-      case uAktDenom:
+      case UAKT_DENOM:
         return marketData?.price || 0;
       case usdcIbcDenom:
         return 1; // TODO Get price from API
@@ -44,7 +50,7 @@ export const PricingProvider = ({ children }) => {
   };
 
   return (
-    <PricingProviderContext.Provider value={{ isLoaded: !!marketData, uaktToUSD, aktToUSD, price: marketData?.price, isLoading, getPriceForDenom }}>
+    <PricingProviderContext.Provider value={{ isLoaded: !!marketData, uaktToUSD, aktToUSD, usdToAkt, price: marketData?.price, isLoading, getPriceForDenom }}>
       {children}
     </PricingProviderContext.Provider>
   );

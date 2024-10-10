@@ -1,20 +1,10 @@
 "use client";
 
-import "@leapwallet/elements/styles.css";
-
-import React, { useCallback, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
-import { Button } from "@akashnetwork/ui/components";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button, Spinner } from "@akashnetwork/ui/components";
 import { useWallet as useConnectedWallet, useWalletClient } from "@cosmos-kit/react";
-import {
-  AsyncIDBStorage,
-  ElementsProvider,
-  initCachingLayer,
-  LiquidityModal as LeapLiquidityModal,
-  type LiquidityModalProps,
-  Tabs,
-  WalletType
-} from "@leapwallet/elements";
+// import * as Elements from "@leapwallet/elements-umd-types";
+import { Modal } from "@mui/material";
 import { event } from "nextjs-google-analytics";
 
 import { useWallet } from "@src/context/WalletProvider";
@@ -33,48 +23,99 @@ const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick
   };
 
   return (
-    <Button variant="default" size="sm" onClick={_onClick}>
+    <Button variant="default" size="xs" onClick={_onClick}>
       Get More
     </Button>
   );
 };
 
-initCachingLayer(AsyncIDBStorage);
-
-const useConnectedWalletType = (): WalletType | undefined => {
-  const { isWalletConnected } = useWallet();
-  const { mainWallet } = useConnectedWallet();
-
-  const walletName = isWalletConnected ? mainWallet?.walletName : undefined;
-
-  const walletType = useMemo(() => {
-    switch (walletName) {
-      case "leap-extension":
-        return WalletType.LEAP;
-      case "keplr-extension":
-        return WalletType.KEPLR;
-      case "cosmostation-extension":
-        return WalletType.COSMOSTATION;
-      case "keplr-mobile":
-        return WalletType.WC_KEPLR_MOBILE;
-      default:
-        return undefined;
-    }
-  }, [walletName]);
-
-  return walletType;
+// TODO: Fix the elements types
+// const convertWalletType = (walletName: string | undefined): Elements.WalletType | undefined => {
+const convertWalletType = (walletName: string | undefined): any => {
+  if (!window.LeapElements) {
+    return undefined;
+  }
+  const walletType = window.LeapElements.WalletType;
+  switch (walletName) {
+    case "leap-extension":
+      return walletType.LEAP;
+    case "keplr-extension":
+      return walletType.KEPLR;
+    case "cosmostation-extension":
+      return walletType.COSMOSTATION;
+    case "keplr-mobile":
+      return walletType.WC_KEPLR_MOBILE;
+    default:
+      return undefined;
+  }
 };
 
-type TabsConfig = NonUndefined<LiquidityModalProps["tabsConfig"]>;
+// const getTabsConfig = (txnLifecycleHooks: Partial<Elements.TxnLifecycleHooks<unknown>>) => {
+const getTabsConfig = (txnLifecycleHooks: any) => {
+  return {
+    aggregated: {
+      enabled: true,
+      orderIndex: 0,
+      title: "Swap or Bridge",
+      allowedDestinationChains: [
+        {
+          chainId: "akashnet-2"
+        }
+      ],
+      defaultValues: {
+        sourceChainId: "osmosis-1",
+        sourceAsset: "uosmo",
+        destinationChainId: "akashnet-2",
+        destinationAsset: "uakt"
+      },
+      txnLifecycleHooks
+    },
+    swap: {
+      enabled: false
+    },
+    "fiat-on-ramp": {
+      enabled: true,
+      title: "Buy AKT",
+      orderIndex: 1,
+      allowedDestinationChains: [
+        {
+          chainId: "akashnet-2"
+        }
+      ],
+      defaultValues: {
+        currency: "USD",
+        sourceAmount: "10",
+        destinationChainId: "akashnet-2",
+        destinationAsset: "uakt"
+      },
+      onTxnComplete: txnLifecycleHooks.onTxnComplete
+    },
+    transfer: {
+      enabled: true,
+      orderIndex: 2,
+      title: "IBC Transfer",
+      defaultValues: {
+        sourceChainId: "osmosis-1",
+        sourceAsset: { originChainId: "akashnet-2", originDenom: "uakt" }
+      },
+      txnLifecycleHooks
+    }
+  };
+  // } satisfies Elements.TabsConfig;
+};
 
 type Props = { address: string; aktBalance: number; refreshBalances: () => void };
 
 const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isElementsReady, setIsElementsReady] = useState(false);
+  const isElementsMounted = useRef(false);
+
   const { isWalletConnected } = useWallet();
   const { client: walletClient } = useWalletClient();
+  const { mainWallet } = useConnectedWallet();
 
-  const connectedWalletType = useConnectedWalletType();
+  const walletName = isWalletConnected ? mainWallet?.walletName : undefined;
 
   const handleConnectWallet = useCallback(() => {
     if (!isWalletConnected && walletClient) {
@@ -88,8 +129,9 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
     }
   }, [isWalletConnected, walletClient]);
 
-  const tabsConfig: TabsConfig = useMemo(() => {
-    const txnLifecycleHooks = {
+  const tabsConfig = useMemo(() => {
+    // const txnLifecycleHooks: Partial<Elements.TxnLifecycleHooks<never>> = {
+    const txnLifecycleHooks: any = {
       onTxnComplete: () => {
         refreshBalances();
         event(AnalyticsEvents.LEAP_TRANSACTION_COMPLETE, {
@@ -99,70 +141,75 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
       }
     };
 
-    return {
-      [Tabs.SWAPS]: {
-        enabled: true,
-        orderIndex: 0,
-        title: "Swap or Bridge",
-        allowedDestinationChains: [
-          {
-            chainId: "akashnet-2"
-          }
-        ],
-        defaultValues: {
-          sourceChainId: "osmosis-1",
-          sourceAsset: "uosmo",
-          destinationChainId: "akashnet-2",
-          destinationAsset: "uakt"
-        },
-        txnLifecycleHooks
-      },
-      [Tabs.IBC_SWAPS]: {
-        enabled: false
-      },
-      [Tabs.FIAT_ON_RAMP]: {
-        enabled: true,
-        title: "Buy AKT",
-        orderIndex: 1,
-        allowedDestinationChains: [
-          {
-            chainId: "akashnet-2"
-          }
-        ],
-        defaultValues: {
-          currency: "USD",
-          sourceAmount: "10",
-          destinationChainId: "akashnet-2",
-          destinationAsset: "uakt"
-        },
-        onTxnComplete: txnLifecycleHooks.onTxnComplete
-      },
-      [Tabs.TRANSFER]: {
-        enabled: true,
-        orderIndex: 2,
-        title: "IBC Transfer",
-        defaultValues: {
-          sourceChainId: "osmosis-1",
-          sourceAsset: { originChainId: "akashnet-2", originDenom: "uakt" }
-        },
-        txnLifecycleHooks
-      }
-    } satisfies TabsConfig;
+    return getTabsConfig(txnLifecycleHooks);
   }, [refreshBalances]);
+
+  const connectedWalletType = useMemo(() => (isElementsReady ? convertWalletType(walletName) : undefined), [isElementsReady, walletName]);
+
+  useEffect(() => {
+    if (isElementsReady && isOpen && !isElementsMounted.current) {
+      isElementsMounted.current = true;
+      window.LeapElements?.mountElements?.({
+        connectWallet: handleConnectWallet,
+        connectedWalletType,
+        element: {
+          name: "multi-view",
+          props: {
+            tabsConfig
+          }
+        },
+        enableSmartSwap: true,
+        skipClientId: `akashnet-console-${process.env.NODE_ENV}`,
+        enableCaching: true,
+        elementsRoot: "#leap-elements-portal"
+      });
+    }
+  }, [isOpen, handleConnectWallet, connectedWalletType, tabsConfig, isElementsReady]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    isElementsMounted.current = false;
+  }, [connectedWalletType]);
+
+  useEffect(() => {
+    if (!window) {
+      return;
+    }
+
+    if (window.LeapElements) {
+      setIsElementsReady(true);
+      return;
+    }
+
+    const cb = () => {
+      setIsElementsReady(true);
+    };
+
+    window.addEventListener("@leapwallet/elements:load", cb);
+
+    return () => {
+      window.removeEventListener("@leapwallet/elements:load", cb);
+    };
+  }, []);
 
   return (
     <>
       <ToggleLiquidityModalButton onClick={() => setIsOpen(o => !o)} />
-      {walletClient
-        ? createPortal(
-            <div className="leap-ui dark">
-              <ElementsProvider primaryChainId="akashnet-2" connectWallet={handleConnectWallet} connectedWalletType={connectedWalletType}>
-                <LeapLiquidityModal className="border-none" isOpen={isOpen} setIsOpen={setIsOpen} tabsConfig={tabsConfig} defaultActiveTab={Tabs.SWAPS} />
-              </ElementsProvider>
-            </div>,
-            document.body
-          )
-        : null}
+      {walletClient ? (
+        <Modal keepMounted open={isOpen} onClose={() => setIsOpen(false)} className="flex items-center justify-center">
+          <div className="relative h-full max-h-[34rem] w-full max-w-[26rem]">
+            {!isElementsReady ? <Spinner className="absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2" /> : null}
+            <div id="leap-elements-portal" className="leap-ui dark h-full w-full rounded-xl" />
+          </div>
+        </Modal>
+      ) : null}
     </>
   );
 };

@@ -10,11 +10,14 @@ const envSchema = z.object({
   DEPLOYMENT_GRANT_DENOM: z.string(),
   GAS_SAFETY_MULTIPLIER: z.number({ coerce: true }).default(1.5),
   FEE_ALLOWANCE_REFILL_THRESHOLD: z.number({ coerce: true }),
-  DEPLOYMENT_ALLOWANCE_REFILL_THRESHOLD: z.number({ coerce: true }),
   FEE_ALLOWANCE_REFILL_AMOUNT: z.number({ coerce: true }),
   DEPLOYMENT_ALLOWANCE_REFILL_AMOUNT: z.number({ coerce: true }),
   ALLOWANCE_REFILL_BATCH_SIZE: z.number({ coerce: true }).default(10),
-  MASTER_WALLET_BATCHING_INTERVAL_MS: z.number().optional().default(1000)
+  MASTER_WALLET_BATCHING_INTERVAL_MS: z.number().optional().default(1000),
+  STRIPE_SECRET_KEY: z.string(),
+  STRIPE_PRICE_ID: z.string(),
+  STRIPE_WEBHOOK_SECRET: z.string(),
+  STRIPE_CHECKOUT_REDIRECT_URL: z.string()
 });
 
 export const envConfig = envSchema.parse(process.env);

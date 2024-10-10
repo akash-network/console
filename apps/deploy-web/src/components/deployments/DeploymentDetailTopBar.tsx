@@ -9,6 +9,7 @@ import { event } from "nextjs-google-analytics";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { DeploymentDto } from "@src/types/deployment";
 import { AnalyticsEvents } from "@src/utils/analytics";
@@ -33,7 +34,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const deploymentName = getDeploymentName(deployment?.dseq);
   const previousRoute = usePreviousRoute();
-  const wallet = useWallet();
+  const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
 
   function handleBackClick() {
     if (previousRoute) {
@@ -44,6 +45,12 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   }
 
   const onCloseDeployment = async () => {
+    const isConfirmed = await closeDeploymentConfirm([deployment.dseq]);
+
+    if (!isConfirmed) {
+      return;
+    }
+
     const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
     const response = await signAndBroadcastTx([message]);
     if (response) {
@@ -99,7 +106,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
           <div className="flex items-center">
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="ghost" className="rounded-full">
+                <Button size="icon" variant="ghost" className="rounded-full" data-testid="deployment-detail-dropdown">
                   <MoreHoriz />
                 </Button>
               </DropdownMenuTrigger>
@@ -112,17 +119,19 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
                     Redeploy
                   </CustomDropdownLinkItem>
                 )}
-                <CustomDropdownLinkItem onClick={() => onCloseDeployment()} icon={<XmarkSquare fontSize="small" />}>
+                <CustomDropdownLinkItem
+                  onClick={() => onCloseDeployment()}
+                  icon={<XmarkSquare fontSize="small" />}
+                  data-testid="deployment-detail-close-button"
+                >
                   Close
                 </CustomDropdownLinkItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {!wallet.isManaged && (
-              <Button variant="default" className="ml-2 whitespace-nowrap" onClick={() => setIsDepositingDeployment(true)} size="sm">
-                Add funds
-              </Button>
-            )}
+            <Button variant="default" className="ml-2 whitespace-nowrap" onClick={() => setIsDepositingDeployment(true)} size="sm">
+              Add funds
+            </Button>
           </div>
         )}
 

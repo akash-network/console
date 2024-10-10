@@ -1,7 +1,7 @@
 import { getSession } from "@auth0/nextjs-auth0";
 import httpProxy from "http-proxy";
 
-import { BASE_API_MAINNET_URL } from "@src/utils/constants";
+import { serverEnvConfig } from "@src/config/server-env.config";
 
 export default async (req, res) => {
   // removes the api prefix from url
@@ -19,10 +19,7 @@ export default async (req, res) => {
 
   const proxy = httpProxy.createProxyServer({
     changeOrigin: true,
-    target: BASE_API_MAINNET_URL,
-    // headers: {
-    //   "ngrok-skip-browser-warning": "true"
-    // },
+    target: serverEnvConfig.BASE_API_MAINNET_URL,
     secure: false,
     autoRewrite: false
   });

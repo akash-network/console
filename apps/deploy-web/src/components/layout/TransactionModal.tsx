@@ -9,7 +9,8 @@ export type LoadingState =
   | "creatingDeployment"
   | "updatingDeployment"
   | "creatingLease"
-  | "closingDeployment";
+  | "closingDeployment"
+  | "depositingDeployment";
 
 type Props = {
   state?: LoadingState;
@@ -24,7 +25,8 @@ const TITLES: Record<LoadingState, string> = {
   creatingDeployment: "Creating Deployment",
   updatingDeployment: "Updating Deployment",
   creatingLease: "Creating Lease",
-  closingDeployment: "Closing Deployment"
+  closingDeployment: "Closing Deployment",
+  depositingDeployment: "Depositing Deployment"
 };
 
 const CRYPTO_STATES: LoadingState[] = ["waitingForApproval", "broadcasting"];

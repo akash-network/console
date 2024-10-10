@@ -10,22 +10,24 @@ import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 
-import { envConfig } from "@src/config/env.config";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDepositParams } from "@src/queries/useSettings";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
 import type { DepositParams } from "@src/types/deployment";
+import { RouteStep } from "@src/types/route-steps.type";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { defaultInitialDeposit, RouteStepKeys } from "@src/utils/constants";
 import { deploymentData } from "@src/utils/deploymentData";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
+import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { cn } from "@src/utils/styleUtils";
 import { Timer } from "@src/utils/timer";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -68,21 +70,19 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
   const searchParams = useSearchParams();
   const templateId = searchParams.get("templateId");
   const { data: depositParams } = useDepositParams();
-  const defaultDeposit = depositParams || defaultInitialDeposit;
+  const defaultDeposit = depositParams || browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
   const fileUploadRef = useRef<HTMLInputElement>(null);
   const wallet = useWallet();
   const managedDenom = useManagedWalletDenom();
-
-  useWhen(wallet.isManaged && sdlDenom === "uakt", () => {
-    setSdlDenom(managedDenom);
-  });
+  const { createDeploymentConfirm } = useManagedDeploymentConfirm();
 
   useWhen(
-    wallet.isManaged && sdlDenom === "uakt",
+    wallet.isManaged && sdlDenom === "uakt" && editedManifest,
     () => {
-      setEditedManifest(prev => prev.replace(/uakt/g, managedDenom));
+      setEditedManifest(prev => (prev ? prev.replace(/uakt/g, managedDenom) : prev));
+      setSdlDenom(managedDenom);
     },
-    [editedManifest]
+    [editedManifest, wallet.isManaged, sdlDenom]
   );
 
   useWhen(hasComponent("ssh"), () => {
@@ -182,7 +182,18 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     }
 
     if (isManaged) {
-      await handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      const services = importSimpleSdl(editedManifest as string);
+
+      if (!services) {
+        setParsingError("Error while parsing SDL file");
+        return;
+      }
+
+      const isConfirmed = await createDeploymentConfirm(services);
+
+      if (isConfirmed) {
+        await handleCreateClick(defaultDeposit, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      }
     } else {
       setIsCheckingPrerequisites(true);
     }
@@ -192,7 +203,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
     setIsCheckingPrerequisites(false);
 
     if (isManaged) {
-      handleCreateClick(defaultDeposit, envConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      handleCreateClick(defaultDeposit, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
     } else {
       setIsDepositingDeployment(true);
     }
@@ -258,7 +269,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
         // Save the manifest
         saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.version, address, deploymentName);
-        router.replace(UrlService.newDeployment({ step: RouteStepKeys.createLeases, dseq: dd.deploymentId.dseq }));
+        router.replace(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
 
         event(AnalyticsEvents.CREATE_DEPLOYMENT, {
           category: "deployments",
@@ -267,9 +278,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
       } else {
         setIsCreatingDeployment(false);
       }
-    } catch (error) {
+    } finally {
       setIsCreatingDeployment(false);
-      throw error;
     }
   }
 
@@ -293,7 +303,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({ editedManifest, s
 
   return (
     <>
-      <CustomNextSeo title="Create Deployment - Manifest Edit" url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.editDeployment })}`} />
+      <CustomNextSeo title="Create Deployment - Manifest Edit" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.editDeployment })}`} />
 
       <div className="mb-2 pt-4">
         <div className="mb-2 flex flex-col items-end justify-between md:flex-row">

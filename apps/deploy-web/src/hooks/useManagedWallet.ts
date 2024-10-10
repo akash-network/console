@@ -1,31 +1,31 @@
 import { useEffect, useMemo } from "react";
-import { useAtom } from "jotai/index";
 
-import { envConfig } from "@src/config/env.config";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
 import networkStore from "@src/store/networkStore";
-import { deleteManagedWalletFromStorage, ensureUserManagedWalletOwnership, updateStorageManagedWallet } from "@src/utils/walletUtils";
+import { deleteManagedWalletFromStorage, ensureUserManagedWalletOwnership, getSelectedStorageWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
 
-const isBillingEnabled = envConfig.NEXT_PUBLIC_BILLING_ENABLED;
-const { NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID } = envConfig;
+const { NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, NEXT_PUBLIC_BILLING_ENABLED } = browserEnvConfig;
+const isBillingEnabled = NEXT_PUBLIC_BILLING_ENABLED;
 
 export const useManagedWallet = () => {
   const user = useUser();
-
-  const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled && user?.id);
+  const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined);
   const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => queried || created, [queried, created]);
   const isLoading = isFetching || isCreating;
-  const [selectedNetworkId, setSelectedNetworkId] = useAtom(networkStore.selectedNetworkId);
+  const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore({ reloadOnChange: true });
 
   useEffect(() => {
     if (!isBillingEnabled) {
       return;
     }
 
-    if (isFetched && isCreated && !wallet) {
+    if (wallet && isCreated) {
+      updateStorageManagedWallet({ ...wallet, selected: true });
+    } else if (isFetched && !wallet) {
       deleteManagedWalletFromStorage();
     } else if (wallet) {
       updateStorageManagedWallet(wallet);
@@ -44,6 +44,7 @@ export const useManagedWallet = () => {
 
   return useMemo(() => {
     const isConfigured = !!wallet;
+    const selected = getSelectedStorageWallet();
     return {
       create: () => {
         if (!isBillingEnabled) {
@@ -59,8 +60,10 @@ export const useManagedWallet = () => {
       wallet: wallet
         ? {
             ...wallet,
+            username: wallet.username,
             isWalletConnected: isConfigured,
-            isWalletLoaded: isConfigured
+            isWalletLoaded: isConfigured,
+            selected: selected?.address === wallet.address
           }
         : undefined,
       isLoading,

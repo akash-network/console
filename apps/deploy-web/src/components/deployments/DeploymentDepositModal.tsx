@@ -25,19 +25,20 @@ import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
+import { UAKT_DENOM } from "@src/config/denom.config";
+import { usePricing } from "@src/context/PricingProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useUsdcDenom } from "@src/hooks/useDenom";
-import { useDenomData } from "@src/hooks/useWalletBalance";
+import { useDenomData, useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useGranteeGrants } from "@src/queries/useGrantsQuery";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { uAktDenom } from "@src/utils/constants";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
-import { coinToUDenom, uaktToAKT } from "@src/utils/priceUtils";
+import { coinToUDenom } from "@src/utils/priceUtils";
 import { LinkTo } from "../shared/LinkTo";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
 
-type Props = {
+export type DeploymentDepositModalProps = {
   infoText?: string | ReactNode;
   disableMin?: boolean;
   denom: string;
@@ -67,14 +68,22 @@ const formSchema = z
     { message: "Depositor address is required.", path: ["depositorAddress"] }
   );
 
-export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleCancel, onDeploymentDeposit, disableMin, denom, infoText = null }) => {
+export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositModalProps> = ({
+  handleCancel,
+  onDeploymentDeposit,
+  disableMin,
+  denom,
+  infoText = null
+}) => {
   const formRef = useRef<HTMLFormElement>(null);
   const { settings } = useSettings();
   const { enqueueSnackbar } = useSnackbar();
   const [error, setError] = useState("");
   const [isCheckingDepositor, setIsCheckingDepositor] = useState(false);
-  const { walletBalances, address } = useWallet();
+  const { address, isManaged, isCustodial } = useWallet();
+  const { balance: walletBalance } = useWalletBalance();
   const { data: granteeGrants } = useGranteeGrants(address);
+  const pricing = usePricing();
   const depositData = useDenomData(denom);
   const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
@@ -86,7 +95,6 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   });
   const { handleSubmit, control, watch, setValue, clearErrors, unregister } = form;
   const { amount, useDepositor, depositorAddress } = watch();
-  const usdcIbcDenom = useUsdcDenom();
   const validGrants = granteeGrants?.filter(x => compareAsc(new Date(), new Date(x.expiration)) !== 1 && x.authorization.spend_limit.denom === denom) || [];
 
   useEffect(() => {
@@ -155,7 +163,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
 
   const onBalanceClick = () => {
     clearErrors();
-    setValue("amount", depositData?.inputMax || 0);
+    setValue("amount", depositData?.max || 0);
   };
 
   const onDepositClick = event => {
@@ -166,9 +174,8 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
   const onSubmit = async ({ amount, depositorAddress }: z.infer<typeof formSchema>) => {
     setError("");
     clearErrors();
-    const deposit = denomToUdenom(amount);
-    const uaktBalance = walletBalances?.uakt || 0;
-    const usdcBalance = walletBalances?.usdc || 0;
+    const amountInDenom = (isManaged && denom === UAKT_DENOM ? pricing.usdToAkt(amount) : amount) || 0;
+    const deposit = denomToUdenom(amountInDenom);
 
     if (!disableMin && amount < (depositData?.min || 0)) {
       setError(`Deposit amount must be greater or equal than ${depositData?.min}.`);
@@ -185,15 +192,12 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
         category: "deployments",
         label: "Use depositor to deposit in deployment"
       });
-    } else if (denom === uAktDenom && deposit > uaktBalance) {
-      setError(`You can't deposit more than you currently have in your balance. Current balance is: ${uaktToAKT(uaktBalance)} AKT.`);
-      return;
-    } else if (denom === usdcIbcDenom && deposit > usdcBalance) {
-      setError(`You can't deposit more than you currently have in your balance. Current balance is: ${udenomToDenom(usdcBalance)} USDC.`);
+    } else if (depositData && amountInDenom > depositData?.balance) {
+      setError(`You can't deposit more than you currently have in your balance. Current balance is: ${depositData?.balance} ${depositData?.label}.`);
       return;
     }
 
-    onDeploymentDeposit(deposit, depositorAddress as string);
+    onDeploymentDeposit(deposit, isManaged ? browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS : (depositorAddress as string));
   };
 
   return (
@@ -214,9 +218,10 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
           color: "secondary",
           variant: "default",
           side: "right",
-          disabled: !amount || isCheckingDepositor || (useDepositor && validGrants.length === 0),
+          disabled: !amount || isCheckingDepositor || (useDepositor && validGrants.length === 0) || !walletBalance,
           isLoading: isCheckingDepositor,
-          onClick: onDepositClick
+          onClick: onDepositClick,
+          "data-testid": "deposit-modal-continue-button"
         }
       ]}
       onClose={onClose}
@@ -248,7 +253,7 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
                     autoFocus
                     min={!disableMin ? depositData?.min : 0}
                     step={0.000001}
-                    max={depositData?.inputMax}
+                    max={depositData?.max}
                     startIcon={<div className="pl-2 text-xs">{depositData?.label}</div>}
                   />
                 );
@@ -256,15 +261,17 @@ export const DeploymentDepositModal: React.FunctionComponent<Props> = ({ handleC
             />
           </div>
 
-          <div className="my-4 flex items-center">
-            <Controller
-              control={control}
-              name="useDepositor"
-              render={({ field }) => {
-                return <CheckboxWithLabel label="Use another address to fund" checked={field.value} onCheckedChange={field.onChange} />;
-              }}
-            />
-          </div>
+          {isCustodial && (
+            <div className="my-4 flex items-center">
+              <Controller
+                control={control}
+                name="useDepositor"
+                render={({ field }) => {
+                  return <CheckboxWithLabel label="Use another address to fund" checked={field.value} onCheckedChange={field.onChange} />;
+                }}
+              />
+            </div>
+          )}
 
           {useDepositor && (
             <FormField

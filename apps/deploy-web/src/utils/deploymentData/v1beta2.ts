@@ -3,8 +3,8 @@ import { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import yaml from "js-yaml";
 import path from "path";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import networkStore from "@src/store/networkStore";
-import { defaultInitialDeposit } from "../constants";
 import { stringToBoolean } from "../stringUtils";
 import { CustomValidationError, DeploymentGroups, getCurrentHeight, getSdl, Manifest, ManifestVersion, parseSizeStr } from "./helpers";
 
@@ -159,13 +159,11 @@ function validate(yamlStr: string, yamlJson, networkId: NetworkId) {
 }
 
 export function getManifest(yamlJson, asString = false) {
-  const { id: networkId } = networkStore.getSelectedNetwork();
-  return Manifest(yamlJson, "beta2", networkId, asString);
+  return Manifest(yamlJson, "beta2", networkStore.selectedNetworkId, asString);
 }
 
 export async function getManifestVersion(yamlJson, asString = false) {
-  const { id: networkId } = networkStore.getSelectedNetwork();
-  const version = await ManifestVersion(yamlJson, "beta2", networkId);
+  const version = await ManifestVersion(yamlJson, "beta2", networkStore.selectedNetworkId);
 
   if (asString) {
     return Buffer.from(version).toString("base64");
@@ -179,10 +177,10 @@ export async function NewDeploymentData(
   yamlStr: string,
   dseq: string,
   fromAddress: string,
-  deposit = defaultInitialDeposit,
+  deposit = browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT,
   depositorAddress = null
 ) {
-  const { id: networkId } = networkStore.getSelectedNetwork();
+  const networkId = networkStore.selectedNetworkId;
   const yamlJson = yaml.load(yamlStr) as any;
 
   // Validate the integrity of the yaml

@@ -2,15 +2,14 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { Snackbar } from "@akashnetwork/ui/components";
-import axios from "axios";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
-import { RestApiCertificatesResponseType } from "@src/types/certificate";
+import { RestApiCertificate } from "@src/types/certificate";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { networkVersion } from "@src/utils/constants";
+import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { getSelectedStorageWallet, getStorageWallets, updateWallet } from "@src/utils/walletUtils";
+import { getStorageWallets, updateWallet } from "@src/utils/walletUtils";
 import { useSettings } from "../SettingsProvider";
 import { useWallet } from "../WalletProvider";
 
@@ -79,10 +78,8 @@ export const CertificateProvider = ({ children }) => {
       setIsLoadingCertificates(true);
 
       try {
-        const response = await axios.get<RestApiCertificatesResponseType>(
-          `${apiEndpoint}/akash/cert/${networkVersion}/certificates/list?filter.state=valid&filter.owner=${address}`
-        );
-        const certs = (response.data.certificates || []).map(cert => {
+        const certificates = await loadWithPagination<RestApiCertificate[]>(ApiUrlService.certificatesList(apiEndpoint, address), "certificates", 1000);
+        const certs = (certificates || []).map(cert => {
           const parsed = atob(cert.certificate.cert);
           const pem = certificateManager.parsePem(parsed);
 
@@ -122,7 +119,6 @@ export const CertificateProvider = ({ children }) => {
   useEffect(() => {
     if (!isSettingsInit) return;
 
-    // Clear certs when no selected wallet
     setValidCertificates([]);
     setSelectedCertificate(null);
     setLocalCert(null);
@@ -152,22 +148,20 @@ export const CertificateProvider = ({ children }) => {
   }, [selectedCertificate, localCert, validCertificates]);
 
   const loadLocalCert = async () => {
-    // open certs for all the wallets
     const wallets = getStorageWallets();
-    const currentWallet = getSelectedStorageWallet();
-    const certs: LocalCert[] = [];
+    const certs = wallets.reduce((acc, wallet) => {
+      const cert: LocalCert | null = wallet.cert && wallet.certKey ? { certPem: wallet.cert, keyPem: wallet.certKey, address: wallet.address } : null;
 
-    for (let i = 0; i < wallets.length; i++) {
-      const _wallet = wallets[i];
-
-      const _cert = { certPem: _wallet.cert, keyPem: _wallet.certKey, address: _wallet.address };
-
-      certs.push(_cert as LocalCert);
-
-      if (_wallet.address === currentWallet?.address) {
-        setLocalCert(_cert as LocalCert);
+      if (cert) {
+        acc.push(cert);
       }
-    }
+
+      if (wallet.address === address) {
+        setLocalCert(cert);
+      }
+
+      return acc;
+    }, [] as LocalCert[]);
 
     setLocalCerts(certs);
   };

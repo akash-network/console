@@ -8,7 +8,7 @@ import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
-import { RouteStepKeys } from "@src/utils/constants";
+import { RouteStep } from "@src/types/route-steps.type";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -22,6 +22,7 @@ export const NewDeploymentContainer: FC = () => {
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
+  const [isInit, setIsInit] = useState(false);
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const { getDeploymentData } = useLocalNotes();
   const { getTemplateById } = useTemplates();
@@ -31,34 +32,33 @@ export const NewDeploymentContainer: FC = () => {
   const { toggleCmp, hasComponent } = useSdlBuilder();
 
   useEffect(() => {
-    if (!templates) return;
-
-    const redeployTemplate = getRedeployTemplate();
-    const galleryTemplate = getGalleryTemplate();
-
-    if (redeployTemplate) {
-      // If it's a redeployment, set the template from local storage
-      setSelectedTemplate(redeployTemplate as TemplateCreation);
-      setEditedManifest(redeployTemplate.content as string);
-    } else if (galleryTemplate) {
-      // If it's a deployment from the template gallery, load from template data
-      setSelectedTemplate(galleryTemplate as TemplateCreation);
-      setEditedManifest(galleryTemplate.content as string);
-
-      if (galleryTemplate.config?.ssh || (!galleryTemplate.config?.ssh && hasComponent("ssh"))) {
-        toggleCmp("ssh");
-      }
-    }
-
     const queryStep = searchParams?.get("step");
     const _activeStep = getStepIndexByParam(queryStep);
     setActiveStep(_activeStep);
+  }, [searchParams]);
 
-    if ((redeployTemplate || galleryTemplate) && queryStep !== RouteStepKeys.editDeployment) {
-      router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStepKeys.editDeployment }));
+  useEffect(() => {
+    if (!templates || editedManifest || isInit) return;
+
+    const template = getRedeployTemplate() || getGalleryTemplate();
+
+    if (template) {
+      setSelectedTemplate(template as TemplateCreation);
+      setEditedManifest(template.content as string);
+
+      if ("config" in template && (template.config?.ssh || (!template.config?.ssh && hasComponent("ssh")))) {
+        toggleCmp("ssh");
+      }
+
+      const queryStep = searchParams?.get("step");
+      if (queryStep !== RouteStep.editDeployment) {
+        router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
+      }
+
+      setIsInit(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, templates]);
+  }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent, isInit]);
 
   const getRedeployTemplate = () => {
     let template: Partial<TemplateCreation> | null = null;
@@ -114,11 +114,11 @@ export const NewDeploymentContainer: FC = () => {
 
   function getStepIndexByParam(step) {
     switch (step) {
-      case RouteStepKeys.editDeployment:
+      case RouteStep.editDeployment:
         return 1;
-      case RouteStepKeys.createLeases:
+      case RouteStep.createLeases:
         return 2;
-      case RouteStepKeys.chooseTemplate:
+      case RouteStep.chooseTemplate:
       default:
         return 0;
     }

@@ -11,7 +11,14 @@ export const SignTxRequestInputSchema = z.object({
     messages: z
       .array(
         z.object({
-          typeUrl: z.string(),
+          typeUrl: z.enum([
+            "/akash.deployment.v1beta3.MsgCreateDeployment",
+            "/akash.cert.v1beta3.MsgCreateCertificate",
+            "/akash.market.v1beta4.MsgCreateLease",
+            "/akash.deployment.v1beta3.MsgUpdateDeployment",
+            "/akash.deployment.v1beta3.MsgCloseDeployment",
+            "/akash.deployment.v1beta3.MsgDepositDeployment"
+          ]),
           value: z.string()
         })
       )
@@ -34,7 +41,7 @@ const route = createRoute({
   method: "post",
   path: "/v1/tx",
   summary: "Signs a transaction via a user managed wallet",
-  tags: ["Wallets"],
+  tags: ["Wallet"],
   request: {
     body: {
       content: {

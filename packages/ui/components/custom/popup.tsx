@@ -23,7 +23,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Spinner } from "../index";
+  Spinner
+} from "../index";
 import { ErrorFallback } from "./error-fallback";
 
 type MessageProps = {
@@ -43,7 +44,7 @@ type PromptProps = {
   onCancel: () => void;
 };
 
-type CustomPrompt = {
+export type CustomPrompt = {
   variant: "custom";
   actions: ActionButton[];
 };
@@ -69,7 +70,7 @@ export type TOnCloseHandler = {
 
 export type CommonProps = {
   title?: string | React.ReactNode;
-  message?: string;
+  message?: string | React.ReactNode;
   open?: boolean;
   onClose?: TOnCloseHandler;
   fullWidth?: boolean;

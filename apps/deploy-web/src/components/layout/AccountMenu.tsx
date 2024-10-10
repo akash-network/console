@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, Button, DropdownMenu, DropdownMenuContent, Drop
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { User } from "iconoir-react";
-import { Bell, Book, LogOut, MultiplePages, Settings, Star } from "iconoir-react";
+import { Bell, LogOut, MultiplePages, Settings, Star } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
@@ -79,9 +79,6 @@ export function AccountMenu() {
                         </CustomDropdownLinkItem>
                         <CustomDropdownLinkItem onClick={() => window.open("https://blockspy.io", "_blank")?.focus()} icon={<Bell />}>
                           My Alerts
-                        </CustomDropdownLinkItem>
-                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.userAddressBook())} icon={<Book />}>
-                          Addresses
                         </CustomDropdownLinkItem>
                         <DropdownMenuSeparator />
                         <CustomDropdownLinkItem onClick={() => router.push(UrlService.logout())} icon={<LogOut />}>

@@ -1,3 +1,4 @@
+import networkStore from "@src/store/networkStore";
 import { ISnapshotMetadata, ProviderSnapshots } from "@src/types";
 import { ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
 import { bytesToShrink } from "./unitUtils";
@@ -32,8 +33,7 @@ export function getNetworkCapacityDto(networkCapacity) {
 }
 
 export function getProviderLocalData(): LocalProviderData {
-  const selectedNetworkId = localStorage.getItem("selectedNetworkId");
-  const dataStr = localStorage.getItem(`${selectedNetworkId}/provider.data`);
+  const dataStr = localStorage.getItem(`${networkStore.selectedNetworkId}/provider.data`);
   if (!dataStr) {
     return { favorites: [] };
   }
@@ -47,8 +47,7 @@ export function updateProviderLocalData(data: LocalProviderData) {
   const oldData = getProviderLocalData();
   const newData = { ...oldData, ...data };
 
-  const selectedNetworkId = localStorage.getItem("selectedNetworkId");
-  localStorage.setItem(`${selectedNetworkId}/provider.data`, JSON.stringify(newData));
+  localStorage.setItem(`${networkStore.selectedNetworkId}/provider.data`, JSON.stringify(newData));
 }
 
 export const getSnapshotMetadata = (snapshot?: ProviderSnapshots): { unitFn: (number: number) => ISnapshotMetadata; legend?: string } => {

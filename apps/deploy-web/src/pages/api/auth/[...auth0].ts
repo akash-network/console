@@ -3,7 +3,7 @@ import { handleAuth, handleLogin, handleProfile } from "@auth0/nextjs-auth0";
 import axios, { AxiosHeaders } from "axios";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-import { BASE_API_MAINNET_URL } from "@src/utils/constants";
+import { serverEnvConfig } from "@src/config/server-env.config";
 
 export default handleAuth({
   async login(req: NextApiRequest, res: NextApiResponse) {
@@ -33,7 +33,7 @@ export default handleAuth({
             }
 
             const userSettings = await axios.post(
-              `${BASE_API_MAINNET_URL}/user/tokenInfo`,
+              `${serverEnvConfig.BASE_API_MAINNET_URL}/user/tokenInfo`,
               {
                 wantedUsername: session.user.nickname,
                 email: session.user.email,

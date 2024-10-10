@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
-export const userSchema = pgTable("userSetting", {
+export const Users = pgTable("userSetting", {
   id: uuid("id")
     .primaryKey()
     .notNull()

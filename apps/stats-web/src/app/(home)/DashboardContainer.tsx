@@ -5,14 +5,14 @@ import { Spinner } from "@akashnetwork/ui/components";
 import { Dashboard } from "./Dashboard";
 
 import { Title } from "@/components/Title";
-import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
 import { useMarketData } from "@/queries";
 import { useDashboardData } from "@/queries/useDashboardData";
+import { networkStore } from "@/store/network.store";
 
 export const DashboardContainer: React.FunctionComponent = () => {
   const { data: dashboardData, isLoading: isLoadingDashboardData } = useDashboardData();
   const { data: marketData, isLoading: isLoadingMarketData } = useMarketData();
-  const selectedNetwork = useSelectedNetwork();
+  const selectedNetwork = networkStore.useSelectedNetwork();
   const isLoading = isLoadingMarketData || isLoadingDashboardData;
 
   return (
@@ -23,7 +23,7 @@ export const DashboardContainer: React.FunctionComponent = () => {
 
           <div className="mb-8">
             <p className="text-italic text-sm italic text-muted-foreground">
-              Last updated: <FormattedDate value={dashboardData.now.date} /> <FormattedTime value={dashboardData.now.date} />
+              Last updated: {!!dashboardData?.now?.date && <FormattedDate value={dashboardData.now.date} />} {!!dashboardData?.now?.date && <FormattedTime value={dashboardData.now.date} />}
             </p>
           </div>
 

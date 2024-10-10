@@ -1,18 +1,16 @@
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import networkStore from "@src/store/networkStore";
 import type { DepositParams } from "@src/types/deployment";
-import { defaultInitialDeposit } from "../constants";
 import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion } from "./helpers";
 
 export const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
 
 export function getManifest(yamlJson, asString: boolean) {
-  const network = networkStore.getSelectedNetwork();
-  return Manifest(yamlJson, "beta3", network.id, asString);
+  return Manifest(yamlJson, "beta3", networkStore.selectedNetworkId, asString);
 }
 
 export async function getManifestVersion(yamlJson) {
-  const network = networkStore.getSelectedNetwork();
-  const version = await ManifestVersion(yamlJson, "beta3", network.id);
+  const version = await ManifestVersion(yamlJson, "beta3", networkStore.selectedNetworkId);
 
   return Buffer.from(version).toString("base64");
 }
@@ -29,11 +27,11 @@ export async function NewDeploymentData(
   yamlStr: string,
   dseq: string | null,
   fromAddress: string,
-  deposit: number | DepositParams[] = defaultInitialDeposit,
+  deposit: number | DepositParams[] = browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT,
   depositorAddress: string | null = null
 ) {
   try {
-    const { id: networkId } = networkStore.getSelectedNetwork();
+    const networkId = networkStore.selectedNetworkId;
     const sdl = getSdl(yamlStr, "beta3", networkId);
     const groups = sdl.groups();
     const mani = sdl.manifest();

@@ -1,3 +1,5 @@
+import "@akashnetwork/env-loader";
+
 import { activeChain, chainDefinitions } from "@akashnetwork/database/chainDefinitions";
 import * as Sentry from "@sentry/node";
 import express from "express";
@@ -26,9 +28,9 @@ const app = express();
 const { PORT = 3079 } = process.env;
 
 Sentry.init({
-  dsn: env.SentryDSN,
+  dsn: env.SENTRY_DSN,
   environment: env.NODE_ENV,
-  serverName: env.SentryServerName,
+  serverName: env.SENTRY_SERVER_NAME,
   release: packageJson.version,
   enabled: isProd,
   integrations: [],
@@ -40,10 +42,10 @@ Sentry.init({
   tracesSampleRate: 0.01
 });
 
-Sentry.setTag("chain", env.ActiveChain);
+Sentry.setTag("chain", env.ACTIVE_CHAIN);
 
 const scheduler = new Scheduler({
-  healthchecksEnabled: env.HealthchecksEnabled === "true",
+  healthchecksEnabled: env.HEALTH_CHECKS_ENABLED === "true",
   errorHandler: (task, error) => {
     console.error(`Task "${task.name}" failed: `, error);
     Sentry.captureException(error, { tags: { task: task.name } });
@@ -84,17 +86,17 @@ app.get("/nodes", async (req, res) => {
 
 function startScheduler() {
   scheduler.registerTask("Sync Blocks", syncBlocks, "7 seconds", true, {
-    id: env.HealthChecks_SyncBlocks
+    id: env.HEALTHCHECKS_SYNC_BLOCKS
   });
   scheduler.registerTask("Sync Price History", syncPriceHistory, "1 hour", true, {
-    id: env.HealthChecks_SyncAKTPriceHistory,
+    id: env.HEALTHCHECKS_SYNC_AKT_PRICE_HISTORY,
     measureDuration: true
   });
   scheduler.registerTask("Address Balance Monitor", () => addressBalanceMonitor.run(), "10 minutes");
 
-  if (env.ActiveChain === "akash" || env.ActiveChain === "akashTestnet" || env.ActiveChain === "akashSandbox") {
+  if (env.ACTIVE_CHAIN === "akash" || env.ACTIVE_CHAIN === "akashTestnet" || env.ACTIVE_CHAIN === "akashSandbox") {
     scheduler.registerTask("Sync Providers Info", syncProvidersInfo, "10 seconds", true, {
-      id: env.HealthChecks_SyncProviderInfo,
+      id: env.HEALTHCHECKS_SYNC_PROVIDER_INFO,
       measureDuration: true
     });
 
@@ -106,7 +108,7 @@ function startScheduler() {
 
   if (!activeChain.startHeight) {
     scheduler.registerTask("Sync Keybase Info", fetchValidatorKeybaseInfos, "6 hours", true, {
-      id: env.HealthChecks_SyncKeybaseInfo,
+      id: env.HEALTHCHECKS_SYNC_KEYBASE_INFO,
       measureDuration: true
     });
   }
@@ -122,16 +124,16 @@ function startScheduler() {
  */
 async function initApp() {
   try {
-    if (env.Standby) {
-      console.log("Standby mode enabled. Doing nothing.");
+    if (env.STANDBY) {
+      console.log("STANDBY mode enabled. Doing nothing.");
       // eslint-disable-next-line no-constant-condition
       while (true) {
         await sleep(5_000);
       }
     }
 
-    if (!(process.env.ActiveChain in chainDefinitions)) {
-      throw new Error(`Unknown chain with code: ${process.env.ActiveChain}`);
+    if (!(process.env.ACTIVE_CHAIN in chainDefinitions)) {
+      throw new Error(`Unknown chain with code: ${process.env.ACTIVE_CHAIN}`);
     }
 
     await initDatabase();

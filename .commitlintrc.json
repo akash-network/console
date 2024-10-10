@@ -1,0 +1,23 @@
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "scope-enum": [
+      2,
+      "always",
+      [
+        "network",
+        "wallet",
+        "sdl",
+        "user",
+        "auth",
+        "billing",
+        "provider",
+        "deployment",
+        "certificate",
+        "dx",
+        "config",
+        "stats"
+      ]
+    ]
+  }
+}

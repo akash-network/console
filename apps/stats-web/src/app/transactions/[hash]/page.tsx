@@ -1,35 +1,44 @@
 import React from "react";
+import type { Network } from "@akashnetwork/network-store";
 import { Alert, Card, CardContent } from "@akashnetwork/ui/components";
-import { Metadata } from "next";
+import type { Metadata } from "next";
+import { z } from "zod";
 
 import { TransactionInfo } from "./TransactionInfo";
 
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { TxMessageRow } from "@/components/transactions/TxMessageRow";
+import { networkId } from "@/config/env-config.schema";
 import { getSplitText } from "@/hooks/useShortText";
-import { getNetworkBaseApiUrl } from "@/lib/constants";
+import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import { TransactionDetail } from "@/types";
 
-interface IProps {
-  params: { hash: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-}
+const TransactionDetailPageSchema = z.object({
+  params: z.object({
+    hash: z.string()
+  }),
+  searchParams: z.object({
+    network: networkId
+  })
+});
+type TransactionDetailPageProps = z.infer<typeof TransactionDetailPageSchema>;
 
-export async function generateMetadata({ params: { hash } }: IProps): Promise<Metadata> {
-  const splittedTxHash = getSplitText(hash, 6, 6);
+export async function generateMetadata({ params: { hash } }: TransactionDetailPageProps): Promise<Metadata> {
+  const splitTxHash = getSplitText(hash, 6, 6);
   return {
-    title: `Tx ${splittedTxHash}`
+    title: `Tx ${splitTxHash}`
   };
 }
 
-async function fetchTransactionData(hash: string, network: string): Promise<TransactionDetail | null> {
-  const apiUrl = getNetworkBaseApiUrl(network);
+async function fetchTransactionData(hash: string, network: Network["id"]): Promise<TransactionDetail | null> {
+  const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
+  console.log("DEBUG apiUrl", apiUrl);
   const response = await fetch(`${apiUrl}/v1/transactions/${hash}`);
 
   if (!response.ok && response.status !== 404) {
     // This will activate the closest `error.js` Error Boundary
-    throw new Error("Error fetching transction data");
+    throw new Error("Error fetching transaction data");
   } else if (response.status === 404) {
     return null;
   }
@@ -37,8 +46,12 @@ async function fetchTransactionData(hash: string, network: string): Promise<Tran
   return response.json();
 }
 
-export default async function TransactionDetailPage({ params: { hash }, searchParams: { network } }: IProps) {
-  const transaction = await fetchTransactionData(hash, network as string);
+export default async function TransactionDetailPage(props: TransactionDetailPageProps) {
+  const {
+    params: { hash },
+    searchParams: { network }
+  } = TransactionDetailPageSchema.parse(props);
+  const transaction = await fetchTransactionData(hash, network);
 
   return (
     <PageContainer>

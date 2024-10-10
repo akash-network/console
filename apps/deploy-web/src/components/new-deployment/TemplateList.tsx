@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
-import { ArrowRight, Cpu, Linux,Page, Rocket, Wrench } from "iconoir-react";
+import { ArrowRight, Cpu, Linux, Rocket, Wrench } from "iconoir-react";
 import { NavArrowLeft } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -11,7 +11,7 @@ import { useTemplates } from "@src/context/TemplatesProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import sdlStore from "@src/store/sdlStore";
 import { ApiTemplate } from "@src/types";
-import { RouteStepKeys } from "@src/utils/constants";
+import { RouteStep } from "@src/types/route-steps.type";
 import { cn } from "@src/utils/styleUtils";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils";
@@ -20,6 +20,9 @@ import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";
 
 const previewTemplateIds = [
+  "akash-network-awesome-akash-Llama-3.1-8B",
+  "akash-network-awesome-akash-Llama-3.1-405B-FP8",
+  "akash-network-awesome-akash-Llama-3.1-405B-BF16",
   "akash-network-awesome-akash-FLock-training-node",
   "akash-network-awesome-akash-tensorflow-jupyter-mnist",
   "akash-network-awesome-akash-comfyui",
@@ -47,7 +50,7 @@ export const TemplateList: React.FunctionComponent = () => {
 
   function onSDLBuilderClick(page: NewDeploymentParams["page"] = "new-deployment") {
     setSdlEditMode("builder");
-    router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, page }));
+    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, page }));
   }
 
   function handleBackClick() {
@@ -60,7 +63,7 @@ export const TemplateList: React.FunctionComponent = () => {
 
   return (
     <>
-      <CustomNextSeo title="Create Deployment - Template List" url={`${domainName}${UrlService.newDeployment({ step: RouteStepKeys.chooseTemplate })}`} />
+      <CustomNextSeo title="Create Deployment - Template List" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.chooseTemplate })}`} />
 
       <div className="mb-8 mt-8 flex items-center">
         <Button aria-label="back" onClick={handleBackClick} size="icon" variant="ghost">
@@ -77,7 +80,8 @@ export const TemplateList: React.FunctionComponent = () => {
             title={helloWorldTemplate.title}
             description={helloWorldTemplate.description}
             icon={<Rocket className="rotate-45" />}
-            onClick={() => router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: helloWorldTemplate.code }))}
+            testId="hello-world-card"
+            onClick={() => router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code }))}
           />
 
           <DeployOptionBox
@@ -124,7 +128,7 @@ export const TemplateList: React.FunctionComponent = () => {
             <TemplateBox
               key={template.id}
               template={template}
-              linkHref={UrlService.newDeployment({ step: RouteStepKeys.editDeployment, templateId: template?.id })}
+              linkHref={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: template?.id })}
             />
           ))}
         </div>
