@@ -55,7 +55,7 @@ const RemoteRepositoryDeployManager = ({
 
   const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
 
-  const { reLoginWithGithub, loginWithGithub } = new GitHubService();
+  const { reLoginWithGithub, loginWithGithub } = useMemo(() => new GitHubService(), []);
 
   const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
   const { mutate: fetchAccessToken, isLoading: fetchingToken } = useFetchAccessToken(navigateToNewDeployment);
