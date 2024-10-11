@@ -115,7 +115,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
             </div>
 
             {currentService.profile.hasPersistentStorage && (
-              <Slider value={[field.value || 0]} min={1} max={512} step={1} onValueChange={newValue => field.onChange(newValue)} className="pt-2" />
+              <Slider value={[field.value || 0]} min={1} max={5120} step={1} onValueChange={newValue => field.onChange(newValue)} className="pt-2" />
             )}
 
             <FormMessage className={cn({ "pt-2": !!fieldState.error })} />

@@ -99,11 +99,11 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
             <Slider
               value={[field.value || 0]}
               min={1}
-              max={512}
+              max={5120}
               step={1}
               color="secondary"
               aria-label="RAM"
-              onValueChange={newValue => field.onChange(newValue)}
+              onValueChange={newValue => field.onChange(newValue[0])}
               className="pt-2"
             />
 
