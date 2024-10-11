@@ -108,7 +108,7 @@ export const ProviderActionDetails: React.FunctionComponent<{ actionId: string |
   }
 
   return (
-    <div className="flex w-full flex-col items-center pt-10">
+    <div className="flex w-full flex-col pt-2">
       <div className="w-full max-w-2xl space-y-6">
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
