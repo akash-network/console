@@ -17,7 +17,7 @@ export function HomeContainer() {
   const { isWalletConnected } = useWallet();
   const [isLoading, setIsLoading] = useState(false);
   const [isProvider, setIsProvider] = useState(false);
-  const [provider, setProvider] = useState<any>(null);
+  const [, setProvider] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(false);
   const [actions, setActions] = useState<any>(null);
   const selectedNetwork = useAtomValue(networkStore.selectedNetwork); // or similar method to get the value
@@ -57,10 +57,10 @@ export function HomeContainer() {
   };
 
   useEffect(() => {
-    if (isProvider && !isOnline && actions?.length === 0) {
-      router.push("/remedies");
+    if (isWalletConnected && isProvider) {
+      router.push("/dashboard");
     }
-  }, [actions, isProvider, isOnline, router]);
+  }, [isWalletConnected, isProvider, isOnline, actions, router]);
 
   return (
     <Layout containerClassName="flex h-full flex-col justify-between" isLoading={isLoading}>
@@ -75,8 +75,6 @@ export function HomeContainer() {
             <>
               {!isWalletConnected && <WalletNotConnected />}
               {isWalletConnected && !isProvider && <NotAProvider />}
-              {isProvider && !isOnline && actions?.length > 0 && <ProviderActionDetails actionId={actions[0].action_id} />}
-              {isProvider && isOnline && <p>Provider is online and ready.</p>}
             </>
           )}
         </div>

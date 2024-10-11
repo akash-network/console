@@ -13,6 +13,8 @@ const COLORS = ["rgb(200, 80, 90)", "rgb(220, 170, 100)", "rgb(100, 180, 120)"];
 
 const RADIAN = Math.PI / 180;
 const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value }) => {
+  if (value === 0) return null; // Don't render label if value is 0
+
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -51,7 +53,7 @@ export const StatPieChart: React.FC<StatPieChartProps> = ({ activeResources, pen
       <ChartContainer config={chartConfig} className="min-h-[100px] w-full">
         <ResponsiveContainer width="100%" height={150}>
           <PieChart>
-            <Pie data={data} cx="50%" cy="50%" labelLine={false} label={renderCustomizedLabel} outerRadius={45} fill="#8884d8" dataKey="value">
+            <Pie data={data} cx="50%" cy="50%" labelLine={false} label={renderCustomizedLabel} outerRadius={45} fill="#8884d8" dataKey="value" paddingAngle={2}>
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
