@@ -37,7 +37,9 @@ export const NewDeploymentContainer: FC = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!templates || activeStep === null || activeStep > getStepIndexByParam(RouteStep.chooseTemplate)) return;
+    const templateId = searchParams?.get("templateId");
+    const isCreating = !!activeStep && activeStep > getStepIndexByParam(RouteStep.chooseTemplate);
+    if (!templates || (isCreating && !!editedManifest && !!templateId)) return;
 
     const template = getRedeployTemplate() || getGalleryTemplate();
 
