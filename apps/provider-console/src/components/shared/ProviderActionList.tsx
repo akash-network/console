@@ -49,37 +49,54 @@ const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions }) => {
   return (
     <Box sx={{ width: "100%" }}>
       <List>
-        {actions.map(action => (
+        {actions.length > 0 ? (
+          actions.map(action => (
+            <ListItem
+              key={action.id}
+              sx={{
+                borderBottom: "1px solid #eee",
+                py: 2,
+                cursor: "pointer",
+                "&:hover": { backgroundColor: "#f5f5f5" }
+              }}
+              onClick={() => handleRowClick(action.id)}
+            >
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={4}>
+                  <Typography variant="subtitle1">{action.name}</Typography>
+                </Grid>
+                <Grid item xs={2}>
+                  <Typography variant="body2" color="text.secondary">
+                    {calculateTimeLapse(action.start_time, action.end_time)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="body2" color="text.secondary">
+                    {formatDate(action.start_time)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={2} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                  {getStatusIcon(action.status)}
+                </Grid>
+              </Grid>
+            </ListItem>
+          ))
+        ) : (
           <ListItem
-            key={action.id}
             sx={{
               borderBottom: "1px solid #eee",
               py: 2,
-              cursor: "pointer",
-              "&:hover": { backgroundColor: "#f5f5f5" }
             }}
-            onClick={() => handleRowClick(action.id)}
           >
             <Grid container spacing={2} alignItems="center">
-              <Grid item xs={4}>
-                <Typography variant="subtitle1">{action.name}</Typography>
-              </Grid>
-              <Grid item xs={2}>
-                <Typography variant="body2" color="text.secondary">
-                  {calculateTimeLapse(action.start_time, action.end_time)}
+              <Grid item xs={12}>
+                <Typography variant="body1" color="text.secondary">
+                  No recent actions to display.
                 </Typography>
-              </Grid>
-              <Grid item xs={4}>
-                <Typography variant="body2" color="text.secondary">
-                  {formatDate(action.start_time)}
-                </Typography>
-              </Grid>
-              <Grid item xs={2} sx={{ display: "flex", justifyContent: "flex-end" }}>
-                {getStatusIcon(action.status)}
               </Grid>
             </Grid>
           </ListItem>
-        ))}
+        )}
       </List>
     </Box>
   );
