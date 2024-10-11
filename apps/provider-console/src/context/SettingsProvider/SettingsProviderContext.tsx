@@ -82,23 +82,38 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
       // Set the available nodes list and default endpoints
       const currentNetwork = networks.find(x => x.id === _selectedNetworkId);
-      const response = await axios.get(currentNetwork?.nodesUrl || mainnetNodes);
-      const nodes = response.data as Array<{ id: string; api: string; rpc: string }>;
-      const mappedNodes: Array<BlockchainNode> = await Promise.all(
-        nodes.map(async node => {
-          const nodeStatus = await loadNodeStatus(node.rpc);
+      let mappedNodes: Array<BlockchainNode> = [];
 
-          return {
-            ...node,
-            status: nodeStatus.status,
-            latency: nodeStatus.latency,
-            nodeInfo: nodeStatus.nodeInfo
-          } as BlockchainNode;
-        })
-      );
+      try {
+        const response = await axios.get(currentNetwork?.nodesUrl || mainnetNodes);
+        const nodes = response.data as Array<{ id: string; api: string; rpc: string }>;
+        mappedNodes = await Promise.all(
+          nodes.map(async node => {
+            const nodeStatus = await loadNodeStatus(node.rpc);
+            return {
+              ...node,
+              status: nodeStatus.status,
+              latency: nodeStatus.latency,
+              nodeInfo: nodeStatus.nodeInfo
+            } as BlockchainNode;
+          })
+        );
+      } catch (error) {
+        console.error("Failed to fetch nodes:", error);
+        // Fallback to a default node if the request fails
+        mappedNodes = [{
+          id: "default",
+          api: "https://rest.cosmos.directory/akash",
+          rpc: "https://rpc.cosmos.directory/akash",
+          status: "active",
+          latency: 0,
+          nodeInfo: null
+        }];
+      }
 
       const hasSettings =
-        settingsStr && settings.apiEndpoint && settings.rpcEndpoint && settings.selectedNode && nodes?.find(x => x.id === settings.selectedNode?.id);
+        settingsStr && settings.apiEndpoint && settings.rpcEndpoint && settings.selectedNode && mappedNodes.find(x => x.id === settings.selectedNode?.id);
+
       let defaultApiNode = hasSettings ?? settings.apiEndpoint;
       let defaultRpcNode = hasSettings ?? settings.rpcEndpoint;
       let selectedNode = hasSettings ?? settings.selectedNode;

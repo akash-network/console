@@ -90,9 +90,8 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
     if (currentServerNumber > 0 && providerProcess?.storeInformation) {
       const firstServer = providerProcess.machines[0]?.access;
       if (firstServer.file) {
-        const reader = new FileReader();
-        reader.onload = e => setStoredFileContent(e.target?.result as string);
-        reader.readAsText(firstServer.file);
+        // Assume firstServer.file is already a base64 string
+        setStoredFileContent(firstServer.file);
         form.setValue("authType", "file");
       }
     }
@@ -118,8 +117,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
       }
 
       if (formValues.file && formValues.file[0]) {
-        const fileContent = await readFileAsBase64(formValues.file[0]);
-        jsonData.keyfile = fileContent;
+        jsonData.keyfile = storedFileContent; // Use the stored base64 content
       } else if (storedFileContent) {
         jsonData.keyfile = storedFileContent;
       }
@@ -186,9 +184,14 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
   const fileChange = (event, field) => {
     const file = event.target.files[0];
     if (file) {
-      setSelectedFile(file);
-      setStoredFileContent(null); // Clear stored content when a new file is selected
-      field.onChange([file]); // Update form value
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64Content = e.target?.result as string;
+        setStoredFileContent(base64Content);
+        setSelectedFile(file);
+        field.onChange([file]); // Update form value
+      };
+      reader.readAsDataURL(file);
     }
   };
 
