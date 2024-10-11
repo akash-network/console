@@ -75,7 +75,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
                   name={`services.${serviceIndex}.profile.ramUnit`}
                   defaultValue=""
                   render={({ field }) => (
-                    <Select value={field.value || ""} onValueChange={field.onChange}>
+                    <Select value={field.value?.toLowerCase() || ""} onValueChange={field.onChange}>
                       <SelectTrigger className="ml-1 w-[75px]">
                         <SelectValue placeholder="Select unit" />
                       </SelectTrigger>
@@ -83,7 +83,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
                         <SelectGroup>
                           {memoryUnits.map(t => {
                             return (
-                              <SelectItem key={t.id} value={t.suffix}>
+                              <SelectItem key={t.id} value={t.suffix.toLowerCase()}>
                                 {t.suffix}
                               </SelectItem>
                             );

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { memoryUnits, validationConfig } from "@src/utils/akash/units";
+import { memoryUnits, storageUnits, validationConfig } from "@src/utils/akash/units";
 import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
@@ -229,7 +229,7 @@ const validateGpuAmount = (value: number, serviceCount: number, context: z.Refin
 };
 
 const validateMemoryAmount = (value: number, ramUnit: string, serviceCount: number, context: z.RefinementCtx) => {
-  const currentUnit = memoryUnits.find(u => ramUnit === u.suffix);
+  const currentUnit = memoryUnits.find(u => ramUnit.toLowerCase() === u.suffix.toLowerCase());
   const _value = (value || 0) * (currentUnit?.value || 0);
   const maxValue = bytesToShrink(validationConfig.maxMemory);
   const maxGroupValue = bytesToShrink(validationConfig.maxGroupMemory);
@@ -262,7 +262,7 @@ const validateMemoryAmount = (value: number, ramUnit: string, serviceCount: numb
 };
 
 const validateStorageAmount = (value: number, storageUnit: string, serviceCount: number, context: z.RefinementCtx) => {
-  const currentUnit = memoryUnits.find(u => storageUnit === u.suffix);
+  const currentUnit = storageUnits.find(u => storageUnit.toLowerCase() === u.suffix.toLowerCase());
   const _value = (value || 0) * (currentUnit?.value || 0);
   const maxValue = bytesToShrink(validationConfig.maxStorage);
 
