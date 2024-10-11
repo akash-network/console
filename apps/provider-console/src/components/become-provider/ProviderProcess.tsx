@@ -70,7 +70,7 @@ export const ProviderProcess: React.FunctionComponent<{ actionId: string | null 
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const response: any = await restClient.get(`/build-provider-status/${actionId}`);
+        const response: any = await restClient.get(`/action/status/${actionId}`);
         setProcessData(response);
         setOpenAccordions(new Array(response.data.tasks.length).fill(false));
       } catch (error) {
