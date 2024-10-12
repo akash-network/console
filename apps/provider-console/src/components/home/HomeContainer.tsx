@@ -9,10 +9,15 @@ import { useAtomValue } from "jotai";
 import restClient from "@src/utils/restClient";
 import { WalletNotConnected } from "./WalletNotConnected";
 import { NotAProvider } from "./NotAProvider";
-import { Spinner } from "@akashnetwork/ui/components";
+import { Button, Spinner } from "@akashnetwork/ui/components";
 import { ProviderActionDetails } from "../shared/ProviderActionDetails";
+import ProviderActionList from "../shared/ProviderActionList";
+import Link from "next/link";
+import { useAtom } from "jotai";
+import providerProcessStore from "@src/store/providerProcessStore";
 
 export function HomeContainer() {
+  const [, resetProcess] = useAtom(providerProcessStore.resetProviderProcess);
   const router = useRouter();
   const { isWalletConnected } = useWallet();
   const [isLoading, setIsLoading] = useState(false);
@@ -41,13 +46,10 @@ export function HomeContainer() {
         setLoadingMessage("Provider found, Checking online status...");
         const isOnlineResponse: any = await restClient.get(`/provider/status/online?chainid=${selectedNetwork.chainId}`);
         setIsOnline(isOnlineResponse.online);
-
-        if (!isOnlineResponse.online) {
-          setLoadingMessage("Provider is offline <br/> Getting provider actions...");
-          const actionsResponse: any = await restClient.get(`/actions`);
-          setActions(actionsResponse.actions);
-        }
       }
+      setLoadingMessage("Checking actions...");
+      const actionsResponse: any = await restClient.get(`/actions`);
+      setActions(actionsResponse.actions);
     } catch (error) {
       setLoadingMessage("Error fetching provider status");
     } finally {
@@ -62,6 +64,11 @@ export function HomeContainer() {
     }
   }, [isWalletConnected, isProvider, isOnline, actions, router]);
 
+  const handleBecomeProvider = () => {
+    resetProcess();
+    router.push("/become-provider");
+  };
+
   return (
     <Layout containerClassName="flex h-full flex-col justify-between" isLoading={isLoading}>
       <div className="flex flex-grow items-center justify-center">
@@ -74,7 +81,18 @@ export function HomeContainer() {
           ) : (
             <>
               {!isWalletConnected && <WalletNotConnected />}
-              {isWalletConnected && !isProvider && <NotAProvider />}
+              {isWalletConnected && !isProvider && actions && (
+                <div className="mt-4">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-2xl font-semibold">Provider Actions</h2>
+                    <Button variant="outline" onClick={handleBecomeProvider}>
+                      Become a Provider
+                    </Button>
+                  </div>
+                  <ProviderActionList actions={actions} />
+                </div>
+              )}
+              {isWalletConnected && !isProvider && (!actions || actions.length === 0) && <NotAProvider />}
             </>
           )}
         </div>

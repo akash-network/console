@@ -43,6 +43,7 @@ export function WalletStatus() {
 
   const handleWalletConnectSuccess = async () => {
     if (!localStorage.getItem("accessToken")) {
+      console.log("handleWalletConnectSuccess");
       const response: any = await authClient.get(`users/nonce/${address}`);
       if (response?.data?.nonce) {
         const message = getNonceMessage(response.data.nonce);
@@ -66,7 +67,8 @@ export function WalletStatus() {
           logout();
         }
       } else {
-        if (response.status === 404 && response.error.code === "N4040") {
+        console.log(response);
+        if (response.status === 'error' && response.error.code === "N4040") {
           authClient.post("users", { address });
           handleWalletConnectSuccess();
         }

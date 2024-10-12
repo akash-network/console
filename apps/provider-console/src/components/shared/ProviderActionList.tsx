@@ -32,7 +32,18 @@ const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions }) => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    // Parse the UTC date string
+    const date = new Date(dateString + 'Z');  // Append 'Z' to ensure UTC interpretation
+    
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZoneName: 'short'
+    });
   };
 
   const calculateTimeLapse = (start: string, end?: string) => {

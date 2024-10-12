@@ -116,9 +116,10 @@ export const ProviderActionDetails: React.FunctionComponent<{ actionId: string |
             {processData.status === "completed" && <CheckIcon className="h-5 w-5 text-green-500" />}
             {processData.status === "failed" && <XIcon className="h-5 w-5 text-red-500" />}
             <span className="text-lg font-semibold">
-              {processData.name} - {processData.status.charAt(0).toUpperCase() + processData.status.slice(1)}
+              {processData.name}
             </span>
           </div>
+          <p className="text-sm text-gray-500">{processData.id}</p>
           <p className="text-sm text-gray-500">
             Started: {formatLocalTime(processData.start_time)}
             {processData.end_time && ` | Ended: ${formatLocalTime(processData.end_time)}`}

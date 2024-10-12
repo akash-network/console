@@ -7,6 +7,7 @@ import { accountBarHeight } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
+import { Footer } from "./Footer";
 
 type Props = {
   isLoading?: boolean;
@@ -70,14 +71,12 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
 
   return (
     <>
-      <div className="bg-card h-full">
+      <div className="bg-card min-h-full">
         <div className="h-full w-full" style={{ marginTop: `${accountBarHeight}px` }}>
           <div className="h-full">
             <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} />
-
             <div className="block h-full w-full flex-grow rounded-none md:flex">
               <Sidebar onOpenMenuClick={onOpenMenuClick} isNavOpen={isNavOpen} handleDrawerToggle={handleDrawerToggle} isMobileOpen={isMobileOpen} />
-
               <div
                 className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300", {
                   ["md:ml-[240px]"]: isNavOpen,

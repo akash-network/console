@@ -67,7 +67,9 @@ const BecomeProvider: React.FunctionComponent = () => {
           stepChange: handleStepChange
         })
       ) : (
-        <ProviderActionDetails actionId={providerProcess.actionId} />
+        <div className="mt-4">
+          <ProviderActionDetails actionId={providerProcess.actionId} />
+        </div>
       )}
     </Layout>
   );

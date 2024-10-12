@@ -17,7 +17,7 @@ const providerConfigSchema = z.object({
     .string()
     .min(1, "Domain name is required")
     .refine(value => {
-      const regex = /^(?!www\.)(?!http:\/\/)(?!https:\/\/)[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$/;
+      const regex = /^(?!:\/\/)([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$/;
       return regex.test(value);
     }, "Invalid domain name format"),
   organizationName: z.string().min(1, "Organization name is required"),

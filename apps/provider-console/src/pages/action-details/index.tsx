@@ -8,7 +8,7 @@ import { Separator } from "@akashnetwork/ui/components";
 
 export default function ActionDetailsPage() {
   const searchParams = useSearchParams();
-  const actionId = searchParams.get('id');
+  const actionId = searchParams.get("id");
 
   if (!actionId) {
     return (
@@ -21,8 +21,6 @@ export default function ActionDetailsPage() {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="mb-6 text-2xl font-bold">Action Details</h1>
-        <Separator className="my-4" />
         <ProviderActionDetails actionId={actionId} />
       </div>
     </Layout>
