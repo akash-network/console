@@ -9,8 +9,8 @@
   **Akash Console** is a powerful application that allows you to deploy any [Docker container](https://www.docker.com/) on the [Akash Network](https://akash.network) with just a few clicks. 🚀
 
   ![version](https://img.shields.io/github/stars/akash-network/console)
-  ![license](https://img.shields.io/github/license/akash-network/console)
-  [![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/akashnet_)](https://x.com/akashnet_)
+  [![license](https://img.shields.io/github/license/akash-network/console)](https://github.com/akash-network/console/blob/main/LICENSE)
+[![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/akashnet_)](https://x.com/akashnet_)
   [![Discord](https://img.shields.io/badge/discord-join-7289DA.svg?logo=discord&longCache=true&style=flat)](https://discord.gg/akash)
 </div>
 
