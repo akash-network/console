@@ -92,7 +92,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                     name={`services.${serviceIndex}.profile.persistentStorageUnit`}
                     defaultValue=""
                     render={({ field }) => (
-                      <Select value={field.value || ""} onValueChange={field.onChange}>
+                      <Select value={field.value?.toLowerCase() || ""} onValueChange={field.onChange}>
                         <SelectTrigger className="ml-1 w-[75px]">
                           <SelectValue placeholder="Select unit" />
                         </SelectTrigger>
@@ -100,7 +100,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
                           <SelectGroup>
                             {storageUnits.map(t => {
                               return (
-                                <SelectItem key={t.id} value={t.suffix}>
+                                <SelectItem key={t.id} value={t.suffix.toLowerCase()}>
                                   {t.suffix}
                                 </SelectItem>
                               );
@@ -115,7 +115,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
             </div>
 
             {currentService.profile.hasPersistentStorage && (
-              <Slider value={[field.value || 0]} min={1} max={512} step={1} onValueChange={newValue => field.onChange(newValue)} className="pt-2" />
+              <Slider value={[field.value || 0]} min={1} max={5120} step={1} onValueChange={newValue => field.onChange(newValue)} className="pt-2" />
             )}
 
             <FormMessage className={cn({ "pt-2": !!fieldState.error })} />

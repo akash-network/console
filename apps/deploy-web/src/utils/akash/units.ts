@@ -1,14 +1,25 @@
-// https://github.com/akash-network/akash-api/blob/ea71fbd0bee740198034bf1b0261c90baea88be0/go/node/deployment/v1beta3/validation_config.go
+//github.com/akash-network/akash-api/blob/d05c262a17178a33e3e5383dcceea384d6260a17/go/node/deployment/v1beta3/validation_config.go
+const maxUnitCPU = 384;
+const maxUnitGPU = 24;
+const maxUnitMemory = 2 * 1024 ** 4; // 2 Ti
+const maxUnitStorage = 32 * 1024 ** 4; // 32 Ti
+const maxUnitCount = 50;
+const maxGroupCount = 20;
+const maxGroupUnits = 20;
+
 export const validationConfig = {
-  maxCpuAmount: 256,
-  maxGroupCpuCount: 512,
-  maxGpuAmount: 100,
-  maxGroupGpuCount: 512,
+  maxCpuAmount: maxUnitCPU,
+  maxGroupCpuCount: maxUnitCPU * maxUnitCount,
+  maxGpuAmount: maxUnitGPU,
+  maxGroupGpuCount: maxUnitGPU * maxUnitCount,
   minMemory: 1024, // 1 Mi
   minStorage: 5 * 1024, // 5 Mi
-  maxMemory: 512 * 1024 ** 3, // 512 Gi
-  maxGroupMemory: 1024 * 1024 ** 3, // 1024 Gi
-  maxStorage: 32 * 1024 ** 4 // 32 Ti
+  maxMemory: maxUnitMemory,
+  maxGroupMemory: maxUnitMemory * maxUnitCount,
+  maxStorage: maxUnitStorage,
+  maxGroupStorage: maxUnitStorage * maxUnitCount,
+  maxGroupCount: maxGroupCount,
+  maxGroupUnits: maxGroupUnits
 };
 
 export const memoryUnits = [
