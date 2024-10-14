@@ -1,5 +1,15 @@
 import { Coin } from "@cosmjs/stargate";
 
+export type Grant = {
+  granter: string;
+  grantee: string;
+  authorization: {
+    "@type": string;
+    spend_limit: Coin;
+  };
+  expiration: string;
+};
+
 export type RestApiBalancesResponseType = {
   balances: Coin[];
   pagination: {
@@ -9,15 +19,7 @@ export type RestApiBalancesResponseType = {
 };
 
 export type RestApiAuthzGrantsResponseType = {
-  grants: {
-    granter: string;
-    grantee: string;
-    authorization: {
-      "@type": string;
-      spend_limit: Coin;
-    };
-    expiration: string;
-  }[];
+  grants: Grant[];
   pagination: {
     next_key: string;
     total: string;
