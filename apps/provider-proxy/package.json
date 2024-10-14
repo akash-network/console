@@ -10,7 +10,8 @@
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "start": "npm run build && node ./dist/server.js",
-    "dev": "npm run start"
+    "dev": "npm run start",
+    "dev-nodc": "npm run start"
   },
   "dependencies": {
     "axios": "^1.7.2",

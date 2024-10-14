@@ -15,6 +15,7 @@
     "build:console": "webpack --config webpack.prod.js --entry ./src/console.ts --output-filename console.js",
     "console": "npm run build:console && node dist/console.js",
     "dev": "npm run start",
+    "dev-nodc": "npm run start",
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "migrate": "node-pg-migrate",
