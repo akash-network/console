@@ -3,16 +3,16 @@ version: "2.0"
 
 services:
   api:
-    image: <IMAGE_NAME>:<IMAGE_TAG>
+    image: {{IMAGE_NAME}}
     depends-on: cloud-sql-proxy
     env:
-      - DOPPLER_TOKEN=
-      - SENTRY_SERVER_NAME=
+      - DOPPLER_TOKEN={{DOPPLER_TOKEN}}
+      - SENTRY_SERVER_NAME=akash
     expose:
       - port: 3080
         as: 80
         accept:
-          - console-api-sandbox-staging.akash.network
+          - {{API_DOMAIN}}
         to:
           - global: true
   cloud-sql-proxy:
@@ -20,7 +20,7 @@ services:
     env:
       - KeyPath=/custom/proxy_key.json
       - ConnectionName=cloudmos-explorer:us-central1:cloudmos-postgresql
-      - Token=<AUTH>
+      - Token={{SQL_PROXY_AUTH_TOKEN}}
     command:
       - "sh"
       - "-c"
@@ -47,7 +47,7 @@ profiles:
         cpu:
           units: 0.5
         memory:
-          size: 512mi
+          size: 512Mi
         storage:
           size: 2Gi
   placement:

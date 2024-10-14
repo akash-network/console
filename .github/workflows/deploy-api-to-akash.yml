@@ -1,0 +1,111 @@
+name: Deploy API to Akash
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to deploy'
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}
+
+env:
+  ORG: akash-network
+  REPO: provider
+  CLIENT: provider-services
+  CLIENT_VERSION: 0.6.4
+  ARCH: linux_amd64
+  NET: mainnet
+  BLOCK_TIME: 1s
+  CHAIN_LATENCY: 30
+  AKASH_KEYRING_BACKEND: file
+  AKASH_BROADCAST_MODE: block
+  AKASH_YES: 1
+  AKASH_GAS_PRICES: 0.025uakt
+  AKASH_GAS: auto
+  AKASH_GAS_ADJUSTMENT: 1.5
+  AKASH_HOME: /home/runner/.akash
+  AKASH_FROM: default
+  AKASH_OUTPUT: json
+  MIN_BALANCE: 10
+  AKASH_GSEQ: 1
+  AKASH_OSEQ: 1
+  SDL: deploy.yaml
+  PARSED_SDL: ${{ github.workspace }}/${{ github.event.inputs.project-path }}/deploy-parsed.yaml
+  PROVIDER: ${{ secrets.AKASH_PROVIDER }}
+  AKASH_PROVIDER: ${{secrets.AKASH_PROVIDER}}
+
+  SQL_PROXY_AUTH_TOKEN: ${{secrets.SQL_PROXY_AUTH_TOKEN}}
+
+jobs:
+  define-vars:
+    name: Define Variables
+    runs-on: ubuntu-latest
+
+    outputs:
+      app: ${{ steps.vars.outputs.app }}
+      image: ${{ steps.vars.outputs.image }}
+
+    steps:
+      - name: Define common variables
+        id: vars
+        run: |
+          tag=${{ github.event.inputs.tag }}
+          prerelease_type=$(echo "$tag" | sed -n 's/.*-\([a-zA-Z]*\).*/\1/p')
+          app="api-${prerelease_type:-prod}"
+          version="${tag#console-api/v}"
+          image="${{ vars.API_REGISTRY }}:$version"
+          
+          echo "app=${app}"
+          echo "image=${image}"
+  
+          echo "app=${app}" >> $GITHUB_OUTPUT
+          echo "image=${image}" >> $GITHUB_OUTPUT
+
+  deploy-sandbox:
+    name: Deploy Sandbox
+    needs: define-vars
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Deploy
+        uses: akash-network/akash-deploy-action/.github/actions/deploy@main
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_API_STAGING_SANDBOX_TOKEN }}
+          API_DOMAIN: ${{ vars.API_SANDBOX_STAGING_DOMAIN }}
+          AKASH_DSEQ: ${{ secrets.API_BETA_SANDBOX_AKASH_DSEQ }}
+        with:
+          project-path: apps/api
+          project-name: ${{ needs.define-vars.outputs.app }}-sandbox
+          image: ${{ needs.define-vars.outputs.image }}
+          seed: ${{ secrets.WALLET_MNEMONIC }}
+          password: ${{ secrets.WALLET_PASSWORD }}
+
+  deploy-mainnet:
+    name: Deploy Mainnet
+    needs: [define-vars, deploy-sandbox]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy
+        uses: akash-network/akash-deploy-action/.github/actions/deploy@main
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_API_STAGING_MAINNET_TOKEN }}
+          API_DOMAIN: ${{ vars.API_MAINNET_STAGING_DOMAIN }}
+          AKASH_DSEQ: ${{ secrets.API_BETA_MAINNET_AKASH_DSEQ }}
+        with:
+          project-path: apps/api
+          project-name: ${{ needs.define-vars.outputs.app }}-mainnet
+          image: ${{ needs.define-vars.outputs.image }}
+          password: ${{ secrets.WALLET_PASSWORD }}
+          seed: ${{ secrets.WALLET_MNEMONIC }}
