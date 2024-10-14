@@ -64,11 +64,11 @@ commits=$(git log -n 10 --pretty=format:"%H %s" -- "$(git rev-parse --show-tople
 while IFS= read -r commit; do
   MESSAGE=$(echo $commit | cut -d' ' -f2-)
 
-  if [[ ! $MESSAGE =~ ^chore\(release\):\ released\ version ]]; then
-    echo "Base commit: $commit"
-    SHA=$(echo $commit | awk '{print $1}')
-    break
-  fi
+if [[ ! $MESSAGE =~ ^chore\(release\):\ released\ version && ! $MESSAGE =~ ^chore\(deploy\):\ update\ deployment\ state ]]; then
+  echo "Base commit: $commit"
+  SHA=$(echo $commit | awk '{print $1}')
+  break
+fi
 done <<< "$commits"
 
 SCRIPTS_DIR="$(dirname "$(readlink -f "$0")")"
