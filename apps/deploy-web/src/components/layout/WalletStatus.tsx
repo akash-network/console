@@ -31,6 +31,8 @@ import { UrlService } from "@src/utils/urlUtils";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { LinkTo } from "../shared/LinkTo";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
+import { useAtom } from "jotai";
+import walletStore from "@src/store/walletStore";
 
 const goToCheckout = () => {
   window.location.href = "/api/proxy/v1/checkout";
@@ -44,6 +46,7 @@ export function WalletStatus() {
   const router = useRouter();
   const whenLoggedIn = useLoginRequiredEventHandler();
   const { showManagedEscrowFaqModal } = useManagedEscrowFaqModal();
+  const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
 
   const onAuthorizeSpendingClick = () => {
     router.push(UrlService.settingsAuthorizations());
@@ -191,7 +194,7 @@ export function WalletStatus() {
           </>
         ) : (
           <div>
-            {withBilling && <ConnectManagedWalletButton className="mb-2 mr-2 w-full md:mb-0 md:w-auto" />}
+            {withBilling && !isSignedInWithTrial && <ConnectManagedWalletButton className="mb-2 mr-2 w-full md:mb-0 md:w-auto" />}
             <ConnectWalletButton className="w-full md:w-auto" />
           </div>
         )
