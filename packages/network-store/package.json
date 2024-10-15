@@ -8,13 +8,15 @@
   "main": "src/index.ts",
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "update-apps-local-deps": "mvm-update"
   },
   "dependencies": {
     "axios": "^1.7.2",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
+    "@b12k/mvm": "^0.0.10",
     "@akashnetwork/akashjs": "^0.10.0"
   }
 }
