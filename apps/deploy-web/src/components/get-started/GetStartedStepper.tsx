@@ -24,6 +24,9 @@ import LiquidityModal from "../liquidity-modal";
 import { ExternalLink } from "../shared/ExternalLink";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
+import { useAtom } from "jotai";
+import walletStore from "@src/store/walletStore";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 
 export const GetStartedStepper: React.FunctionComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
@@ -32,6 +35,8 @@ export const GetStartedStepper: React.FunctionComponent = () => {
   const { minDeposit } = useChainParam();
   const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
   const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;
+  const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
+  const { user } = useCustomUser();
 
   useEffect(() => {
     const getStartedStep = localStorage.getItem("getStartedStep");
@@ -138,8 +143,16 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                 <span>Billing is not set up</span>
               </div>
 
-              {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
-              <ConnectWalletButton />
+              <div className="flex items-center gap-2">
+                {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED && !isSignedInWithTrial && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
+                <ConnectWalletButton />
+
+                {isSignedInWithTrial && !user && (
+                  <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.login()}>
+                    Sign in
+                  </Link>
+                )}
+              </div>
             </div>
           )}
 
