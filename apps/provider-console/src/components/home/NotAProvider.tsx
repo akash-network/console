@@ -13,7 +13,7 @@ export function NotAProvider() {
         <p>Join the Akash Network and offer your compute resources.</p>
         <ul className="list-disc pl-5">
           <li>Earn by leasing your compute power.</li>
-          <li>Utilize a streamlined UI with the Praetor App.</li>
+          <li>Utilize a streamlined UI with the Provider Console App.</li>
           <li>Access detailed provider documentation.</li>
           <li>Monitor provider status and earnings.</li>
           <li>Participate in a decentralized cloud marketplace.</li>

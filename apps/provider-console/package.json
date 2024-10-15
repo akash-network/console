@@ -17,6 +17,8 @@
     "@cosmos-kit/keplr": "^2.12.2",
     "@cosmos-kit/leap-extension": "^2.12.2",
     "@cosmos-kit/react": "^2.18.0",
+    "@sentry/nextjs": "^8.34.0",
+    "@sentry/tracing": "^7.114.0",
     "apexcharts": "^3.54.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",

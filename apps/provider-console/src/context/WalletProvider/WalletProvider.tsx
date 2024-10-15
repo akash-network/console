@@ -18,6 +18,8 @@ import { UrlService } from "@src/utils/urlUtils";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { useSettings } from "../SettingsProvider";
+import { jwtDecode } from "jwt-decode";
+import { checkAndRefreshToken } from "@src/utils/tokenUtils";
 
 type Balances = {
   uakt: number;
@@ -30,9 +32,11 @@ type ContextType = {
   walletBalances: Balances | null;
   isWalletConnected: boolean;
   isWalletLoaded: boolean;
+  isWalletArbitrarySigned: boolean;
   connectWallet: () => Promise<void>;
   logout: () => void;
   setIsWalletLoaded: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsWalletArbitrarySigned: React.Dispatch<React.SetStateAction<boolean>>;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<any>;
   refreshBalances: (address?: string) => Promise<Balances>;
 };
@@ -44,6 +48,7 @@ export const WalletProvider = ({ children }) => {
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
+  const [isWalletArbitrarySigned, setIsWalletArbitrarySigned] = useState<boolean>(false);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const sigingClient = useRef<SigningStargateClient | null>(null);
   const router = useRouter();
@@ -69,6 +74,21 @@ export const WalletProvider = ({ children }) => {
     (async () => {
       if (settings?.rpcEndpoint && isWalletConnected) {
         sigingClient.current = await createStargateClient();
+
+        try {
+          const validAccessToken = await checkAndRefreshToken();
+          if (validAccessToken) {
+            console.log("Access token is valid");
+            setIsWalletArbitrarySigned(true);
+          } else {
+            console.log("No valid access token found");
+            setIsWalletArbitrarySigned(false);
+          }
+        } catch (error) {
+          console.error("Error checking or refreshing token:", error);
+          setIsWalletArbitrarySigned(false);
+          logout(); // Force logout if refresh fails
+        }
       }
     })();
   }, [settings?.rpcEndpoint, isWalletConnected]);
@@ -239,16 +259,10 @@ export const WalletProvider = ({ children }) => {
     transactionHash: string,
     snackVariant: React.ComponentProps<typeof Snackbar>["iconVariant"]
   ) => {
-    enqueueSnackbar(
-      <Snackbar
-        title={snackTitle}
-        iconVariant={snackVariant}
-      />,
-      {
-        variant: snackVariant,
-        autoHideDuration: 10000
-      }
-    );
+    enqueueSnackbar(<Snackbar title={snackTitle} iconVariant={snackVariant} />, {
+      variant: snackVariant,
+      autoHideDuration: 10000
+    });
   };
 
   async function refreshBalances(address?: string): Promise<{ uakt: number; usdc: number }> {
@@ -282,6 +296,8 @@ export const WalletProvider = ({ children }) => {
         address: walletAddress as string,
         walletName: username as string,
         walletBalances,
+        isWalletArbitrarySigned,
+        setIsWalletArbitrarySigned,
         isWalletConnected: isWalletConnected,
         isWalletLoaded,
         connectWallet,
@@ -302,4 +318,3 @@ export const WalletProvider = ({ children }) => {
 export function useWallet() {
   return { ...React.useContext(WalletProviderContext) };
 }
-

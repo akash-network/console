@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { Footer } from "@src/components/layout/Footer";
 import Layout from "../layout/Layout";
 import { useWallet } from "@src/context/WalletProvider";
 import networkStore from "@src/store/networkStore";
@@ -10,16 +9,14 @@ import restClient from "@src/utils/restClient";
 import { WalletNotConnected } from "./WalletNotConnected";
 import { NotAProvider } from "./NotAProvider";
 import { Button, Spinner } from "@akashnetwork/ui/components";
-import { ProviderActionDetails } from "../shared/ProviderActionDetails";
 import ProviderActionList from "../shared/ProviderActionList";
-import Link from "next/link";
 import { useAtom } from "jotai";
 import providerProcessStore from "@src/store/providerProcessStore";
 
 export function HomeContainer() {
   const [, resetProcess] = useAtom(providerProcessStore.resetProviderProcess);
   const router = useRouter();
-  const { isWalletConnected } = useWallet();
+  const { isWalletConnected, isWalletArbitrarySigned } = useWallet();
   const [isLoading, setIsLoading] = useState(false);
   const [isProvider, setIsProvider] = useState(false);
   const [, setProvider] = useState<any>(null);
@@ -31,9 +28,11 @@ export function HomeContainer() {
   useEffect(() => {
     if (isWalletConnected) {
       setIsLoading(true);
-      fetchProviderStatus();
+      if (isWalletArbitrarySigned) {
+        fetchProviderStatus();
+      }
     }
-  }, [isWalletConnected]);
+  }, [isWalletConnected, isWalletArbitrarySigned]);
 
   const fetchProviderStatus = async () => {
     try {
@@ -97,7 +96,6 @@ export function HomeContainer() {
           )}
         </div>
       </div>
-      <Footer />
     </Layout>
   );
 }

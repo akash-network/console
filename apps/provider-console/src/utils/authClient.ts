@@ -9,7 +9,7 @@ const errorNotification = (error = "Error Occurred") => {
 };
 
 const authClient = axios.create({
-  baseURL: `https://knight-dev.testcoders.com`,
+  baseURL: `http://aisrlqh46hd27cm7o29rqo3378.ingress.hurricane.akash.pub`,
   timeout: 30000
 });
 

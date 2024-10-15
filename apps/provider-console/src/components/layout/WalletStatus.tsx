@@ -29,7 +29,7 @@ import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 const DEV_URL = "app-dev.praetor.dev";
 
 export function WalletStatus() {
-  const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected } = useWallet();
+  const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected, setIsWalletArbitrarySigned } = useWallet();
   const { wallet } = useSelectedChain();
   const walletBalance = useTotalWalletBalance();
 
@@ -38,7 +38,7 @@ export function WalletStatus() {
 
   const getNonceMessage = (nonce: string) => {
     const url = process.env.NODE_ENV === "development" ? DEV_URL : window.location.hostname;
-    return `${url} wants you to sign in with your Keplr account - ${address} using Nonce - ${nonce}`;
+    return `provider-beta.console.akash.network wants you to sign in with your Keplr account - ${address} using Nonce - ${nonce}`;
   };
 
   const handleWalletConnectSuccess = async () => {
@@ -57,14 +57,18 @@ export function WalletStatus() {
               localStorage.setItem("accessToken", verifySign.data.access_token);
               localStorage.setItem("refreshToken", verifySign.data.refresh_token);
               localStorage.setItem("walletAddress", address);
+              setIsWalletArbitrarySigned(true);
             } else {
               logout();
+              setIsWalletArbitrarySigned(false);
             }
           } else {
             logout();
+            setIsWalletArbitrarySigned(false);
           }
         } catch (error) {
           logout();
+          setIsWalletArbitrarySigned(false);
         }
       } else {
         console.log(response);

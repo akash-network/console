@@ -2,13 +2,14 @@
 import axios from "axios";
 
 import authClient from "./authClient";
+import { checkAndRefreshToken } from "./tokenUtils";
 
 const errorNotification = (error = "Error Occurred") => {
   console.log(error);
 };
 
 const restClient = axios.create({
-  baseURL: `https://b588-99-209-150-74.ngrok-free.app`,
+  baseURL: `http://5cujrkcvn9e234vilf1iglkf98.ingress.hurricane.akash.pub/`,
   timeout: 60000
 });
 
@@ -30,31 +31,16 @@ restClient.interceptors.response.use(
         originalRequest.retry = true;
 
         try {
-          const refreshToken = localStorage.getItem("refreshToken");
-          const walletAddress = localStorage.getItem("walletAddress");
-
-          const refreshResponse = await authClient.post("/auth/refresh", {
-            refresh_token: refreshToken,
-            address: walletAddress
-          });
-
-          if (refreshResponse.data.status === "success") {
-            localStorage.setItem("accessToken", refreshResponse.data.access_token);
-            localStorage.setItem("refreshToken", refreshResponse.data.refresh_token);
-
-            originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.access_token}`;
-            return restClient.request(originalRequest);
+          const newToken = await checkAndRefreshToken();
+          if (newToken) {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            return restClient(originalRequest);
           } else {
-            // Handle refresh token failure
-            localStorage.removeItem("accessToken");
-            localStorage.removeItem("refreshToken");
-            localStorage.removeItem("walletAddress");
-            // Redirect to login page or handle as needed
-            // history.push("/auth/login");
-            throw new Error("Refresh token failed");
+            // Token refresh failed, redirect to login or handle accordingly
+            // For example: history.push("/auth/login");
+            throw new Error("Token refresh failed");
           }
         } catch (refreshError) {
-          // Handle refresh token request error
           console.error("Error refreshing token:", refreshError);
           throw refreshError;
         }
@@ -87,8 +73,16 @@ restClient.interceptors.response.use(
 
 restClient.interceptors.request.use(async request => {
   request.headers = request.headers ?? {};
-  request.headers.Authorization = `Bearer ${localStorage.getItem("accessToken")}`;
+  const token = await checkAndRefreshToken();
+  if (token) {
+    request.headers.Authorization = `Bearer ${token}`;
+  } else {
+    // Handle the case when there's no valid token
+    // For example: redirect to login page or throw an error
+    throw new Error("No valid token available");
+  }
   request.headers["ngrok-skip-browser-warning"] = "69420";
   return request;
 });
+
 export default restClient;
