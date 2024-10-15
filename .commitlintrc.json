@@ -17,7 +17,8 @@
         "dx",
         "config",
         "stats",
-        "release"
+        "release",
+        "repo"
       ]
     ]
   }
