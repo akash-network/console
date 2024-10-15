@@ -1,5 +1,6 @@
 // import { notification } from "antd";
 import axios from "axios";
+import * as Sentry from "@sentry/nextjs";
 
 import authClient from "./authClient";
 import { checkAndRefreshToken } from "./tokenUtils";
@@ -18,6 +19,9 @@ restClient.interceptors.response.use(
     return response.data;
   },
   async error => {
+    // Capture the error with Sentry
+    Sentry.captureException(error);
+
     // whatever you want to do with the error
     if (typeof error.response === "undefined") {
       errorNotification("Server is not reachable or CORS is not enable on the server!");
@@ -57,7 +61,24 @@ restClient.interceptors.response.use(
         // history.push("/auth/login");
       }
 
-      errorNotification("Server Error!");
+      // Add more specific error handling
+      if (error.response.status >= 400 && error.response.status < 500) {
+        Sentry.setContext("api_error", {
+          status: error.response.status,
+          data: error.response.data,
+          url: error.config.url,
+          method: error.config.method,
+        });
+        errorNotification(`Client Error: ${error.response.status}`);
+      } else if (error.response.status >= 500) {
+        Sentry.setContext("api_error", {
+          status: error.response.status,
+          data: error.response.data,
+          url: error.config.url,
+          method: error.config.method,
+        });
+        errorNotification(`Server Error: ${error.response.status}`);
+      }
     } else if (error.request) {
       // The request was made but no response was received
       // `error.request` is an instance of XMLHttpRequest in the browser and an instance of

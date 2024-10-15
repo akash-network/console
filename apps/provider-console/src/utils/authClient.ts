@@ -1,5 +1,6 @@
 // import { notification } from 'antd'
 import axios from "axios";
+import * as Sentry from "@sentry/nextjs";
 
 const errorNotification = (error = "Error Occurred") => {
   // notification.error({
@@ -18,22 +19,30 @@ authClient.interceptors.response.use(
     return response.data;
   },
   error => {
-    // whatever you want to do with the error
+    let errorMessage = "An unexpected error occurred";
+
     if (typeof error.response === "undefined") {
-      errorNotification("Server is not reachable or CORS is not enable on the server!");
+      errorMessage = "Server is not reachable or CORS is not enabled on the server!";
     } else if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      errorNotification("Server Error!");
+      errorMessage = "Server Error!";
     } else if (error.request) {
-      // The request was made but no response was received
-      // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
-      // http.ClientRequest in node.js
-      errorNotification("Server is not responding!");
+      errorMessage = "Server is not responding!";
     } else {
-      // Something happened in setting up the request that triggered an Error
-      errorNotification(error.message);
+      errorMessage = error.message;
     }
+
+    // Log the error to Sentry
+    Sentry.captureException(error, {
+      extra: {
+        errorMessage,
+        requestUrl: error.config?.url,
+        requestMethod: error.config?.method,
+      },
+    });
+
+    // Display error notification (you can uncomment and use your preferred notification method)
+    errorNotification(errorMessage);
+
     throw error;
   }
 );

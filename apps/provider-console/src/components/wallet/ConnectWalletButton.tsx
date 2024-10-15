@@ -5,6 +5,7 @@ import { Wallet } from "iconoir-react";
 
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { cn } from "@src/utils/styleUtils";
+import { useWallet } from "@src/context/WalletProvider";
 
 interface Props extends ButtonProps {
   children?: ReactNode;
@@ -12,7 +13,8 @@ interface Props extends ButtonProps {
 }
 
 export const ConnectWalletButton: React.FunctionComponent<Props> = ({ className = "", ...rest }) => {
-  const { connect, status, isWalletConnected, address } = useSelectedChain();
+  const { status, isWalletConnected, address } = useSelectedChain();
+  const { connectWallet } = useWallet();
 
   // Define your custom function to call on successful connection
   const onWalletConnectSuccess = () => {
@@ -29,7 +31,7 @@ export const ConnectWalletButton: React.FunctionComponent<Props> = ({ className 
   }, [status, address]); // Ensure to include address as a dependency if needed
 
   return (
-    <Button variant="outline" onClick={connect} className={cn("border-primary", className)} {...rest} data-testid="connect-wallet-btn">
+    <Button variant="outline" onClick={connectWallet} className={cn("border-primary", className)} {...rest} data-testid="connect-wallet-btn">
       <Wallet className="text-xs" />
       <span className="ml-2 whitespace-nowrap">Connect Wallet</span>
     </Button>

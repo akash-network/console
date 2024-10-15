@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { SigningStargateClient } from "@cosmjs/stargate";
-import { useManager } from "@cosmos-kit/react";
+import { useChainWallet, useManager } from "@cosmos-kit/react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { SnackbarKey, useSnackbar } from "notistack";
+import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { useUsdcDenom } from "@src/hooks/useDenom";
@@ -20,6 +21,9 @@ import { useSelectedChain } from "../CustomChainProvider";
 import { useSettings } from "../SettingsProvider";
 import { jwtDecode } from "jwt-decode";
 import { checkAndRefreshToken } from "@src/utils/tokenUtils";
+import restClient from "@src/utils/restClient";
+import { getNonceMessage, leapSignArbitrary, keplrSignArbitrary } from "@src/utils/walletUtils";
+import authClient from "@src/utils/authClient";
 
 type Balances = {
   uakt: number;
@@ -39,6 +43,11 @@ type ContextType = {
   setIsWalletArbitrarySigned: React.Dispatch<React.SetStateAction<boolean>>;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<any>;
   refreshBalances: (address?: string) => Promise<Balances>;
+  isProvider: boolean;
+  isOnline: boolean;
+  provider: any; // Replace 'any' with a more specific type if available
+  isProviderStatusFetched: boolean;
+  handleArbitrarySigning: () => Promise<void>;
 };
 
 const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
@@ -46,6 +55,10 @@ const WalletProviderContext = React.createContext<ContextType>({} as ContextType
 export const WalletProvider = ({ children }) => {
   const [walletBalances, setWalletBalances] = useState<Balances | null>(null);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
+  const [isWalletProvider, setIsWalletProvider] = useState<boolean>(false);
+  const [isWalletProviderOnline, setIsWalletProviderOnline] = useState<boolean>(false);
+  const [provider, setProvider] = useState<any>(null);
+  const [isProviderStatusFetched, setIsProviderStatusFetched] = useState<boolean>(false);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
   const [isWalletArbitrarySigned, setIsWalletArbitrarySigned] = useState<boolean>(false);
@@ -54,8 +67,23 @@ export const WalletProvider = ({ children }) => {
   const router = useRouter();
   const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
-  const { disconnect, getOfflineSigner, isWalletConnected, address: walletAddress, connect, username, estimateFee, sign, broadcast } = useSelectedChain();
+  const {
+    disconnect,
+    getOfflineSigner,
+    isWalletConnected,
+    address: walletAddress,
+    connect,
+    username,
+    estimateFee,
+    sign,
+    broadcast,
+    wallet,
+    signArbitrary
+  } = useSelectedChain();
   const { addEndpoints } = useManager();
+  const selectedNetwork = useSelectedNetwork();
+  // const { signArbitrary: keplrSignArbitrary } = useChainWallet("akash", "keplr-extension");
+  // const { signArbitrary: leapSignArbitrary } = useChainWallet("akash", "leap-extension");
   // const {
   //   fee: { default: feeGranter }
   // } = useAllowance();
@@ -80,6 +108,10 @@ export const WalletProvider = ({ children }) => {
           if (validAccessToken) {
             console.log("Access token is valid");
             setIsWalletArbitrarySigned(true);
+            await fetchProviderStatus();
+
+            await fetchProviderStatus();
+            setIsProviderStatusFetched(true);
           } else {
             console.log("No valid access token found");
             setIsWalletArbitrarySigned(false);
@@ -92,6 +124,20 @@ export const WalletProvider = ({ children }) => {
       }
     })();
   }, [settings?.rpcEndpoint, isWalletConnected]);
+
+  const fetchProviderStatus = async () => {
+    try {
+      const isProviderResponse: any = await restClient.get(`/provider/status/onchain?chainid=${selectedNetwork.chainId}`);
+      setIsWalletProvider(isProviderResponse.provider ? true : false);
+      setProvider(isProviderResponse.provider);
+      if (isProviderResponse.provider) {
+        const isOnlineResponse: any = await restClient.get(`/provider/status/online?chainid=${selectedNetwork.chainId}`);
+        setIsWalletProviderOnline(isOnlineResponse.online);
+      }
+    } catch (error) {
+      console.error("Error fetching provider status:", error);
+    }
+  };
 
   async function createStargateClient() {
     const selectedNetwork = getSelectedNetwork();
@@ -130,25 +176,78 @@ export const WalletProvider = ({ children }) => {
     localStorage.removeItem("walletAddress");
     setWalletBalances(null);
     disconnect();
+    setIsWalletArbitrarySigned(false);
+    setIsProviderStatusFetched(false);
+    setIsWalletProvider(false);
+    setIsWalletProviderOnline(false);
+    setProvider(null);
     router.push(UrlService.home());
   }
 
   async function connectWallet() {
     console.log("Connecting wallet with CosmosKit...");
-    connect();
+    await connect();
+    // console.log("Connected wallet with CosmosKit");
+    // await loadWallet();
+    // await handleArbitrarySigning();
+    // console.log("Wallet address", walletAddress);
+  }
 
-    await loadWallet();
+  async function handleArbitrarySigning() {
+    console.log("Access token", localStorage.getItem("accessToken"));
+    console.log("Wallet address", walletAddress);
+    if (!localStorage.getItem("accessToken") && walletAddress) {
+      console.log("Handling arbitrary signing");
+      try {
+        const response: any = await authClient.get(`users/nonce/${walletAddress}`);
+        if (response?.data?.nonce) {
+          const message = getNonceMessage(response.data.nonce, walletAddress);
+
+          // const signArbitrary = username === "leap-extension" ? leapSignArbitrary : keplrSignArbitrary;
+          // const signArbitrary = wallet?.name === "leap-extension" ? leapSignArbitrary : keplrSignArbitrary;
+
+          const result = await signArbitrary(walletAddress, message);
+
+          if (result) {
+            const verifySign = await authClient.post("auth/verify", { signer: walletAddress, ...result });
+            if (verifySign.data) {
+              localStorage.setItem("accessToken", verifySign.data.access_token);
+              localStorage.setItem("refreshToken", verifySign.data.refresh_token);
+              localStorage.setItem("walletAddress", walletAddress);
+              setIsWalletArbitrarySigned(true);
+            } else {
+              throw new Error("Verification failed");
+            }
+          } else {
+            throw new Error("Signing failed");
+          }
+        } else {
+          if (response.status === "error" && response.error.code === "N4040") {
+            await authClient.post("users", { address: walletAddress });
+            await handleArbitrarySigning();
+          } else {
+            throw new Error("Invalid nonce response");
+          }
+        }
+      } catch (error) {
+        console.error("Error during arbitrary signing:", error);
+        logout();
+        setIsWalletArbitrarySigned(false);
+      }
+    }
   }
 
   // Update balances on wallet address change
   useEffect(() => {
     if (walletAddress) {
       loadWallet();
+      handleArbitrarySigning();
     }
   }, [walletAddress]);
 
   async function loadWallet(): Promise<void> {
     const selectedNetwork = getSelectedNetwork();
+    console.log("selectedNetwork", selectedNetwork);
     const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetwork.id}/wallets`) || "[]") as LocalWalletDataType[];
 
     let currentWallets = storageWallets ?? [];
@@ -269,6 +368,8 @@ export const WalletProvider = ({ children }) => {
     const _address = address || walletAddress;
     const client = await getStargateClient();
 
+    console.log("client", client);
+    // console.log("address", _address);
     if (client) {
       const balances = await client.getAllBalances(_address as string);
       const uaktBalance = balances.find(b => b.denom === uAktDenom);
@@ -304,7 +405,12 @@ export const WalletProvider = ({ children }) => {
         logout,
         setIsWalletLoaded,
         signAndBroadcastTx,
-        refreshBalances
+        refreshBalances,
+        isProvider: isWalletProvider,
+        isOnline: isWalletProviderOnline,
+        provider: provider,
+        isProviderStatusFetched,
+        handleArbitrarySigning
       }}
     >
       {children}

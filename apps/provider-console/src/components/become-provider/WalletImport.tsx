@@ -75,6 +75,7 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
   const [showSeedForm, setShowSeedForm] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
 
@@ -96,6 +97,7 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
 
   const submitForm = async (data: SeedFormValues) => {
     setIsLoading(true);
+    setError(null); // Reset error state
     try {
       if (providerProcess.machines && providerProcess.machines.length > 0) {
         const publicKey = providerProcess.machines[0].systemInfo.public_key;
@@ -137,14 +139,15 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
             }
           }));
           stepChange();
+        } else {
+          throw new Error("Invalid response from server");
         }
       } else {
-        console.error("No machine information available");
-        // Handle the case when machine information is not available
+        throw new Error("No machine information available");
       }
     } catch (error) {
       console.error("Error during wallet verification:", error);
-      // Handle any errors that occurred during the process
+      setError("An error occurred while processing your request. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -277,6 +280,11 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
                       {isLoading ? "Loading..." : "Next"}
                     </Button>
                   </div>
+                {error && (
+                  <div className="w-full mt-4">
+                    <p className="text-red-500 text-sm">{error.message || "An error occurred during wallet import."}</p>
+                  </div>
+                )}
                 </div>
               </div>
             </form>

@@ -16,44 +16,27 @@ import providerProcessStore from "@src/store/providerProcessStore";
 export function HomeContainer() {
   const [, resetProcess] = useAtom(providerProcessStore.resetProviderProcess);
   const router = useRouter();
-  const { isWalletConnected, isWalletArbitrarySigned } = useWallet();
+  const { isWalletConnected, isWalletArbitrarySigned, isProvider, isOnline, isProviderStatusFetched } = useWallet();
   const [isLoading, setIsLoading] = useState(false);
-  const [isProvider, setIsProvider] = useState(false);
   const [, setProvider] = useState<any>(null);
-  const [isOnline, setIsOnline] = useState(false);
   const [actions, setActions] = useState<any>(null);
   const selectedNetwork = useAtomValue(networkStore.selectedNetwork); // or similar method to get the value
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isWalletConnected) {
+    if (isProvider && isOnline) {
       setIsLoading(true);
-      if (isWalletArbitrarySigned) {
-        fetchProviderStatus();
-      }
+      fetchActions();
     }
-  }, [isWalletConnected, isWalletArbitrarySigned]);
+    console.log("isProviderStatusFetched", isProviderStatusFetched);
+  }, [isProvider, isOnline]);
 
-  const fetchProviderStatus = async () => {
+  const fetchActions = async () => {
     try {
-      setLoadingMessage("Checking provider status...");
-      const isProviderResponse: any = await restClient.get(`/provider/status/onchain?chainid=${selectedNetwork.chainId}`);
-      setIsProvider(isProviderResponse.provider ? true : false);
-      setProvider(isProviderResponse.provider);
-
-      if (isProviderResponse.provider) {
-        setLoadingMessage("Provider found, Checking online status...");
-        const isOnlineResponse: any = await restClient.get(`/provider/status/online?chainid=${selectedNetwork.chainId}`);
-        setIsOnline(isOnlineResponse.online);
-      }
-      setLoadingMessage("Checking actions...");
       const actionsResponse: any = await restClient.get(`/actions`);
       setActions(actionsResponse.actions);
     } catch (error) {
-      setLoadingMessage("Error fetching provider status");
-    } finally {
-      setIsLoading(false);
-      setLoadingMessage(null);
+      setLoadingMessage("Error fetching actions");
     }
   };
 
@@ -69,7 +52,7 @@ export function HomeContainer() {
   };
 
   return (
-    <Layout containerClassName="flex h-full flex-col justify-between" isLoading={isLoading}>
+    <Layout containerClassName="flex h-full flex-col justify-between" isLoading={!isProviderStatusFetched || isLoading}>
       <div className="flex flex-grow items-center justify-center">
         <div className="mb-4">
           {isLoading ? (

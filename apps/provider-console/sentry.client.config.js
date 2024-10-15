@@ -6,3 +6,10 @@ Sentry.init({
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0
 });
+
+const originalConsoleError = console.error;
+
+console.error = (...args) => {
+  Sentry.captureMessage(args.join(" "), "error");
+  originalConsoleError(...args);
+};

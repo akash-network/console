@@ -80,14 +80,6 @@ export function WalletStatus() {
     }
   };
 
-  useEffect(() => {
-    if (isWalletConnected && address) {
-      handleWalletConnectSuccess();
-    } else if (!isWalletConnected) {
-      console.log("Wallet disconnected");
-    }
-  }, [isWalletConnected, address]);
-
   const onDisconnectClick = () => logout();
 
   const WalletInfo = () => (
