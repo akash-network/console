@@ -72,7 +72,7 @@ export function HomeContainer() {
         <div className="mb-4">
           <WelcomePanel />
         </div>
-        {isSettingsInit && isWalletLoaded ? (
+        {isSettingsInit && !!address && (
           <YourAccount
             isLoadingBalances={isLoadingBalances}
             walletBalance={walletBalance}
@@ -80,10 +80,6 @@ export function HomeContainer() {
             leases={leases}
             providers={providers}
           />
-        ) : (
-          <div className="flex justify-center p-8">
-            <Spinner size="large" />
-          </div>
         )}
       </div>
 
