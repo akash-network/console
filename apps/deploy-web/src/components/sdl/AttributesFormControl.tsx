@@ -6,7 +6,7 @@ import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
 
 import { PlacementAttributeType, SdlBuilderFormValuesType } from "@src/types";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

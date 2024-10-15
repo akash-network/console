@@ -4,7 +4,7 @@ import { Control } from "react-hook-form";
 import { Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
 
 import { RentGpusFormValuesType, ServiceType } from "@src/types";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { ExpandMore } from "../shared/ExpandMore";
 import { CommandFormModal } from "./CommandFormModal";
 import { CommandList } from "./CommandList";

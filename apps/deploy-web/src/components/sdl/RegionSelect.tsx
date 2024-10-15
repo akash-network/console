@@ -10,7 +10,7 @@ import { InfoCircle } from "iconoir-react";
 import { useProviderRegions } from "@src/queries/useProvidersQuery";
 import { RentGpusFormValuesType } from "@src/types";
 import { ProviderAttributeSchemaDetailValue, ProviderRegionValue } from "@src/types/providerAttributes";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 
 type RegionSelectProps = {
   control: Control<RentGpusFormValuesType, any>;

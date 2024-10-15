@@ -3,7 +3,7 @@ import React from "react";
 import { FormattedNumber } from "react-intl";
 import { ArrowDown, ArrowUp } from "iconoir-react";
 
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 
 export interface DiffPercentageChipProps {
   value: number;

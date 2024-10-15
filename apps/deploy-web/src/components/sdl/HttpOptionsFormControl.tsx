@@ -6,7 +6,7 @@ import { InfoCircle } from "iconoir-react";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { nextCases } from "@src/utils/sdl/data";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

@@ -2,7 +2,7 @@
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 
 import { ClientProviderList } from "@src/types/provider";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { ProviderListRow } from "./ProviderTableRow";
 
 type Props = {

@@ -8,11 +8,11 @@ import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { cn } from "@src/utils/styleUtils";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
 import { WelcomeModal } from "./WelcomeModal";
+import { cn } from "@akashnetwork/ui/utils";
 
 type Props = {
   isLoading?: boolean;
@@ -124,7 +124,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
                 <ErrorBoundary FallbackComponent={ErrorFallback}>
                   {!isUsingSettings || isSettingsInit ? (
                     !isUsingWallet || isWalletLoaded ? (
-                      <div className={cn({ ["container pb-8 pt-4 sm:pt-8"]: !disableContainer }, containerClassName)}>{children}</div>
+                      <div className={cn({ ["container pb-8 pt-4"]: !disableContainer }, containerClassName)}>{children}</div>
                     ) : (
                       <Loading text="Loading wallet..." />
                     )

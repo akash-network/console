@@ -14,7 +14,7 @@ import { z } from "zod";
 
 import { NodeStatus } from "@src/components/shared/NodeStatus";
 import { BlockchainNode, useSettings } from "@src/context/SettingsProvider/SettingsProviderContext";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 
 const formSchema = z.object({
   apiEndpoint: z

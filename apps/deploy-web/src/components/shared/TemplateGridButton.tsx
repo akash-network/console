@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { getShortText } from "@src/hooks/useShortText";
 import { ITemplate } from "@src/types";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {

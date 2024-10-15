@@ -4,7 +4,7 @@ import { Button, ButtonProps, Spinner } from "@akashnetwork/ui/components";
 import { Rocket } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 
 interface Props extends ButtonProps {
   children?: ReactNode;

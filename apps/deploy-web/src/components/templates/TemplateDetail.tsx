@@ -15,7 +15,7 @@ import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { getShortText } from "@src/hooks/useShortText";
 import { ApiTemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";

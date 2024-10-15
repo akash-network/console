@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { ApiTemplate } from "@src/types";
 import { getShortText } from "@src/utils/stringUtils";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {

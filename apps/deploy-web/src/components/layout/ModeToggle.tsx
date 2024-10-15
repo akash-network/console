@@ -5,7 +5,7 @@ import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMe
 import { HalfMoon, SunLight } from "iconoir-react";
 import { useTheme } from "next-themes";
 
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 
 export function ModeToggle() {
   const { setTheme, theme } = useTheme();

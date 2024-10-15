@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useWallet } from "@src/context/WalletProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { UrlService } from "@src/utils/urlUtils";
 import { Title } from "../shared/Title";
 import { ProviderSummary } from "./ProviderSummary";

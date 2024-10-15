@@ -5,7 +5,7 @@ import { differenceInSeconds } from "date-fns";
 import { InfoCircle } from "iconoir-react";
 
 import { useBlock } from "@src/queries/useBlocksQuery";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 
 type Props = {
   height: string | null;

@@ -4,7 +4,7 @@ import { Check } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
 import { RouteStep } from "@src/types/route-steps.type";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { UrlService } from "@src/utils/urlUtils";
 
 interface Step {

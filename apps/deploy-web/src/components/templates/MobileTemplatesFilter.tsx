@@ -5,7 +5,7 @@ import Drawer from "@mui/material/Drawer";
 import { Xmark } from "iconoir-react";
 
 import { ApiTemplate } from "@src/types";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 
 type Props = {
   children?: ReactNode;

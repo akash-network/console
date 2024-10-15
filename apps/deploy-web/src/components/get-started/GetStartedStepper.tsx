@@ -18,7 +18,7 @@ import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { RouteStep } from "@src/types/route-steps.type";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { UrlService } from "@src/utils/urlUtils";
 import LiquidityModal from "../liquidity-modal";
 import { ExternalLink } from "../shared/ExternalLink";

@@ -3,7 +3,7 @@ import { MdDeveloperBoard, MdMemory, MdSpeed, MdStorage } from "react-icons/md";
 import LinearProgress from "@mui/material/LinearProgress";
 
 import { roundDecimal } from "@src/utils/mathHelpers";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 
 export function SpecDetailList({ cpuAmount, memoryAmount, storageAmount, gpuAmount = 0, isActive }) {

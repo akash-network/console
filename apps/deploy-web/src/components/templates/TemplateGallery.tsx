@@ -9,7 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { ApiTemplate } from "@src/types";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { useTemplates } from "../../context/TemplatesProvider";
 import Layout from "../layout/Layout";

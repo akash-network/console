@@ -13,7 +13,7 @@ import Link from "next/link";
 
 import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
 import { ApiTemplate, RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 
 type Props = {
   children?: ReactNode;

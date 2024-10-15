@@ -22,7 +22,7 @@ import { ApiProviderList } from "@src/types/provider";
 import { customColors } from "@src/utils/colors";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, uaktToAKT } from "@src/utils/priceUtils";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ConnectWallet } from "../shared/ConnectWallet";

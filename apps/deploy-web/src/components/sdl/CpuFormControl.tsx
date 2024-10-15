@@ -7,7 +7,7 @@ import { InfoCircle } from "iconoir-react";
 
 import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { validationConfig } from "@src/utils/akash/units";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

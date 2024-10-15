@@ -8,7 +8,7 @@ import { ITerminalAddon, ITerminalOptions, Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 
 export interface IProps {
   /**

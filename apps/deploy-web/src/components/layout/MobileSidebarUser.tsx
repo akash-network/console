@@ -5,7 +5,7 @@ import { LogOut, MediaImageList, Settings } from "iconoir-react";
 import Link from "next/link";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { UrlService } from "@src/utils/urlUtils";
 import { SidebarRouteButton } from "./SidebarRouteButton";
 import { WalletStatus } from "./WalletStatus";

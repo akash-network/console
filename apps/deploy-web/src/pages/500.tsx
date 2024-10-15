@@ -6,7 +6,7 @@ import { NextSeo } from "next-seo";
 
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { UrlService } from "@src/utils/urlUtils";
 
 const FiveHundred: React.FunctionComponent = () => {

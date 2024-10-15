@@ -37,7 +37,7 @@ import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { GpuVendor } from "@src/types/gpu";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
 import { CommandFormModal } from "./CommandFormModal";
