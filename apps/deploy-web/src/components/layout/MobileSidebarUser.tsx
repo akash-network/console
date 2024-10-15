@@ -15,8 +15,6 @@ export const MobileSidebarUser: React.FunctionComponent = () => {
 
   return (
     <ul className="w-full overflow-hidden border-0 p-0">
-      <Separator />
-
       <div className="flex items-center justify-center p-2">
         <WalletStatus />
       </div>

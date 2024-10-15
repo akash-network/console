@@ -1,6 +1,6 @@
 "use client";
 import React, { ReactNode, useMemo, useState } from "react";
-import { Badge, Button, buttonVariants } from "@akashnetwork/ui/components";
+import { Badge, Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -100,50 +100,53 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       {
         hasDivider: false,
         routes: mainRoutes
-      },
-      {
-        hasDivider: true,
-        routes: [
-          {
-            title: "Akash Network",
-            icon: props => <Image src="/images/akash-logo.svg" alt="Akash Logo" quality={100} width={20} height={20} {...props} />,
-            url: "https://akash.network",
-            activeRoutes: [],
-            target: "_blank"
-          },
-          {
-            title: "Stats",
-            icon: props => <OpenInWindow {...props} />,
-            url: "https://stats.akash.network",
-            activeRoutes: [],
-            target: "_blank"
-          },
-          {
-            title: "Price Compare",
-            icon: props => <OpenInWindow {...props} />,
-            url: "https://akash.network/about/pricing/custom/",
-            activeRoutes: [],
-            target: "_blank"
-          },
-          {
-            title: "API",
-            icon: props => <OpenInWindow {...props} />,
-            url: "https://console-api.akash.network/v1/swagger",
-            activeRoutes: [],
-            target: "_blank"
-          },
-          {
-            title: "Docs",
-            icon: props => <OpenInWindow {...props} />,
-            url: "https://akash.network/docs",
-            activeRoutes: [],
-            target: "_blank"
-          }
-        ]
       }
     ],
     [mainRoutes]
   );
+
+  const extraRoutes = [
+    {
+      hasDivider: false,
+      routes: [
+        {
+          title: "Akash Network",
+          icon: props => <Image src="/images/akash-logo.svg" alt="Akash Logo" quality={100} width={20} height={20} {...props} />,
+          url: "https://akash.network",
+          activeRoutes: [],
+          target: "_blank"
+        },
+        {
+          title: "Stats",
+          icon: props => <OpenInWindow {...props} />,
+          url: "https://stats.akash.network",
+          activeRoutes: [],
+          target: "_blank"
+        },
+        {
+          title: "Price Compare",
+          icon: props => <OpenInWindow {...props} />,
+          url: "https://akash.network/about/pricing/custom/",
+          activeRoutes: [],
+          target: "_blank"
+        },
+        {
+          title: "API",
+          icon: props => <OpenInWindow {...props} />,
+          url: "https://console-api.akash.network/v1/swagger",
+          activeRoutes: [],
+          target: "_blank"
+        },
+        {
+          title: "Docs",
+          icon: props => <OpenInWindow {...props} />,
+          url: "https://akash.network/docs",
+          activeRoutes: [],
+          target: "_blank"
+        }
+      ]
+    }
+  ];
 
   const onToggleMenuClick = () => {
     setIsHovering(false);
@@ -182,9 +185,16 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         {routeGroups.map((g, i) => (
           <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={_isNavOpen} />
         ))}
+        <Separator className="mt-2" />
       </div>
 
       <div className="w-full">
+        {extraRoutes.map((g, i) => (
+          <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={_isNavOpen} />
+        ))}
+
+        <Separator className="mt-2" />
+
         {smallScreen && <MobileSidebarUser />}
 
         {_isNavOpen && (
