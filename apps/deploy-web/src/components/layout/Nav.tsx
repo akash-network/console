@@ -47,9 +47,8 @@ export const Nav = ({
         <div style={{ height: `${ACCOUNT_BAR_HEIGHT}px` }} className={`hidden items-center md:flex`}>
           <div>
             <Link passHref href={UrlService.getStarted()}>
-              <Button variant="text" className="relative text-foreground">
+              <Button variant="text" className="relative text-foreground text-xs">
                 Get Started
-                <Badge className="absolute right-1 top-1 h-2 w-2 rounded-full p-0" />
               </Button>
             </Link>
           </div>
