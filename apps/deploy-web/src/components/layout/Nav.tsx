@@ -1,5 +1,5 @@
 "use client";
-import { Badge, Button, buttonVariants } from "@akashnetwork/ui/components";
+import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { Menu, Xmark } from "iconoir-react";
 import Link from "next/link";
 
@@ -47,7 +47,7 @@ export const Nav = ({
         <div style={{ height: `${ACCOUNT_BAR_HEIGHT}px` }} className={`hidden items-center md:flex`}>
           <div>
             <Link passHref href={UrlService.getStarted()}>
-              <Button variant="text" className="relative text-foreground text-xs">
+              <Button variant="text" className="relative text-xs text-foreground">
                 Get Started
               </Button>
             </Link>

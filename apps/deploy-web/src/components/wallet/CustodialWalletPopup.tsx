@@ -1,4 +1,4 @@
-import { Address, Button, Separator } from "@akashnetwork/ui/components";
+import { Address, Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
 import { WalletBalance } from "@src/hooks/useWalletBalance";
 import { CoinsSwap } from "iconoir-react";
 import { Bank, LogOut } from "iconoir-react";
@@ -12,6 +12,12 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { PriceValue } from "../shared/PriceValue";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { FormattedNumber } from "react-intl";
+import { useAtom } from "jotai";
+import { useCustomUser } from "@src/hooks/useCustomUser";
+import walletStore from "@src/store/walletStore";
+import { cn } from "@akashnetwork/ui/utils";
+import Link from "next/link";
+import { ConnectManagedWalletButton } from "./ConnectManagedWalletButton";
 
 interface CustodialWalletPopupProps extends React.PropsWithChildren {
   walletBalance: WalletBalance;
@@ -20,8 +26,11 @@ interface CustodialWalletPopupProps extends React.PropsWithChildren {
 const withBilling = browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
 export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ walletBalance }) => {
-  const { address, logout, switchWalletType } = useWallet();
+  const { address, logout } = useWallet();
   const router = useRouter();
+  const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
+  const { user } = useCustomUser();
+
   const onAuthorizeSpendingClick = () => {
     router.push(UrlService.settingsAuthorizations());
   };
@@ -67,10 +76,13 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
           <>
             <Separator className="my-4" />
 
-            <Button onClick={switchWalletType} variant="outline" className="w-full space-x-2">
-              <CoinsSwap />
-              <span>Switch to USD billing</span>
-            </Button>
+            {isSignedInWithTrial && !user ? (
+              <Link className={cn(buttonVariants({ variant: "outline" }), "w-full space-x-2")} href={UrlService.login()}>
+                Sign in for USD Payments
+              </Link>
+            ) : (
+              <ConnectManagedWalletButton className="w-full" />
+            )}
           </>
         )}
       </div>
