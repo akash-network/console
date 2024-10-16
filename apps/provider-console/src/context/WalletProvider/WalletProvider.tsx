@@ -22,7 +22,7 @@ import { useSettings } from "../SettingsProvider";
 import { jwtDecode } from "jwt-decode";
 import { checkAndRefreshToken } from "@src/utils/tokenUtils";
 import restClient from "@src/utils/restClient";
-import { getNonceMessage, leapSignArbitrary, keplrSignArbitrary } from "@src/utils/walletUtils";
+import { getNonceMessage } from "@src/utils/walletUtils";
 import authClient from "@src/utils/authClient";
 
 type Balances = {
@@ -47,6 +47,7 @@ type ContextType = {
   isOnline: boolean;
   provider: any; // Replace 'any' with a more specific type if available
   isProviderStatusFetched: boolean;
+  isProviderOnlineStatusFetched: boolean;
   handleArbitrarySigning: () => Promise<void>;
 };
 
@@ -57,6 +58,7 @@ export const WalletProvider = ({ children }) => {
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
   const [isWalletProvider, setIsWalletProvider] = useState<boolean>(false);
   const [isWalletProviderOnline, setIsWalletProviderOnline] = useState<boolean>(false);
+  const [isProviderOnlineStatusFetched, setIsProviderOnlineStatusFetched] = useState<boolean>(false);
   const [provider, setProvider] = useState<any>(null);
   const [isProviderStatusFetched, setIsProviderStatusFetched] = useState<boolean>(false);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
@@ -109,9 +111,6 @@ export const WalletProvider = ({ children }) => {
             console.log("Access token is valid");
             setIsWalletArbitrarySigned(true);
             await fetchProviderStatus();
-
-            await fetchProviderStatus();
-            setIsProviderStatusFetched(true);
           } else {
             console.log("No valid access token found");
             setIsWalletArbitrarySigned(false);
@@ -130,8 +129,10 @@ export const WalletProvider = ({ children }) => {
       const isProviderResponse: any = await restClient.get(`/provider/status/onchain?chainid=${selectedNetwork.chainId}`);
       setIsWalletProvider(isProviderResponse.provider ? true : false);
       setProvider(isProviderResponse.provider);
+      setIsProviderStatusFetched(true);
       if (isProviderResponse.provider) {
         const isOnlineResponse: any = await restClient.get(`/provider/status/online?chainid=${selectedNetwork.chainId}`);
+        setIsProviderOnlineStatusFetched(true);
         setIsWalletProviderOnline(isOnlineResponse.online);
       }
     } catch (error) {
@@ -178,6 +179,7 @@ export const WalletProvider = ({ children }) => {
     disconnect();
     setIsWalletArbitrarySigned(false);
     setIsProviderStatusFetched(false);
+    setIsProviderOnlineStatusFetched(false);
     setIsWalletProvider(false);
     setIsWalletProviderOnline(false);
     setProvider(null);
@@ -410,6 +412,7 @@ export const WalletProvider = ({ children }) => {
         isOnline: isWalletProviderOnline,
         provider: provider,
         isProviderStatusFetched,
+        isProviderOnlineStatusFetched,
         handleArbitrarySigning
       }}
     >

@@ -2,7 +2,7 @@ export const mainnetId = "mainnet";
 export const testnetId = "testnet";
 export const sandboxId = "sandbox";
 
-const productionHostnames = ["console.akash.network", "staging-console.akash.network"];
+const productionHostnames = ["console.akash.network", "staging-console.akash.network", "localhost:3000"];
 
 export const selectedRangeValues: { [key: string]: number } = {
   "7D": 7,
@@ -21,10 +21,11 @@ export const BASE_API_URL = getApiUrl();
 
 
 function getApiMainnetUrl() {
-  if (process.env.API_MAINNET_BASE_URL) return process.env.API_MAINNET_BASE_URL;
-  if (typeof window === "undefined") return "http://localhost:3080";
-  if (productionHostnames.includes(window.location?.hostname)) return productionMainnetApiUrl;
-  return "http://localhost:3080";
+  // if (process.env.API_MAINNET_BASE_URL) return process.env.API_MAINNET_BASE_URL;
+  // if (typeof window === "undefined") return "http://localhost:3080";
+  // if (productionHostnames.includes(window.location?.hostname)) return productionMainnetApiUrl;
+  // return "http://localhost:3080";
+  return productionMainnetApiUrl;
 }
 
 function getApiTestnetUrl() {
@@ -53,18 +54,18 @@ export function getNetworkBaseApiUrl(network: string) {
 }
 
 function getApiUrl() {
-  if (process.env.API_BASE_URL) return process.env.API_BASE_URL;
-  if (typeof window === "undefined") return "http://localhost:3080";
-  if (productionHostnames.includes(window.location?.hostname)) {
-    try {
-      const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
-      return getNetworkBaseApiUrl(_selectedNetworkId || mainnetId);
-    } catch (e) {
-      console.error(e);
-      return productionMainnetApiUrl;
-    }
+  // if (process.env.API_BASE_URL) return process.env.API_BASE_URL;
+  // if (typeof window === "undefined") return "http://localhost:3080";
+  // if (productionHostnames.includes(window.location?.hostname)) {
+  try {
+    const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
+    return getNetworkBaseApiUrl(_selectedNetworkId || mainnetId);
+  } catch (e) {
+    console.error(e);
+    return productionMainnetApiUrl;
   }
-  return "http://localhost:3080";
+  // }
+  // return "http://localhost:3080";
 }
 
 // UI

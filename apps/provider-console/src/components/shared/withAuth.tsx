@@ -7,71 +7,49 @@ import authClient from "@src/utils/authClient";
 
 const withAuth = (WrappedComponent: React.ComponentType) => {
   const AuthComponent: React.FC = props => {
-    const { isWalletConnected, address } = useWallet();
+    const { isWalletConnected, address, isProvider, isProviderStatusFetched } = useWallet();
     const router = useRouter();
     const [loading, setLoading] = useState(true);
+    const [loadingMessage, setLoadingMessage] = useState("Checking wallet connection...");
 
     useEffect(() => {
-      const checkAuth = async () => {
-        if (!isWalletConnected || !address) {
-          router.push("/");
-          return;
-        }
+      console.log("isProviderStatusFetched", isProviderStatusFetched);
+      if (!isProviderStatusFetched) {
+        setLoadingMessage("Checking provider status...");
+        return;
+      }
 
-        const accessToken = localStorage.getItem("accessToken");
-        const refreshToken = localStorage.getItem("refreshToken");
-
-        if (!accessToken) {
-          router.push("/");
-          return;
-        }
-
-        try {
-          console.log("accessToken", accessToken);
-          const { exp } = jwtDecode<{ exp: number }>(accessToken);
-
-          console.log("expired", exp);
-          if (Date.now() >= exp * 1000) {
-            if (refreshToken) {
-              const response = await authClient.post("/auth/refresh", { address, refresh_token: refreshToken });
-              localStorage.setItem("accessToken", response.data.access_token);
-              localStorage.setItem("refreshToken", response.data.refresh_token);
-              localStorage.setItem("walletAddress", address);
-            } else {
-              router.push("/");
-              return;
-            }
-          }
-        } catch (error) {
-          console.error("Token validation error:", error);
-          router.push("/");
-          return;
-        }
-
+      if (!isWalletConnected) {
+        setLoadingMessage("Connecting to wallet...");
+        router.push("/");
+      } else if (!address) {
+        setLoadingMessage("Retrieving wallet address...");
+        router.push("/");
+      } else if (!isProvider) {
+        setLoadingMessage("Verifying provider status...");
+        router.push("/");
+      } else {
         setLoading(false);
-      };
-
-      const timer = setTimeout(checkAuth, 1500); // Wait for 3 seconds before redirecting
-
-      return () => clearTimeout(timer); // Cleanup the timer on component unmount
-    }, [isWalletConnected, address, router]);
+      }
+    }, [isWalletConnected, address, router, isProviderStatusFetched, isProvider]);
 
     if (loading) {
       return (
-        // TODO: Fix styling here to more sophisticated loading screen
         <div
           style={{
             display: "flex",
+            flexDirection: "column",
             justifyContent: "center",
             alignItems: "center",
             height: "100vh",
-            fontSize: "24px",
+            fontSize: "18px",
             color: "#333"
           }}
         >
           <Spinner />
+          <p style={{ marginTop: "20px" }}>{loadingMessage}</p>
         </div>
-      ); // Show styled loading indicator
+      );
     }
 
     return <WrappedComponent {...props} />;

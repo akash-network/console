@@ -167,7 +167,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
           ...providerProcess,
           machines,
           storeInformation: currentServerNumber === 0 ? formValues.saveInformation : providerProcess?.storeInformation,
-          process: providerProcess.process
+          process: providerProcess.process,
         });
         onSubmit();
       }

@@ -24,6 +24,7 @@ restClient.interceptors.response.use(
 
     // whatever you want to do with the error
     if (typeof error.response === "undefined") {
+      console.log(error)
       errorNotification("Server is not reachable or CORS is not enable on the server!");
     } else if (error.response) {
       // The request was made and the server responded with a status code

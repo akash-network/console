@@ -68,7 +68,7 @@ export const SettingsProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setIsLoadingSettings(true);
 
       // Set the versions and metadata of available networks
-      await initiateNetworkData();
+      // await initiateNetworkData();
 
       // Init app types based on the selected network id
       initAppTypes();

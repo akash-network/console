@@ -282,7 +282,7 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
                   </div>
                 {error && (
                   <div className="w-full mt-4">
-                    <p className="text-red-500 text-sm">{error.message || "An error occurred during wallet import."}</p>
+                    <p className="text-red-500 text-sm">{error || "An error occurred during wallet import."}</p>
                   </div>
                 )}
                 </div>
