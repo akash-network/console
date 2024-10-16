@@ -28,8 +28,8 @@ export function HomeContainer() {
       setIsLoading(true);
       fetchActions();
     }
-    console.log("isProviderStatusFetched", isProviderStatusFetched);
-  }, [isProvider, isOnline]);
+    console.log("isProviderStatusFetched", isWalletArbitrarySigned);
+  }, [isProvider, isOnline, isWalletArbitrarySigned]);
 
   const fetchActions = async () => {
     try {
