@@ -2,11 +2,11 @@
 import { forwardRef, ReactNode, useImperativeHandle } from "react";
 import { Control, useFieldArray } from "react-hook-form";
 import { Button, CustomTooltip, FormField, FormInput } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
 
 import { AcceptType, SdlBuilderFormValuesType } from "@src/types";
-import { cn } from "@akashnetwork/ui/utils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

@@ -12,10 +12,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger
 } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Learning, NavArrowDown, Rocket, SearchEngine } from "iconoir-react";
 import Link from "next/link";
 
-import { cn } from "@akashnetwork/ui/utils";
 import { UrlService } from "@src/utils/urlUtils";
 
 export const WelcomePanel: React.FC = () => {

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Button, buttonVariants, Card, CardContent, Popup } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Bin, Edit, Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -19,7 +20,6 @@ import { ITemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { roundDecimal } from "@src/utils/mathHelpers";
-import { cn } from "@akashnetwork/ui/utils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";

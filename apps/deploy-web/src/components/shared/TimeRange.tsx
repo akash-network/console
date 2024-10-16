@@ -1,9 +1,9 @@
 "use client";
 import { ReactNode } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 
 import { SELECTED_RANGE_VALUES } from "@src/config/graph.config";
-import { cn } from "@akashnetwork/ui/utils";
 
 type Props = {
   children?: ReactNode;

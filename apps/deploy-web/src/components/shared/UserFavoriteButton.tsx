@@ -2,11 +2,11 @@
 import React, { ReactNode, useState } from "react";
 import { MdStar, MdStarOutline } from "react-icons/md";
 import { Button, Snackbar, Spinner } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { useSnackbar } from "notistack";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useAddFavoriteTemplate, useRemoveFavoriteTemplate } from "@src/queries/useTemplateQuery";
-import { cn } from "@akashnetwork/ui/utils";
 import { MustConnectModal } from "./MustConnectModal";
 
 type Props = {

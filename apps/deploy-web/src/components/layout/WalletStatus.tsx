@@ -1,18 +1,19 @@
 "use client";
 import React, { useState } from "react";
 import { FormattedNumber } from "react-intl";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner, Tooltip, TooltipContent, TooltipTrigger } from "@akashnetwork/ui/components";
-import { Wallet, NavArrowDown } from "iconoir-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
+import { NavArrowDown, Wallet } from "iconoir-react";
+import { useAtom } from "jotai";
+
 import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { getSplitText } from "@src/hooks/useShortText";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
-import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
-import { useAtom } from "jotai";
 import walletStore from "@src/store/walletStore";
-import ClickAwayListener from "@mui/material/ClickAwayListener";
-import { cn } from "@akashnetwork/ui/utils";
+import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { CustodialWalletPopup } from "../wallet/CustodialWalletPopup";
 import { ManagedWalletPopup } from "../wallet/ManagedWalletPopup";
 

@@ -1,11 +1,11 @@
 "use client";
 import { Avatar, AvatarFallback, AvatarImage, cardClasses, CardContent, CardHeader } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { MediaImage } from "iconoir-react";
 import Link from "next/link";
 
 import { ApiTemplate } from "@src/types";
 import { getShortText } from "@src/utils/stringUtils";
-import { cn } from "@akashnetwork/ui/utils";
 import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {

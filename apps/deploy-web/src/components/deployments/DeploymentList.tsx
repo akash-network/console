@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow
 } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Refresh, Rocket, Xmark } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -24,20 +25,19 @@ import { LinkTo } from "@src/components/shared/LinkTo";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import sdlStore from "@src/store/sdlStore";
+import walletStore from "@src/store/walletStore";
 import { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
-import { cn } from "@akashnetwork/ui/utils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
-import { DeploymentListRow } from "./DeploymentListRow";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
-import walletStore from "@src/store/walletStore";
-import { useCustomUser } from "@src/hooks/useCustomUser";
+import { DeploymentListRow } from "./DeploymentListRow";
 
 export const DeploymentList: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, isWalletLoaded, isWalletConnected } = useWallet();

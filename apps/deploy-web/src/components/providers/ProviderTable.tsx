@@ -1,8 +1,8 @@
 "use client";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 
 import { ClientProviderList } from "@src/types/provider";
-import { cn } from "@akashnetwork/ui/utils";
 import { ProviderListRow } from "./ProviderTableRow";
 
 type Props = {

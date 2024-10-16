@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import React from "react";
-import { Spinner } from "@akashnetwork/ui/components";
 import dynamic from "next/dynamic";
 
 import { Footer } from "@src/components/layout/Footer";

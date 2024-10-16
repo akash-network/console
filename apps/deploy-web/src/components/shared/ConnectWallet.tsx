@@ -1,14 +1,14 @@
 "use client";
 import React, { ReactNode } from "react";
+import { buttonVariants } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
+import { useAtom } from "jotai";
+import Link from "next/link";
 
+import walletStore from "@src/store/walletStore";
+import { UrlService } from "@src/utils/urlUtils";
 import { WalletStatus } from "../layout/WalletStatus";
 import { Title } from "./Title";
-import { useAtom } from "jotai";
-import walletStore from "@src/store/walletStore";
-import Link from "next/link";
-import { cn } from "@akashnetwork/ui/utils";
-import { buttonVariants } from "@akashnetwork/ui/components";
-import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
   text: string | ReactNode;

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import useWebSocket from "react-use-websocket";
 import { Alert, Button, Checkbox, CheckboxWithLabel, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Monaco } from "@monaco-editor/react";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -22,7 +23,6 @@ import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { LeaseDto } from "@src/types/deployment";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { cn } from "@akashnetwork/ui/utils";
 import { LeaseSelect } from "./LeaseSelect";
 
 export type LOGS_MODE = "logs" | "events";

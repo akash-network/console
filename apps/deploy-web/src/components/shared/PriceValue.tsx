@@ -2,10 +2,10 @@
 import { ReactNode } from "react";
 import { FormattedNumber } from "react-intl";
 import { Spinner } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 
 import { usePricing } from "@src/context/PricingProvider";
 import { ceilDecimal } from "@src/utils/mathHelpers";
-import { cn } from "@akashnetwork/ui/utils";
 
 type Props = {
   denom: string;

@@ -1,22 +1,22 @@
-import { Address, Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
-import { WalletBalance } from "@src/hooks/useWalletBalance";
-import { CoinsSwap } from "iconoir-react";
-import { Bank, LogOut } from "iconoir-react";
 import React from "react";
-import { useRouter } from "next/router";
-import { UrlService } from "@src/utils/urlUtils";
-import { uaktToAKT } from "@src/utils/priceUtils";
-import { udenomToDenom } from "@src/utils/mathHelpers";
-import { useWallet } from "@src/context/WalletProvider";
-import { browserEnvConfig } from "@src/config/browser-env.config";
-import { PriceValue } from "../shared/PriceValue";
-import { UAKT_DENOM } from "@src/config/denom.config";
 import { FormattedNumber } from "react-intl";
-import { useAtom } from "jotai";
-import { useCustomUser } from "@src/hooks/useCustomUser";
-import walletStore from "@src/store/walletStore";
+import { Address, Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
+import { Bank, LogOut } from "iconoir-react";
+import { useAtom } from "jotai";
 import Link from "next/link";
+import { useRouter } from "next/router";
+
+import { browserEnvConfig } from "@src/config/browser-env.config";
+import { UAKT_DENOM } from "@src/config/denom.config";
+import { useWallet } from "@src/context/WalletProvider";
+import { useCustomUser } from "@src/hooks/useCustomUser";
+import { WalletBalance } from "@src/hooks/useWalletBalance";
+import walletStore from "@src/store/walletStore";
+import { udenomToDenom } from "@src/utils/mathHelpers";
+import { uaktToAKT } from "@src/utils/priceUtils";
+import { UrlService } from "@src/utils/urlUtils";
+import { PriceValue } from "../shared/PriceValue";
 import { ConnectManagedWalletButton } from "./ConnectManagedWalletButton";
 
 interface CustodialWalletPopupProps extends React.PropsWithChildren {

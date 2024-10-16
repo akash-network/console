@@ -1,10 +1,10 @@
 "use client";
 import React, { ReactNode } from "react";
 import { Button, ButtonProps, Spinner } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Rocket } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { cn } from "@akashnetwork/ui/utils";
 
 interface Props extends ButtonProps {
   children?: ReactNode;

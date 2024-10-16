@@ -1,5 +1,6 @@
 "use client";
 import { cn } from "@akashnetwork/ui/utils";
+
 import { StatusPill } from "./StatusPill";
 
 type Props = {

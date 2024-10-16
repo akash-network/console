@@ -1,6 +1,5 @@
 "use client";
 import React from "react";
-
 import { cn } from "@akashnetwork/ui/utils";
 
 export function LinkTo({ children, className = "", ...rest }: React.PropsWithChildren<{ className?: string } & React.ButtonHTMLAttributes<object>>) {

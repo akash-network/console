@@ -1,5 +1,5 @@
 import React from "react";
-import { Copyright, Discord, Github, X as TwitterX, Youtube } from "iconoir-react";
+import { Copyright } from "iconoir-react";
 import Link from "next/link";
 
 import { UrlService } from "@src/utils/urlUtils";

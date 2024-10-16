@@ -2,9 +2,9 @@
 import { ReactNode, useState } from "react";
 import { Control } from "react-hook-form";
 import { Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 
 import { RentGpusFormValuesType, ServiceType } from "@src/types";
-import { cn } from "@akashnetwork/ui/utils";
 import { ExpandMore } from "../shared/ExpandMore";
 import { CommandFormModal } from "./CommandFormModal";
 import { CommandList } from "./CommandList";

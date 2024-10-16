@@ -1,6 +1,5 @@
 "use client";
 import { ReactNode } from "react";
-
 import { cn } from "@akashnetwork/ui/utils";
 
 type Props = {

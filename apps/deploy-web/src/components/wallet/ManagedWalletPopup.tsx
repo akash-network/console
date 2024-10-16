@@ -1,12 +1,13 @@
-import { Button, Separator } from "@akashnetwork/ui/components";
-import { WalletBalance } from "@src/hooks/useWalletBalance";
-import { CoinsSwap, HandCard } from "iconoir-react";
 import React from "react";
+import { FormattedNumber } from "react-intl";
+import { Button, Separator } from "@akashnetwork/ui/components";
+import { CoinsSwap, HandCard } from "iconoir-react";
+
 import { useWallet } from "@src/context/WalletProvider";
-import { LinkTo } from "../shared/LinkTo";
 import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
-import { FormattedNumber } from "react-intl";
+import { WalletBalance } from "@src/hooks/useWalletBalance";
+import { LinkTo } from "../shared/LinkTo";
 
 interface ManagedWalletPopupProps extends React.PropsWithChildren {
   walletBalance: WalletBalance;

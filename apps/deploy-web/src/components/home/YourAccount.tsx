@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { FormattedNumber, FormattedPlural } from "react-intl";
 import { Badge, buttonVariants, Card, CardContent, CardHeader, CardTitle, Spinner } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { ResponsivePie } from "@nivo/pie";
 import { HandCard, Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -22,7 +23,6 @@ import { ApiProviderList } from "@src/types/provider";
 import { customColors } from "@src/utils/colors";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, uaktToAKT } from "@src/utils/priceUtils";
-import { cn } from "@akashnetwork/ui/utils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ConnectWallet } from "../shared/ConnectWallet";

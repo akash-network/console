@@ -1,6 +1,5 @@
 "use client";
 import { useIntl } from "react-intl";
-
 import { cn } from "@akashnetwork/ui/utils";
 
 type Props = {

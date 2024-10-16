@@ -1,18 +1,18 @@
 "use client";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Menu, Xmark } from "iconoir-react";
+import { useAtom } from "jotai";
 import Link from "next/link";
 
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 import useCookieTheme from "@src/hooks/useTheme";
+import walletStore from "@src/store/walletStore";
 import { UrlService } from "@src/utils/urlUtils";
 import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
 import { AccountMenu } from "./AccountMenu";
 import { WalletStatus } from "./WalletStatus";
-import { useAtom } from "jotai";
-import walletStore from "@src/store/walletStore";
-import { cn } from "@akashnetwork/ui/utils";
-import { useCustomUser } from "@src/hooks/useCustomUser";
 
 export const Nav = ({
   isMobileOpen,

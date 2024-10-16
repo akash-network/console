@@ -2,6 +2,7 @@
 import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Control, Controller } from "react-hook-form";
 import { buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import InputAdornment from "@mui/material/InputAdornment";
 import Popper from "@mui/material/Popper";
@@ -13,7 +14,6 @@ import Link from "next/link";
 
 import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
 import { ApiTemplate, RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { cn } from "@akashnetwork/ui/utils";
 
 type Props = {
   children?: ReactNode;

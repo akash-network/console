@@ -3,6 +3,7 @@ import React, { ReactNode, useEffect, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { IntlProvider } from "react-intl";
 import { ErrorFallback, Spinner } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
@@ -12,7 +13,6 @@ import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
 import { WelcomeModal } from "./WelcomeModal";
-import { cn } from "@akashnetwork/ui/utils";
 
 type Props = {
   isLoading?: boolean;

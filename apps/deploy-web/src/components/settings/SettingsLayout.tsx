@@ -2,9 +2,9 @@
 import React, { ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { useRouter } from "next/navigation";
 
-import { cn } from "@akashnetwork/ui/utils";
 import { UrlService } from "@src/utils/urlUtils";
 import { Title } from "../shared/Title";
 

@@ -2,11 +2,13 @@
 import React, { useEffect, useState } from "react";
 import { MdRestartAlt } from "react-icons/md";
 import { Button, buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import Step from "@mui/material/Step";
 import StepContent from "@mui/material/StepContent";
 import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
 import { Check, HandCard, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
+import { useAtom } from "jotai";
 import Link from "next/link";
 
 import { LoginRequiredLink } from "@src/components/user/LoginRequiredLink";
@@ -14,19 +16,17 @@ import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManage
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
+import walletStore from "@src/store/walletStore";
 import { RouteStep } from "@src/types/route-steps.type";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
-import { cn } from "@akashnetwork/ui/utils";
 import { UrlService } from "@src/utils/urlUtils";
 import LiquidityModal from "../liquidity-modal";
 import { ExternalLink } from "../shared/ExternalLink";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
-import { useAtom } from "jotai";
-import walletStore from "@src/store/walletStore";
-import { useCustomUser } from "@src/hooks/useCustomUser";
 
 export const GetStartedStepper: React.FunctionComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
