@@ -8,12 +8,14 @@ import networkStore from "@src/store/networkStore";
 import { deleteManagedWalletFromStorage, ensureUserManagedWalletOwnership, getSelectedStorageWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
 import walletStore from "@src/store/walletStore";
 import { useAtom } from "jotai";
+import { useCustomUser } from "./useCustomUser";
 
 const { NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, NEXT_PUBLIC_BILLING_ENABLED } = browserEnvConfig;
 const isBillingEnabled = NEXT_PUBLIC_BILLING_ENABLED;
 
 export const useManagedWallet = () => {
   const user = useUser();
+  const { user: signedInUser } = useCustomUser();
   const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined);
   const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => queried || created, [queried, created]);
@@ -22,10 +24,10 @@ export const useManagedWallet = () => {
   const [, setIsSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
 
   useEffect(() => {
-    if (user?.id && (!!queried || !!created)) {
+    if (signedInUser?.id && (!!queried || !!created)) {
       setIsSignedInWithTrial(true);
     }
-  }, [user?.id, queried, created]);
+  }, [signedInUser?.id, queried, created]);
 
   useEffect(() => {
     if (!isBillingEnabled) {
