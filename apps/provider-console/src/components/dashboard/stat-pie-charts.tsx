@@ -53,7 +53,18 @@ export const StatPieChart: React.FC<StatPieChartProps> = ({ activeResources, pen
       <ChartContainer config={chartConfig} className="min-h-[100px] w-full">
         <ResponsiveContainer width="100%" height={150}>
           <PieChart>
-            <Pie data={data} cx="50%" cy="50%" labelLine={false} label={renderCustomizedLabel} outerRadius={45} fill="#8884d8" dataKey="value" paddingAngle={2}>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              // labelLine={true}
+              // label={renderCustomizedLabel}
+              innerRadius={30}
+              outerRadius={40}
+              fill="#8884d8"
+              dataKey="value"
+              paddingAngle={5}
+            >
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}

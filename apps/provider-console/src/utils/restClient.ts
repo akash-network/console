@@ -30,27 +30,6 @@ restClient.interceptors.response.use(
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
 
-      const originalRequest = error.config;
-
-      if (error.response.status === 401 && error.response.data.detail === "Signature has expired" && !originalRequest.retry) {
-        originalRequest.retry = true;
-
-        try {
-          const newToken = await checkAndRefreshToken();
-          if (newToken) {
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            return restClient(originalRequest);
-          } else {
-            // Token refresh failed, redirect to login or handle accordingly
-            // For example: history.push("/auth/login");
-            throw new Error("Token refresh failed");
-          }
-        } catch (refreshError) {
-          console.error("Error refreshing token:", refreshError);
-          throw refreshError;
-        }
-      }
-
       if (error.response.status === 401 && error.response.data.detail !== "Signature has expired") {
         console.log(error)
         // purgeStorage();

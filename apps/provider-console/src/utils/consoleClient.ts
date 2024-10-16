@@ -1,14 +1,12 @@
 // import { notification } from "antd";
 import axios from "axios";
 
-import authClient from "./authClient";
-
 const errorNotification = (error = "Error Occurred") => {
   console.log(error);
 };
 
 const consoleClient = axios.create({
-  baseURL: `https://console-api.akash.network/v1`,
+  baseURL: `https://api-preview.cloudmos.io`,
   timeout: 60000
 });
 

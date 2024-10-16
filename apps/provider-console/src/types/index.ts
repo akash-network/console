@@ -33,4 +33,5 @@ export type ISidebarRoute = {
   isNew?: boolean;
   rel?: string;
   target?: string;
+  disabled?: boolean;
 };

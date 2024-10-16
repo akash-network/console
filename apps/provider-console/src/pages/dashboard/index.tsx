@@ -16,6 +16,9 @@ import { StatPieChart } from "@src/components/dashboard/stat-pie-charts";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { formatBytes } from "@src/utils/formatBytes";
 import withAuth from "@src/components/shared/withAuth";
+import { formatUUsd } from "@src/utils/formatUsd";
+import DashboardCardSkeleton from "@src/components/dashboard/DashboardCardSkeleton";
+import { useWallet } from "@src/context/WalletProvider";
 
 // Moved outside component to avoid recreation on each render
 const fetchAktPrice = async () => {
@@ -30,17 +33,45 @@ const fetchAktPrice = async () => {
   }
 };
 
+const calculatePercentageChange = (currentPrice: number | null, previousPrice: number | null) => {
+  if (currentPrice === null || previousPrice === null || previousPrice === 0) {
+    return <span className="text-gray-500">0%</span>;
+  }
+
+  const percentageChange = ((currentPrice - previousPrice) / previousPrice) * 100;
+  const formattedChange = Math.abs(percentageChange).toFixed(2);
+
+  if (percentageChange > 0) {
+    return <span className="text-green-500">+{formattedChange}%</span>;
+  } else if (percentageChange < 0) {
+    return <span className="text-red-500">-{formattedChange}%</span>;
+  } else {
+    return <span className="text-gray-500">0%</span>;
+  }
+};
+
 const Dashboard: React.FC = () => {
   const [providerActions, setProviderActions] = useState<any[]>([]);
   const [aktPrice, setAktPrice] = useState<string | null>(null);
   const { address } = useSelectedChain();
+  const { isOnline } = useWallet();
 
   // Add this query to fetch provider details
   const { data: providerDetails, isLoading: isLoadingProviderDetails }: { data: any; isLoading: boolean } = useQuery(
     "providerDetails",
-    () => consoleClient.get(`/providers/${address}`),
+    () => consoleClient.get(`/v1/providers/${address}`),
     {
       // You might want to adjust these options based on your needs
+      refetchOnWindowFocus: false,
+      retry: 3
+    }
+  );
+
+  // Add this new query to fetch provider dashboard details
+  const { data: providerDashboard, isLoading: isLoadingProviderDashboard }: { data: any; isLoading: boolean } = useQuery(
+    "providerDashboard",
+    () => consoleClient.get(`/internal/provider-dashboard/${address}`),
+    {
       refetchOnWindowFocus: false,
       retry: 3
     }
@@ -108,94 +139,156 @@ const Dashboard: React.FC = () => {
       </div>
       <div className="mt-10">
         <div className="text-sm">Provider Summary</div>
-        <div className="mt-2 grid grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="rounded-lg p-6 shadow-md">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="">
-                  <div className="text-sm font-medium">Total Paid 24H</div>
-                  <div className="text-2xl font-semibold">$2555.0</div>
-                  <div className="mt-1 text-sm font-medium text-green-500">+3.35%</div>
-                </div>
-                <div className="col-span-2 flex items-center justify-end">
-                  <div className="w-full overflow-hidden">
-                    <StatLineCharts data={[15, 0, 25, 0, 45, 70]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} />
+        <div className="mt-2 grid grid-cols-4 gap-4">
+          {isLoadingProviderDashboard ? (
+            <>
+              <DashboardCardSkeleton />
+              <DashboardCardSkeleton />
+              <DashboardCardSkeleton />
+              <DashboardCardSkeleton />
+            </>
+          ) : (
+            <>
+              <Card>
+                <CardContent className="rounded-lg p-6 shadow-md">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="">
+                      <div className="text-sm font-medium">Total Paid 24H</div>
+                      <div className="text-2xl font-semibold">{formatUUsd(providerDashboard?.current.dailyUUsdEarned)}</div>
+                      <div className="mt-1 text-sm font-medium">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              {calculatePercentageChange(providerDashboard?.current.dailyUUsdEarned, providerDashboard?.previous.dailyUUsdEarned)}
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Change in total paid compared to 24 hours ago</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </div>
+                    <div className="col-span-2 flex items-center justify-end">
+                      <div className="w-full overflow-hidden">
+                        {/* <StatLineCharts data={[15, 0, 25, 0, 45, 70]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="rounded-lg p-6 shadow-md">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="">
-                  <div className="text-sm font-medium">Total Paid 7D</div>
-                  <div className="text-2xl font-semibold">$7354.0</div>
-                  <div className="mt-1 text-sm font-medium">+7.35%</div>
-                </div>
-                <div className="col-span-2 flex items-center justify-end">
-                  <div className="w-full overflow-hidden">
-                    <StatLineCharts data={[25, 65, 30, 45, 80]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="rounded-lg p-6 shadow-md">
+                  <div className="grid-cols4 grid gap-4">
+                    <div className="">
+                      <div className="text-sm font-medium">Total Paid</div>
+                      <div className="text-2xl font-semibold">{formatUUsd(providerDashboard?.current.totalUUsdEarned)}</div>
+                      <div className="mt-1 text-sm font-medium">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              {calculatePercentageChange(providerDashboard?.current.totalUUsdEarned, providerDashboard?.previous.totalUUsdEarned)}
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Change in total paid compared to 24 hours ago</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </div>
+                    <div className="col-span-2 flex items-center justify-end">
+                      <div className="w-full overflow-hidden">
+                        {/* <StatLineCharts data={[25, 65, 30, 45, 80]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="rounded-lg p-6 shadow-md">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="">
-                  <div className="text-sm font-medium">Total Leases</div>
-                  <div className="text-2xl font-semibold">18</div>
-                  <div className="mt-1 text-sm font-medium">+5.70%</div>
-                </div>
-                <div className="col-span-2 flex items-center justify-end">
-                  <div className="w-full overflow-hidden">
-                    <StatLineCharts data={[10, 34, 20, 60, 75]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="rounded-lg p-6 shadow-md">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="">
+                      <div className="text-sm font-medium">Active Leases</div>
+                      <div className="text-2xl font-semibold">
+                        {providerDashboard?.current.activeLeaseCount ? `${providerDashboard?.current.activeLeaseCount}` : "0"}
+                      </div>
+                      <div className="mt-1 text-sm font-medium">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              {calculatePercentageChange(providerDashboard?.current.activeLeaseCount, providerDashboard?.previous.activeLeaseCount)}
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Change in active leases compared to 24 hours ago</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </div>
+                    <div className="col-span-2 flex items-center justify-end">
+                      <div className="w-full overflow-hidden">
+                        {/* <StatLineCharts data={[10, 34, 20, 60, 75]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="rounded-lg p-6 shadow-md">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="">
+                      <div className="text-sm font-medium">Total Leases</div>
+                      <div className="text-2xl font-semibold">
+                        {providerDashboard?.current.totalLeaseCount ? `${providerDashboard?.current.totalLeaseCount}` : "0"}
+                      </div>
+                      <div className="mt-1 text-sm font-medium">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              {calculatePercentageChange(providerDashboard?.current.totalLeaseCount, providerDashboard?.previous.totalLeaseCount)}
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Change in total leases compared to 24 hours ago</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </div>
+                    <div className="col-span-2 flex items-center justify-end">
+                      <div className="w-full overflow-hidden">
+                        {/* <StatLineCharts data={[10, 34, 20, 60, 75]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
       </div>
-      {providerDetails && providerDetails.isOnline && (
+      {isOnline && (
         <>
           <div className="mt-8">
             <div className="text-sm">Resources Leased Summary</div>
-            <div className="mt-2">{isLoadingProviderDetails ? <div>Loading resource details...</div> : renderResourceCards(providerDetails)}</div>
+            <div className="mt-2">
+              {isLoadingProviderDetails ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  <DashboardCardSkeleton />
+                  <DashboardCardSkeleton />
+                  <DashboardCardSkeleton />
+                  <DashboardCardSkeleton />
+                </div>
+              ) : (
+                renderResourceCards(providerDetails)
+              )}
+            </div>
           </div>
         </>
       )}
+
+      <Separator className="mt-10" />
       <div className="mt-8">
-        <div className="text-sm">Spent Assets Summary</div>
-        <div className="mt-2 grid grid-cols-3 gap-4">
-          <Card>
-            <CardHeader>
-              <div className="text-sm">AKT Spent</div>
-            </CardHeader>
-            <CardContent className="pb-4 pt-0">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="">
-                  <div className="text-lg font-bold">$2555.0</div>
-                  <div className="text-sm">3.35%</div>
-                </div>
-                <div className="">Graph here</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>Total Paid</CardHeader>
-            <CardContent className="pb-4 pt-0">$2555.0</CardContent>
-          </Card>
-          <Card>
-            <CardHeader>Total Paid</CardHeader>
-            <CardContent className="pb-4 pt-0">$2555.0</CardContent>
-          </Card>
-        </div>
-        <Separator className="my-4" />
         <div className="mt-2">
-          <div className="text-sm">Provider Activity</div>
+          <div className="text-sm">Provider Actions</div>
           <ProviderActionList actions={providerActions} />
         </div>
       </div>

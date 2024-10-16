@@ -55,7 +55,7 @@ export function HomeContainer() {
     <Layout containerClassName="flex h-full flex-col justify-between" isLoading={!isProviderStatusFetched || isLoading}>
       <div className="flex flex-grow items-center justify-center">
         <div className="mb-4">
-          {(!isProviderStatusFetched || isLoading) ? (
+          {(!isProviderStatusFetched || isLoading) && isWalletConnected ? (
             <div className="flex flex-col items-center justify-center">
               <Spinner />
               <p className="mt-2">{loadingMessage}</p>

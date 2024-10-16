@@ -29,12 +29,14 @@ export async function checkAndRefreshToken(): Promise<string | null> {
             throw new Error('Refresh token or wallet address not found');
         }
 
-        const refreshResponse = await authClient.post('/auth/refresh', {
+        const refreshResponse: any = await authClient.post('/auth/refresh', {
             refresh_token: refreshToken,
             address: walletAddress,
         });
 
-        if (refreshResponse.data.status === 'success') {
+        console.log("refreshResponse", refreshResponse);
+
+        if (refreshResponse.status === 'success') {
             const newAccessToken = refreshResponse.data.access_token;
             const newRefreshToken = refreshResponse.data.refresh_token;
 

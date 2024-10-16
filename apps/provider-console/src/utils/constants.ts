@@ -58,8 +58,9 @@ function getApiUrl() {
   // if (typeof window === "undefined") return "http://localhost:3080";
   // if (productionHostnames.includes(window.location?.hostname)) {
   try {
-    const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
-    return getNetworkBaseApiUrl(_selectedNetworkId || mainnetId);
+    // TODO: Revisit this when we have a way to get the selected network from the wallet 
+    // const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
+    return getNetworkBaseApiUrl(mainnetId);
   } catch (e) {
     console.error(e);
     return productionMainnetApiUrl;

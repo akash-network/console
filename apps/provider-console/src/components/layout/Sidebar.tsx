@@ -4,7 +4,7 @@ import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { Discord, Github, Menu, MenuScale, Rocket, X as TwitterX, Youtube } from "iconoir-react";
+import { Discord, Github, Menu, MenuScale, Rocket, X as TwitterX, Youtube, Cloud, Settings, ClipboardCheck, Calculator, ListSelect } from "iconoir-react";
 import { Home, OpenInWindow } from "iconoir-react";
 import getConfig from "next/config";
 import Image from "next/image";
@@ -43,6 +43,41 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           icon: props => <Home {...props} />,
           url: UrlService.home(),
           activeRoutes: [UrlService.home()]
+        },
+        {
+          title: "Leases",
+          icon: props => <Cloud {...props} />,
+          url: "#",
+          activeRoutes: ["#"],
+          disabled: true
+        },
+        {
+          title: "Actions",
+          icon: props => <ClipboardCheck {...props} />,
+          url: "#",
+          activeRoutes: ["#"],
+          disabled: true
+        },
+        {
+          title: "Pricing",
+          icon: props => <Calculator {...props} />,
+          url: "#",
+          activeRoutes: ["#"],
+          disabled: true
+        },
+        {
+          title: "Attributes",
+          icon: props => <ListSelect {...props} />,
+          url: "#",
+          activeRoutes: ["#"],
+          disabled: true
+        },
+        {
+          title: "Settings",
+          icon: props => <Settings {...props} />,
+          url: "#",
+          activeRoutes: ["#"],
+          disabled: true
         }
       ]
     },
@@ -238,4 +273,3 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
     </nav>
   );
 };
-
