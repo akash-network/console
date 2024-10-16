@@ -43,7 +43,7 @@ export function WalletStatus() {
                       >
                         <div className="flex items-center space-x-2">
                           {!isManaged && <Wallet className="text-xs" />}
-                          {isManaged && isTrialing && <p className="text-primary">Trial</p>}
+                          {isManaged && isTrialing && <span className="text-xs">Trial</span>}
                           {!isManaged && (
                             <>
                               {walletName?.length > 20 ? (
@@ -53,7 +53,6 @@ export function WalletStatus() {
                               )}
                             </>
                           )}
-                          {/* {!isManaged && walletBalance && <CustodialWalletPopup walletName={walletName} address={address} walletBalance={walletBalance} />} */}
                         </div>
 
                         <div className="px-2">|</div>

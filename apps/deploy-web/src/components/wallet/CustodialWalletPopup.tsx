@@ -33,7 +33,7 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
       </div>
 
       <div className="mb-1 text-xs text-muted-foreground">Wallet Balance</div>
-      <div className="mb-4 rounded-md border border-success/10 bg-success/10 p-2 text-success dark:bg-success dark:text-foreground">
+      <div className="mb-4 rounded-md border border-success/10 bg-success/10 p-2 text-success dark:border-success/80 dark:bg-success/80 dark:text-foreground">
         <div className="flex items-center justify-between space-x-2">
           <span className="text-xs">AKT</span>
           <span className="flex items-center space-x-1">
@@ -42,7 +42,7 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
           </span>
         </div>
 
-        <Separator className="my-2 bg-success/10" />
+        <Separator className="my-2 bg-success/10 dark:bg-white/20" />
 
         <div className="flex items-center justify-between space-x-2">
           <span className="text-xs">USDC</span>
