@@ -4,13 +4,14 @@ import * as Sentry from "@sentry/nextjs";
 
 import authClient from "./authClient";
 import { checkAndRefreshToken } from "./tokenUtils";
+import { BASE_API_PROVIDER_CONSOLE_URL } from "./constants";
 
 const errorNotification = (error = "Error Occurred") => {
   console.log(error);
 };
 
 const restClient = axios.create({
-  baseURL: `http://5cujrkcvn9e234vilf1iglkf98.ingress.hurricane.akash.pub/`,
+  baseURL: BASE_API_PROVIDER_CONSOLE_URL,
   timeout: 60000
 });
 

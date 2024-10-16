@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { Button, Card, CardContent, CardHeader, Separator } from "@akashnetwork/ui/components";
+import { Button, Card, CardContent, CardHeader, Separator, Spinner } from "@akashnetwork/ui/components";
 import consoleClient from "@src/utils/consoleClient";
 import { Shield, AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@akashnetwork/ui/components";
@@ -138,7 +138,12 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
       <div className="mt-10">
-        <div className="text-sm">Provider Summary</div>
+        <div className="text-sm font-semibold">
+          <div className="inline-flex items-center space-x-2">
+            Provider Summary
+            {isLoadingProviderDashboard && <Spinner className="mb-2 ml-2 h-5 w-5" />}
+          </div>
+        </div>
         <div className="mt-2 grid grid-cols-4 gap-4">
           {isLoadingProviderDashboard ? (
             <>
@@ -268,7 +273,7 @@ const Dashboard: React.FC = () => {
       {isOnline && (
         <>
           <div className="mt-8">
-            <div className="text-sm">Resources Leased Summary</div>
+            <div className="text-sm font-semibold">Resources Leased Summary</div>
             <div className="mt-2">
               {isLoadingProviderDetails ? (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -288,7 +293,7 @@ const Dashboard: React.FC = () => {
       <Separator className="mt-10" />
       <div className="mt-8">
         <div className="mt-2">
-          <div className="text-sm">Provider Actions</div>
+          <div className="text-sm font-semibold">Provider Actions</div>
           <ProviderActionList actions={providerActions} />
         </div>
       </div>

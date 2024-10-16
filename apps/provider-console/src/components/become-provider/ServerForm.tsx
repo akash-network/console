@@ -90,8 +90,8 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
     if (currentServerNumber > 0 && providerProcess?.storeInformation) {
       const firstServer = providerProcess.machines[0]?.access;
       if (firstServer.file) {
-        // Assume firstServer.file is already a base64 string
-        setStoredFileContent(firstServer.file);
+        // Ensure firstServer.file is a string (base64)
+        setStoredFileContent(typeof firstServer.file === 'string' ? firstServer.file : null);
         form.setValue("authType", "file");
       }
     }
@@ -167,7 +167,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
           ...providerProcess,
           machines,
           storeInformation: currentServerNumber === 0 ? formValues.saveInformation : providerProcess?.storeInformation,
-          process: providerProcess.process,
+          process: providerProcess.process
         });
         onSubmit();
       }
@@ -185,7 +185,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = e => {
         const base64Content = e.target?.result as string;
         setStoredFileContent(base64Content);
         setSelectedFile(file);

@@ -1,6 +1,7 @@
 // import { notification } from 'antd'
 import axios from "axios";
 import * as Sentry from "@sentry/nextjs";
+import { BASE_API_PROVIDER_SECURITY_URL } from "./constants";
 
 const errorNotification = (error = "Error Occurred") => {
   // notification.error({
@@ -10,7 +11,7 @@ const errorNotification = (error = "Error Occurred") => {
 };
 
 const authClient = axios.create({
-  baseURL: `http://aisrlqh46hd27cm7o29rqo3378.ingress.hurricane.akash.pub`,
+  baseURL: BASE_API_PROVIDER_SECURITY_URL,
   timeout: 30000
 });
 

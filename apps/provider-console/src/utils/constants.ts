@@ -14,6 +14,13 @@ export const selectedRangeValues: { [key: string]: number } = {
 const productionMainnetApiUrl = "https://console-api.akash.network";
 const productionTestnetApiUrl = "https://console-api-testnet.akash.network";
 const productionSandboxApiUrl = "https://console-api-sandbox.akash.network";
+
+// temp urls
+const productionProviderConsoleApiUrl = "http://5cujrkcvn9e234vilf1iglkf98.ingress.hurricane.akash.pub/";
+const productionProviderSecurityApiUrl = "http://aisrlqh46hd27cm7o29rqo3378.ingress.hurricane.akash.pub";
+
+export const BASE_API_PROVIDER_CONSOLE_URL = productionProviderConsoleApiUrl;
+export const BASE_API_PROVIDER_SECURITY_URL = productionProviderSecurityApiUrl;
 export const BASE_API_MAINNET_URL = getApiMainnetUrl();
 export const BASE_API_TESTNET_URL = getApiTestnetUrl();
 export const BASE_API_SANDBOX_URL = getApiSandboxUrl();

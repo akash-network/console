@@ -16,6 +16,7 @@ import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ModeToggle } from "./ModeToggle";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
+import { useWallet } from "@src/context/WalletProvider";
 
 const { publicRuntimeConfig } = getConfig();
 
@@ -29,6 +30,7 @@ type Props = {
 
 export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
   const [isHovering, setIsHovering] = useState(false);
+  const { isProvider, isOnline } = useWallet();
   const _isNavOpen = isNavOpen || isHovering;
   // const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const muiTheme = useMuiTheme();
@@ -141,15 +143,17 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       className="border-muted-foreground/20 bg-popover dark:bg-background box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] transition-[width] duration-300 ease-in-out md:h-[calc(100%-57px)]"
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: _isNavOpen, ["pb-2 pt-2"]: !_isNavOpen })}>
-        <Link
-          className={cn(buttonVariants({ variant: "default", size: _isNavOpen ? "lg" : "icon" }), "h-[45px] w-full leading-4", {
-            ["h-[45px] w-[45px] min-w-0 pb-2 pt-2"]: !_isNavOpen
-          })}
-          href="/become-provider"
-        >
-          {_isNavOpen && "Become Provider "}
-          <Rocket className={cn("rotate-45", { ["ml-4"]: _isNavOpen })} fontSize="small" />
-        </Link>
+        {(!isProvider || !isOnline) && (
+          <Link
+            className={cn(buttonVariants({ variant: "default", size: _isNavOpen ? "lg" : "icon" }), "h-[45px] w-full leading-4", {
+              ["h-[45px] w-[45px] min-w-0 pb-2 pt-2"]: !_isNavOpen
+            })}
+            href="/become-provider"
+          >
+            {_isNavOpen && "Become Provider "}
+            <Rocket className={cn("rotate-45", { ["ml-4"]: _isNavOpen })} fontSize="small" />
+          </Link>
+        )}
 
         {routeGroups.map((g, i) => (
           <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={_isNavOpen} />

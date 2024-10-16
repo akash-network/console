@@ -84,12 +84,6 @@ export const WalletProvider = ({ children }) => {
   } = useSelectedChain();
   const { addEndpoints } = useManager();
   const selectedNetwork = useSelectedNetwork();
-  // const { signArbitrary: keplrSignArbitrary } = useChainWallet("akash", "keplr-extension");
-  // const { signArbitrary: leapSignArbitrary } = useChainWallet("akash", "leap-extension");
-  // const {
-  //   fee: { default: feeGranter }
-  // } = useAllowance();
-
   useEffect(() => {
     if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
 
