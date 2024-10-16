@@ -106,10 +106,10 @@ export const GetStartedStepper: React.FunctionComponent = () => {
               <LoginRequiredLink
                 className={cn("hover:no-underline", buttonVariants({ variant: "outline", className: "mr-2 border-primary" }))}
                 href="/api/proxy/v1/checkout"
-                message="Sign In or Sign Up to top up your balance"
+                message="Sign In or Sign Up to add funds to your balance"
               >
                 <HandCard className="text-xs text-accent-foreground" />
-                <span className="m-2 whitespace-nowrap text-accent-foreground">Top Up Balance</span>
+                <span className="m-2 whitespace-nowrap text-accent-foreground">Add Funds</span>
               </LoginRequiredLink>
             )}
             <Button variant="default" onClick={handleNext}>

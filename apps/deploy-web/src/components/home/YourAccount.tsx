@@ -232,9 +232,9 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
                 <LoginRequiredLink
                   className={cn("mt-4", buttonVariants({ variant: "default" }))}
                   href="/api/proxy/v1/checkout"
-                  message="Sign In or Sign Up to top up your balance"
+                  message="Sign In or Sign Up to add funds to your balance"
                 >
-                  Top up balance
+                  Add Funds
                   <HandCard className="ml-4 rotate-45 text-sm" />
                 </LoginRequiredLink>
               )}
