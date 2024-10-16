@@ -41,10 +41,10 @@ export function WalletStatus() {
                       onMouseOver={() => setOpen(true)}
                     >
                       <div className="flex items-center space-x-2">
-                        {!isManaged && <Wallet className="text-xs" />}
                         {isManaged && isTrialing && <span className="text-xs">Trial</span>}
                         {!isManaged && (
                           <>
+                            <Wallet className="text-xs" />
                             {walletName?.length > 20 ? (
                               <span className="text-xs">{getSplitText(walletName, 4, 4)}</span>
                             ) : (
@@ -54,7 +54,7 @@ export function WalletStatus() {
                         )}
                       </div>
 
-                      <div className="px-2">|</div>
+                      {(isManaged && isTrialing) || (!isManaged && <div className="px-2">|</div>)}
 
                       <div className="text-xs">
                         <FormattedNumber

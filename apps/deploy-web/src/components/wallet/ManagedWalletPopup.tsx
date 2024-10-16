@@ -61,10 +61,12 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
         </LinkTo>
       </div>
 
-      <div className="my-2 text-center text-xs text-muted-foreground">
-        Once your Free credits run out, deployments will automatically close. To continue, create an account and add funds with your credit card. Deployments
-        from your Free Trial get transferred when creating a new account.
-      </div>
+      {isManaged && isTrialing && (
+        <div className="my-2 text-center text-xs text-muted-foreground">
+          Once your Free credits run out, deployments will automatically close. To continue, create an account and add funds with your credit card. Deployments
+          from your Free Trial get transferred when creating a new account.
+        </div>
+      )}
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
         <Button onClick={whenLoggedIn(goToCheckout, "Sign In or Sign Up to add funds")} variant="outline" className="w-full space-x-2">
