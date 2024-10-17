@@ -82,3 +82,4 @@ apps/stats-web/.env
 data
 testdata
 test-results
+.github/test-data
