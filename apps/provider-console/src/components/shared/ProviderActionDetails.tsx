@@ -1,6 +1,6 @@
 "use client";
 import { Separator } from "@akashnetwork/ui/components";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, XIcon } from "lucide-react";
 import restClient from "@src/utils/restClient";
 
@@ -66,22 +66,36 @@ const formatTimeLapse = (start: string, end: string | null) => {
 export const ProviderActionDetails: React.FunctionComponent<{ actionId: string | null }> = ({ actionId }) => {
   const [processData, setProcessData] = useState<ApiResponse | null>(null);
   const [openAccordions, setOpenAccordions] = useState<boolean[]>([]);
+  const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const fetchStatus = async () => {
       try {
         const response: any = await restClient.get(`/action/status/${actionId}`);
         setProcessData(response);
-        setOpenAccordions(new Array(response.data.tasks.length).fill(false));
+        console.log("response", response);
+        setOpenAccordions(new Array(response.tasks.length).fill(false));
+
+        if (response.status === "completed" || response.status === "failed") {
+          console.log("Stopping polling for action:", actionId);
+          if (intervalIdRef.current) {
+            clearInterval(intervalIdRef.current);
+            intervalIdRef.current = null;
+          }
+        }
       } catch (error) {
         console.error("Error fetching status:", error);
       }
     };
 
     fetchStatus();
-    const interval = setInterval(fetchStatus, 5000); // Poll every 5 seconds
+    intervalIdRef.current = setInterval(fetchStatus, 5000);
 
-    return () => clearInterval(interval);
+    return () => {
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current);
+      }
+    };
   }, [actionId]);
 
   const toggleAccordion = (index: number) => {
@@ -109,22 +123,22 @@ export const ProviderActionDetails: React.FunctionComponent<{ actionId: string |
 
   return (
     <div className="flex w-full flex-col pt-2">
-      <div className="w-full max-w-2xl space-y-6">
+      <div className="w-full space-y-6">
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
             {processData.status === "in_progress" && <Loader2Icon className="h-5 w-5 animate-spin text-blue-500" />}
             {processData.status === "completed" && <CheckIcon className="h-5 w-5 text-green-500" />}
             {processData.status === "failed" && <XIcon className="h-5 w-5 text-red-500" />}
-            <span className="text-lg font-semibold">
-              {processData.name}
-            </span>
+            <span className="text-xl font-semibold">{processData.name}</span>
           </div>
+          <Separator />
           <p className="text-sm text-gray-500">{processData.id}</p>
           <p className="text-sm text-gray-500">
             Started: {formatLocalTime(processData.start_time)}
             {processData.end_time && ` | Ended: ${formatLocalTime(processData.end_time)}`}
           </p>
         </div>
+
         <div className="space-y-4">
           <div className="rounded-md border">
             {processData.tasks.map((task, index) => (

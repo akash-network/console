@@ -38,7 +38,7 @@ export function WalletStatus() {
 
   const getNonceMessage = (nonce: string) => {
     const url = process.env.NODE_ENV === "development" ? DEV_URL : window.location.hostname;
-    return `provider-beta.console.akash.network wants you to sign in with your Keplr account - ${address} using Nonce - ${nonce}`;
+    return `provider-console-beta.akash.network wants you to sign in with your Keplr account - ${address} using Nonce - ${nonce}`;
   };
 
   const handleWalletConnectSuccess = async () => {

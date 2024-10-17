@@ -35,7 +35,6 @@ export const StatLineCharts: React.FunctionComponent<DashboardChartsProps> = ({ 
       {/* <div id="chart">{typeof window !== "undefined" && <Chart options={chartOptions} series={chartvariable.series} type="line" height={125} />}</div> */}
       <ChartContainer config={chartConfig} className="min-h-[150px] w-full">
         <AreaChart
-          accessibilityLayer
           data={chartData}
           margin={{
             left: 12,

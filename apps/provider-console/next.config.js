@@ -36,4 +36,17 @@ const nextConfig = {
   }
 };
 
-module.exports = withSentryConfig(nextConfig);
+// Sentry webpack plugin configuration
+const sentryWebpackPluginOptions = {
+  silent: true, // Suppresses all logs
+  dryRun: process.env.NODE_ENV !== 'production', // Only upload source maps in production
+  release: require("./package.json").version,
+  // Add Sentry auth token only for production builds
+  authToken: process.env.NODE_ENV === 'production' ? process.env.SENTRY_AUTH_TOKEN : undefined,
+};
+
+// Wrap nextConfig with Sentry configuration
+module.exports = withSentryConfig(
+  nextConfig,
+  sentryWebpackPluginOptions
+);

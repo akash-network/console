@@ -137,7 +137,7 @@ export const WalletProvider = ({ children }) => {
   async function createStargateClient() {
     const selectedNetwork = getSelectedNetwork();
 
-    const offlineSigner = getOfflineSigner();
+    const offlineSigner: any = getOfflineSigner();
     let rpc = settings?.rpcEndpoint ? settings?.rpcEndpoint : (selectedNetwork.rpcEndpoint as string);
 
     try {
@@ -149,10 +149,7 @@ export const WalletProvider = ({ children }) => {
       }
     }
 
-    const client = await SigningStargateClient.connectWithSigner(rpc, offlineSigner, {
-      registry: customRegistry,
-      broadcastTimeoutMs: 300_000 // 5min
-    });
+    const client = await SigningStargateClient.connectWithSigner(rpc, offlineSigner);
 
     return client;
   }

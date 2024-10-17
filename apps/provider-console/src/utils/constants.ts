@@ -16,8 +16,8 @@ const productionTestnetApiUrl = "https://console-api-testnet.akash.network";
 const productionSandboxApiUrl = "https://console-api-sandbox.akash.network";
 
 // temp urls
-const productionProviderConsoleApiUrl = "http://5cujrkcvn9e234vilf1iglkf98.ingress.hurricane.akash.pub/";
-const productionProviderSecurityApiUrl = "http://aisrlqh46hd27cm7o29rqo3378.ingress.hurricane.akash.pub";
+const productionProviderConsoleApiUrl = "https://provider-console-api.akash.network";
+const productionProviderSecurityApiUrl = "https://provider-console-security.akash.network";
 
 export const BASE_API_PROVIDER_CONSOLE_URL = productionProviderConsoleApiUrl;
 export const BASE_API_PROVIDER_SECURITY_URL = productionProviderSecurityApiUrl;

@@ -89,7 +89,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <Layout>
-      {providerDetails && !providerDetails.isOnline && (
+      {providerDetails && !isOnline && (
         <div className="mb-4 rounded-md bg-yellow-100 p-4 text-yellow-700">
           <div className="flex">
             <AlertTriangle className="mr-2 h-5 w-5" />
@@ -112,10 +112,10 @@ const Dashboard: React.FC = () => {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <div className={`h-2 w-2 rounded-full ${providerDetails.isOnline ? "bg-green-500" : "bg-red-500"}`} />
+                  <div className={`h-2 w-2 rounded-full ${isOnline ? "bg-green-500" : "bg-red-500"}`} />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{providerDetails.isOnline ? "Provider is online" : "Provider is offline"}</p>
+                  <p>{isOnline ? "Provider is online" : "Provider is offline"}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
