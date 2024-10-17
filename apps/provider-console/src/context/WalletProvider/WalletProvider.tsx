@@ -6,16 +6,13 @@ import { EncodeObject } from "@cosmjs/proto-signing";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { useManager } from "@cosmos-kit/react";
 import axios from "axios";
-import { OpenNewWindow } from "iconoir-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SnackbarKey, useSnackbar } from "notistack";
 
 import { TransactionModal } from "@src/components/layout/TransactionModal";
-// import { useAllowance } from "@src/hooks/useAllowance"; TODO
 import { useUsdcDenom } from "@src/hooks/useDenom";
-import { getSelectedNetwork, useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
-import { STATS_APP_URL, uAktDenom } from "@src/utils/constants";
+import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { uAktDenom } from "@src/utils/constants";
 import { customRegistry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
@@ -110,6 +107,7 @@ export const WalletProvider = ({ children }) => {
   function logout() {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
+    localStorage.removeItem("walletAddress");
     setWalletBalances(null);
     disconnect();
     router.push(UrlService.home());
@@ -244,7 +242,6 @@ export const WalletProvider = ({ children }) => {
     enqueueSnackbar(
       <Snackbar
         title={snackTitle}
-        subTitle={<TransactionSnackbarContent snackMessage={snackMessage} transactionHash={transactionHash} />}
         iconVariant={snackVariant}
       />,
       {
@@ -306,20 +303,3 @@ export function useWallet() {
   return { ...React.useContext(WalletProviderContext) };
 }
 
-const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
-  const selectedNetwork = useSelectedNetwork();
-  const txUrl = transactionHash && `${STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetwork.id}`;
-
-  return (
-    <>
-      {snackMessage}
-      {snackMessage && <br />}
-      {txUrl && (
-        <Link href={txUrl} target="_blank" className="inline-flex items-center space-x-2 !text-white">
-          <span>View transaction</span>
-          <OpenNewWindow className="text-xs" />
-        </Link>
-      )}
-    </>
-  );
-};
