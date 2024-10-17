@@ -18,7 +18,8 @@
         "config",
         "stats",
         "release",
-        "repo"
+        "repo",
+        "styling"
       ]
     ]
   }

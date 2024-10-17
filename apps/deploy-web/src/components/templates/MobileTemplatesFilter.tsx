@@ -1,11 +1,11 @@
 "use client";
 import React, { ReactNode } from "react";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import Drawer from "@mui/material/Drawer";
 import { Xmark } from "iconoir-react";
 
 import { ApiTemplate } from "@src/types";
-import { cn } from "@src/utils/styleUtils";
 
 type Props = {
   children?: ReactNode;

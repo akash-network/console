@@ -7,8 +7,8 @@
   "scripts": {
     "api:dev": "turbo dev --filter=\"./apps/api\"",
     "console:dev": "turbo dev --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/provider-proxy/\"",
-    "console:dev:full-no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/indexer\" --filter=\"./apps/provider-proxy/\"",
-    "console:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/provider-proxy/\"",
+    "console:dev:full-no-db": "cross-env SKIP_DC_DB=true turbo dev-nodc --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/indexer\" --filter=\"./apps/provider-proxy/\"",
+    "console:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev-nodc --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/provider-proxy/\"",
     "dc:build": "dc build",
     "dc:down": "dc down",
     "dc:up:db": "dc up:db",

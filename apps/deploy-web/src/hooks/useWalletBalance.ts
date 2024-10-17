@@ -49,14 +49,14 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
           udenomToUsd(d.escrowAccount.balance.amount, d.escrowAccount.balance.denom),
         0
       );
-      const totalDeploymentGrantsUSD = balances.deploymentGrants.grants.reduce(
+      const totalDeploymentGrantsUSD = balances.deploymentGrants.reduce(
         (acc, d) => acc + udenomToUsd(d.authorization.spend_limit.amount, d.authorization.spend_limit.denom),
         0
       );
-      const totalGrantsUAKT = balances.deploymentGrants.grants
+      const totalGrantsUAKT = balances.deploymentGrants
         .filter(d => d.authorization.spend_limit.denom === UAKT_DENOM)
         .reduce((acc, d) => acc + parseFloat(d.authorization.spend_limit.amount), 0);
-      const totalGrantsUUSDC = balances.deploymentGrants.grants
+      const totalGrantsUUSDC = balances.deploymentGrants
         .filter(d => d.authorization.spend_limit.denom === usdcIbcDenom)
         .reduce((acc, d) => acc + parseFloat(d.authorization.spend_limit.amount), 0);
 

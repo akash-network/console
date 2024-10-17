@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { Badge, CustomNoDivTooltip, CustomTooltip, TableCell, TableRow } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { WarningCircle } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
@@ -10,7 +11,6 @@ import { ClientProviderList } from "@src/types/provider";
 import { createFilterUnique } from "@src/utils/array";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
-import { cn } from "@src/utils/styleUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { FavoriteButton } from "../shared/FavoriteButton";

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button, buttonVariants, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import { NavArrowLeft, Rocket } from "iconoir-react";
 import Link from "next/link";
@@ -15,7 +16,6 @@ import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { getShortText } from "@src/hooks/useShortText";
 import { ApiTemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
-import { cn } from "@src/utils/styleUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
