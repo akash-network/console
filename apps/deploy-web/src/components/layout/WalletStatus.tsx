@@ -55,7 +55,7 @@ export function WalletStatus() {
                         )}
                       </div>
 
-                      {(isManaged && isTrialing) || (!isManaged && <div className="px-2">|</div>)}
+                      {((isManaged && isTrialing) || !isManaged) && <div className="px-2">|</div>}
 
                       <div className="text-xs">
                         <FormattedNumber
