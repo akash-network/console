@@ -1,5 +1,12 @@
 
 
+## [2.19.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.17.0...console-web/v2.19.0-beta.0) (2024-10-17)
+
+
+### Features
+
+* **wallet:** improve fiat payments ux ([295e085](https://github.com/akash-network/console/commit/295e08542deb57634de624c5815e1e7127333a16)), closes [#411](https://github.com/akash-network/console/issues/411)
+
 ## [2.17.0](https://github.com/akash-network/console/compare/console-web/v2.17.0-beta.0...console-web/v2.17.0) (2024-10-14)
 
 ## 2.17.0-beta.0 (2024-10-14)
