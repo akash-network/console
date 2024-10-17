@@ -1,5 +1,12 @@
 
 
+## [2.25.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.25.0-beta.0...console-api/v2.25.0-beta.1) (2024-10-17)
+
+
+### Features
+
+* **billing:** update master wallet and enable billing for prod ([90e0235](https://github.com/akash-network/console/commit/90e023594e6135d0e99f4b734c7e3706159d0fb4))
+
 ## [2.25.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.24.0...console-api/v2.25.0-beta.0) (2024-10-17)
 
 
