@@ -1,14 +1,17 @@
 // import { notification } from "antd";
 import axios from "axios";
+import * as Sentry from "@sentry/nextjs";
 
 import authClient from "./authClient";
+import { checkAndRefreshToken } from "./tokenUtils";
+import { BASE_API_PROVIDER_CONSOLE_URL } from "./constants";
 
 const errorNotification = (error = "Error Occurred") => {
   console.log(error);
 };
 
 const restClient = axios.create({
-  baseURL: `${process.env.REACT_APP_BACKEND_URL}`,
+  baseURL: BASE_API_PROVIDER_CONSOLE_URL,
   timeout: 60000
 });
 
@@ -16,66 +19,47 @@ restClient.interceptors.response.use(
   response => {
     return response.data;
   },
-  error => {
+  async error => {
+    // Capture the error with Sentry
+    Sentry.captureException(error);
+
     // whatever you want to do with the error
     if (typeof error.response === "undefined") {
+      console.log(error)
       errorNotification("Server is not reachable or CORS is not enable on the server!");
     } else if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
 
-      const originalRequest = error.config;
-
-      if (error.response.status === 401 && error.response.data.detail === "Signature has expired" && !originalRequest.retry) {
-        originalRequest.retry = true;
-
-
-        // TODO Refresh Token Login Goes here
-        // if (window.refreshingToken) {
-        //   setTimeout(() => {
-        //     originalRequest.headers.Authorization = `Bearer ${localStorage.getItem("accessToken")}`;
-        //     return restClient.request(originalRequest);
-        //   }, 1500);
-        // } else {
-        //   window.refreshingToken = true;
-        //   return authClient
-        //     .post("/auth/refresh", {
-        //       refresh_token: localStorage.getItem("refreshToken"),
-        //       address: localStorage.getItem("walletAddress")
-        //     })
-        //     .then(res => {
-        //       if (res.status === "success") {
-        //         // 1) put token to LocalStorage
-        //         localStorage.setItem("accessToken", res.data.access_token);
-        //         localStorage.setItem("refreshToken", res.data.refresh_token);
-        //         window.refreshingToken = false;
-        //         // 2) Change Authorization header
-        //         originalRequest.headers.Authorization = `Bearer ${getStorageItem("accessToken")}`;
-        //         // 3) return originalRequest object with Axios.
-        //         return restClient.request(originalRequest);
-        //       }
-        //       if (res.status === "error") {
-        //         // purgeStorage();
-        //         localStorage.removeItem("accessToken");
-        //         localStorage.removeItem("refreshToken");
-        //         // history.push("/auth/login");
-        //       }
-        //       return false;
-        //     });
-        // }
-
-
-      }
-
       if (error.response.status === 401 && error.response.data.detail !== "Signature has expired") {
+        console.log(error)
         // purgeStorage();
 
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
+        // TODO: fix token removal logic
+        // console.log("Removing Tokens")
+        // localStorage.removeItem("accessToken");
+        // localStorage.removeItem("refreshToken");
         // history.push("/auth/login");
       }
 
-      errorNotification("Server Error!");
+      // Add more specific error handling
+      if (error.response.status >= 400 && error.response.status < 500) {
+        Sentry.setContext("api_error", {
+          status: error.response.status,
+          data: error.response.data,
+          url: error.config.url,
+          method: error.config.method,
+        });
+        errorNotification(`Client Error: ${error.response.status}`);
+      } else if (error.response.status >= 500) {
+        Sentry.setContext("api_error", {
+          status: error.response.status,
+          data: error.response.data,
+          url: error.config.url,
+          method: error.config.method,
+        });
+        errorNotification(`Server Error: ${error.response.status}`);
+      }
     } else if (error.request) {
       // The request was made but no response was received
       // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
@@ -90,8 +74,17 @@ restClient.interceptors.response.use(
 );
 
 restClient.interceptors.request.use(async request => {
-  request.headers.Authorization = `Bearer ${localStorage.getItem("accessToken")}`;
+  request.headers = request.headers ?? {};
+  const token = await checkAndRefreshToken();
+  if (token) {
+    request.headers.Authorization = `Bearer ${token}`;
+  } else {
+    // Handle the case when there's no valid token
+    // For example: redirect to login page or throw an error
+    throw new Error("No valid token available");
+  }
   request.headers["ngrok-skip-browser-warning"] = "69420";
   return request;
 });
+
 export default restClient;

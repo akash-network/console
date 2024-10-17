@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+
+const { withSentryConfig } = require("@sentry/nextjs");
 const nextConfig = {
   reactStrictMode: false,
   compiler: {
@@ -31,8 +33,20 @@ const nextConfig = {
     });
     config.externals.push("pino-pretty");
     return config;
-  },
+  }
 };
 
-module.exports = nextConfig;
+// Sentry webpack plugin configuration
+const sentryWebpackPluginOptions = {
+  silent: true, // Suppresses all logs
+  dryRun: process.env.NODE_ENV !== 'production', // Only upload source maps in production
+  release: require("./package.json").version,
+  // Add Sentry auth token only for production builds
+  authToken: process.env.NODE_ENV === 'production' ? process.env.SENTRY_AUTH_TOKEN : undefined,
+};
 
+// Wrap nextConfig with Sentry configuration
+module.exports = withSentryConfig(
+  nextConfig,
+  sentryWebpackPluginOptions
+);

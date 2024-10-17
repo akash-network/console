@@ -2,7 +2,7 @@ export const mainnetId = "mainnet";
 export const testnetId = "testnet";
 export const sandboxId = "sandbox";
 
-const productionHostnames = ["console.akash.network", "staging-console.akash.network"];
+const productionHostnames = ["console.akash.network", "staging-console.akash.network", "localhost:3000"];
 
 export const selectedRangeValues: { [key: string]: number } = {
   "7D": 7,
@@ -14,6 +14,13 @@ export const selectedRangeValues: { [key: string]: number } = {
 const productionMainnetApiUrl = "https://console-api.akash.network";
 const productionTestnetApiUrl = "https://console-api-testnet.akash.network";
 const productionSandboxApiUrl = "https://console-api-sandbox.akash.network";
+
+// temp urls
+const productionProviderConsoleApiUrl = "https://provider-console-api.akash.network";
+const productionProviderSecurityApiUrl = "https://provider-console-security.akash.network";
+
+export const BASE_API_PROVIDER_CONSOLE_URL = productionProviderConsoleApiUrl;
+export const BASE_API_PROVIDER_SECURITY_URL = productionProviderSecurityApiUrl;
 export const BASE_API_MAINNET_URL = getApiMainnetUrl();
 export const BASE_API_TESTNET_URL = getApiTestnetUrl();
 export const BASE_API_SANDBOX_URL = getApiSandboxUrl();
@@ -21,10 +28,11 @@ export const BASE_API_URL = getApiUrl();
 
 
 function getApiMainnetUrl() {
-  if (process.env.API_MAINNET_BASE_URL) return process.env.API_MAINNET_BASE_URL;
-  if (typeof window === "undefined") return "http://localhost:3080";
-  if (productionHostnames.includes(window.location?.hostname)) return productionMainnetApiUrl;
-  return "http://localhost:3080";
+  // if (process.env.API_MAINNET_BASE_URL) return process.env.API_MAINNET_BASE_URL;
+  // if (typeof window === "undefined") return "http://localhost:3080";
+  // if (productionHostnames.includes(window.location?.hostname)) return productionMainnetApiUrl;
+  // return "http://localhost:3080";
+  return productionMainnetApiUrl;
 }
 
 function getApiTestnetUrl() {
@@ -53,18 +61,19 @@ export function getNetworkBaseApiUrl(network: string) {
 }
 
 function getApiUrl() {
-  if (process.env.API_BASE_URL) return process.env.API_BASE_URL;
-  if (typeof window === "undefined") return "http://localhost:3080";
-  if (productionHostnames.includes(window.location?.hostname)) {
-    try {
-      const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
-      return getNetworkBaseApiUrl(_selectedNetworkId || mainnetId);
-    } catch (e) {
-      console.error(e);
-      return productionMainnetApiUrl;
-    }
+  // if (process.env.API_BASE_URL) return process.env.API_BASE_URL;
+  // if (typeof window === "undefined") return "http://localhost:3080";
+  // if (productionHostnames.includes(window.location?.hostname)) {
+  try {
+    // TODO: Revisit this when we have a way to get the selected network from the wallet 
+    // const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
+    return getNetworkBaseApiUrl(mainnetId);
+  } catch (e) {
+    console.error(e);
+    return productionMainnetApiUrl;
   }
-  return "http://localhost:3080";
+  // }
+  // return "http://localhost:3080";
 }
 
 // UI
