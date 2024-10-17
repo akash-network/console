@@ -1,5 +1,7 @@
 
 
+## [2.19.0](https://github.com/akash-network/console/compare/console-web/v2.19.0-beta.1...console-web/v2.19.0) (2024-10-17)
+
 ## [2.19.0-beta.1](https://github.com/akash-network/console/compare/console-web/v2.19.0-beta.0...console-web/v2.19.0-beta.1) (2024-10-17)
 
 
