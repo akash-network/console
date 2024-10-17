@@ -22,6 +22,7 @@ import { deploymentData } from "@src/utils/deploymentData";
 import { getDeploymentLocalData, saveDeploymentManifest } from "@src/utils/deploymentLocalDataUtils";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import RemoteDeployUpdate from "../remote-deploy/update/RemoteDeployUpdate";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import { Title } from "../shared/Title";
 
@@ -29,14 +30,23 @@ type Props = {
   deployment: DeploymentDto;
   leases: LeaseDto[];
   closeManifestEditor: () => void;
+  isRemoteDeploy: boolean;
+  editedManifest: string;
+  onManifestChange: (value: string) => void;
 };
 
-export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, leases, closeManifestEditor }) => {
+export const ManifestUpdate: React.FunctionComponent<Props> = ({
+  deployment,
+  leases,
+  closeManifestEditor,
+  isRemoteDeploy,
+  editedManifest,
+  onManifestChange
+}) => {
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
-  const [editedManifest, setEditedManifest] = useState("");
-  const [isSendingManifest, setIsSendingManifest] = useState(false);
   const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
+  const [isSendingManifest, setIsSendingManifest] = useState(false);
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged: isManagedWallet } = useWallet();
   const { data: providers } = useProviderList();
@@ -48,7 +58,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
       const localDeploymentData = getDeploymentLocalData(deployment.dseq);
 
       if (localDeploymentData?.manifest) {
-        setEditedManifest(localDeploymentData.manifest);
+        onManifestChange(localDeploymentData.manifest);
 
         try {
           const yamlVersion = yaml.load(localDeploymentData.manifest);
@@ -99,7 +109,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
   }, [editedManifest, deployment.dseq, settings.apiEndpoint, address]);
 
   function handleTextChange(value) {
-    setEditedManifest(value);
+    onManifestChange(value);
 
     if (deploymentVersion) {
       setDeploymentVersion(null);
@@ -244,6 +254,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
                     disabled={!!parsingError || !editedManifest || !providers || isSendingManifest || deployment.state !== "active"}
                     onClick={() => handleUpdateClick()}
                     size="sm"
+                    type="button"
                   >
                     Update Deployment
                   </Button>
@@ -255,8 +266,12 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({ deployment, lea
 
             <LinearLoadingSkeleton isLoading={isSendingManifest} />
 
-            <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
-              <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
+            <ViewPanel stickToBottom style={{ overflow: isRemoteDeploy ? "unset" : "hidden" }}>
+              {isRemoteDeploy ? (
+                <RemoteDeployUpdate sdlString={editedManifest} onManifestChange={onManifestChange} />
+              ) : (
+                <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
+              )}
             </ViewPanel>
           </div>
         </>

@@ -1,12 +1,12 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
-import { ArrowRight, Cpu, Linux, Rocket, Wrench } from "iconoir-react";
-import { NavArrowLeft } from "iconoir-react";
+import { ArrowRight, Cpu, Linux, NavArrowLeft, Rocket, Wrench } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import sdlStore from "@src/store/sdlStore";
@@ -33,13 +33,19 @@ const previewTemplateIds = [
   "akash-network-awesome-akash-grok",
   "akash-network-awesome-akash-FastChat"
 ];
-
-export const TemplateList: React.FunctionComponent = () => {
+type Props = {
+  onChangeGitProvider: (gh: boolean) => void;
+};
+export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvider }) => {
   const { templates } = useTemplates();
   const router = useRouter();
   const [previewTemplates, setPreviewTemplates] = useState<ApiTemplate[]>([]);
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const previousRoute = usePreviousRoute();
+  const handleGithubTemplate = async () => {
+    onChangeGitProvider(true);
+    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, gitProvider: "github", templateId: CI_CD_TEMPLATE_ID }));
+  };
 
   useEffect(() => {
     if (templates) {
@@ -77,11 +83,10 @@ export const TemplateList: React.FunctionComponent = () => {
       <div className="mb-8">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
           <DeployOptionBox
-            title={helloWorldTemplate.title}
-            description={helloWorldTemplate.description}
-            icon={<Rocket className="rotate-45" />}
-            testId="hello-world-card"
-            onClick={() => router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code }))}
+            title={"Build and Deploy"}
+            description={"Deploy directly from GitHub/BitBucket/GitLab"}
+            icon={<Rocket />}
+            onClick={handleGithubTemplate}
           />
 
           <DeployOptionBox
@@ -124,6 +129,13 @@ export const TemplateList: React.FunctionComponent = () => {
 
       <div className="mb-8">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
+          <DeployOptionBox
+            title={helloWorldTemplate.title}
+            description={helloWorldTemplate.description}
+            icon={<Rocket className="rotate-45" />}
+            testId="hello-world-card"
+            onClick={() => router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code }))}
+          />
           {previewTemplates.map(template => (
             <TemplateBox
               key={template.id}
