@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Define Variables
+    name: Deploy to GCP
     runs-on: ubuntu-latest
 
     steps:
