@@ -357,7 +357,13 @@ const renderResourceCards = (providerDetails: any) => {
   const resources = [
     {
       title: "CPUs",
-      data: getResourceData(providerDetails?.activeStats?.cpu / 1000, providerDetails?.pendingStats?.cpu / 1000, providerDetails?.availableStats?.cpu / 1000)
+      data: providerDetails?.activeStats?.cpu || providerDetails?.pendingStats?.cpu || providerDetails?.availableStats?.cpu
+        ? getResourceData(
+            (providerDetails?.activeStats?.cpu ?? 0) / 1000,
+            (providerDetails?.pendingStats?.cpu ?? 0) / 1000,
+            (providerDetails?.availableStats?.cpu ?? 0) / 1000
+          )
+        : null
     },
     { title: "GPUs", data: getResourceData(providerDetails?.activeStats?.gpu, providerDetails?.pendingStats?.gpu, providerDetails?.availableStats?.gpu) },
     {

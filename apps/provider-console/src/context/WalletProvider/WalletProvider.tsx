@@ -102,21 +102,17 @@ export const WalletProvider = ({ children }) => {
         try {
           const validAccessToken = await checkAndRefreshToken();
           if (validAccessToken) {
-            console.log("Access token is valid");
-            setIsWalletArbitrarySigned(true);
             await fetchProviderStatus();
           } else {
             console.log("No valid access token found");
-            setIsWalletArbitrarySigned(false);
           }
         } catch (error) {
           console.error("Error checking or refreshing token:", error);
-          setIsWalletArbitrarySigned(false);
           logout(); // Force logout if refresh fails
         }
       }
     })();
-  }, [settings?.rpcEndpoint, isWalletConnected]);
+  }, [settings?.rpcEndpoint, isWalletConnected, isWalletArbitrarySigned]);
 
   const fetchProviderStatus = async () => {
     try {
@@ -166,15 +162,19 @@ export const WalletProvider = ({ children }) => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("walletAddress");
-    setWalletBalances(null);
+    resetWalletStats();
     disconnect();
+    router.push(UrlService.home());
+  }
+
+  function resetWalletStats() {
+    setWalletBalances(null);
     setIsWalletArbitrarySigned(false);
     setIsProviderStatusFetched(false);
     setIsProviderOnlineStatusFetched(false);
     setIsWalletProvider(false);
     setIsWalletProviderOnline(false);
     setProvider(null);
-    router.push(UrlService.home());
   }
 
   async function connectWallet() {
@@ -187,18 +187,12 @@ export const WalletProvider = ({ children }) => {
   }
 
   async function handleArbitrarySigning() {
-    console.log("Access token", localStorage.getItem("accessToken"));
-    console.log("Wallet address", walletAddress);
-    if (!localStorage.getItem("accessToken") && walletAddress) {
-      console.log("Handling arbitrary signing");
+    if (walletAddress && localStorage.getItem("walletAddress") !== walletAddress) {
+      resetWalletStats();
       try {
         const response: any = await authClient.get(`users/nonce/${walletAddress}`);
         if (response?.data?.nonce) {
           const message = getNonceMessage(response.data.nonce, walletAddress);
-
-          // const signArbitrary = username === "leap-extension" ? leapSignArbitrary : keplrSignArbitrary;
-          // const signArbitrary = wallet?.name === "leap-extension" ? leapSignArbitrary : keplrSignArbitrary;
-
           const result = await signArbitrary(walletAddress, message);
 
           if (result) {
@@ -223,9 +217,7 @@ export const WalletProvider = ({ children }) => {
           }
         }
       } catch (error) {
-        console.error("Error during arbitrary signing:", error);
         logout();
-        setIsWalletArbitrarySigned(false);
       }
     }
   }
