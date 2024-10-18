@@ -55,22 +55,30 @@ export function getPrettyTime(timeMs: number): string {
   }
 }
 
-export function getPrettyTimeFromHours(hours: number) {
-  if (hours < 0) {
-    return 'Please provide a non-negative number of hours.'
+export function getPrettyTimeFromSeconds(seconds: number) {
+  if (seconds < 0) {
+    return 'Please provide a non-negative number of seconds.'
   }
-  const hoursInDay = 24
-  const hoursInMonth = 24 * 30 // Assuming an average of 30 days in a month
-  const hoursInYear = 24 * 365 // Assuming 365 days in a year
+  const secondsInMinute = 60
+  const secondsInHour = 60 * 60
+  const secondsInDay = 24 * secondsInHour
+  const secondsInMonth = 30 * secondsInDay // Assuming an average of 30 days in a month
+  const secondsInYear = 365 * secondsInDay // Assuming 365 days in a year
 
-  const years = Math.floor(hours / hoursInYear)
-  const remainingHoursAfterYears = hours % hoursInYear
+  const years = Math.floor(seconds / secondsInYear)
+  const remainingSecondsAfterYears = seconds % secondsInYear
 
-  const months = Math.floor(remainingHoursAfterYears / hoursInMonth)
-  const remainingHoursAfterMonths = remainingHoursAfterYears % hoursInMonth
+  const months = Math.floor(remainingSecondsAfterYears / secondsInMonth)
+  const remainingSecondsAfterMonths = remainingSecondsAfterYears % secondsInMonth
 
-  const days = Math.floor(remainingHoursAfterMonths / hoursInDay)
-  const remainingHoursAfterDays = remainingHoursAfterMonths % hoursInDay
+  const days = Math.floor(remainingSecondsAfterMonths / secondsInDay)
+  const remainingSecondsAfterDays = remainingSecondsAfterMonths % secondsInDay
+
+  const hours = Math.floor(remainingSecondsAfterDays / secondsInHour)
+  const remainingSecondsAfterHours = remainingSecondsAfterDays % secondsInHour
+
+  const minutes = Math.floor(remainingSecondsAfterHours / secondsInMinute)
+  const remainingSeconds = Math.round(remainingSecondsAfterHours % secondsInMinute)
 
   let result = ''
 
@@ -86,12 +94,23 @@ export function getPrettyTimeFromHours(hours: number) {
     }
   } else if (days > 0) {
     result += `${days} ${days === 1 ? 'day' : 'days'}`
-    if (remainingHoursAfterDays > 0) {
-      result += ` and ${remainingHoursAfterDays} ${remainingHoursAfterDays === 1 ? 'hour' : 'hours'
-        }`
+    if (hours > 0) {
+      result += ` and ${hours} ${hours === 1 ? 'hour' : 'hours'}`
     }
+  } else if (hours > 0) {
+    result += `${hours} ${hours === 1 ? 'hour' : 'hours'}`
+    if (minutes > 0) {
+      result += ` and ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+    }
+  } else if (minutes > 0) {
+    result += `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+    if (remainingSeconds > 0) {
+      result += ` and ${remainingSeconds} ${remainingSeconds === 1 ? 'second' : 'seconds'}`
+    }
+  } else if (remainingSeconds > 0) {
+    result += `${remainingSeconds} ${remainingSeconds === 1 ? 'second' : 'seconds'}`
   } else {
-    result += `0 hours`
+    result += `0 seconds`
   }
 
   return result

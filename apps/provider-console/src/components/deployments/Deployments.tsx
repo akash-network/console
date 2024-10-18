@@ -17,7 +17,7 @@ import {
   Separator
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { findTotalAmountSpentOnLeases, totalDeploymentCost } from "@src/utils/providerUtils";
+import { findTotalAmountSpentOnLeases, totalDeploymentCost } from "@src/utils/deploymentUtils";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { formatBytes } from "@src/utils/formatBytes";
 import { Spinner } from "@akashnetwork/ui/components";

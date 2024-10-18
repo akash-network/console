@@ -25,18 +25,19 @@ export function totalDeploymentCost(leases) {
     return sum * avgBlockPerMonth
 }
 
-export function timeLeftDeployment(leases, latestBlock, balance) {
+export function totalDeploymentTimeLeft(createdHeight: number, totalMonthlyDeploymentCost: number, latestBlock: number, balance: number, closedHeight: number | null,) {
     let time
-    if (leases[0].status === 'active') {
-        const blocksPassed = Math.abs(leases[0].createdHeight - latestBlock)
-        const blocksLeft = balance / leases[0].price - blocksPassed
+    if (!closedHeight) {
+        const blocksPassed = Math.abs(createdHeight - latestBlock)
+        console.log(blocksPassed)
+        const pricePerBlock = totalMonthlyDeploymentCost / avgBlockPerMonth
+        console.log(totalDeploymentCost)
+        const blocksLeft = balance / pricePerBlock - blocksPassed
         const secondsLeft = blocksLeft * avgBlockTime
-
-        // Calculate time in hours
-        time = secondsLeft / 3600
+        time = secondsLeft
     } else {
-        const noOfBlocks = Math.abs(leases[0].createdHeight - leases[0].closedHeight)
-        time = (noOfBlocks * avgBlockTime) / 3600
+        const noOfBlocks = Math.abs(createdHeight - closedHeight)
+        time = (noOfBlocks * avgBlockTime)
     }
     return time
 }

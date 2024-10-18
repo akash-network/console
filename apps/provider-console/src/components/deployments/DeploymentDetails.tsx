@@ -3,9 +3,9 @@ import consoleClient from "@src/utils/consoleClient";
 import { useWallet } from "@src/context/WalletProvider";
 import { Card, CardContent } from "@akashnetwork/ui/components";
 import { uaktToAKT } from "@src/utils/priceUtils";
-import { findTotalAmountSpentOnLeases, timeLeftDeployment, totalDeploymentCost } from "@src/utils/providerUtils";
+import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
 import { formatBytes } from "@src/utils/formatBytes";
-import { getPrettyTimeFromHours } from "@src/utils/dateUtils";
+import { getPrettyTimeFromSeconds } from "@src/utils/dateUtils";
 
 interface DeploymentDetailsProps {
   dseq: string;
@@ -39,6 +39,7 @@ interface DeploymentDetails {
   costPerMonth: number;
   other: any;
   timeLeft: number;
+  closedHeight: number | null;
 }
 
 const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owner }) => {
@@ -55,7 +56,7 @@ const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owner }) =>
         const latestBlock = latestBlocks[0].height; // Take the first block
         const totalAmtSpent = findTotalAmountSpentOnLeases(response.leases, latestBlock, true);
         const totalCost = totalDeploymentCost(response.leases);
-        const timeLeft = timeLeftDeployment(response.leases, latestBlock, response.balance);
+        const timeLeft = totalDeploymentTimeLeft(response.createdHeight, response.totalMonthlyCostUDenom, latestBlock, response.balance, response.closedHeight);
         setDeploymentDetails({ ...response, amountSpent: totalAmtSpent, costPerMonth: totalCost, timeLeft: timeLeft });
         setError(null);
       } catch (err) {
@@ -93,7 +94,7 @@ const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owner }) =>
       <div className="grid grid-cols-3 gap-6">
         <Card>
           <CardContent className="p-4">
-            <h3 className="mb-2 text-sm text-gray-500">Deployment Owner</h3>
+            <h3 className="mb-2 text-sm text-gray-500">Owner</h3>
             <p className="truncate font-semibold">{owner}</p>
           </CardContent>
         </Card>
@@ -104,11 +105,11 @@ const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owner }) =>
             <p className="text-sm text-gray-500">{new Date(deploymentDetails.createdDate).toLocaleTimeString()}</p>
           </CardContent>
         </Card>
-        {deploymentDetails.status === "active" && (
+        {(deploymentDetails.closedHeight || deploymentDetails.status === "active") && (
           <Card>
             <CardContent className="p-4">
-              <h3 className="mb-2 text-sm text-gray-500">Deployment expires</h3>
-              <p className="font-semibold">{getPrettyTimeFromHours(deploymentDetails.timeLeft)}</p>
+              <h3 className="mb-2 text-sm text-gray-500">{deploymentDetails.closedHeight ? "Runtime" : "Deployment expires in"}</h3>
+              <p className="font-semibold">{getPrettyTimeFromSeconds(deploymentDetails.timeLeft)}</p>
             </CardContent>
           </Card>
         )}
@@ -131,7 +132,7 @@ const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owner }) =>
         <Card>
           <CardContent className="p-4">
             <h3 className="mb-2 text-sm text-gray-500">Balance</h3>
-            <p className="font-semibold">{uaktToAKT(deploymentDetails.balance).toFixed(3)} AKT</p>
+            <p className="font-semibold">{uaktToAKT(deploymentDetails.balance).toFixed(2)} AKT</p>
           </CardContent>
         </Card>
         <Card>
