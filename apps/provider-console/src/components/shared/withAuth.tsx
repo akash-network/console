@@ -14,10 +14,6 @@ const withAuth = (WrappedComponent: React.ComponentType) => {
 
     useEffect(() => {
       console.log("isProviderStatusFetched", isProviderStatusFetched);
-      if (!isProviderStatusFetched) {
-        setLoadingMessage("Checking provider status...");
-        return;
-      }
 
       if (!isWalletConnected) {
         setLoadingMessage("Connecting to wallet...");
@@ -25,6 +21,9 @@ const withAuth = (WrappedComponent: React.ComponentType) => {
       } else if (!address) {
         setLoadingMessage("Retrieving wallet address...");
         router.push("/");
+      } else if (!isProviderStatusFetched) {
+        setLoadingMessage("Checking provider status...");
+        return;
       } else if (!isProvider) {
         setLoadingMessage("Verifying provider status...");
         router.push("/");

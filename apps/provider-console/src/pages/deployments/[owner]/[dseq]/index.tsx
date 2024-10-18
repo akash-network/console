@@ -1,6 +1,7 @@
 import Layout from "@src/components/layout/Layout";
 import DeploymentDetails from "@src/components/deployments/DeploymentDetails";
 import { Title } from "@src/components/shared/Title";
+import withAuth from "@src/components/shared/withAuth";
 
 type Props = {
   dseq: string;
@@ -23,7 +24,7 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ dseq, owner }) =
   );
 };
 
-export default DeploymentDetailPage;
+export default withAuth(DeploymentDetailPage);
 
 export async function getServerSideProps({ params }) {
   console.log(params);

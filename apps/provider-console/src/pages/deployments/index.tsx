@@ -1,8 +1,9 @@
 import Layout from "@src/components/layout/Layout";
 import Deployments from "@src/components/deployments/Deployments";
 import { Title } from "@src/components/shared/Title";
+import withAuth from "@src/components/shared/withAuth";
 
-export default function DeploymentsPage() {
+const DeploymentsPage: React.FunctionComponent = () => {
   return (
     <Layout>
       <div className="flex items-center">
@@ -16,4 +17,6 @@ export default function DeploymentsPage() {
       </div>
     </Layout>
   );
-}
+};
+
+export default withAuth(DeploymentsPage);
