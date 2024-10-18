@@ -54,3 +54,45 @@ export function getPrettyTime(timeMs: number): string {
     return `${Math.floor(timeMs / 1_000 / 60 / 60)}h ${roundDecimal(timeMs / 1_000 / 60, 2) % 60}m`;
   }
 }
+
+export function getPrettyTimeFromHours(hours: number) {
+  if (hours < 0) {
+    return 'Please provide a non-negative number of hours.'
+  }
+  const hoursInDay = 24
+  const hoursInMonth = 24 * 30 // Assuming an average of 30 days in a month
+  const hoursInYear = 24 * 365 // Assuming 365 days in a year
+
+  const years = Math.floor(hours / hoursInYear)
+  const remainingHoursAfterYears = hours % hoursInYear
+
+  const months = Math.floor(remainingHoursAfterYears / hoursInMonth)
+  const remainingHoursAfterMonths = remainingHoursAfterYears % hoursInMonth
+
+  const days = Math.floor(remainingHoursAfterMonths / hoursInDay)
+  const remainingHoursAfterDays = remainingHoursAfterMonths % hoursInDay
+
+  let result = ''
+
+  if (years > 0) {
+    result += `${years} ${years === 1 ? 'year' : 'years'}`
+    if (months > 0) {
+      result += ` and ${months} ${months === 1 ? 'month' : 'months'}`
+    }
+  } else if (months > 0) {
+    result += `${months} ${months === 1 ? 'month' : 'months'}`
+    if (days > 0) {
+      result += ` and ${days} ${days === 1 ? 'day' : 'days'}`
+    }
+  } else if (days > 0) {
+    result += `${days} ${days === 1 ? 'day' : 'days'}`
+    if (remainingHoursAfterDays > 0) {
+      result += ` and ${remainingHoursAfterDays} ${remainingHoursAfterDays === 1 ? 'hour' : 'hours'
+        }`
+    }
+  } else {
+    result += `0 hours`
+  }
+
+  return result
+}

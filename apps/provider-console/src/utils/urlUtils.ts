@@ -35,6 +35,7 @@ export const domainName = "https://provider.akash.network";
 
 export class UrlService {
   static home = () => "/";
+  static deployments = () => "/deployments";
   static getStarted = () => "/get-started";
   static privacyPolicy = () => "/privacy-policy";
   static termsOfService = () => "/terms-of-service";

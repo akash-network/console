@@ -153,3 +153,5 @@ export const monacoOptions = {
 };
 
 export const txFeeBuffer = 10000; // 10000 uAKT
+export const avgBlockTime = 6.117; // seconds
+export const avgBlockPerMonth = 425940; // blocks per month

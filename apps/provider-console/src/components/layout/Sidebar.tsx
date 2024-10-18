@@ -47,11 +47,10 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           activeRoutes: [UrlService.home()]
         },
         {
-          title: "Leases",
+          title: "Deployments",
           icon: props => <Cloud {...props} />,
-          url: "#",
-          activeRoutes: ["#"],
-          disabled: true
+          url: UrlService.deployments(),
+          activeRoutes: [UrlService.deployments()],
         },
         {
           title: "Actions",
