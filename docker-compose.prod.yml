@@ -40,3 +40,10 @@ services:
     depends_on:
       - api
       - provider-proxy
+
+  provider-console:
+    restart: always
+    env_file:
+      - .env.sandbox.docker-compose-dev
+    ports:
+      - '3003:3000'

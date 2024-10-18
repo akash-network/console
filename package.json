@@ -24,6 +24,7 @@
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
     "stats:dev": "turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
     "stats:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
+    "provider:build:no-db": "docker compose -f docker-compose.build.yml build provider-console",
     "prepare": "husky || true"
   },
   "dependencies": {

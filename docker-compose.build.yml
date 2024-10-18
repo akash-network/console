@@ -38,3 +38,13 @@ services:
       target: production
       args:
         WORKSPACE: apps/stats-web
+
+  provider-console:
+    image: arc10/provider-console:${PROVIDER_CONSOLE_TAG:-latest}
+    build:
+      dockerfile: docker/Dockerfile.nextjs
+      platforms:
+        - "linux/amd64"
+      target: production
+      args:
+        WORKSPACE: apps/provider-console

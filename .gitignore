@@ -82,3 +82,6 @@ apps/stats-web/.env
 data
 testdata
 test-results
+
+# macos
+.DS_Store
