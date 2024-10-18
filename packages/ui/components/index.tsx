@@ -32,6 +32,7 @@ export * from "./toggle";
 export * from "./toggle-group";
 export * from "./tooltip";
 export * from "./data-table";
+export * from "./charts";
 // Folers
 export * from "./spinner";
 export * from "./custom";

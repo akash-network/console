@@ -5,9 +5,9 @@ import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 
 import { accountBarHeight } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
-import Spinner from "../shared/Spinner";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
+import { Footer } from "./Footer";
 
 type Props = {
   isLoading?: boolean;
@@ -20,7 +20,6 @@ type Props = {
 
 const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName }) => {
   const [locale, setLocale] = useState("en-US");
-
   useEffect(() => {
     if (navigator?.language) {
       setLocale(navigator?.language);
@@ -44,7 +43,6 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
 
 const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName = "" }) => {
   const muiTheme = useMuiTheme();
-  const [isShowingWelcome, setIsShowingWelcome] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
@@ -56,19 +54,6 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
       setIsNavOpen(_isNavOpen === "true");
     }
   });
-
-  useEffect(() => {
-    const agreedToTerms = localStorage.getItem("agreedToTerms") === "true";
-
-    if (!agreedToTerms) {
-      setIsShowingWelcome(true);
-    }
-  }, []);
-
-  const onWelcomeClose = () => {
-    localStorage.setItem("agreedToTerms", "true");
-    setIsShowingWelcome(false);
-  };
 
   const onOpenMenuClick = () => {
     setIsNavOpen(prev => {
@@ -86,16 +71,14 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
 
   return (
     <>
-      <div className="h-full">
+      <div className="bg-card min-h-full">
         <div className="h-full w-full" style={{ marginTop: `${accountBarHeight}px` }}>
           <div className="h-full">
             <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} />
-
             <div className="block h-full w-full flex-grow rounded-none md:flex">
               <Sidebar onOpenMenuClick={onOpenMenuClick} isNavOpen={isNavOpen} handleDrawerToggle={handleDrawerToggle} isMobileOpen={isMobileOpen} />
-
               <div
-                className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300", {
+                className={cn("ease ml-0 min-h-full flex-grow transition-[margin-left] duration-300", {
                   ["md:ml-[240px]"]: isNavOpen,
                   ["md:ml-[57px]"]: !isNavOpen
                 })}
@@ -110,18 +93,4 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   );
 };
 
-const Loading: React.FunctionComponent<{ text: string }> = ({ text }) => {
-  return (
-    <div className="flex h-full w-full flex-col items-center justify-center pb-12 pt-12">
-      <div className="pb-4">
-        <Spinner size="large" />
-      </div>
-      <div>
-        <h5>{text}</h5>
-      </div>
-    </div>
-  );
-};
-
 export default Layout;
-
