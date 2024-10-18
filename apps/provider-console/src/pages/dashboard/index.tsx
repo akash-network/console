@@ -293,8 +293,8 @@ const Dashboard: React.FC = () => {
       <Separator className="mt-10" />
       <div className="mt-8">
         <div className="mt-2">
-          <div className="text-sm font-semibold">Provider Actions</div>
-          <ProviderActionList actions={providerActions} />
+          <div className="text-sm font-semibold">Recent Provider Actions</div>
+          <ProviderActionList actions={providerActions.slice(0, 5)} />
         </div>
       </div>
     </Layout>
