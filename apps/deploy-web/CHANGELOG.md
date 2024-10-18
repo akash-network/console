@@ -1,5 +1,12 @@
 
 
+## [2.19.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.19.0...console-web/v2.19.1-beta.0) (2024-10-18)
+
+
+### Bug Fixes
+
+* **wallet:** authz pagination ([6193df5](https://github.com/akash-network/console/commit/6193df5f0820f67095ed9fe9280654b278f398a1)), closes [#415](https://github.com/akash-network/console/issues/415)
+
 ## [2.19.0](https://github.com/akash-network/console/compare/console-web/v2.19.0-beta.1...console-web/v2.19.0) (2024-10-17)
 
 ## [2.19.0-beta.1](https://github.com/akash-network/console/compare/console-web/v2.19.0-beta.0...console-web/v2.19.0-beta.1) (2024-10-17)
