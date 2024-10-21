@@ -1,0 +1,84 @@
+name: Release App
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        type: choice
+        description: Which app to release
+        options:
+          - api
+          - deploy-web
+        required: true
+      release-type:
+        type: choice
+        description: Which app to release
+        options:
+          - prod
+          - beta
+        default: prod
+      force-build:
+        type: boolean
+        description: Rebuild the Docker image
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.14.0
+
+      - name: Restore root node_modules cache
+        uses: martijnhols/actions-cache@v3
+        id: cache
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build the Docker images
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.email "ci@akash.network"
+          git config --global user.name "CI"
+          
+          pre_release=""
+          if [[ "${{ github.event.inputs.release-type }}" == 'beta' ]]; then
+            prerelease="--preRelease=beta"
+          fi
+          
+          force_build=""
+          if [[ "${{ github.event.inputs.force-build }}" == 'true' ]]; then
+              force_build="-f"
+          fi
+          
+          repo="${{ github.event.inputs.app == 'api' && vars.API_REGISTRY || vars.WEB_REGISTRY }}"
+          
+          npm run release -w apps/${{ github.event.inputs.app }} -- $pre_release $force_build --verbose --ci -r $repo

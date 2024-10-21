@@ -1,5 +1,5 @@
 import React from "react";
-import { Copyright, Discord, Github, X as TwitterX, Youtube } from "iconoir-react";
+import { Copyright } from "iconoir-react";
 import Link from "next/link";
 
 import { UrlService } from "@src/utils/urlUtils";
@@ -26,49 +26,6 @@ export const Footer: React.FunctionComponent<IFooterProps> = () => {
         </div>
 
         <div className="mb-4 flex h-20 flex-col items-center justify-between sm:mb-0 sm:flex-row">
-          <ul className="flex items-center justify-center sm:justify-normal">
-            <li>
-              <a
-                href="https://discord.gg/akash"
-                target="_blank"
-                rel="noreferrer"
-                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
-              >
-                <Discord className="mx-auto block h-6 w-6 text-5xl" />
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://twitter.com/akashnet_"
-                target="_blank"
-                rel="noreferrer"
-                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
-              >
-                <TwitterX className="mx-auto block h-6 w-6 text-5xl" />
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1"
-                target="_blank"
-                rel="noreferrer"
-                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
-              >
-                <Youtube className="mx-auto block h-6 w-6 text-5xl" />
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://github.com/akash-network/console"
-                target="_blank"
-                rel="noreferrer"
-                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
-              >
-                <Github className="mx-auto block h-6 w-6 text-5xl" />
-              </a>
-            </li>
-          </ul>
-
           <div className="mb-4 mt-2 flex items-center sm:mb-0 sm:mt-0">
             <Link href={UrlService.termsOfService()} className="text-current">
               <p className="text-sm text-muted-foreground">Terms of Service</p>

@@ -1,5 +1,5 @@
 "use client";
-import { cn } from "@src/utils/styleUtils";
+import { cn } from "@akashnetwork/ui/utils";
 
 type LabelValueProps = {
   label?: string | React.ReactNode;

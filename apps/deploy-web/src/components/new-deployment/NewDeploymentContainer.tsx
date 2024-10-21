@@ -25,7 +25,6 @@ export const NewDeploymentContainer: FC = () => {
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
-  const [isInit, setIsInit] = useState(false);
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const { getDeploymentData } = useLocalNotes();
   const { getTemplateById } = useTemplates();
@@ -36,7 +35,7 @@ export const NewDeploymentContainer: FC = () => {
 
   useEffect(() => {
     const queryStep = searchParams?.get("step");
-    const _activeStep = getStepIndexByParam(queryStep);
+    const _activeStep = getStepIndexByParam(queryStep as RouteStep);
     setActiveStep(_activeStep);
 
     const redeploy = searchParams?.get("redeploy");
@@ -65,7 +64,9 @@ export const NewDeploymentContainer: FC = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!templates || editedManifest || isInit) return;
+    const templateId = searchParams?.get("templateId");
+    const isCreating = !!activeStep && activeStep > getStepIndexByParam(RouteStep.chooseTemplate);
+    if (!templates || (isCreating && !!editedManifest && !!templateId)) return;
 
     const template = getRedeployTemplate() || getGalleryTemplate();
 
@@ -89,11 +90,9 @@ export const NewDeploymentContainer: FC = () => {
 
         router.replace(UrlService.newDeployment(newParams));
       }
-
-      setIsInit(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent, isInit]);
+  }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent, activeStep]);
 
   const getRedeployTemplate = () => {
     let template: Partial<TemplateCreation> | null = null;
@@ -147,7 +146,7 @@ export const NewDeploymentContainer: FC = () => {
     return null;
   };
 
-  function getStepIndexByParam(step) {
+  function getStepIndexByParam(step: (typeof RouteStep)[keyof typeof RouteStep] | null) {
     switch (step) {
       case RouteStep.editDeployment:
         return 1;

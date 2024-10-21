@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import React from "react";
-import { Spinner } from "@akashnetwork/ui/components";
 import dynamic from "next/dynamic";
 
 import { Footer } from "@src/components/layout/Footer";
@@ -72,7 +71,7 @@ export function HomeContainer() {
         <div className="mb-4">
           <WelcomePanel />
         </div>
-        {isSettingsInit && isWalletLoaded ? (
+        {isSettingsInit && !!address && (
           <YourAccount
             isLoadingBalances={isLoadingBalances}
             walletBalance={walletBalance}
@@ -80,10 +79,6 @@ export function HomeContainer() {
             leases={leases}
             providers={providers}
           />
-        ) : (
-          <div className="flex justify-center p-8">
-            <Spinner size="large" />
-          </div>
         )}
       </div>
 

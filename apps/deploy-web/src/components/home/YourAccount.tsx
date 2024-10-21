@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { FormattedNumber, FormattedPlural } from "react-intl";
 import { Badge, buttonVariants, Card, CardContent, CardHeader, CardTitle, Spinner } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { ResponsivePie } from "@nivo/pie";
 import { HandCard, Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -22,7 +23,6 @@ import { ApiProviderList } from "@src/types/provider";
 import { customColors } from "@src/utils/colors";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, uaktToAKT } from "@src/utils/priceUtils";
-import { cn } from "@src/utils/styleUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ConnectWallet } from "../shared/ConnectWallet";
@@ -232,9 +232,9 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
                 <LoginRequiredLink
                   className={cn("mt-4", buttonVariants({ variant: "default" }))}
                   href="/api/proxy/v1/checkout"
-                  message="Sign In or Sign Up to top up your balance"
+                  message="Sign In or Sign Up to add funds to your balance"
                 >
-                  Top up balance
+                  Add Funds
                   <HandCard className="ml-4 rotate-45 text-sm" />
                 </LoginRequiredLink>
               )}

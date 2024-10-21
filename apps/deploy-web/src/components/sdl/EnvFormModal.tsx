@@ -2,12 +2,12 @@
 import { ReactNode, useEffect } from "react";
 import { Control, Controller, useFieldArray } from "react-hook-form";
 import { Button, CustomNoDivTooltip, FormField, FormInput, Popup, Switch } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Bin } from "iconoir-react";
 import { nanoid } from "nanoid";
 
 import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { EnvironmentVariableType, RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
-import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
