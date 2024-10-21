@@ -3,9 +3,11 @@ import { FC, useEffect, useState } from "react";
 import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
 import { useTemplates } from "@src/context/TemplatesProvider";
+import { isImageInYaml } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -18,6 +20,7 @@ import { CustomizedSteppers } from "./Stepper";
 import { TemplateList } from "./TemplateList";
 
 export const NewDeploymentContainer: FC = () => {
+  const [isGitProviderTemplate, setIsGitProviderTemplate] = useState<boolean>(false);
   const { isLoading: isLoadingTemplates, templates } = useTemplates();
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
@@ -34,6 +37,30 @@ export const NewDeploymentContainer: FC = () => {
     const queryStep = searchParams?.get("step");
     const _activeStep = getStepIndexByParam(queryStep as RouteStep);
     setActiveStep(_activeStep);
+
+    const redeploy = searchParams?.get("redeploy");
+    const code = searchParams?.get("code");
+    const gitProvider = searchParams?.get("gitProvider");
+    const state = searchParams?.get("state");
+    const templateId = searchParams?.get("templateId");
+    const shouldRedirectToGitlab = !redeploy && state === "gitlab" && code;
+    const isGitProvider = gitProvider === "github" || code || state === "gitlab" || (templateId && templateId === CI_CD_TEMPLATE_ID);
+    if (shouldRedirectToGitlab) {
+      router.replace(
+        UrlService.newDeployment({
+          step: RouteStep.editDeployment,
+          gitProvider: "github",
+          gitProviderCode: code,
+          templateId: CI_CD_TEMPLATE_ID
+        })
+      );
+    } else {
+      if (isGitProvider) {
+        setIsGitProviderTemplate(true);
+      } else {
+        setIsGitProviderTemplate(false);
+      }
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -50,10 +77,18 @@ export const NewDeploymentContainer: FC = () => {
       if ("config" in template && (template.config?.ssh || (!template.config?.ssh && hasComponent("ssh")))) {
         toggleCmp("ssh");
       }
-
+      const isRemoteYamlImage = isImageInYaml(template?.content as string, getTemplateById(CI_CD_TEMPLATE_ID)?.deploy);
       const queryStep = searchParams?.get("step");
       if (queryStep !== RouteStep.editDeployment) {
-        router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
+        if (isRemoteYamlImage) {
+          setIsGitProviderTemplate(true);
+        }
+
+        const newParams = isRemoteYamlImage
+          ? { ...searchParams, step: RouteStep.editDeployment, gitProvider: "github" }
+          : { ...searchParams, step: RouteStep.editDeployment };
+
+        router.replace(UrlService.newDeployment(newParams));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,13 +162,14 @@ export const NewDeploymentContainer: FC = () => {
     <Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet containerClassName="pb-0">
       <div className="flex w-full items-center">{activeStep !== null && <CustomizedSteppers activeStep={activeStep} />}</div>
 
-      {activeStep === 0 && <TemplateList />}
+      {activeStep === 0 && <TemplateList onChangeGitProvider={setIsGitProviderTemplate} />}
       {activeStep === 1 && (
         <ManifestEdit
           selectedTemplate={selectedTemplate}
           onTemplateSelected={setSelectedTemplate}
           editedManifest={editedManifest}
           setEditedManifest={setEditedManifest}
+          isGitProviderTemplate={isGitProviderTemplate}
         />
       )}
       {activeStep === 2 && <CreateLease dseq={dseq as string} />}
