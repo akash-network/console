@@ -45,4 +45,18 @@ export class QueryKeys {
   static getProviderAttributesSchema = () => ["PROVIDER_ATTRIBUTES_SCHEMA"];
   static getDepositParamsKey = () => ["DEPOSIT_PARAMS"];
   static getGpuModelsKey = () => ["GPU_MODELS"];
+
+  // Remote deploy
+  static getProviderTokenKey = () => ["TOKEN"];
+  static getUserProfileKey = (accessToken?: string | null) => ["USER_PROFILE", accessToken];
+  static getGroupsKey = (accessToken?: string | null) => ["GROUPS", accessToken];
+  static getReposByGroupKey = (group?: string, accessToken?: string | null) => ["REPOS_BY_GROUP", group, accessToken];
+  static getCommitsKey = (repo?: string, accessToken?: string | null) => ["COMMITS", repo, accessToken];
+  static getCommitsByBranchKey = (repo?: string, branch?: string, accessToken?: string | null) => ["COMMITS_BY_BRANCH", repo, branch, accessToken];
+  static getWorkspacesKey = (accessToken?: string | null) => ["WORKSPACES", accessToken];
+  static getReposByWorkspaceKey = (workspace: string, accessToken: string | null) => ["REPOS", accessToken, workspace];
+  static getReposKey = (accessToken?: string | null) => ["REPOS", accessToken];
+  static getBranchesKey = (repo?: string, accessToken?: string | null) => ["BRANCHES", repo, accessToken];
+  static getPackageJsonKey = (repo?: string, branch?: string, subFolder?: string) => ["PACKAGE_JSON", repo, branch, subFolder];
+  static getSrcFoldersKey = (repo?: string, branch?: string) => ["SRC_FOLDERS", repo, branch];
 }
