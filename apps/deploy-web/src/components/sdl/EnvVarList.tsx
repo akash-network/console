@@ -1,12 +1,12 @@
 "use client";
 import { Dispatch, ReactNode, SetStateAction } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle } from "iconoir-react";
 
 import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { ServiceType } from "@src/types";
-import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
