@@ -12,8 +12,8 @@ import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provide
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { MasterWalletService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
-import { AnonymousValidateService } from "../anonymous-validate/anonymous-validate";
 import { ChainErrorService } from "../chain-error/chain-error.service";
+import { TrialValidationService } from "../trial-validation/trial-validation.service";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
 type SimpleSigningStargateClient = {
@@ -34,7 +34,7 @@ export class TxSignerService {
     private readonly balancesService: BalancesService,
     private readonly authService: AuthService,
     private readonly chainErrorService: ChainErrorService,
-    private readonly anonymousValidateService: AnonymousValidateService
+    private readonly anonymousValidateService: TrialValidationService
   ) {}
 
   async signAndBroadcast(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
