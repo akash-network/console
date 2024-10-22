@@ -12,6 +12,7 @@ import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provide
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { MasterWalletService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { AnonymousValidateService } from "../anonymous-validate/anonymous-validate";
 import { ChainErrorService } from "../chain-error/chain-error.service";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
@@ -32,7 +33,8 @@ export class TxSignerService {
     private readonly masterWalletService: MasterWalletService,
     private readonly balancesService: BalancesService,
     private readonly authService: AuthService,
-    private readonly chainErrorService: ChainErrorService
+    private readonly chainErrorService: ChainErrorService,
+    private readonly anonymousValidateService: AnonymousValidateService
   ) {}
 
   async signAndBroadcast(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
@@ -40,6 +42,12 @@ export class TxSignerService {
     assert(userWallet, 404, "UserWallet Not Found");
 
     const decodedMessages = this.decodeMessages(messages);
+
+    try {
+      decodedMessages.forEach(message => this.anonymousValidateService.validateLeaseProviders(message, userWallet));
+    } catch (error) {
+      throw this.chainErrorService.toAppError(error, decodedMessages);
+    }
 
     const client = await this.getClientForAddressIndex(userWallet.id);
     const tx = await client.signAndBroadcast(decodedMessages);
