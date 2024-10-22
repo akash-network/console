@@ -203,6 +203,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         label: "Create lease"
       });
       await sendManifest();
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsCreatingLeases(false);
     }
