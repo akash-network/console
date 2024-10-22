@@ -1,13 +1,15 @@
 import * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
 import { EncodeObject } from "@cosmjs/proto-signing";
+import axios from "axios";
 import { singleton } from "tsyringe";
 
 import { UserWalletOutput } from "@src/billing/repositories";
+import { apiNodeUrl, betaTypeVersionMarket } from "@src/utils/constants";
 import { ChainErrorService } from "../chain-error/chain-error.service";
 
 @singleton()
-export class AnonymousValidateService {
-  private readonly authorizedProviders = [
+export class TrialValidationService {
+  readonly authorizedProviders = [
     "akash1824w2vqx57n8zr8707dnyh85kjrkfkrrs94pk9",
     "akash19ah5c95kq4kz2g6q5rdkdgt80kc3xycsd8plq8",
     "akash1g7az2pus6atgeufgttlcnl0wzlzwd0lrsy6d7s",
@@ -32,5 +34,20 @@ export class AnonymousValidateService {
     }
 
     return true;
+  }
+
+  async getTrialBidList(address: string, dseq: string): Promise<{ bids: any[] }> {
+    const response = await axios.get(`${apiNodeUrl}/akash/market/${betaTypeVersionMarket}/bids/list`, {
+      params: {
+        "filters.owner": address,
+        "filters.dseq": dseq
+      }
+    });
+
+    if (response.data.bids.length === 0) {
+      return { bids: [] };
+    }
+
+    return { bids: response.data.bids.filter((bid: { bid: { bid_id: { provider: string } } }) => this.authorizedProviders.includes(bid.bid.bid_id.provider)) };
   }
 }
