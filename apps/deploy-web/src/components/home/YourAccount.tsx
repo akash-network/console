@@ -290,12 +290,12 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
                         <div className="h-4 w-4 rounded-lg" />
                         <div className="ml-4 w-[90px] font-bold"></div>
                         <div className="ml-4 w-[100px]">
-                          <strong>{walletBalance.totalUUSDC} USDC</strong>
+                          <strong>{udenomToDenom(walletBalance.totalUUSDC, 2)} USDC</strong>
                         </div>
 
                         <div>
                           <strong>
-                            <PriceValue denom={usdcIbcDenom} value={walletBalance.totalUUSDC + udenomToDenom(walletBalance.totalDeploymentGrantsUUSDC)} />
+                            <PriceValue denom={usdcIbcDenom} value={udenomToDenom(walletBalance.totalUUSDC + walletBalance.totalDeploymentGrantsUUSDC)} />
                           </strong>
                         </div>
                       </div>
