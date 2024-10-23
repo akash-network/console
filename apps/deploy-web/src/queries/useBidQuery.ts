@@ -1,17 +1,29 @@
 import { QueryKey, useQuery, UseQueryOptions } from "react-query";
 import axios from "axios";
 
+import { useWallet } from "@src/context/WalletProvider";
 import { BidDto, RpcBid } from "@src/types/deployment";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";
+import { useTrialProviders } from "./useProvidersQuery";
 
-async function getBidList(apiEndpoint: string, isTrialing: boolean, address: string, dseq: string): Promise<Array<BidDto> | null> {
-  if (!address || !dseq) return null;
+async function getBidList(
+  apiEndpoint: string,
+  address: string,
+  dseq: string,
+  isTrialing: boolean,
+  trialProviders: string[] | undefined
+): Promise<Array<BidDto> | null> {
+  if (!address || !dseq || (isTrialing && !trialProviders)) return null;
 
-  const response = await axios.get(isTrialing ? ApiUrlService.trialBidList(address, dseq) : ApiUrlService.bidList(apiEndpoint, address, dseq));
+  const response = await axios.get(ApiUrlService.bidList(apiEndpoint, address, dseq));
+  let bids = response.data.bids as RpcBid[];
+  if (isTrialing && trialProviders) {
+    bids = bids.filter(bid => trialProviders.includes(bid.bid.bid_id.provider));
+  }
 
-  return response.data.bids.map((b: RpcBid) => ({
+  return bids.map((b: RpcBid) => ({
     id: b.bid.bid_id.provider + b.bid.bid_id.dseq + b.bid.bid_id.gseq + b.bid.bid_id.oseq,
     owner: b.bid.bid_id.owner,
     provider: b.bid.bid_id.provider,
@@ -24,14 +36,12 @@ async function getBidList(apiEndpoint: string, isTrialing: boolean, address: str
   }));
 }
 
-export function useBidList(
-  isTrialing: boolean,
-  address: string,
-  dseq: string,
-  options?: Omit<UseQueryOptions<BidDto[], Error, any, QueryKey>, "queryKey" | "queryFn">
-) {
+export function useBidList(address: string, dseq: string, options?: Omit<UseQueryOptions<BidDto[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
   const { settings } = useSettings();
-  return useQuery(QueryKeys.getBidListKey(address, dseq), () => getBidList(settings.apiEndpoint, isTrialing, address, dseq), options);
+  const { isTrialing } = useWallet();
+  const { data: trialProviders } = useTrialProviders();
+
+  return useQuery(QueryKeys.getBidListKey(address, dseq), () => getBidList(settings.apiEndpoint, address, dseq, isTrialing, trialProviders), options);
 }
 
 async function getBidInfo(apiEndpoint: string, address: string, dseq: string, gseq: number, oseq: number, provider: string): Promise<RpcBid | null> {

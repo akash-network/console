@@ -5,10 +5,8 @@ import { Protected } from "@src/auth/services/auth.service";
 import type { WalletListOutputResponse, WalletOutputResponse } from "@src/billing/http-schemas/wallet.schema";
 import type { SignTxRequestInput, SignTxResponseOutput, StartTrialRequestInput } from "@src/billing/routes";
 import { GetWalletQuery } from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
-import { GetTrialBidListRequestInput } from "@src/billing/routes/trial-bids/trial-bids.router";
 import { WalletInitializerService } from "@src/billing/services";
 import { RefillService } from "@src/billing/services/refill/refill.service";
-import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
 import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { WithTransaction } from "@src/core";
@@ -19,7 +17,6 @@ export class WalletController {
     private readonly walletInitializer: WalletInitializerService,
     private readonly signerService: TxSignerService,
     private readonly refillService: RefillService,
-    private readonly trialValidationService: TrialValidationService,
     private readonly walletReaderService: WalletReaderService
   ) {}
 
@@ -47,9 +44,5 @@ export class WalletController {
 
   async refillWallets() {
     await this.refillService.refillAllFees();
-  }
-
-  async getTrialBidList({ address, dseq }: GetTrialBidListRequestInput) {
-    return this.trialValidationService.getTrialBidList(address, dseq);
   }
 }
