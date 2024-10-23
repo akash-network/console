@@ -44,7 +44,7 @@ export class TxSignerService {
     const decodedMessages = this.decodeMessages(messages);
 
     try {
-      decodedMessages.forEach(message => this.anonymousValidateService.validateLeaseProviders(message, userWallet));
+      await Promise.all(decodedMessages.map(message => this.anonymousValidateService.validateLeaseProviders(message, userWallet)));
     } catch (error) {
       throw this.chainErrorService.toAppError(error, decodedMessages);
     }
