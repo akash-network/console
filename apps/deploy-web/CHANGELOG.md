@@ -1,5 +1,20 @@
 
 
+## [2.20.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.19.1-beta.0...console-web/v2.20.0-beta.0) (2024-10-23)
+
+
+### Features
+
+* **deployment:** add new endpoint to query filtered bids for trial accounts ([3d95615](https://github.com/akash-network/console/commit/3d95615a067b50a4c468e25535089ef9ca0a058c))
+* **deployment:** refactor trial providers to config file ([b18a57a](https://github.com/akash-network/console/commit/b18a57aaf01392fb62ee6b2801d022ac3e4e8958))
+
+
+### Bug Fixes
+
+* **deployment:** added provider validation for trial ([ae03311](https://github.com/akash-network/console/commit/ae03311c5189d3569cad3ae45c662069c2e1eaaa))
+* **styling:** remove beta logo ([b052151](https://github.com/akash-network/console/commit/b0521518709e2487208dd83256b4c630a1c7ac29))
+* **wallet:** fix your account usdc display ([1dedde4](https://github.com/akash-network/console/commit/1dedde4078cc64ac9443ad458a2058f364d9e48a))
+
 ## [2.19.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.19.0...console-web/v2.19.1-beta.0) (2024-10-18)
 
 
