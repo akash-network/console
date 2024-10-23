@@ -1,5 +1,18 @@
 
 
+## [2.26.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.25.0...console-api/v2.26.0-beta.0) (2024-10-23)
+
+
+### Features
+
+* **deployment:** add new endpoint to query filtered bids for trial accounts ([3d95615](https://github.com/akash-network/console/commit/3d95615a067b50a4c468e25535089ef9ca0a058c))
+* **deployment:** refactor trial providers to config file ([b18a57a](https://github.com/akash-network/console/commit/b18a57aaf01392fb62ee6b2801d022ac3e4e8958))
+
+
+### Bug Fixes
+
+* **deployment:** added provider validation for trial ([ae03311](https://github.com/akash-network/console/commit/ae03311c5189d3569cad3ae45c662069c2e1eaaa))
+
 ## [2.25.0](https://github.com/akash-network/console/compare/console-api/v2.25.0-beta.1...console-api/v2.25.0) (2024-10-17)
 
 ## [2.25.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.25.0-beta.0...console-api/v2.25.0-beta.1) (2024-10-17)
