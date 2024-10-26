@@ -13,6 +13,7 @@ import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositorie
 import { MasterWalletService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { ChainErrorService } from "../chain-error/chain-error.service";
+import { TrialValidationService } from "../trial-validation/trial-validation.service";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
 type SimpleSigningStargateClient = {
@@ -32,7 +33,8 @@ export class TxSignerService {
     private readonly masterWalletService: MasterWalletService,
     private readonly balancesService: BalancesService,
     private readonly authService: AuthService,
-    private readonly chainErrorService: ChainErrorService
+    private readonly chainErrorService: ChainErrorService,
+    private readonly anonymousValidateService: TrialValidationService
   ) {}
 
   async signAndBroadcast(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
@@ -40,6 +42,12 @@ export class TxSignerService {
     assert(userWallet, 404, "UserWallet Not Found");
 
     const decodedMessages = this.decodeMessages(messages);
+
+    try {
+      await Promise.all(decodedMessages.map(message => this.anonymousValidateService.validateLeaseProviders(message, userWallet)));
+    } catch (error) {
+      throw this.chainErrorService.toAppError(error, decodedMessages);
+    }
 
     const client = await this.getClientForAddressIndex(userWallet.id);
     const tx = await client.signAndBroadcast(decodedMessages);

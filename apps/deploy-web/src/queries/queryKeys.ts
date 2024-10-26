@@ -45,6 +45,7 @@ export class QueryKeys {
   static getProviderAttributesSchema = () => ["PROVIDER_ATTRIBUTES_SCHEMA"];
   static getDepositParamsKey = () => ["DEPOSIT_PARAMS"];
   static getGpuModelsKey = () => ["GPU_MODELS"];
+  static getTrialProvidersKey = () => ["TRIAL_PROVIDERS"];
 
   // Remote deploy
   static getProviderTokenKey = () => ["TOKEN"];
