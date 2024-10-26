@@ -46,7 +46,7 @@ export const WelcomePanel: React.FC = () => {
 
                 <div className="flex flex-col">
                   <Link href={UrlService.getStarted()}>Getting started with Akash Console</Link>
-                  <span className="text-sm text-muted-foreground">Learn how to deploy your first docker container on Akash in a few click using Console.</span>
+                  <span className="text-sm text-muted-foreground">Learn how to deploy your first docker container on Akash in a few clicks using Console.</span>
                 </div>
               </li>
 
