@@ -1,6 +1,6 @@
 "use client";
 import React, { ReactNode, useMemo, useState } from "react";
-import { Badge, Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
@@ -248,9 +248,6 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
             {publicRuntimeConfig?.version && _isNavOpen && (
               <div className="flex flex-row items-center justify-center space-x-4 text-xs font-bold text-muted-foreground">
                 <small>v{publicRuntimeConfig?.version}</small>
-                <Badge className="text-xs leading-3" variant="outline">
-                  <small>Beta</small>
-                </Badge>
               </div>
             )}
           </div>
