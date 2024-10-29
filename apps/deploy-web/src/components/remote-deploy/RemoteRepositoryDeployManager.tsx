@@ -60,11 +60,11 @@ const RemoteRepositoryDeployManager = ({
   const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
   const { mutate: fetchAccessToken, isLoading: fetchingToken } = useFetchAccessToken(navigateToNewDeployment);
 
-  const { loginWithBitBucket } = new BitbucketService();
+  const { loginWithBitBucket } = useMemo(() => new BitbucketService(), []);
   const { data: userProfileBit, isLoading: fetchingProfileBit } = useBitUserProfile();
   const { mutate: fetchAccessTokenBit, isLoading: fetchingTokenBit } = useBitFetchAccessToken(navigateToNewDeployment);
 
-  const { loginWithGitLab } = new GitLabService();
+  const { loginWithGitLab } = useMemo(() => new GitLabService(), []);
   const { data: userProfileGitLab, isLoading: fetchingProfileGitLab } = useGitLabUserProfile();
   const { mutate: fetchAccessTokenGitLab, isLoading: fetchingTokenGitLab } = useGitLabFetchAccessToken(navigateToNewDeployment);
 
