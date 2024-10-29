@@ -52,11 +52,10 @@ export class UrlService {
   // Deploy
   static deploymentList = () => `/deployments`;
   static deploymentDetails = (dseq: string, tab?: string, logsMode?: string) => `/deployments/${dseq}${appendSearchParams({ tab, logsMode })}`;
-  static publicDeploymentDetails = (owner: string, dseq: string) => `/deployment/${owner}/${dseq}${appendSearchParams({ network: networkStore.apiVersion })}`;
   static templates = (category?: string, search?: string) => `/templates${appendSearchParams({ category, search })}`;
   static templateDetails = (templateId: string) => `/templates/${templateId}`;
   static providers = (sort?: string) => `/providers${appendSearchParams({ sort })}`;
-  static providerDetail = (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.marketApiVersion })}`;
+  static providerDetail = (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.selectedNetworkId })}`;
   static providerDetailLeases = (owner: string) => `/providers/${owner}/leases`;
   static providerDetailRaw = (owner: string) => `/providers/${owner}/raw`;
   static providerDetailEdit = (owner: string) => `/providers/${owner}/edit`;
