@@ -17,7 +17,7 @@ describe("app", () => {
           rss: expect.stringMatching(/^[0-9.]+ (M|G)B$/)
         },
         tasks: [],
-        version: expect.stringMatching(/^[0-9]+.[0-9]+.[0-9]+$/)
+        version: expect.stringMatching(/^[0-9]+.[0-9]+.[0-9]+(-beta\.[0-9]+)?$/)
       });
     });
   });
