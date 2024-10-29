@@ -3,8 +3,6 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../layout/Layout";
 import { useWallet } from "@src/context/WalletProvider";
-import networkStore from "@src/store/networkStore";
-import { useAtomValue } from "jotai";
 import restClient from "@src/utils/restClient";
 import { WalletNotConnected } from "./WalletNotConnected";
 import { NotAProvider } from "./NotAProvider";
@@ -18,9 +16,7 @@ export function HomeContainer() {
   const router = useRouter();
   const { isWalletConnected, isWalletArbitrarySigned, isProvider, isOnline, isProviderStatusFetched } = useWallet();
   const [isLoading, setIsLoading] = useState(false);
-  const [, setProvider] = useState<any>(null);
   const [actions, setActions] = useState<any>(null);
-  const selectedNetwork = useAtomValue(networkStore.selectedNetwork); // or similar method to get the value
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
 
   useEffect(() => {

@@ -4,7 +4,6 @@ const { withSentryConfig } = require("@sentry/nextjs");
 const nextConfig = {
   reactStrictMode: false,
   compiler: {
-    // Enables the styled-components SWC transform
     styledComponents: true
   },
   images: {
@@ -27,7 +26,6 @@ const nextConfig = {
     defaultLocale: "en-US"
   },
   webpack: config => {
-    // Fixes npm packages that depend on `node:crypto` module
     config.externals.push({
       "node:crypto": "crypto"
     });
@@ -36,17 +34,11 @@ const nextConfig = {
   }
 };
 
-// Sentry webpack plugin configuration
 const sentryWebpackPluginOptions = {
-  silent: true, // Suppresses all logs
-  dryRun: process.env.NODE_ENV !== 'production', // Only upload source maps in production
+  silent: true,
+  dryRun: process.env.NODE_ENV !== "production",
   release: require("./package.json").version,
-  // Add Sentry auth token only for production builds
-  authToken: process.env.NODE_ENV === 'production' ? process.env.SENTRY_AUTH_TOKEN : undefined,
+  authToken: process.env.NODE_ENV === "production" ? process.env.SENTRY_AUTH_TOKEN : undefined
 };
 
-// Wrap nextConfig with Sentry configuration
-module.exports = withSentryConfig(
-  nextConfig,
-  sentryWebpackPluginOptions
-);
+module.exports = withSentryConfig(nextConfig, sentryWebpackPluginOptions);

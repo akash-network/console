@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { SigningStargateClient } from "@cosmjs/stargate";
-import { useChainWallet, useManager } from "@cosmos-kit/react";
+import { useManager } from "@cosmos-kit/react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { SnackbarKey, useSnackbar } from "notistack";
@@ -14,16 +14,14 @@ import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { uAktDenom } from "@src/utils/constants";
-import { customRegistry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
-import { useSettings } from "../SettingsProvider";
-import { jwtDecode } from "jwt-decode";
 import { checkAndRefreshToken } from "@src/utils/tokenUtils";
 import restClient from "@src/utils/restClient";
 import { getNonceMessage } from "@src/utils/walletUtils";
 import authClient from "@src/utils/authClient";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 
 type Balances = {
   uakt: number;
@@ -67,7 +65,6 @@ export const WalletProvider = ({ children }) => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const sigingClient = useRef<SigningStargateClient | null>(null);
   const router = useRouter();
-  const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
   const {
     disconnect,
@@ -85,18 +82,18 @@ export const WalletProvider = ({ children }) => {
   const { addEndpoints } = useManager();
   const selectedNetwork = useSelectedNetwork();
   useEffect(() => {
-    if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
+    if (!browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL || !browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL) return;
 
     addEndpoints({
-      akash: { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] },
-      "akash-sandbox": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] },
-      "akash-testnet": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] }
+      akash: { rest: [browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL], rpc: [browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL] },
+      "akash-sandbox": { rest: [browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL], rpc: [browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL] },
+      "akash-testnet": { rest: [browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL], rpc: [browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL] }
     });
-  }, [settings.apiEndpoint, settings.rpcEndpoint]);
+  }, [browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL, browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL]);
 
   useEffect(() => {
     (async () => {
-      if (settings?.rpcEndpoint && isWalletConnected) {
+      if (browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL && isWalletConnected) {
         sigingClient.current = await createStargateClient();
 
         try {
@@ -112,7 +109,7 @@ export const WalletProvider = ({ children }) => {
         }
       }
     })();
-  }, [settings?.rpcEndpoint, isWalletConnected, isWalletArbitrarySigned]);
+  }, [browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL, isWalletConnected, isWalletArbitrarySigned]);
 
   const fetchProviderStatus = async () => {
     try {
@@ -134,7 +131,7 @@ export const WalletProvider = ({ children }) => {
     const selectedNetwork = getSelectedNetwork();
 
     const offlineSigner: any = getOfflineSigner();
-    let rpc = settings?.rpcEndpoint ? settings?.rpcEndpoint : (selectedNetwork.rpcEndpoint as string);
+    let rpc = browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL ? browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL : (selectedNetwork.rpcEndpoint as string);
 
     try {
       await axios.get(`${rpc}/abci_info`);
@@ -353,8 +350,6 @@ export const WalletProvider = ({ children }) => {
     const _address = address || walletAddress;
     const client = await getStargateClient();
 
-    console.log("client", client);
-    // console.log("address", _address);
     if (client) {
       const balances = await client.getAllBalances(_address as string);
       const uaktBalance = balances.find(b => b.denom === uAktDenom);

@@ -1,17 +1,14 @@
 // import { notification } from 'antd'
 import axios from "axios";
 import * as Sentry from "@sentry/nextjs";
-import { BASE_API_PROVIDER_SECURITY_URL } from "./constants";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 
 const errorNotification = (error = "Error Occurred") => {
-  // notification.error({
-  //   message: error,
-  // })
   console.log(error);
 };
 
 const authClient = axios.create({
-  baseURL: BASE_API_PROVIDER_SECURITY_URL,
+  baseURL: browserEnvConfig.NEXT_PUBLIC_BASE_SECURITY_URL,
   timeout: 30000
 });
 
@@ -32,7 +29,6 @@ authClient.interceptors.response.use(
       errorMessage = error.message;
     }
 
-    // Log the error to Sentry
     Sentry.captureException(error, {
       extra: {
         errorMessage,
@@ -41,9 +37,7 @@ authClient.interceptors.response.use(
       },
     });
 
-    // Display error notification (you can uncomment and use your preferred notification method)
     errorNotification(errorMessage);
-
     throw error;
   }
 );

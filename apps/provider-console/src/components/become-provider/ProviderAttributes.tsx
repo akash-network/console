@@ -1,29 +1,31 @@
 "use client";
+
+import { useAtom } from "jotai";
+import { PlusIcon, TrashIcon } from "lucide-react";
+import React from "react";
+import { useForm, useFieldArray, Controller, SubmitHandler } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
 import {
   Button,
+  Form,
   FormControl,
   FormField,
   FormItem,
   FormMessage,
   Input,
-  Separator,
   Select,
+  SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectContent,
-  Form
+  Separator
 } from "@akashnetwork/ui/components";
-import React from "react";
-import { useForm, useFieldArray, Controller, SubmitHandler } from "react-hook-form";
-import { PlusIcon, TrashIcon } from "lucide-react";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";
-import { useAtom } from "jotai";
+
 import providerProcessStore from "@src/store/providerProcessStore";
+import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";
 import ResetProviderForm from "./ResetProviderProcess";
 
-// Extract keys from providerAttributesFormValuesSchema
 const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 
 interface ProviderAttributesProps {
