@@ -1,5 +1,12 @@
 
 
+## [2.27.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.26.0...console-api/v2.27.0-beta.0) (2024-10-29)
+
+
+### Features
+
+* **deployment:** implements basic top up handler w/o implementation ([a4cd312](https://github.com/akash-network/console/commit/a4cd3122cf1b1d22691ea5c14a320b5b743d217b)), closes [#395](https://github.com/akash-network/console/issues/395)
+
 ## [2.26.0](https://github.com/akash-network/console/compare/console-api/v2.26.0-beta.0...console-api/v2.26.0) (2024-10-23)
 
 ## [2.26.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.25.0...console-api/v2.26.0-beta.0) (2024-10-23)
