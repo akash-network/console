@@ -1,6 +1,9 @@
 "use client";
+import React, { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import {
   Button,
+  Form,
   FormControl,
   FormDescription,
   FormField,
@@ -10,31 +13,25 @@ import {
   RadioGroup,
   RadioGroupItem,
   Separator,
-  Textarea,
-  Form
+  Textarea
 } from "@akashnetwork/ui/components";
-import React, { useState, useEffect } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
+import { HomeIcon } from "lucide-react";
+import { z } from "zod";
+
 import providerProcessStore from "@src/store/providerProcessStore";
 import restClient from "@src/utils/restClient";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
 import ResetProviderForm from "./ResetProviderProcess";
-import { useForm } from "react-hook-form";
-import { HomeIcon } from "lucide-react";
 
-// Utility function to decode Base64
 function decodeBase64(base64: string): string {
   return Buffer.from(base64, "base64").toString("utf-8");
 }
 
-// Add this function at the top of the file, outside of any component
 async function encrypt(data: string, publicKey: string): Promise<string> {
-  // Dynamically import JSEncrypt
   const { default: JSEncrypt } = await import("jsencrypt");
   const encryptor = new JSEncrypt();
 
-  // Decode the Base64-encoded public key
   const decodedPublicKey = decodeBase64(publicKey);
   encryptor.setPublicKey(decodedPublicKey);
 
@@ -72,7 +69,6 @@ type SeedFormValues = z.infer<typeof seedFormSchema>;
 
 export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepChange }) => {
   const [mode, setMode] = useState<string>("");
-  const [showSeedForm, setShowSeedForm] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +93,7 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
 
   const submitForm = async (data: SeedFormValues) => {
     setIsLoading(true);
-    setError(null); // Reset error state
+    setError(null);
     try {
       if (providerProcess.machines && providerProcess.machines.length > 0) {
         const publicKey = providerProcess.machines[0].systemInfo.public_key;
@@ -124,7 +120,6 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
           }
         };
 
-        // Make a POST request using restClient
         const response: any = await restClient.post("/build-provider", finalRequest, {
           headers: { "Content-Type": "application/json" }
         });
@@ -158,7 +153,7 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
   }, []);
 
   if (!isMounted) {
-    return null; // or a loading spinner
+    return null;
   }
 
   return (
@@ -263,7 +258,7 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
                         <FormControl>
                           <Textarea placeholder="Enter your seed phrase" {...field} rows={4} />
                         </FormControl>
-                        <FormMessage /> {/* Ensure this is placed correctly */}
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -280,11 +275,11 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
                       {isLoading ? "Loading..." : "Next"}
                     </Button>
                   </div>
-                {error && (
-                  <div className="w-full mt-4">
-                    <p className="text-red-500 text-sm">{error || "An error occurred during wallet import."}</p>
-                  </div>
-                )}
+                  {error && (
+                    <div className="mt-4 w-full">
+                      <p className="text-sm text-red-500">{error || "An error occurred during wallet import."}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </form>
@@ -329,7 +324,8 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
             <Button
               type="button"
               onClick={() => {
-                /* Handle completion */
+                // TODO: Verify Manual Wallet Import
+                console.log("Manual Wallet Import");
               }}
             >
               Verify Wallet Import

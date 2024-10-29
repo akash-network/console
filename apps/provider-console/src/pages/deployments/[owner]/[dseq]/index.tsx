@@ -1,5 +1,5 @@
-import Layout from "@src/components/layout/Layout";
 import DeploymentDetails from "@src/components/deployments/DeploymentDetails";
+import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import withAuth from "@src/components/shared/withAuth";
 
@@ -27,7 +27,6 @@ const DeploymentDetailPage: React.FunctionComponent<Props> = ({ dseq, owner }) =
 export default withAuth(DeploymentDetailPage);
 
 export async function getServerSideProps({ params }) {
-  console.log(params);
   return {
     props: {
       owner: params?.owner,

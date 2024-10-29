@@ -2,25 +2,23 @@
 import React, { useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { Button, Card, CardContent, CardHeader, Separator, Spinner } from "@akashnetwork/ui/components";
-import consoleClient from "@src/utils/consoleClient";
-import { Shield, AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@akashnetwork/ui/components";
+import { AlertTriangle, Shield } from "lucide-react";
 import Link from "next/link";
 
-import Layout from "@src/components/layout/Layout";
-import { Title } from "@src/components/shared/Title";
-import restClient from "@src/utils/restClient";
-import ProviderActionList from "@src/components/shared/ProviderActionList";
-import { StatLineCharts } from "@src/components/dashboard/stat-line-charts";
-import { StatPieChart } from "@src/components/dashboard/stat-pie-charts";
-import { useSelectedChain } from "@src/context/CustomChainProvider";
-import { formatBytes } from "@src/utils/formatBytes";
-import withAuth from "@src/components/shared/withAuth";
-import { formatUUsd } from "@src/utils/formatUsd";
 import DashboardCardSkeleton from "@src/components/dashboard/DashboardCardSkeleton";
+import { StatPieChart } from "@src/components/dashboard/stat-pie-charts";
+import Layout from "@src/components/layout/Layout";
+import ProviderActionList from "@src/components/shared/ProviderActionList";
+import { Title } from "@src/components/shared/Title";
+import withAuth from "@src/components/shared/withAuth";
+import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import consoleClient from "@src/utils/consoleClient";
+import { formatBytes } from "@src/utils/formatBytes";
+import { formatUUsd } from "@src/utils/formatUsd";
+import restClient from "@src/utils/restClient";
 
-// Moved outside component to avoid recreation on each render
 const fetchAktPrice = async () => {
   try {
     const response = await fetch("https://api.coingecko.com/api/v3/coins/akash-network/tickers");
@@ -56,18 +54,15 @@ const Dashboard: React.FC = () => {
   const { address } = useSelectedChain();
   const { isOnline } = useWallet();
 
-  // Add this query to fetch provider details
   const { data: providerDetails, isLoading: isLoadingProviderDetails }: { data: any; isLoading: boolean } = useQuery(
     "providerDetails",
     () => consoleClient.get(`/v1/providers/${address}`),
     {
-      // You might want to adjust these options based on your needs
       refetchOnWindowFocus: false,
       retry: 3
     }
   );
 
-  // Add this new query to fetch provider dashboard details
   const { data: providerDashboard, isLoading: isLoadingProviderDashboard }: { data: any; isLoading: boolean } = useQuery(
     "providerDashboard",
     () => consoleClient.get(`/internal/provider-dashboard/${address}`),
@@ -301,7 +296,6 @@ const Dashboard: React.FC = () => {
   );
 };
 
-// Updated ResourceCard component
 const ResourceCard: React.FC<{
   title: string;
   active: number | string;
@@ -311,7 +305,7 @@ const ResourceCard: React.FC<{
   available: number | string;
   availablePercentage: number;
   total: number | string;
-}> = ({ title, active, activePercentage, pending, pendingPercentage, available, availablePercentage, total }) => (
+}> = ({ title, active, activePercentage, pendingPercentage, availablePercentage, total }) => (
   <Card>
     <CardHeader>
       <div className="text-sm">{title}</div>
@@ -332,7 +326,6 @@ const ResourceCard: React.FC<{
   </Card>
 );
 
-// Updated getResourceData function
 const getResourceData = (active: number = 0, pending: number = 0, available: number = 0, isBytes: boolean = false) => {
   const total = active + pending + available;
   if (total === 0) return null;
@@ -352,18 +345,18 @@ const getResourceData = (active: number = 0, pending: number = 0, available: num
   };
 };
 
-// New function to render resource cards
 const renderResourceCards = (providerDetails: any) => {
   const resources = [
     {
       title: "CPUs",
-      data: providerDetails?.activeStats?.cpu || providerDetails?.pendingStats?.cpu || providerDetails?.availableStats?.cpu
-        ? getResourceData(
-            (providerDetails?.activeStats?.cpu ?? 0) / 1000,
-            (providerDetails?.pendingStats?.cpu ?? 0) / 1000,
-            (providerDetails?.availableStats?.cpu ?? 0) / 1000
-          )
-        : null
+      data:
+        providerDetails?.activeStats?.cpu || providerDetails?.pendingStats?.cpu || providerDetails?.availableStats?.cpu
+          ? getResourceData(
+              (providerDetails?.activeStats?.cpu ?? 0) / 1000,
+              (providerDetails?.pendingStats?.cpu ?? 0) / 1000,
+              (providerDetails?.availableStats?.cpu ?? 0) / 1000
+            )
+          : null
     },
     { title: "GPUs", data: getResourceData(providerDetails?.activeStats?.gpu, providerDetails?.pendingStats?.gpu, providerDetails?.availableStats?.gpu) },
     {

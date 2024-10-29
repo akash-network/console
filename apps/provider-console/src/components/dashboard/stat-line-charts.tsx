@@ -1,12 +1,12 @@
 "use client";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@akashnetwork/ui/components";
 import React from "react";
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@akashnetwork/ui/components";
 import { Area, AreaChart, XAxis } from "recharts";
 
 interface DashboardChartsProps {
   data: number[];
   labels: string[];
-  title?: string; // Optional prop
+  title?: string;
 }
 
 const chartData = [
@@ -29,7 +29,7 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
-export const StatLineCharts: React.FunctionComponent<DashboardChartsProps> = ({ data, labels, title }) => {
+export const StatLineCharts: React.FunctionComponent<DashboardChartsProps> = () => {
   return (
     <div>
       {/* <div id="chart">{typeof window !== "undefined" && <Chart options={chartOptions} series={chartvariable.series} type="line" height={125} />}</div> */}

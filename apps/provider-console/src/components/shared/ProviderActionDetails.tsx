@@ -1,7 +1,8 @@
 "use client";
+import React, { useEffect, useRef, useState } from "react";
 import { Separator } from "@akashnetwork/ui/components";
-import React, { useState, useEffect, useRef } from "react";
-import { CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, XIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, ChevronRightIcon, Loader2Icon, XIcon } from "lucide-react";
+
 import restClient from "@src/utils/restClient";
 
 interface Task {
@@ -23,12 +24,10 @@ interface ApiResponse {
 
 const formatLocalTime = (utcTime: string | null) => {
   if (!utcTime) return null;
-  // Parse the UTC time string
   const [datePart, timePart] = utcTime.split("T");
   const [year, month, day] = datePart.split("-").map(Number);
   const [hours, minutes, seconds] = timePart.split(":").map(Number);
 
-  // Create a Date object in UTC
   const utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
 
   const options: Intl.DateTimeFormatOptions = {
@@ -46,8 +45,8 @@ const formatLocalTime = (utcTime: string | null) => {
 };
 
 const formatTimeLapse = (start: string, end: string | null) => {
-  const startDate = new Date(start + "Z"); // Append 'Z' to ensure UTC interpretation
-  const endDate = end ? new Date(end + "Z") : new Date(); // Use current time in UTC for in-progress tasks
+  const startDate = new Date(start + "Z");
+  const endDate = end ? new Date(end + "Z") : new Date();
 
   const durationMs = endDate.getTime() - startDate.getTime();
   const hours = Math.floor(durationMs / (1000 * 60 * 60));
@@ -73,11 +72,9 @@ export const ProviderActionDetails: React.FunctionComponent<{ actionId: string |
       try {
         const response: any = await restClient.get(`/action/status/${actionId}`);
         setProcessData(response);
-        console.log("response", response);
         setOpenAccordions(new Array(response.tasks.length).fill(false));
 
         if (response.status === "completed" || response.status === "failed") {
-          console.log("Stopping polling for action:", actionId);
           if (intervalIdRef.current) {
             clearInterval(intervalIdRef.current);
             intervalIdRef.current = null;

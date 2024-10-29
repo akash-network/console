@@ -1,9 +1,8 @@
-// import { notification } from "antd";
-import axios from "axios";
 import * as Sentry from "@sentry/nextjs";
+import axios from "axios";
 
-import { checkAndRefreshToken } from "./tokenUtils";
 import { browserEnvConfig } from "@src/config/browser-env.config";
+import { checkAndRefreshToken } from "./tokenUtils";
 
 const errorNotification = (error = "Error Occurred") => {
   console.log(error);

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Popup } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
+
 import providerProcessStore from "@src/store/providerProcessStore";
 
 const ResetProviderForm: React.FunctionComponent = () => {

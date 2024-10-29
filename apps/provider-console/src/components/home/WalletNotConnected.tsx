@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { Card } from "@akashnetwork/ui/components";
+
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 
 export function WalletNotConnected() {

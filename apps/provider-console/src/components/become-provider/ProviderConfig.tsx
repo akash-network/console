@@ -1,10 +1,11 @@
 "use client";
-import { Button, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Separator, Form } from "@akashnetwork/ui/components";
 import React from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Separator } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
+import { z } from "zod";
+
 import providerProcessStore from "@src/store/providerProcessStore";
 import ResetProviderForm from "./ResetProviderProcess";
 
@@ -21,7 +22,7 @@ const providerConfigSchema = z.object({
       return regex.test(value);
     }, "Invalid domain name format"),
   organizationName: z.string().min(1, "Organization name is required"),
-  emailAddress: z.string().email("Invalid email address").optional().or(z.literal("")) // Ensure emailAddress is optional
+  emailAddress: z.string().email("Invalid email address").optional().or(z.literal(""))
 });
 
 type ProviderConfigValues = z.infer<typeof providerConfigSchema>;
@@ -29,18 +30,17 @@ type ProviderConfigValues = z.infer<typeof providerConfigSchema>;
 export const ProviderConfig: React.FunctionComponent<ProviderConfigProps> = ({ stepChange }) => {
   const form = useForm<ProviderConfigValues>({
     resolver: zodResolver(providerConfigSchema),
-    mode: "onSubmit", // Change validation mode to onSubmit
+    mode: "onSubmit",
     defaultValues: {
       domainName: "",
       organizationName: "",
-      emailAddress: "" // Ensure default value is an empty string
+      emailAddress: ""
     }
   });
 
   const [, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
 
   const submitForm = async (formValues: ProviderConfigValues) => {
-    console.log("Hi");
     setProviderProcess(prev => ({
       ...prev,
       config: {

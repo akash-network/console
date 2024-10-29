@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import { useWallet } from "@src/context/WalletProvider";
 import { Spinner } from "@akashnetwork/ui/components";
-import { jwtDecode } from "jwt-decode";
-import authClient from "@src/utils/authClient";
+import { useRouter } from "next/router";
+
+import { useWallet } from "@src/context/WalletProvider";
 
 const withAuth = (WrappedComponent: React.ComponentType) => {
   const AuthComponent: React.FC = props => {
@@ -13,8 +12,6 @@ const withAuth = (WrappedComponent: React.ComponentType) => {
     const [loadingMessage, setLoadingMessage] = useState("Checking wallet connection...");
 
     useEffect(() => {
-      console.log("isProviderStatusFetched", isProviderStatusFetched);
-
       if (!isWalletConnected) {
         setLoadingMessage("Connecting to wallet...");
         router.push("/");

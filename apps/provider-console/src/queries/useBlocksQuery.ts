@@ -1,10 +1,10 @@
 import { QueryKey, useQuery, UseQueryOptions } from "react-query";
 import axios from "axios";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { Block } from "@src/types";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
-import { browserEnvConfig } from "@src/config/browser-env.config";
 
 // Block
 async function getBlock(apiEndpoint, id) {

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
-import consoleClient from "@src/utils/consoleClient";
-import { useWallet } from "@src/context/WalletProvider";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "@akashnetwork/ui/components";
-import { uaktToAKT } from "@src/utils/priceUtils";
+
+import consoleClient from "@src/utils/consoleClient";
+import { getPrettyTimeFromSeconds } from "@src/utils/dateUtils";
 import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
 import { formatBytes } from "@src/utils/formatBytes";
-import { getPrettyTimeFromSeconds } from "@src/utils/dateUtils";
+import { uaktToAKT } from "@src/utils/priceUtils";
 
 interface DeploymentDetailsProps {
   dseq: string;
@@ -53,7 +53,7 @@ const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owner }) =>
         setLoading(true);
         const response: any = await consoleClient.get(`v1/deployment/${owner}/${dseq}`);
         const latestBlocks = await consoleClient.get(`/v1/blocks`);
-        const latestBlock = latestBlocks[0].height; // Take the first block
+        const latestBlock = latestBlocks[0].height;
         const totalAmtSpent = findTotalAmountSpentOnLeases(response.leases, latestBlock, true);
         const totalCost = totalDeploymentCost(response.leases);
         const timeLeft = totalDeploymentTimeLeft(response.createdHeight, response.totalMonthlyCostUDenom, latestBlock, response.balance, response.closedHeight);

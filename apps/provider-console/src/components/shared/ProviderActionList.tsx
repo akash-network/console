@@ -1,6 +1,6 @@
 import React from "react";
-import { Box, List, ListItem, Typography, Grid } from "@mui/material";
-import { Check, PlayArrow, Error } from "@mui/icons-material";
+import { Check, Error, PlayArrow } from "@mui/icons-material";
+import { Box, Grid, List, ListItem, Typography } from "@mui/material";
 import { useRouter } from "next/router";
 
 interface ProviderAction {
@@ -32,17 +32,16 @@ const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions }) => {
   };
 
   const formatDate = (dateString: string) => {
-    // Parse the UTC date string
-    const date = new Date(dateString + 'Z');  // Append 'Z' to ensure UTC interpretation
-    
+    const date = new Date(dateString + "Z");
+
     return date.toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZoneName: 'short'
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZoneName: "short"
     });
   };
 
@@ -96,7 +95,7 @@ const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions }) => {
           <ListItem
             sx={{
               borderBottom: "1px solid #eee",
-              py: 2,
+              py: 2
             }}
           >
             <Grid container spacing={2} alignItems="center">

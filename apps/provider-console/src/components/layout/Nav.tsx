@@ -1,6 +1,5 @@
 "use client";
 import { Button } from "@akashnetwork/ui/components";
-import { Menu, Xmark } from "iconoir-react";
 import Link from "next/link";
 
 import useCookieTheme from "@src/hooks/useTheme";
@@ -9,13 +8,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
 import { WalletStatus } from "./WalletStatus";
 
-export const Nav = ({
-  isMobileOpen,
-  handleDrawerToggle
-}: React.PropsWithChildren<{
-  isMobileOpen: boolean;
-  handleDrawerToggle: () => void;
-}>) => {
+export const Nav = () => {
   const theme = useCookieTheme();
 
   return (

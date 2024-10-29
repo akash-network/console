@@ -1,5 +1,5 @@
-import Layout from "@src/components/layout/Layout";
 import Deployments from "@src/components/deployments/Deployments";
+import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import withAuth from "@src/components/shared/withAuth";
 

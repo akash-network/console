@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
-import { useRouter } from "next/router";
 import { Card } from "@akashnetwork/ui/components";
+import { useRouter } from "next/router";
 
 export function NotAProvider() {
   const router = useRouter();

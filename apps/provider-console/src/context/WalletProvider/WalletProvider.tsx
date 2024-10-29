@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef } from "react";
+import React, { useCallback, useRef } from "react";
 import { useEffect, useState } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
@@ -8,20 +8,20 @@ import { useManager } from "@cosmos-kit/react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { SnackbarKey, useSnackbar } from "notistack";
-import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 
 import { TransactionModal } from "@src/components/layout/TransactionModal";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
+import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import authClient from "@src/utils/authClient";
 import { uAktDenom } from "@src/utils/constants";
+import restClient from "@src/utils/restClient";
+import { checkAndRefreshToken } from "@src/utils/tokenUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
-import { useSelectedChain } from "../CustomChainProvider";
-import { checkAndRefreshToken } from "@src/utils/tokenUtils";
-import restClient from "@src/utils/restClient";
 import { getNonceMessage } from "@src/utils/walletUtils";
-import authClient from "@src/utils/authClient";
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import { useSelectedChain } from "../CustomChainProvider";
 
 type Balances = {
   uakt: number;
@@ -43,7 +43,7 @@ type ContextType = {
   refreshBalances: (address?: string) => Promise<Balances>;
   isProvider: boolean;
   isOnline: boolean;
-  provider: any; // Replace 'any' with a more specific type if available
+  provider: any;
   isProviderStatusFetched: boolean;
   isProviderOnlineStatusFetched: boolean;
   handleArbitrarySigning: () => Promise<void>;
@@ -76,7 +76,6 @@ export const WalletProvider = ({ children }) => {
     estimateFee,
     sign,
     broadcast,
-    wallet,
     signArbitrary
   } = useSelectedChain();
   const { addEndpoints } = useManager();
@@ -89,45 +88,9 @@ export const WalletProvider = ({ children }) => {
       "akash-sandbox": { rest: [browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL], rpc: [browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL] },
       "akash-testnet": { rest: [browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL], rpc: [browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL] }
     });
-  }, [browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL, browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL]);
+  }, [addEndpoints]);
 
-  useEffect(() => {
-    (async () => {
-      if (browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL && isWalletConnected) {
-        sigingClient.current = await createStargateClient();
-
-        try {
-          const validAccessToken = await checkAndRefreshToken();
-          if (validAccessToken) {
-            await fetchProviderStatus();
-          } else {
-            console.log("No valid access token found");
-          }
-        } catch (error) {
-          console.error("Error checking or refreshing token:", error);
-          logout(); // Force logout if refresh fails
-        }
-      }
-    })();
-  }, [browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL, isWalletConnected, isWalletArbitrarySigned]);
-
-  const fetchProviderStatus = async () => {
-    try {
-      const isProviderResponse: any = await restClient.get(`/provider/status/onchain?chainid=${selectedNetwork.chainId}`);
-      setIsWalletProvider(isProviderResponse.provider ? true : false);
-      setProvider(isProviderResponse.provider);
-      setIsProviderStatusFetched(true);
-      if (isProviderResponse.provider) {
-        const isOnlineResponse: any = await restClient.get(`/provider/status/online?chainid=${selectedNetwork.chainId}`);
-        setIsProviderOnlineStatusFetched(true);
-        setIsWalletProviderOnline(isOnlineResponse.online);
-      }
-    } catch (error) {
-      console.error("Error fetching provider status:", error);
-    }
-  };
-
-  async function createStargateClient() {
+  const createStargateClient = useCallback(async () => {
     const selectedNetwork = getSelectedNetwork();
 
     const offlineSigner: any = getOfflineSigner();
@@ -136,7 +99,6 @@ export const WalletProvider = ({ children }) => {
     try {
       await axios.get(`${rpc}/abci_info`);
     } catch (error) {
-      // If the rpc node has cors enabled, switch to the backup rpc cosmos.directory
       if (error.code === "ERR_NETWORK" || error?.response?.status === 0) {
         rpc = selectedNetwork.rpcEndpoint as string;
       }
@@ -145,7 +107,49 @@ export const WalletProvider = ({ children }) => {
     const client = await SigningStargateClient.connectWithSigner(rpc, offlineSigner);
 
     return client;
-  }
+  }, [getOfflineSigner]);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("walletAddress");
+    resetWalletStats();
+    disconnect();
+    router.push(UrlService.home());
+  }, [disconnect, router]);
+
+  useEffect(() => {
+    async function fetchProviderStatus() {
+      try {
+        const isProviderResponse: any = await restClient.get(`/provider/status/onchain?chainid=${selectedNetwork.chainId}`);
+        setIsWalletProvider(isProviderResponse.provider ? true : false);
+        setProvider(isProviderResponse.provider);
+        setIsProviderStatusFetched(true);
+        if (isProviderResponse.provider) {
+          const isOnlineResponse: any = await restClient.get(`/provider/status/online?chainid=${selectedNetwork.chainId}`);
+          setIsProviderOnlineStatusFetched(true);
+          setIsWalletProviderOnline(isOnlineResponse.online);
+        }
+      } catch (error) {
+        console.error("Error fetching provider status:", error);
+      }
+    }
+
+    (async () => {
+      if (browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL && isWalletConnected) {
+        sigingClient.current = await createStargateClient();
+
+        try {
+          const validAccessToken = await checkAndRefreshToken();
+          if (validAccessToken) {
+            await fetchProviderStatus();
+          }
+        } catch (error) {
+          logout();
+        }
+      }
+    })();
+  }, [isWalletConnected, isWalletArbitrarySigned, getOfflineSigner, logout, selectedNetwork.chainId, createStargateClient]);
 
   async function getStargateClient() {
     if (!sigingClient.current) {
@@ -153,15 +157,6 @@ export const WalletProvider = ({ children }) => {
     }
 
     return sigingClient.current;
-  }
-
-  function logout() {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("walletAddress");
-    resetWalletStats();
-    disconnect();
-    router.push(UrlService.home());
   }
 
   function resetWalletStats() {
@@ -175,12 +170,7 @@ export const WalletProvider = ({ children }) => {
   }
 
   async function connectWallet() {
-    console.log("Connecting wallet with CosmosKit...");
     await connect();
-    // console.log("Connected wallet with CosmosKit");
-    // await loadWallet();
-    // await handleArbitrarySigning();
-    // console.log("Wallet address", walletAddress);
   }
 
   async function handleArbitrarySigning() {
@@ -219,7 +209,6 @@ export const WalletProvider = ({ children }) => {
     }
   }
 
-  // Update balances on wallet address change
   useEffect(() => {
     if (walletAddress) {
       loadWallet();
@@ -229,7 +218,6 @@ export const WalletProvider = ({ children }) => {
 
   async function loadWallet(): Promise<void> {
     const selectedNetwork = getSelectedNetwork();
-    console.log("selectedNetwork", selectedNetwork);
     const storageWallets = JSON.parse(localStorage.getItem(`${selectedNetwork.id}/wallets`) || "[]") as LocalWalletDataType[];
 
     let currentWallets = storageWallets ?? [];
@@ -254,7 +242,6 @@ export const WalletProvider = ({ children }) => {
       const estimatedFees = await estimateFee(msgs);
       const txRaw = await sign(msgs, {
         ...estimatedFees
-        // granter: feeGranter
       });
 
       setIsWaitingForApproval(false);
@@ -401,7 +388,6 @@ export const WalletProvider = ({ children }) => {
   );
 };
 
-// Hook
 export function useWallet() {
   return { ...React.useContext(WalletProviderContext) };
 }

@@ -2,9 +2,9 @@
 
 import React from "react";
 import { useSearchParams } from "next/navigation";
-import { ProviderActionDetails } from "@src/components/shared/ProviderActionDetails";
+
 import Layout from "@src/components/layout/Layout";
-import { Separator } from "@akashnetwork/ui/components";
+import { ProviderActionDetails } from "@src/components/shared/ProviderActionDetails";
 
 export default function ActionDetailsPage() {
   const searchParams = useSearchParams();

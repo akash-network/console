@@ -4,19 +4,19 @@ import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { Discord, Github, Menu, MenuScale, Rocket, X as TwitterX, Youtube, Cloud, Settings, ClipboardCheck, Calculator, ListSelect } from "iconoir-react";
+import { Calculator, ClipboardCheck, Cloud, Discord, Github, ListSelect, Menu, MenuScale, Rocket, Settings, X as TwitterX, Youtube } from "iconoir-react";
 import { Home, OpenInWindow } from "iconoir-react";
 import getConfig from "next/config";
 import Image from "next/image";
 import Link from "next/link";
 
+import { useWallet } from "@src/context/WalletProvider";
 import { ISidebarGroupMenu } from "@src/types";
 import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ModeToggle } from "./ModeToggle";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
-import { useWallet } from "@src/context/WalletProvider";
 
 const { publicRuntimeConfig } = getConfig();
 
@@ -32,7 +32,6 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const [isHovering, setIsHovering] = useState(false);
   const { isProvider, isOnline } = useWallet();
   const _isNavOpen = isNavOpen || isHovering;
-  // const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
@@ -50,7 +49,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           title: "Deployments",
           icon: props => <Cloud {...props} />,
           url: UrlService.deployments(),
-          activeRoutes: [UrlService.deployments()],
+          activeRoutes: [UrlService.deployments()]
         },
         {
           title: "Actions",
@@ -234,7 +233,6 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         ["md:w-[57px]"]: !(_isNavOpen || isHovering)
       })}
     >
-      {/* Mobile Drawer */}
       <Drawer
         variant="temporary"
         open={isMobileOpen}
@@ -242,7 +240,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         onClose={handleDrawerToggle}
         className="block p-4 md:hidden"
         ModalProps={{
-          keepMounted: true // Better open performance on mobile.
+          keepMounted: true
         }}
         sx={{
           display: { xs: "block", sm: "block", md: "none" },
@@ -257,7 +255,6 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         {drawer}
       </Drawer>
 
-      {/* Desktop Drawer */}
       <Drawer
         className="hidden md:block"
         variant="permanent"

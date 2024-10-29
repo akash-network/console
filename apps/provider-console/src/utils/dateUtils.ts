@@ -3,7 +3,6 @@ import { roundDecimal } from "./mathHelpers";
 export const averageDaysInMonth = 30.437;
 
 export const epochToDate = (epoch: number) => {
-  // The 0 sets the date to the epoch
   const d = new Date(0);
   d.setUTCSeconds(epoch);
 
@@ -62,8 +61,8 @@ export function getPrettyTimeFromSeconds(seconds: number) {
   const secondsInMinute = 60
   const secondsInHour = 60 * 60
   const secondsInDay = 24 * secondsInHour
-  const secondsInMonth = 30 * secondsInDay // Assuming an average of 30 days in a month
-  const secondsInYear = 365 * secondsInDay // Assuming 365 days in a year
+  const secondsInMonth = 30 * secondsInDay
+  const secondsInYear = 365 * secondsInDay
 
   const years = Math.floor(seconds / secondsInYear)
   const remainingSecondsAfterYears = seconds % secondsInYear

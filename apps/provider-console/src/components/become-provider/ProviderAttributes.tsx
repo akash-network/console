@@ -1,12 +1,7 @@
 "use client";
 
-import { useAtom } from "jotai";
-import { PlusIcon, TrashIcon } from "lucide-react";
 import React from "react";
-import { useForm, useFieldArray, Controller, SubmitHandler } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-
+import { Controller, SubmitHandler,useFieldArray, useForm } from "react-hook-form";
 import {
   Button,
   Form,
@@ -21,6 +16,10 @@ import {
   SelectTrigger,
   Separator
 } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtom } from "jotai";
+import { PlusIcon, TrashIcon } from "lucide-react";
+import { z } from "zod";
 
 import providerProcessStore from "@src/store/providerProcessStore";
 import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";
@@ -65,7 +64,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
       ...providerPricing,
       attributes: data.attributes.map(attr => ({
         ...attr,
-        customKey: attr.customKey || "" // Provide a default empty string
+        customKey: attr.customKey || ""
       }))
     };
     setProviderPricing(updatedProviderPricing);

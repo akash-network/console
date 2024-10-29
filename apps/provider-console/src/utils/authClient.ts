@@ -1,6 +1,6 @@
-// import { notification } from 'antd'
-import axios from "axios";
 import * as Sentry from "@sentry/nextjs";
+import axios from "axios";
+
 import { browserEnvConfig } from "@src/config/browser-env.config";
 
 const errorNotification = (error = "Error Occurred") => {

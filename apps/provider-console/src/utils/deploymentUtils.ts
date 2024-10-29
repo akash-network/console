@@ -29,9 +29,7 @@ export function totalDeploymentTimeLeft(createdHeight: number, totalMonthlyDeplo
     let time
     if (!closedHeight) {
         const blocksPassed = Math.abs(createdHeight - latestBlock)
-        console.log(blocksPassed)
         const pricePerBlock = totalMonthlyDeploymentCost / avgBlockPerMonth
-        console.log(totalDeploymentCost)
         const blocksLeft = balance / pricePerBlock - blocksPassed
         const secondsLeft = blocksLeft * avgBlockTime
         time = secondsLeft

@@ -1,11 +1,12 @@
 "use client";
-import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, Input, Separator, Slider, Form } from "@akashnetwork/ui/components";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { ChevronDownIcon } from "lucide-react";
-import { z } from "zod";
+import { Button, Form, FormControl, FormDescription, FormField, FormItem, FormLabel, Input, Separator, Slider } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
+import { ChevronDownIcon } from "lucide-react";
+import { z } from "zod";
+
 import providerProcessStore from "@src/store/providerProcessStore";
 import ResetProviderForm from "./ResetProviderProcess";
 
@@ -52,12 +53,12 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange }) 
 
       providerProcess.machines.forEach(machine => {
         totalCpu += parseInt(machine.systemInfo.cpus, 10);
-        totalMemory += parseInt(machine.systemInfo.memory.replace("Gi", ""), 10); // Memory in GiB
+        totalMemory += parseInt(machine.systemInfo.memory.replace("Gi", ""), 10);
         machine.systemInfo.storage.forEach((storage, index) => {
           if (index === 0) {
-            totalStorage += storage.size / (1024 * 1024 * 1024); // Convert bytes to GB
+            totalStorage += storage.size / (1024 * 1024 * 1024);
           } else {
-            totalPersistentStorage += storage.size / (1024 * 1024 * 1024); // Convert bytes to GB
+            totalPersistentStorage += storage.size / (1024 * 1024 * 1024);
           }
         });
         totalGpu += machine.systemInfo.gpu.count;
@@ -65,7 +66,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange }) 
 
       setResources({
         cpu: totalCpu,
-        memory: totalMemory, // Memory in GiB
+        memory: totalMemory,
         storage: totalStorage,
         persistentStorage: totalPersistentStorage,
         gpu: totalGpu
@@ -89,7 +90,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange }) 
     }
   });
 
-  const watchValues = form.watch(); // Watch all form values
+  const watchValues = form.watch();
 
   const calculateEstimatedEarnings = (values: ProviderPricingValues) => {
     const { cpu, memory, storage, gpu, persistentStorage, ipScalePrice, endpointBidPrice } = values;
@@ -99,8 +100,8 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange }) 
     const totalStorageEarnings = resources.storage * storage;
     const totalGpuEarnings = resources.gpu * gpu;
     const totalPersistentStorageEarnings = resources.persistentStorage * persistentStorage;
-    const totalIpScaleEarnings = ipScalePrice; // Assuming a single IP
-    const totalEndpointBidEarnings = endpointBidPrice; // Assuming a single endpoint
+    const totalIpScaleEarnings = ipScalePrice;
+    const totalEndpointBidEarnings = endpointBidPrice;
 
     const totalEarnings =
       totalCpuEarnings +
@@ -117,7 +118,6 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange }) 
   const estimatedEarnings = calculateEstimatedEarnings(watchValues);
 
   const submit = (data: any) => {
-    console.log(data);
     setProviderProcess(prev => ({
       ...prev,
       pricing: data,

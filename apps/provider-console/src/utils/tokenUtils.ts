@@ -1,4 +1,5 @@
 import { jwtDecode } from 'jwt-decode';
+
 import authClient from './authClient';
 
 interface DecodedToken {
@@ -33,8 +34,6 @@ export async function checkAndRefreshToken(): Promise<string | null> {
             refresh_token: refreshToken,
             address: walletAddress,
         });
-
-        console.log("refreshResponse", refreshResponse);
 
         if (refreshResponse.status === 'success') {
             const newAccessToken = refreshResponse.data.access_token;

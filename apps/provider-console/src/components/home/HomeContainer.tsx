@@ -1,15 +1,16 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import Layout from "../layout/Layout";
-import { useWallet } from "@src/context/WalletProvider";
-import restClient from "@src/utils/restClient";
-import { WalletNotConnected } from "./WalletNotConnected";
-import { NotAProvider } from "./NotAProvider";
 import { Button, Spinner } from "@akashnetwork/ui/components";
-import ProviderActionList from "../shared/ProviderActionList";
 import { useAtom } from "jotai";
+import { useRouter } from "next/router";
+
+import { useWallet } from "@src/context/WalletProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
+import restClient from "@src/utils/restClient";
+import Layout from "../layout/Layout";
+import ProviderActionList from "../shared/ProviderActionList";
+import { NotAProvider } from "./NotAProvider";
+import { WalletNotConnected } from "./WalletNotConnected";
 
 export function HomeContainer() {
   const [, resetProcess] = useAtom(providerProcessStore.resetProviderProcess);
@@ -24,7 +25,6 @@ export function HomeContainer() {
       setIsLoading(true);
       fetchActions();
     }
-    console.log("isProviderStatusFetched", isWalletArbitrarySigned);
   }, [isProvider, isOnline, isWalletArbitrarySigned]);
 
   const fetchActions = async () => {
