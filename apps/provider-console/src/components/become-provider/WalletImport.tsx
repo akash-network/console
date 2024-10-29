@@ -22,6 +22,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import ResetProviderForm from "./ResetProviderProcess";
 import { useForm } from "react-hook-form";
 import { HomeIcon } from "lucide-react";
+import controlMachineStore from "@src/store/controlMachineStore";
 
 // Utility function to decode Base64
 function decodeBase64(base64: string): string {
@@ -78,6 +79,7 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
   const [error, setError] = useState<string | null>(null);
 
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
+  const [controlMachine, setControlMachine] = useAtom(controlMachineStore.controlMachineAtom);
 
   const defaultValues: Partial<AppearanceFormValues> = {
     walletMode: "seed"
@@ -130,6 +132,10 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
         });
 
         if (response.action_id) {
+          setControlMachine({
+            access: providerProcess.machines[0].access,
+            systemInfo: providerProcess.machines[0].systemInfo
+          });
           setProviderProcess(prev => ({
             ...prev,
             actionId: response.action_id,
@@ -280,11 +286,11 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
                       {isLoading ? "Loading..." : "Next"}
                     </Button>
                   </div>
-                {error && (
-                  <div className="w-full mt-4">
-                    <p className="text-red-500 text-sm">{error || "An error occurred during wallet import."}</p>
-                  </div>
-                )}
+                  {error && (
+                    <div className="mt-4 w-full">
+                      <p className="text-sm text-red-500">{error || "An error occurred during wallet import."}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </form>

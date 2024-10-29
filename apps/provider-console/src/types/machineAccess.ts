@@ -6,6 +6,6 @@ export interface MachineInformation {
     file: File;
     passphrase: string;
     port: number;
-  }
-  systemInfo: any
+  } | null;
+  systemInfo: any;
 }
