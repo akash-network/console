@@ -29,7 +29,7 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
-export const StatLineCharts: React.FunctionComponent<DashboardChartsProps> = () => {
+export const StatLineCharts: React.FC<DashboardChartsProps> = () => {
   return (
     <div>
       {/* <div id="chart">{typeof window !== "undefined" && <Chart options={chartOptions} series={chartvariable.series} type="line" height={125} />}</div> */}

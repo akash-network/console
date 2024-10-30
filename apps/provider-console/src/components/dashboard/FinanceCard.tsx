@@ -1,0 +1,61 @@
+import { Card, CardContent, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@akashnetwork/ui/components";
+
+interface PercentChangeProps {
+  currentPrice: number | null;
+  previousPrice: number | null;
+}
+
+interface FinanceCardProps {
+  title: string;
+  subtitle: string;
+  currentPrice: number | null;
+  previousPrice: number | null;
+  message: string | null;
+}
+
+const PercentChange: React.FC<PercentChangeProps> = ({ currentPrice, previousPrice }) => {
+  if (currentPrice === null || previousPrice === null || previousPrice === 0) {
+    return <span className="text-gray-500">0%</span>;
+  }
+
+  const percentageChange = ((currentPrice - previousPrice) / previousPrice) * 100;
+  const formattedChange = Math.abs(percentageChange).toFixed(2);
+
+  if (percentageChange > 0) {
+    return <span className="text-green-500">+{formattedChange}%</span>;
+  } else if (percentageChange < 0) {
+    return <span className="text-red-500">-{formattedChange}%</span>;
+  } else {
+    return <span className="text-gray-500">0%</span>;
+  }
+};
+
+export const FinanceCard: React.FC<FinanceCardProps> = ({ title, subtitle, currentPrice, previousPrice, message }) => {
+  return (
+    <Card>
+      <CardContent className="rounded-lg p-6 shadow-md">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="">
+            <div className="text-sm font-medium">{subtitle}</div>
+            <div className="text-2xl font-semibold">{title}</div>
+            <div className="mt-1 text-sm font-medium">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <PercentChange currentPrice={currentPrice} previousPrice={previousPrice} />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{message}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
+          <div className="col-span-2 flex items-center justify-end">
+            <div className="w-full overflow-hidden">{/* <StatLineCharts data={[15, 0, 25, 0, 45, 70]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}</div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};

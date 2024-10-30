@@ -137,8 +137,7 @@ export const WalletProvider = ({ children }) => {
 
     (async () => {
       if (browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL && isWalletConnected) {
-        sigingClient.current = await createStargateClient();
-
+        // sigingClient.current = await createStargateClient();
         try {
           const validAccessToken = await checkAndRefreshToken();
           if (validAccessToken) {
@@ -149,7 +148,7 @@ export const WalletProvider = ({ children }) => {
         }
       }
     })();
-  }, [isWalletConnected, isWalletArbitrarySigned, getOfflineSigner, logout, selectedNetwork.chainId, createStargateClient]);
+  }, [isWalletConnected, isWalletArbitrarySigned, selectedNetwork.chainId]);
 
   async function getStargateClient() {
     if (!sigingClient.current) {

@@ -1,13 +1,14 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { Button, Card, CardContent, CardHeader, Separator, Spinner } from "@akashnetwork/ui/components";
+import { Button, Card, CardContent, Separator, Spinner } from "@akashnetwork/ui/components";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@akashnetwork/ui/components";
 import { AlertTriangle, Shield } from "lucide-react";
 import Link from "next/link";
 
 import DashboardCardSkeleton from "@src/components/dashboard/DashboardCardSkeleton";
-import { StatPieChart } from "@src/components/dashboard/stat-pie-charts";
+import { PercentChange } from "@src/components/dashboard/PercentChange";
+import { ResourceCards } from "@src/components/dashboard/ResourcesCard";
 import Layout from "@src/components/layout/Layout";
 import ProviderActionList from "@src/components/shared/ProviderActionList";
 import { Title } from "@src/components/shared/Title";
@@ -15,9 +16,9 @@ import withAuth from "@src/components/shared/withAuth";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import consoleClient from "@src/utils/consoleClient";
-import { formatBytes } from "@src/utils/formatBytes";
 import { formatUUsd } from "@src/utils/formatUsd";
 import restClient from "@src/utils/restClient";
+import { FinanceCard } from "@src/components/dashboard/FinanceCard";
 
 const fetchAktPrice = async () => {
   try {
@@ -28,23 +29,6 @@ const fetchAktPrice = async () => {
   } catch (error) {
     console.error("Error fetching AKT price:", error);
     return "N/A";
-  }
-};
-
-const calculatePercentageChange = (currentPrice: number | null, previousPrice: number | null) => {
-  if (currentPrice === null || previousPrice === null || previousPrice === 0) {
-    return <span className="text-gray-500">0%</span>;
-  }
-
-  const percentageChange = ((currentPrice - previousPrice) / previousPrice) * 100;
-  const formattedChange = Math.abs(percentageChange).toFixed(2);
-
-  if (percentageChange > 0) {
-    return <span className="text-green-500">+{formattedChange}%</span>;
-  } else if (percentageChange < 0) {
-    return <span className="text-red-500">-{formattedChange}%</span>;
-  } else {
-    return <span className="text-gray-500">0%</span>;
   }
 };
 
@@ -149,123 +133,39 @@ const Dashboard: React.FC = () => {
             </>
           ) : (
             <>
-              <Card>
-                <CardContent className="rounded-lg p-6 shadow-md">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="">
-                      <div className="text-sm font-medium">Total Paid 24H</div>
-                      <div className="text-2xl font-semibold">{formatUUsd(providerDashboard?.current.dailyUUsdEarned)}</div>
-                      <div className="mt-1 text-sm font-medium">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              {calculatePercentageChange(providerDashboard?.current.dailyUUsdEarned, providerDashboard?.previous.dailyUUsdEarned)}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Change in total paid compared to 24 hours ago</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </div>
-                    <div className="col-span-2 flex items-center justify-end">
-                      <div className="w-full overflow-hidden">
-                        {/* <StatLineCharts data={[15, 0, 25, 0, 45, 70]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="rounded-lg p-6 shadow-md">
-                  <div className="grid-cols4 grid gap-4">
-                    <div className="">
-                      <div className="text-sm font-medium">Total Paid</div>
-                      <div className="text-2xl font-semibold">{formatUUsd(providerDashboard?.current.totalUUsdEarned)}</div>
-                      <div className="mt-1 text-sm font-medium">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              {calculatePercentageChange(providerDashboard?.current.totalUUsdEarned, providerDashboard?.previous.totalUUsdEarned)}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Change in total paid compared to 24 hours ago</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </div>
-                    <div className="col-span-2 flex items-center justify-end">
-                      <div className="w-full overflow-hidden">
-                        {/* <StatLineCharts data={[25, 65, 30, 45, 80]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="rounded-lg p-6 shadow-md">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="">
-                      <div className="text-sm font-medium">Active Leases</div>
-                      <div className="text-2xl font-semibold">
-                        {providerDashboard?.current.activeLeaseCount ? `${providerDashboard?.current.activeLeaseCount}` : "0"}
-                      </div>
-                      <div className="mt-1 text-sm font-medium">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              {calculatePercentageChange(providerDashboard?.current.activeLeaseCount, providerDashboard?.previous.activeLeaseCount)}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Change in active leases compared to 24 hours ago</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </div>
-                    <div className="col-span-2 flex items-center justify-end">
-                      <div className="w-full overflow-hidden">
-                        {/* <StatLineCharts data={[10, 34, 20, 60, 75]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="rounded-lg p-6 shadow-md">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="">
-                      <div className="text-sm font-medium">Total Leases</div>
-                      <div className="text-2xl font-semibold">
-                        {providerDashboard?.current.totalLeaseCount ? `${providerDashboard?.current.totalLeaseCount}` : "0"}
-                      </div>
-                      <div className="mt-1 text-sm font-medium">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              {calculatePercentageChange(providerDashboard?.current.totalLeaseCount, providerDashboard?.previous.totalLeaseCount)}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Change in total leases compared to 24 hours ago</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </div>
-                    <div className="col-span-2 flex items-center justify-end">
-                      <div className="w-full overflow-hidden">
-                        {/* <StatLineCharts data={[10, 34, 20, 60, 75]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <FinanceCard
+                title={formatUUsd(providerDashboard?.current.dailyUUsdEarned)}
+                subtitle="Total Paid 24H"
+                currentPrice={providerDashboard?.current.dailyUUsdEarned}
+                previousPrice={providerDashboard?.previous.dailyUUsdEarned}
+                message="Change in total paid compared to 24 hours ago"
+              />
+              <FinanceCard
+                title={formatUUsd(providerDashboard?.current.totalUUsdEarned)}
+                subtitle="Total Paid"
+                currentPrice={providerDashboard?.current.totalUUsdEarned}
+                previousPrice={providerDashboard?.previous.totalUUsdEarned}
+                message="Change in total paid compared to 24 hours ago"
+              />
+              <FinanceCard
+                title={providerDashboard?.current.activeLeaseCount ? `${providerDashboard?.current.activeLeaseCount}` : "0"}
+                subtitle="Active Leases"
+                currentPrice={providerDashboard?.current.activeLeaseCount}
+                previousPrice={providerDashboard?.previous.activeLeaseCount}
+                message="Change in active leases compared to 24 hours ago"
+              />
+              <FinanceCard
+                title={providerDashboard?.current.totalLeaseCount ? `${providerDashboard?.current.totalLeaseCount}` : "0"}
+                subtitle="Total Leases"
+                currentPrice={providerDashboard?.current.totalLeaseCount}
+                previousPrice={providerDashboard?.previous.totalLeaseCount}
+                message="Change in total leases compared to 24 hours ago"
+              />
             </>
           )}
         </div>
       </div>
-      {isOnline && (
+      {isOnline && providerDetails && (
         <>
           <div className="mt-8">
             <div className="text-sm font-semibold">Resources Leased Summary</div>
@@ -278,7 +178,7 @@ const Dashboard: React.FC = () => {
                   <DashboardCardSkeleton />
                 </div>
               ) : (
-                renderResourceCards(providerDetails)
+                <ResourceCards providerDetails={providerDetails} />
               )}
             </div>
           </div>
@@ -293,100 +193,6 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
     </Layout>
-  );
-};
-
-const ResourceCard: React.FC<{
-  title: string;
-  active: number | string;
-  activePercentage: number;
-  pending: number | string;
-  pendingPercentage: number;
-  available: number | string;
-  availablePercentage: number;
-  total: number | string;
-}> = ({ title, active, activePercentage, pendingPercentage, availablePercentage, total }) => (
-  <Card>
-    <CardHeader>
-      <div className="text-sm">{title}</div>
-    </CardHeader>
-    <CardContent className="pb-4 pt-0">
-      <div className="grid grid-cols-3 gap-2">
-        <div className="">
-          <div className="whitespace-nowrap text-lg font-bold">{active}</div>
-          <div className="whitespace-nowrap text-xs text-gray-500">/{total}</div>
-        </div>
-        <div className="col-span-2 flex items-center justify-end">
-          <div className="w-full overflow-hidden">
-            <StatPieChart activeResources={activePercentage} pendingResources={pendingPercentage} availableResources={availablePercentage} />
-          </div>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-);
-
-const getResourceData = (active: number = 0, pending: number = 0, available: number = 0, isBytes: boolean = false) => {
-  const total = active + pending + available;
-  if (total === 0) return null;
-
-  const activePercentage = (active / total) * 100;
-  const pendingPercentage = (pending / total) * 100;
-  const availablePercentage = (available / total) * 100;
-
-  return {
-    active: isBytes ? formatBytes(active) : active,
-    activePercentage,
-    pending: isBytes ? formatBytes(pending) : pending,
-    pendingPercentage,
-    available: isBytes ? formatBytes(available) : available,
-    availablePercentage,
-    total: isBytes ? formatBytes(total) : total
-  };
-};
-
-const renderResourceCards = (providerDetails: any) => {
-  const resources = [
-    {
-      title: "CPUs",
-      data:
-        providerDetails?.activeStats?.cpu || providerDetails?.pendingStats?.cpu || providerDetails?.availableStats?.cpu
-          ? getResourceData(
-              (providerDetails?.activeStats?.cpu ?? 0) / 1000,
-              (providerDetails?.pendingStats?.cpu ?? 0) / 1000,
-              (providerDetails?.availableStats?.cpu ?? 0) / 1000
-            )
-          : null
-    },
-    { title: "GPUs", data: getResourceData(providerDetails?.activeStats?.gpu, providerDetails?.pendingStats?.gpu, providerDetails?.availableStats?.gpu) },
-    {
-      title: "Memory",
-      data: getResourceData(providerDetails?.activeStats?.memory, providerDetails?.pendingStats?.memory, providerDetails?.availableStats?.memory, true)
-    },
-    {
-      title: "Storage",
-      data: getResourceData(providerDetails?.activeStats?.storage, providerDetails?.pendingStats?.storage, providerDetails?.availableStats?.storage, true)
-    }
-  ];
-
-  const validResources = resources.filter(resource => resource.data !== null);
-
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {validResources.map(({ title, data }: { title: string; data: any }) => (
-        <ResourceCard
-          key={title}
-          title={title}
-          active={data.active ?? 0}
-          activePercentage={data.activePercentage ?? 0}
-          pending={data.pending ?? 0}
-          pendingPercentage={data.pendingPercentage ?? 0}
-          available={data.available ?? 0}
-          availablePercentage={data.availablePercentage ?? 0}
-          total={data.total ?? 0}
-        />
-      ))}
-    </div>
   );
 };
 

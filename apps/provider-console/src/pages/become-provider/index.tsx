@@ -13,7 +13,7 @@ import { ProviderActionDetails } from "@src/components/shared/ProviderActionDeta
 import withAuth from "@src/components/shared/withAuth";
 import providerProcessStore from "@src/store/providerProcessStore";
 
-const BecomeProvider: React.FunctionComponent = () => {
+const BecomeProvider: React.FC = () => {
   const [activeStep, setActiveStep] = useState<number>(0);
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
 
