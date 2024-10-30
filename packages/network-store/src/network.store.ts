@@ -4,7 +4,7 @@ import { getDefaultStore, useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import cloneDeep from "lodash/cloneDeep";
 
-import { INITIAL_NETWORKS_CONFIG } from "./network.config";
+import { INITIAL_NETWORKS_CONFIG, MAINNET_ID, SANDBOX_ID } from "./network.config";
 import type { Network } from "./network.type";
 
 interface NetworkStoreOptions {
@@ -36,7 +36,7 @@ export class NetworkStore {
 
   readonly networksStore = atom<NetworksStore>({ isLoading: true, error: undefined, data: cloneDeep(INITIAL_NETWORKS_CONFIG) });
 
-  private readonly selectedNetworkIdStore = atomWithStorage<Network["id"]>(this.STORAGE_KEY, this.options.defaultNetworkId);
+  private readonly selectedNetworkIdStore = atomWithStorage<Network["id"]>(this.STORAGE_KEY, this.getInitialNetworkId());
 
   private readonly selectedNetworkStore = atom<Network, [Network], void>(
     get => {
@@ -76,6 +76,21 @@ export class NetworkStore {
     this.store = options.store || getDefaultStore();
     this.initiateNetworkFromUrlQuery();
     this.initiateNetworks();
+  }
+
+  private getInitialNetworkId() {
+    if (typeof window === "undefined") {
+      return this.options.defaultNetworkId;
+    }
+    const raw = localStorage.getItem(this.STORAGE_KEY);
+
+    if (!raw) {
+      return this.options.defaultNetworkId;
+    }
+
+    const parsed = JSON.parse(raw);
+
+    return [MAINNET_ID, SANDBOX_ID].includes(parsed) ? parsed : this.options.defaultNetworkId;
   }
 
   private async initiateNetworks() {

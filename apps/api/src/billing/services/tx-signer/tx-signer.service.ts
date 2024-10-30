@@ -9,6 +9,7 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
+import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { MasterWalletService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -30,7 +31,7 @@ export class TxSignerService {
     @InjectBillingConfig() private readonly config: BillingConfig,
     @InjectTypeRegistry() private readonly registry: Registry,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly masterWalletService: MasterWalletService,
+    @InjectWallet("MANAGED") private readonly masterWalletService: MasterWalletService,
     private readonly balancesService: BalancesService,
     private readonly authService: AuthService,
     private readonly chainErrorService: ChainErrorService,

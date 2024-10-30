@@ -11,6 +11,7 @@ import { container } from "tsyringe";
 import { app } from "@src/app";
 import { config } from "@src/billing/config";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import { MasterWalletService } from "@src/billing/services";
 
 jest.setTimeout(30000);
@@ -21,7 +22,7 @@ const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.ym
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
-  const masterWalletService = container.resolve(MasterWalletService);
+  const masterWalletService = container.resolve<MasterWalletService>(MANAGED_MASTER_WALLET);
   const dbService = container.resolve(DbTestingService);
 
   afterEach(async () => {
