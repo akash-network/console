@@ -19,7 +19,7 @@ import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { deploymentData } from "@src/utils/deploymentData";
-import { saveDeploymentManifest } from "@src/utils/deploymentLocalDataUtils";
+import { getDeploymentLocalData, saveDeploymentManifest } from "@src/utils/deploymentLocalDataUtils";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import RemoteDeployUpdate from "../remote-deploy/update/RemoteDeployUpdate";
