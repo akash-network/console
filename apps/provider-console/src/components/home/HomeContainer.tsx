@@ -1,11 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Button, Spinner } from "@akashnetwork/ui/components";
-import { useAtom } from "jotai";
+import { Spinner } from "@akashnetwork/ui/components";
 import { useRouter } from "next/router";
 
 import { useWallet } from "@src/context/WalletProvider";
-import providerProcessStore from "@src/store/providerProcessStore";
 import restClient from "@src/utils/restClient";
 import Layout from "../layout/Layout";
 import ProviderActionList from "../shared/ProviderActionList";
@@ -13,7 +11,6 @@ import { NotAProvider } from "./NotAProvider";
 import { WalletNotConnected } from "./WalletNotConnected";
 
 export function HomeContainer() {
-  const [, resetProcess] = useAtom(providerProcessStore.resetProviderProcess);
   const router = useRouter();
   const { isWalletConnected, isWalletArbitrarySigned, isProvider, isOnline, isProviderStatusFetched } = useWallet();
   const [isLoading, setIsLoading] = useState(false);
@@ -21,10 +18,8 @@ export function HomeContainer() {
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isProvider && isOnline) {
-      setIsLoading(true);
-      fetchActions();
-    }
+    setIsLoading(true);
+    fetchActions();
   }, [isProvider, isOnline, isWalletArbitrarySigned]);
 
   const fetchActions = async () => {
@@ -33,6 +28,8 @@ export function HomeContainer() {
       setActions(actionsResponse.actions);
     } catch (error) {
       setLoadingMessage("Error fetching actions");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -41,11 +38,6 @@ export function HomeContainer() {
       router.push("/dashboard");
     }
   }, [isWalletConnected, isProvider, isOnline, actions, router]);
-
-  const handleBecomeProvider = () => {
-    resetProcess();
-    router.push("/become-provider");
-  };
 
   return (
     <Layout containerClassName="flex h-full flex-col justify-between" isLoading={!isProviderStatusFetched || isLoading}>
@@ -59,18 +51,12 @@ export function HomeContainer() {
           ) : (
             <>
               {!isWalletConnected && <WalletNotConnected />}
-              {isWalletConnected && !isProvider && actions && (
+              {isWalletConnected && !isProvider && (!actions || actions.length === 0) && <NotAProvider />}
+              {isWalletConnected && !isProvider && actions && actions.length > 0 && (
                 <div className="mt-4">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-2xl font-semibold">Provider Actions</h2>
-                    <Button variant="outline" onClick={handleBecomeProvider}>
-                      Become a Provider
-                    </Button>
-                  </div>
                   <ProviderActionList actions={actions} />
                 </div>
               )}
-              {isWalletConnected && !isProvider && (!actions || actions.length === 0) && <NotAProvider />}
             </>
           )}
         </div>

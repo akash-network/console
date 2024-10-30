@@ -18,6 +18,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
 import { HomeIcon } from "lucide-react";
+import { useRouter } from "next/router";
 import { z } from "zod";
 
 import providerProcessStore from "@src/store/providerProcessStore";
@@ -67,13 +68,15 @@ const seedFormSchema = z.object({
 type AppearanceFormValues = z.infer<typeof appearanceFormSchema>;
 type SeedFormValues = z.infer<typeof seedFormSchema>;
 
-export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepChange }) => {
+export const WalletImport: React.FunctionComponent<WalletImportProps> = () => {
   const [mode, setMode] = useState<string>("");
   const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-  const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
+  const [providerProcess] = useAtom(providerProcessStore.providerProcessAtom);
+  const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
 
   const defaultValues: Partial<AppearanceFormValues> = {
     walletMode: "seed"
@@ -125,15 +128,8 @@ export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepC
         });
 
         if (response.action_id) {
-          setProviderProcess(prev => ({
-            ...prev,
-            actionId: response.action_id,
-            process: {
-              ...prev.process,
-              walletImport: true
-            }
-          }));
-          stepChange();
+          resetProviderProcess();
+          router.push(`/action?id=${response.action_id}`);
         } else {
           throw new Error("Invalid response from server");
         }
