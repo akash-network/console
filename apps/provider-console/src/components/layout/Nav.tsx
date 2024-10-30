@@ -25,13 +25,6 @@ export const Nav = () => {
         )}
 
         <div style={{ height: `${accountBarHeight}px` }} className={`hidden items-center md:flex`}>
-          <div>
-            <Link passHref href={UrlService.getStarted()}>
-              <Button variant="outline" className="relative">
-                Get Started
-              </Button>
-            </Link>
-          </div>
           <div className="flex items-center">
             <div className="ml-4">
               <WalletStatus />
