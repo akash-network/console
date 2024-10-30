@@ -1,5 +1,12 @@
 
 
+## [2.27.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.27.0-beta.0...console-api/v2.27.0-beta.1) (2024-10-30)
+
+
+### Bug Fixes
+
+* improve perf ([d9de0eb](https://github.com/akash-network/console/commit/d9de0eba93d0c4ee4d7e051f98843578ba30a258)), closes [#427](https://github.com/akash-network/console/issues/427)
+
 ## [2.27.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.26.0...console-api/v2.27.0-beta.0) (2024-10-29)
 
 
