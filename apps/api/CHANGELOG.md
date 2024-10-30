@@ -1,5 +1,12 @@
 
 
+## [2.28.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.27.0...console-api/v2.28.0-beta.0) (2024-10-30)
+
+
+### Features
+
+* **wallet:** implement multiple master wallets and clients ([5ea00e4](https://github.com/akash-network/console/commit/5ea00e427d426caeb6e1a85760dbffb362a0afd4)), closes [#395](https://github.com/akash-network/console/issues/395)
+
 ## [2.27.0](https://github.com/akash-network/console/compare/console-api/v2.27.0-beta.1...console-api/v2.27.0) (2024-10-30)
 
 ## [2.27.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.27.0-beta.0...console-api/v2.27.0-beta.1) (2024-10-30)
