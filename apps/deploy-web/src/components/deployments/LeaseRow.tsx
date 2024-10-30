@@ -328,7 +328,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                     </div>
                   </div>
 
-                  {leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0 && !remoteDeploy && (
+                  {leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0 && !isRemoteDeploy && (
                     <div className={cn({ ["mb-4"]: service.uris?.length > 0 })}>
                       <LabelValueOld
                         label="Forwarded Ports:"
