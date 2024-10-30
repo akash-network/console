@@ -214,7 +214,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
             />
 
             <LabelValueOld
-              label="Provider:"
+              label="Price:"
               value={
                 <>
                   {isLeaseActive && isLoadingProviderStatus && <Spinner size="small" className="mr-2" />}
@@ -328,7 +328,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                     </div>
                   </div>
 
-                  {leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0 && (
+                  {leaseStatus.forwarded_ports && leaseStatus.forwarded_ports[service.name]?.length > 0 && !isRemoteDeploy && (
                     <div className={cn({ ["mb-4"]: service.uris?.length > 0 })}>
                       <LabelValueOld
                         label="Forwarded Ports:"
