@@ -2,6 +2,7 @@ import { AllowanceHttpService } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletInput, UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { MasterWalletService } from "@src/billing/services";
 
@@ -10,7 +11,7 @@ export class BalancesService {
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly masterWalletService: MasterWalletService,
+    @InjectWallet("MANAGED") private readonly masterWalletService: MasterWalletService,
     private readonly allowanceHttpService: AllowanceHttpService
   ) {}
 

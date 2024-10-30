@@ -1,5 +1,21 @@
 
 
+## [2.20.2](https://github.com/akash-network/console/compare/console-web/v2.20.2-beta.1...console-web/v2.20.2) (2024-10-30)
+
+## [2.20.2-beta.1](https://github.com/akash-network/console/compare/console-web/v2.20.2-beta.0...console-web/v2.20.2-beta.1) (2024-10-30)
+
+
+### Bug Fixes
+
+* improve perf ([d9de0eb](https://github.com/akash-network/console/commit/d9de0eba93d0c4ee4d7e051f98843578ba30a258)), closes [#427](https://github.com/akash-network/console/issues/427)
+
+## [2.20.2-beta.0](https://github.com/akash-network/console/compare/console-web/v2.20.1...console-web/v2.20.2-beta.0) (2024-10-29)
+
+
+### Bug Fixes
+
+* **wallet:** ensure proper network and manage wallet switch ([39ee991](https://github.com/akash-network/console/commit/39ee991731145c3d3d8b3a6cb0ef37fe453b0d29))
+
 ## [2.20.1](https://github.com/akash-network/console/compare/console-web/v2.20.1-beta.0...console-web/v2.20.1) (2024-10-26)
 
 ## [2.20.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.20.0...console-web/v2.20.1-beta.0) (2024-10-26)
