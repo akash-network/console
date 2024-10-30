@@ -1,13 +1,13 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { Button, Card, CardContent, Separator, Spinner } from "@akashnetwork/ui/components";
+import { Button, Separator, Spinner } from "@akashnetwork/ui/components";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@akashnetwork/ui/components";
 import { AlertTriangle, Shield } from "lucide-react";
 import Link from "next/link";
 
 import DashboardCardSkeleton from "@src/components/dashboard/DashboardCardSkeleton";
-import { PercentChange } from "@src/components/dashboard/PercentChange";
+import { FinanceCard } from "@src/components/dashboard/FinanceCard";
 import { ResourceCards } from "@src/components/dashboard/ResourcesCard";
 import Layout from "@src/components/layout/Layout";
 import ProviderActionList from "@src/components/shared/ProviderActionList";
@@ -18,7 +18,6 @@ import { useWallet } from "@src/context/WalletProvider";
 import consoleClient from "@src/utils/consoleClient";
 import { formatUUsd } from "@src/utils/formatUsd";
 import restClient from "@src/utils/restClient";
-import { FinanceCard } from "@src/components/dashboard/FinanceCard";
 
 const fetchAktPrice = async () => {
   try {
