@@ -1,5 +1,12 @@
 
 
+## [2.20.3-beta.0](https://github.com/akash-network/console/compare/console-web/v2.20.2...console-web/v2.20.3-beta.0) (2024-10-30)
+
+
+### Bug Fixes
+
+* **network:** safely parse initial selected network ([8f0e2de](https://github.com/akash-network/console/commit/8f0e2de54b64469bfbb9e169030435c04060739b))
+
 ## [2.20.2](https://github.com/akash-network/console/compare/console-web/v2.20.2-beta.1...console-web/v2.20.2) (2024-10-30)
 
 ## [2.20.2-beta.1](https://github.com/akash-network/console/compare/console-web/v2.20.2-beta.0...console-web/v2.20.2-beta.1) (2024-10-30)
