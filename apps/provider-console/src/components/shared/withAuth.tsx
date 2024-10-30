@@ -21,9 +21,6 @@ const withAuth = (WrappedComponent: React.ComponentType) => {
       } else if (!isProviderStatusFetched) {
         setLoadingMessage("Checking provider status...");
         return;
-      } else if (!isProvider) {
-        setLoadingMessage("Verifying provider status...");
-        router.push("/");
       } else {
         setLoading(false);
       }

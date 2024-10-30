@@ -18,11 +18,9 @@ export async function checkAndRefreshToken(): Promise<string | null> {
         const currentTime = Math.floor(Date.now() / 1000);
 
         if (decodedToken.exp > currentTime) {
-            // Token is still valid
             return accessToken;
         }
 
-        // Token has expired, attempt to refresh
         const refreshToken = localStorage.getItem('refreshToken');
         const walletAddress = localStorage.getItem('walletAddress');
 
