@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@akashnetwork/network-store": "1.0.0",
+    "@akashnetwork/network-store": "1.0.1",
     "@akashnetwork/ui": "1.0.0"
   },
   "devDependencies": {

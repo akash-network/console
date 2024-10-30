@@ -4,7 +4,7 @@ import { getDefaultStore, useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import cloneDeep from "lodash/cloneDeep";
 
-import { INITIAL_NETWORKS_CONFIG, MAINNET_ID, SANDBOX_ID } from "./network.config";
+import { INITIAL_NETWORKS_CONFIG } from "./network.config";
 import type { Network } from "./network.type";
 
 interface NetworkStoreOptions {
@@ -18,6 +18,8 @@ interface NetworksStore {
   error?: Error;
   data: Network[];
 }
+
+const networkIds = INITIAL_NETWORKS_CONFIG.map(({ id }) => id);
 
 class NetworkStoreVersionsInitError extends Error {
   errors: Error[];
@@ -84,13 +86,21 @@ export class NetworkStore {
     }
     const raw = localStorage.getItem(this.STORAGE_KEY);
 
+    if (networkIds.some(id => id === raw)) {
+      return raw;
+    }
+
     if (!raw) {
       return this.options.defaultNetworkId;
     }
 
-    const parsed = JSON.parse(raw);
+    try {
+      const parsed = JSON.parse(raw);
 
-    return [MAINNET_ID, SANDBOX_ID].includes(parsed) ? parsed : this.options.defaultNetworkId;
+      return networkIds.includes(parsed) ? parsed : this.options.defaultNetworkId;
+    } catch (error) {
+      return this.options.defaultNetworkId;
+    }
   }
 
   private async initiateNetworks() {
