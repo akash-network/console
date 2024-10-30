@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/network-store",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Package containing browser storage for Akash Network",
   "keywords": [],
   "license": "Apache-2.0",
