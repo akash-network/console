@@ -44,8 +44,8 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const previousRoute = usePreviousRoute();
   const handleGithubTemplate = async () => {
-    setGithub(true);
-    router.push(UrlService.newDeployment({ step: RouteStepKeys.editDeployment, type: "github" }));
+    onChangeGitProvider(true);
+    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, gitProvider: "github", templateId: CI_CD_TEMPLATE_ID }));
   };
 
   useEffect(() => {
@@ -83,12 +83,11 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
 
       <div className="mb-8">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
-          {/* <DeployOptionBox
-            title={helloWorldTemplate.title}
-            description={helloWorldTemplate.description}
-            icon={<Rocket className="rotate-45" />}
-            testId="hello-world-card"
-            onClick={() => router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code }))}
+          <DeployOptionBox
+            title={"Build and Deploy"}
+            description={"Deploy directly from GitHub/BitBucket/GitLab"}
+            icon={<Rocket />}
+            onClick={handleGithubTemplate}
           />
 
           <DeployOptionBox
@@ -135,6 +134,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
             title={helloWorldTemplate.title}
             description={helloWorldTemplate.description}
             icon={<Rocket className="rotate-45" />}
+            testId="hello-world-card"
             onClick={() => router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code }))}
           />
           {previewTemplates.map(template => (

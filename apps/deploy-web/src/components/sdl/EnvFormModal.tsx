@@ -6,7 +6,8 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Bin } from "iconoir-react";
 import { nanoid } from "nanoid";
 
-import { EnvironmentVariableType, RentGpusFormValuesType,SdlBuilderFormValuesType } from "@src/types";
+import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
+import { EnvironmentVariableType, RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

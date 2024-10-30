@@ -1,7 +1,7 @@
 "use client";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-import { Alert, Button, CustomTooltip, Input, Spinner } from "@akashnetwork/ui/components";
+import { Alert, Button, CustomTooltip, Input, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useTheme as useMuiTheme } from "@mui/material/styles";

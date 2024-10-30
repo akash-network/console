@@ -37,6 +37,30 @@ export const NewDeploymentContainer: FC = () => {
     const queryStep = searchParams?.get("step");
     const _activeStep = getStepIndexByParam(queryStep as RouteStep);
     setActiveStep(_activeStep);
+
+    const redeploy = searchParams?.get("redeploy");
+    const code = searchParams?.get("code");
+    const gitProvider = searchParams?.get("gitProvider");
+    const state = searchParams?.get("state");
+    const templateId = searchParams?.get("templateId");
+    const shouldRedirectToGitlab = !redeploy && state === "gitlab" && code;
+    const isGitProvider = gitProvider === "github" || code || state === "gitlab" || (templateId && templateId === CI_CD_TEMPLATE_ID);
+    if (shouldRedirectToGitlab) {
+      router.replace(
+        UrlService.newDeployment({
+          step: RouteStep.editDeployment,
+          gitProvider: "github",
+          gitProviderCode: code,
+          templateId: CI_CD_TEMPLATE_ID
+        })
+      );
+    } else {
+      if (isGitProvider) {
+        setIsGitProviderTemplate(true);
+      } else {
+        setIsGitProviderTemplate(false);
+      }
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -53,10 +77,18 @@ export const NewDeploymentContainer: FC = () => {
       if ("config" in template && (template.config?.ssh || (!template.config?.ssh && hasComponent("ssh")))) {
         toggleCmp("ssh");
       }
-
+      const isRemoteYamlImage = isImageInYaml(template?.content as string, getTemplateById(CI_CD_TEMPLATE_ID)?.deploy);
       const queryStep = searchParams?.get("step");
       if (queryStep !== RouteStep.editDeployment) {
-        router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
+        if (isRemoteYamlImage) {
+          setIsGitProviderTemplate(true);
+        }
+
+        const newParams = isRemoteYamlImage
+          ? { ...searchParams, step: RouteStep.editDeployment, gitProvider: "github" }
+          : { ...searchParams, step: RouteStep.editDeployment };
+
+        router.replace(UrlService.newDeployment(newParams));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
