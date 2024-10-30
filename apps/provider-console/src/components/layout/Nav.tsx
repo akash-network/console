@@ -1,10 +1,8 @@
 "use client";
-import { Button } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
 import useCookieTheme from "@src/hooks/useTheme";
 import { accountBarHeight } from "@src/utils/constants";
-import { UrlService } from "@src/utils/urlUtils";
 import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
 import { WalletStatus } from "./WalletStatus";
 
