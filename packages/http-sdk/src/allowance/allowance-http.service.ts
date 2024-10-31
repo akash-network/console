@@ -3,12 +3,12 @@ import type { AxiosRequestConfig } from "axios";
 import { HttpService } from "../http/http.service";
 import type { Denom } from "../types/denom.type";
 
-type SpendLimit = {
+export interface SpendLimit {
   denom: Denom;
   amount: string;
-};
+}
 
-interface FeeAllowance {
+export interface FeeAllowance {
   granter: string;
   grantee: string;
   allowance: {
@@ -63,16 +63,21 @@ export class AllowanceHttpService extends HttpService {
     return allowances.grants;
   }
 
-  async paginateDeploymentGrantsForGrantee(address: string, cb: (page: DeploymentAllowanceResponse["grants"]) => Promise<void>) {
+  async paginateDeploymentGrants(
+    options: ({ granter: string } | { grantee: string }) & { limit: number },
+    cb: (page: DeploymentAllowanceResponse["grants"]) => Promise<void>
+  ) {
     let nextPageKey: string | null = null;
+    const side = "granter" in options ? "granter" : "grantee";
+    const address = "granter" in options ? options.granter : options.grantee;
 
     do {
       const response = this.extractData(
         await this.get<DeploymentAllowanceResponse>(
-          `cosmos/authz/v1beta1/grants/grantee/${address}`,
+          `cosmos/authz/v1beta1/grants/${side}/${address}`,
           nextPageKey
             ? {
-                params: { "pagination.key": nextPageKey }
+                params: { "pagination.key": nextPageKey, "pagination.limit": options.limit }
               }
             : undefined
         )
