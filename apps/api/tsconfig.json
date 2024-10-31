@@ -1,5 +1,5 @@
 {
-  "exclude": ["node_modules", "dist", "**/*spec.ts"],
+  "exclude": ["node_modules", "dist", "test"],
   "extends": "./tsconfig.build.json",
   "include": ["src/**/*", "../../packages/logging/src/types/pino-fluentd.d.ts"],
 }

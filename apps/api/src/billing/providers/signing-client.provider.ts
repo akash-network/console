@@ -3,7 +3,7 @@ import { container, inject } from "tsyringe";
 import { config } from "@src/billing/config";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { MANAGED_MASTER_WALLET, UAKT_TOP_UP_MASTER_WALLET, USDC_TOP_UP_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
-import { MasterSigningClientService } from "@src/billing/services";
+import { MasterSigningClientService } from "@src/billing/services/master-signing-client/master-signing-client.service";
 import { MasterWalletType } from "@src/billing/types/wallet.type";
 
 export const MANAGED_MASTER_SIGNING_CLIENT = "MANAGED_MASTER_SIGNING_CLIENT";
