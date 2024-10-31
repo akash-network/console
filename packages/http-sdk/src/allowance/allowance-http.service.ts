@@ -1,11 +1,7 @@
 import type { AxiosRequestConfig } from "axios";
 
 import { HttpService } from "../http/http.service";
-
-type Denom =
-  | "uakt"
-  | "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1"
-  | "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84";
+import type { Denom } from "../types/denom.type";
 
 type SpendLimit = {
   denom: Denom;
@@ -22,7 +18,7 @@ interface FeeAllowance {
   };
 }
 
-interface DeploymentAllowance {
+export interface DeploymentAllowance {
   granter: string;
   grantee: string;
   authorization: {
@@ -32,12 +28,19 @@ interface DeploymentAllowance {
   };
 }
 
-interface FeeAllowanceResponse {
+interface FeeAllowanceListResponse {
   allowances: FeeAllowance[];
+}
+
+interface FeeAllowanceResponse {
+  allowance: FeeAllowance;
 }
 
 interface DeploymentAllowanceResponse {
   grants: DeploymentAllowance[];
+  pagination: {
+    next_key: string | null;
+  };
 }
 
 export class AllowanceHttpService extends HttpService {
@@ -46,12 +49,35 @@ export class AllowanceHttpService extends HttpService {
   }
 
   async getFeeAllowancesForGrantee(address: string) {
-    const allowances = this.extractData(await this.get<FeeAllowanceResponse>(`cosmos/feegrant/v1beta1/allowances/${address}`));
+    const allowances = this.extractData(await this.get<FeeAllowanceListResponse>(`cosmos/feegrant/v1beta1/allowances/${address}`));
     return allowances.allowances;
+  }
+
+  async getFeeAllowanceForGranterAndGrantee(granter: string, grantee: string) {
+    const allowances = this.extractData(await this.get<FeeAllowanceResponse>(`cosmos/feegrant/v1beta1/allowance/${granter}/${grantee}`));
+    return allowances.allowance;
   }
 
   async getDeploymentAllowancesForGrantee(address: string) {
     const allowances = this.extractData(await this.get<DeploymentAllowanceResponse>(`cosmos/authz/v1beta1/grants/grantee/${address}`));
     return allowances.grants;
+  }
+
+  async paginateDeploymentGrantsForGrantee(address: string, cb: (page: DeploymentAllowanceResponse["grants"]) => Promise<void>) {
+    let nextPageKey: string | null;
+
+    do {
+      const response = this.extractData(
+        await this.get<DeploymentAllowanceResponse>(
+          `cosmos/authz/v1beta1/grants/grantee/${address}`,
+          nextPageKey && {
+            params: { "pagination.key": nextPageKey }
+          }
+        )
+      );
+      nextPageKey = response.pagination.next_key;
+
+      await cb(response.grants);
+    } while (nextPageKey);
   }
 }

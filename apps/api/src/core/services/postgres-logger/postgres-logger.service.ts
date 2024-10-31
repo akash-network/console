@@ -5,6 +5,7 @@ import { LoggerService } from "@src/core/services/logger/logger.service";
 
 interface PostgresLoggerServiceOptions {
   orm?: "drizzle" | "sequelize";
+  database?: string;
   useFormat?: boolean;
 }
 
@@ -17,7 +18,7 @@ export class PostgresLoggerService implements LogWriter {
 
   constructor(options?: PostgresLoggerServiceOptions) {
     const orm = options?.orm || "drizzle";
-    this.logger = new LoggerService({ context: "POSTGRES", orm });
+    this.logger = new LoggerService({ context: "POSTGRES", orm, database: options?.database });
     this.isDrizzle = orm === "drizzle";
     this.useFormat = options?.useFormat || false;
   }

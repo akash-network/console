@@ -8,6 +8,7 @@ import { container } from "tsyringe";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { LoggerService } from "@src/core";
+import { chainDb } from "@src/db/dbConnection";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/deployment.controller";
 
 const program = new Command();
@@ -40,10 +41,12 @@ async function executeCliHandler(name: string, handler: () => Promise<void>) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { migratePG, closeConnections } = await require("./core/providers/postgres.provider");
     await migratePG();
+    await chainDb.authenticate();
 
     await handler();
 
     await closeConnections();
+    await chainDb.close();
     logger.info({ event: "COMMAND_END", name });
   });
 }
