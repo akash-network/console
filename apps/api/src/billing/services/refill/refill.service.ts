@@ -55,7 +55,7 @@ export class RefillService {
     let currentLimit: number = 0;
 
     if (userWallet) {
-      currentLimit = await this.balancesService.calculateDeploymentLimit(userWallet);
+      currentLimit = await this.balancesService.retrieveAndCalcDeploymentLimit(userWallet);
     } else {
       userWallet = await this.walletInitializerService.initialize(userId);
     }
