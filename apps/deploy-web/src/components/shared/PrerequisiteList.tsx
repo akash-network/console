@@ -61,6 +61,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
           color: "primary",
           variant: "default",
           side: "right",
+          disabled: isLoadingPrerequisites || !address,
           isLoading: isLoadingPrerequisites,
           onClick: onContinue
         }

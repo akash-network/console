@@ -1,17 +1,13 @@
 import { DirectSecp256k1HdWallet, OfflineDirectSigner } from "@cosmjs/proto-signing";
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
-import { singleton } from "tsyringe";
 
-import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-
-@singleton()
 export class MasterWalletService implements OfflineDirectSigner {
   private readonly PREFIX = "akash";
 
   private readonly instanceAsPromised: Promise<DirectSecp256k1HdWallet>;
 
-  constructor(@InjectBillingConfig() private readonly config: BillingConfig) {
-    this.instanceAsPromised = DirectSecp256k1HdWallet.fromMnemonic(this.config.MASTER_WALLET_MNEMONIC, { prefix: this.PREFIX });
+  constructor(mnemonic: string) {
+    this.instanceAsPromised = DirectSecp256k1HdWallet.fromMnemonic(mnemonic, { prefix: this.PREFIX });
   }
 
   async getAccounts() {

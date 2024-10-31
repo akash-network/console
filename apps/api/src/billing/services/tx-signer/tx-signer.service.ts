@@ -9,10 +9,12 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
+import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { MasterWalletService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { ChainErrorService } from "../chain-error/chain-error.service";
+import { TrialValidationService } from "../trial-validation/trial-validation.service";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
 type SimpleSigningStargateClient = {
@@ -29,10 +31,11 @@ export class TxSignerService {
     @InjectBillingConfig() private readonly config: BillingConfig,
     @InjectTypeRegistry() private readonly registry: Registry,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly masterWalletService: MasterWalletService,
+    @InjectWallet("MANAGED") private readonly masterWalletService: MasterWalletService,
     private readonly balancesService: BalancesService,
     private readonly authService: AuthService,
-    private readonly chainErrorService: ChainErrorService
+    private readonly chainErrorService: ChainErrorService,
+    private readonly anonymousValidateService: TrialValidationService
   ) {}
 
   async signAndBroadcast(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
@@ -40,6 +43,12 @@ export class TxSignerService {
     assert(userWallet, 404, "UserWallet Not Found");
 
     const decodedMessages = this.decodeMessages(messages);
+
+    try {
+      await Promise.all(decodedMessages.map(message => this.anonymousValidateService.validateLeaseProviders(message, userWallet)));
+    } catch (error) {
+      throw this.chainErrorService.toAppError(error, decodedMessages);
+    }
 
     const client = await this.getClientForAddressIndex(userWallet.id);
     const tx = await client.signAndBroadcast(decodedMessages);

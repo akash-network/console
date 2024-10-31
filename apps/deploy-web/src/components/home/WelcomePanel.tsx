@@ -12,10 +12,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger
 } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Learning, NavArrowDown, Rocket, SearchEngine } from "iconoir-react";
 import Link from "next/link";
 
-import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 
 export const WelcomePanel: React.FC = () => {
@@ -46,7 +46,7 @@ export const WelcomePanel: React.FC = () => {
 
                 <div className="flex flex-col">
                   <Link href={UrlService.getStarted()}>Getting started with Akash Console</Link>
-                  <span className="text-sm text-muted-foreground">Learn how to deploy your first docker container on Akash in a few click using Console.</span>
+                  <span className="text-sm text-muted-foreground">Learn how to deploy your first docker container on Akash in a few clicks using Console.</span>
                 </div>
               </li>
 

@@ -1,5 +1,5 @@
 import { AnyAbility } from "@casl/ability";
-import { and, eq } from "drizzle-orm";
+import { and, DBQueryConfig, eq } from "drizzle-orm";
 import { PgTableWithColumns } from "drizzle-orm/pg-core/table";
 import { SQL } from "drizzle-orm/sql/sql";
 import first from "lodash/first";
@@ -78,12 +78,16 @@ export abstract class BaseRepository<
     return this.toOutput(first(items));
   }
 
-  async find(query?: Partial<Output>) {
-    return this.toOutputList(
-      await this.queryCursor.findMany({
-        where: this.queryToWhere(query)
-      })
-    );
+  async find(query?: Partial<Output>, select?: Array<keyof Output>) {
+    const params: DBQueryConfig<"many", true> = {
+      where: this.queryToWhere(query)
+    };
+
+    if (select) {
+      params.columns = select.reduce((acc, field) => ({ ...acc, [field]: true }), {});
+    }
+
+    return this.toOutputList(await this.queryCursor.findMany(params));
   }
 
   async updateById(id: Output["id"], payload: Partial<Input>, options?: MutationOptions): Promise<Output>;

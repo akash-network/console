@@ -1,6 +1,6 @@
 {
-  "name": "console-api",
-  "version": "2.23.4",
+  "name": "@akashnetwork/console-api",
+  "version": "2.28.0-beta.1",
   "description": "Api providing data to the deploy tool",
   "repository": {
     "type": "git",
@@ -15,6 +15,7 @@
     "build:console": "webpack --config webpack.prod.js --entry ./src/console.ts --output-filename console.js",
     "console": "npm run build:console && node dist/console.js",
     "dev": "npm run start",
+    "dev-nodc": "npm run start",
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "migrate": "node-pg-migrate",
@@ -29,7 +30,8 @@
     "test:unit": "jest --selectProjects unit",
     "test:unit:cov": "jest --selectProjects unit --coverage",
     "test:unit:watch": "jest --selectProjects unit --watch",
-    "test:watch": "jest --selectProjects unit functional --watch"
+    "test:watch": "jest --selectProjects unit functional --watch",
+    "release": "release-it"
   },
   "dependencies": {
     "@akashnetwork/akash-api": "^1.3.0",
@@ -97,7 +99,10 @@
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
+    "@akashnetwork/docker": "*",
+    "@akashnetwork/releaser": "*",
     "@faker-js/faker": "^8.4.1",
+    "@release-it/conventional-changelog": "github:akash-network/conventional-changelog#feature/pre-release",
     "@types/http-assert": "^1.5.5",
     "@types/http-errors": "^2.0.4",
     "@types/jest": "^29.5.12",
@@ -121,6 +126,7 @@
     "nodemon-webpack-plugin": "^4.8.2",
     "prettier": "^3.3.0",
     "prettier-plugin-tailwindcss": "^0.6.1",
+    "release-it": "^17.6.0",
     "supertest": "^6.1.5",
     "ts-jest": "^29.1.4",
     "ts-loader": "^9.2.5",

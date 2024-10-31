@@ -19,6 +19,8 @@ interface NetworksStore {
   data: Network[];
 }
 
+const networkIds = INITIAL_NETWORKS_CONFIG.map(({ id }) => id);
+
 class NetworkStoreVersionsInitError extends Error {
   errors: Error[];
   constructor(errors: { network: Network; error: Error }[]) {
@@ -36,7 +38,7 @@ export class NetworkStore {
 
   readonly networksStore = atom<NetworksStore>({ isLoading: true, error: undefined, data: cloneDeep(INITIAL_NETWORKS_CONFIG) });
 
-  private readonly selectedNetworkIdStore = atomWithStorage<Network["id"]>(this.STORAGE_KEY, this.options.defaultNetworkId);
+  private readonly selectedNetworkIdStore = atomWithStorage<Network["id"]>(this.STORAGE_KEY, this.getInitialNetworkId());
 
   private readonly selectedNetworkStore = atom<Network, [Network], void>(
     get => {
@@ -76,6 +78,29 @@ export class NetworkStore {
     this.store = options.store || getDefaultStore();
     this.initiateNetworkFromUrlQuery();
     this.initiateNetworks();
+  }
+
+  private getInitialNetworkId() {
+    if (typeof window === "undefined") {
+      return this.options.defaultNetworkId;
+    }
+    const raw = localStorage.getItem(this.STORAGE_KEY);
+
+    if (networkIds.some(id => id === raw)) {
+      return raw;
+    }
+
+    if (!raw) {
+      return this.options.defaultNetworkId;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+
+      return networkIds.includes(parsed) ? parsed : this.options.defaultNetworkId;
+    } catch (error) {
+      return this.options.defaultNetworkId;
+    }
   }
 
   private async initiateNetworks() {
