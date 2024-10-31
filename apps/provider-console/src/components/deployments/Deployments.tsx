@@ -40,7 +40,7 @@ interface Deployment {
   costPerMonth: number;
 }
 
-const Deployments: React.FC = () => {
+export const Deployments: React.FC = () => {
   const router = useRouter();
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [total, setTotal] = useState<number>(0);
@@ -195,5 +195,3 @@ const Deployments: React.FC = () => {
     </div>
   );
 };
-
-export default Deployments;

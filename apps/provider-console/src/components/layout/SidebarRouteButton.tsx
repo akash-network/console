@@ -15,7 +15,7 @@ type Props = {
   className?: string;
 };
 
-export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, className = "", isNavOpen = true }) => {
+export const SidebarRouteButton: React.FC<Props> = ({ route, className = "", isNavOpen = true }) => {
   const pathname = usePathname();
   const isSelected = route.url === UrlService.home() ? pathname === "/" : route.activeRoutes.some(x => pathname?.startsWith(x));
 

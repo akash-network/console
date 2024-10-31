@@ -6,13 +6,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@akash
 import { AlertTriangle, Shield } from "lucide-react";
 import Link from "next/link";
 
-import DashboardCardSkeleton from "@src/components/dashboard/DashboardCardSkeleton";
+import { DashboardCardSkeleton } from "@src/components/dashboard/DashboardCardSkeleton";
 import { FinanceCard } from "@src/components/dashboard/FinanceCard";
 import { ResourceCards } from "@src/components/dashboard/ResourcesCard";
-import Layout from "@src/components/layout/Layout";
-import ProviderActionList from "@src/components/shared/ProviderActionList";
+import { Layout } from "@src/components/layout/Layout";
+import { ProviderActionList } from "@src/components/shared/ProviderActionList";
 import { Title } from "@src/components/shared/Title";
-import withAuth from "@src/components/shared/withAuth";
+import { withAuth } from "@src/components/shared/withAuth";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import consoleClient from "@src/utils/consoleClient";

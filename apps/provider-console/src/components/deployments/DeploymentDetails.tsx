@@ -42,7 +42,7 @@ interface DeploymentDetails {
   closedHeight: number | null;
 }
 
-const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owner }) => {
+export const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owner }) => {
   const [deploymentDetails, setDeploymentDetails] = useState<DeploymentDetails | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -184,5 +184,3 @@ const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owner }) =>
     </div>
   );
 };
-
-export default DeploymentDetails;

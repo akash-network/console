@@ -13,7 +13,7 @@ type Props = {
   group: ISidebarGroupMenu;
 };
 
-export const SidebarGroupMenu: React.FunctionComponent<Props> = ({ group, hasDivider = true, isNavOpen }) => {
+export const SidebarGroupMenu: React.FC<Props> = ({ group, hasDivider = true, isNavOpen }) => {
   return (
     <div className="mt-4 w-full">
       {hasDivider && <Separator className="mb-2" />}

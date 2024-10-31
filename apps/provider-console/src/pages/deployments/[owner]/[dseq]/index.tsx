@@ -1,14 +1,14 @@
-import DeploymentDetails from "@src/components/deployments/DeploymentDetails";
-import Layout from "@src/components/layout/Layout";
+import { DeploymentDetails } from "@src/components/deployments/DeploymentDetails";
+import { Layout } from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
-import withAuth from "@src/components/shared/withAuth";
+import { withAuth } from "@src/components/shared/withAuth";
 
 type Props = {
   dseq: string;
   owner: string;
 };
 
-const DeploymentDetailPage: React.FunctionComponent<Props> = ({ dseq, owner }) => {
+const DeploymentDetailPage: React.FC<Props> = ({ dseq, owner }) => {
   return (
     <Layout>
       <div className="flex items-center">

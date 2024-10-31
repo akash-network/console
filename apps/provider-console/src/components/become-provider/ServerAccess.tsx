@@ -2,14 +2,14 @@
 import React, { useCallback, useState } from "react";
 import { Button, Input, Separator } from "@akashnetwork/ui/components";
 
-import ResetProviderForm from "./ResetProviderProcess";
+import { ResetProviderForm } from "./ResetProviderProcess";
 import { ServerForm } from "./ServerForm";
 
 interface ServerAccessProps {
   stepChange: () => void;
 }
 
-export const ServerAccess: React.FunctionComponent<ServerAccessProps> = ({ stepChange }) => {
+export const ServerAccess: React.FC<ServerAccessProps> = ({ stepChange }) => {
   const [numberOfServers, setNumberOfServers] = useState(1);
   const [activateServerForm, setActivateServerForm] = useState(false);
   const [currentServer, setCurrentServer] = useState(0);

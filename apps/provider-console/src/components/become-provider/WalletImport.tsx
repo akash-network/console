@@ -23,7 +23,7 @@ import { z } from "zod";
 
 import providerProcessStore from "@src/store/providerProcessStore";
 import restClient from "@src/utils/restClient";
-import ResetProviderForm from "./ResetProviderProcess";
+import { ResetProviderForm } from "./ResetProviderProcess";
 
 function decodeBase64(base64: string): string {
   return Buffer.from(base64, "base64").toString("utf-8");
@@ -68,7 +68,7 @@ const seedFormSchema = z.object({
 type AppearanceFormValues = z.infer<typeof appearanceFormSchema>;
 type SeedFormValues = z.infer<typeof seedFormSchema>;
 
-export const WalletImport: React.FunctionComponent<WalletImportProps> = () => {
+export const WalletImport: React.FC<WalletImportProps> = () => {
   const [mode, setMode] = useState<string>("");
   const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);

@@ -11,7 +11,7 @@ interface Props extends ButtonProps {
   className?: string;
 }
 
-export const ConnectWalletButton: React.FunctionComponent<Props> = ({ className = "", ...rest }) => {
+export const ConnectWalletButton: React.FC<Props> = ({ className = "", ...rest }) => {
   const { connectWallet } = useWallet();
   return (
     <Button variant="outline" onClick={connectWallet} className={cn("border-primary", className)} {...rest} data-testid="connect-wallet-btn">

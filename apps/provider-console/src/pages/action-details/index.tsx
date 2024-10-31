@@ -3,7 +3,7 @@
 import React from "react";
 import { useSearchParams } from "next/navigation";
 
-import Layout from "@src/components/layout/Layout";
+import { Layout } from "@src/components/layout/Layout";
 import { ProviderActionDetails } from "@src/components/shared/ProviderActionDetails";
 
 export default function ActionDetailsPage() {

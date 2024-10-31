@@ -8,9 +8,9 @@ import { ProviderPricing } from "@src/components/become-provider/ProviderPricing
 import { ServerAccess } from "@src/components/become-provider/ServerAccess";
 import { CustomizedSteppers } from "@src/components/become-provider/Stepper";
 import { WalletImport } from "@src/components/become-provider/WalletImport";
-import Layout from "@src/components/layout/Layout";
+import { Layout } from "@src/components/layout/Layout";
 import { ProviderActionDetails } from "@src/components/shared/ProviderActionDetails";
-import withAuth from "@src/components/shared/withAuth";
+import { withAuth } from "@src/components/shared/withAuth";
 import providerProcessStore from "@src/store/providerProcessStore";
 
 const BecomeProvider: React.FC = () => {

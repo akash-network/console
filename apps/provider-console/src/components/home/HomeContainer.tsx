@@ -5,12 +5,12 @@ import { useRouter } from "next/router";
 
 import { useWallet } from "@src/context/WalletProvider";
 import restClient from "@src/utils/restClient";
-import Layout from "../layout/Layout";
-import ProviderActionList from "../shared/ProviderActionList";
+import { Layout } from "../layout/Layout";
+import { ProviderActionList } from "../shared/ProviderActionList";
 import { NotAProvider } from "./NotAProvider";
 import { WalletNotConnected } from "./WalletNotConnected";
 
-export function HomeContainer() {
+export const HomeContainer: React.FC = () => {
   const router = useRouter();
   const { isWalletConnected, isWalletArbitrarySigned, isProvider, isOnline, isProviderStatusFetched } = useWallet();
   const [isLoading, setIsLoading] = useState(false);
@@ -63,4 +63,4 @@ export function HomeContainer() {
       </div>
     </Layout>
   );
-}
+};

@@ -15,7 +15,7 @@ interface ProviderActionListProps {
   actions: ProviderAction[];
 }
 
-const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions }) => {
+export const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions }) => {
   const router = useRouter();
 
   const getStatusIcon = (status: ProviderAction["status"]) => {
@@ -111,5 +111,3 @@ const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions }) => {
     </Box>
   );
 };
-
-export default ProviderActionList;

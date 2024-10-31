@@ -4,7 +4,7 @@ import { useRouter } from "next/router";
 
 import { useWallet } from "@src/context/WalletProvider";
 
-const withAuth = (WrappedComponent: React.ComponentType) => {
+export const withAuth = (WrappedComponent: React.ComponentType) => {
   const AuthComponent: React.FC = props => {
     const { isWalletConnected, address, isProvider, isProviderStatusFetched } = useWallet();
     const router = useRouter();
@@ -50,5 +50,3 @@ const withAuth = (WrappedComponent: React.ComponentType) => {
 
   return AuthComponent;
 };
-
-export default withAuth;

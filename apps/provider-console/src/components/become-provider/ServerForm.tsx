@@ -28,7 +28,7 @@ import { z } from "zod";
 
 import providerProcessStore from "@src/store/providerProcessStore";
 import restClient from "@src/utils/restClient";
-import ResetProviderForm from "./ResetProviderProcess";
+import { ResetProviderForm } from "./ResetProviderProcess";
 
 const baseSchema = z.object({
   hostname: z.string().min(2, { message: "IP must be at least 2 characters." }).max(30, { message: "IP must not be longer than 30 characters." }),
@@ -57,7 +57,7 @@ interface ServerFormProp {
   onSubmit: () => void;
 }
 
-export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentServerNumber, onSubmit }) => {
+export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onSubmit }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [storedFileContent, setStoredFileContent] = useState<string | null>(null);

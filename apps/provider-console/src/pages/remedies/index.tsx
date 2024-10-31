@@ -4,11 +4,11 @@ import { Card } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 import { useRouter } from "next/router";
 
-import Layout from "@src/components/layout/Layout";
-import withAuth from "@src/components/shared/withAuth";
+import { Layout } from "@src/components/layout/Layout";
+import { withAuth } from "@src/components/shared/withAuth";
 import providerProcessStore from "@src/store/providerProcessStore";
 
-const Remedies: React.FunctionComponent = () => {
+const Remedies: React.FC = () => {
   const router = useRouter();
   const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
 

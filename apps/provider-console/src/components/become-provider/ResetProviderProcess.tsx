@@ -4,7 +4,7 @@ import { useAtom } from "jotai";
 
 import providerProcessStore from "@src/store/providerProcessStore";
 
-const ResetProviderForm: React.FunctionComponent = () => {
+export const ResetProviderForm: React.FC = () => {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [, resetProcess] = useAtom(providerProcessStore.resetProviderProcess);
 
@@ -32,10 +32,10 @@ const ResetProviderForm: React.FunctionComponent = () => {
 
   return (
     <>
-      <button type="button" onClick={handleReset}>Reset</button>
+      <button type="button" onClick={handleReset}>
+        Reset
+      </button>
       <Popup {...popupProps} variant="confirm" />
     </>
   );
 };
-
-export default ResetProviderForm;

@@ -8,7 +8,7 @@ import { ChevronDownIcon } from "lucide-react";
 import { z } from "zod";
 
 import providerProcessStore from "@src/store/providerProcessStore";
-import ResetProviderForm from "./ResetProviderProcess";
+import { ResetProviderForm } from "./ResetProviderProcess";
 
 interface ProviderPricingProps {
   resources?: {

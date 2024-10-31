@@ -28,7 +28,7 @@ type Props = {
   isNavOpen: boolean;
 };
 
-export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
+export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
   const [isHovering, setIsHovering] = useState(false);
   const { isProvider, isOnline } = useWallet();
   const _isNavOpen = isNavOpen || isHovering;

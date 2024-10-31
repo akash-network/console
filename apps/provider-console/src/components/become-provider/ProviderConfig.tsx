@@ -7,7 +7,7 @@ import { useAtom } from "jotai";
 import { z } from "zod";
 
 import providerProcessStore from "@src/store/providerProcessStore";
-import ResetProviderForm from "./ResetProviderProcess";
+import { ResetProviderForm } from "./ResetProviderProcess";
 
 interface ProviderConfigProps {
   stepChange: () => void;
@@ -27,7 +27,7 @@ const providerConfigSchema = z.object({
 
 type ProviderConfigValues = z.infer<typeof providerConfigSchema>;
 
-export const ProviderConfig: React.FunctionComponent<ProviderConfigProps> = ({ stepChange }) => {
+export const ProviderConfig: React.FC<ProviderConfigProps> = ({ stepChange }) => {
   const form = useForm<ProviderConfigValues>({
     resolver: zodResolver(providerConfigSchema),
     mode: "onSubmit",

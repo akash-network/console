@@ -17,7 +17,7 @@ type Props = {
   children?: ReactNode;
 };
 
-const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName }) => {
+export const Layout: React.FC<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName }) => {
   const [locale, setLocale] = useState("en-US");
   useEffect(() => {
     if (navigator?.language) {
@@ -40,7 +40,7 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
   );
 };
 
-const LayoutApp: React.FunctionComponent<Props> = ({ children, disableContainer, containerClassName = "" }) => {
+const LayoutApp: React.FC<Props> = ({ children, disableContainer, containerClassName = "" }) => {
   const muiTheme = useMuiTheme();
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -91,5 +91,3 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, disableContainer,
     </>
   );
 };
-
-export default Layout;
