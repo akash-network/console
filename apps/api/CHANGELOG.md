@@ -1,5 +1,12 @@
 
 
+## [2.28.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.0...console-api/v2.28.0-beta.1) (2024-10-31)
+
+
+### Features
+
+* **deployment:** implements custodial wallet balances collection for top up ([0b08cd3](https://github.com/akash-network/console/commit/0b08cd3d4faeb818e00f0025a1c1bea818bcb213)), closes [#395](https://github.com/akash-network/console/issues/395)
+
 ## [2.28.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.27.0...console-api/v2.28.0-beta.0) (2024-10-30)
 
 
