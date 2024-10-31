@@ -1,10 +1,10 @@
 import { singleton } from "tsyringe";
 
-import { TopUpDeploymentsService } from "@src/deployment/services/top-up-deployments/top-up-deployments.service";
+import { TopUpCustodialDeploymentsService } from "@src/deployment/services/top-up-custodial-deployments/top-up-custodial-deployments.service";
 
 @singleton()
 export class TopUpDeploymentsController {
-  constructor(private readonly topUpDeploymentsService: TopUpDeploymentsService) {}
+  constructor(private readonly topUpDeploymentsService: TopUpCustodialDeploymentsService) {}
 
   async topUpDeployments() {
     await this.topUpDeploymentsService.topUpDeployments();
