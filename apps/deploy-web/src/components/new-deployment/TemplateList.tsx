@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { buttonVariants, Card } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { CardContent } from "@mui/material";
 import { ArrowRight, Upload } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -17,7 +18,6 @@ import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";
-import { cn } from "@akashnetwork/ui/utils";
 
 const previewTemplateIds = [
   "akash-network-awesome-akash-Llama-3.1-8B",
@@ -77,7 +77,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
           <DeployOptionBox
             title="Launch Your Container-VM"
             description="Deploy and work with a plain-linux vm-like container"
-            topIcons={["/images/ubuntu.png", "/images/ubuntu.png"]}
+            topIcons={["/images/docker.png", "/images/ubuntu.png"]}
             bottomIcons={["/images/ubuntu.png", "/images/ubuntu.png"]}
             onClick={() => onSDLBuilderClick("deploy-linux")}
             testId="plain-linux-card"
@@ -94,22 +94,27 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
           <Link
             href={UrlService.newDeployment({ step: RouteStep.editDeployment })}
             className={cn(buttonVariants({ variant: "outline" }), "space-x-2 bg-card text-foreground")}
+            onClick={() => setSdlEditMode("builder")}
           >
             <Upload className="text-xs" />
-            <span className="text-sm">Custom SDL</span>
+            <span className="text-sm">Upload SDL</span>
           </Link>
         </div>
 
         <Card className="col-span-3">
           <CardContent>
-            <div className="mb-4 flex items-center">
-              <h5>
-                <strong>Staff Picks</strong>
-              </h5>
+            <div className="mb-4">
+              <h3 className="mb-2 text-xl font-bold tracking-tight">Explore Templates</h3>
 
-              <Link href={UrlService.templates()} className="ml-4 flex items-center">
-                Search marketplace
-                <ArrowRight className="ml-2 text-xs" />
+              <p className="text-sm text-muted-foreground">
+                Browse through the marketplace of pre-made solutions with categories like AI&ML, Blockchain nodes and more!
+              </p>
+            </div>
+
+            <div className="my-6">
+              <Link href={UrlService.templates()} className="flex items-center space-x-2 text-xs font-bold text-muted-foreground">
+                <span>View All Templates</span>
+                <ArrowRight className="text-xs" />
               </Link>
             </div>
 
