@@ -60,6 +60,8 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
   }, [templates]);
 
   function onSDLBuilderClick(page: NewDeploymentParams["page"] = "new-deployment") {
+    setEditedManifest("");
+    onTemplateSelected(null);
     setSdlEditMode("builder");
     router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, page }));
   }
