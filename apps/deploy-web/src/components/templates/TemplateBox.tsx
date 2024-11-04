@@ -23,7 +23,7 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
       <CardHeader>
         <div className="flex items-center">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={template.logoUrl} alt={template.name} />
+            <AvatarImage src={template.logoUrl} alt={template.name} className="object-contain" />
             <AvatarFallback>
               <MediaImage />
             </AvatarFallback>

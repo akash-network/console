@@ -1,6 +1,6 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { buttonVariants, Card } from "@akashnetwork/ui/components";
+import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import { Button, buttonVariants, Card } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { CardContent } from "@mui/material";
 import { ArrowRight, Upload } from "iconoir-react";
@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useTemplates } from "@src/context/TemplatesProvider";
 import sdlStore from "@src/store/sdlStore";
-import { ApiTemplate } from "@src/types";
+import { ApiTemplate, TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils";
@@ -33,14 +33,19 @@ const previewTemplateIds = [
   "akash-network-awesome-akash-grok",
   "akash-network-awesome-akash-FastChat"
 ];
+
 type Props = {
   onChangeGitProvider: (gh: boolean) => void;
+  onTemplateSelected: Dispatch<TemplateCreation | null>;
+  setEditedManifest: Dispatch<SetStateAction<string>>;
 };
-export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvider }) => {
+
+export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvider, onTemplateSelected, setEditedManifest }) => {
   const { templates } = useTemplates();
   const router = useRouter();
   const [previewTemplates, setPreviewTemplates] = useState<ApiTemplate[]>([]);
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
+  const fileUploadRef = useRef<HTMLInputElement>(null);
 
   const handleGithubTemplate = async () => {
     onChangeGitProvider(true);
@@ -59,46 +64,75 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
     router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, page }));
   }
 
+  const propagateUploadedSdl = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = event.target.files ?? [];
+    const hasFileSelected = selectedFiles.length > 0;
+    if (!hasFileSelected) return;
+    const fileUploaded = selectedFiles[0];
+
+    const reader = new FileReader();
+
+    reader.onload = event => {
+      onTemplateSelected({
+        title: "From file",
+        code: "from-file",
+        category: "General",
+        description: "Custom uploaded file",
+        content: event.target?.result as string
+      });
+      setEditedManifest(event.target?.result as string);
+      setSdlEditMode("yaml");
+
+      router.push(UrlService.newDeployment({ step: RouteStep.editDeployment }));
+    };
+
+    reader.readAsText(fileUploaded);
+  };
+
+  const onSdlUpload = () => {
+    if (fileUploadRef.current) {
+      fileUploadRef.current.value = "";
+      fileUploadRef.current.click();
+    }
+  };
+
   return (
-    <>
+    <div className="my-0 md:my-12">
       <CustomNextSeo title="Create Deployment - Template List" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.chooseTemplate })}`} />
 
-      <div className="mb-8 grid grid-cols-1 gap-2 md:grid-cols-4 md:gap-4">
-        <div className="col-span-1 grid grid-cols-1 gap-2 md:gap-4">
+      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="col-span-3 grid grid-cols-1 gap-4 md:col-span-1">
           <DeployOptionBox
             title="Build & Deploy"
             description="Build & Deploy directly from a code repository (VCS)"
-            topIcons={["/images/ubuntu.png", "/images/ubuntu.png", "/images/ubuntu.png"]}
-            bottomIcons={["/images/ubuntu.png", "/images/ubuntu.png"]}
+            topIcons={["/images/github.png", "/images/gitlab.png", "/images/bitbucket.png"]}
+            bottomIcons={["/images/nextjs.png", "/images/vuejs.png", "/images/astrojs.png", "/images/python.png"]}
             onClick={handleGithubTemplate}
             testId="build-and-deploy-card"
           />
 
           <DeployOptionBox
-            title="Launch Your Container-VM"
+            title="Launch Container-VM"
             description="Deploy and work with a plain-linux vm-like container"
-            topIcons={["/images/docker.png", "/images/ubuntu.png"]}
-            bottomIcons={["/images/ubuntu.png", "/images/ubuntu.png"]}
+            topIcons={["/images/docker-logo.png", "/images/vm.png"]}
+            bottomIcons={["/images/ubuntu.png", "/images/centos.png", "/images/debian.png", "/images/suse.png"]}
             onClick={() => onSDLBuilderClick("deploy-linux")}
             testId="plain-linux-card"
           />
 
           <DeployOptionBox
             title="Run Custom Container"
-            description="Deploy and run your own docker container stored in a private or public container registry"
-            topIcons={["/images/ubuntu.png"]}
+            description="Run your own docker container stored in a private or public container registry"
+            topIcons={["/images/docker-logo.png"]}
             onClick={() => onSDLBuilderClick()}
             testId="custom-container-card"
           />
 
-          <Link
-            href={UrlService.newDeployment({ step: RouteStep.editDeployment })}
-            className={cn(buttonVariants({ variant: "outline" }), "space-x-2 bg-card text-foreground")}
-            onClick={() => setSdlEditMode("builder")}
-          >
+          <input type="file" ref={fileUploadRef} onChange={propagateUploadedSdl} className="hidden" accept=".yml,.yaml,.txt" />
+          <Button variant="outline" onClick={() => onSdlUpload()} size="sm" className="space-x-2 bg-card text-foreground">
             <Upload className="text-xs" />
-            <span className="text-sm">Upload SDL</span>
-          </Link>
+            <span className="text-xs">Upload your SDL</span>
+          </Button>
         </div>
 
         <Card className="col-span-3">
@@ -107,7 +141,14 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
               <h3 className="mb-2 text-xl font-bold tracking-tight">Explore Templates</h3>
 
               <p className="text-sm text-muted-foreground">
-                Browse through the marketplace of pre-made solutions with categories like AI&ML, Blockchain nodes and more!
+                Browse through the marketplace of pre-made solutions with categories like AI&ML, Blockchain nodes and more!{" "}
+                <Link
+                  href={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code })}
+                  className="text-inherit underline"
+                  data-testid="hello-world-card"
+                >
+                  Try hello world app!
+                </Link>
               </p>
             </div>
 
@@ -126,18 +167,10 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
                   linkHref={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: template?.id })}
                 />
               ))}
-
-              {/* <DeployOptionBox
-                title={helloWorldTemplate.title}
-                description={helloWorldTemplate.description}
-                icon={<Rocket className="rotate-45" />}
-                testId="hello-world-card"
-                onClick={() => router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code }))}
-              /> */}
             </div>
           </CardContent>
         </Card>
       </div>
-    </>
+    </div>
   );
 };
