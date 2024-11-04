@@ -97,7 +97,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
   };
 
   return (
-    <div className="my-0 md:my-12">
+    <div className="my-0 pb-8 md:my-12">
       <CustomNextSeo title="Create Deployment - Template List" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.chooseTemplate })}`} />
 
       <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
@@ -153,7 +153,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
             </div>
 
             <div className="my-6">
-              <Link href={UrlService.templates()} className="flex items-center space-x-2 text-xs font-bold text-muted-foreground">
+              <Link href={UrlService.templates()} className="inline-flex items-center space-x-2 text-xs font-bold text-muted-foreground">
                 <span>View All Templates</span>
                 <ArrowRight className="text-xs" />
               </Link>

@@ -30,7 +30,7 @@ export const DeployOptionBox: React.FunctionComponent<Props> = ({ title, descrip
       <CardFooter className="flex justify-center">
         <div className="flex items-center space-x-1 px-2 py-1">
           {bottomIcons?.map((icon, i) => (
-            <div key={i} className="rounded-sm border px-2 py-1">
+            <div key={i} className="rounded-sm border px-2 py-1 dark:bg-secondary">
               <Image src={icon} alt="icon" width={24} height={24} className="max-h-[24px] object-contain" />
             </div>
           ))}
