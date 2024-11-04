@@ -1,5 +1,17 @@
 
 
+## [2.21.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.20.3...console-web/v2.21.0-beta.0) (2024-11-04)
+
+
+### Features
+
+* **deployment:** enable deployment from git repositories ([dfbaeb7](https://github.com/akash-network/console/commit/dfbaeb78843341633025a0812a2fdb021de12c70)), closes [#417](https://github.com/akash-network/console/issues/417)
+
+
+### Bug Fixes
+
+* **wallet:** init nextPageKey with null when paginating grants ([2698b14](https://github.com/akash-network/console/commit/2698b14fc9ade6eab56e189daab753372677b9de))
+
 ## [2.20.3](https://github.com/akash-network/console/compare/console-web/v2.20.3-beta.0...console-web/v2.20.3) (2024-10-30)
 
 ## [2.20.3-beta.0](https://github.com/akash-network/console/compare/console-web/v2.20.2...console-web/v2.20.3-beta.0) (2024-10-30)
