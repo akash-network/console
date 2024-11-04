@@ -64,15 +64,17 @@ export class AllowanceHttpService extends HttpService {
   }
 
   async paginateDeploymentGrantsForGrantee(address: string, cb: (page: DeploymentAllowanceResponse["grants"]) => Promise<void>) {
-    let nextPageKey: string | null;
+    let nextPageKey: string | null = null;
 
     do {
       const response = this.extractData(
         await this.get<DeploymentAllowanceResponse>(
           `cosmos/authz/v1beta1/grants/grantee/${address}`,
-          nextPageKey && {
-            params: { "pagination.key": nextPageKey }
-          }
+          nextPageKey
+            ? {
+                params: { "pagination.key": nextPageKey }
+              }
+            : undefined
         )
       );
       nextPageKey = response.pagination.next_key;
