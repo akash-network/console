@@ -1,5 +1,12 @@
 
 
+## [2.28.0-beta.2](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.1...console-api/v2.28.0-beta.2) (2024-11-04)
+
+
+### Bug Fixes
+
+* **wallet:** init nextPageKey with null when paginating grants ([2698b14](https://github.com/akash-network/console/commit/2698b14fc9ade6eab56e189daab753372677b9de))
+
 ## [2.28.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.0...console-api/v2.28.0-beta.1) (2024-10-31)
 
 
