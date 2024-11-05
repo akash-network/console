@@ -21,7 +21,10 @@ import { HomeIcon } from "lucide-react";
 import { useRouter } from "next/router";
 import { z } from "zod";
 
+import { useControlMachine } from "@src/context/ControlMachineProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
+import { ControlMachineWithAddress } from "@src/types/controlMachine";
 import restClient from "@src/utils/restClient";
 import { ResetProviderForm } from "./ResetProviderProcess";
 
@@ -77,6 +80,8 @@ export const WalletImport: React.FC<WalletImportProps> = () => {
 
   const [providerProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
+  const { setControlMachine } = useControlMachine();
+  const { address } = useWallet();
 
   const defaultValues: Partial<AppearanceFormValues> = {
     walletMode: "seed"
@@ -128,6 +133,11 @@ export const WalletImport: React.FC<WalletImportProps> = () => {
         });
 
         if (response.action_id) {
+          const machineWithAddress: ControlMachineWithAddress = {
+            address: address,
+            ...providerProcess.machines[0]
+          };
+          await setControlMachine(machineWithAddress);
           resetProviderProcess();
           router.push(`/action?id=${response.action_id}`);
         } else {

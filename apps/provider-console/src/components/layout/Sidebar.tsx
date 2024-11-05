@@ -10,6 +10,7 @@ import getConfig from "next/config";
 import Image from "next/image";
 import Link from "next/link";
 
+import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { ISidebarGroupMenu } from "@src/types";
 import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
@@ -34,6 +35,8 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
   const _isNavOpen = isNavOpen || isHovering;
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
+
+  const { activeControlMachine, openControlMachineDrawer } = useControlMachine();
 
   const routeGroups: ISidebarGroupMenu[] = [
     {
@@ -163,6 +166,30 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
           <div className="space-y-2 pb-4 pl-4 pr-4">
             {/* <NodeStatusBar /> */}
 
+            {activeControlMachine ? (
+              <div className="flex flex-col space-y-2">
+                <div className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-2 text-sm" onClick={openControlMachineDrawer}>
+                  Machine:
+                  <div className="relative flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                    {activeControlMachine.access.hostname}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col space-y-2">
+                <div className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-2 text-sm" onClick={openControlMachineDrawer}>
+                  Machine:
+                  <div className="relative flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-red-500" />
+                    <div className="absolute left-0 top-[-20px] hidden group-hover:block">
+                      <div className="rounded bg-black px-2 py-1 text-xs text-white">Not Connected</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-center space-x-1 pt-4">
               <Link
                 target="_blank"
@@ -228,7 +255,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
 
   return (
     <nav
-      className={cn("ease bg-header/95 fixed z-[100] md:flex-shrink-0", {
+      className={cn("ease bg-header/95 fixed md:flex-shrink-0", {
         ["md:w-[240px]"]: _isNavOpen || isHovering,
         ["md:w-[57px]"]: !(_isNavOpen || isHovering)
       })}
