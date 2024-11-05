@@ -1,20 +1,34 @@
-import * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
+import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { singleton } from "tsyringe";
 
 import { UserWalletOutput } from "@src/billing/repositories";
-import { getTrialProviders } from "@src/services/external/githubService";
+
+const trialAttribute = "trials";
+const auditor = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
 @singleton()
 export class TrialValidationService {
   async validateLeaseProviders(decoded: EncodeObject, userWallet: UserWalletOutput) {
-    if (userWallet.isTrialing && decoded.typeUrl === "/akash.market.v1beta4.MsgCreateLease") {
-      const authorizedProviders = await getTrialProviders();
-      const value = decoded.value as v1beta4.MsgCreateLease;
+    if (userWallet.isTrialing && decoded.typeUrl === "/akash.market.v1beta3.MsgCreateDeployment") {
+      const value = decoded.value as v1beta3.MsgCreateDeployment;
+      value.groups.forEach(group => {
+        const hasTrial = group.requirements.attributes.some(attribute => {
+          return attribute.key === trialAttribute && attribute.value.includes(auditor);
+        });
 
-      if (!authorizedProviders.includes(value.bidId.provider)) {
-        throw new Error(`provider not authorized: ${value.bidId.provider}`);
-      }
+        const hasSignedByAllOf = group.requirements.signedBy.allOf.some(signedBy => {
+          return signedBy === auditor;
+        });
+
+        const hasSignedByAnyOf = group.requirements.signedBy.anyOf.some(signedBy => {
+          return signedBy === auditor;
+        });
+
+        if (!hasTrial || !hasSignedByAllOf || !hasSignedByAnyOf) {
+          throw new Error(`provider not authorized: ${group.requirements.attributes}`);
+        }
+      });
     }
 
     return true;
