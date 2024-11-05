@@ -5,6 +5,7 @@ import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVers
 import yaml from "js-yaml";
 
 export const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
+const trialAttribute = "console/trials";
 const auditor = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
 export function getManifest(yamlJson, asString: boolean) {
@@ -32,10 +33,10 @@ export function appendTrialAttribute(yamlStr: string) {
       sdl.data.profiles.placement[placement].attributes = [];
     }
 
-    if (sdl.data.profiles.placement[placement].attributes.find(attr => attr.key === "trials")) {
+    if (sdl.data.profiles.placement[placement].attributes.find(attr => attr.key === trialAttribute)) {
       return;
     } else {
-      sdl.data.profiles.placement[placement].attributes.push({ key: "trials", value: "true" });
+      sdl.data.profiles.placement[placement].attributes.push({ key: trialAttribute, value: "true" });
     }
 
     if (!sdl.data.profiles.placement[placement].signedBy?.anyOf || !sdl.data.profiles.placement[placement].signedBy?.allOf) {

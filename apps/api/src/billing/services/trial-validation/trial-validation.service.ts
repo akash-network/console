@@ -4,7 +4,7 @@ import { singleton } from "tsyringe";
 
 import { UserWalletOutput } from "@src/billing/repositories";
 
-const trialAttribute = "trials";
+const trialAttribute = "console/trials";
 const auditor = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
 @singleton()
