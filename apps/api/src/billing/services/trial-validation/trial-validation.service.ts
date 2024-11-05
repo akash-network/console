@@ -25,7 +25,7 @@ export class TrialValidationService {
           return signedBy === auditor;
         });
 
-        if (!hasTrial || !hasSignedByAllOf || !hasSignedByAnyOf) {
+        if (!hasTrial || (!hasSignedByAllOf && !hasSignedByAnyOf)) {
           throw new Error(`provider not authorized: ${group.requirements.attributes}`);
         }
       });
