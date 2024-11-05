@@ -26,11 +26,13 @@ const ControlMachineContext = React.createContext<ContextType>({} as ContextType
 export function ControlMachineProvider({ children }: Props) {
   const [controlMachines, setControlMachines] = useAtom(controlMachineStore.controlMachineAtom);
   const [activeControlMachine, setActiveControlMachine] = useState<ControlMachineWithAddress | null>(null);
-  const { address, isWalletArbitrarySigned } = useWallet();
+  const { address, isWalletArbitrarySigned, isProvider } = useWallet();
   const [controlMachineDrawerOpen, setControlMachineDrawerOpen] = useState(false);
 
   useEffect(() => {
-    if (isWalletArbitrarySigned) {
+    console.log("isWalletArbitrarySigned", isWalletArbitrarySigned);
+    if (isWalletArbitrarySigned || isProvider) {
+      console.log("controlMachines", controlMachines);
       const controlMachine = controlMachines.find(machine => machine.address === address);
 
       if (!controlMachine) {
@@ -39,13 +41,20 @@ export function ControlMachineProvider({ children }: Props) {
 
       // first check control machine connection
       (async () => {
-        const isControlMachineConnected = await restClient.post(`/verify/control-machine`, controlMachine.access);
+        const request = {
+          keyfile: controlMachine.access.file,
+          hostname: controlMachine.access.hostname,
+          port: controlMachine.access.port,
+          username: controlMachine.access.username,
+          password: controlMachine.access.password
+        };
+        const isControlMachineConnected = await restClient.post(`/verify/control-machine`, request);
         if (isControlMachineConnected) {
           setActiveControlMachine(controlMachine);
         }
       })();
     }
-  }, [isWalletArbitrarySigned, address, controlMachines]);
+  }, [isWalletArbitrarySigned, address, controlMachines, isProvider]);
 
   async function setControlMachine(controlMachine: ControlMachineWithAddress) {
     setControlMachines(prev => {
