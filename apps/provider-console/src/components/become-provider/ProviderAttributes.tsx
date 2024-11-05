@@ -21,14 +21,16 @@ import { useAtom } from "jotai";
 import { PlusIcon, TrashIcon } from "lucide-react";
 import { z } from "zod";
 
-import providerProcessStore from "@src/store/providerProcessStore";
+import providerProcessStore, { ProviderAttribute } from "@src/store/providerProcessStore";
 import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";
 import { ResetProviderForm } from "./ResetProviderProcess";
 
 const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 
 interface ProviderAttributesProps {
-  stepChange: () => void;
+  stepChange?: () => void;
+  existingAttributes?: ProviderAttribute[];
+  editMode?: boolean;
 }
 
 const providerFormSchema = z.object({
@@ -43,40 +45,55 @@ const providerFormSchema = z.object({
 
 type ProviderFormValues = z.infer<typeof providerFormSchema>;
 
-export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ stepChange }) => {
+export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps> = ({ stepChange, existingAttributes, editMode }) => {
   const [providerPricing, setProviderPricing] = useAtom(providerProcessStore.providerProcessAtom);
   const form = useForm<ProviderFormValues>({
     resolver: zodResolver(providerFormSchema),
     defaultValues: {
-      attributes: [{ key: "", value: "", customKey: "" }]
+      attributes: existingAttributes
+        ? existingAttributes.map(attr => ({
+            key: attributeKeys.includes(attr.key) ? attr.key : "unknown-attributes",
+            value: attr.value,
+            customKey: attributeKeys.includes(attr.key) ? "" : attr.key
+          }))
+        : [{ key: "", value: "", customKey: "" }]
     }
   });
 
   const { control } = form;
-
   const { fields, append, remove } = useFieldArray({
     control,
     name: "attributes"
   });
 
   const onSubmit: SubmitHandler<ProviderFormValues> = async data => {
-    const updatedProviderPricing = {
-      ...providerPricing,
-      attributes: data.attributes.map(attr => ({
-        ...attr,
-        customKey: attr.customKey || ""
-      }))
-    };
-    setProviderPricing(updatedProviderPricing);
-    stepChange();
+    if (!editMode) {
+      const updatedProviderPricing = {
+        ...providerPricing,
+        attributes: data.attributes.map(attr => ({
+          key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",
+          value: attr.value
+        }))
+      };
+      setProviderPricing(updatedProviderPricing);
+      stepChange && stepChange();
+    } else {
+      const attributes = data.attributes.map(attr => ({
+        key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",
+        value: attr.value
+      }));
+      console.log("update attributes", attributes);
+    }
   };
 
   return (
     <div className="flex w-full flex-col items-center pt-10">
       <div className="w-full max-w-2xl space-y-6">
         <div>
-          <h3 className="text-xl font-bold">Provider Attributes</h3>
-          <p className="text-muted-foreground text-sm">Please enter your provider attributes.</p>
+          <h3 className="text-xl font-bold">{existingAttributes ? "Edit Provider Attributes" : "Provider Attributes"}</h3>
+          <p className="text-muted-foreground text-sm">
+            {existingAttributes ? "Please update your provider attributes." : "Please enter your provider attributes."}
+          </p>
         </div>
         <div>
           <Separator />
@@ -154,11 +171,9 @@ export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ stepChan
                 <Separator />
               </div>
               <div className="flex w-full justify-between">
-                <div className="flex justify-start">
-                  <ResetProviderForm />
-                </div>
+                <div className="flex justify-start">{!editMode && <ResetProviderForm />}</div>
                 <div className="flex justify-end">
-                  <Button type="submit">Next</Button>
+                  <Button type="submit">{editMode ? "Update Attributes" : "Next"}</Button>
                 </div>
               </div>
             </form>

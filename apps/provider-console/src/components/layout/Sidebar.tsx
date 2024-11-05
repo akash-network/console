@@ -71,9 +71,9 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         {
           title: "Attributes",
           icon: props => <ListSelect {...props} />,
-          url: "#",
-          activeRoutes: ["#"],
-          disabled: true
+          url: UrlService.attributes(),
+          activeRoutes: [UrlService.attributes()],
+          disabled: false
         },
         {
           title: "Settings",
