@@ -2,8 +2,10 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import networkStore from "@src/store/networkStore";
 import type { DepositParams } from "@src/types/deployment";
 import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion } from "./helpers";
+import yaml from "js-yaml";
 
 export const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
+const auditor = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
 export function getManifest(yamlJson, asString: boolean) {
   return Manifest(yamlJson, "beta3", networkStore.selectedNetworkId, asString);
@@ -21,6 +23,44 @@ const getDenomFromSdl = (groups: any[]): string => {
   // TODO handle multiple denoms in an sdl? (different denom for each service?)
   return denoms[0];
 };
+
+export function appendTrialAttribute(yamlStr: string) {
+  const sdl = getSdl(yamlStr, "beta3", networkStore.selectedNetworkId);
+
+  Object.keys(sdl.data.profiles.placement).forEach(placement => {
+    if (!sdl.data.profiles.placement[placement].attributes) {
+      sdl.data.profiles.placement[placement].attributes = [];
+    }
+
+    if (sdl.data.profiles.placement[placement].attributes.find(attr => attr.key === "trials")) {
+      return;
+    } else {
+      sdl.data.profiles.placement[placement].attributes.push({ key: "trials", value: "true" });
+    }
+
+    if (!sdl.data.profiles.placement[placement].signedBy?.anyOf || !sdl.data.profiles.placement[placement].signedBy?.allOf) {
+      sdl.data.profiles.placement[placement].signedBy = {
+        anyOf: sdl.data.profiles.placement[placement].signedBy?.anyOf || [],
+        allOf: sdl.data.profiles.placement[placement].signedBy?.allOf || []
+      };
+    }
+
+    if (!sdl.data.profiles.placement[placement].signedBy.anyOf.includes(auditor) || !sdl.data.profiles.placement[placement].signedBy.allOf.includes(auditor)) {
+      sdl.data.profiles.placement[placement].signedBy.anyOf.push(auditor);
+    }
+  });
+
+  const result = yaml.dump(sdl.data, {
+    indent: 2,
+    quotingType: '"',
+    styles: {
+      "!!null": "empty" // dump null as emtpy value
+    }
+  });
+
+  return `---
+${result}`;
+}
 
 export async function NewDeploymentData(
   apiEndpoint: string,

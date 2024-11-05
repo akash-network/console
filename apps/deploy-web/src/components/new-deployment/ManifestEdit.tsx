@@ -42,6 +42,7 @@ import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import ViewPanel from "../shared/ViewPanel";
 import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
+import { appendTrialAttribute } from "@src/utils/deploymentData/v1beta3";
 
 type Props = {
   onTemplateSelected: Dispatch<TemplateCreation | null>;
@@ -67,7 +68,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [isRepoInputValid, setIsRepoInputValid] = useState(false);
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const { settings } = useSettings();
-  const { address, signAndBroadcastTx, isManaged } = useWallet();
+  const { address, signAndBroadcastTx, isManaged, isTrialing } = useWallet();
   const router = useRouter();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
@@ -237,10 +238,14 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   async function handleCreateClick(deposit: number | DepositParams[], depositorAddress: string) {
     setIsCreatingDeployment(true);
 
-    const sdl = selectedSdlEditMode === "yaml" ? editedManifest : sdlBuilderRef.current?.getSdl();
+    let sdl = selectedSdlEditMode === "yaml" ? editedManifest : sdlBuilderRef.current?.getSdl();
     if (!sdl) {
       setIsCreatingDeployment(false);
       return;
+    }
+
+    if (isTrialing) {
+      sdl = appendTrialAttribute(sdl);
     }
 
     const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
