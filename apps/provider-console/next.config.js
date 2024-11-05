@@ -1,3 +1,4 @@
+require("@akashnetwork/env-loader");
 /** @type {import('next').NextConfig} */
 
 const { withSentryConfig } = require("@sentry/nextjs");

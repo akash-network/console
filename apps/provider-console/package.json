@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
-    "build-analyze": "set ANALYZE=true&& next build",
+    "build": "npm run build-env-schemas && next build",
+    "build-env-schemas": "tsc src/config/env-config.schema.ts --outDir . --skipLibCheck",
     "dev": "next -p 3000",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Controller, SubmitHandler,useFieldArray, useForm } from "react-hook-form";
+import { Controller, SubmitHandler, useFieldArray, useForm } from "react-hook-form";
 import {
   Button,
   Form,
@@ -23,7 +23,7 @@ import { z } from "zod";
 
 import providerProcessStore from "@src/store/providerProcessStore";
 import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";
-import ResetProviderForm from "./ResetProviderProcess";
+import { ResetProviderForm } from "./ResetProviderProcess";
 
 const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 
