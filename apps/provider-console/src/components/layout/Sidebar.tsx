@@ -182,9 +182,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
                   Machine:
                   <div className="relative flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-red-500" />
-                    <div className="absolute left-0 top-[-20px] hidden group-hover:block">
-                      <div className="rounded bg-black px-2 py-1 text-xs text-white">Not Connected</div>
-                    </div>
+                    <div className="roundedpx-2 py-1 text-xs">Not Connected</div>
                   </div>
                 </div>
               </div>
