@@ -1,5 +1,12 @@
 
 
+## [2.28.0-beta.5](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.4...console-api/v2.28.0-beta.5) (2024-11-06)
+
+
+### Features
+
+* **deployment:** implements custodial deployments top up data collection ([108f073](https://github.com/akash-network/console/commit/108f0736359cc866bb9aa01e3935105c413c8aae)), closes [#39](https://github.com/akash-network/console/issues/39)
+
 ## [2.28.0-beta.4](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.3...console-api/v2.28.0-beta.4) (2024-11-06)
 
 
