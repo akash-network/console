@@ -1,6 +1,6 @@
 "use client";
 import React, { ReactNode, useState } from "react";
-import { Button, buttonVariants } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -36,7 +36,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
-  const { activeControlMachine, openControlMachineDrawer } = useControlMachine();
+  const { activeControlMachine, openControlMachineDrawer, controlMachineLoading } = useControlMachine();
 
   const routeGroups: ISidebarGroupMenu[] = [
     {
@@ -165,8 +165,17 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         {_isNavOpen && (
           <div className="space-y-2 pb-4 pl-4 pr-4">
             {/* <NodeStatusBar /> */}
-
-            {activeControlMachine ? (
+            {controlMachineLoading ? (
+              <div className="flex flex-col space-y-2">
+                <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                  Machine:
+                  <div className="relative flex items-center gap-2">
+                    <Spinner size="small" />
+                    <div className="text-xs">Connecting...</div>
+                  </div>
+                </div>
+              </div>
+            ) : activeControlMachine ? (
               <div className="flex flex-col space-y-2">
                 <div className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-2 text-sm" onClick={openControlMachineDrawer}>
                   Machine:
