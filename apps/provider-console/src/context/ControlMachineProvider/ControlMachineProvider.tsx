@@ -77,6 +77,7 @@ export function ControlMachineProvider({ children }: Props) {
       // Add new control machine if none exists with this address
       return [...prev, controlMachine];
     });
+    setControlMachineDrawerOpen(false);
     setActiveControlMachine(controlMachine);
   }
 
