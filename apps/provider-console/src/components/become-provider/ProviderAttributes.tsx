@@ -14,7 +14,10 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  Separator
+  Separator,
+  Alert,
+  AlertDescription,
+  AlertTitle
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
@@ -24,6 +27,9 @@ import { z } from "zod";
 import providerProcessStore, { ProviderAttribute } from "@src/store/providerProcessStore";
 import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";
 import { ResetProviderForm } from "./ResetProviderProcess";
+import restClient from "@src/utils/restClient";
+import { useControlMachine } from "@src/context/ControlMachineProvider";
+import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 
 const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 
@@ -66,6 +72,10 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
     name: "attributes"
   });
 
+  const { activeControlMachine } = useControlMachine();
+
+  const [showSuccess, setShowSuccess] = React.useState(false);
+
   const onSubmit: SubmitHandler<ProviderFormValues> = async data => {
     if (!editMode) {
       const updatedProviderPricing = {
@@ -82,7 +92,16 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
         key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",
         value: attr.value
       }));
-      console.log("update attributes", attributes);
+      const request = {
+        control_machine: sanitizeMachineAccess(activeControlMachine),
+        attributes
+      };
+
+      const response = await restClient.post(`/update-provider-attributes`, request);
+      if (response) {
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 10000);
+      }
     }
   };
 
@@ -179,6 +198,12 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
             </form>
           </Form>
         </div>
+        {showSuccess && (
+          <Alert>
+            <AlertTitle>Success</AlertTitle>
+            <AlertDescription>Provider attributes updated successfully</AlertDescription>
+          </Alert>
+        )}
       </div>
     </div>
   );

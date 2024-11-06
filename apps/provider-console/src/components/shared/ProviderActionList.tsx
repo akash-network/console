@@ -53,7 +53,7 @@ export const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions 
   };
 
   const handleRowClick = (actionId: string) => {
-    router.push(`/action-details/?id=${actionId}`);
+    router.push(`/actions/${actionId}`);
   };
 
   return (
