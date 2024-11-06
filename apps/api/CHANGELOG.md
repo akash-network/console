@@ -1,5 +1,12 @@
 
 
+## [2.28.0-beta.3](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.2...console-api/v2.28.0-beta.3) (2024-11-06)
+
+
+### Features
+
+* **package:** extract logger into packages ([bac463b](https://github.com/akash-network/console/commit/bac463b4f4f18ef73a630d69eba7355cb20d4643)), closes [#429](https://github.com/akash-network/console/issues/429)
+
 ## [2.28.0-beta.2](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.1...console-api/v2.28.0-beta.2) (2024-11-04)
 
 
