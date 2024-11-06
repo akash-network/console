@@ -6,7 +6,7 @@
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
     "lint": "eslint .",
-     "update-apps-local-deps": "mvm-update"
+    "update-apps-local-deps": "mvm-update"
   },
   "author": "",
   "license": "ISC",
@@ -14,6 +14,7 @@
     "dotenv": "^16.4.5",
     "http-errors": "^2.0.0",
     "pino": "^9.5.0",
+    "pino-cloud-logging": "^1.0.6",
     "pino-fluentd": "^0.2.4",
     "pino-pretty": "^11.3.0",
     "stream": "^0.0.3",
