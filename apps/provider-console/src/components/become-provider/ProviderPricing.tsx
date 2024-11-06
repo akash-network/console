@@ -1,7 +1,21 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Button, Form, FormControl, FormDescription, FormField, FormItem, FormLabel, Input, Separator, Slider } from "@akashnetwork/ui/components";
+import {
+  AlertDescription,
+  AlertTitle,
+  Alert,
+  Button,
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  Input,
+  Separator,
+  Slider
+} from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
 import { ChevronDownIcon } from "lucide-react";
@@ -9,6 +23,9 @@ import { z } from "zod";
 
 import providerProcessStore from "@src/store/providerProcessStore";
 import { ResetProviderForm } from "./ResetProviderProcess";
+import restClient from "@src/utils/restClient";
+import { useControlMachine } from "@src/context/ControlMachineProvider";
+import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 
 interface ProviderPricingProps {
   resources?: {
@@ -19,6 +36,8 @@ interface ProviderPricingProps {
     gpu: number;
   };
   stepChange: () => void;
+  editMode: boolean;
+  existingPricing?: ProviderPricingValues;
 }
 
 const providerPricingSchema = z.object({
@@ -33,8 +52,10 @@ const providerPricingSchema = z.object({
 
 type ProviderPricingValues = z.infer<typeof providerPricingSchema>;
 
-export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange }) => {
+export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, editMode, existingPricing }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
+  const { activeControlMachine } = useControlMachine();
+  const [showSuccess, setShowSuccess] = React.useState(false);
   const [resources, setResources] = useState({
     cpu: 24,
     memory: 724,
@@ -79,15 +100,17 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange }) 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const form = useForm<ProviderPricingValues>({
     resolver: zodResolver(providerPricingSchema),
-    defaultValues: {
-      cpu: 1.6,
-      memory: 0.8,
-      storage: 0.02,
-      gpu: 100,
-      persistentStorage: 0.3,
-      ipScalePrice: 5,
-      endpointBidPrice: 0.5
-    }
+    defaultValues: editMode
+      ? existingPricing
+      : {
+          cpu: 1.6,
+          memory: 0.8,
+          storage: 0.02,
+          gpu: 100,
+          persistentStorage: 0.3,
+          ipScalePrice: 5,
+          endpointBidPrice: 0.5
+        }
   });
 
   const watchValues = form.watch();
@@ -117,16 +140,29 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange }) 
 
   const estimatedEarnings = calculateEstimatedEarnings(watchValues);
 
-  const submit = (data: any) => {
-    setProviderProcess(prev => ({
-      ...prev,
-      pricing: data,
-      process: {
-        ...prev.process,
-        providerPricing: true
+  const submit = async (data: any) => {
+    if (editMode) {
+      setProviderProcess(prev => ({
+        ...prev,
+        pricing: data,
+        process: {
+          ...prev.process,
+          providerPricing: true
+        }
+      }));
+      stepChange();
+    } else {
+      const request = {
+        control_machine: sanitizeMachineAccess(activeControlMachine),
+        pricing: data
+      };
+
+      const response = await restClient.post(`/update-provider-pricing`, request);
+      if (response) {
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 10000);
       }
-    }));
-    stepChange();
+    }
   };
 
   return (
@@ -324,6 +360,12 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange }) 
             </div>
           </form>
         </Form>
+        {showSuccess && (
+          <Alert>
+            <AlertTitle>Success</AlertTitle>
+            <AlertDescription>Provider pricing updated successfully</AlertDescription>
+          </Alert>
+        )}
       </div>
     </div>
   );

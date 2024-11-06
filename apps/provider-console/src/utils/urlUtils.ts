@@ -22,4 +22,5 @@ export class UrlService {
   static privacyPolicy = () => "/privacy-policy";
   static termsOfService = () => "/terms-of-service";
   static actions = () => "/actions";
+  static pricing = () => "/pricing";
 }
