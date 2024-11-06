@@ -1,11 +1,13 @@
-import { AllowanceHttpService, BalanceHttpService, BlockHttpService, Denom } from "@akashnetwork/http-sdk";
-import { container } from "tsyringe";
+import { AllowanceHttpService, BalanceHttpService, Denom } from "@akashnetwork/http-sdk";
+import { faker } from "@faker-js/faker";
 
 import { MasterSigningClientService, MasterWalletService } from "@src/billing/services";
-import type { Sentry } from "@src/core/providers/sentry.provider";
-import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
+import { ErrorService } from "@src/core/services/error/error.service";
 import { config } from "@src/deployment/config";
-import { DrainingLeasesOptions, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
+import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
+import { BlockHttpService } from "@src/deployment/services/block-http/block-http.service";
+import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import { TopUpToolsService } from "@src/deployment/services/top-up-tools/top-up-tools.service";
 import { TopUpCustodialDeploymentsService } from "./top-up-custodial-deployments.service";
 
 import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
@@ -13,50 +15,48 @@ import { BalanceSeeder } from "@test/seeders/balance.seeder";
 import { DeploymentGrantSeeder } from "@test/seeders/deployment-grant.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
 import { FeesAuthorizationSeeder } from "@test/seeders/fees-authorization.seeder";
+import { stub } from "@test/services/stub";
 
 describe(TopUpCustodialDeploymentsService.name, () => {
   const CURRENT_BLOCK_HEIGHT = 7481457;
   const UAKT_TOP_UP_MASTER_WALLET_ADDRESS = AkashAddressSeeder.create();
   const USDT_TOP_UP_MASTER_WALLET_ADDRESS = AkashAddressSeeder.create();
   const mockManagedWalletService = (address: string) => {
-    return {
+    return stub<MasterWalletService>({
       getFirstAddress: async () => address
-    } as unknown as MasterWalletService;
+    });
   };
   const mockMasterSigningClientService = () => {
-    return {
+    return stub<MasterSigningClientService>({
       execTx: jest.fn()
-    } as unknown as MasterSigningClientService;
+    });
   };
 
   const allowanceHttpService = new AllowanceHttpService();
   const balanceHttpService = new BalanceHttpService();
-  const blockHttpService = new BlockHttpService();
+  const blockHttpService = stub<BlockHttpService>({ getCurrentHeight: jest.fn() });
   const uaktMasterWalletService = mockManagedWalletService(UAKT_TOP_UP_MASTER_WALLET_ADDRESS);
   const usdtMasterWalletService = mockManagedWalletService(USDT_TOP_UP_MASTER_WALLET_ADDRESS);
   const uaktMasterSigningClientService = mockMasterSigningClientService();
   const usdtMasterSigningClientService = mockMasterSigningClientService();
-
-  jest.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(CURRENT_BLOCK_HEIGHT);
-
-  const leaseRepository = container.resolve(LeaseRepository);
-  jest.spyOn(leaseRepository, "findDrainingLeases").mockResolvedValue([]);
-  const sentryEventService = container.resolve(SentryEventService);
-  const sentry = {
-    captureEvent: jest.fn()
-  } as unknown as Sentry;
-  const topUpDeploymentsService = new TopUpCustodialDeploymentsService(
-    allowanceHttpService,
-    balanceHttpService,
-    blockHttpService,
+  const topUpToolsService = new TopUpToolsService(
     uaktMasterWalletService,
     usdtMasterWalletService,
     uaktMasterSigningClientService,
-    usdtMasterSigningClientService,
-    leaseRepository,
-    config,
-    sentry,
-    sentryEventService
+    usdtMasterSigningClientService
+  );
+
+  jest.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(CURRENT_BLOCK_HEIGHT);
+
+  const drainingDeploymentService = new DrainingDeploymentService(blockHttpService, stub<LeaseRepository>(), config);
+  const errorService = stub<ErrorService>({ execWithErrorHandler: (params: any, cb: () => any) => cb() });
+
+  const topUpDeploymentsService = new TopUpCustodialDeploymentsService(
+    topUpToolsService,
+    allowanceHttpService,
+    balanceHttpService,
+    drainingDeploymentService,
+    errorService
   );
 
   type SeedParams = {
@@ -87,11 +87,11 @@ describe(TopUpCustodialDeploymentsService.name, () => {
         ? [
             {
               deployment: DrainingDeploymentSeeder.create({ denom, blockRate: 50, predictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500 }),
-              expectedTopUpAmount: expectedDeploymentsTopUpCount ? 4897959 : undefined
+              isExpectedToTopUp: !!expectedDeploymentsTopUpCount
             },
             {
               deployment: DrainingDeploymentSeeder.create({ denom, blockRate: 45, predictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1700 }),
-              expectedTopUpAmount: expectedDeploymentsTopUpCount > 1 ? 4408163 : undefined
+              isExpectedToTopUp: expectedDeploymentsTopUpCount > 1
             }
           ]
         : [],
@@ -147,13 +147,14 @@ describe(TopUpCustodialDeploymentsService.name, () => {
       }
     );
   });
-  jest.spyOn(leaseRepository, "findDrainingLeases").mockImplementation(async ({ owner, denom }: DrainingLeasesOptions) => {
+  jest.spyOn(drainingDeploymentService, "findDeployments").mockImplementation(async (owner, denom) => {
     return (
       data
         .find(({ grant }) => grant.granter === owner && grant.authorization.spend_limit.denom === denom)
         ?.drainingDeployments?.map(({ deployment }) => deployment) || []
     );
   });
+  jest.spyOn(drainingDeploymentService, "calculateTopUpAmount").mockImplementation(async () => faker.number.int({ min: 2000000, max: 4000000 }));
   jest.spyOn(topUpDeploymentsService, "topUpDeployment");
 
   it("should top up draining deployment given owners have sufficient grants and balances", async () => {
@@ -162,9 +163,9 @@ describe(TopUpCustodialDeploymentsService.name, () => {
     expect(topUpDeploymentsService.topUpDeployment).toHaveBeenCalledTimes(5);
 
     data.forEach(({ drainingDeployments, client }) => {
-      drainingDeployments.forEach(({ expectedTopUpAmount, deployment }) => {
-        if (expectedTopUpAmount) {
-          expect(topUpDeploymentsService.topUpDeployment).toHaveBeenCalledWith(expectedTopUpAmount, deployment, client);
+      drainingDeployments.forEach(({ isExpectedToTopUp, deployment }) => {
+        if (isExpectedToTopUp) {
+          expect(topUpDeploymentsService.topUpDeployment).toHaveBeenCalledWith(expect.any(Number), deployment, client);
         }
       });
     });
