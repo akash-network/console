@@ -1,6 +1,6 @@
 import { context, trace } from "@opentelemetry/api";
 import { isHttpError } from "http-errors";
-import pino, { Bindings } from "pino";
+import pino, { Bindings, LoggerOptions } from "pino";
 import { gcpLogOptions } from "pino-cloud-logging";
 import pinoFluentd from "pino-fluentd";
 import pretty from "pino-pretty";
@@ -30,15 +30,15 @@ export class LoggerService {
       destinations.push(fluentd);
     }
 
-    const options = {
+    const options = gcpLogOptions({
       level: config.LOG_LEVEL,
       mixin: () => {
         const currentSpan = trace.getSpan(context.active());
         return currentSpan?.spanContext() || {};
       }
-    };
+    }) as LoggerOptions;
 
-    let instance = pino(gcpLogOptions(options), this.combineDestinations(destinations));
+    let instance = pino(options, this.combineDestinations(destinations));
 
     if (bindings) {
       instance = instance.child(bindings);
