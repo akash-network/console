@@ -1,5 +1,12 @@
 
 
+## [2.28.0-beta.4](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.3...console-api/v2.28.0-beta.4) (2024-11-06)
+
+
+### Bug Fixes
+
+* **observability:** make sure otl data is added to logs ([820870d](https://github.com/akash-network/console/commit/820870d43203ddec5d3cd101d5c46b4b67e1d16d))
+
 ## [2.28.0-beta.3](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.2...console-api/v2.28.0-beta.3) (2024-11-06)
 
 
