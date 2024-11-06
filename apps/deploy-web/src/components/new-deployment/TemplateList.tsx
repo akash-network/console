@@ -1,7 +1,6 @@
 "use client";
-import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
-import { Button, buttonVariants, Card } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
+import React, { useEffect, useState } from "react";
+import { Card, FileButton } from "@akashnetwork/ui/components";
 import { CardContent } from "@mui/material";
 import { ArrowRight, Upload } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -36,8 +35,8 @@ const previewTemplateIds = [
 
 type Props = {
   onChangeGitProvider: (gh: boolean) => void;
-  onTemplateSelected: Dispatch<TemplateCreation | null>;
-  setEditedManifest: Dispatch<SetStateAction<string>>;
+  onTemplateSelected: (template: TemplateCreation | null) => void;
+  setEditedManifest: (manifest: string) => void;
 };
 
 export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvider, onTemplateSelected, setEditedManifest }) => {
@@ -45,7 +44,6 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
   const router = useRouter();
   const [previewTemplates, setPreviewTemplates] = useState<ApiTemplate[]>([]);
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
-  const fileUploadRef = useRef<HTMLInputElement>(null);
 
   const handleGithubTemplate = async () => {
     onChangeGitProvider(true);
@@ -66,11 +64,8 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
     router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, page }));
   }
 
-  const propagateUploadedSdl = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = event.target.files ?? [];
-    const hasFileSelected = selectedFiles.length > 0;
-    if (!hasFileSelected) return;
-    const fileUploaded = selectedFiles[0];
+  const onFileSelect = (file: File | null) => {
+    if (!file) return;
 
     const reader = new FileReader();
 
@@ -88,14 +83,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
       router.push(UrlService.newDeployment({ step: RouteStep.editDeployment }));
     };
 
-    reader.readAsText(fileUploaded);
-  };
-
-  const onSdlUpload = () => {
-    if (fileUploadRef.current) {
-      fileUploadRef.current.value = "";
-      fileUploadRef.current.click();
-    }
+    reader.readAsText(file);
   };
 
   return (
@@ -130,11 +118,10 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
             testId="custom-container-card"
           />
 
-          <input type="file" ref={fileUploadRef} onChange={propagateUploadedSdl} className="hidden" accept=".yml,.yaml,.txt" />
-          <Button variant="outline" onClick={() => onSdlUpload()} size="sm" className="space-x-2 bg-card text-foreground">
+          <FileButton onFileSelect={onFileSelect} accept=".yml,.yaml,.txt" size="sm" variant="outline" className="space-x-2 bg-card text-foreground">
             <Upload className="text-xs" />
             <span className="text-xs">Upload your SDL</span>
-          </Button>
+          </FileButton>
         </div>
 
         <Card className="col-span-3">

@@ -160,7 +160,7 @@ export const NewDeploymentContainer: FC = () => {
 
   return (
     <Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet containerClassName="pb-0 h-full">
-      {activeStep !== null && activeStep > 0 && (
+      {!!activeStep && (
         <div className="flex w-full items-center">
           <CustomizedSteppers activeStep={activeStep} />
         </div>

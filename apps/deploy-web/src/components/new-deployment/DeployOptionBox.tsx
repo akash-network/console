@@ -18,7 +18,7 @@ export const DeployOptionBox: React.FunctionComponent<Props> = ({ title, descrip
       <CardHeader className="pb-2">
         <div className="mb-2 flex items-center justify-center">
           <div className="flex items-center space-x-2 rounded-sm bg-secondary p-1">
-            {topIcons?.map((icon, i) => <Image src={icon} alt="icon" width={28} height={28} key={i} className="max-h-[28px] object-contain" />)}
+            {topIcons?.map(icon => <Image src={icon} alt="icon" width={28} height={28} key={icon} className="max-h-[28px] object-contain" />)}
           </div>
         </div>
         <div className="text-xl font-bold tracking-tight">{title}</div>
@@ -29,8 +29,8 @@ export const DeployOptionBox: React.FunctionComponent<Props> = ({ title, descrip
 
       <CardFooter className="flex justify-center">
         <div className="flex items-center space-x-1 px-2 py-1">
-          {bottomIcons?.map((icon, i) => (
-            <div key={i} className="rounded-sm border px-2 py-1 dark:bg-secondary">
+          {bottomIcons?.map(icon => (
+            <div key={icon} className="rounded-sm border px-2 py-1 dark:bg-secondary">
               <Image src={icon} alt="icon" width={24} height={24} className="max-h-[24px] object-contain" />
             </div>
           ))}
