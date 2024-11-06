@@ -1,5 +1,12 @@
 
 
+## [2.28.0-beta.6](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.5...console-api/v2.28.0-beta.6) (2024-11-06)
+
+
+### Features
+
+* add provider stats endpoint ([#402](https://github.com/akash-network/console/issues/402)) ([0570d24](https://github.com/akash-network/console/commit/0570d24a3ffaf14a59f5a234a68572a852a1f8b0))
+
 ## [2.28.0-beta.5](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.4...console-api/v2.28.0-beta.5) (2024-11-06)
 
 
