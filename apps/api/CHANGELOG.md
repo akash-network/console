@@ -1,5 +1,12 @@
 
 
+## [2.28.0-beta.7](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.6...console-api/v2.28.0-beta.7) (2024-11-06)
+
+
+### Features
+
+* **deployment:** implements managed deployments top up data collection ([98d8b72](https://github.com/akash-network/console/commit/98d8b72ec82acdb8fab064008758dce7158e76ae)), closes [#395](https://github.com/akash-network/console/issues/395)
+
 ## [2.28.0-beta.6](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.5...console-api/v2.28.0-beta.6) (2024-11-06)
 
 
