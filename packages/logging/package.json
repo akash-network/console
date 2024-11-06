@@ -1,0 +1,27 @@
+{
+  "name": "@akashnetwork/logging",
+  "version": "1.0.0",
+  "description": "Package containing logging tools",
+  "main": "src/index.ts",
+  "scripts": {
+    "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
+    "lint": "eslint .",
+     "update-apps-local-deps": "mvm-update"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "http-errors": "^2.0.0",
+    "pino": "^9.5.0",
+    "pino-fluentd": "^0.2.4",
+    "pino-pretty": "^11.3.0",
+    "stream": "^0.0.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@b12k/mvm": "^0.0.10",
+    "@types/http-errors": "^2.0.4",
+    "@types/node": "^22.8.6"
+  }
+}

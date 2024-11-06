@@ -39,6 +39,7 @@
     "@akashnetwork/database": "*",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/http-sdk": "*",
+    "@akashnetwork/logging": "*",
     "@casl/ability": "^6.7.1",
     "@chain-registry/assets": "^1.64.79",
     "@cosmjs/amino": "^0.32.4",
