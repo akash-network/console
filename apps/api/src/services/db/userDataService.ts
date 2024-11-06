@@ -1,9 +1,8 @@
 import { UserSetting } from "@akashnetwork/database/dbSchemas/user";
+import { LoggerService } from "@akashnetwork/logging";
 import pick from "lodash/pick";
 import { Transaction } from "sequelize";
 import { container } from "tsyringe";
-
-import { LoggerService } from "@src/core";
 
 const logger = new LoggerService({ context: "UserDataService" });
 

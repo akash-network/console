@@ -1,7 +1,6 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { LogWriter } from "drizzle-orm/logger";
 import { format } from "sql-formatter";
-
-import { LoggerService } from "@src/core/services/logger/logger.service";
 
 interface PostgresLoggerServiceOptions {
   orm?: "drizzle" | "sequelize";
