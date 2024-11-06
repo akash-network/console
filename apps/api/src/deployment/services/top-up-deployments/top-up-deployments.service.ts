@@ -1,11 +1,11 @@
 import { AllowanceHttpService, BalanceHttpService, DeploymentAllowance } from "@akashnetwork/http-sdk";
+import { LoggerService } from "@akashnetwork/logging";
 import { PromisePool } from "@supercharge/promise-pool";
 import { singleton } from "tsyringe";
 
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { MasterWalletService } from "@src/billing/services";
-import { LoggerService } from "@src/core";
 import { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 
 interface Balances {

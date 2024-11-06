@@ -4,7 +4,7 @@ import pinoFluentd from "pino-fluentd";
 import pretty from "pino-pretty";
 import { Writable } from "stream";
 
-import { config } from "@src/core/config";
+import { config } from "../../config";
 
 export class LoggerService {
   protected pino: pino.Logger;

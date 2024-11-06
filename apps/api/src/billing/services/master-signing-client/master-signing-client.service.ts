@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import type { StdFee } from "@cosmjs/amino";
 import { toHex } from "@cosmjs/encoding";
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
@@ -13,7 +14,6 @@ import assert from "http-assert";
 import { BillingConfig } from "@src/billing/providers";
 import { BatchSigningStargateClient } from "@src/billing/services/batch-signing-stargate-client/batch-signing-stargate-client";
 import { MasterWalletService } from "@src/billing/services/master-wallet/master-wallet.service";
-import { LoggerService } from "@src/core";
 
 interface ShortAccountInfo {
   accountNumber: number;
