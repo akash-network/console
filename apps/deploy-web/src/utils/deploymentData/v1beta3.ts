@@ -56,6 +56,13 @@ export function appendTrialAttribute(yamlStr: string) {
     quotingType: '"',
     styles: {
       "!!null": "empty" // dump null as emtpy value
+    },
+    replacer: (key, value) => {
+      // Attributes is a key value pair object, but we store it as an array of objects
+      if (key === "attributes" && Array.isArray(value) && value.some(attr => attr.key === trialAttribute)) {
+        return value?.reduce((acc, curr) => ((acc[curr.key] = curr.value), acc), {});
+      }
+      return value;
     }
   });
 
