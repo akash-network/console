@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { Alert, Button, Input } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
+import { z } from "zod";
+
 import { Layout } from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import { withAuth } from "@src/components/shared/withAuth";
@@ -8,8 +11,6 @@ import { useProvider } from "@src/context/ProviderContext";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 import { stripProviderPrefixAndPort } from "@src/utils/urlUtils";
-import { useState } from "react";
-import { z } from "zod";
 
 const urlSchema = z.string().url();
 
