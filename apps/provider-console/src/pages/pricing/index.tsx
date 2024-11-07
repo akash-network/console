@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, AlertTitle, Spinner } from "@akashnetwork/ui/components";
 
 import { ProviderPricing } from "@src/components/become-provider/ProviderPricing";
 import { Layout } from "@src/components/layout/Layout";
@@ -9,7 +9,7 @@ import restClient from "@src/utils/restClient";
 import { convertFromPricingAPI, sanitizeMachineAccess } from "@src/utils/sanityUtils";
 
 const Pricing: React.FunctionComponent = () => {
-  const { activeControlMachine } = useControlMachine();
+  const { activeControlMachine, controlMachineLoading } = useControlMachine();
   const [existingPricing, setExistingPricing] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { providerDetails } = useProvider();
@@ -39,14 +39,32 @@ const Pricing: React.FunctionComponent = () => {
 
   return (
     <Layout>
-      {isLoading ? (
-        <div>Loading...</div>
-      ) : (
-        <div>
-          {!activeControlMachine && (
+      <div className="relative">
+        {isLoading && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/80">
+            <div className="flex items-center gap-2">
+              <Spinner />
+              <span className="text-sm text-gray-600">Loading provider pricing...</span>
+            </div>
+          </div>
+        )}
+        
+        <div className={isLoading ? 'pointer-events-none' : ''}>
+          {!activeControlMachine && !controlMachineLoading && (
             <Alert variant="destructive">
               <AlertTitle>Control Machine Required</AlertTitle>
               <AlertDescription>Please connect your control machine first to start updating pricing settings.</AlertDescription>
+            </Alert>
+          )}
+          {controlMachineLoading && (
+            <Alert>
+              <AlertTitle>Connecting to Control Machine</AlertTitle>
+              <AlertDescription className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <Spinner className="h-4 w-4" />
+                  <span>Please wait while we check control machine access...</span>
+                </div>
+              </AlertDescription>
             </Alert>
           )}
           {activeControlMachine && !existingPricing && (
@@ -68,7 +86,7 @@ const Pricing: React.FunctionComponent = () => {
             providerDetails={providerDetails}
           />
         </div>
-      )}
+      </div>
     </Layout>
   );
 };
