@@ -23,7 +23,7 @@ export const FormattedDecimal: React.FunctionComponent<Props> = ({ value, precis
               case "decimal":
               case "fraction":
                 return (
-                  <small key={i} className="text-xs text-muted-foreground">
+                  <small key={i} className="text-xs">
                     {part.value}
                   </small>
                 );

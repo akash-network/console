@@ -1,5 +1,108 @@
 
 
+## [2.28.0-beta.7](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.6...console-api/v2.28.0-beta.7) (2024-11-06)
+
+
+### Features
+
+* **deployment:** implements managed deployments top up data collection ([98d8b72](https://github.com/akash-network/console/commit/98d8b72ec82acdb8fab064008758dce7158e76ae)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+## [2.28.0-beta.6](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.5...console-api/v2.28.0-beta.6) (2024-11-06)
+
+
+### Features
+
+* add provider stats endpoint ([#402](https://github.com/akash-network/console/issues/402)) ([0570d24](https://github.com/akash-network/console/commit/0570d24a3ffaf14a59f5a234a68572a852a1f8b0))
+
+## [2.28.0-beta.5](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.4...console-api/v2.28.0-beta.5) (2024-11-06)
+
+
+### Features
+
+* **deployment:** implements custodial deployments top up data collection ([108f073](https://github.com/akash-network/console/commit/108f0736359cc866bb9aa01e3935105c413c8aae)), closes [#39](https://github.com/akash-network/console/issues/39)
+
+## [2.28.0-beta.4](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.3...console-api/v2.28.0-beta.4) (2024-11-06)
+
+
+### Bug Fixes
+
+* **observability:** make sure otl data is added to logs ([820870d](https://github.com/akash-network/console/commit/820870d43203ddec5d3cd101d5c46b4b67e1d16d))
+
+## [2.28.0-beta.3](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.2...console-api/v2.28.0-beta.3) (2024-11-06)
+
+
+### Features
+
+* **package:** extract logger into packages ([bac463b](https://github.com/akash-network/console/commit/bac463b4f4f18ef73a630d69eba7355cb20d4643)), closes [#429](https://github.com/akash-network/console/issues/429)
+
+## [2.28.0-beta.2](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.1...console-api/v2.28.0-beta.2) (2024-11-04)
+
+
+### Bug Fixes
+
+* **wallet:** init nextPageKey with null when paginating grants ([2698b14](https://github.com/akash-network/console/commit/2698b14fc9ade6eab56e189daab753372677b9de))
+
+## [2.28.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.0...console-api/v2.28.0-beta.1) (2024-10-31)
+
+
+### Features
+
+* **deployment:** implements custodial wallet balances collection for top up ([0b08cd3](https://github.com/akash-network/console/commit/0b08cd3d4faeb818e00f0025a1c1bea818bcb213)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+## [2.28.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.27.0...console-api/v2.28.0-beta.0) (2024-10-30)
+
+
+### Features
+
+* **wallet:** implement multiple master wallets and clients ([5ea00e4](https://github.com/akash-network/console/commit/5ea00e427d426caeb6e1a85760dbffb362a0afd4)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+## [2.27.0](https://github.com/akash-network/console/compare/console-api/v2.27.0-beta.1...console-api/v2.27.0) (2024-10-30)
+
+## [2.27.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.27.0-beta.0...console-api/v2.27.0-beta.1) (2024-10-30)
+
+
+### Bug Fixes
+
+* improve perf ([d9de0eb](https://github.com/akash-network/console/commit/d9de0eba93d0c4ee4d7e051f98843578ba30a258)), closes [#427](https://github.com/akash-network/console/issues/427)
+
+## [2.27.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.26.0...console-api/v2.27.0-beta.0) (2024-10-29)
+
+
+### Features
+
+* **deployment:** implements basic top up handler w/o implementation ([a4cd312](https://github.com/akash-network/console/commit/a4cd3122cf1b1d22691ea5c14a320b5b743d217b)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+## [2.26.0](https://github.com/akash-network/console/compare/console-api/v2.26.0-beta.0...console-api/v2.26.0) (2024-10-23)
+
+## [2.26.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.25.0...console-api/v2.26.0-beta.0) (2024-10-23)
+
+
+### Features
+
+* **deployment:** add new endpoint to query filtered bids for trial accounts ([3d95615](https://github.com/akash-network/console/commit/3d95615a067b50a4c468e25535089ef9ca0a058c))
+* **deployment:** refactor trial providers to config file ([b18a57a](https://github.com/akash-network/console/commit/b18a57aaf01392fb62ee6b2801d022ac3e4e8958))
+
+
+### Bug Fixes
+
+* **deployment:** added provider validation for trial ([ae03311](https://github.com/akash-network/console/commit/ae03311c5189d3569cad3ae45c662069c2e1eaaa))
+
+## [2.25.0](https://github.com/akash-network/console/compare/console-api/v2.25.0-beta.1...console-api/v2.25.0) (2024-10-17)
+
+## [2.25.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.25.0-beta.0...console-api/v2.25.0-beta.1) (2024-10-17)
+
+
+### Features
+
+* **billing:** update master wallet and enable billing for prod ([90e0235](https://github.com/akash-network/console/commit/90e023594e6135d0e99f4b734c7e3706159d0fb4))
+
+## [2.25.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.24.0...console-api/v2.25.0-beta.0) (2024-10-17)
+
+
+### Features
+
+* **wallet:** improve fiat payments ux ([295e085](https://github.com/akash-network/console/commit/295e08542deb57634de624c5815e1e7127333a16)), closes [#411](https://github.com/akash-network/console/issues/411)
+
 ## [2.24.0](https://github.com/akash-network/console/compare/console-api/v2.24.0-beta.0...console-api/v2.24.0) (2024-10-14)
 
 ## 2.24.0-beta.0 (2024-10-14)

@@ -1,4 +1,5 @@
 import { AllowanceHttpService } from "@akashnetwork/http-sdk";
+import { LoggerService } from "@akashnetwork/logging";
 import { stringToPath } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
@@ -6,10 +7,11 @@ import add from "date-fns/add";
 import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { InjectSigningClient } from "@src/billing/providers/signing-client.provider";
+import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { MasterSigningClientService } from "@src/billing/services/master-signing-client/master-signing-client.service";
 import { MasterWalletService } from "@src/billing/services/master-wallet/master-wallet.service";
 import { RpcMessageService, SpendingAuthorizationMsgOptions } from "@src/billing/services/rpc-message-service/rpc-message.service";
-import { LoggerService } from "@src/core";
 
 interface SpendingAuthorizationOptions {
   address: string;
@@ -34,11 +36,13 @@ export class ManagedUserWalletService {
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
-    private readonly masterWalletService: MasterWalletService,
-    private readonly masterSigningClientService: MasterSigningClientService,
+    @InjectWallet("MANAGED") private readonly masterWalletService: MasterWalletService,
+    @InjectSigningClient("MANAGED") private readonly masterSigningClientService: MasterSigningClientService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly allowanceHttpService: AllowanceHttpService
-  ) {}
+  ) {
+    console.log("DEBUG masterSigningClientService", masterSigningClientService);
+  }
 
   async createAndAuthorizeTrialSpending({ addressIndex }: { addressIndex: number }) {
     const { address } = await this.createWallet({ addressIndex });

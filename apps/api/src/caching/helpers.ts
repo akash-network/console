@@ -1,7 +1,7 @@
+import { LoggerService } from "@akashnetwork/logging";
 import * as Sentry from "@sentry/node";
 import { differenceInSeconds } from "date-fns";
 
-import { LoggerService } from "@src/core";
 import MemoryCacheEngine from "./memoryCacheEngine";
 
 const logger = new LoggerService({ context: "Caching" });
@@ -84,5 +84,6 @@ export const cacheKeys = {
   getMainnetVersion: "getMainnetVersion",
   getTestnetVersion: "getTestnetVersion",
   getSandboxVersion: "getSandboxVersion",
-  getGpuModels: "getGpuModels"
+  getGpuModels: "getGpuModels",
+  getTrialProviders: "getTrialProviders"
 };

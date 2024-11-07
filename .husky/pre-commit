@@ -1,8 +1,11 @@
+#!/bin/bash
+
 if [[ "$CI" != "true" ]]; then
-    turbo update-apps-local-deps \
-        --filter=./packages/database \
-        --filter=./packages/env-loader \
-        --filter=./packages/http-sdk \
-        --filter=./packages/ui
+    npm run update-apps-local-deps -w packages/database
+    npm run update-apps-local-deps -w packages/env-loader
+    npm run update-apps-local-deps -w packages/http-sdk
+    npm run update-apps-local-deps -w packages/ui
+    npm run update-apps-local-deps -w packages/network-store
+    npm run update-apps-local-deps -w packages/logging
     git add ./apps/*/mvm.lock
 fi

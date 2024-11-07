@@ -1,0 +1,59 @@
+name: Deploy Console Web to GCP
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to deploy'
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}
+
+jobs:
+  deploy:
+    name: Deploy to GCP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Define variables
+        id: vars
+        run: |
+          tag="${{ github.event.inputs.tag }}"
+          
+          if [[ ! "$tag" =~ ^console-web/v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$ ]]; then
+              echo "Invalid tag. Expected console-web/v* or console-web/v*-beta.*"
+              exit 1
+          fi
+
+          version="${tag#*/v}"
+          
+          instance_name=""
+          
+          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]]; then
+            instance_name="${{ vars.BETA_WEB_INSTANCE_NAME }}"
+          elif [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            instance_name="${{ vars.PROD_WEB_INSTANCE_NAME }}"
+          fi
+          
+          image="${{ vars.WEB_REGISTRY }}:$version"
+          
+          echo "instance-name=${instance_name}"
+          echo "image=${image}"
+          
+          echo "instance-name=${instance_name}" >> "$GITHUB_OUTPUT"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repository
+        if: steps.vars.outputs.instance-name != '' && steps.vars.outputs.image != ''
+        uses: actions/checkout@v4
+
+      - name: Deploy
+        if: steps.vars.outputs.instance-name != '' && steps.vars.outputs.image != ''
+        uses: ./.github/actions/gcp-deploy
+        with:
+          instance-name: ${{ steps.vars.outputs.instance-name }}
+          image: ${{ steps.vars.outputs.image }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          zone: ${{ vars.GCP_ZONE }}

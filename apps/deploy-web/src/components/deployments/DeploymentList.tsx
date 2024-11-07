@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import {
   Button,
   buttonVariants,
+  Card,
+  CardContent,
   CheckboxWithLabel,
   CustomPagination,
   Input,
@@ -13,6 +15,7 @@ import {
   TableHeader,
   TableRow
 } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Refresh, Rocket, Xmark } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -22,20 +25,22 @@ import { LinkTo } from "@src/components/shared/LinkTo";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import sdlStore from "@src/store/sdlStore";
+import walletStore from "@src/store/walletStore";
 import { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
-import { cn } from "@src/utils/styleUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
+import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { DeploymentListRow } from "./DeploymentListRow";
 
 export const DeploymentList: React.FunctionComponent = () => {
-  const { address, signAndBroadcastTx, isWalletLoaded } = useWallet();
+  const { address, signAndBroadcastTx, isWalletLoaded, isWalletConnected } = useWallet();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
   const { data: deployments, isFetching: isLoadingDeployments, refetch: getDeployments } = useDeploymentList(address, { enabled: false });
   const [pageIndex, setPageIndex] = useState(0);
@@ -56,6 +61,8 @@ export const DeploymentList: React.FunctionComponent = () => {
   const pageCount = Math.ceil(orderedDeployments.length / pageSize);
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
+  const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
+  const { user } = useCustomUser();
 
   useEffect(() => {
     if (isWalletLoaded && isSettingsInit) {
@@ -144,14 +151,13 @@ export const DeploymentList: React.FunctionComponent = () => {
   return (
     <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings isUsingWallet>
       <NextSeo title="Deployments" />
-
-      <div className="flex flex-wrap items-center pb-2">
-        <Title className="font-bold" subTitle>
-          Deployments
-        </Title>
-
-        {deployments && (
+      {deployments && deployments.length > 0 && isWalletConnected && (
+        <div className="flex flex-wrap items-center pb-2">
           <>
+            <Title className="font-bold" subTitle>
+              Deployments
+            </Title>
+
             <div className="ml-4">
               <Button aria-label="back" onClick={() => getDeployments()} size="icon" variant="ghost">
                 <Refresh />
@@ -185,8 +191,8 @@ export const DeploymentList: React.FunctionComponent = () => {
               </Link>
             )}
           </>
-        )}
-      </div>
+        </div>
+      )}
 
       {((filteredDeployments?.length || 0) > 0 || !!search) && (
         <div className="flex items-center pb-4 pt-2">
@@ -210,14 +216,29 @@ export const DeploymentList: React.FunctionComponent = () => {
       )}
 
       {filteredDeployments?.length === 0 && !isLoadingDeployments && !search && (
-        <div className="p-16 text-center">
-          <h5 className="font-normal">{isFilteringActive ? "No active deployments" : "No deployments"}</h5>
+        <Card>
+          <CardContent>
+            <div className="p-16 text-center">
+              <h3 className="mb-2 text-xl font-bold">{deployments && deployments?.length > 0 ? "No active deployments." : "No deployments yet."}</h3>
 
-          <Link href={UrlService.newDeployment()} className={cn(buttonVariants({ variant: "default", size: "lg" }), "mt-4")} onClick={onDeployClick}>
-            Deploy
-            <Rocket className="ml-4 rotate-45 text-sm" />
-          </Link>
-        </div>
+              {isSignedInWithTrial && !user && <p className="text-sm">If you are expecting to see some, you may need to sign-in or connect a wallet</p>}
+
+              {isWalletConnected ? (
+                <Link href={UrlService.newDeployment()} className={cn(buttonVariants({ variant: "default", size: "lg" }), "mt-4")} onClick={onDeployClick}>
+                  Deploy
+                  <Rocket className="ml-4 rotate-45 text-sm" />
+                </Link>
+              ) : (
+                <div className="mt-8 flex items-center justify-center space-x-2">
+                  <ConnectWalletButton />
+                  <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.login()}>
+                    Sign in
+                  </Link>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {(!filteredDeployments || filteredDeployments?.length === 0) && isLoadingDeployments && !search && (

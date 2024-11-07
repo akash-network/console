@@ -2,11 +2,12 @@
 import { ReactNode, useEffect } from "react";
 import { Control, Controller, useFieldArray } from "react-hook-form";
 import { Button, CustomNoDivTooltip, FormField, FormInput, Popup, Switch } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Bin } from "iconoir-react";
 import { nanoid } from "nanoid";
 
-import { EnvironmentVariableType, RentGpusFormValuesType,SdlBuilderFormValuesType } from "@src/types";
-import { cn } from "@src/utils/styleUtils";
+import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
+import { EnvironmentVariableType, RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
@@ -16,9 +17,19 @@ type Props = {
   control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
   hasSecretOption?: boolean;
   children?: ReactNode;
+  isRemoteDeployEnvHidden?: boolean;
+  isUpdate?: boolean;
 };
 
-export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, envs: _envs, onClose, hasSecretOption = true }) => {
+export const EnvFormModal: React.FunctionComponent<Props> = ({
+  control,
+  serviceIndex,
+  envs: _envs,
+  onClose,
+  hasSecretOption = true,
+  isRemoteDeployEnvHidden,
+  isUpdate
+}) => {
   const {
     fields: envs,
     remove: removeEnv,
@@ -28,9 +39,14 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
     name: `services.${serviceIndex}.env`,
     keyName: "id"
   });
+  const filteredEnvs = envs?.filter(e => !isRemoteDeployEnvHidden || !(e?.key?.trim() in protectedEnvironmentVariables));
 
   useEffect(() => {
-    if (_envs.length === 0) {
+    const noEnvsExist = _envs.length === 0;
+    const noUserAddedEnvs = _envs.filter(e => !(e?.key?.trim() in protectedEnvironmentVariables)).length === 0;
+    const shouldAddEnv = noEnvsExist || (isRemoteDeployEnvHidden && noUserAddedEnvs && !isUpdate);
+
+    if (shouldAddEnv) {
       onAddEnv();
     }
   }, []);
@@ -80,13 +96,15 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
       enableCloseOnBackdropClick
     >
       <FormPaper contentClassName="bg-popover">
-        {envs.map((env, envIndex) => {
+        {filteredEnvs?.map((env, envIndex) => {
+          const currentEnvIndex = envs.findIndex(e => e.id === env.id);
+          const isLastEnv = envIndex + 1 === filteredEnvs.length;
           return (
-            <div key={env.id} className={cn("flex", { ["mb-2"]: envIndex + 1 !== envs.length })}>
+            <div key={env.id} className={cn("flex", { ["mb-2"]: !isLastEnv })}>
               <div className="flex flex-grow flex-col items-end sm:flex-row">
                 <FormField
                   control={control}
-                  name={`services.${serviceIndex}.env.${envIndex}.key`}
+                  name={`services.${serviceIndex}.env.${currentEnvIndex}.key`}
                   render={({ field }) => (
                     <div className="basis-[40%]">
                       <FormInput
@@ -103,7 +121,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
 
                 <FormField
                   control={control}
-                  name={`services.${serviceIndex}.env.${envIndex}.value`}
+                  name={`services.${serviceIndex}.env.${currentEnvIndex}.value`}
                   render={({ field }) => (
                     <div className="ml-2 flex-grow">
                       <FormInput
@@ -126,7 +144,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
                 })}
               >
                 {envIndex > 0 && (
-                  <Button onClick={() => removeEnv(envIndex)} size="icon" variant="ghost">
+                  <Button onClick={() => removeEnv(currentEnvIndex)} size="icon" variant="ghost">
                     <Bin />
                   </Button>
                 )}
@@ -134,7 +152,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceI
                 {hasSecretOption && (
                   <Controller
                     control={control}
-                    name={`services.${serviceIndex}.env.${envIndex}.isSecret`}
+                    name={`services.${serviceIndex}.env.${currentEnvIndex}.isSecret`}
                     render={({ field }) => (
                       <CustomNoDivTooltip
                         title={

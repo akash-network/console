@@ -2,11 +2,11 @@
 import { ReactNode } from "react";
 import { Control, Controller } from "react-hook-form";
 import { Checkbox, CustomTooltip, FormField, FormInput, FormItem, Label, MultipleSelector } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle } from "iconoir-react";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { nextCases } from "@src/utils/sdl/data";
-import { cn } from "@src/utils/styleUtils";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

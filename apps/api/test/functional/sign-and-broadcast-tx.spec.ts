@@ -1,11 +1,12 @@
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import type { Registry } from "@cosmjs/proto-signing";
-import { DbTestingService } from "@test/services/db-testing.service";
-import { WalletTestingService } from "@test/services/wallet-testing.service";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+
+import { DbTestingService } from "@test/services/db-testing.service";
+import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(30000);
 

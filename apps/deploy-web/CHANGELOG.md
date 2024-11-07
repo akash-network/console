@@ -1,5 +1,98 @@
 
 
+## [2.21.0-beta.1](https://github.com/akash-network/console/compare/console-web/v2.21.0-beta.0...console-web/v2.21.0-beta.1) (2024-11-07)
+
+
+### Features
+
+* **deployment:** improve new deployment page ([3ffc38b](https://github.com/akash-network/console/commit/3ffc38b2e942f11fc1ab11624aaa653745de6637)), closes [#444](https://github.com/akash-network/console/issues/444)
+
+## [2.21.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.20.3...console-web/v2.21.0-beta.0) (2024-11-04)
+
+
+### Features
+
+* **deployment:** enable deployment from git repositories ([dfbaeb7](https://github.com/akash-network/console/commit/dfbaeb78843341633025a0812a2fdb021de12c70)), closes [#417](https://github.com/akash-network/console/issues/417)
+
+
+### Bug Fixes
+
+* **wallet:** init nextPageKey with null when paginating grants ([2698b14](https://github.com/akash-network/console/commit/2698b14fc9ade6eab56e189daab753372677b9de))
+
+## [2.20.3](https://github.com/akash-network/console/compare/console-web/v2.20.3-beta.0...console-web/v2.20.3) (2024-10-30)
+
+## [2.20.3-beta.0](https://github.com/akash-network/console/compare/console-web/v2.20.2...console-web/v2.20.3-beta.0) (2024-10-30)
+
+
+### Bug Fixes
+
+* **network:** safely parse initial selected network ([8f0e2de](https://github.com/akash-network/console/commit/8f0e2de54b64469bfbb9e169030435c04060739b))
+
+## [2.20.2](https://github.com/akash-network/console/compare/console-web/v2.20.2-beta.1...console-web/v2.20.2) (2024-10-30)
+
+## [2.20.2-beta.1](https://github.com/akash-network/console/compare/console-web/v2.20.2-beta.0...console-web/v2.20.2-beta.1) (2024-10-30)
+
+
+### Bug Fixes
+
+* improve perf ([d9de0eb](https://github.com/akash-network/console/commit/d9de0eba93d0c4ee4d7e051f98843578ba30a258)), closes [#427](https://github.com/akash-network/console/issues/427)
+
+## [2.20.2-beta.0](https://github.com/akash-network/console/compare/console-web/v2.20.1...console-web/v2.20.2-beta.0) (2024-10-29)
+
+
+### Bug Fixes
+
+* **wallet:** ensure proper network and manage wallet switch ([39ee991](https://github.com/akash-network/console/commit/39ee991731145c3d3d8b3a6cb0ef37fe453b0d29))
+
+## [2.20.1](https://github.com/akash-network/console/compare/console-web/v2.20.1-beta.0...console-web/v2.20.1) (2024-10-26)
+
+## [2.20.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.20.0...console-web/v2.20.1-beta.0) (2024-10-26)
+
+
+### Bug Fixes
+
+* **styling:** fix typo on homepage ([#420](https://github.com/akash-network/console/issues/420)) ([938f6b7](https://github.com/akash-network/console/commit/938f6b7fcbe1a990cb6911a83000243ca6bb835c))
+
+## [2.20.0](https://github.com/akash-network/console/compare/console-web/v2.20.0-beta.0...console-web/v2.20.0) (2024-10-23)
+
+## [2.20.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.19.1-beta.0...console-web/v2.20.0-beta.0) (2024-10-23)
+
+
+### Features
+
+* **deployment:** add new endpoint to query filtered bids for trial accounts ([3d95615](https://github.com/akash-network/console/commit/3d95615a067b50a4c468e25535089ef9ca0a058c))
+* **deployment:** refactor trial providers to config file ([b18a57a](https://github.com/akash-network/console/commit/b18a57aaf01392fb62ee6b2801d022ac3e4e8958))
+
+
+### Bug Fixes
+
+* **deployment:** added provider validation for trial ([ae03311](https://github.com/akash-network/console/commit/ae03311c5189d3569cad3ae45c662069c2e1eaaa))
+* **styling:** remove beta logo ([b052151](https://github.com/akash-network/console/commit/b0521518709e2487208dd83256b4c630a1c7ac29))
+* **wallet:** fix your account usdc display ([1dedde4](https://github.com/akash-network/console/commit/1dedde4078cc64ac9443ad458a2058f364d9e48a))
+
+## [2.19.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.19.0...console-web/v2.19.1-beta.0) (2024-10-18)
+
+
+### Bug Fixes
+
+* **wallet:** authz pagination ([6193df5](https://github.com/akash-network/console/commit/6193df5f0820f67095ed9fe9280654b278f398a1)), closes [#415](https://github.com/akash-network/console/issues/415)
+
+## [2.19.0](https://github.com/akash-network/console/compare/console-web/v2.19.0-beta.1...console-web/v2.19.0) (2024-10-17)
+
+## [2.19.0-beta.1](https://github.com/akash-network/console/compare/console-web/v2.19.0-beta.0...console-web/v2.19.0-beta.1) (2024-10-17)
+
+
+### Features
+
+* **billing:** update master wallet and enable billing for prod ([90e0235](https://github.com/akash-network/console/commit/90e023594e6135d0e99f4b734c7e3706159d0fb4))
+
+## [2.19.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.17.0...console-web/v2.19.0-beta.0) (2024-10-17)
+
+
+### Features
+
+* **wallet:** improve fiat payments ux ([295e085](https://github.com/akash-network/console/commit/295e08542deb57634de624c5815e1e7127333a16)), closes [#411](https://github.com/akash-network/console/issues/411)
+
 ## [2.17.0](https://github.com/akash-network/console/compare/console-web/v2.17.0-beta.0...console-web/v2.17.0) (2024-10-14)
 
 ## 2.17.0-beta.0 (2024-10-14)
