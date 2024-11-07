@@ -1,30 +1,72 @@
-import React from "react";
-import { useQuery } from "react-query";
+import React, { useEffect, useState } from "react";
 
 import { Layout } from "@src/components/layout/Layout";
-import { useSelectedChain } from "@src/context/CustomChainProvider";
-import consoleClient from "@src/utils/consoleClient";
 import { ProviderPricing } from "@src/components/become-provider/ProviderPricing";
+import { useControlMachine } from "@src/context/ControlMachineProvider";
+import restClient from "@src/utils/restClient";
+import { convertFromPricingAPI, sanitizeMachineAccess } from "@src/utils/sanityUtils";
+import { Alert, AlertDescription, AlertTitle } from "@akashnetwork/ui/components";
+import { useProvider } from "@src/context/ProviderContext";
 
 const Pricing: React.FunctionComponent = () => {
-  const { address } = useSelectedChain();
-  const { data: providerDetails, isLoading: isLoadingProviderDetails }: { data: any; isLoading: boolean } = useQuery(
-    "providerDetails",
-    () => consoleClient.get(`/v1/providers/${address}`),
-    {
-      // You might want to adjust these options based on your needs
-      refetchOnWindowFocus: false,
-      retry: 3
+  const { activeControlMachine } = useControlMachine();
+  const [existingPricing, setExistingPricing] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { providerDetails } = useProvider();
+
+  const fetchPricing = async () => {
+    try {
+      setIsLoading(true);
+      const request = {
+        control_machine: sanitizeMachineAccess(activeControlMachine)
+      };
+      const response: any = await restClient.post("/get-provider-pricing", request);
+      if (response) {
+        setExistingPricing(convertFromPricingAPI(response.pricing));
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
     }
-  );
+  };
+
+  useEffect(() => {
+    if (activeControlMachine) {
+      fetchPricing();
+    }
+  }, [activeControlMachine]);
 
   return (
     <Layout>
-      {isLoadingProviderDetails ? (
+      {isLoading ? (
         <div>Loading...</div>
       ) : (
         <div>
-          <ProviderPricing existingPricing={providerDetails.pricing} editMode={true} stepChange={() => {}} />
+          {!activeControlMachine && (
+            <Alert variant="destructive">
+              <AlertTitle>Control Machine Required</AlertTitle>
+              <AlertDescription>Please connect your control machine first to start updating pricing settings.</AlertDescription>
+            </Alert>
+          )}
+          {activeControlMachine && !existingPricing && (
+            <Alert variant="destructive">
+              <AlertTitle>Unable to fetch pricing</AlertTitle>
+              <AlertDescription className="flex items-center justify-between">
+                Please try again later.
+                <button onClick={fetchPricing} className="rounded bg-red-100 px-3 py-1 text-sm text-red-900 hover:bg-red-200">
+                  Try Again
+                </button>
+              </AlertDescription>
+            </Alert>
+          )}
+          <ProviderPricing
+            existingPricing={existingPricing}
+            editMode={true}
+            stepChange={() => {}}
+            disabled={activeControlMachine && existingPricing ? false : true}
+            providerDetails={providerDetails}
+          />
         </div>
       )}
     </Layout>

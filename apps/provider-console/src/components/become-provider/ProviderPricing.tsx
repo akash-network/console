@@ -2,9 +2,9 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
+  Alert,
   AlertDescription,
   AlertTitle,
-  Alert,
   Button,
   Form,
   FormControl,
@@ -21,11 +21,11 @@ import { useAtom } from "jotai";
 import { ChevronDownIcon } from "lucide-react";
 import { z } from "zod";
 
-import providerProcessStore from "@src/store/providerProcessStore";
-import { ResetProviderForm } from "./ResetProviderProcess";
-import restClient from "@src/utils/restClient";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
+import providerProcessStore from "@src/store/providerProcessStore";
+import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
+import { ResetProviderForm } from "./ResetProviderProcess";
 
 interface ProviderPricingProps {
   resources?: {
@@ -36,8 +36,10 @@ interface ProviderPricingProps {
     gpu: number;
   };
   stepChange: () => void;
-  editMode: boolean;
+  editMode?: boolean;
   existingPricing?: ProviderPricingValues;
+  disabled?: boolean;
+  providerDetails?: any;
 }
 
 const providerPricingSchema = z.object({
@@ -52,7 +54,7 @@ const providerPricingSchema = z.object({
 
 type ProviderPricingValues = z.infer<typeof providerPricingSchema>;
 
-export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, editMode, existingPricing }) => {
+export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, editMode = false, existingPricing, disabled = false, providerDetails }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const { activeControlMachine } = useControlMachine();
   const [showSuccess, setShowSuccess] = React.useState(false);
@@ -63,39 +65,60 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
     persistentStorage: 7024,
     gpu: 5
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const calculateResources = () => {
-      let totalCpu = 0;
-      let totalMemory = 0;
-      let totalStorage = 0;
-      let totalPersistentStorage = 0;
-      let totalGpu = 0;
+      if (!editMode) {
+        let totalCpu = 0;
+        let totalMemory = 0;
+        let totalStorage = 0;
+        let totalPersistentStorage = 0;
+        let totalGpu = 0;
 
-      providerProcess.machines.forEach(machine => {
-        totalCpu += parseInt(machine.systemInfo.cpus, 10);
-        totalMemory += parseInt(machine.systemInfo.memory.replace("Gi", ""), 10);
-        machine.systemInfo.storage.forEach((storage, index) => {
-          if (index === 0) {
-            totalStorage += storage.size / (1024 * 1024 * 1024);
-          } else {
-            totalPersistentStorage += storage.size / (1024 * 1024 * 1024);
-          }
+        providerProcess.machines.forEach(machine => {
+          totalCpu += parseInt(machine.systemInfo.cpus, 10);
+          totalMemory += parseInt(machine.systemInfo.memory.replace("Gi", ""), 10);
+          machine.systemInfo.storage.forEach((storage, index) => {
+            if (index === 0) {
+              totalStorage += storage.size / (1024 * 1024 * 1024);
+            } else {
+              totalPersistentStorage += storage.size / (1024 * 1024 * 1024);
+            }
+          });
+          totalGpu += machine.systemInfo.gpu.count;
         });
-        totalGpu += machine.systemInfo.gpu.count;
-      });
 
-      setResources({
-        cpu: totalCpu,
-        memory: totalMemory,
-        storage: totalStorage,
-        persistentStorage: totalPersistentStorage,
-        gpu: totalGpu
-      });
+        setResources({
+          cpu: totalCpu,
+          memory: totalMemory,
+          storage: totalStorage,
+          persistentStorage: totalPersistentStorage,
+          gpu: totalGpu
+        });
+      } else if (providerDetails) {
+        const { activeStats, pendingStats, availableStats } = providerDetails;
+
+        // Calculate totals by summing active, pending, and available stats
+        const totalCpu = (activeStats.cpu + pendingStats.cpu + availableStats.cpu) / 1000;
+        const totalGpu = activeStats.gpu + pendingStats.gpu + availableStats.gpu;
+        // Convert memory from bytes to GB
+        const totalMemory = Math.floor((activeStats.memory + pendingStats.memory + availableStats.memory) / (1024 * 1024 * 1024));
+        // Convert storage from bytes to GB
+        const totalStorage = Math.floor((activeStats.storage + pendingStats.storage + availableStats.storage) / (1024 * 1024 * 1024));
+
+        setResources({
+          cpu: totalCpu,
+          memory: totalMemory,
+          storage: totalStorage,
+          persistentStorage: 0, // Using same storage value for persistent storage
+          gpu: totalGpu
+        });
+      }
     };
 
     calculateResources();
-  }, [providerProcess.machines]);
+  }, [providerProcess.machines, editMode, providerDetails]);
 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const form = useForm<ProviderPricingValues>({
@@ -141,7 +164,8 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
   const estimatedEarnings = calculateEstimatedEarnings(watchValues);
 
   const submit = async (data: any) => {
-    if (editMode) {
+    setIsLoading(true);
+    if (!editMode) {
       setProviderProcess(prev => ({
         ...prev,
         pricing: data,
@@ -152,6 +176,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
       }));
       stepChange();
     } else {
+      // console.log("data", data);
       const request = {
         control_machine: sanitizeMachineAccess(activeControlMachine),
         pricing: data
@@ -160,9 +185,10 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
       const response = await restClient.post(`/update-provider-pricing`, request);
       if (response) {
         setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 10000);
+        setTimeout(() => setShowSuccess(false), 20000);
       }
     }
+    setIsLoading(false);
   };
 
   return (
@@ -188,8 +214,22 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
                       <FormDescription>Scale Bid Price - USD/thread-month</FormDescription>
                       <FormControl>
                         <div className="flex items-center space-x-4">
-                          <Slider value={[field.value]} onValueChange={([newValue]) => field.onChange(newValue)} max={4} step={0.01} className="w-full" />
-                          <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-32" step="0.001" />
+                          <Slider
+                            disabled={disabled}
+                            value={[field.value]}
+                            onValueChange={([newValue]) => field.onChange(newValue)}
+                            max={4}
+                            step={0.01}
+                            className="w-full"
+                          />
+                          <Input
+                            disabled={disabled}
+                            type="number"
+                            {...field}
+                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            className="w-32"
+                            step="0.001"
+                          />
                         </div>
                       </FormControl>
                     </FormItem>
@@ -205,8 +245,22 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
                       <FormDescription>Scale Bid Price - USD/GB-month</FormDescription>
                       <FormControl>
                         <div className="flex items-center space-x-4">
-                          <Slider value={[field.value]} onValueChange={([newValue]) => field.onChange(newValue)} max={4} step={0.001} className="w-full" />
-                          <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-32" step="0.001" />
+                          <Slider
+                            disabled={disabled}
+                            value={[field.value]}
+                            onValueChange={([newValue]) => field.onChange(newValue)}
+                            max={4}
+                            step={0.001}
+                            className="w-full"
+                          />
+                          <Input
+                            disabled={disabled}
+                            type="number"
+                            {...field}
+                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            className="w-32"
+                            step="0.001"
+                          />
                         </div>
                       </FormControl>
                     </FormItem>
@@ -222,8 +276,22 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
                       <FormDescription>Scale Bid Price - USD/GB-month</FormDescription>
                       <FormControl>
                         <div className="flex items-center space-x-4">
-                          <Slider value={[field.value]} onValueChange={([newValue]) => field.onChange(newValue)} max={0.1} step={0.001} className="w-full" />
-                          <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-32" step="0.001" />
+                          <Slider
+                            disabled={disabled}
+                            value={[field.value]}
+                            onValueChange={([newValue]) => field.onChange(newValue)}
+                            max={0.1}
+                            step={0.001}
+                            className="w-full"
+                          />
+                          <Input
+                            disabled={disabled}
+                            type="number"
+                            {...field}
+                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            className="w-32"
+                            step="0.001"
+                          />
                         </div>
                       </FormControl>
                     </FormItem>
@@ -239,8 +307,22 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
                       <FormDescription>Scale Bid Price - USD/GPU-month</FormDescription>
                       <FormControl>
                         <div className="flex items-center space-x-4">
-                          <Slider value={[field.value]} onValueChange={([newValue]) => field.onChange(newValue)} max={500} step={0.01} className="w-full" />
-                          <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-32" step="0.01" />
+                          <Slider
+                            disabled={disabled}
+                            value={[field.value]}
+                            onValueChange={([newValue]) => field.onChange(newValue)}
+                            max={500}
+                            step={0.01}
+                            className="w-full"
+                          />
+                          <Input
+                            disabled={disabled}
+                            type="number"
+                            {...field}
+                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            className="w-32"
+                            step="0.01"
+                          />
                         </div>
                       </FormControl>
                     </FormItem>
@@ -256,8 +338,22 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
                       <FormDescription>Scale Bid Price - USD/GB-month</FormDescription>
                       <FormControl>
                         <div className="flex items-center space-x-4">
-                          <Slider value={[field.value]} onValueChange={([newValue]) => field.onChange(newValue)} max={1} step={0.01} className="w-full" />
-                          <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-32" step="0.01" />
+                          <Slider
+                            disabled={disabled}
+                            value={[field.value]}
+                            onValueChange={([newValue]) => field.onChange(newValue)}
+                            max={1}
+                            step={0.01}
+                            className="w-full"
+                          />
+                          <Input
+                            disabled={disabled}
+                            type="number"
+                            {...field}
+                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            className="w-32"
+                            step="0.01"
+                          />
                         </div>
                       </FormControl>
                     </FormItem>
@@ -265,7 +361,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
                 />
 
                 <div>
-                  <Button type="button" variant="outline" onClick={() => setShowAdvanced(!showAdvanced)} className="justify-between">
+                  <Button type="button" variant="outline" disabled={disabled} onClick={() => setShowAdvanced(!showAdvanced)} className="justify-between">
                     Advanced Settings
                     <ChevronDownIcon className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
                   </Button>
@@ -282,8 +378,22 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
                           <FormDescription>Scale Bid Price - USD/leased IP-month</FormDescription>
                           <FormControl>
                             <div className="flex items-center space-x-4">
-                              <Slider value={[field.value]} onValueChange={([newValue]) => field.onChange(newValue)} max={10} step={0.1} className="w-full" />
-                              <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-32" step="0.1" />
+                              <Slider
+                                disabled={disabled}
+                                value={[field.value]}
+                                onValueChange={([newValue]) => field.onChange(newValue)}
+                                max={10}
+                                step={0.1}
+                                className="w-full"
+                              />
+                              <Input
+                                disabled={disabled}
+                                type="number"
+                                {...field}
+                                onChange={e => field.onChange(parseFloat(e.target.value))}
+                                className="w-32"
+                                step="0.1"
+                              />
                             </div>
                           </FormControl>
                         </FormItem>
@@ -299,8 +409,22 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
                           <FormDescription>Scale Bid Price - USD/port-month</FormDescription>
                           <FormControl>
                             <div className="flex items-center space-x-4">
-                              <Slider value={[field.value]} onValueChange={([newValue]) => field.onChange(newValue)} max={1} step={0.01} className="w-full" />
-                              <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-32" step="0.01" />
+                              <Slider
+                                disabled={disabled}
+                                value={[field.value]}
+                                onValueChange={([newValue]) => field.onChange(newValue)}
+                                max={1}
+                                step={0.01}
+                                className="w-full"
+                              />
+                              <Input
+                                disabled={disabled}
+                                type="number"
+                                {...field}
+                                onChange={e => field.onChange(parseFloat(e.target.value))}
+                                className="w-32"
+                                step="0.01"
+                              />
                             </div>
                           </FormControl>
                         </FormItem>
@@ -351,17 +475,17 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
               <Separator />
             </div>
             <div className="flex w-full justify-between">
-              <div className="flex justify-start">
-                <ResetProviderForm />
-              </div>
+              <div className="flex justify-start">{!editMode && <ResetProviderForm />}</div>
               <div className="flex justify-end">
-                <Button type="submit">Next</Button>
+                <Button type="submit" disabled={disabled || isLoading}>
+                  {isLoading ? "Loading..." : "Next"}
+                </Button>
               </div>
             </div>
           </form>
         </Form>
-        {showSuccess && (
-          <Alert>
+        {showSuccess && !isLoading && (
+          <Alert variant="success">
             <AlertTitle>Success</AlertTitle>
             <AlertDescription>Provider pricing updated successfully</AlertDescription>
           </Alert>

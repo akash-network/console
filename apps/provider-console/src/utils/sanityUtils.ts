@@ -13,3 +13,15 @@ export function sanitizeMachineAccess(machine: ControlMachineWithAddress | null)
         passphrase: machine.access.passphrase || null
     };
 }
+
+export function convertFromPricingAPI(pricing: any) {
+    return {
+        cpu: pricing.price_target_cpu,
+        memory: pricing.price_target_memory,
+        storage: pricing.price_target_hd_ephemeral,
+        persistentStorage: pricing.price_target_hd_pers_ssd,
+        gpu: Number(pricing.price_target_gpu_mappings.split('=')[1]),
+        ipScalePrice: pricing.price_target_ip,
+        endpointBidPrice: pricing.price_target_endpoint
+    };
+}

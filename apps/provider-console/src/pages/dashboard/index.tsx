@@ -13,11 +13,11 @@ import { Layout } from "@src/components/layout/Layout";
 import { ProviderActionList } from "@src/components/shared/ProviderActionList";
 import { Title } from "@src/components/shared/Title";
 import { withAuth } from "@src/components/shared/withAuth";
-import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import consoleClient from "@src/utils/consoleClient";
 import { formatUUsd } from "@src/utils/formatUsd";
 import restClient from "@src/utils/restClient";
+import { useProvider } from "@src/context/ProviderContext";
 
 const fetchAktPrice = async () => {
   try {
@@ -34,28 +34,12 @@ const fetchAktPrice = async () => {
 const Dashboard: React.FC = () => {
   const [providerActions, setProviderActions] = useState<any[]>([]);
   const [aktPrice, setAktPrice] = useState<string | null>(null);
-  const { address } = useSelectedChain();
+  const { address } = useWallet();
   const { isOnline } = useWallet();
-
-  const { data: providerDetails, isLoading: isLoadingProviderDetails }: { data: any; isLoading: boolean } = useQuery(
-    "providerDetails",
-    () => consoleClient.get(`/v1/providers/${address}`),
-    {
-      refetchOnWindowFocus: false,
-      retry: 3
-    }
-  );
-
-  const { data: providerDashboard, isLoading: isLoadingProviderDashboard }: { data: any; isLoading: boolean } = useQuery(
-    "providerDashboard",
-    () => consoleClient.get(`/internal/provider-dashboard/${address}`),
-    {
-      refetchOnWindowFocus: false,
-      retry: 3
-    }
-  );
+  const { providerDetails, providerDashboard, isLoadingProviderDetails, isLoadingProviderDashboard } = useProvider();
 
   useEffect(() => {
+    console.log("providerDetails", providerDetails);
     const fetchData = async () => {
       const [price, actions]: [string, any] = await Promise.all([fetchAktPrice(), restClient.get("/actions")]);
       setAktPrice(price);
@@ -63,7 +47,7 @@ const Dashboard: React.FC = () => {
     };
 
     fetchData();
-  }, []);
+  }, [address]);
 
   return (
     <Layout>
@@ -164,25 +148,21 @@ const Dashboard: React.FC = () => {
           )}
         </div>
       </div>
-      {isOnline && providerDetails && (
-        <>
-          <div className="mt-8">
-            <div className="text-sm font-semibold">Resources Leased Summary</div>
-            <div className="mt-2">
-              {isLoadingProviderDetails ? (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  <DashboardCardSkeleton />
-                  <DashboardCardSkeleton />
-                  <DashboardCardSkeleton />
-                  <DashboardCardSkeleton />
-                </div>
-              ) : (
-                <ResourceCards providerDetails={providerDetails} />
-              )}
+      <div className="mt-8">
+        <div className="text-sm font-semibold">Resources Leased Summary</div>
+        <div className="mt-2">
+          {isLoadingProviderDetails ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <DashboardCardSkeleton />
+              <DashboardCardSkeleton />
+              <DashboardCardSkeleton />
+              <DashboardCardSkeleton />
             </div>
-          </div>
-        </>
-      )}
+          ) : (
+            <ResourceCards providerDetails={providerDetails} />
+          )}
+        </div>
+      </div>
 
       <Separator className="mt-10" />
       <div className="mt-8">
