@@ -159,10 +159,16 @@ export const NewDeploymentContainer: FC = () => {
   }
 
   return (
-    <Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet containerClassName="pb-0">
-      <div className="flex w-full items-center">{activeStep !== null && <CustomizedSteppers activeStep={activeStep} />}</div>
+    <Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet containerClassName="pb-0 h-full">
+      {!!activeStep && (
+        <div className="flex w-full items-center">
+          <CustomizedSteppers activeStep={activeStep} />
+        </div>
+      )}
 
-      {activeStep === 0 && <TemplateList onChangeGitProvider={setIsGitProviderTemplate} />}
+      {activeStep === 0 && (
+        <TemplateList onChangeGitProvider={setIsGitProviderTemplate} onTemplateSelected={setSelectedTemplate} setEditedManifest={setEditedManifest} />
+      )}
       {activeStep === 1 && (
         <ManifestEdit
           selectedTemplate={selectedTemplate}

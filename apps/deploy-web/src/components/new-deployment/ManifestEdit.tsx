@@ -1,12 +1,12 @@
 "use client";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-import { Alert, Button, CustomTooltip, Input, Snackbar, Spinner } from "@akashnetwork/ui/components";
+import { Alert, Button, CustomTooltip, FileButton, Input, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { ArrowRight, InfoCircle } from "iconoir-react";
+import { ArrowRight, InfoCircle, Upload } from "iconoir-react";
 import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { event } from "nextjs-google-analytics";
@@ -80,7 +80,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const templateId = searchParams.get("templateId");
   const { data: depositParams } = useDepositParams();
   const defaultDeposit = depositParams || browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
-  const fileUploadRef = useRef<HTMLInputElement>(null);
   const wallet = useWallet();
   const managedDenom = useManagedWalletDenom();
   const { createDeploymentConfirm } = useManagedDeploymentConfirm();
@@ -101,36 +100,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   useWhen(isGitProviderTemplate, () => {
     setSelectedSdlEditMode("builder");
   }, [isGitProviderTemplate]);
-
-  const propagateUploadedSdl = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = event.target.files ?? [];
-    const hasFileSelected = selectedFiles.length > 0;
-    if (!hasFileSelected) return;
-    const fileUploaded = selectedFiles[0];
-
-    const reader = new FileReader();
-
-    reader.onload = event => {
-      onTemplateSelected({
-        title: "From file",
-        code: "from-file",
-        category: "General",
-        description: "Custom uploaded file",
-        content: event.target?.result as string
-      });
-      setEditedManifest(event.target?.result as string);
-      setSelectedSdlEditMode("yaml");
-    };
-
-    reader.readAsText(fileUploaded);
-  };
-
-  const triggerFileInput = () => {
-    if (fileUploadRef.current) {
-      fileUploadRef.current.value = "";
-      fileUploadRef.current.click();
-    }
-  };
 
   useEffect(() => {
     if (selectedTemplate?.name) {
@@ -154,6 +123,26 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editedManifest]);
+
+  const onFileSelect = (file: File | null) => {
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = event => {
+      onTemplateSelected({
+        title: "From file",
+        code: "from-file",
+        category: "General",
+        description: "Custom uploaded file",
+        content: event.target?.result as string
+      });
+      setEditedManifest(event.target?.result as string);
+      setSelectedSdlEditMode("yaml");
+    };
+
+    reader.readAsText(file);
+  };
 
   async function handleTextChange(value) {
     setEditedManifest(value);
@@ -396,16 +385,16 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
           )}
           {hasComponent("yml-uploader") && !templateId && (
             <>
-              <input type="file" ref={fileUploadRef} onChange={propagateUploadedSdl} style={{ display: "none" }} accept=".yml,.yaml,.txt" />
-              <Button
-                variant="outline"
-                color="secondary"
-                onClick={() => triggerFileInput()}
+              <FileButton
+                onFileSelect={onFileSelect}
+                accept=".yml,.yaml,.txt"
                 size="sm"
+                variant="outline"
                 className="flex-grow hover:bg-primary hover:text-white sm:flex-grow-0"
               >
-                Upload SDL
-              </Button>
+                <Upload className="text-xs" />
+                <span className="text-xs">Upload your SDL</span>
+              </FileButton>
             </>
           )}
         </div>
