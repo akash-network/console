@@ -1,6 +1,6 @@
 import { context, trace } from "@opentelemetry/api";
 import { isHttpError } from "http-errors";
-import pino, { Bindings, LoggerOptions } from "pino";
+import pino, { Bindings, Logger as PinoLogger, LoggerOptions } from "pino";
 import { gcpLogOptions } from "pino-cloud-logging";
 import pinoFluentd from "pino-fluentd";
 import pretty from "pino-pretty";
@@ -8,14 +8,16 @@ import { Writable } from "stream";
 
 import { config } from "../../config";
 
-export class LoggerService {
-  protected pino: pino.Logger;
+export type Logger = Pick<PinoLogger, "info" | "error" | "warn" | "debug">;
+
+export class LoggerService implements Logger {
+  protected pino: Logger;
 
   constructor(bindings?: Bindings) {
     this.pino = this.initPino(bindings);
   }
 
-  private initPino(bindings?: Bindings): pino.Logger {
+  private initPino(bindings?: Bindings): Logger {
     const destinations: Writable[] = [];
 
     if (config.STD_OUT_LOG_FORMAT === "pretty") {
@@ -94,9 +96,9 @@ export class LoggerService {
       const loggableInput = { status: message.status, message: message.message, stack: message.stack, data: message.data };
       return "originalError" in message
         ? {
-            ...loggableInput,
-            originalError: message.stack
-          }
+          ...loggableInput,
+          originalError: message.stack
+        }
         : loggableInput;
     }
 
