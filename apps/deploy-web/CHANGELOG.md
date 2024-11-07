@@ -1,5 +1,12 @@
 
 
+## [2.21.0-beta.1](https://github.com/akash-network/console/compare/console-web/v2.21.0-beta.0...console-web/v2.21.0-beta.1) (2024-11-07)
+
+
+### Features
+
+* **deployment:** improve new deployment page ([3ffc38b](https://github.com/akash-network/console/commit/3ffc38b2e942f11fc1ab11624aaa653745de6637)), closes [#444](https://github.com/akash-network/console/issues/444)
+
 ## [2.21.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.20.3...console-web/v2.21.0-beta.0) (2024-11-04)
 
 
