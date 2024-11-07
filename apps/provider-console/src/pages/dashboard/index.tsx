@@ -1,6 +1,5 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useQuery } from "react-query";
 import { Button, Separator, Spinner } from "@akashnetwork/ui/components";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@akashnetwork/ui/components";
 import { AlertTriangle, Shield } from "lucide-react";
@@ -13,11 +12,10 @@ import { Layout } from "@src/components/layout/Layout";
 import { ProviderActionList } from "@src/components/shared/ProviderActionList";
 import { Title } from "@src/components/shared/Title";
 import { withAuth } from "@src/components/shared/withAuth";
+import { useProvider } from "@src/context/ProviderContext";
 import { useWallet } from "@src/context/WalletProvider";
-import consoleClient from "@src/utils/consoleClient";
 import { formatUUsd } from "@src/utils/formatUsd";
 import restClient from "@src/utils/restClient";
-import { useProvider } from "@src/context/ProviderContext";
 
 const fetchAktPrice = async () => {
   try {

@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@akashnetwork/ui/components";
 
-import { Layout } from "@src/components/layout/Layout";
 import { ProviderPricing } from "@src/components/become-provider/ProviderPricing";
+import { Layout } from "@src/components/layout/Layout";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
+import { useProvider } from "@src/context/ProviderContext";
 import restClient from "@src/utils/restClient";
 import { convertFromPricingAPI, sanitizeMachineAccess } from "@src/utils/sanityUtils";
-import { Alert, AlertDescription, AlertTitle } from "@akashnetwork/ui/components";
-import { useProvider } from "@src/context/ProviderContext";
 
 const Pricing: React.FunctionComponent = () => {
   const { activeControlMachine } = useControlMachine();

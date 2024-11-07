@@ -1,7 +1,8 @@
 "use client";
-import consoleClient from "@src/utils/consoleClient";
 import React from "react";
 import { useQuery } from "react-query";
+
+import consoleClient from "@src/utils/consoleClient";
 import { useWallet } from "../WalletProvider";
 
 type ContextType = {

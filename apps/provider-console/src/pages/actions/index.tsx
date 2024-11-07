@@ -1,9 +1,10 @@
 "use client";
+import { useEffect, useState } from "react";
+
 import { Layout } from "@src/components/layout/Layout";
 import { ProviderActionList } from "@src/components/shared/ProviderActionList";
-import { useEffect, useState } from "react";
-import restClient from "@src/utils/restClient";
 import { Title } from "@src/components/shared/Title";
+import restClient from "@src/utils/restClient";
 
 const ActionsList: React.FC = () => {
   const [actions, setActions] = useState<any[]>([]);

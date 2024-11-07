@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Button, Drawer, DrawerContent, DrawerTrigger } from "@akashnetwork/ui/components";
+import { Drawer, DrawerContent } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { useAtom } from "jotai";
 
