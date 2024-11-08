@@ -31,7 +31,7 @@ export class LoggerService implements Logger {
     if (config.STD_OUT_LOG_FORMAT === "pretty") {
       destinations.push(pretty({ sync: true }));
     } else {
-      options = gcpLogOptions(options as any);
+      options = gcpLogOptions(options as any) as LoggerOptions;
       destinations.push(process.stdout);
     }
 
