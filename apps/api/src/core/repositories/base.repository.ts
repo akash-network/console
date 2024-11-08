@@ -78,16 +78,40 @@ export abstract class BaseRepository<
     return this.toOutput(first(items));
   }
 
-  async find(query?: Partial<Output>, select?: Array<keyof Output>) {
+  async find(query?: Partial<Output>, options?: { select?: Array<keyof Output>; limit?: number; offset?: number }) {
     const params: DBQueryConfig<"many", true> = {
       where: this.queryToWhere(query)
     };
 
-    if (select) {
-      params.columns = select.reduce((acc, field) => ({ ...acc, [field]: true }), {});
+    if (options?.select) {
+      params.columns = options.select.reduce((acc, field) => ({ ...acc, [field]: true }), {});
+    }
+
+    if (options?.limit) {
+      params.limit = options.limit;
+    }
+
+    if (options?.offset) {
+      params.offset = options.offset;
     }
 
     return this.toOutputList(await this.queryCursor.findMany(params));
+  }
+
+  async paginate(options: { select?: Array<keyof Output>; limit?: number; query?: Partial<Output> }, cb: (page: Output[]) => Promise<void>) {
+    let offset = 0;
+    let hasNextPage = true;
+    const limit = options?.limit || 100;
+
+    while (hasNextPage) {
+      const items = await this.find(options.query, { select: options.select, offset, limit });
+      offset += items.length;
+      hasNextPage = items.length === limit;
+
+      if (items.length) {
+        await cb(items);
+      }
+    }
   }
 
   async updateById(id: Output["id"], payload: Partial<Input>, options?: MutationOptions): Promise<Output>;

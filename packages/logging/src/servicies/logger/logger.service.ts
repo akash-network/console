@@ -20,9 +20,18 @@ export class LoggerService implements Logger {
   private initPino(bindings?: Bindings): Logger {
     const destinations: Writable[] = [];
 
+    let options: LoggerOptions = {
+      level: config.LOG_LEVEL,
+      mixin: () => {
+        const currentSpan = trace.getSpan(context.active());
+        return { ...currentSpan?.spanContext() };
+      }
+    };
+
     if (config.STD_OUT_LOG_FORMAT === "pretty") {
       destinations.push(pretty({ sync: true }));
     } else {
+      options = gcpLogOptions(options as any);
       destinations.push(process.stdout);
     }
 
@@ -31,14 +40,6 @@ export class LoggerService implements Logger {
     if (fluentd) {
       destinations.push(fluentd);
     }
-
-    const options = gcpLogOptions({
-      level: config.LOG_LEVEL,
-      mixin: () => {
-        const currentSpan = trace.getSpan(context.active());
-        return currentSpan?.spanContext() || {};
-      }
-    }) as LoggerOptions;
 
     let instance = pino(options, this.combineDestinations(destinations));
 
@@ -96,9 +97,9 @@ export class LoggerService implements Logger {
       const loggableInput = { status: message.status, message: message.message, stack: message.stack, data: message.data };
       return "originalError" in message
         ? {
-          ...loggableInput,
-          originalError: message.stack
-        }
+            ...loggableInput,
+            originalError: message.stack
+          }
         : loggableInput;
     }
 
