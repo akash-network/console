@@ -1,5 +1,12 @@
 
 
+## [2.28.0-beta.10](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.9...console-api/v2.28.0-beta.10) (2024-11-08)
+
+
+### Features
+
+* **deployment:** properly log clean up on error ([99e3c04](https://github.com/akash-network/console/commit/99e3c0446665f059b720b36b2c06914a7cf63b28))
+
 ## [2.28.0-beta.9](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.8...console-api/v2.28.0-beta.9) (2024-11-08)
 
 
