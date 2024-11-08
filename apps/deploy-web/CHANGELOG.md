@@ -1,5 +1,12 @@
 
 
+## [2.21.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.21.0...console-web/v2.21.1-beta.0) (2024-11-08)
+
+
+### Bug Fixes
+
+* **auth:** fix logout button not logging out completely ([#446](https://github.com/akash-network/console/issues/446)) ([96f45dd](https://github.com/akash-network/console/commit/96f45dd617ef32fe813de03026c9370498099f34))
+
 ## [2.21.0](https://github.com/akash-network/console/compare/console-web/v2.21.0-beta.2...console-web/v2.21.0) (2024-11-08)
 
 ## [2.21.0-beta.2](https://github.com/akash-network/console/compare/console-web/v2.21.0-beta.1...console-web/v2.21.0-beta.2) (2024-11-08)
