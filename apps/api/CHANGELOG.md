@@ -1,5 +1,12 @@
 
 
+## [2.28.0-beta.8](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.7...console-api/v2.28.0-beta.8) (2024-11-08)
+
+
+### Features
+
+* **deployment:** implement clean up of managed deployments ([882fac4](https://github.com/akash-network/console/commit/882fac457f91d968bd9ecd3129c9a2113c3dd0bf)), closes [#395](https://github.com/akash-network/console/issues/395)
+
 ## [2.28.0-beta.7](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.6...console-api/v2.28.0-beta.7) (2024-11-06)
 
 
