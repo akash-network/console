@@ -59,7 +59,6 @@ export class StaleManagedDeploymentsCleanerService {
 
       try {
         await client.signAndBroadcast([message]);
-
         this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS" });
       } catch (error) {
         if (error.message.includes("not allowed to pay fees")) {
@@ -71,6 +70,7 @@ export class StaleManagedDeploymentsCleanerService {
           });
 
           await client.signAndBroadcast([message]);
+          this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS" });
         } else {
           throw error;
         }
