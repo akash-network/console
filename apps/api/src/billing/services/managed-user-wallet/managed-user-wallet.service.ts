@@ -40,9 +40,7 @@ export class ManagedUserWalletService {
     @InjectSigningClient("MANAGED") private readonly masterSigningClientService: MasterSigningClientService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly allowanceHttpService: AllowanceHttpService
-  ) {
-    console.log("DEBUG masterSigningClientService", masterSigningClientService);
-  }
+  ) {}
 
   async createAndAuthorizeTrialSpending({ addressIndex }: { addressIndex: number }) {
     const { address } = await this.createWallet({ addressIndex });
