@@ -46,8 +46,8 @@ export function appendTrialAttribute(yamlStr: string) {
       };
     }
 
-    if (!sdl.data.profiles.placement[placement].signedBy.anyOf.includes(auditor) || !sdl.data.profiles.placement[placement].signedBy.allOf.includes(auditor)) {
-      sdl.data.profiles.placement[placement].signedBy.anyOf.push(auditor);
+    if (!sdl.data.profiles.placement[placement].signedBy.allOf.includes(auditor)) {
+      sdl.data.profiles.placement[placement].signedBy.allOf.push(auditor);
     }
   });
 

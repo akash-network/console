@@ -18,15 +18,11 @@ export class TrialValidationService {
           return attribute.key === trialAttribute;
         });
 
-        const hasSignedByAllOf = group.requirements.signedBy.allOf.some(signedBy => {
+        const hasSignedByAllOf = group.requirements.signedBy.allOf.every(signedBy => {
           return signedBy === auditor;
         });
 
-        const hasSignedByAnyOf = group.requirements.signedBy.anyOf.some(signedBy => {
-          return signedBy === auditor;
-        });
-
-        if (!hasTrial || !(hasSignedByAllOf || hasSignedByAnyOf)) {
+        if (!hasTrial || !hasSignedByAllOf) {
           throw new Error(`provider not authorized: ${group.requirements.attributes}`);
         }
       });

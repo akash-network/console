@@ -21,9 +21,14 @@ export function useAnonymousUserQuery(id?: string, options?: { enabled?: boolean
   const [userState, setUserState] = useState<{ user?: UserOutput; isLoading: boolean; token?: string }>({ isLoading: !!options?.enabled });
 
   useWhen(options?.enabled && !userState.user, async () => {
-    const { data: fetched, ...rest } = await userHttpService.getOrCreateAnonymousUser(id);
-    const token = "token" in rest ? rest.token : undefined;
-    setUserState({ user: fetched, token, isLoading: false });
+    try {
+      const { data: fetched, ...rest } = await userHttpService.getOrCreateAnonymousUser(id);
+      const token = "token" in rest ? rest.token : undefined;
+      setUserState({ user: fetched, token, isLoading: false });
+    } catch (error) {
+      console.error(error);
+      setUserState({ isLoading: false });
+    }
   });
 
   return userState;
