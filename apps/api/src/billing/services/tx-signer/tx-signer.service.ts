@@ -70,7 +70,7 @@ export class TxSignerService {
     });
   }
 
-  private async getClientForAddressIndex(addressIndex: number): Promise<SimpleSigningStargateClient> {
+  async getClientForAddressIndex(addressIndex: number): Promise<SimpleSigningStargateClient> {
     const wallet = await this.getWalletForAddressIndex(addressIndex);
     const client = await SigningStargateClient.connectWithSigner(this.config.RPC_NODE_ENDPOINT, wallet, {
       registry: this.registry
