@@ -1,5 +1,12 @@
 
 
+## [2.28.0-beta.9](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.8...console-api/v2.28.0-beta.9) (2024-11-08)
+
+
+### Features
+
+* **deployment:** ensure there's sufficient fees allowance on cleanup ([fbbec68](https://github.com/akash-network/console/commit/fbbec68e3e430f41ab12424a5ffb47aff059a79d))
+
 ## [2.28.0-beta.8](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.7...console-api/v2.28.0-beta.8) (2024-11-08)
 
 
