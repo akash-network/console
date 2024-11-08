@@ -1,13 +1,15 @@
 import { faker } from "@faker-js/faker";
 
+import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
+import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { DeploymentConfig } from "@src/deployment/config/config.provider";
 import { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
-import { BlockHttpService } from "../block-http/block-http.service";
 import { DrainingDeploymentService } from "./draining-deployment.service";
 
 import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
-import { DenomSeeder } from "@test/seeders/denom.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
+
+jest.mock("@akashnetwork/logging");
 
 describe(DrainingDeploymentService.name, () => {
   let blockHttpService: BlockHttpService;
@@ -31,9 +33,18 @@ describe(DrainingDeploymentService.name, () => {
     jest.spyOn(leaseRepository, "findDrainingLeases").mockResolvedValue(drainingDeployment);
   });
 
-  it("should find draining deployments", async () => {
+  it("should find draining deployments with usdc denom", async () => {
     const owner = AkashAddressSeeder.create();
-    const denom = DenomSeeder.create();
+    const denom = USDC_IBC_DENOMS.sandboxId;
+    const result = await service.findDeployments(owner, denom);
+
+    expect(leaseRepository.findDrainingLeases).toHaveBeenCalledWith({ owner, closureHeight: 7482040, denom: "uusdc" });
+    expect(result).toEqual(drainingDeployment);
+  });
+
+  it("should find draining deployments with uakt denom", async () => {
+    const owner = AkashAddressSeeder.create();
+    const denom = "uakt";
     const result = await service.findDeployments(owner, denom);
 
     expect(leaseRepository.findDrainingLeases).toHaveBeenCalledWith({ owner, closureHeight: 7482040, denom });

@@ -1,12 +1,13 @@
-import { AllowanceHttpService, DeploymentAllowance } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { singleton } from "tsyringe";
 
-import { InjectSigningClient } from "@src/billing/providers/signing-client.provider";
+import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
-import { MasterSigningClientService, MasterWalletService } from "@src/billing/services";
+import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { MasterWalletService, RpcMessageService } from "@src/billing/services";
+import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
 import { ErrorService } from "@src/core/services/error/error.service";
-import { DrainingDeploymentOutput } from "@src/deployment/repositories/lease/lease.repository";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 
 @singleton()
@@ -16,44 +17,49 @@ export class TopUpManagedDeploymentsService {
   private readonly logger = new LoggerService({ context: TopUpManagedDeploymentsService.name });
 
   constructor(
-    private readonly allowanceHttpService: AllowanceHttpService,
-    @InjectWallet("MANAGED") private readonly managedMasterWalletService: MasterWalletService,
-    @InjectSigningClient("MANAGED") private readonly managedMasterSigningClientService: MasterSigningClientService,
+    private readonly userWalletRepository: UserWalletRepository,
+    private readonly txSignerService: TxSignerService,
+    @InjectBillingConfig() private readonly billingConfig: BillingConfig,
     private readonly drainingDeploymentService: DrainingDeploymentService,
+    @InjectWallet("MANAGED") private readonly managedMasterWalletService: MasterWalletService,
+    private readonly balancesService: BalancesService,
+    private readonly rpcClientService: RpcMessageService,
     private readonly errorService: ErrorService
   ) {}
 
   async topUpDeployments() {
-    const address = await this.managedMasterWalletService.getFirstAddress();
-    await this.allowanceHttpService.paginateDeploymentGrants({ granter: address, limit: this.CONCURRENCY }, async grants => {
+    await this.userWalletRepository.paginate({ limit: this.CONCURRENCY }, async wallets => {
       await Promise.all(
-        grants.map(async grant => {
-          await this.errorService.execWithErrorHandler({ grant, event: "TOP_UP_FAILED" }, () => this.topUpForGrant(grant));
+        wallets.map(async wallet => {
+          await this.errorService.execWithErrorHandler({ wallet, event: "TOP_UP_ERROR" }, () => this.topUpForWallet(wallet));
         })
       );
     });
   }
 
-  private async topUpForGrant(grant: DeploymentAllowance) {
-    const owner = grant.grantee;
-
-    let balance = parseFloat(grant.authorization.spend_limit.amount);
-    const denom = grant.authorization.spend_limit.denom;
+  private async topUpForWallet(wallet: UserWalletOutput) {
+    const owner = wallet.address;
+    const denom = this.billingConfig.DEPLOYMENT_GRANT_DENOM;
     const drainingDeployments = await this.drainingDeploymentService.findDeployments(owner, denom);
+    const signer = await this.txSignerService.getClientForAddressIndex(wallet.id);
+    const depositor = await this.managedMasterWalletService.getFirstAddress();
+
+    let balance = await this.balancesService.retrieveAndCalcDeploymentLimit(wallet);
 
     for (const deployment of drainingDeployments) {
-      const topUpAmount = await this.drainingDeploymentService.calculateTopUpAmount(deployment);
-      if (topUpAmount > balance) {
-        this.logger.debug({ event: "INSUFFICIENT_BALANCE", granter: grant.granter, grantee: owner, balance });
+      const amount = await this.drainingDeploymentService.calculateTopUpAmount(deployment);
+      if (amount > balance) {
+        this.logger.info({ event: "INSUFFICIENT_BALANCE", owner, balance });
         break;
       }
-      balance -= topUpAmount;
+      balance -= amount;
+      const messageInput = { dseq: deployment.dseq, amount, denom, owner, depositor };
+      const message = this.rpcClientService.getDepositDeploymentMsg(messageInput);
+      this.logger.info({ event: "TOP_UP_DEPLOYMENT", params: messageInput });
 
-      await this.topUpDeployment(topUpAmount, deployment);
+      await signer.signAndBroadcast([message]);
+
+      this.logger.info({ event: "TOP_UP_SUCCESS" });
     }
-  }
-
-  async topUpDeployment(amount: number, deployment: DrainingDeploymentOutput) {
-    this.logger.debug({ event: "TOPPING_UP_MANAGED_DEPLOYMENT", amount, deployment, warning: "Not implemented yet" });
   }
 }
