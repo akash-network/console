@@ -1,11 +1,12 @@
 import { AllowanceHttpService, BalanceHttpService, Denom } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
+import { MsgExec } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 
-import { MasterSigningClientService, MasterWalletService } from "@src/billing/services";
+import { MasterSigningClientService, MasterWalletService, RpcMessageService } from "@src/billing/services";
+import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { config } from "@src/deployment/config";
 import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
-import { BlockHttpService } from "@src/deployment/services/block-http/block-http.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { TopUpToolsService } from "@src/deployment/services/top-up-tools/top-up-tools.service";
 import { TopUpCustodialDeploymentsService } from "./top-up-custodial-deployments.service";
@@ -16,6 +17,8 @@ import { DeploymentGrantSeeder } from "@test/seeders/deployment-grant.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
 import { FeesAuthorizationSeeder } from "@test/seeders/fees-authorization.seeder";
 import { stub } from "@test/services/stub";
+
+jest.mock("@akashnetwork/logging");
 
 describe(TopUpCustodialDeploymentsService.name, () => {
   const CURRENT_BLOCK_HEIGHT = 7481457;
@@ -28,7 +31,7 @@ describe(TopUpCustodialDeploymentsService.name, () => {
   };
   const mockMasterSigningClientService = () => {
     return stub<MasterSigningClientService>({
-      execTx: jest.fn()
+      executeTx: jest.fn()
     });
   };
 
@@ -56,6 +59,7 @@ describe(TopUpCustodialDeploymentsService.name, () => {
     allowanceHttpService,
     balanceHttpService,
     drainingDeploymentService,
+    new RpcMessageService(),
     errorService
   );
 
@@ -65,10 +69,9 @@ describe(TopUpCustodialDeploymentsService.name, () => {
     grantee: string;
     expectedDeploymentsTopUpCount?: 0 | 1 | 2;
     hasDeployments?: boolean;
-    client: MasterSigningClientService;
   };
 
-  const seedFor = ({ denom, balance = "100000000", grantee, expectedDeploymentsTopUpCount = 2, hasDeployments = true, client }: SeedParams) => {
+  const seedFor = ({ denom, balance = "100000000", grantee, expectedDeploymentsTopUpCount = 2, hasDeployments = true }: SeedParams) => {
     const owner = AkashAddressSeeder.create();
 
     return {
@@ -94,42 +97,36 @@ describe(TopUpCustodialDeploymentsService.name, () => {
               isExpectedToTopUp: expectedDeploymentsTopUpCount > 1
             }
           ]
-        : [],
-      client: client
+        : []
     };
   };
 
   const data = [
     seedFor({
       denom: "uakt",
-      grantee: UAKT_TOP_UP_MASTER_WALLET_ADDRESS,
-      client: uaktMasterSigningClientService
+      grantee: UAKT_TOP_UP_MASTER_WALLET_ADDRESS
     }),
     seedFor({
       denom: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1",
-      grantee: USDT_TOP_UP_MASTER_WALLET_ADDRESS,
-      client: usdtMasterSigningClientService
+      grantee: USDT_TOP_UP_MASTER_WALLET_ADDRESS
     }),
     seedFor({
       denom: "uakt",
       balance: "5500000",
       grantee: UAKT_TOP_UP_MASTER_WALLET_ADDRESS,
-      expectedDeploymentsTopUpCount: 1,
-      client: uaktMasterSigningClientService
+      expectedDeploymentsTopUpCount: 1
     }),
     seedFor({
       denom: "uakt",
       balance: "5500000",
       grantee: UAKT_TOP_UP_MASTER_WALLET_ADDRESS,
-      hasDeployments: false,
-      client: uaktMasterSigningClientService
+      hasDeployments: false
     }),
     seedFor({
       denom: "uakt",
       balance: "0",
       grantee: UAKT_TOP_UP_MASTER_WALLET_ADDRESS,
-      expectedDeploymentsTopUpCount: 0,
-      client: uaktMasterSigningClientService
+      expectedDeploymentsTopUpCount: 0
     })
   ];
 
@@ -154,18 +151,32 @@ describe(TopUpCustodialDeploymentsService.name, () => {
         ?.drainingDeployments?.map(({ deployment }) => deployment) || []
     );
   });
-  jest.spyOn(drainingDeploymentService, "calculateTopUpAmount").mockImplementation(async () => faker.number.int({ min: 2000000, max: 4000000 }));
-  jest.spyOn(topUpDeploymentsService, "topUpDeployment");
+  jest.spyOn(drainingDeploymentService, "calculateTopUpAmount").mockImplementation(async () => faker.number.int({ min: 3500000, max: 4000000 }));
 
   it("should top up draining deployment given owners have sufficient grants and balances", async () => {
     await topUpDeploymentsService.topUpDeployments();
 
-    expect(topUpDeploymentsService.topUpDeployment).toHaveBeenCalledTimes(5);
+    expect(uaktMasterSigningClientService.executeTx).toHaveBeenCalledTimes(3);
+    expect(usdtMasterSigningClientService.executeTx).toHaveBeenCalledTimes(2);
 
-    data.forEach(({ drainingDeployments, client }) => {
+    data.forEach(({ drainingDeployments, grant }) => {
       drainingDeployments.forEach(({ isExpectedToTopUp, deployment }) => {
         if (isExpectedToTopUp) {
-          expect(topUpDeploymentsService.topUpDeployment).toHaveBeenCalledWith(expect.any(Number), deployment, client);
+          const client = deployment.denom === "uakt" ? uaktMasterSigningClientService : usdtMasterSigningClientService;
+          expect(client.executeTx).toHaveBeenCalledWith([
+            {
+              typeUrl: MsgExec.typeUrl,
+              value: {
+                grantee: grant.grantee,
+                msgs: [
+                  {
+                    typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
+                    value: expect.any(Buffer)
+                  }
+                ]
+              }
+            }
+          ]);
         }
       });
     });

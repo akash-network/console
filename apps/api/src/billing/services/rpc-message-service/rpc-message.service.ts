@@ -1,5 +1,5 @@
-import { DepositDeploymentAuthorization, MsgCloseDeployment } from "@akashnetwork/akash-api/v1beta3";
-import { MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
+import { DepositDeploymentAuthorization, MsgCloseDeployment, MsgDepositDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { MsgExec, MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 import { BasicAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
 import { MsgGrantAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
 import addYears from "date-fns/addYears";
@@ -12,6 +12,21 @@ export interface SpendingAuthorizationMsgOptions {
   denom: string;
   limit: number;
   expiration?: Date;
+}
+
+interface DepositDeploymentMsgOptionsBase {
+  dseq: number;
+  amount: number;
+  denom: string;
+  owner: string;
+}
+
+export interface DepositDeploymentMsgOptions extends DepositDeploymentMsgOptionsBase {
+  depositor: string;
+}
+
+export interface ExecDepositDeploymentMsgOptions extends DepositDeploymentMsgOptionsBase {
+  grantee: string;
 }
 
 @singleton()
@@ -96,4 +111,48 @@ export class RpcMessageService {
       }
     };
   }
+
+    getDepositDeploymentMsg({ owner, dseq, amount, denom, depositor }: DepositDeploymentMsgOptions) {
+        return {
+            typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
+            value: {
+                id: {
+                    owner,
+                    dseq: Long.fromString(dseq.toString(), true)
+                },
+                amount: {
+                    denom,
+                    amount: amount.toString()
+                },
+                depositor: depositor || owner
+            }
+        };
+    }
+
+    getExecDepositDeploymentMsg({ owner, dseq, amount, denom, grantee }: ExecDepositDeploymentMsgOptions) {
+        return {
+            typeUrl: MsgExec.typeUrl,
+            value: {
+                grantee,
+                msgs: [
+                    {
+                        typeUrl: `/${MsgDepositDeployment.$type}`,
+                        value: MsgDepositDeployment.encode(
+                            MsgDepositDeployment.fromPartial({
+                                id: {
+                                    owner,
+                                    dseq: Long.fromString(dseq.toString(), true)
+                                },
+                                amount: {
+                                    denom,
+                                    amount: amount.toString()
+                                },
+                                depositor: owner
+                            })
+                        ).finish()
+                    }
+                ]
+            }
+        };
+    }
 }

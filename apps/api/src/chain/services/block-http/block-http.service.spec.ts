@@ -3,6 +3,8 @@ import { faker } from "@faker-js/faker";
 
 import { BlockHttpService } from "./block-http.service";
 
+jest.mock("@akashnetwork/logging");
+
 describe(BlockHttpService.name, () => {
   let service: BlockHttpService;
   let blockHttpService: BlockHttpServiceCommon;
