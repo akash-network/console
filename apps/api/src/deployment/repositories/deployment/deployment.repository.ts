@@ -25,16 +25,10 @@ export class DeploymentRepository {
       ],
       where: {
         owner: options.owner,
-        [Op.and]: [
-          {
-            createdHeight: {
-              [Op.lt]: options.createdHeight
-            }
-          },
-          {
-            closedHeight: null
-          }
-        ]
+        createdHeight: {
+          [Op.lt]: options.createdHeight
+        },
+        closedHeight: null
       },
       group: ["deployment.dseq"],
       having: literal(`COUNT("leases"."deploymentId") = 0`),
