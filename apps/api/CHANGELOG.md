@@ -1,5 +1,12 @@
 
 
+## [2.28.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.28.0...console-api/v2.28.1-beta.0) (2024-11-11)
+
+
+### Bug Fixes
+
+* **deployment:** trial provider attributes ([6f5c94d](https://github.com/akash-network/console/commit/6f5c94d41879a8d23ed129857f5d28285d4f9ee9)), closes [#453](https://github.com/akash-network/console/issues/453)
+
 ## [2.28.0](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.10...console-api/v2.28.0) (2024-11-08)
 
 ## [2.28.0-beta.10](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.9...console-api/v2.28.0-beta.10) (2024-11-08)
