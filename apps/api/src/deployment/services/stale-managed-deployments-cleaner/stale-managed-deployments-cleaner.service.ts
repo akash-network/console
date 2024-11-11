@@ -6,9 +6,9 @@ import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, RpcMessageService } from "@src/billing/services";
 import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
+import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
-import { BlockHttpService } from "@src/deployment/services/block-http/block-http.service";
 import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()

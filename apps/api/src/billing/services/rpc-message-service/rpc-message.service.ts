@@ -112,47 +112,47 @@ export class RpcMessageService {
     };
   }
 
-    getDepositDeploymentMsg({ owner, dseq, amount, denom, depositor }: DepositDeploymentMsgOptions) {
-        return {
-            typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
-            value: {
+  getDepositDeploymentMsg({ owner, dseq, amount, denom, depositor }: DepositDeploymentMsgOptions) {
+    return {
+      typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
+      value: {
+        id: {
+          owner,
+          dseq: Long.fromString(dseq.toString(), true)
+        },
+        amount: {
+          denom,
+          amount: amount.toString()
+        },
+        depositor: depositor || owner
+      }
+    };
+  }
+
+  getExecDepositDeploymentMsg({ owner, dseq, amount, denom, grantee }: ExecDepositDeploymentMsgOptions) {
+    return {
+      typeUrl: MsgExec.typeUrl,
+      value: {
+        grantee,
+        msgs: [
+          {
+            typeUrl: `/${MsgDepositDeployment.$type}`,
+            value: MsgDepositDeployment.encode(
+              MsgDepositDeployment.fromPartial({
                 id: {
-                    owner,
-                    dseq: Long.fromString(dseq.toString(), true)
+                  owner,
+                  dseq: Long.fromString(dseq.toString(), true)
                 },
                 amount: {
-                    denom,
-                    amount: amount.toString()
+                  denom,
+                  amount: amount.toString()
                 },
-                depositor: depositor || owner
-            }
-        };
-    }
-
-    getExecDepositDeploymentMsg({ owner, dseq, amount, denom, grantee }: ExecDepositDeploymentMsgOptions) {
-        return {
-            typeUrl: MsgExec.typeUrl,
-            value: {
-                grantee,
-                msgs: [
-                    {
-                        typeUrl: `/${MsgDepositDeployment.$type}`,
-                        value: MsgDepositDeployment.encode(
-                            MsgDepositDeployment.fromPartial({
-                                id: {
-                                    owner,
-                                    dseq: Long.fromString(dseq.toString(), true)
-                                },
-                                amount: {
-                                    denom,
-                                    amount: amount.toString()
-                                },
-                                depositor: owner
-                            })
-                        ).finish()
-                    }
-                ]
-            }
-        };
-    }
+                depositor: owner
+              })
+            ).finish()
+          }
+        ]
+      }
+    };
+  }
 }

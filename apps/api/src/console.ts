@@ -11,7 +11,6 @@ import { container } from "tsyringe";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { chainDb } from "@src/db/dbConnection";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/deployment.controller";
-import { TopUpManagedDeploymentsService } from "@src/deployment/services/top-up-managed-deployments/top-up-managed-deployments.service";
 
 const program = new Command();
 
@@ -29,11 +28,11 @@ program
 
 program
   .command("top-up-deployments")
+  .option("-d, --dry-run", "Dry run the top up deployments", false)
   .description("Refill deployments with auto top up enabled")
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
-      await container.resolve(TopUpManagedDeploymentsService).topUpDeployments();
-      await container.resolve(TopUpDeploymentsController).topUpDeployments();
+      await container.resolve(TopUpDeploymentsController).topUpDeployments({ dryRun: options.dryRun });
     });
   });
 
