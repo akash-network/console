@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@akashnetwork/ui/components";
 
 import { formatBytes } from "@src/utils/formatBytes";
@@ -53,8 +54,7 @@ export const RenderResourceCard: React.FC<{
 );
 
 export const ResourceCards = ({ providerDetails }: { providerDetails: any }) => {
-  console.log(providerDetails);
-  const resources = [
+  const resources = useMemo(() => [
     {
       title: "CPUs",
       data:
@@ -75,7 +75,7 @@ export const ResourceCards = ({ providerDetails }: { providerDetails: any }) => 
       title: "Storage",
       data: getResourceData(providerDetails?.activeStats?.storage, providerDetails?.pendingStats?.storage, providerDetails?.availableStats?.storage, true)
     }
-  ];
+  ], [providerDetails]);
 
   const validResources = resources.filter(resource => resource.data !== null);
 

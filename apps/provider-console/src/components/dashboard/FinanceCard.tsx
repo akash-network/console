@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Card, CardContent, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@akashnetwork/ui/components";
 
 interface PercentChangeProps {
@@ -14,12 +15,20 @@ interface FinanceCardProps {
 }
 
 const PercentChange: React.FC<PercentChangeProps> = ({ currentPrice, previousPrice }) => {
+  const { percentageChange, formattedChange } = useMemo(() => {
+    if (currentPrice === null || previousPrice === null || previousPrice === 0) {
+      return { percentageChange: 0, formattedChange: "0" };
+    }
+
+    const percentageChange = ((currentPrice - previousPrice) / previousPrice) * 100;
+    const formattedChange = Math.abs(percentageChange).toFixed(2);
+
+    return { percentageChange, formattedChange };
+  }, [currentPrice, previousPrice]);
+
   if (currentPrice === null || previousPrice === null || previousPrice === 0) {
     return <span className="text-gray-500">0%</span>;
   }
-
-  const percentageChange = ((currentPrice - previousPrice) / previousPrice) * 100;
-  const formattedChange = Math.abs(percentageChange).toFixed(2);
 
   if (percentageChange > 0) {
     return <span className="text-green-500">+{formattedChange}%</span>;

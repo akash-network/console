@@ -15,21 +15,7 @@ const steps: Step[] = [
   { id: 4, name: "5. Import Wallet" }
 ];
 
-export const CustomizedSteppers: React.FC<{ activeStep: number }> = ({ activeStep }) => {
-  return (
-    <nav aria-label="Progress" className="w-full">
-      <ol role="list" className="divide-muted-foreground/20 border-muted-foreground/20 divide-y border md:flex md:divide-y-0">
-        {steps.map(step => (
-          <li key={step.name} className="relative md:flex md:flex-1">
-            {renderStepContent(step, activeStep)}
-          </li>
-        ))}
-      </ol>
-    </nav>
-  );
-};
-
-const renderStepContent = (step: Step, activeStep: number) => {
+const StepContent: React.FC<{ step: Step; activeStep: number }> = ({ step, activeStep }) => {
   if (step.id < activeStep) {
     return <CompletedStep step={step} />;
   } else if (step.id === activeStep) {
@@ -37,6 +23,20 @@ const renderStepContent = (step: Step, activeStep: number) => {
   } else {
     return <FutureStep step={step} />;
   }
+};
+
+export const CustomizedSteppers: React.FC<{ activeStep: number }> = ({ activeStep }) => {
+  return (
+    <nav aria-label="Progress" className="w-full">
+      <ol role="list" className="divide-muted-foreground/20 border-muted-foreground/20 divide-y border md:flex md:divide-y-0">
+        {steps.map(step => (
+          <li key={step.name} className="relative md:flex md:flex-1">
+            <StepContent step={step} activeStep={activeStep} />
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
 };
 
 const CompletedStep: React.FC<{ step: Step }> = ({ step }) => (

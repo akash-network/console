@@ -81,6 +81,10 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
           }
         }
       } catch (error) {
+        if (intervalIdRef.current) {
+          clearInterval(intervalIdRef.current);
+          intervalIdRef.current = null;
+        }
         console.error("Error fetching status:", error);
       }
     };

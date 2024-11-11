@@ -44,7 +44,7 @@ async function encrypt(data: string, publicKey: string): Promise<string> {
 }
 
 interface WalletImportProps {
-  stepChange: () => void;
+  onComplete: () => void;
 }
 
 const appearanceFormSchema = z.object({
@@ -68,7 +68,7 @@ const seedFormSchema = z.object({
 type AppearanceFormValues = z.infer<typeof appearanceFormSchema>;
 type SeedFormValues = z.infer<typeof seedFormSchema>;
 
-export const WalletImport: React.FC<WalletImportProps> = () => {
+export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
   const [mode, setMode] = useState<string>("");
   const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -95,51 +95,50 @@ export const WalletImport: React.FC<WalletImportProps> = () => {
   };
 
   const submitForm = async (data: SeedFormValues) => {
+    if (!providerProcess.machines || providerProcess.machines.length === 0) {
+      setError("No machine information available");
+    }
     setIsLoading(true);
     setError(null);
     try {
-      if (providerProcess.machines && providerProcess.machines.length > 0) {
-        const publicKey = providerProcess.machines[0].systemInfo.public_key;
-        const keyId = providerProcess.machines[0].systemInfo.key_id;
-        const encryptedSeedPhrase = await encrypt(data.seedPhrase, publicKey);
+      const publicKey = providerProcess.machines[0].systemInfo.public_key;
+      const keyId = providerProcess.machines[0].systemInfo.key_id;
+      const encryptedSeedPhrase = await encrypt(data.seedPhrase, publicKey);
 
-        const finalRequest = {
-          wallet: {
-            key_id: keyId,
-            wallet_phrase: encryptedSeedPhrase
-          },
-          nodes: providerProcess.machines.map(machine => ({
-            hostname: machine.access.hostname,
-            port: machine.access.port,
-            username: machine.access.username,
-            keyfile: machine.access.file,
-            password: machine.access.password,
-            install_gpu_drivers: machine.systemInfo.gpu.count > 0 ? true : false
-          })),
-          provider: {
-            attributes: providerProcess.attributes,
-            pricing: providerProcess.pricing,
-            config: providerProcess.config
-          }
-        };
-
-        const response: any = await restClient.post("/build-provider", finalRequest, {
-          headers: { "Content-Type": "application/json" }
-        });
-
-        if (response.action_id) {
-          resetProviderProcess();
-          router.push(`/action?id=${response.action_id}`);
-        } else {
-          throw new Error("Invalid response from server");
+      const finalRequest = {
+        wallet: {
+          key_id: keyId,
+          wallet_phrase: encryptedSeedPhrase
+        },
+        nodes: providerProcess.machines.map(machine => ({
+          hostname: machine.access.hostname,
+          port: machine.access.port,
+          username: machine.access.username,
+          keyfile: machine.access.file,
+          password: machine.access.password,
+          install_gpu_drivers: machine.systemInfo.gpu.count > 0 ? true : false
+        })),
+        provider: {
+          attributes: providerProcess.attributes,
+          pricing: providerProcess.pricing,
+          config: providerProcess.config
         }
+      };
+
+      const response: any = await restClient.post("/build-provider", finalRequest, {
+        headers: { "Content-Type": "application/json" }
+      });
+
+      if (response.action_id) {
+        resetProviderProcess();
+        router.push(`/action?id=${response.action_id}`);
       } else {
-        throw new Error("No machine information available");
+        throw new Error("Invalid response from server");
       }
     } catch (error) {
-      console.error("Error during wallet verification:", error);
       setError("An error occurred while processing your request. Please try again.");
     } finally {
+      onComplete();
       setIsLoading(false);
     }
   };

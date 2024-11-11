@@ -28,7 +28,7 @@ import { ResetProviderForm } from "./ResetProviderProcess";
 const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 
 interface ProviderAttributesProps {
-  stepChange: () => void;
+  onComplete: () => void;
 }
 
 const providerFormSchema = z.object({
@@ -43,7 +43,7 @@ const providerFormSchema = z.object({
 
 type ProviderFormValues = z.infer<typeof providerFormSchema>;
 
-export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ stepChange }) => {
+export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ onComplete }) => {
   const [providerPricing, setProviderPricing] = useAtom(providerProcessStore.providerProcessAtom);
   const form = useForm<ProviderFormValues>({
     resolver: zodResolver(providerFormSchema),
@@ -59,7 +59,7 @@ export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ stepChan
     name: "attributes"
   });
 
-  const onSubmit: SubmitHandler<ProviderFormValues> = async data => {
+  const updateProviderAttributesAndProceed: SubmitHandler<ProviderFormValues> = async data => {
     const updatedProviderPricing = {
       ...providerPricing,
       attributes: data.attributes.map(attr => ({
@@ -68,7 +68,7 @@ export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ stepChan
       }))
     };
     setProviderPricing(updatedProviderPricing);
-    stepChange();
+    onComplete();
   };
 
   return (
@@ -83,7 +83,7 @@ export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ stepChan
         </div>
         <div>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(updateProviderAttributesAndProceed)} className="space-y-6">
               <div>
                 <h4 className="mb-2 text-lg font-semibold">Attributes</h4>
                 {fields.map((field, index) => {

@@ -1,4 +1,5 @@
 import React from "react";
+import { useCallback } from "react";
 import { Check, Error, PlayArrow } from "@mui/icons-material";
 import { Box, Grid, List, ListItem, Typography } from "@mui/material";
 import { useRouter } from "next/router";
@@ -15,23 +16,27 @@ interface ProviderActionListProps {
   actions: ProviderAction[];
 }
 
+interface StatusIconProps {
+  status: ProviderAction["status"];
+}
+
+const StatusIcon: React.FC<StatusIconProps> = ({ status }) => {
+  switch (status) {
+    case "completed":
+      return <Check color="success" />;
+    case "in_progress":
+      return <PlayArrow color="primary" />;
+    case "failed":
+      return <Error color="error" />;
+    default:
+      return <Box sx={{ width: 24, height: 24, borderRadius: "50%", border: "2px solid #ccc" }} />;
+  }
+};
+
 export const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions }) => {
   const router = useRouter();
 
-  const getStatusIcon = (status: ProviderAction["status"]) => {
-    switch (status) {
-      case "completed":
-        return <Check color="success" />;
-      case "in_progress":
-        return <PlayArrow color="primary" />;
-      case "failed":
-        return <Error color="error" />;
-      default:
-        return <Box sx={{ width: 24, height: 24, borderRadius: "50%", border: "2px solid #ccc" }} />;
-    }
-  };
-
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString + "Z");
 
     return date.toLocaleString(undefined, {
@@ -43,7 +48,7 @@ export const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions 
       second: "2-digit",
       timeZoneName: "short"
     });
-  };
+  }, []);
 
   const calculateTimeLapse = (start: string, end?: string) => {
     const startTime = new Date(start).getTime();
@@ -86,7 +91,7 @@ export const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions 
                   </Typography>
                 </Grid>
                 <Grid item xs={2} sx={{ display: "flex", justifyContent: "flex-end" }}>
-                  {getStatusIcon(action.status)}
+                  <StatusIcon status={action.status} />
                 </Grid>
               </Grid>
             </ListItem>

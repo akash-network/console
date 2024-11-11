@@ -54,10 +54,10 @@ type AccountFormValues = z.infer<typeof accountFormSchema>;
 
 interface ServerFormProp {
   currentServerNumber: number;
-  onSubmit: () => void;
+  onComplete: () => void;
 }
 
-export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onSubmit }) => {
+export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onComplete }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [storedFileContent, setStoredFileContent] = useState<string | null>(null);
@@ -167,7 +167,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onSu
           storeInformation: currentServerNumber === 0 ? formValues.saveInformation : providerProcess?.storeInformation,
           process: providerProcess.process
         });
-        onSubmit();
+        onComplete();
       }
     } catch (error: any) {
       setVerificationError({
@@ -391,11 +391,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onSu
                       render={({ field }) => (
                         <FormItem className="flex items-center space-x-2">
                           <FormControl>
-                            <Checkbox
-                              id="saveInformation"
-                              checked={field.value} 
-                              onCheckedChange={field.onChange}
-                            />
+                            <Checkbox id="saveInformation" checked={field.value} onCheckedChange={field.onChange} />
                           </FormControl>
                           <FormLabel htmlFor="saveInformation" className="text-sm font-medium leading-none">
                             Yes
