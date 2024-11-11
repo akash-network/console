@@ -42,6 +42,11 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     const owner = wallet.address;
     const denom = this.billingConfig.DEPLOYMENT_GRANT_DENOM;
     const drainingDeployments = await this.drainingDeploymentService.findDeployments(owner, denom);
+
+    if (!drainingDeployments.length) {
+      return;
+    }
+
     const signer = await this.txSignerService.getClientForAddressIndex(wallet.id);
     const depositor = await this.managedMasterWalletService.getFirstAddress();
 
@@ -50,7 +55,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     for (const deployment of drainingDeployments) {
       const amount = await this.drainingDeploymentService.calculateTopUpAmount(deployment);
       if (amount > balance) {
-        this.logger.info({ event: "INSUFFICIENT_BALANCE", owner, balance });
+        this.logger.info({ event: "INSUFFICIENT_BALANCE", owner, balance, amount });
         break;
       }
       balance -= amount;
