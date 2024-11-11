@@ -98,7 +98,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
   });
 
   it("should top up draining deployment given owners have sufficient balances", async () => {
-    await topUpDeploymentsService.topUpDeployments();
+    await topUpDeploymentsService.topUpDeployments({ dryRun: false });
 
     let count = 0;
 

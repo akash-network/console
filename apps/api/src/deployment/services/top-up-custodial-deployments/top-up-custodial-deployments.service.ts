@@ -6,6 +6,7 @@ import { ExecDepositDeploymentMsgOptions, MasterSigningClientService, RpcMessage
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { TopUpToolsService } from "@src/deployment/services/top-up-tools/top-up-tools.service";
+import { DeploymentsRefiller, TopUpDeploymentsOptions } from "@src/deployment/types/deployments-refiller";
 
 interface Balances {
   denom: string;
@@ -15,7 +16,7 @@ interface Balances {
 }
 
 @singleton()
-export class TopUpCustodialDeploymentsService {
+export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
   private readonly CONCURRENCY = 10;
 
   private readonly MIN_FEES_AVAILABLE = 5000;
@@ -31,13 +32,13 @@ export class TopUpCustodialDeploymentsService {
     private readonly errorService: ErrorService
   ) {}
 
-  async topUpDeployments() {
+  async topUpDeployments(options: TopUpDeploymentsOptions) {
     const topUpAllCustodialDeployments = this.topUpToolsService.pairs.map(async ({ wallet, client }) => {
       const address = await wallet.getFirstAddress();
       await this.allowanceHttpService.paginateDeploymentGrants({ grantee: address, limit: this.CONCURRENCY }, async grants => {
         await Promise.all(
           grants.map(async grant => {
-            await this.errorService.execWithErrorHandler({ grant, event: "TOP_UP_ERROR" }, () => this.topUpForGrant(grant, client));
+            await this.errorService.execWithErrorHandler({ grant, event: "TOP_UP_ERROR" }, () => this.topUpForGrant(grant, client, options));
           })
         );
       });
@@ -45,7 +46,7 @@ export class TopUpCustodialDeploymentsService {
     await Promise.all(topUpAllCustodialDeployments);
   }
 
-  private async topUpForGrant(grant: DeploymentAllowance, client: MasterSigningClientService) {
+  private async topUpForGrant(grant: DeploymentAllowance, client: MasterSigningClientService, options: TopUpDeploymentsOptions) {
     const owner = grant.granter;
     const { grantee } = grant;
 
@@ -72,7 +73,8 @@ export class TopUpCustodialDeploymentsService {
           owner,
           grantee
         },
-        client
+        client,
+        options
       );
     }
   }
@@ -104,12 +106,13 @@ export class TopUpCustodialDeploymentsService {
     return balances.deploymentLimit > amount && balances.feesLimit > this.MIN_FEES_AVAILABLE && balances.balance > amount + this.MIN_FEES_AVAILABLE;
   }
 
-  async topUpDeployment({ grantee, ...messageInput }: ExecDepositDeploymentMsgOptions, client: MasterSigningClientService) {
+  async topUpDeployment({ grantee, ...messageInput }: ExecDepositDeploymentMsgOptions, client: MasterSigningClientService, options: TopUpDeploymentsOptions) {
     const message = this.rpcClientService.getExecDepositDeploymentMsg({ grantee, ...messageInput });
-    this.logger.info({ event: "TOP_UP_DEPLOYMENT", params: { ...messageInput, masterWallet: grantee } });
+    this.logger.info({ event: "TOP_UP_DEPLOYMENT", params: { ...messageInput, masterWallet: grantee }, dryRun: options.dryRun });
 
-    await client.executeTx([message]);
-
-    this.logger.info({ event: "TOP_UP_DEPLOYMENT_SUCCESS" });
+    if (!options.dryRun) {
+      await client.executeTx([message]);
+      this.logger.info({ event: "TOP_UP_DEPLOYMENT_SUCCESS" });
+    }
   }
 }
