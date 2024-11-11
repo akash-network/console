@@ -3,10 +3,11 @@ import networkStore from "@src/store/networkStore";
 import type { DepositParams } from "@src/types/deployment";
 import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion } from "./helpers";
 import yaml from "js-yaml";
+import { Attribute } from "@akashnetwork/akash-api/akash/base/v1beta3";
 
-export const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
-const trialAttribute = "console/trials";
-const auditor = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
+export const ENDPOINT_NAME_VALIDATION_REGEX = /^[a-z]+[-_\da-z]+$/;
+const TRIAL_ATTRIBUTE = "console/trials";
+const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
 export function getManifest(yamlJson, asString: boolean) {
   return Manifest(yamlJson, "beta3", networkStore.selectedNetworkId, asString);
@@ -27,29 +28,31 @@ const getDenomFromSdl = (groups: any[]): string => {
 
 export function appendTrialAttribute(yamlStr: string) {
   const sdl = getSdl(yamlStr, "beta3", networkStore.selectedNetworkId);
+  const placementData = sdl.data?.profiles?.placement || {};
 
-  Object.keys(sdl.data.profiles.placement).forEach(placement => {
-    if (!sdl.data.profiles.placement[placement].attributes) {
-      sdl.data.profiles.placement[placement].attributes = [];
+  for (const [, value] of Object.entries(placementData)) {
+    if (!value.attributes) {
+      value.attributes = [];
+    } else if (!Array.isArray(value.attributes)) {
+      value.attributes = Object.entries(value.attributes).map(([key, value]) => ({ key, value: value as string }));
     }
 
-    if (sdl.data.profiles.placement[placement].attributes.find(attr => attr.key === trialAttribute)) {
-      return;
-    } else {
-      sdl.data.profiles.placement[placement].attributes.push({ key: trialAttribute, value: "true" });
+    const hasTrialAttribute = value.attributes.find(attr => attr.key === TRIAL_ATTRIBUTE);
+    if (!hasTrialAttribute) {
+      value.attributes.push({ key: TRIAL_ATTRIBUTE, value: "true" });
     }
 
-    if (!sdl.data.profiles.placement[placement].signedBy?.anyOf || !sdl.data.profiles.placement[placement].signedBy?.allOf) {
-      sdl.data.profiles.placement[placement].signedBy = {
-        anyOf: sdl.data.profiles.placement[placement].signedBy?.anyOf || [],
-        allOf: sdl.data.profiles.placement[placement].signedBy?.allOf || []
+    if (!value.signedBy?.anyOf || !value.signedBy?.allOf) {
+      value.signedBy = {
+        anyOf: value.signedBy?.anyOf || [],
+        allOf: value.signedBy?.allOf || []
       };
     }
 
-    if (!sdl.data.profiles.placement[placement].signedBy.allOf.includes(auditor)) {
-      sdl.data.profiles.placement[placement].signedBy.allOf.push(auditor);
+    if (!value.signedBy.allOf.includes(AUDITOR)) {
+      value.signedBy.allOf.push(AUDITOR);
     }
-  });
+  }
 
   const result = yaml.dump(sdl.data, {
     indent: 2,
@@ -58,9 +61,9 @@ export function appendTrialAttribute(yamlStr: string) {
       "!!null": "empty" // dump null as emtpy value
     },
     replacer: (key, value) => {
-      // Attributes is a key value pair object, but we store it as an array of objects
-      if (key === "attributes" && Array.isArray(value) && value.some(attr => attr.key === trialAttribute)) {
-        return value?.reduce((acc, curr) => ((acc[curr.key] = curr.value), acc), {});
+      const isCurrentKeyProviderAttributes = key === "attributes" && Array.isArray(value) && value.some(attr => attr.key === TRIAL_ATTRIBUTE);
+      if (isCurrentKeyProviderAttributes) {
+        return mapProviderAttributes(value);
       }
       return value;
     }
@@ -68,6 +71,11 @@ export function appendTrialAttribute(yamlStr: string) {
 
   return `---
 ${result}`;
+}
+
+// Attributes is a key value pair object, but we store it as an array of objects with key and value
+function mapProviderAttributes(attributes: Attribute[]) {
+  return attributes?.reduce((acc, curr) => ((acc[curr.key] = curr.value), acc), {});
 }
 
 export async function NewDeploymentData(

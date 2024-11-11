@@ -4,8 +4,8 @@ import { singleton } from "tsyringe";
 
 import { UserWalletOutput } from "@src/billing/repositories";
 
-const trialAttribute = "console/trials";
-const auditor = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
+const TRIAL_ATTRIBUTE = "console/trials";
+const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
 @singleton()
 export class TrialValidationService {
@@ -15,11 +15,11 @@ export class TrialValidationService {
 
       value.groups.forEach(group => {
         const hasTrial = group.requirements.attributes.some(attribute => {
-          return attribute.key === trialAttribute;
+          return attribute.key === TRIAL_ATTRIBUTE;
         });
 
         const hasSignedByAllOf = group.requirements.signedBy.allOf.every(signedBy => {
-          return signedBy === auditor;
+          return signedBy === AUDITOR;
         });
 
         if (!hasTrial || !hasSignedByAllOf) {

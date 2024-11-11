@@ -236,28 +236,28 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   };
 
   async function handleCreateClick(deposit: number | DepositParams[], depositorAddress: string) {
-    setIsCreatingDeployment(true);
-
-    let sdl = selectedSdlEditMode === "yaml" ? editedManifest : sdlBuilderRef.current?.getSdl();
-    if (!sdl) {
-      setIsCreatingDeployment(false);
-      return;
-    }
-
-    if (isTrialing) {
-      sdl = appendTrialAttribute(sdl);
-    }
-
-    const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
-
-    const validCertificates = await loadValidCertificates();
-    const currentCert = validCertificates.find(x => x.parsed === localCert?.certPem);
-    const isCertificateValidated = currentCert?.certificate?.state === "valid";
-    const isLocalCertificateValidated = !!localCert && isLocalCertMatching;
-
-    if (!dd) return;
-
     try {
+      setIsCreatingDeployment(true);
+
+      let sdl = selectedSdlEditMode === "yaml" ? editedManifest : sdlBuilderRef.current?.getSdl();
+      if (!sdl) {
+        setIsCreatingDeployment(false);
+        return;
+      }
+
+      if (isTrialing) {
+        sdl = appendTrialAttribute(sdl);
+      }
+
+      const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
+
+      const validCertificates = await loadValidCertificates();
+      const currentCert = validCertificates.find(x => x.parsed === localCert?.certPem);
+      const isCertificateValidated = currentCert?.certificate?.state === "valid";
+      const isLocalCertificateValidated = !!localCert && isLocalCertMatching;
+
+      if (!dd) return;
+
       const messages: EncodeObject[] = [];
       const hasValidCert = isCertificateValidated && isLocalCertificateValidated;
       let _crtpem: string;
