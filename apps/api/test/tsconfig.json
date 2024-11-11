@@ -7,6 +7,6 @@
       "@test/*": ["*"]
     }
   },
-  "include": ["../src/**/*", "**/*"],
+  "include": ["../src/**/*", "**/*", "../../packages/logging/src/types/pino-fluentd.d.ts"],
   "exclude": ["../node_modules", "../dist"]
 }

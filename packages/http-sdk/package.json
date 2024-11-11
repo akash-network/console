@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/http-sdk",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Package containing http layer for Akash Network",
   "keywords": [],
   "license": "Apache-2.0",

@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import "@src/core/providers/sentry.provider";
 
+import { LoggerService } from "@akashnetwork/logging";
 import { serve } from "@hono/node-server";
 // TODO: find out how to properly import this
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -14,7 +15,6 @@ import { config } from "@src/core/config";
 import { getSentry, sentryOptions } from "@src/core/providers/sentry.provider";
 import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
 import { HttpLoggerService } from "@src/core/services/http-logger/http-logger.service";
-import { LoggerService } from "@src/core/services/logger/logger.service";
 import { RequestContextInterceptor } from "@src/core/services/request-context-interceptor/request-context.interceptor";
 import { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import packageJson from "../package.json";

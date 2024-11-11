@@ -60,6 +60,7 @@ export const MobileSidebarUser: React.FunctionComponent = () => {
             }}
           />
           <SidebarRouteButton
+            useNextLinkTag={false}
             route={{
               title: "Logout",
               icon: props => <LogOut {...props} />,
