@@ -63,7 +63,7 @@ const formatTimeLapse = (start: string, end: string | null) => {
 };
 
 export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ actionId }) => {
-  const [processData, setProcessData] = useState<ApiResponse | null>(null);
+  const [actionDetails, setActionDetails] = useState<ApiResponse | null>(null);
   const [openAccordions, setOpenAccordions] = useState<boolean[]>([]);
   const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -71,7 +71,7 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
     const fetchStatus = async () => {
       try {
         const response: any = await restClient.get(`/action/status/${actionId}`);
-        setProcessData(response);
+        setActionDetails(response);
         setOpenAccordions(new Array(response.tasks.length).fill(false));
 
         if (response.status === "completed" || response.status === "failed") {
@@ -118,7 +118,7 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
     );
   }
 
-  if (!processData) {
+  if (!actionDetails) {
     return <div>Loading...</div>;
   }
 
@@ -127,22 +127,22 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
       <div className="w-full space-y-6">
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
-            {processData.status === "in_progress" && <Loader2Icon className="h-5 w-5 animate-spin text-blue-500" />}
-            {processData.status === "completed" && <CheckIcon className="h-5 w-5 text-green-500" />}
-            {processData.status === "failed" && <XIcon className="h-5 w-5 text-red-500" />}
-            <span className="text-xl font-semibold">{processData.name}</span>
+            {actionDetails.status === "in_progress" && <Loader2Icon className="h-5 w-5 animate-spin text-blue-500" />}
+            {actionDetails.status === "completed" && <CheckIcon className="h-5 w-5 text-green-500" />}
+            {actionDetails.status === "failed" && <XIcon className="h-5 w-5 text-red-500" />}
+            <span className="text-xl font-semibold">{actionDetails.name}</span>
           </div>
           <Separator />
-          <p className="text-sm text-gray-500">{processData.id}</p>
+          <p className="text-sm text-gray-500">{actionDetails.id}</p>
           <p className="text-sm text-gray-500">
-            Started: {formatLocalTime(processData.start_time)}
-            {processData.end_time && ` | Ended: ${formatLocalTime(processData.end_time)}`}
+            Started: {formatLocalTime(actionDetails.start_time)}
+            {actionDetails.end_time && ` | Ended: ${formatLocalTime(actionDetails.end_time)}`}
           </p>
         </div>
 
         <div className="space-y-4">
           <div className="rounded-md border">
-            {processData.tasks.map((task, index) => (
+            {actionDetails.tasks.map((task, index) => (
               <div key={index}>
                 <div className="flex cursor-pointer items-center justify-between p-4" onClick={() => toggleAccordion(index)}>
                   <div className="flex items-center">
@@ -172,7 +172,7 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
                     {task.end_time && <p className="text-xs text-gray-500">Ended: {formatLocalTime(task.end_time)}</p>}
                   </div>
                 )}
-                {index < processData.tasks.length - 1 && <div className="border-t"></div>}
+                {index < actionDetails.tasks.length - 1 && <div className="border-t"></div>}
               </div>
             ))}
           </div>
