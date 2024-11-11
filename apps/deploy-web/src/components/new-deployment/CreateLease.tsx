@@ -2,6 +2,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  AlertTitle,
+  AlertDescription,
   Button,
   Checkbox,
   CustomTooltip,
@@ -42,6 +44,7 @@ import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import ViewPanel from "../shared/ViewPanel";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { BidGroup } from "./BidGroup";
+import Link from "next/link";
 
 type Props = {
   dseq: string;
@@ -62,7 +65,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const [selectedBids, setSelectedBids] = useState<{ [gseq: string]: BidDto }>({});
   const [filteredBids, setFilteredBids] = useState<Array<string>>([]);
   const [search, setSearch] = useState("");
-  const { address, signAndBroadcastTx, isManaged } = useWallet();
+  const { address, signAndBroadcastTx, isManaged, isTrialing } = useWallet();
   const { localCert } = useCertificate();
   const router = useRouter();
   const [numberOfRequests, setNumberOfRequests] = useState(0);
@@ -415,6 +418,25 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
               isSendingManifest={isSendingManifest}
             />
           ))}
+
+          {isTrialing && (
+            <Alert variant="destructive">
+              <AlertTitle className="text-lg">Free Trial!</AlertTitle>
+              <AlertDescription className="space-y-1">
+                <p>You are using a free trial and are limited to only a few providers on the network.</p>
+                <p>
+                  <Link href={UrlService.login()} className="font-bold underline">
+                    Sign in
+                  </Link>{" "}
+                  or{" "}
+                  <Link href={UrlService.signup()} className="font-bold underline">
+                    Sign up
+                  </Link>{" "}
+                  and buy credits to unlock all providers.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
         </ViewPanel>
       )}
     </>
