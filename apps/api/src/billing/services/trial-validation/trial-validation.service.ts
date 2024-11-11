@@ -15,7 +15,7 @@ export class TrialValidationService {
 
       value.groups.forEach(group => {
         const hasTrial = group.requirements.attributes.some(attribute => {
-          return attribute.key === TRIAL_ATTRIBUTE;
+          return attribute.key === TRIAL_ATTRIBUTE && attribute.value === "true";
         });
 
         const hasSignedByAllOf = group.requirements.signedBy.allOf.every(signedBy => {
