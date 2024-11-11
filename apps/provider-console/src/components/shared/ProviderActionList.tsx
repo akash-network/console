@@ -1,7 +1,5 @@
-import React from "react";
-import { useCallback } from "react";
-import { Check, Error, PlayArrow } from "@mui/icons-material";
-import { Box, Grid, List, ListItem, Typography } from "@mui/material";
+import React, { useCallback } from "react";
+import { CheckCircle, Play, XmarkCircle } from "iconoir-react";
 import { useRouter } from "next/router";
 
 interface ProviderAction {
@@ -23,13 +21,13 @@ interface StatusIconProps {
 const StatusIcon: React.FC<StatusIconProps> = ({ status }) => {
   switch (status) {
     case "completed":
-      return <Check color="success" />;
+      return <CheckCircle className="text-green-500" />;
     case "in_progress":
-      return <PlayArrow color="primary" />;
+      return <Play className="text-blue-500" />;
     case "failed":
-      return <Error color="error" />;
+      return <XmarkCircle className="text-red-500" />;
     default:
-      return <Box sx={{ width: 24, height: 24, borderRadius: "50%", border: "2px solid #ccc" }} />;
+      return <div className="h-6 w-6 rounded-full border-2 border-gray-300" />;
   }
 };
 
@@ -62,57 +60,37 @@ export const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions 
   };
 
   return (
-    <Box sx={{ width: "100%" }}>
-      <List>
+    <div className="w-full">
+      <ul className="divide-y divide-gray-200">
         {actions.length > 0 ? (
           actions.map(action => (
-            <ListItem
-              key={action.id}
-              sx={{
-                borderBottom: "1px solid #eee",
-                py: 2,
-                cursor: "pointer",
-                "&:hover": { backgroundColor: "#f5f5f5" }
-              }}
-              onClick={() => handleRowClick(action.id)}
-            >
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={4}>
-                  <Typography variant="subtitle1">{action.name}</Typography>
-                </Grid>
-                <Grid item xs={2}>
-                  <Typography variant="body2" color="text.secondary">
-                    {calculateTimeLapse(action.start_time, action.end_time)}
-                  </Typography>
-                </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="body2" color="text.secondary">
-                    {formatDate(action.start_time)}
-                  </Typography>
-                </Grid>
-                <Grid item xs={2} sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <li key={action.id} className="cursor-pointer py-4 hover:bg-gray-50" onClick={() => handleRowClick(action.id)}>
+              <div className="grid grid-cols-12 items-center gap-4">
+                <div className="col-span-4">
+                  <p className="text-base font-medium">{action.name}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-500">{calculateTimeLapse(action.start_time, action.end_time)}</p>
+                </div>
+                <div className="col-span-4">
+                  <p className="text-sm text-gray-500">{formatDate(action.start_time)}</p>
+                </div>
+                <div className="col-span-2 flex justify-end">
                   <StatusIcon status={action.status} />
-                </Grid>
-              </Grid>
-            </ListItem>
+                </div>
+              </div>
+            </li>
           ))
         ) : (
-          <ListItem
-            sx={{
-              borderBottom: "1px solid #eee",
-              py: 2
-            }}
-          >
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12}>
-                <Typography variant="body1" color="text.secondary">
-                  No recent actions to display.
-                </Typography>
-              </Grid>
-            </Grid>
-          </ListItem>
+          <li className="py-4">
+            <div className="grid grid-cols-12 items-center gap-4">
+              <div className="col-span-12">
+                <p className="text-base text-gray-500">No recent actions to display.</p>
+              </div>
+            </div>
+          </li>
         )}
-      </List>
-    </Box>
+      </ul>
+    </div>
   );
 };

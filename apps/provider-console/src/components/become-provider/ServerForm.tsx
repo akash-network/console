@@ -16,6 +16,7 @@ import {
   FormMessage,
   Input,
   Separator,
+  Spinner,
   Tabs,
   TabsContent,
   TabsList,
@@ -23,7 +24,6 @@ import {
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai/react";
-import { Loader2 } from "lucide-react";
 import { z } from "zod";
 
 import providerProcessStore from "@src/store/providerProcessStore";
@@ -352,7 +352,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
                   <Button type="submit" disabled={isVerifying}>
                     {isVerifying ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Spinner />
                         Verifying...
                       </>
                     ) : (

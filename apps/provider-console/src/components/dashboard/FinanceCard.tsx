@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Card, CardContent, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 
 interface PercentChangeProps {
   currentPrice: number | null;
@@ -26,17 +27,16 @@ const PercentChange: React.FC<PercentChangeProps> = ({ currentPrice, previousPri
     return { percentageChange, formattedChange };
   }, [currentPrice, previousPrice]);
 
-  if (currentPrice === null || previousPrice === null || previousPrice === 0) {
-    return <span className="text-gray-500">0%</span>;
-  }
+  const isZero = currentPrice === null || previousPrice === null || previousPrice === 0 || percentageChange === 0;
+  const value = percentageChange !== 0 ? formattedChange : 0;
+  const prefix = !isZero && percentageChange > 0 ? "+" : "-";
 
-  if (percentageChange > 0) {
-    return <span className="text-green-500">+{formattedChange}%</span>;
-  } else if (percentageChange < 0) {
-    return <span className="text-red-500">-{formattedChange}%</span>;
-  } else {
-    return <span className="text-gray-500">0%</span>;
-  }
+  return (
+    <span className={cn({ "text-gray-500": isZero, "text-green-500": percentageChange > 0, "text-red-500": percentageChange < 0 })}>
+      {prefix}
+      {value}%
+    </span>
+  );
 };
 
 export const FinanceCard: React.FC<FinanceCardProps> = ({ title, subtitle, currentPrice, previousPrice, message }) => {
@@ -61,7 +61,7 @@ export const FinanceCard: React.FC<FinanceCardProps> = ({ title, subtitle, curre
             </div>
           </div>
           <div className="col-span-2 flex items-center justify-end">
-            <div className="w-full overflow-hidden">{/* <StatLineCharts data={[15, 0, 25, 0, 45, 70]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}</div>
+            <div className="w-full overflow-hidden">{/* implement graph once apis available */}</div>
           </div>
         </div>
       </CardContent>

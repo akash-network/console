@@ -1,10 +1,10 @@
 "use client";
-import React, { useCallback,useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Form, FormControl, FormDescription, FormField, FormItem, FormLabel, Input, Separator, Slider } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowDown } from "iconoir-react";
 import { useAtom } from "jotai";
-import { ChevronDownIcon } from "lucide-react";
 import { z } from "zod";
 
 import providerProcessStore from "@src/store/providerProcessStore";
@@ -234,7 +234,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete }) 
                 <div>
                   <Button type="button" variant="outline" onClick={() => setShowAdvanced(!showAdvanced)} className="justify-between">
                     Advanced Settings
-                    <ChevronDownIcon className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+                    <ArrowDown className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
                   </Button>
                 </div>
 

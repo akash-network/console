@@ -16,8 +16,8 @@ import {
   Textarea
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Home } from "iconoir-react";
 import { useAtom } from "jotai";
-import { HomeIcon } from "lucide-react";
 import { useRouter } from "next/router";
 import { z } from "zod";
 
@@ -183,7 +183,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                               <div className="border-muted hover:border-accent items-center rounded-md border-2 p-1">
                                 <div className="space-y-2 rounded-sm p-2">
                                   <div className="space-y-2 rounded-md p-4 shadow-sm">
-                                    <HomeIcon />
+                                    <Home />
                                     <h4 className="text-md">Seed Phrase Mode</h4>
                                     <p>Provider Console will auto import using secure end-to-end encryption. Seed Phrase is Required.</p>
                                   </div>
@@ -199,7 +199,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                               <div className="border-muted bg-popover hover:bg-accent hover:text-accent-foreground items-center rounded-md border-2 p-1">
                                 <div className="space-y-2 rounded-sm bg-slate-950 p-2">
                                   <div className="space-y-2 rounded-sm bg-slate-800 p-4 text-white">
-                                    <HomeIcon />
+                                    <Home />
                                     <h4 className="text-md">Manual Mode</h4>
                                     <p>You need to login to control machine and follow the instruction to import wallet. Seed Phrase is not Required.</p>
                                   </div>

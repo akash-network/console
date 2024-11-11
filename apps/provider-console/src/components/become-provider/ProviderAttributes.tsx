@@ -17,8 +17,8 @@ import {
   Separator
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Plus, Trash } from "iconoir-react";
 import { useAtom } from "jotai";
-import { PlusIcon, TrashIcon } from "lucide-react";
 import { z } from "zod";
 
 import providerProcessStore from "@src/store/providerProcessStore";
@@ -140,13 +140,13 @@ export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ onComple
                         )}
                       />
                       <Button type="button" variant="outline" size="icon" onClick={() => remove(index)}>
-                        <TrashIcon className="h-4 w-4" />
+                        <Trash className="h-4 w-4" />
                       </Button>
                     </div>
                   );
                 })}
                 <Button type="button" variant="outline" size="sm" onClick={() => append({ key: "", value: "", customKey: "" })}>
-                  <PlusIcon className="mr-2 h-4 w-4" />
+                  <Plus className="mr-2 h-4 w-4" />
                   Add Attribute
                 </Button>
               </div>

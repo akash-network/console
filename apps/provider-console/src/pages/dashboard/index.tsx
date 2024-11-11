@@ -1,9 +1,9 @@
 "use client";
-import React, { useCallback, useEffect, useMemo,useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { Button, Separator, Spinner } from "@akashnetwork/ui/components";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@akashnetwork/ui/components";
-import { AlertTriangle, Shield } from "lucide-react";
+import { ShieldCheck, WarningTriangle } from "iconoir-react";
 import Link from "next/link";
 
 import { DashboardCardSkeleton } from "@src/components/dashboard/DashboardCardSkeleton";
@@ -19,22 +19,10 @@ import consoleClient from "@src/utils/consoleClient";
 import { formatUUsd } from "@src/utils/formatUsd";
 import restClient from "@src/utils/restClient";
 
-const fetchAktPrice = async () => {
-  try {
-    const response = await fetch("https://api.coingecko.com/api/v3/coins/akash-network/tickers");
-    const data = await response.json();
-    const coinbasePrice = data.tickers.find((ticker: any) => ticker.market.name === "Coinbase Exchange");
-    return coinbasePrice ? coinbasePrice.converted_last.usd.toFixed(2) : "N/A";
-  } catch (error) {
-    console.error("Error fetching AKT price:", error);
-    return "N/A";
-  }
-};
-
 const OfflineWarningBanner: React.FC = () => (
   <div className="mb-4 rounded-md bg-yellow-100 p-4 text-yellow-700">
     <div className="flex">
-      <AlertTriangle className="mr-2 h-5 w-5" />
+      <WarningTriangle className="mr-2 h-5 w-5" />
       <p>
         Warning: Your provider is currently offline.{" "}
         <Link href="/remedies" className="font-medium underline">
@@ -71,7 +59,7 @@ const ProviderStatusIndicators: React.FC<{
       </div>
       <div className="flex-end mr-4 text-center md:h-auto">
         <div className={`flex items-center rounded-sm px-3 py-1 ${isAudited ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
-          <Shield className={`mr-1 h-4 w-4 ${isAudited ? "text-green-500" : "text-yellow-500"}`} />
+          <ShieldCheck className={`mr-1 h-4 w-4 ${isAudited ? "text-green-500" : "text-yellow-500"}`} />
           {isAudited ? "Audited" : "Not Audited"}
         </div>
       </div>
@@ -84,9 +72,37 @@ const ProviderStatusIndicators: React.FC<{
   );
 };
 
+const useAktPrice = () => {
+  const [price, setPrice] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchPrice = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("https://api.coingecko.com/api/v3/coins/akash-network/tickers");
+      const data = await response.json();
+      const coinbasePrice = data.tickers.find((ticker: any) => ticker.market.name === "Coinbase Exchange");
+      setPrice(coinbasePrice ? coinbasePrice.converted_last.usd.toFixed(2) : "N/A");
+    } catch (error) {
+      console.error("Error fetching AKT price:", error);
+      setError(error as Error);
+      setPrice("N/A");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPrice();
+  }, [fetchPrice]);
+
+  return { price, isLoading, error, refetch: fetchPrice };
+};
+
 const Dashboard: React.FC = () => {
   const [providerActions, setProviderActions] = useState<any[]>([]);
-  const [aktPrice, setAktPrice] = useState<string | null>(null);
+  const { price: aktPrice } = useAktPrice();
   const { address } = useSelectedChain();
   const { isOnline } = useWallet();
 
@@ -110,8 +126,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      const [price, actions]: [string, any] = await Promise.all([fetchAktPrice(), restClient.get("/actions")]);
-      setAktPrice(price);
+      const [actions]: [any] = await Promise.all([restClient.get("/actions")]);
       setProviderActions(actions.actions);
     };
 
