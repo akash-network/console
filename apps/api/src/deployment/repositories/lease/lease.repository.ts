@@ -18,7 +18,7 @@ export interface DrainingDeploymentOutput {
 @singleton()
 export class LeaseRepository {
   async findDrainingLeases(options: DrainingLeasesOptions): Promise<DrainingDeploymentOutput[]> {
-    const leases = await Lease.findAll({
+    const leaseOrLeases = await Lease.findAll({
       where: {
         closedHeight: null,
         owner: options.owner,
@@ -29,9 +29,17 @@ export class LeaseRepository {
       },
       attributes: ["dseq", "denom", [fn("min", col("predictedClosedHeight")), "predictedClosedHeight"], [fn("sum", col("price")), "blockRate"]],
       group: ["dseq", "denom"],
-      plain: true
+      raw: true
     });
 
-    return leases ? (leases as unknown as DrainingDeploymentOutput[]) : [];
+    if (Array.isArray(leaseOrLeases)) {
+      return leaseOrLeases as unknown as DrainingDeploymentOutput[];
+    }
+
+    if (leaseOrLeases && typeof leaseOrLeases === "object") {
+      return [leaseOrLeases as unknown as DrainingDeploymentOutput];
+    }
+
+    return [];
   }
 }

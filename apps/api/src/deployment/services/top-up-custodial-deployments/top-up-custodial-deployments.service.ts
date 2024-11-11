@@ -49,10 +49,14 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
   private async topUpForGrant(grant: DeploymentAllowance, client: MasterSigningClientService, options: TopUpDeploymentsOptions) {
     const owner = grant.granter;
     const { grantee } = grant;
+    const drainingDeployments = await this.drainingDeploymentService.findDeployments(owner, grant.authorization.spend_limit.denom);
+
+    if (!drainingDeployments.length) {
+      return;
+    }
 
     const balances = await this.collectWalletBalances(grant);
 
-    const drainingDeployments = await this.drainingDeploymentService.findDeployments(owner, balances.denom);
     let { deploymentLimit, feesLimit, balance } = balances;
 
     for (const { dseq, denom, blockRate } of drainingDeployments) {
