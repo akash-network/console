@@ -154,7 +154,7 @@ describe(TopUpCustodialDeploymentsService.name, () => {
   jest.spyOn(drainingDeploymentService, "calculateTopUpAmount").mockImplementation(async () => faker.number.int({ min: 3500000, max: 4000000 }));
 
   it("should top up draining deployment given owners have sufficient grants and balances", async () => {
-    await topUpDeploymentsService.topUpDeployments();
+    await topUpDeploymentsService.topUpDeployments({ dryRun: false });
 
     expect(uaktMasterSigningClientService.executeTx).toHaveBeenCalledTimes(3);
     expect(usdtMasterSigningClientService.executeTx).toHaveBeenCalledTimes(2);
