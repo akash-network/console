@@ -1,5 +1,12 @@
 
 
+## [2.21.1-beta.1](https://github.com/akash-network/console/compare/console-web/v2.21.1-beta.0...console-web/v2.21.1-beta.1) (2024-11-11)
+
+
+### Bug Fixes
+
+* **deployment:** trial provider attributes ([6f5c94d](https://github.com/akash-network/console/commit/6f5c94d41879a8d23ed129857f5d28285d4f9ee9)), closes [#453](https://github.com/akash-network/console/issues/453)
+
 ## [2.21.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.21.0...console-web/v2.21.1-beta.0) (2024-11-08)
 
 
