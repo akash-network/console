@@ -1,10 +1,8 @@
 import React from "react";
-import { useQuery } from "react-query";
 import { Card, CardContent } from "@akashnetwork/ui/components";
 
-import consoleClient from "@src/utils/consoleClient";
+import { useDeploymentDetails } from "@src/queries/useProviderQuery";
 import { getPrettyTimeFromSeconds } from "@src/utils/dateUtils";
-import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
 import { formatBytes } from "@src/utils/formatBytes";
 import { uaktToAKT } from "@src/utils/priceUtils";
 
@@ -13,59 +11,8 @@ interface DeploymentDetailsProps {
   owner: string;
 }
 
-interface DeploymentDetails {
-  id: string;
-  status: string;
-  balance: number;
-  denom: string;
-  createdDate: string;
-  expiryDate: string;
-  timeRemaining: string;
-  totalMonthlyCostUDenom: number;
-  leases: Array<{
-    provider: {
-      address: string;
-      hostUri: string;
-    };
-    status: string;
-    monthlyCostUDenom: number;
-    cpuUnits: number;
-    gpuUnits: number;
-    memoryQuantity: number;
-    storageQuantity: number;
-    gseq: number;
-    oseq: number;
-  }>;
-  amountSpent: number;
-  costPerMonth: number;
-  other: any;
-  timeLeft: number;
-  closedHeight: number | null;
-}
-
 export const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owner }) => {
-  const {
-    data: deploymentDetails,
-    isLoading,
-    error
-  } = useQuery({
-    queryKey: ["deployment", owner, dseq],
-    queryFn: async () => {
-      const [response, latestBlocks]: any = await Promise.all([consoleClient.get<any>(`v1/deployment/${owner}/${dseq}`), consoleClient.get<any>(`/v1/blocks`)]);
-
-      const latestBlock = latestBlocks[0].height;
-      const totalAmtSpent = findTotalAmountSpentOnLeases(response.leases, latestBlock, true);
-      const totalCost = totalDeploymentCost(response.leases);
-      const timeLeft = totalDeploymentTimeLeft(response.createdHeight, response.totalMonthlyCostUDenom, latestBlock, response.balance, response.closedHeight);
-
-      return {
-        ...response,
-        amountSpent: totalAmtSpent,
-        costPerMonth: totalCost,
-        timeLeft: timeLeft
-      };
-    }
-  });
+  const { data: deploymentDetails, isLoading, error } = useDeploymentDetails(owner, dseq);
 
   if (isLoading) {
     return <div>Loading...</div>;

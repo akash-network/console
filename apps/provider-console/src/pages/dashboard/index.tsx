@@ -1,6 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery } from "react-query";
+import React, { useCallback, useMemo } from "react";
 import { Button, Separator, Spinner } from "@akashnetwork/ui/components";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@akashnetwork/ui/components";
 import { ShieldCheck, WarningTriangle } from "iconoir-react";
@@ -15,9 +14,9 @@ import { Title } from "@src/components/shared/Title";
 import { withAuth } from "@src/components/shared/withAuth";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import consoleClient from "@src/utils/consoleClient";
+import { useAKTData } from "@src/queries";
+import { useProviderActions, useProviderDashboard, useProviderDetails } from "@src/queries/useProviderQuery";
 import { formatUUsd } from "@src/utils/formatUsd";
-import restClient from "@src/utils/restClient";
 
 const OfflineWarningBanner: React.FC = () => (
   <div className="mb-4 rounded-md bg-yellow-100 p-4 text-yellow-700">
@@ -72,66 +71,14 @@ const ProviderStatusIndicators: React.FC<{
   );
 };
 
-const useAktPrice = () => {
-  const [price, setPrice] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchPrice = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch("https://api.coingecko.com/api/v3/coins/akash-network/tickers");
-      const data = await response.json();
-      const coinbasePrice = data.tickers.find((ticker: any) => ticker.market.name === "Coinbase Exchange");
-      setPrice(coinbasePrice ? coinbasePrice.converted_last.usd.toFixed(2) : "N/A");
-    } catch (error) {
-      console.error("Error fetching AKT price:", error);
-      setError(error as Error);
-      setPrice("N/A");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchPrice();
-  }, [fetchPrice]);
-
-  return { price, isLoading, error, refetch: fetchPrice };
-};
-
 const Dashboard: React.FC = () => {
-  const [providerActions, setProviderActions] = useState<any[]>([]);
-  const { price: aktPrice } = useAktPrice();
-  const { address } = useSelectedChain();
+  const { data: aktData }: any = useAKTData();
+  const { address }: any = useSelectedChain();
   const { isOnline } = useWallet();
 
-  const { data: providerDetails, isLoading: isLoadingProviderDetails } = useQuery<any>(
-    ["providerDetails", address],
-    () => consoleClient.get(`/v1/providers/${address}`),
-    {
-      refetchOnWindowFocus: false,
-      retry: 3
-    }
-  );
-
-  const { data: providerDashboard, isLoading: isLoadingProviderDashboard } = useQuery<any>(
-    ["providerDashboard", address],
-    () => consoleClient.get(`/internal/provider-dashboard/${address}`),
-    {
-      refetchOnWindowFocus: false,
-      retry: 3
-    }
-  );
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      const [actions]: [any] = await Promise.all([restClient.get("/actions")]);
-      setProviderActions(actions.actions);
-    };
-
-    fetchDashboardData();
-  }, []);
+  const { data: providerDetails, isLoading: isLoadingProviderDetails }: any = useProviderDetails(address);
+  const { data: providerDashboard, isLoading: isLoadingProviderDashboard }: any = useProviderDashboard(address);
+  const { data: providerActions, isLoading: isLoadingProviderActions } = useProviderActions();
 
   const summaryCards = useMemo(
     () => (
@@ -176,7 +123,7 @@ const Dashboard: React.FC = () => {
         <div className="w-10 flex-1">
           <Title>Dashboard</Title>
         </div>
-        {providerDetails && <ProviderStatusIndicators isOnline={isOnline} isAudited={providerDetails.isAudited} aktPrice={aktPrice} />}
+        {providerDetails && <ProviderStatusIndicators isOnline={isOnline} isAudited={providerDetails.isAudited} aktPrice={aktData.aktPrice} />}
       </div>
       <div className="mt-10">
         <div className="text-sm font-semibold">
@@ -222,7 +169,7 @@ const Dashboard: React.FC = () => {
       <div className="mt-8">
         <div className="mt-2">
           <div className="text-sm font-semibold">Recent Provider Actions</div>
-          <ProviderActionList actions={providerActions.slice(0, 5)} />
+          {isLoadingProviderActions ? <Spinner className="mt-4" /> : <ProviderActionList actions={providerActions?.slice(0, 5) || []} />}
         </div>
       </div>
     </Layout>

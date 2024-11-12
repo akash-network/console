@@ -1,64 +1,20 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Separator, Spinner } from "@akashnetwork/ui/components";
 import { ArrowDown, ArrowRight, Check, Xmark } from "iconoir-react";
 
+import { useProviderActionStatus } from "@src/queries/useProviderQuery";
 import { formatLocalTime, formatTimeLapse } from "@src/utils/dateUtils";
-import restClient from "@src/utils/restClient";
-
-interface Task {
-  title: string;
-  description: string;
-  status: "completed" | "in_progress" | "not_started" | "failed";
-  start_time: string | null;
-  end_time: string | null;
-}
-
-interface ApiResponse {
-  id: string;
-  name: string;
-  status: "completed" | "in_progress" | "failed";
-  start_time: string;
-  end_time: string | null;
-  tasks: Task[];
-}
 
 export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ actionId }) => {
-  const [actionDetails, setActionDetails] = useState<ApiResponse | null>(null);
   const [openAccordions, setOpenAccordions] = useState<boolean[]>([]);
-  const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
+  const { data: actionDetails, isLoading } = useProviderActionStatus(actionId);
 
   useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const response: any = await restClient.get(`/action/status/${actionId}`);
-        setActionDetails(response);
-        setOpenAccordions(new Array(response.tasks.length).fill(false));
-
-        if (response.status === "completed" || response.status === "failed") {
-          if (intervalIdRef.current) {
-            clearInterval(intervalIdRef.current);
-            intervalIdRef.current = null;
-          }
-        }
-      } catch (error) {
-        if (intervalIdRef.current) {
-          clearInterval(intervalIdRef.current);
-          intervalIdRef.current = null;
-        }
-        console.error("Error fetching status:", error);
-      }
-    };
-
-    fetchStatus();
-    intervalIdRef.current = setInterval(fetchStatus, 5000);
-
-    return () => {
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current);
-      }
-    };
-  }, [actionId]);
+    if (actionDetails) {
+      setOpenAccordions(new Array(actionDetails.tasks.length).fill(false));
+    }
+  }, [actionDetails]);
 
   const toggleAccordion = (index: number) => {
     setOpenAccordions(prev => {
@@ -79,7 +35,7 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
     );
   }
 
-  if (!actionDetails) {
+  if (isLoading) {
     return <div>Loading...</div>;
   }
 
@@ -88,22 +44,22 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
       <div className="w-full space-y-6">
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
-            {actionDetails.status === "in_progress" && <Spinner className="h-5 w-5 animate-spin text-blue-500" />}
-            {actionDetails.status === "completed" && <Check className="h-5 w-5 text-green-500" />}
-            {actionDetails.status === "failed" && <Xmark className="h-5 w-5 text-red-500" />}
-            <span className="text-xl font-semibold">{actionDetails.name}</span>
+            {actionDetails?.status === "in_progress" && <Spinner className="h-5 w-5 animate-spin text-blue-500" />}
+            {actionDetails?.status === "completed" && <Check className="h-5 w-5 text-green-500" />}
+            {actionDetails?.status === "failed" && <Xmark className="h-5 w-5 text-red-500" />}
+            <span className="text-xl font-semibold">{actionDetails?.name}</span>
           </div>
           <Separator />
-          <p className="text-sm text-gray-500">{actionDetails.id}</p>
+          <p className="text-sm text-gray-500">{actionDetails?.id}</p>
           <p className="text-sm text-gray-500">
-            Started: {formatLocalTime(actionDetails.start_time)}
-            {actionDetails.end_time && ` | Ended: ${formatLocalTime(actionDetails.end_time)}`}
+            Started: {formatLocalTime(actionDetails?.start_time)}
+            {actionDetails?.end_time && ` | Ended: ${formatLocalTime(actionDetails?.end_time)}`}
           </p>
         </div>
 
         <div className="space-y-4">
           <div className="rounded-md border">
-            {actionDetails.tasks.map((task, index) => (
+            {actionDetails?.tasks.map((task, index) => (
               <div key={index}>
                 <div className="flex cursor-pointer items-center justify-between p-4" onClick={() => toggleAccordion(index)}>
                   <div className="flex items-center">
@@ -133,7 +89,7 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
                     {task.end_time && <p className="text-xs text-gray-500">Ended: {formatLocalTime(task.end_time)}</p>}
                   </div>
                 )}
-                {index < actionDetails.tasks.length - 1 && <div className="border-t"></div>}
+                {index < actionDetails?.tasks.length - 1 && <div className="border-t"></div>}
               </div>
             ))}
           </div>
