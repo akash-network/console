@@ -60,6 +60,7 @@ describe(TopUpCustodialDeploymentsService.name, () => {
     balanceHttpService,
     drainingDeploymentService,
     new RpcMessageService(),
+    blockHttpService,
     errorService
   );
 
