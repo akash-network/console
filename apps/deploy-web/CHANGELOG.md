@@ -1,5 +1,12 @@
 
 
+## [2.22.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.21.1-beta.1...console-web/v2.22.0-beta.0) (2024-11-12)
+
+
+### Features
+
+* **deployment:** implement top up message sending ([f5d7233](https://github.com/akash-network/console/commit/f5d7233c6ce1e7fc880e817e7d8ff66967b8a547)), closes [#395](https://github.com/akash-network/console/issues/395)
+
 ## [2.21.1-beta.1](https://github.com/akash-network/console/compare/console-web/v2.21.1-beta.0...console-web/v2.21.1-beta.1) (2024-11-11)
 
 
