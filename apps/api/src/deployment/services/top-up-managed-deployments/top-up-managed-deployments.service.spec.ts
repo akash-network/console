@@ -42,6 +42,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     managedMasterWalletService,
     balancesService,
     new RpcMessageService(),
+    blockHttpService,
     errorService
   );
 
