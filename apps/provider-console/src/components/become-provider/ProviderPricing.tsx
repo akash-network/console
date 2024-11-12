@@ -191,6 +191,24 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
     setIsLoading(false);
   };
 
+  useEffect(() => {
+    if (resources) {
+      form.reset(
+        editMode
+          ? existingPricing
+          : {
+              cpu: 1.6,
+              memory: 0.8,
+              storage: 0.02,
+              gpu: 100,
+              persistentStorage: 0.3,
+              ipScalePrice: 5,
+              endpointBidPrice: 0.5
+            }
+      );
+    }
+  }, [resources, editMode, existingPricing]);
+
   return (
     <div className="flex w-full flex-col items-center pt-10">
       <div className="w-full max-w-5xl space-y-6">
