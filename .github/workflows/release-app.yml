@@ -45,11 +45,14 @@ jobs:
           node-version: 20.14.0
 
       - name: Restore root node_modules cache
-        uses: martijnhols/actions-cache@v3
+        uses: actions/cache@v4
         id: cache
         with:
-          path: node_modules
-          key: ${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          path: |
+            node_modules
+            apps/${{ github.event.inputs.app }}/node_modules
+            packages/*/node_modules
+          key: ${{ github.event.inputs.app }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
