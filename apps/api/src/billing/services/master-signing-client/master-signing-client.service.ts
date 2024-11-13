@@ -49,7 +49,7 @@ export class MasterSigningClientService {
     { cache: false, batchScheduleFn: callback => setTimeout(callback, this.config.MASTER_WALLET_BATCHING_INTERVAL_MS) }
   );
 
-  private readonly logger = new LoggerService({ context: this.loggerContext });
+  private readonly logger = LoggerService.forContext(this.loggerContext);
 
   constructor(
     private readonly config: BillingConfig,

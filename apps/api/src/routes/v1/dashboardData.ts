@@ -8,9 +8,8 @@ import { getTransactions } from "@src/services/db/transactionsService";
 import { getChainStats } from "@src/services/external/apiNodeService";
 import { createLoggingExecutor } from "@src/utils/logging";
 
-
-const logger = new LoggerService({ context: "Dashboard" });
-const runOrLog = createLoggingExecutor(logger)
+const logger = LoggerService.forContext("Dashboard");
+const runOrLog = createLoggingExecutor(logger);
 
 const route = createRoute({
   method: "get",
@@ -167,8 +166,8 @@ export default new OpenAPIHono().openapi(route, async c => {
   const chainStats = {
     ...chainStatsQuery,
     height: latestBlocks && latestBlocks.length > 0 ? latestBlocks[0].height : undefined,
-    transactionCount: latestBlocks && latestBlocks.length > 0 ? latestBlocks[0].totalTransactionCount : undefined,
-  }
+    transactionCount: latestBlocks && latestBlocks.length > 0 ? latestBlocks[0].totalTransactionCount : undefined
+  };
 
   return c.json({
     chainStats,

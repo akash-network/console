@@ -1,6 +1,6 @@
-import "./open-telemetry";
 import "reflect-metadata";
 import "@akashnetwork/env-loader";
+import "./open-telemetry";
 
 async function bootstrap() {
   /* eslint-disable @typescript-eslint/no-var-requires */

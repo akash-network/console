@@ -13,7 +13,7 @@ import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class StaleManagedDeploymentsCleanerService {
-  private readonly logger = new LoggerService({ context: StaleManagedDeploymentsCleanerService.name });
+  private readonly logger = LoggerService.forContext(StaleManagedDeploymentsCleanerService.name);
 
   private readonly MAX_LIVE_BLOCKS = Math.floor((10 * secondsInMinute) / averageBlockTime);
 

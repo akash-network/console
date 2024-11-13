@@ -1,9 +1,9 @@
+import "@test/mocks/logger-service.mock";
+
 import { BlockHttpService as BlockHttpServiceCommon } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 
 import { BlockHttpService } from "./block-http.service";
-
-jest.mock("@akashnetwork/logging");
 
 describe(BlockHttpService.name, () => {
   let service: BlockHttpService;
