@@ -1,5 +1,12 @@
 
 
+## [2.29.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.29.0...console-api/v2.29.1-beta.0) (2024-11-13)
+
+
+### Bug Fixes
+
+* **deployment:** set owner of custodial wallet as fee granter for top up ([b3b9474](https://github.com/akash-network/console/commit/b3b94745a91c9fdd1f1ac39cb176add2d579aac0)), closes [#395](https://github.com/akash-network/console/issues/395)
+
 ## [2.29.0](https://github.com/akash-network/console/compare/console-api/v2.29.0-beta.0...console-api/v2.29.0) (2024-11-12)
 
 ## [2.29.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.28.1-beta.0...console-api/v2.29.0-beta.0) (2024-11-12)
