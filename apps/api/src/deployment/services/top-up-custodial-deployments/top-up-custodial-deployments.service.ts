@@ -152,7 +152,7 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
     this.logger.info({ event: "TOP_UP_DEPLOYMENT", params: { ...messageInput, masterWallet: grantee }, dryRun: options.dryRun });
 
     if (!options.dryRun) {
-      await client.executeTx([message]);
+      await client.executeTx([message], { fee: { granter: messageInput.owner } });
       this.logger.info({ event: "TOP_UP_DEPLOYMENT_SUCCESS" });
     }
   }
