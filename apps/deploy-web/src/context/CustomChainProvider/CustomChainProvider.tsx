@@ -7,12 +7,16 @@ import { wallets as metamask } from "@cosmos-kit/cosmos-extension-metamask";
 import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
 import { wallets as keplr } from "@cosmos-kit/keplr";
 import { wallets as leap } from "@cosmos-kit/leap";
-import { ChainProvider } from "@cosmos-kit/react";
+import { ChainProvider, DefaultModal } from "@cosmos-kit/react";
 import { useChain } from "@cosmos-kit/react";
 
 import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
 import networkStore from "@src/store/networkStore";
 import { customRegistry } from "@src/utils/customRegistry";
+import { WalletModalProps } from "@cosmos-kit/core";
+import { useAtom } from "jotai";
+import walletStore from "@src/store/walletStore";
+import { useEffect } from "react";
 
 type Props = {
   children: React.ReactNode;
@@ -24,6 +28,7 @@ export function CustomChainProvider({ children }: Props) {
       chains={[akash, akashSandbox, akashTestnet]}
       assetLists={assetLists}
       wallets={[...keplr, ...leap, ...cosmostation, ...metamask]}
+      walletModal={ModalWrapper}
       sessionOptions={{
         duration: 31_556_926_000, // 1 year
         callback: () => {
@@ -62,3 +67,13 @@ export function useSelectedChain() {
   const { chainRegistryName } = networkStore.useSelectedNetwork();
   return useChain(chainRegistryName);
 }
+
+const ModalWrapper = (props: WalletModalProps) => {
+  const [, setIsWalletModalOpen] = useAtom(walletStore.isWalletModalOpen);
+
+  useEffect(() => {
+    setIsWalletModalOpen(props.isOpen);
+  }, [props.isOpen]);
+
+  return <DefaultModal {...props} isOpen={props.isOpen} setOpen={props.setOpen} />;
+};
