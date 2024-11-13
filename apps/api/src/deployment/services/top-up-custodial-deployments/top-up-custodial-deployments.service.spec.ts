@@ -1,7 +1,12 @@
 import { AllowanceHttpService, BalanceHttpService, Denom } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { MsgExec } from "cosmjs-types/cosmos/authz/v1beta1/tx";
+import { describe } from "node:test";
+import { container } from "tsyringe";
 
+import { BILLING_CONFIG } from "@src/billing/providers";
+import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { UAKT_TOP_UP_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import { MasterSigningClientService, MasterWalletService, RpcMessageService } from "@src/billing/services";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { ErrorService } from "@src/core/services/error/error.service";
@@ -164,22 +169,57 @@ describe(TopUpCustodialDeploymentsService.name, () => {
       drainingDeployments.forEach(({ isExpectedToTopUp, deployment }) => {
         if (isExpectedToTopUp) {
           const client = deployment.denom === "uakt" ? uaktMasterSigningClientService : usdtMasterSigningClientService;
-          expect(client.executeTx).toHaveBeenCalledWith([
-            {
-              typeUrl: MsgExec.typeUrl,
-              value: {
-                grantee: grant.grantee,
-                msgs: [
-                  {
-                    typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
-                    value: expect.any(Buffer)
-                  }
-                ]
+          expect(client.executeTx).toHaveBeenCalledWith(
+            [
+              {
+                typeUrl: MsgExec.typeUrl,
+                value: {
+                  grantee: grant.grantee,
+                  msgs: [
+                    {
+                      typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
+                      value: expect.any(Buffer)
+                    }
+                  ]
+                }
               }
-            }
-          ]);
+            ],
+            { fee: { granter: grant.granter } }
+          );
         }
       });
+    });
+  });
+
+  xdescribe("actual top up deployment tx on demand", () => {
+    jest.setTimeout(30000);
+
+    it("should top up or not depending on parameters below", async () => {
+      const denom = "uakt";
+      const owner = "<REPLACE_WITH_OWNER_ADDRESS>";
+      const dseq = "<REPLACE_WITH_DEPLOYMENT_DSEQ_NUMBER>" as unknown as number;
+      const wallet = container.resolve<MasterWalletService>(UAKT_TOP_UP_MASTER_WALLET);
+      const signer = new MasterSigningClientService(container.resolve(BILLING_CONFIG), wallet, container.resolve(TYPE_REGISTRY));
+      const grantee = await wallet.getFirstAddress();
+
+      try {
+        const res = await signer.executeTx(
+          [
+            container.resolve(RpcMessageService).getExecDepositDeploymentMsg({
+              dseq,
+              amount: 1000000,
+              denom,
+              owner: owner,
+              grantee
+            })
+          ],
+          { fee: { granter: owner } }
+        );
+
+        console.log("DEBUG res", res);
+      } catch (e) {
+        console.log("DEBUG e", e);
+      }
     });
   });
 });

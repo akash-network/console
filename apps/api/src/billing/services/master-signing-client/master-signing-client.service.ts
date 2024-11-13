@@ -20,6 +20,17 @@ interface ShortAccountInfo {
   sequence: number;
 }
 
+interface ExecuteTxOptions {
+  fee: {
+    granter: string;
+  };
+}
+
+interface ExecuteTxInput {
+  messages: readonly EncodeObject[];
+  options?: ExecuteTxOptions;
+}
+
 export class MasterSigningClientService {
   private readonly FEES_DENOM = "uakt";
 
@@ -32,8 +43,8 @@ export class MasterSigningClientService {
   private chainId: string;
 
   private execTxLoader = new DataLoader(
-    async (batchedMessages: readonly EncodeObject[][]) => {
-      return this.executeTxBatchBlocking(batchedMessages);
+    async (batchedInputs: ExecuteTxInput[]) => {
+      return this.executeTxBatchBlocking(batchedInputs);
     },
     { cache: false, batchScheduleFn: callback => setTimeout(callback, this.config.MASTER_WALLET_BATCHING_INTERVAL_MS) }
   );
@@ -75,24 +86,24 @@ export class MasterSigningClientService {
     return (await this.clientAsPromised).simulate(await this.masterWalletService.getFirstAddress(), messages, memo);
   }
 
-  async executeTx(messages: EncodeObject[]) {
-    const tx = await this.execTxLoader.load(messages);
+  async executeTx(messages: readonly EncodeObject[], options?: ExecuteTxOptions) {
+    const tx = await this.execTxLoader.load({ messages, options });
 
     assert(tx.code === 0, 500, "Failed to sign and broadcast tx", { data: tx });
 
     return tx;
   }
 
-  private async executeTxBatchBlocking(messages: readonly EncodeObject[][]): Promise<IndexedTx[]> {
+  private async executeTxBatchBlocking(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
     await this.semaphore.acquire();
     try {
-      return await this.executeTxBatch(messages);
+      return await this.executeTxBatch(inputs);
     } catch (error) {
       if (error.message.includes("account sequence mismatch")) {
         this.logger.debug("Account sequence mismatch, retrying...");
 
         this.clientAsPromised = this.initClient();
-        return await this.executeTxBatch(messages);
+        return await this.executeTxBatch(inputs);
       }
 
       throw error;
@@ -101,16 +112,18 @@ export class MasterSigningClientService {
     }
   }
 
-  private async executeTxBatch(messages: readonly EncodeObject[][]): Promise<IndexedTx[]> {
+  private async executeTxBatch(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
     const txes: TxRaw[] = [];
     let txIndex: number = 0;
 
     const client = await this.clientAsPromised;
     const masterAddress = await this.masterWalletService.getFirstAddress();
 
-    while (txIndex < messages.length) {
+    while (txIndex < inputs.length) {
+      const { messages, options } = inputs[txIndex];
+      const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee.granter, { mock: true });
       txes.push(
-        await client.sign(masterAddress, messages[txIndex], await this.estimateFee(messages[txIndex], this.FEES_DENOM, { mock: true }), "", {
+        await client.sign(masterAddress, messages, fee, "", {
           accountNumber: this.accountInfo.accountNumber,
           sequence: this.accountInfo.sequence++,
           chainId: this.chainId
@@ -134,11 +147,12 @@ export class MasterSigningClientService {
     return await Promise.all(hashes.map(hash => client.getTx(hash)));
   }
 
-  private async estimateFee(messages: readonly EncodeObject[], denom: string, options?: { mock?: boolean }) {
+  private async estimateFee(messages: readonly EncodeObject[], denom: string, granter?: string, options?: { mock?: boolean }) {
     if (options?.mock) {
       return {
         amount: [{ denom: this.FEES_DENOM, amount: "15000" }],
-        gas: "500000"
+        gas: "500000",
+        granter
       };
     }
 
