@@ -6,7 +6,7 @@ import { SentryEventService } from "@src/core/services/sentry-event/sentry-event
 
 @singleton()
 export class ErrorService {
-  private readonly logger = new LoggerService();
+  private readonly logger = LoggerService.forContext(ErrorService.name);
 
   constructor(
     @InjectSentry() private readonly sentry: Sentry,

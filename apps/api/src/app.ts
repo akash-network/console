@@ -101,7 +101,7 @@ function startScheduler() {
   scheduler.start();
 }
 
-const appLogger = new LoggerService({ context: "APP" });
+const appLogger = LoggerService.forContext("APP");
 
 /**
  * Initialize database

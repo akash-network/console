@@ -10,7 +10,7 @@ import { config } from "@src/core/config";
 import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
 import * as userSchemas from "@src/user/model-schemas";
 
-const logger = new LoggerService({ context: "POSTGRES" });
+const logger = LoggerService.forContext("POSTGRES");
 const migrationClient = postgres(config.POSTGRES_DB_URI, { max: 1, onnotice: logger.info.bind(logger) });
 const appClient = postgres(config.POSTGRES_DB_URI, { max: config.POSTGRES_MAX_CONNECTIONS, onnotice: logger.info.bind(logger) });
 

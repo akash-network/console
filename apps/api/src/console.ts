@@ -45,7 +45,7 @@ program
     });
   });
 
-const logger = new LoggerService({ context: "CLI" });
+const logger = LoggerService.forContext("CLI");
 
 async function executeCliHandler(name: string, handler: () => Promise<void>) {
   await context.with(trace.setSpan(context.active(), tracer.startSpan(name)), async () => {

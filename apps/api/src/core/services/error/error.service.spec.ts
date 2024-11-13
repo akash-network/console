@@ -1,11 +1,11 @@
+import "@test/mocks/logger-service.mock";
+
 import { LoggerService } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
 
 import { Sentry } from "@src/core/providers/sentry.provider";
 import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
 import { ErrorService } from "./error.service";
-
-jest.mock("@akashnetwork/logging");
 
 describe(ErrorService.name, () => {
   const sentryEventService = new SentryEventService();

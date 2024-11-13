@@ -17,7 +17,7 @@ import { DeploymentsRefiller, TopUpDeploymentsOptions } from "@src/deployment/ty
 export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
   private readonly CONCURRENCY = 10;
 
-  private readonly logger = new LoggerService({ context: TopUpManagedDeploymentsService.name });
+  private readonly logger = LoggerService.forContext(TopUpManagedDeploymentsService.name);
 
   constructor(
     private readonly userWalletRepository: UserWalletRepository,
