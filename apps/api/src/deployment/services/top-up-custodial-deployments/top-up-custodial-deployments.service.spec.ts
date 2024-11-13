@@ -1,3 +1,5 @@
+import "@test/mocks/logger-service.mock";
+
 import { AllowanceHttpService, BalanceHttpService, Denom } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { MsgExec } from "cosmjs-types/cosmos/authz/v1beta1/tx";
@@ -17,8 +19,6 @@ import { DeploymentGrantSeeder } from "@test/seeders/deployment-grant.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
 import { FeesAuthorizationSeeder } from "@test/seeders/fees-authorization.seeder";
 import { stub } from "@test/services/stub";
-
-jest.mock("@akashnetwork/logging");
 
 describe(TopUpCustodialDeploymentsService.name, () => {
   const CURRENT_BLOCK_HEIGHT = 7481457;

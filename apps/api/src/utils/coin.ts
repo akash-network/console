@@ -2,8 +2,7 @@ import { LoggerService } from "@akashnetwork/logging";
 import { asset_lists } from "@chain-registry/assets";
 import { Coin } from "cosmjs-types/cosmos/base/v1beta1/coin";
 
-
-const logger = new LoggerService({ context: "CoinUtil" });
+const logger = LoggerService.forContext("CoinUtil");
 
 export function coinToAsset(coin: Coin) {
   if (coin.denom === "uakt") {

@@ -1,3 +1,5 @@
+import "@test/mocks/logger-service.mock";
+
 import { faker } from "@faker-js/faker";
 
 import { BillingConfig } from "@src/billing/providers";
@@ -16,8 +18,6 @@ import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 import { stub } from "@test/services/stub";
-
-jest.mock("@akashnetwork/logging");
 
 describe(TopUpManagedDeploymentsService.name, () => {
   const CURRENT_BLOCK_HEIGHT = 7481457;

@@ -1,78 +1,61 @@
-import { context, trace } from "@opentelemetry/api";
 import { isHttpError } from "http-errors";
-import pino, { Bindings, Logger as PinoLogger, LoggerOptions } from "pino";
+import pino from "pino";
 import { gcpLogOptions } from "pino-cloud-logging";
-import pinoFluentd from "pino-fluentd";
-import pretty from "pino-pretty";
-import { Writable } from "stream";
 
 import { config } from "../../config";
 
-export type Logger = Pick<PinoLogger, "info" | "error" | "warn" | "debug">;
+export type Logger = Pick<pino.Logger, "info" | "error" | "warn" | "debug">;
+
+interface Bindings extends pino.Bindings {
+  context?: string;
+}
+
+interface LoggerOptions extends pino.LoggerOptions {
+  base?: Bindings | null;
+}
 
 export class LoggerService implements Logger {
-  protected pino: Logger;
-
-  constructor(bindings?: Bindings) {
-    this.pino = this.initPino(bindings);
+  static forContext(context: string) {
+    return new LoggerService().setContext(context);
   }
 
-  private initPino(bindings?: Bindings): Logger {
-    const destinations: Writable[] = [];
+  static mixin: (mergeObject: object) => object;
 
+  protected pino: pino.Logger;
+
+  constructor(options?: LoggerOptions) {
+    this.pino = this.initPino(options);
+  }
+
+  private initPino(inputOptions: LoggerOptions = {}): pino.Logger {
     let options: LoggerOptions = {
       level: config.LOG_LEVEL,
-      mixin: () => {
-        const currentSpan = trace.getSpan(context.active());
-        return { ...currentSpan?.spanContext() };
-      }
+      mixin: LoggerService.mixin,
+      ...inputOptions
     };
 
-    if (config.STD_OUT_LOG_FORMAT === "pretty") {
-      destinations.push(pretty({ sync: true }));
+    if (typeof window === "undefined" && config.STD_OUT_LOG_FORMAT === "pretty") {
+      options.transport = {
+        target: "pino-pretty",
+        options: { colorize: true, sync: true }
+      };
     } else {
       options = gcpLogOptions(options as any) as LoggerOptions;
-      destinations.push(process.stdout);
     }
 
-    const fluentd = this.initFluentd();
-
-    if (fluentd) {
-      destinations.push(fluentd);
-    }
-
-    let instance = pino(options, this.combineDestinations(destinations));
-
-    if (bindings) {
-      instance = instance.child(bindings);
-    }
-
-    return instance;
+    return pino(options);
   }
 
-  private initFluentd(): Writable | undefined {
-    const isFluentdEnabled = !!(config.FLUENTD_HOST && config.FLUENTD_PORT && config.FLUENTD_TAG);
+  setContext(context: string) {
+    this.pino.setBindings({ context });
 
-    if (isFluentdEnabled) {
-      return pinoFluentd({
-        tag: config.FLUENTD_TAG,
-        host: config.FLUENTD_HOST,
-        port: config.FLUENTD_PORT,
-        "trace-level": config.LOG_LEVEL
-      });
-    }
+    return this;
   }
 
-  private combineDestinations(destinations: Writable[]): Writable {
-    return new Writable({
-      write(chunk, encoding, callback) {
-        for (const destination of destinations) {
-          destination.write(chunk, encoding);
-        }
+  bind(bindings: pino.Bindings) {
+    this.pino.setBindings(bindings);
 
-        callback();
-      }
-    });
+    return this;
   }
 
   info(message: any) {

@@ -30,7 +30,7 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
 
   private readonly MIN_FEES_AVAILABLE = 5000;
 
-  private readonly logger = new LoggerService({ context: TopUpCustodialDeploymentsService.name });
+  private readonly logger = LoggerService.forContext(TopUpCustodialDeploymentsService.name);
 
   constructor(
     private readonly topUpToolsService: TopUpToolsService,
