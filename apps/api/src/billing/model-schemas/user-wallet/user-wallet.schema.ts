@@ -5,7 +5,7 @@ import { Users } from "@src/user/model-schemas";
 export const UserWallets = pgTable("user_wallets", {
   id: serial("id").primaryKey(),
   userId: uuid("user_id")
-    .references(() => Users.id)
+    .references(() => Users.id, { onDelete: "cascade" })
     .unique(),
   address: varchar("address").unique(),
   stripeCustomerId: varchar("stripe_customer_id"),

@@ -1,5 +1,5 @@
 import { AnyAbility } from "@casl/ability";
-import { and, DBQueryConfig, eq } from "drizzle-orm";
+import { and, DBQueryConfig, eq, inArray, sql } from "drizzle-orm";
 import { PgTableWithColumns } from "drizzle-orm/pg-core/table";
 import { SQL } from "drizzle-orm/sql/sql";
 import first from "lodash/first";
@@ -98,15 +98,19 @@ export abstract class BaseRepository<
     return this.toOutputList(await this.queryCursor.findMany(params));
   }
 
-  async paginate(options: { select?: Array<keyof Output>; limit?: number; query?: Partial<Output> }, cb: (page: Output[]) => Promise<void>) {
+  async paginate({ query, ...options }: { select?: Array<keyof Output>; limit?: number; query?: Partial<Output> }, cb: (page: Output[]) => Promise<void>) {
+    return this.paginateRaw({ ...options, where: this.queryToWhere(query) }, cb);
+  }
+
+  protected async paginateRaw(params: Omit<DBQueryConfig<"many", true>, "offset">, cb: (page: Output[]) => Promise<void>) {
     let offset = 0;
     let hasNextPage = true;
-    const limit = options?.limit || 100;
+    params.limit = params.limit || 100;
 
     while (hasNextPage) {
-      const items = await this.find(options.query, { select: options.select, offset, limit });
+      const items = this.toOutputList(await this.queryCursor.findMany({ ...params, offset }));
       offset += items.length;
-      hasNextPage = items.length === limit;
+      hasNextPage = items.length === params.limit;
 
       if (items.length) {
         await cb(items);
@@ -123,7 +127,13 @@ export abstract class BaseRepository<
   async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<Output>;
   async updateBy(query: Partial<Output>, payload: Partial<Input>): Promise<void>;
   async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<void | Output> {
-    const cursor = this.cursor.update(this.table).set(this.toInput(payload)).where(this.queryToWhere(query));
+    const cursor = this.cursor
+      .update(this.table)
+      .set({
+        ...this.toInput(payload),
+        updated_at: sql`now()`
+      })
+      .where(this.queryToWhere(query));
 
     if (options?.returning) {
       const items = await cursor.returning();
@@ -133,6 +143,11 @@ export abstract class BaseRepository<
     await cursor;
 
     return undefined;
+  }
+
+  async deleteById(id: Output["id"] | Output["id"][]): Promise<void> {
+    const where = Array.isArray(id) ? inArray(this.table.id, id) : eq(this.table.id, id);
+    await this.cursor.delete(this.table).where(this.whereAccessibleBy(where));
   }
 
   async deleteBy(query: Partial<Output>, options?: MutationOptions): Promise<Output>;

@@ -6,13 +6,15 @@ import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.servi
 import { UserRepository } from "@src/user/repositories";
 import { GetUserParams } from "@src/user/routes/get-anonymous-user/get-anonymous-user.router";
 import { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
+import { StaleAnonymousUsersCleanerService } from "@src/user/services/stale-anonymous-users-cleaner/stale-anonymous-users-cleaner.service";
 
 @singleton()
 export class UserController {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly authService: AuthService,
-    private readonly anonymousUserAuthService: AuthTokenService
+    private readonly anonymousUserAuthService: AuthTokenService,
+    private readonly staleAnonymousUsersCleanerService: StaleAnonymousUsersCleanerService
   ) {}
 
   async create(): Promise<AnonymousUserResponseOutput> {
@@ -30,5 +32,9 @@ export class UserController {
     assert(user, 404);
 
     return { data: user };
+  }
+
+  async cleanUpStaleAnonymousUsers() {
+    await this.staleAnonymousUsersCleanerService.cleanUpStaleAnonymousUsers();
   }
 }
