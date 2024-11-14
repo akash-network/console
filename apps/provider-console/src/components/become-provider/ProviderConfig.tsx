@@ -10,7 +10,7 @@ import providerProcessStore from "@src/store/providerProcessStore";
 import { ResetProviderForm } from "./ResetProviderProcess";
 
 interface ProviderConfigProps {
-  stepChange: () => void;
+  onComplete: () => void;
 }
 
 const providerConfigSchema = z.object({
@@ -27,7 +27,7 @@ const providerConfigSchema = z.object({
 
 type ProviderConfigValues = z.infer<typeof providerConfigSchema>;
 
-export const ProviderConfig: React.FC<ProviderConfigProps> = ({ stepChange }) => {
+export const ProviderConfig: React.FC<ProviderConfigProps> = ({ onComplete }) => {
   const form = useForm<ProviderConfigValues>({
     resolver: zodResolver(providerConfigSchema),
     mode: "onSubmit",
@@ -40,7 +40,7 @@ export const ProviderConfig: React.FC<ProviderConfigProps> = ({ stepChange }) =>
 
   const [, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
 
-  const submitForm = async (formValues: ProviderConfigValues) => {
+  const updateProviderConfigAndProceed = async (formValues: ProviderConfigValues) => {
     setProviderProcess(prev => ({
       ...prev,
       config: {
@@ -53,7 +53,7 @@ export const ProviderConfig: React.FC<ProviderConfigProps> = ({ stepChange }) =>
         providerConfig: true
       }
     }));
-    stepChange();
+    onComplete();
   };
 
   return (
@@ -68,7 +68,7 @@ export const ProviderConfig: React.FC<ProviderConfigProps> = ({ stepChange }) =>
         </div>
         <div>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(submitForm)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(updateProviderConfigAndProceed)} className="space-y-6">
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-2">
                   <FormField

@@ -51,7 +51,7 @@ export function AccountMenu() {
                     setOpen(false);
                   }}
                 >
-                  <div className="flex items-center justify-center w-full">
+                  <div className="flex w-full items-center justify-center">
                     {!isLoading && user ? (
                       <div className="w-full">
                         {username && (
@@ -82,19 +82,21 @@ export function AccountMenu() {
                           My Alerts
                         </CustomDropdownLinkItem>
                         <DropdownMenuSeparator />
-                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.logout())} icon={<LogOut />}>
+                        <CustomDropdownLinkItem onClick={() => (window.location.href = UrlService.logout())} icon={<LogOut />}>
                           Logout
                         </CustomDropdownLinkItem>
                       </div>
                     ) : (
                       <div className="w-full space-y-1">
                         <CustomDropdownLinkItem
-                          className="bg-primary !text-white hover:bg-primary/80 hover:text-white focus:bg-primary/80 justify-center p-2"
+                          className="justify-center bg-primary p-2 !text-white hover:bg-primary/80 hover:text-white focus:bg-primary/80"
                           onClick={() => router.push(UrlService.signup())}
                         >
                           Sign up
                         </CustomDropdownLinkItem>
-                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.login())} className="justify-center p-2">Sign in</CustomDropdownLinkItem>
+                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.login())} className="justify-center p-2">
+                          Sign in
+                        </CustomDropdownLinkItem>
                       </div>
                     )}
                   </div>

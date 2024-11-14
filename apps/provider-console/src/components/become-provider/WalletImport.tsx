@@ -16,8 +16,8 @@ import {
   Textarea
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Home } from "iconoir-react";
 import { useAtom } from "jotai";
-import { HomeIcon } from "lucide-react";
 import { useRouter } from "next/router";
 import { z } from "zod";
 
@@ -26,6 +26,8 @@ import { useWallet } from "@src/context/WalletProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
 import { ControlMachineWithAddress } from "@src/types/controlMachine";
 import restClient from "@src/utils/restClient";
+import { HomeIcon } from "lucide-react";
+import controlMachineStore from "@src/store/controlMachineStore";
 import { ResetProviderForm } from "./ResetProviderProcess";
 
 function decodeBase64(base64: string): string {
@@ -47,7 +49,7 @@ async function encrypt(data: string, publicKey: string): Promise<string> {
 }
 
 interface WalletImportProps {
-  stepChange: () => void;
+  onComplete: () => void;
 }
 
 const appearanceFormSchema = z.object({
@@ -71,7 +73,7 @@ const seedFormSchema = z.object({
 type AppearanceFormValues = z.infer<typeof appearanceFormSchema>;
 type SeedFormValues = z.infer<typeof seedFormSchema>;
 
-export const WalletImport: React.FC<WalletImportProps> = () => {
+export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
   const [mode, setMode] = useState<string>("");
   const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -100,56 +102,55 @@ export const WalletImport: React.FC<WalletImportProps> = () => {
   };
 
   const submitForm = async (data: SeedFormValues) => {
+    if (!providerProcess.machines || providerProcess.machines.length === 0) {
+      setError("No machine information available");
+    }
     setIsLoading(true);
     setError(null);
     try {
-      if (providerProcess.machines && providerProcess.machines.length > 0) {
-        const publicKey = providerProcess.machines[0].systemInfo.public_key;
-        const keyId = providerProcess.machines[0].systemInfo.key_id;
-        const encryptedSeedPhrase = await encrypt(data.seedPhrase, publicKey);
+      const publicKey = providerProcess.machines[0].systemInfo.public_key;
+      const keyId = providerProcess.machines[0].systemInfo.key_id;
+      const encryptedSeedPhrase = await encrypt(data.seedPhrase, publicKey);
 
-        const finalRequest = {
-          wallet: {
-            key_id: keyId,
-            wallet_phrase: encryptedSeedPhrase
-          },
-          nodes: providerProcess.machines.map(machine => ({
-            hostname: machine.access.hostname,
-            port: machine.access.port,
-            username: machine.access.username,
-            keyfile: machine.access.file,
-            password: machine.access.password,
-            install_gpu_drivers: machine.systemInfo.gpu.count > 0 ? true : false
-          })),
-          provider: {
-            attributes: providerProcess.attributes,
-            pricing: providerProcess.pricing,
-            config: providerProcess.config
-          }
-        };
-
-        const response: any = await restClient.post("/build-provider", finalRequest, {
-          headers: { "Content-Type": "application/json" }
-        });
-
-        if (response.action_id) {
-          const machineWithAddress: ControlMachineWithAddress = {
-            address: address,
-            ...providerProcess.machines[0]
-          };
-          await setControlMachine(machineWithAddress);
-          resetProviderProcess();
-          router.push(`/action?id=${response.action_id}`);
-        } else {
-          throw new Error("Invalid response from server");
+      const finalRequest = {
+        wallet: {
+          key_id: keyId,
+          wallet_phrase: encryptedSeedPhrase
+        },
+        nodes: providerProcess.machines.map(machine => ({
+          hostname: machine.access.hostname,
+          port: machine.access.port,
+          username: machine.access.username,
+          keyfile: machine.access.file,
+          password: machine.access.password,
+          install_gpu_drivers: machine.systemInfo.gpu.count > 0 ? true : false
+        })),
+        provider: {
+          attributes: providerProcess.attributes,
+          pricing: providerProcess.pricing,
+          config: providerProcess.config
         }
+      };
+
+      const response: any = await restClient.post("/build-provider", finalRequest, {
+        headers: { "Content-Type": "application/json" }
+      });
+
+      if (response.action_id) {
+        const machineWithAddress: ControlMachineWithAddress = {
+          address: address,
+          ...providerProcess.machines[0]
+        };
+        await setControlMachine(machineWithAddress);
+        resetProviderProcess();
+        router.push(`/action?id=${response.action_id}`);
       } else {
-        throw new Error("No machine information available");
+        throw new Error("Invalid response from server");
       }
     } catch (error) {
-      console.error("Error during wallet verification:", error);
       setError("An error occurred while processing your request. Please try again.");
     } finally {
+      onComplete();
       setIsLoading(false);
     }
   };
@@ -194,7 +195,7 @@ export const WalletImport: React.FC<WalletImportProps> = () => {
                               <div className="border-muted hover:border-accent items-center rounded-md border-2 p-1">
                                 <div className="space-y-2 rounded-sm p-2">
                                   <div className="space-y-2 rounded-md p-4 shadow-sm">
-                                    <HomeIcon />
+                                    <Home />
                                     <h4 className="text-md">Seed Phrase Mode</h4>
                                     <p>Provider Console will auto import using secure end-to-end encryption. Seed Phrase is Required.</p>
                                   </div>
@@ -210,7 +211,7 @@ export const WalletImport: React.FC<WalletImportProps> = () => {
                               <div className="border-muted bg-popover hover:bg-accent hover:text-accent-foreground items-center rounded-md border-2 p-1">
                                 <div className="space-y-2 rounded-sm bg-slate-950 p-2">
                                   <div className="space-y-2 rounded-sm bg-slate-800 p-4 text-white">
-                                    <HomeIcon />
+                                    <Home />
                                     <h4 className="text-md">Manual Mode</h4>
                                     <p>You need to login to control machine and follow the instruction to import wallet. Seed Phrase is not Required.</p>
                                   </div>
