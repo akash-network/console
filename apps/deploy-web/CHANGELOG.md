@@ -1,5 +1,12 @@
 
 
+## [2.22.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.22.0...console-web/v2.22.1-beta.0) (2024-11-14)
+
+
+### Bug Fixes
+
+* **wallet:** wallet connect managed to custodial ([037f3f6](https://github.com/akash-network/console/commit/037f3f689a6d7c86ef282771366e481eb6532ba7)), closes [#469](https://github.com/akash-network/console/issues/469)
+
 ## [2.22.0](https://github.com/akash-network/console/compare/console-web/v2.22.0-beta.0...console-web/v2.22.0) (2024-11-12)
 
 ## [2.22.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.21.1-beta.1...console-web/v2.22.0-beta.0) (2024-11-12)
