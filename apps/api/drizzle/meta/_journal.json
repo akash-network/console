@@ -43,6 +43,13 @@
       "when": 1724745930642,
       "tag": "0005_colorful_dreaming_celestial",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1731579448104,
+      "tag": "0006_skinny_stingray",
+      "breakpoints": true
     }
   ]
 }
