@@ -1,29 +1,27 @@
 "use client";
+import React, { useCallback, useState } from "react";
 import { Button, Input, Separator } from "@akashnetwork/ui/components";
-import React, { useState, useCallback } from "react";
+
+import { ResetProviderForm } from "./ResetProviderProcess";
 import { ServerForm } from "./ServerForm";
-import ResetProviderForm from "./ResetProviderProcess";
 
 interface ServerAccessProps {
-  stepChange: () => void;
+  onComplete: () => void;
 }
 
-export const ServerAccess: React.FunctionComponent<ServerAccessProps> = ({ stepChange }) => {
+export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
   const [numberOfServers, setNumberOfServers] = useState(1);
   const [activateServerForm, setActivateServerForm] = useState(false);
   const [currentServer, setCurrentServer] = useState(0);
 
-  // Callback function to handle server form submission
   const handleServerFormSubmit = useCallback(() => {
     if (currentServer + 1 >= numberOfServers) {
-      stepChange();
+      onComplete();
     }
     setCurrentServer(prev => prev + 1);
-  }, [currentServer, numberOfServers, stepChange]);
+  }, [currentServer, numberOfServers, onComplete]);
 
-  // Callback function to handle changes in the number of servers input
   const handleNumberOfServersChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    // Ensure the number of servers is at least 1
     const value = Math.max(1, parseInt(event.target.value, 10) || 1);
     setNumberOfServers(value);
   }, []);
@@ -50,7 +48,7 @@ export const ServerAccess: React.FunctionComponent<ServerAccessProps> = ({ stepC
           </div>
         </div>
       ) : (
-        <ServerForm key={currentServer} currentServerNumber={currentServer} onSubmit={handleServerFormSubmit} />
+        <ServerForm key={currentServer} currentServerNumber={currentServer} onComplete={handleServerFormSubmit} />
       )}
     </div>
   );

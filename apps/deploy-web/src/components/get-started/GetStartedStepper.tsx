@@ -2,11 +2,13 @@
 import React, { useEffect, useState } from "react";
 import { MdRestartAlt } from "react-icons/md";
 import { Button, buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import Step from "@mui/material/Step";
 import StepContent from "@mui/material/StepContent";
 import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
 import { Check, HandCard, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
+import { useAtom } from "jotai";
 import Link from "next/link";
 
 import { LoginRequiredLink } from "@src/components/user/LoginRequiredLink";
@@ -14,11 +16,12 @@ import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManage
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
+import walletStore from "@src/store/walletStore";
 import { RouteStep } from "@src/types/route-steps.type";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
-import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import LiquidityModal from "../liquidity-modal";
 import { ExternalLink } from "../shared/ExternalLink";
@@ -32,6 +35,8 @@ export const GetStartedStepper: React.FunctionComponent = () => {
   const { minDeposit } = useChainParam();
   const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
   const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;
+  const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
+  const { user } = useCustomUser();
 
   useEffect(() => {
     const getStartedStep = localStorage.getItem("getStartedStep");
@@ -101,10 +106,10 @@ export const GetStartedStepper: React.FunctionComponent = () => {
               <LoginRequiredLink
                 className={cn("hover:no-underline", buttonVariants({ variant: "outline", className: "mr-2 border-primary" }))}
                 href="/api/proxy/v1/checkout"
-                message="Sign In or Sign Up to top up your balance"
+                message="Sign In or Sign Up to add funds to your balance"
               >
                 <HandCard className="text-xs text-accent-foreground" />
-                <span className="m-2 whitespace-nowrap text-accent-foreground">Top Up Balance</span>
+                <span className="m-2 whitespace-nowrap text-accent-foreground">Add Funds</span>
               </LoginRequiredLink>
             )}
             <Button variant="default" onClick={handleNext}>
@@ -138,8 +143,16 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                 <span>Billing is not set up</span>
               </div>
 
-              {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
-              <ConnectWalletButton />
+              <div className="flex items-center gap-2">
+                {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED && !isSignedInWithTrial && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
+                <ConnectWalletButton />
+
+                {isSignedInWithTrial && !user && (
+                  <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.login()}>
+                    Sign in
+                  </Link>
+                )}
+              </div>
             </div>
           )}
 

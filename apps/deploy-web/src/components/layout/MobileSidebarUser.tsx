@@ -1,11 +1,11 @@
 "use client";
 import React from "react";
 import { Avatar, buttonVariants, Separator, Spinner } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { LogOut, MediaImageList, Settings } from "iconoir-react";
 import Link from "next/link";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { SidebarRouteButton } from "./SidebarRouteButton";
 import { WalletStatus } from "./WalletStatus";
@@ -15,8 +15,6 @@ export const MobileSidebarUser: React.FunctionComponent = () => {
 
   return (
     <ul className="w-full overflow-hidden border-0 p-0">
-      <Separator />
-
       <div className="flex items-center justify-center p-2">
         <WalletStatus />
       </div>
@@ -62,6 +60,7 @@ export const MobileSidebarUser: React.FunctionComponent = () => {
             }}
           />
           <SidebarRouteButton
+            useNextLinkTag={false}
             route={{
               title: "Logout",
               icon: props => <LogOut {...props} />,

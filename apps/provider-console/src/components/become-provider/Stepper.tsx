@@ -2,13 +2,11 @@
 import React from "react";
 import { Check, InfoCircleSolid } from "iconoir-react";
 
-// Define the structure for a step in the stepper
 interface Step {
   id: number;
   name: string;
 }
 
-// Define the steps for the provider onboarding process
 const steps: Step[] = [
   { id: 0, name: "1. Server Access" },
   { id: 1, name: "2. Provider Config" },
@@ -17,23 +15,7 @@ const steps: Step[] = [
   { id: 4, name: "5. Import Wallet" }
 ];
 
-// Main stepper component
-export const CustomizedSteppers: React.FC<{ activeStep: number }> = ({ activeStep }) => {
-  return (
-    <nav aria-label="Progress" className="w-full">
-      <ol role="list" className="divide-muted-foreground/20 border-muted-foreground/20 divide-y border md:flex md:divide-y-0">
-        {steps.map(step => (
-          <li key={step.name} className="relative md:flex md:flex-1">
-            {renderStepContent(step, activeStep)}
-          </li>
-        ))}
-      </ol>
-    </nav>
-  );
-};
-
-// Helper function to render the appropriate step content based on its state
-const renderStepContent = (step: Step, activeStep: number) => {
+const StepContent: React.FC<{ step: Step; activeStep: number }> = ({ step, activeStep }) => {
   if (step.id < activeStep) {
     return <CompletedStep step={step} />;
   } else if (step.id === activeStep) {
@@ -43,7 +25,20 @@ const renderStepContent = (step: Step, activeStep: number) => {
   }
 };
 
-// Component for a completed step
+export const CustomizedSteppers: React.FC<{ activeStep: number }> = ({ activeStep }) => {
+  return (
+    <nav aria-label="Progress" className="w-full">
+      <ol role="list" className="divide-muted-foreground/20 border-muted-foreground/20 divide-y border md:flex md:divide-y-0">
+        {steps.map(step => (
+          <li key={step.name} className="relative md:flex md:flex-1">
+            <StepContent step={step} activeStep={activeStep} />
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+};
+
 const CompletedStep: React.FC<{ step: Step }> = ({ step }) => (
   <div className="flex items-center px-6 py-4 text-sm font-medium">
     <span className="bg-primary group-hover:bg-primary/80 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full">
@@ -53,7 +48,6 @@ const CompletedStep: React.FC<{ step: Step }> = ({ step }) => (
   </div>
 );
 
-// Component for the current active step
 const CurrentStep: React.FC<{ step: Step }> = ({ step }) => (
   <div className="flex items-center px-6 py-4 text-sm font-medium" aria-current="step">
     <span className="border-primary flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2">
@@ -63,7 +57,6 @@ const CurrentStep: React.FC<{ step: Step }> = ({ step }) => (
   </div>
 );
 
-// Component for future (not yet reached) steps
 const FutureStep: React.FC<{ step: Step }> = ({ step }) => (
   <div className="group flex items-center">
     <span className="flex items-center px-6 py-4 text-sm font-medium">

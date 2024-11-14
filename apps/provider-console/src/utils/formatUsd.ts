@@ -5,7 +5,7 @@
  * @returns Formatted USD string
  */
 export function formatUUsd(amount: number, decimals: number = 2): string {
-  const dollars = amount / 1000000; // Convert cents to dollars
+  const dollars = amount / 1000000; 
 
   if (dollars >= 1000000) {
     return `$${(dollars / 1000000).toFixed(decimals)}M`;

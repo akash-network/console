@@ -15,7 +15,7 @@ type Props = {
   className?: string;
 };
 
-export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, className = "", isNavOpen = true }) => {
+export const SidebarRouteButton: React.FC<Props> = ({ route, className = "", isNavOpen = true }) => {
   const pathname = usePathname();
   const isSelected = route.url === UrlService.home() ? pathname === "/" : route.activeRoutes.some(x => pathname?.startsWith(x));
 
@@ -32,7 +32,7 @@ export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, clas
             ["font-bold"]: isSelected,
             ["min-w-[initial] px-4 py-1"]: isNavOpen,
             ["w-[45px] min-w-0 p-2"]: !isNavOpen,
-            ["pointer-events-none opacity-50"]: route.disabled // Add this line
+            ["pointer-events-none opacity-50"]: route.disabled
           }
         )}
       >

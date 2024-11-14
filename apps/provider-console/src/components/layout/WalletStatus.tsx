@@ -1,5 +1,4 @@
 "use client";
-import { useEffect } from "react";
 import { FormattedNumber } from "react-intl";
 import {
   Address,
@@ -14,71 +13,18 @@ import {
   TooltipContent,
   TooltipTrigger
 } from "@akashnetwork/ui/components";
-import { useChainWallet } from "@cosmos-kit/react";
 import { LogOut, MoreHoriz, Wallet } from "iconoir-react";
 import Link from "next/link";
 
-import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useTotalWalletBalance } from "@src/hooks/useWalletBalance";
-import authClient from "@src/utils/authClient";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { FormattedDecimal } from "../shared/FormattedDecimal";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 
-const DEV_URL = "app-dev.praetor.dev";
-
 export function WalletStatus() {
-  const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected, setIsWalletArbitrarySigned } = useWallet();
-  const { wallet } = useSelectedChain();
+  const { walletName, address, walletBalances, logout, isWalletLoaded, isWalletConnected } = useWallet();
   const walletBalance = useTotalWalletBalance();
-
-  const { signArbitrary: keplrSignArbitrary } = useChainWallet("akash", "keplr-extension");
-  const { signArbitrary: leapSignArbitrary } = useChainWallet("akash", "leap-extension");
-
-  const getNonceMessage = (nonce: string) => {
-    const url = process.env.NODE_ENV === "development" ? DEV_URL : window.location.hostname;
-    return `provider-console-beta.akash.network wants you to sign in with your Keplr account - ${address} using Nonce - ${nonce}`;
-  };
-
-  const handleWalletConnectSuccess = async () => {
-    if (!localStorage.getItem("accessToken")) {
-      console.log("handleWalletConnectSuccess");
-      const response: any = await authClient.get(`users/nonce/${address}`);
-      if (response?.data?.nonce) {
-        const message = getNonceMessage(response.data.nonce);
-        const signArbitrary = wallet?.name === "leap-extension" ? leapSignArbitrary : keplrSignArbitrary;
-        try {
-          const result = await signArbitrary(address, message);
-
-          if (result) {
-            const verifySign = await authClient.post("auth/verify", { signer: address, ...result });
-            if (verifySign.data) {
-              localStorage.setItem("accessToken", verifySign.data.access_token);
-              localStorage.setItem("refreshToken", verifySign.data.refresh_token);
-              localStorage.setItem("walletAddress", address);
-              setIsWalletArbitrarySigned(true);
-            } else {
-              logout();
-              setIsWalletArbitrarySigned(false);
-            }
-          } else {
-            logout();
-            setIsWalletArbitrarySigned(false);
-          }
-        } catch (error) {
-          logout();
-          setIsWalletArbitrarySigned(false);
-        }
-      } else {
-        console.log(response);
-        if (response.status === 'error' && response.error.code === "N4040") {
-          authClient.post("users", { address });
-          handleWalletConnectSuccess();
-        }
-      }
-    }
-  };
 
   const onDisconnectClick = () => logout();
 
@@ -123,7 +69,6 @@ export function WalletStatus() {
                 <Badge className="h-5 text-xs font-bold" variant="secondary">
                   <FormattedNumber
                     value={walletBalance}
-                    // eslint-disable-next-line react/style-prop-object
                     style="currency"
                     currency="USD"
                   />

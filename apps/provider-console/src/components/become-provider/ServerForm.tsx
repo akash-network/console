@@ -1,4 +1,6 @@
 "use client";
+import React, { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import {
   Alert,
   AlertDescription,
@@ -14,20 +16,19 @@ import {
   FormMessage,
   Input,
   Separator,
+  Spinner,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger
 } from "@akashnetwork/ui/components";
-import restClient from "@src/utils/restClient";
-import { Loader2 } from "lucide-react";
-import React, { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import providerProcessStore from "@src/store/providerProcessStore";
 import { useAtom } from "jotai/react";
-import ResetProviderForm from "./ResetProviderProcess";
+import { z } from "zod";
+
+import providerProcessStore from "@src/store/providerProcessStore";
+import restClient from "@src/utils/restClient";
+import { ResetProviderForm } from "./ResetProviderProcess";
 
 const baseSchema = z.object({
   hostname: z.string().min(2, { message: "IP must be at least 2 characters." }).max(30, { message: "IP must not be longer than 30 characters." }),
@@ -53,10 +54,10 @@ type AccountFormValues = z.infer<typeof accountFormSchema>;
 
 interface ServerFormProp {
   currentServerNumber: number;
-  onSubmit: () => void;
+  onComplete: () => void;
 }
 
-export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentServerNumber, onSubmit }) => {
+export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onComplete }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [storedFileContent, setStoredFileContent] = useState<string | null>(null);
@@ -66,7 +67,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
       return {
         hostname: "",
         authType: "password",
-        username: "root", // Set default username to "root"
+        username: "root",
         port: 22
       };
     }
@@ -74,31 +75,30 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
     const firstServer = providerProcess.machines[0]?.access;
     return {
       ...firstServer,
-      hostname: "", // Reset hostname for new server
+      hostname: "",
       authType: firstServer.file ? "file" : "password",
       password: firstServer.password,
-      username: "root" // Ensure username is set to "root" even when copying from previous server
+      username: "root"
     };
   };
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
-    defaultValues: getDefaultValues() as any // Temporary fix
+    defaultValues: getDefaultValues() as any
   });
 
   useEffect(() => {
     if (currentServerNumber > 0 && providerProcess?.storeInformation) {
       const firstServer = providerProcess.machines[0]?.access;
       if (firstServer.file) {
-        // Ensure firstServer.file is a string (base64)
-        setStoredFileContent(typeof firstServer.file === 'string' ? firstServer.file : null);
+        setStoredFileContent(typeof firstServer.file === "string" ? firstServer.file : null);
         form.setValue("authType", "file");
       }
     }
   }, [currentServerNumber, providerProcess, form]);
 
   const [verificationError, setVerificationError] = useState<{ message: string; details: string[] } | null>(null);
-  const [verificationResult, setVerificationResult] = useState(null);
+  const [, setVerificationResult] = useState(null);
   const [isVerifying, setIsVerifying] = useState(false);
 
   const submitForm = async (formValues: any) => {
@@ -117,7 +117,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
       }
 
       if (formValues.file && formValues.file[0]) {
-        jsonData.keyfile = storedFileContent; // Use the stored base64 content
+        jsonData.keyfile = storedFileContent;
       } else if (storedFileContent) {
         jsonData.keyfile = storedFileContent;
       }
@@ -128,12 +128,10 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
 
       let response: any;
       if (currentServerNumber === 0) {
-        // For the first server (control plane)
         response = await restClient.post("/verify/control-machine", jsonData, {
           headers: { "Content-Type": "application/json" }
         });
       } else {
-        // For subsequent servers (worker nodes)
         const controlMachine = providerProcess?.machines[0]?.access;
         const keyfile = controlMachine.file ? controlMachine.file : undefined;
         const payload = {
@@ -169,7 +167,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
           storeInformation: currentServerNumber === 0 ? formValues.saveInformation : providerProcess?.storeInformation,
           process: providerProcess.process
         });
-        onSubmit();
+        onComplete();
       }
     } catch (error: any) {
       setVerificationError({
@@ -189,13 +187,12 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
         const base64Content = e.target?.result as string;
         setStoredFileContent(base64Content);
         setSelectedFile(file);
-        field.onChange([file]); // Update form value
+        field.onChange([file]);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // Helper function to read file as base64
   const readFileAsBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -355,7 +352,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
                   <Button type="submit" disabled={isVerifying}>
                     {isVerifying ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Spinner />
                         Verifying...
                       </>
                     ) : (
@@ -394,11 +391,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
                       render={({ field }) => (
                         <FormItem className="flex items-center space-x-2">
                           <FormControl>
-                            <Checkbox
-                              id="saveInformation"
-                              checked={field.value} // Ensure the checkbox reflects the form state
-                              onCheckedChange={field.onChange} // Update the form state on change
-                            />
+                            <Checkbox id="saveInformation" checked={field.value} onCheckedChange={field.onChange} />
                           </FormControl>
                           <FormLabel htmlFor="saveInformation" className="text-sm font-medium leading-none">
                             Yes

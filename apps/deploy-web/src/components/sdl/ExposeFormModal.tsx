@@ -18,12 +18,12 @@ import {
   SelectTrigger,
   SelectValue
 } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
 
 import { ExposeType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { protoTypes } from "@src/utils/sdl/data";
-import { cn } from "@src/utils/styleUtils";
 import { AcceptFormControl, AcceptRefType } from "./AcceptFormControl";
 import { FormPaper } from "./FormPaper";
 import { HttpOptionsFormControl } from "./HttpOptionsFormControl";

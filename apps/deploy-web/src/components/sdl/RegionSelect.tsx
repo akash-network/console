@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Control, Controller } from "react-hook-form";
 import { CustomTooltip } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import Autocomplete from "@mui/material/Autocomplete";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import TextField from "@mui/material/TextField";
@@ -10,7 +11,6 @@ import { InfoCircle } from "iconoir-react";
 import { useProviderRegions } from "@src/queries/useProvidersQuery";
 import { RentGpusFormValuesType } from "@src/types";
 import { ProviderAttributeSchemaDetailValue, ProviderRegionValue } from "@src/types/providerAttributes";
-import { cn } from "@src/utils/styleUtils";
 
 type RegionSelectProps = {
   control: Control<RentGpusFormValuesType, any>;

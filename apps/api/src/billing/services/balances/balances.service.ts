@@ -2,6 +2,7 @@ import { AllowanceHttpService } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletInput, UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { MasterWalletService } from "@src/billing/services";
 
@@ -10,7 +11,7 @@ export class BalancesService {
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly masterWalletService: MasterWalletService,
+    @InjectWallet("MANAGED") private readonly masterWalletService: MasterWalletService,
     private readonly allowanceHttpService: AllowanceHttpService
   ) {}
 
@@ -44,11 +45,11 @@ export class BalancesService {
   }
 
   async getFreshLimits(userWallet: UserWalletOutput): Promise<{ fee: number; deployment: number }> {
-    const [fee, deployment] = await Promise.all([this.calculateFeeLimit(userWallet), this.calculateDeploymentLimit(userWallet)]);
+    const [fee, deployment] = await Promise.all([this.retrieveAndCalcFeeLimit(userWallet), this.retrieveAndCalcDeploymentLimit(userWallet)]);
     return { fee, deployment };
   }
 
-  private async calculateFeeLimit(userWallet: UserWalletOutput): Promise<number> {
+  private async retrieveAndCalcFeeLimit(userWallet: UserWalletOutput): Promise<number> {
     const feeAllowance = await this.allowanceHttpService.getFeeAllowancesForGrantee(userWallet.address);
     const masterWalletAddress = await this.masterWalletService.getFirstAddress();
 
@@ -67,7 +68,7 @@ export class BalancesService {
     }, 0);
   }
 
-  async calculateDeploymentLimit(userWallet: UserWalletOutput): Promise<number> {
+  async retrieveAndCalcDeploymentLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
     const deploymentAllowance = await this.allowanceHttpService.getDeploymentAllowancesForGrantee(userWallet.address);
     const masterWalletAddress = await this.masterWalletService.getFirstAddress();
 

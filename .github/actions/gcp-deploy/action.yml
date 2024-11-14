@@ -1,0 +1,35 @@
+name: Update GCP VM instance container image
+
+inputs:
+  instance-name:
+    description: 'VM instance name'
+    required: true
+  image:
+    description: 'Docker image tag'
+    required: true
+  zone:
+    description: 'GCP zone'
+    required: true
+  credentials_json:
+    description: 'Service account credentials JSON'
+    required: true
+
+
+runs:
+  using: "composite"
+  steps:
+    - name: 'Authenticate with Google Cloud'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: ${{ inputs.credentials_json }}
+
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v2'
+      with:
+        version: '>= 363.0.0'
+
+    - name: Update image
+      shell: bash
+      run: |
+        gcloud compute instances update-container ${{ inputs.instance-name }} \
+          --container-image=${{ inputs.image }} --zone ${{ inputs.zone }};

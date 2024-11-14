@@ -7,7 +7,6 @@ import { accountBarHeight } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
-import { Footer } from "./Footer";
 
 type Props = {
   isLoading?: boolean;
@@ -18,7 +17,7 @@ type Props = {
   children?: ReactNode;
 };
 
-const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName }) => {
+export const Layout: React.FC<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName }) => {
   const [locale, setLocale] = useState("en-US");
   useEffect(() => {
     if (navigator?.language) {
@@ -41,7 +40,7 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
   );
 };
 
-const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName = "" }) => {
+const LayoutApp: React.FC<Props> = ({ children, disableContainer, containerClassName = "" }) => {
   const muiTheme = useMuiTheme();
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -74,7 +73,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
       <div className="bg-card min-h-full">
         <div className="h-full w-full" style={{ marginTop: `${accountBarHeight}px` }}>
           <div className="h-full">
-            <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} />
+            <Nav />
             <div className="block h-full w-full flex-grow rounded-none md:flex">
               <Sidebar onOpenMenuClick={onOpenMenuClick} isNavOpen={isNavOpen} handleDrawerToggle={handleDrawerToggle} isMobileOpen={isMobileOpen} />
               <div
@@ -92,5 +91,3 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
     </>
   );
 };
-
-export default Layout;

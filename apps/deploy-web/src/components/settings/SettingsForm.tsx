@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Form, FormField, FormInput, Label, Spinner, SwitchWithLabel } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Autocomplete from "@mui/material/Autocomplete";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
@@ -14,7 +15,6 @@ import { z } from "zod";
 
 import { NodeStatus } from "@src/components/shared/NodeStatus";
 import { BlockchainNode, useSettings } from "@src/context/SettingsProvider/SettingsProviderContext";
-import { cn } from "@src/utils/styleUtils";
 
 const formSchema = z.object({
   apiEndpoint: z

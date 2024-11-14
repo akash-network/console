@@ -2,9 +2,9 @@
 import { useState } from "react";
 import { MAINNET_ID } from "@akashnetwork/network-store";
 import { Alert, AlertDescription, AlertTitle, Badge, buttonVariants, Popup, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 
 import networkStore from "@src/store/networkStore";
-import { cn } from "@src/utils/styleUtils";
 
 export const SelectNetworkModal = ({ onClose }) => {
   const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore({ reloadOnChange: true });

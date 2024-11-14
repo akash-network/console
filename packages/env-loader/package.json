@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/env-loader",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Package used to load environment variables",
   "keywords": [],
   "license": "Apache-2.0",
@@ -8,13 +8,17 @@
   "main": "src/index.js",
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "update-apps-local-deps": "mvm-update"
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.12.1",
-    "pino": "^9.3.2"
+    "pino": "^9.5.0"
   },
   "bin": {
     "detect-env-files": "src/detect-files-stdout.js"
+  },
+  "devDependencies": {
+    "@b12k/mvm": "^0.0.10"
   }
 }

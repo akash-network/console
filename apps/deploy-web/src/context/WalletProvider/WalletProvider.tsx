@@ -89,6 +89,7 @@ export const WalletProvider = ({ children }) => {
   const {
     fee: { default: feeGranter }
   } = useAllowance(walletAddress as string, isManaged);
+  const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore({ reloadOnChange: true });
 
   useWhen(walletAddress, loadWallet);
 
@@ -101,12 +102,6 @@ export const WalletProvider = ({ children }) => {
       "akash-testnet": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] }
     });
   }, [addEndpoints, settings.apiEndpoint, settings.rpcEndpoint]);
-
-  useEffect(() => {
-    if (isWalletLoaded && !isLoading && !isWalletConnected && !!managedWallet && !isManaged) {
-      connectManagedWallet();
-    }
-  }, [isWalletLoaded, isLoading, isWalletConnected, managedWallet, connectManagedWallet, isManaged]);
 
   function switchWalletType() {
     if (selectedWalletType === "custodial" && !managedWallet) {
@@ -158,17 +153,25 @@ export const WalletProvider = ({ children }) => {
   }
 
   async function loadWallet(): Promise<void> {
-    let currentWallets = getStorageWallets();
+    const networkId =
+      isManaged && selectedNetworkId !== browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID
+        ? browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID
+        : undefined;
+    let currentWallets = getStorageWallets(networkId);
 
     if (!currentWallets.some(x => x.address === walletAddress)) {
-      currentWallets.push({ name: username || "", address: walletAddress as string, selected: true, isManaged: false });
+      currentWallets = [...currentWallets, { name: username || "", address: walletAddress as string, selected: true, isManaged: false }];
     }
 
     currentWallets = currentWallets.map(x => ({ ...x, selected: x.address === walletAddress }));
 
-    updateStorageWallets(currentWallets);
+    updateStorageWallets(currentWallets, networkId);
 
     setIsWalletLoaded(true);
+
+    if (networkId) {
+      setSelectedNetworkId(networkId);
+    }
   }
 
   async function signAndBroadcastTx(msgs: EncodeObject[]): Promise<boolean> {

@@ -1,8 +1,9 @@
-import { DepositDeploymentAuthorization } from "@akashnetwork/akash-api/v1beta3";
+import { DepositDeploymentAuthorization, MsgCloseDeployment } from "@akashnetwork/akash-api/v1beta3";
 import { MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 import { BasicAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
 import { MsgGrantAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
 import addYears from "date-fns/addYears";
+import Long from "long";
 import { singleton } from "tsyringe";
 
 export interface SpendingAuthorizationMsgOptions {
@@ -81,6 +82,18 @@ export class RpcMessageService {
         grantee,
         msgTypeUrl: "/cosmos.feegrant.v1beta1.MsgGrantAllowance"
       })
+    };
+  }
+
+  getCloseDeploymentMsg(address: string, dseq: number) {
+    return {
+      typeUrl: `/${MsgCloseDeployment.$type}`,
+      value: {
+        id: {
+          owner: address,
+          dseq: Long.fromString(dseq.toString(), true)
+        }
+      }
     };
   }
 }

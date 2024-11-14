@@ -1,5 +1,6 @@
 "use client";
 import { buttonVariants, Spinner } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import Link from "next/link";
 import { event } from "nextjs-google-analytics";
 
@@ -9,7 +10,6 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUserTemplates } from "@src/queries/useTemplateQuery";
 import { IUserSetting } from "@src/types/user";
 import { AnalyticsEvents } from "@src/utils/analytics";
-import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 
