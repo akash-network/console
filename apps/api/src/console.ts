@@ -11,6 +11,8 @@ import { container } from "tsyringe";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { chainDb } from "@src/db/dbConnection";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/deployment.controller";
+import { UserController } from "@src/user/controllers/user/user.controller";
+import { UserConfigService } from "@src/user/services/user-config/user-config.service";
 
 const program = new Command();
 
@@ -42,6 +44,16 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       await container.resolve(TopUpDeploymentsController).cleanUpStaleDeployment();
+    });
+  });
+
+const userConfig = container.resolve(UserConfigService);
+program
+  .command("cleanup-stale-anonymous-users")
+  .description(`Remove users that have been inactive for ${userConfig.get("STALE_ANONYMOUS_USERS_LIVE_IN_DAYS")} days`)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      await container.resolve(UserController).cleanUpStaleAnonymousUsers();
     });
   });
 

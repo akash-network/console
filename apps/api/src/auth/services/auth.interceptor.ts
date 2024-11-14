@@ -6,7 +6,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { kvStore } from "@src/middlewares/userMiddleware";
-import { UserRepository } from "@src/user/repositories";
+import { UserOutput, UserRepository } from "@src/user/repositories";
 import { env } from "@src/utils/env";
 import { getJwks, useKVStore, verify } from "@src/verify-rsa-jwt-cloudflare-worker-main";
 
@@ -27,10 +27,7 @@ export class AuthInterceptor implements HonoInterceptor {
 
       if (anonymousUserId) {
         const currentUser = await this.userRepository.findAnonymousById(anonymousUserId);
-
-        this.authService.currentUser = currentUser;
-        this.authService.ability = currentUser ? this.abilityService.getAbilityFor("REGULAR_ANONYMOUS_USER", currentUser) : this.abilityService.EMPTY_ABILITY;
-
+        await this.auth(currentUser);
         return await next();
       }
 
@@ -38,10 +35,7 @@ export class AuthInterceptor implements HonoInterceptor {
 
       if (userId) {
         const currentUser = await this.userRepository.findByUserId(userId);
-
-        this.authService.currentUser = currentUser;
-        this.authService.ability = currentUser ? this.abilityService.getAbilityFor("REGULAR_USER", currentUser) : this.abilityService.EMPTY_ABILITY;
-
+        this.auth(currentUser);
         return await next();
       }
 
@@ -49,6 +43,16 @@ export class AuthInterceptor implements HonoInterceptor {
 
       return await next();
     };
+  }
+
+  private async auth(user?: UserOutput) {
+    this.authService.currentUser = user;
+    if (user) {
+      this.authService.ability = this.abilityService.getAbilityFor(user.userId ? "REGULAR_ANONYMOUS_USER" : "REGULAR_USER", user);
+      await this.userRepository.markAsActive(user.id);
+    } else {
+      this.authService.ability = this.abilityService.EMPTY_ABILITY;
+    }
   }
 
   private async getValidUserId(bearer: string, c: Context) {

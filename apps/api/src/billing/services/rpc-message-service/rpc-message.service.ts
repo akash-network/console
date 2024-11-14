@@ -68,7 +68,7 @@ export class RpcMessageService {
         grantee,
         grant: {
           authorization: {
-            typeUrl: "/akash.deployment.v1beta3.DepositDeploymentAuthorization",
+            typeUrl: `/${DepositDeploymentAuthorization.$type}`,
             value: DepositDeploymentAuthorization.encode(
               DepositDeploymentAuthorization.fromPartial({
                 spendLimit: {
@@ -96,6 +96,17 @@ export class RpcMessageService {
         granter,
         grantee,
         msgTypeUrl: "/cosmos.feegrant.v1beta1.MsgGrantAllowance"
+      })
+    };
+  }
+
+  getRevokeDepositDeploymentGrantMsg({ granter, grantee }: { granter: string; grantee: string }) {
+    return {
+      typeUrl: MsgRevoke.typeUrl,
+      value: MsgRevoke.fromPartial({
+        granter: granter,
+        grantee: grantee,
+        msgTypeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment"
       })
     };
   }

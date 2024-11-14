@@ -14,3 +14,5 @@ export const USDC_TOP_UP_MASTER_WALLET = "USDC_TOP_UP_MASTER_WALLET";
 container.register(USDC_TOP_UP_MASTER_WALLET, { useFactory: () => new MasterWalletService(config.USDC_TOP_UP_MASTER_WALLET_MNEMONIC) });
 
 export const InjectWallet = (walletType: MasterWalletType) => inject(`${walletType}_MASTER_WALLET`);
+
+export const resolveWallet = (walletType: MasterWalletType) => container.resolve<MasterWalletService>(`${walletType}_MASTER_WALLET`);
