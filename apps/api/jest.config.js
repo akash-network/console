@@ -21,7 +21,8 @@ module.exports = {
       displayName: "unit",
       ...common,
       testMatch: ["<rootDir>/src/**/*.spec.ts"],
-      setupFilesAfterEnv: ["./test/setup-unit-tests.ts"]
+      setupFilesAfterEnv: ["./test/setup-unit-tests.ts"],
+      setupFiles: ["./test/setup-unit-env.ts"]
     },
     {
       displayName: "functional",

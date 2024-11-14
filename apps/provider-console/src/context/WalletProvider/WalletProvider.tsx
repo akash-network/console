@@ -46,6 +46,7 @@ type ContextType = {
   provider: any;
   isProviderStatusFetched: boolean;
   isProviderOnlineStatusFetched: boolean;
+  controlMachineStatus: any;
   handleArbitrarySigning: () => Promise<void>;
 };
 
@@ -62,6 +63,7 @@ export const WalletProvider = ({ children }) => {
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
   const [isWalletArbitrarySigned, setIsWalletArbitrarySigned] = useState<boolean>(false);
+  const [controlMachineStatus, setControlMachineStatus] = useState<any>(null);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const sigingClient = useRef<SigningStargateClient | null>(null);
   const router = useRouter();
@@ -335,7 +337,6 @@ export const WalletProvider = ({ children }) => {
   async function refreshBalances(address?: string): Promise<{ uakt: number; usdc: number }> {
     const _address = address || walletAddress;
     const client = await getStargateClient();
-
     if (client) {
       const balances = await client.getAllBalances(_address as string);
       const uaktBalance = balances.find(b => b.denom === uAktDenom);
@@ -377,6 +378,7 @@ export const WalletProvider = ({ children }) => {
         provider: provider,
         isProviderStatusFetched,
         isProviderOnlineStatusFetched,
+        controlMachineStatus,
         handleArbitrarySigning
       }}
     >
