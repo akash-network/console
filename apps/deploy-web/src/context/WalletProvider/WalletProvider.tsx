@@ -93,12 +93,11 @@ export const WalletProvider = ({ children }) => {
     fee: { default: feeGranter }
   } = useAllowance(walletAddress as string, isManaged);
   const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore({ reloadOnChange: true });
+  const shouldAutoConnectManagedWallet =
+    !isWalletConnected && selectedWalletType === "custodial" && !!managedWallet && !isWalletModalOpen && !userWallet.isWalletConnecting;
 
   useWhen(walletAddress, loadWallet);
-  useWhen(
-    !isWalletConnected && selectedWalletType === "custodial" && !!managedWallet && !isWalletModalOpen && !userWallet.isWalletConnecting,
-    switchWalletType
-  );
+  useWhen(shouldAutoConnectManagedWallet, switchWalletType);
 
   useEffect(() => {
     if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
