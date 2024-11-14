@@ -1,99 +1,20 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
-import { Separator } from "@akashnetwork/ui/components";
-import { CheckIcon, ChevronDownIcon, ChevronRightIcon, Loader2Icon, XIcon } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Separator, Spinner } from "@akashnetwork/ui/components";
+import { ArrowDown, ArrowRight, Check, Xmark } from "iconoir-react";
 
-import restClient from "@src/utils/restClient";
-
-interface Task {
-  title: string;
-  description: string;
-  status: "completed" | "in_progress" | "not_started" | "failed";
-  start_time: string | null;
-  end_time: string | null;
-}
-
-interface ApiResponse {
-  id: string;
-  name: string;
-  status: "completed" | "in_progress" | "failed";
-  start_time: string;
-  end_time: string | null;
-  tasks: Task[];
-}
-
-const formatLocalTime = (utcTime: string | null) => {
-  if (!utcTime) return null;
-  const [datePart, timePart] = utcTime.split("T");
-  const [year, month, day] = datePart.split("-").map(Number);
-  const [hours, minutes, seconds] = timePart.split(":").map(Number);
-
-  const utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
-
-  const options: Intl.DateTimeFormatOptions = {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-    timeZoneName: "short"
-  };
-
-  return utcDate.toLocaleString(undefined, options);
-};
-
-const formatTimeLapse = (start: string, end: string | null) => {
-  const startDate = new Date(start + "Z");
-  const endDate = end ? new Date(end + "Z") : new Date();
-
-  const durationMs = endDate.getTime() - startDate.getTime();
-  const hours = Math.floor(durationMs / (1000 * 60 * 60));
-  const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  } else if (minutes > 0) {
-    return `${minutes}m ${seconds}s`;
-  } else {
-    return `${seconds}s`;
-  }
-};
+import { useProviderActionStatus } from "@src/queries/useProviderQuery";
+import { formatLocalTime, formatTimeLapse } from "@src/utils/dateUtils";
 
 export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ actionId }) => {
-  const [processData, setProcessData] = useState<ApiResponse | null>(null);
   const [openAccordions, setOpenAccordions] = useState<boolean[]>([]);
-  const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
+  const { data: actionDetails, isLoading } = useProviderActionStatus(actionId);
 
   useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const response: any = await restClient.get(`/action/status/${actionId}`);
-        setProcessData(response);
-        setOpenAccordions(new Array(response.tasks.length).fill(false));
-
-        if (response.status === "completed" || response.status === "failed") {
-          if (intervalIdRef.current) {
-            clearInterval(intervalIdRef.current);
-            intervalIdRef.current = null;
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching status:", error);
-      }
-    };
-
-    fetchStatus();
-    intervalIdRef.current = setInterval(fetchStatus, 5000);
-
-    return () => {
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current);
-      }
-    };
-  }, [actionId]);
+    if (actionDetails) {
+      setOpenAccordions(new Array(actionDetails.tasks.length).fill(false));
+    }
+  }, [actionDetails]);
 
   const toggleAccordion = (index: number) => {
     setOpenAccordions(prev => {
@@ -114,7 +35,7 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
     );
   }
 
-  if (!processData) {
+  if (isLoading) {
     return <div>Loading...</div>;
   }
 
@@ -123,26 +44,26 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
       <div className="w-full space-y-6">
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
-            {processData.status === "in_progress" && <Loader2Icon className="h-5 w-5 animate-spin text-blue-500" />}
-            {processData.status === "completed" && <CheckIcon className="h-5 w-5 text-green-500" />}
-            {processData.status === "failed" && <XIcon className="h-5 w-5 text-red-500" />}
-            <span className="text-xl font-semibold">{processData.name}</span>
+            {actionDetails?.status === "in_progress" && <Spinner className="h-5 w-5 animate-spin text-blue-500" />}
+            {actionDetails?.status === "completed" && <Check className="h-5 w-5 text-green-500" />}
+            {actionDetails?.status === "failed" && <Xmark className="h-5 w-5 text-red-500" />}
+            <span className="text-xl font-semibold">{actionDetails?.name}</span>
           </div>
           <Separator />
-          <p className="text-sm text-gray-500">{processData.id}</p>
+          <p className="text-sm text-gray-500">{actionDetails?.id}</p>
           <p className="text-sm text-gray-500">
-            Started: {formatLocalTime(processData.start_time)}
-            {processData.end_time && ` | Ended: ${formatLocalTime(processData.end_time)}`}
+            Started: {formatLocalTime(actionDetails?.start_time)}
+            {actionDetails?.end_time && ` | Ended: ${formatLocalTime(actionDetails?.end_time)}`}
           </p>
         </div>
 
         <div className="space-y-4">
           <div className="rounded-md border">
-            {processData.tasks.map((task, index) => (
+            {actionDetails?.tasks.map((task, index) => (
               <div key={index}>
                 <div className="flex cursor-pointer items-center justify-between p-4" onClick={() => toggleAccordion(index)}>
                   <div className="flex items-center">
-                    {openAccordions[index] ? <ChevronDownIcon className="mr-2 h-5 w-5" /> : <ChevronRightIcon className="mr-2 h-5 w-5" />}
+                    {openAccordions[index] ? <ArrowDown className="mr-2 h-5 w-5" /> : <ArrowRight className="mr-2 h-5 w-5" />}
                     <span>{task.description}</span>
                   </div>
                   <div className="flex items-center">
@@ -155,10 +76,10 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
                             : ""}
                       </p>
                     )}
-                    {task.status === "completed" && <CheckIcon className="h-4 w-4 text-green-500" />}
-                    {task.status === "in_progress" && <Loader2Icon className="h-5 w-5 animate-spin text-blue-500" />}
+                    {task.status === "completed" && <Check className="h-4 w-4 text-green-500" />}
+                    {task.status === "in_progress" && <Spinner className="h-5 w-5 animate-spin text-blue-500" />}
                     {task.status === "not_started" && <div className="h-5 w-5 rounded-full border-2"></div>}
-                    {task.status === "failed" && <XIcon className="h-4 w-4 text-red-500" />}
+                    {task.status === "failed" && <Xmark className="h-4 w-4 text-red-500" />}
                   </div>
                 </div>
                 {openAccordions[index] && (
@@ -168,7 +89,7 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
                     {task.end_time && <p className="text-xs text-gray-500">Ended: {formatLocalTime(task.end_time)}</p>}
                   </div>
                 )}
-                {index < processData.tasks.length - 1 && <div className="border-t"></div>}
+                {index < actionDetails?.tasks.length - 1 && <div className="border-t"></div>}
               </div>
             ))}
           </div>

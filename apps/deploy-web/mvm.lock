@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "@akashnetwork/env-loader": "1.0.1",
-    "@akashnetwork/http-sdk": "1.0.7",
+    "@akashnetwork/http-sdk": "1.0.8",
     "@akashnetwork/network-store": "1.0.1",
     "@akashnetwork/ui": "1.0.0"
   },

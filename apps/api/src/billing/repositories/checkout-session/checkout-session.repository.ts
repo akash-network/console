@@ -1,9 +1,10 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { backOff } from "exponential-backoff";
 import { singleton } from "tsyringe";
 
 import { ApiPgDatabase, ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
-import { LoggerService, TxService } from "@src/core/services";
+import { TxService } from "@src/core/services";
 
 type Table = ApiPgTables["CheckoutSessions"];
 export type CheckoutSessionsInput = Partial<Table["$inferInsert"]>;
@@ -11,7 +12,7 @@ export type CheckoutSessionsOutput = Table["$inferSelect"];
 
 @singleton()
 export class CheckoutSessionRepository extends BaseRepository<Table, CheckoutSessionsInput, CheckoutSessionsOutput> {
-  private readonly logger = new LoggerService({ context: CheckoutSessionRepository.name });
+  private readonly logger = LoggerService.forContext(CheckoutSessionRepository.name);
 
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,

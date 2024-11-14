@@ -9,12 +9,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
 
+import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";
+import { useTemplates } from "@src/context/TemplatesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { extractRepositoryUrl, isImageInYaml } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { RouteStep } from "@src/types/route-steps.type";
 import { AnalyticsEvents } from "@src/utils/analytics";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
@@ -31,10 +34,16 @@ import { ManifestUpdate } from "./ManifestUpdate";
 export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: string }>) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
+  const [editedManifest, setEditedManifest] = useState<string | null>(null);
   const { address, isWalletLoaded } = useWallet();
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
+  const { getTemplateById } = useTemplates();
+  const remoteDeployTemplate = getTemplateById(CI_CD_TEMPLATE_ID);
+  const isRemoteDeploy: boolean = !!editedManifest && !!isImageInYaml(editedManifest, remoteDeployTemplate?.deploy);
+  const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
+
   const {
     data: deployment,
     isFetching: isLoadingDeployment,
@@ -45,7 +54,6 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
       if (_deploymentDetail) {
         getLeases();
         getProviders();
-
         const deploymentData = getDeploymentLocalData(dseq);
         setDeploymentManifest(deploymentData?.manifest || "");
       }
@@ -84,6 +92,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
   const { isLocalCertMatching, localCert, isCreatingCert, createCertificate } = useCertificate();
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
   const isActive = deployment?.state === "active" && leases?.some(x => x.state === "active");
+
   const searchParams = useSearchParams();
   const tabQuery = searchParams?.get("tab");
   const logsModeQuery = searchParams?.get("logsMode");
@@ -189,6 +198,9 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
 
             {activeTab === "EDIT" && deployment && leases && (
               <ManifestUpdate
+                editedManifest={editedManifest as string}
+                onManifestChange={setEditedManifest}
+                isRemoteDeploy={isRemoteDeploy}
                 deployment={deployment}
                 leases={leases}
                 closeManifestEditor={() => {
@@ -215,6 +227,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
                 {leases &&
                   leases.map((lease, i) => (
                     <LeaseRow
+                      repo={repo}
                       key={lease.id}
                       index={i}
                       lease={lease}
@@ -224,6 +237,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
                       dseq={dseq}
                       providers={providers || []}
                       loadDeploymentDetail={loadDeploymentDetail}
+                      isRemoteDeploy={isRemoteDeploy}
                     />
                   ))}
 
