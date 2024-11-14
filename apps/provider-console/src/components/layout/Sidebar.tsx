@@ -4,20 +4,19 @@ import { Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { Calculator, ClipboardCheck, Cloud, Discord, Github, ListSelect, Menu, MenuScale, Rocket, Settings, X as TwitterX, Youtube } from "iconoir-react";
+import { Discord, Github, Menu, MenuScale, Rocket, X as TwitterX, Youtube, Cloud, Settings, ClipboardCheck, Calculator, ListSelect } from "iconoir-react";
 import { Home, OpenInWindow } from "iconoir-react";
 import getConfig from "next/config";
 import Image from "next/image";
 import Link from "next/link";
 
-import { useControlMachine } from "@src/context/ControlMachineProvider";
-import { useWallet } from "@src/context/WalletProvider";
 import { ISidebarGroupMenu } from "@src/types";
 import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ModeToggle } from "./ModeToggle";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
+import { useWallet } from "@src/context/WalletProvider";
 
 const { publicRuntimeConfig } = getConfig();
 
@@ -29,10 +28,11 @@ type Props = {
   isNavOpen: boolean;
 };
 
-export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
+export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
   const [isHovering, setIsHovering] = useState(false);
   const { isProvider, isOnline } = useWallet();
   const _isNavOpen = isNavOpen || isHovering;
+  // const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
@@ -52,7 +52,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
           title: "Deployments",
           icon: props => <Cloud {...props} />,
           url: UrlService.deployments(),
-          activeRoutes: [UrlService.deployments()]
+          activeRoutes: [UrlService.deployments()],
         },
         {
           title: "Actions",
@@ -267,6 +267,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         ["md:w-[57px]"]: !(_isNavOpen || isHovering)
       })}
     >
+      {/* Mobile Drawer */}
       <Drawer
         variant="temporary"
         open={isMobileOpen}
@@ -274,7 +275,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         onClose={handleDrawerToggle}
         className="block p-4 md:hidden"
         ModalProps={{
-          keepMounted: true
+          keepMounted: true // Better open performance on mobile.
         }}
         sx={{
           display: { xs: "block", sm: "block", md: "none" },
@@ -289,6 +290,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         {drawer}
       </Drawer>
 
+      {/* Desktop Drawer */}
       <Drawer
         className="hidden md:block"
         variant="permanent"

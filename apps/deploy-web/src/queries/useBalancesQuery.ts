@@ -23,16 +23,13 @@ async function getBalances(apiEndpoint: string, address?: string): Promise<Balan
   const [balanceResponse, authzBalanceResponse, activeDeploymentsResponse] = await Promise.all([balancePromise, authzBalancePromise, activeDeploymentsPromise]);
 
   // Authz Grants
-  const deploymentGrants = authzBalanceResponse.data.grants.filter(
-    b => b.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
-  );
-  const deploymentGrantsUAKT = parseFloat(
-    deploymentGrants.find(b => b.authorization.spend_limit.denom === UAKT_DENOM)?.authorization.spend_limit.amount || "0"
-  );
-
-  const deploymentGrantsUUSDC = parseFloat(
-    deploymentGrants.find(b => b.authorization.spend_limit.denom === usdcIbcDenom)?.authorization.spend_limit.amount || "0"
-  );
+  const deploymentGrants = authzBalanceResponse.data;
+  const deploymentGrantsUAKT = deploymentGrants.grants.some(b => b.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization")
+    ? parseFloat(deploymentGrants.grants.find(b => b.authorization.spend_limit.denom === UAKT_DENOM)?.authorization.spend_limit.amount || "0")
+    : 0;
+  const deploymentGrantsUUSDC = deploymentGrants.grants.some(b => b.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization")
+    ? parseFloat(deploymentGrants.grants.find(b => b.authorization.spend_limit.denom === usdcIbcDenom)?.authorization.spend_limit.amount || "0")
+    : 0;
 
   // Balance
   const balanceData = balanceResponse.data;

@@ -92,9 +92,6 @@ export const WalletProvider = ({ children }) => {
   const {
     fee: { default: feeGranter }
   } = useAllowance(walletAddress as string, isManaged);
-  const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore({ reloadOnChange: true });
-  const shouldAutoConnectManagedWallet =
-    !isWalletConnected && selectedWalletType === "custodial" && !!managedWallet && !isWalletModalOpen && !userWallet.isWalletConnecting;
 
   useWhen(walletAddress, loadWallet);
   useWhen(shouldAutoConnectManagedWallet, switchWalletType);
@@ -108,6 +105,12 @@ export const WalletProvider = ({ children }) => {
       "akash-testnet": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] }
     });
   }, [addEndpoints, settings.apiEndpoint, settings.rpcEndpoint]);
+
+  useEffect(() => {
+    if (isWalletLoaded && !isLoading && !isWalletConnected && !!managedWallet && !isManaged) {
+      connectManagedWallet();
+    }
+  }, [isWalletLoaded, isLoading, isWalletConnected, managedWallet, connectManagedWallet, isManaged]);
 
   function switchWalletType() {
     if (selectedWalletType === "custodial" && !managedWallet) {
@@ -160,25 +163,17 @@ export const WalletProvider = ({ children }) => {
   }
 
   async function loadWallet(): Promise<void> {
-    const networkId =
-      isManaged && selectedNetworkId !== browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID
-        ? browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID
-        : undefined;
-    let currentWallets = getStorageWallets(networkId);
+    let currentWallets = getStorageWallets();
 
     if (!currentWallets.some(x => x.address === walletAddress)) {
-      currentWallets = [...currentWallets, { name: username || "", address: walletAddress as string, selected: true, isManaged: false }];
+      currentWallets.push({ name: username || "", address: walletAddress as string, selected: true, isManaged: false });
     }
 
     currentWallets = currentWallets.map(x => ({ ...x, selected: x.address === walletAddress }));
 
-    updateStorageWallets(currentWallets, networkId);
+    updateStorageWallets(currentWallets);
 
     setIsWalletLoaded(true);
-
-    if (networkId) {
-      setSelectedNetworkId(networkId);
-    }
   }
 
   async function signAndBroadcastTx(msgs: EncodeObject[]): Promise<boolean> {

@@ -8,7 +8,8 @@ const envSchema = z.object({
   FLUENTD_HOST: z.string().optional(),
   FLUENTD_PORT: z.number({ coerce: true }).optional().default(24224),
   NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development"),
-  POSTGRES_DB_URI: z.string(),
+  // TODO: make required once billing is in prod
+  POSTGRES_DB_URI: z.string().optional(),
   POSTGRES_MAX_CONNECTIONS: z.number({ coerce: true }).optional().default(20),
   DRIZZLE_MIGRATIONS_FOLDER: z.string().optional().default("./drizzle"),
   DEPLOYMENT_ENV: z.string().optional().default("production"),

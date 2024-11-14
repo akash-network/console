@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import { ArrowRight, Cpu, Linux, Rocket, Wrench } from "iconoir-react";
 import { NavArrowLeft } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -13,6 +12,7 @@ import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import sdlStore from "@src/store/sdlStore";
 import { ApiTemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
+import { cn } from "@src/utils/styleUtils";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../shared/CustomNextSeo";

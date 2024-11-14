@@ -1,9 +1,6 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
 import {
   Button,
-  Form,
   FormControl,
   FormDescription,
   FormField,
@@ -13,29 +10,33 @@ import {
   RadioGroup,
   RadioGroupItem,
   Separator,
-  Textarea
+  Textarea,
+  Form
 } from "@akashnetwork/ui/components";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Home } from "iconoir-react";
+import React, { useState, useEffect } from "react";
 import { useAtom } from "jotai";
-import { useRouter } from "next/router";
-import { z } from "zod";
-
-import { useControlMachine } from "@src/context/ControlMachineProvider";
-import { useWallet } from "@src/context/WalletProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
 import { ControlMachineWithAddress } from "@src/types/controlMachine";
 import restClient from "@src/utils/restClient";
-import { ResetProviderForm } from "./ResetProviderProcess";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import ResetProviderForm from "./ResetProviderProcess";
+import { useForm } from "react-hook-form";
+import { HomeIcon } from "lucide-react";
+import controlMachineStore from "@src/store/controlMachineStore";
 
+// Utility function to decode Base64
 function decodeBase64(base64: string): string {
   return Buffer.from(base64, "base64").toString("utf-8");
 }
 
+// Add this function at the top of the file, outside of any component
 async function encrypt(data: string, publicKey: string): Promise<string> {
+  // Dynamically import JSEncrypt
   const { default: JSEncrypt } = await import("jsencrypt");
   const encryptor = new JSEncrypt();
 
+  // Decode the Base64-encoded public key
   const decodedPublicKey = decodeBase64(publicKey);
   encryptor.setPublicKey(decodedPublicKey);
 
@@ -47,7 +48,7 @@ async function encrypt(data: string, publicKey: string): Promise<string> {
 }
 
 interface WalletImportProps {
-  onComplete: () => void;
+  stepChange: () => void;
 }
 
 const appearanceFormSchema = z.object({
@@ -71,17 +72,15 @@ const seedFormSchema = z.object({
 type AppearanceFormValues = z.infer<typeof appearanceFormSchema>;
 type SeedFormValues = z.infer<typeof seedFormSchema>;
 
-export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
+export const WalletImport: React.FunctionComponent<WalletImportProps> = ({ stepChange }) => {
   const [mode, setMode] = useState<string>("");
+  const [showSeedForm, setShowSeedForm] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
-  const [providerProcess] = useAtom(providerProcessStore.providerProcessAtom);
-  const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
-  const { setControlMachine } = useControlMachine();
-  const { address } = useWallet();
+  const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
+  const [controlMachine, setControlMachine] = useAtom(controlMachineStore.controlMachineAtom);
 
   const defaultValues: Partial<AppearanceFormValues> = {
     walletMode: "seed"
@@ -101,7 +100,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
 
   const submitForm = async (data: SeedFormValues) => {
     setIsLoading(true);
-    setError(null);
+    setError(null); // Reset error state
     try {
       if (providerProcess.machines && providerProcess.machines.length > 0) {
         const publicKey = providerProcess.machines[0].systemInfo.public_key;
@@ -128,18 +127,25 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
           }
         };
 
+        // Make a POST request using restClient
         const response: any = await restClient.post("/build-provider", finalRequest, {
           headers: { "Content-Type": "application/json" }
         });
 
         if (response.action_id) {
-          const machineWithAddress: ControlMachineWithAddress = {
-            address: address,
-            ...providerProcess.machines[0]
-          };
-          await setControlMachine(machineWithAddress);
-          resetProviderProcess();
-          router.push(`/action?id=${response.action_id}`);
+          setControlMachine({
+            access: providerProcess.machines[0].access,
+            systemInfo: providerProcess.machines[0].systemInfo
+          });
+          setProviderProcess(prev => ({
+            ...prev,
+            actionId: response.action_id,
+            process: {
+              ...prev.process,
+              walletImport: true
+            }
+          }));
+          stepChange();
         } else {
           throw new Error("Invalid response from server");
         }
@@ -160,7 +166,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
   }, []);
 
   if (!isMounted) {
-    return null;
+    return null; // or a loading spinner
   }
 
   return (
@@ -195,7 +201,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                               <div className="border-muted hover:border-accent items-center rounded-md border-2 p-1">
                                 <div className="space-y-2 rounded-sm p-2">
                                   <div className="space-y-2 rounded-md p-4 shadow-sm">
-                                    <Home />
+                                    <HomeIcon />
                                     <h4 className="text-md">Seed Phrase Mode</h4>
                                     <p>Provider Console will auto import using secure end-to-end encryption. Seed Phrase is Required.</p>
                                   </div>
@@ -211,7 +217,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                               <div className="border-muted bg-popover hover:bg-accent hover:text-accent-foreground items-center rounded-md border-2 p-1">
                                 <div className="space-y-2 rounded-sm bg-slate-950 p-2">
                                   <div className="space-y-2 rounded-sm bg-slate-800 p-4 text-white">
-                                    <Home />
+                                    <HomeIcon />
                                     <h4 className="text-md">Manual Mode</h4>
                                     <p>You need to login to control machine and follow the instruction to import wallet. Seed Phrase is not Required.</p>
                                   </div>
@@ -265,7 +271,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                         <FormControl>
                           <Textarea placeholder="Enter your seed phrase" {...field} rows={4} />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage /> {/* Ensure this is placed correctly */}
                       </FormItem>
                     )}
                   />
@@ -331,8 +337,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
             <Button
               type="button"
               onClick={() => {
-                // TODO: Verify Manual Wallet Import
-                console.log("Manual Wallet Import");
+                /* Handle completion */
               }}
             >
               Verify Wallet Import

@@ -1,4 +1,6 @@
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import axios from "axios";
+
+import { BASE_API_URL } from "./constants";
 import { appendSearchParams } from "./urlUtils";
 export class ApiUrlService {
   static mainnetVersion() {
@@ -12,24 +14,28 @@ export class ApiUrlService {
   }
 
   static mainnetNodes() {
-    return `${browserEnvConfig.NEXT_PUBLIC_CONSOLE_API_MAINNET_URL}/v1/nodes/mainnet`;
+    return `${BASE_API_URL}/v1/nodes/mainnet`;
   }
   static testnetNodes() {
-    return `${browserEnvConfig.NEXT_PUBLIC_CONSOLE_API_MAINNET_URL}/v1/nodes/testnet`;
+    return `${BASE_API_URL}/v1/nodes/testnet`;
   }
   static sandboxNodes() {
-    return `${browserEnvConfig.NEXT_PUBLIC_CONSOLE_API_MAINNET_URL}/v1/nodes/sandbox`;
+    return `${BASE_API_URL}/v1/nodes/sandbox`;
   }
   static depositParams(apiEndpoint: string) {
     return `${apiEndpoint}/cosmos/params/v1beta1/params?subspace=deployment&key=MinDeposits`;
   }
   static marketData() {
-    return `${browserEnvConfig.NEXT_PUBLIC_CONSOLE_API_MAINNET_URL}/v1/market-data`;
+    return `${BASE_API_URL}/v1/market-data`;
   }
   static blocks(limit: number) {
-    return `${browserEnvConfig.NEXT_PUBLIC_CONSOLE_API_MAINNET_URL}/v1/blocks${appendSearchParams({ limit })}`;
+    return `${BASE_API_URL}/v1/blocks${appendSearchParams({ limit })}`;
   }
   static block(apiEndpoint: string, id: string) {
     return `${apiEndpoint}/blocks/${id}`;
   }
 }
+
+export const mainnetNodes = ApiUrlService.mainnetNodes();
+export const testnetNodes = ApiUrlService.testnetNodes();
+export const sandboxNodes = ApiUrlService.sandboxNodes();

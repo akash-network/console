@@ -241,7 +241,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                         {isManagedWallet ? (
                           <PriceValue denom={deployment.escrowAccount.balance.denom} value={escrowBalanceInDenom} />
                         ) : (
-                          `${escrowBalanceInDenom} ${denomData?.label}`
+                          `${escrowBalanceInDenom}&nbsp;{denomData?.label}`
                         )}
                       </strong>
                     </div>
@@ -251,7 +251,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                         {isManagedWallet ? (
                           <PriceValue denom={deployment.escrowAccount.balance.denom} value={udenomToDenom(amountSpent || 0, 2)} />
                         ) : (
-                          `${udenomToDenom(amountSpent || 0, 2)} ${denomData?.label}`
+                          `${udenomToDenom(amountSpent || 0, 2)}&nbsp;${denomData?.label}`
                         )}
                       </strong>
                     </div>

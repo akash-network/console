@@ -1,7 +1,7 @@
 import { QueryKey, useQuery, UseQueryOptions } from "react-query";
 import axios from "axios";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import { useSettings } from "@src/context/SettingsProvider";
 import { Block } from "@src/types";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
@@ -14,7 +14,8 @@ async function getBlock(apiEndpoint, id) {
 }
 
 export function useBlock(id, options = {}) {
-  return useQuery(QueryKeys.getBlockKey(id), () => getBlock(browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL, id), {
+  const { settings } = useSettings();
+  return useQuery(QueryKeys.getBlockKey(id), () => getBlock(settings.apiEndpoint, id), {
     refetchInterval: false,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,

@@ -1,7 +1,6 @@
-import { QueryKey, useQuery, UseQueryOptions } from "react-query";
+import { useQuery } from "react-query";
 import axios from "axios";
 
-import { useWallet } from "@src/context/WalletProvider";
 import { BidDto, RpcBid } from "@src/types/deployment";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { useSettings } from "../context/SettingsProvider";
@@ -11,9 +10,8 @@ async function getBidList(apiEndpoint: string, address: string, dseq: string): P
   if (!address || !dseq) return null;
 
   const response = await axios.get(ApiUrlService.bidList(apiEndpoint, address, dseq));
-  let bids = response.data.bids as RpcBid[];
 
-  return bids.map((b: RpcBid) => ({
+  return response.data.bids.map((b: RpcBid) => ({
     id: b.bid.bid_id.provider + b.bid.bid_id.dseq + b.bid.bid_id.gseq + b.bid.bid_id.oseq,
     owner: b.bid.bid_id.owner,
     provider: b.bid.bid_id.provider,
@@ -26,10 +24,8 @@ async function getBidList(apiEndpoint: string, address: string, dseq: string): P
   }));
 }
 
-export function useBidList(address: string, dseq: string, options?: Omit<UseQueryOptions<BidDto[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
+export function useBidList(address: string, dseq: string, options) {
   const { settings } = useSettings();
-  const { isTrialing } = useWallet();
-
   return useQuery(QueryKeys.getBidListKey(address, dseq), () => getBidList(settings.apiEndpoint, address, dseq), options);
 }
 

@@ -1,12 +1,9 @@
 import { z } from "zod";
 
-import { memoryUnits, storageUnits, validationConfig } from "@src/utils/akash/units";
-import { ENDPOINT_NAME_VALIDATION_REGEX } from "@src/utils/deploymentData/v1beta3";
-import { roundDecimal } from "@src/utils/mathHelpers";
-import { bytesToShrink } from "@src/utils/unitUtils";
+import { memoryUnits, validationConfig } from "@src/utils/akash/units";
+import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
 
-const VALID_IMAGE_NAME =
-  /^(?:(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])(?:(?:\.(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]))+)?(?::[0-9]+)?\/)?[a-z0-9]+(?:(?:(?:[._]|__|[-]*)[a-z0-9]+)+)?(?:\/[a-z0-9]+(?:(?:(?:[._]|__|[-]*)[a-z0-9]+)+)?)*(?::[a-zA-Z0-9_.-]+)?(?:@[a-zA-Z0-9_.:+-]+)?$/;
+const VALID_IMAGE_NAME = /^[a-z0-9\-_/:.]+$/;
 
 export const ProfileGpuModelSchema = z.object({
   vendor: z.string().min(1, { message: "Vendor is required." }),
@@ -229,11 +226,8 @@ const validateGpuAmount = (value: number, serviceCount: number, context: z.Refin
 };
 
 const validateMemoryAmount = (value: number, ramUnit: string, serviceCount: number, context: z.RefinementCtx) => {
-  const currentUnit = memoryUnits.find(u => ramUnit.toLowerCase() === u.suffix.toLowerCase());
+  const currentUnit = memoryUnits.find(u => ramUnit === u.suffix);
   const _value = (value || 0) * (currentUnit?.value || 0);
-  const maxValue = bytesToShrink(validationConfig.maxMemory);
-  const maxGroupValue = bytesToShrink(validationConfig.maxGroupMemory);
-
   if (serviceCount === 1 && _value < validationConfig.minMemory) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
@@ -245,7 +239,7 @@ const validateMemoryAmount = (value: number, ramUnit: string, serviceCount: numb
   } else if (serviceCount === 1 && _value > validationConfig.maxMemory) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
-      message: `Maximum amount of memory for a single service instance is ${roundDecimal(maxValue.value, 2)} ${maxValue.unit}.`,
+      message: `Maximum amount of memory for a single service instance is 512 Gi.`,
       path: ["profile", "ram"],
       fatal: true
     });
@@ -253,7 +247,7 @@ const validateMemoryAmount = (value: number, ramUnit: string, serviceCount: numb
   } else if (serviceCount > 1 && serviceCount * _value > validationConfig.maxGroupMemory) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
-      message: `Maximum total amount of memory for a single service instance group is ${roundDecimal(maxGroupValue.value, 2)} ${maxGroupValue.unit}.`,
+      message: `Maximum total amount of memory for a single service instance group is 1024 Gi.`,
       path: ["profile", "ram"],
       fatal: true
     });
@@ -262,9 +256,8 @@ const validateMemoryAmount = (value: number, ramUnit: string, serviceCount: numb
 };
 
 const validateStorageAmount = (value: number, storageUnit: string, serviceCount: number, context: z.RefinementCtx) => {
-  const currentUnit = storageUnits.find(u => storageUnit.toLowerCase() === u.suffix.toLowerCase());
+  const currentUnit = memoryUnits.find(u => storageUnit === u.suffix);
   const _value = (value || 0) * (currentUnit?.value || 0);
-  const maxValue = bytesToShrink(validationConfig.maxStorage);
 
   if (serviceCount === 1 && _value < validationConfig.minStorage) {
     context.addIssue({
@@ -277,7 +270,7 @@ const validateStorageAmount = (value: number, storageUnit: string, serviceCount:
   } else if (serviceCount === 1 && _value > validationConfig.maxStorage) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
-      message: `Maximum amount of storage for a single service instance is ${roundDecimal(maxValue.value, 2)} ${maxValue.unit}.`,
+      message: `Maximum amount of storage for a single service instance is 32 Ti.`,
       path: ["profile", "storage"],
       fatal: true
     });

@@ -44,16 +44,15 @@ export function AccountMenu() {
                 onMouseLeave={() => {
                   setOpen(false);
                 }}
-                className="w-[160px]"
               >
                 <ClickAwayListener
                   onClickAway={() => {
                     setOpen(false);
                   }}
                 >
-                  <div className="flex items-center justify-center w-full">
+                  <div>
                     {!isLoading && user ? (
-                      <div className="w-full">
+                      <div>
                         {username && (
                           <CustomDropdownLinkItem
                             onClick={() => router.push(UrlService.userProfile(username))}
@@ -87,14 +86,14 @@ export function AccountMenu() {
                         </CustomDropdownLinkItem>
                       </div>
                     ) : (
-                      <div className="w-full space-y-1">
+                      <div>
                         <CustomDropdownLinkItem
-                          className="bg-primary !text-white hover:bg-primary/80 hover:text-white focus:bg-primary/80 justify-center p-2"
+                          className="bg-primary !text-white hover:bg-primary/80 hover:text-white focus:bg-primary/80"
                           onClick={() => router.push(UrlService.signup())}
                         >
                           Sign up
                         </CustomDropdownLinkItem>
-                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.login())} className="justify-center p-2">Sign in</CustomDropdownLinkItem>
+                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.login())}>Sign in</CustomDropdownLinkItem>
                       </div>
                     )}
                   </div>

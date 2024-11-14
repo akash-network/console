@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { MdSearchOff } from "react-icons/md";
 import { Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import { FilterList, Xmark } from "iconoir-react";
@@ -10,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { ApiTemplate } from "@src/types";
+import { cn } from "@src/utils/styleUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { useTemplates } from "../../context/TemplatesProvider";
 import Layout from "../layout/Layout";

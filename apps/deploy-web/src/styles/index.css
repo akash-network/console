@@ -139,7 +139,3 @@ body {
   /* Low border radius */
   --radius: 0.25rem;
 }
-
-.monaco-editor {
-  position: absolute !important;
-}

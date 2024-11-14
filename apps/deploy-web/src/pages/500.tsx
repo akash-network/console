@@ -1,12 +1,12 @@
 import React from "react";
 import { buttonVariants } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import { ArrowLeft } from "iconoir-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
+import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 
 const FiveHundred: React.FunctionComponent = () => {

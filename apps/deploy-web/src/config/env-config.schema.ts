@@ -5,8 +5,6 @@ const coercedBoolean = () => z.enum(["true", "false"]).transform(val => val === 
 
 export const browserEnvSchema = z.object({
   NEXT_PUBLIC_MASTER_WALLET_ADDRESS: z.string(),
-  NEXT_PUBLIC_UAKT_TOP_UP_MASTER_WALLET_ADDRESS: z.string(),
-  NEXT_PUBLIC_USDC_TOP_UP_MASTER_WALLET_ADDRESS: z.string(),
   NEXT_PUBLIC_BILLING_ENABLED: coercedBoolean().optional().default("false"),
   NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: networkId.optional().default("mainnet"),
   NEXT_PUBLIC_DEFAULT_NETWORK_ID: networkId.optional().default("mainnet"),

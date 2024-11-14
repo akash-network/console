@@ -65,7 +65,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const [selectedBids, setSelectedBids] = useState<{ [gseq: string]: BidDto }>({});
   const [filteredBids, setFilteredBids] = useState<Array<string>>([]);
   const [search, setSearch] = useState("");
-  const { address, signAndBroadcastTx, isManaged, isTrialing } = useWallet();
+  const { address, signAndBroadcastTx } = useWallet();
   const { localCert } = useCertificate();
   const router = useRouter();
   const [numberOfRequests, setNumberOfRequests] = useState(0);
@@ -95,6 +95,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
   const allClosed = (bids?.length || 0) > 0 && bids?.every(bid => bid.state === "closed");
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const wallet = useWallet();
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
 
   useEffect(() => {
@@ -120,7 +121,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     }
 
     const sendManifestNotification =
-      !isManaged &&
+      !wallet.isManaged &&
       enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
         variant: "info",
         autoHideDuration: null
@@ -150,7 +151,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
       setIsSendingManifest(false);
     }
-  }, [selectedBids, dseq, providers, localCert, isManaged, enqueueSnackbar, closeSnackbar, router]);
+  }, [selectedBids, dseq, providers, localCert, wallet.isManaged, enqueueSnackbar, closeSnackbar, router]);
 
   // Filter bids
   useEffect(() => {
@@ -205,8 +206,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         label: "Create lease"
       });
       await sendManifest();
-    } catch (error) {
-      console.error(error);
     } finally {
       setIsCreatingLeases(false);
     }

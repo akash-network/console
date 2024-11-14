@@ -6,7 +6,6 @@ import React from "react";
 import { QueryClientProvider } from "react-query";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context";
-import { cn } from "@akashnetwork/ui/utils";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
 import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
@@ -31,6 +30,7 @@ import { TemplatesProvider } from "@src/context/TemplatesProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import { queryClient } from "@src/queries";
 import { store } from "@src/store/global-store";
+import { cn } from "@src/utils/styleUtils";
 
 interface Props extends AppProps {}
 

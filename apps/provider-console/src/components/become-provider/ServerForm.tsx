@@ -1,6 +1,4 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
 import {
   Alert,
   AlertDescription,
@@ -16,22 +14,20 @@ import {
   FormMessage,
   Input,
   Separator,
-  Spinner,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger
 } from "@akashnetwork/ui/components";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useAtom } from "jotai/react";
-import { z } from "zod";
-
-import { useControlMachine } from "@src/context/ControlMachineProvider";
-import { useWallet } from "@src/context/WalletProvider";
-import providerProcessStore from "@src/store/providerProcessStore";
-import { ControlMachineWithAddress } from "@src/types/controlMachine";
 import restClient from "@src/utils/restClient";
-import { ResetProviderForm } from "./ResetProviderProcess";
+import { Loader2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import providerProcessStore from "@src/store/providerProcessStore";
+import { useAtom } from "jotai/react";
+import ResetProviderForm from "./ResetProviderProcess";
 
 const baseSchema = z.object({
   hostname: z.string().min(2, { message: "IP must be at least 2 characters." }).max(30, { message: "IP must not be longer than 30 characters." }),
@@ -57,12 +53,10 @@ type AccountFormValues = z.infer<typeof accountFormSchema>;
 
 interface ServerFormProp {
   currentServerNumber: number;
-  onComplete: () => void;
-  editMode?: boolean;
-  controlMachine?: ControlMachineWithAddress | null;
+  onSubmit: () => void;
 }
 
-export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onComplete, editMode = false, controlMachine }) => {
+export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentServerNumber, onSubmit }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [storedFileContent, setStoredFileContent] = useState<string | null>(null);
@@ -74,7 +68,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
       return {
         hostname: "",
         authType: "password",
-        username: "root",
+        username: "root", // Set default username to "root"
         port: 22
       };
     }
@@ -82,30 +76,31 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
     const firstServer = providerProcess.machines[0]?.access;
     return {
       ...firstServer,
-      hostname: "",
+      hostname: "", // Reset hostname for new server
       authType: firstServer.file ? "file" : "password",
       password: firstServer.password,
-      username: "root"
+      username: "root" // Ensure username is set to "root" even when copying from previous server
     };
   };
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
-    defaultValues: editMode ? controlMachine?.access : (getDefaultValues() as any)
+    defaultValues: getDefaultValues() as any // Temporary fix
   });
 
   useEffect(() => {
     if (currentServerNumber > 0 && providerProcess?.storeInformation) {
-      const firstServer = editMode ? controlMachine?.access : providerProcess.machines[0]?.access;
-      if (firstServer?.file) {
-        setStoredFileContent(typeof firstServer.file === "string" ? firstServer.file : null);
+      const firstServer = providerProcess.machines[0]?.access;
+      if (firstServer.file) {
+        // Ensure firstServer.file is a string (base64)
+        setStoredFileContent(typeof firstServer.file === 'string' ? firstServer.file : null);
         form.setValue("authType", "file");
       }
     }
   }, [currentServerNumber, providerProcess, form, editMode, controlMachine]);
 
   const [verificationError, setVerificationError] = useState<{ message: string; details: string[] } | null>(null);
-  const [, setVerificationResult] = useState(null);
+  const [verificationResult, setVerificationResult] = useState(null);
   const [isVerifying, setIsVerifying] = useState(false);
 
   const submitForm = async (formValues: any) => {
@@ -124,7 +119,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
       }
 
       if (formValues.file && formValues.file[0]) {
-        jsonData.keyfile = storedFileContent;
+        jsonData.keyfile = storedFileContent; // Use the stored base64 content
       } else if (storedFileContent) {
         jsonData.keyfile = storedFileContent;
       }
@@ -134,11 +129,13 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
       }
 
       let response: any;
-      if (currentServerNumber === 0 || editMode) {
+      if (currentServerNumber === 0) {
+        // For the first server (control plane)
         response = await restClient.post("/verify/control-machine", jsonData, {
           headers: { "Content-Type": "application/json" }
         });
       } else {
+        // For subsequent servers (worker nodes)
         const controlMachine = providerProcess?.machines[0]?.access;
         const keyfile = controlMachine.file ? controlMachine.file : undefined;
         const payload = {
@@ -170,19 +167,13 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
           const machines = [...(providerProcess?.machines ?? [])];
           machines[currentServerNumber] = machine;
 
-          setProviderProcess({
-            ...providerProcess,
-            machines,
-            storeInformation: currentServerNumber === 0 ? formValues.saveInformation : providerProcess?.storeInformation,
-            process: providerProcess.process
-          });
-        } else {
-          setControlMachine({
-            address,
-            ...machine
-          });
-        }
-        onComplete();
+        setProviderProcess({
+          ...providerProcess,
+          machines,
+          storeInformation: currentServerNumber === 0 ? formValues.saveInformation : providerProcess?.storeInformation,
+          process: providerProcess.process
+        });
+        onSubmit();
       }
     } catch (error: any) {
       setVerificationError({
@@ -202,12 +193,13 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
         const base64Content = e.target?.result as string;
         setStoredFileContent(base64Content);
         setSelectedFile(file);
-        field.onChange([file]);
+        field.onChange([file]); // Update form value
       };
       reader.readAsDataURL(file);
     }
   };
 
+  // Helper function to read file as base64
   const readFileAsBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -364,7 +356,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
                   <Button type="submit" disabled={isVerifying}>
                     {isVerifying ? (
                       <>
-                        <Spinner />
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Verifying...
                       </>
                     ) : editMode ? (
@@ -405,7 +397,11 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
                       render={({ field }) => (
                         <FormItem className="flex items-center space-x-2">
                           <FormControl>
-                            <Checkbox id="saveInformation" checked={field.value} onCheckedChange={field.onChange} />
+                            <Checkbox
+                              id="saveInformation"
+                              checked={field.value} // Ensure the checkbox reflects the form state
+                              onCheckedChange={field.onChange} // Update the form state on change
+                            />
                           </FormControl>
                           <FormLabel htmlFor="saveInformation" className="text-sm font-medium leading-none">
                             Yes

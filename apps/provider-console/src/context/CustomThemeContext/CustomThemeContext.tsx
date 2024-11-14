@@ -142,6 +142,7 @@ export const CustomThemeProvider = ({ children }) => {
   const { resolvedTheme: nextTheme } = useTheme();
   const darkModeActive = nextTheme === "dark";
   const mode = darkModeActive ? "dark" : "light";
+  // Update the theme only if the mode changes
   const theme = React.useMemo(() => (darkModeActive ? darkTheme : lightTheme), [darkModeActive]);
 
   useEffect(() => {

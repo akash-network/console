@@ -9,7 +9,7 @@ type Props = {
   currency?: string;
 };
 
-export const FormattedDecimal: React.FC<Props> = ({ value, precision = 6, style, currency }) => {
+export const FormattedDecimal: React.FunctionComponent<Props> = ({ value, precision = 6, style, currency }) => {
   return (
     <FormattedNumberParts value={value} maximumFractionDigits={precision} minimumFractionDigits={precision} style={style} currency={currency}>
       {parts => (

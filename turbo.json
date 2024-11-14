@@ -8,13 +8,6 @@
       "dependsOn": ["//#dc:up:db"],
       "env": ["SKIP_DB"]
     },
-    "dev-nodc": {
-      "persistent": true,
-      "cache": false
-    },
-    "//#dc:up:db": {},
-    "update-apps-local-deps": {
-      "outputs": ["mvm.lock"]
-    }
+    "//#dc:up:db": {}
   }
 }

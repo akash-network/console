@@ -1,25 +1,26 @@
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import consoleClient from "@src/utils/consoleClient";
+import { useWallet } from "@src/context/WalletProvider";
 import {
-  CustomPagination,
-  Separator,
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  TableCell,
   Tabs,
-  TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  TabsContent,
+  CustomPagination,
+  Separator
 } from "@akashnetwork/ui/components";
-import { Spinner } from "@akashnetwork/ui/components";
-import { useRouter } from "next/router";
-
-import { useWallet } from "@src/context/WalletProvider";
-import { useProviderDeployments } from "@src/queries/useProviderQuery";
-import { formatBytes } from "@src/utils/formatBytes";
+import { cn } from "@akashnetwork/ui/utils";
+import { findTotalAmountSpentOnLeases, totalDeploymentCost } from "@src/utils/deploymentUtils";
 import { uaktToAKT } from "@src/utils/priceUtils";
+import { formatBytes } from "@src/utils/formatBytes";
+import { Spinner } from "@akashnetwork/ui/components";
 
 interface Deployment {
   owner: string;
@@ -39,36 +40,61 @@ interface Deployment {
   costPerMonth: number;
 }
 
-export const Deployments: React.FC = () => {
+const Deployments: React.FC = () => {
   const router = useRouter();
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [total, setTotal] = useState<number>(0);
   const { address } = useWallet();
   const [status, setStatus] = useState<string>("active");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [pageCount, setPageCount] = useState<number>(0);
 
-  const { data, isLoading: isDeploymentsLoading } = useProviderDeployments(address, status, currentPage, pageSize);
-
   useEffect(() => {
-    if (data) {
-      setDeployments(data.deployments);
-      setTotal(data.total);
-    }
-  }, [data]);
+    fetchDeployments();
+  }, [address, status, currentPage, pageSize]);
 
   useEffect(() => {
     setPageCount(Math.ceil(total / pageSize));
   }, [total, pageSize]);
 
+  const fetchDeployments = async () => {
+    setIsLoading(true);
+    try {
+      if (!address) {
+        return;
+      }
+      const offset = (currentPage - 1) * pageSize;
+      const response: any = await consoleClient.get(`v1/providers/${address}/deployments/${offset}/${pageSize}?status=${status}`);
+      const latestBlocks = await consoleClient.get(`/v1/blocks`);
+      const latestBlock = latestBlocks[0].height; // Take the first block
+      const deploymentsWithCost = response.deployments.map(deployment => {
+        const totalCost = totalDeploymentCost(deployment.leases);
+        const totalAmtSpent = findTotalAmountSpentOnLeases(deployment.leases, latestBlock);
+        return {
+          ...deployment,
+          amountSpent: totalAmtSpent,
+          costPerMonth: totalCost
+        };
+      });
+
+      setTotal(response.total);
+      setDeployments(deploymentsWithCost);
+    } catch (error) {
+      console.error("Error fetching deployments:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleChangePage = (newPage: number) => {
-    setCurrentPage(newPage + 1);
+    setCurrentPage(newPage + 1); // CustomPagination uses 0-based index
   };
 
   const onPageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset to first page when changing page size
   };
 
   const handleRowClick = (owner, dseq: string) => {
@@ -77,7 +103,7 @@ export const Deployments: React.FC = () => {
 
   const DeploymentTable = () => (
     <div className="min-h-[578px]">
-      {isDeploymentsLoading ? (
+      {isLoading ? (
         <div className="flex h-64 flex-col items-center justify-center">
           <Spinner className="mb-2 h-8 w-8" />
           <div>Loading deployments...</div>
@@ -161,7 +187,7 @@ export const Deployments: React.FC = () => {
         <CustomPagination
           pageSize={pageSize}
           setPageIndex={handleChangePage}
-          pageIndex={currentPage - 1}
+          pageIndex={currentPage - 1} // CustomPagination uses 0-based index
           totalPageCount={pageCount}
           setPageSize={onPageSizeChange}
         />
@@ -169,3 +195,5 @@ export const Deployments: React.FC = () => {
     </div>
   );
 };
+
+export default Deployments;

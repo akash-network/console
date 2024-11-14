@@ -12,6 +12,7 @@ import { ControlMachineProvider } from "@src/context/ControlMachineProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { PricingProvider } from "@src/context/PricingProvider";
+import { SettingsProvider } from "@src/context/SettingsProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import { queryClient } from "@src/queries";
 import { cn } from "@src/utils/styleUtils";
@@ -25,13 +26,13 @@ export default function App({ Component, pageProps }: AppProps) {
             <ColorModeProvider>
               <PricingProvider>
                 <TooltipProvider>
-                  <CustomChainProvider>
-                    <WalletProvider>
-                      <ControlMachineProvider>
+                  <SettingsProvider>
+                    <CustomChainProvider>
+                      <WalletProvider>
                         <Component {...pageProps} />
-                      </ControlMachineProvider>
-                    </WalletProvider>
-                  </CustomChainProvider>
+                      </WalletProvider>
+                    </CustomChainProvider>
+                  </SettingsProvider>
                 </TooltipProvider>
               </PricingProvider>
             </ColorModeProvider>

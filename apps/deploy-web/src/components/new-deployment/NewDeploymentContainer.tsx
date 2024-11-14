@@ -22,6 +22,7 @@ export const NewDeploymentContainer: FC = () => {
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
+  const [isInit, setIsInit] = useState(false);
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const { getDeploymentData } = useLocalNotes();
   const { getTemplateById } = useTemplates();
@@ -32,14 +33,12 @@ export const NewDeploymentContainer: FC = () => {
 
   useEffect(() => {
     const queryStep = searchParams?.get("step");
-    const _activeStep = getStepIndexByParam(queryStep as RouteStep);
+    const _activeStep = getStepIndexByParam(queryStep);
     setActiveStep(_activeStep);
   }, [searchParams]);
 
   useEffect(() => {
-    const templateId = searchParams?.get("templateId");
-    const isCreating = !!activeStep && activeStep > getStepIndexByParam(RouteStep.chooseTemplate);
-    if (!templates || (isCreating && !!editedManifest && !!templateId)) return;
+    if (!templates || editedManifest || isInit) return;
 
     const template = getRedeployTemplate() || getGalleryTemplate();
 
@@ -55,9 +54,11 @@ export const NewDeploymentContainer: FC = () => {
       if (queryStep !== RouteStep.editDeployment) {
         router.replace(UrlService.newDeployment({ ...searchParams, step: RouteStep.editDeployment }));
       }
+
+      setIsInit(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent, activeStep]);
+  }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent, isInit]);
 
   const getRedeployTemplate = () => {
     let template: Partial<TemplateCreation> | null = null;
@@ -111,7 +112,7 @@ export const NewDeploymentContainer: FC = () => {
     return null;
   };
 
-  function getStepIndexByParam(step: (typeof RouteStep)[keyof typeof RouteStep] | null) {
+  function getStepIndexByParam(step) {
     switch (step) {
       case RouteStep.editDeployment:
         return 1;

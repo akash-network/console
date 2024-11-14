@@ -1,7 +1,6 @@
 "use client";
 import React, { SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Button, Card, CardContent, CardHeader, CustomTooltip, Snackbar, Spinner } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import { Check, Copy, InfoCircle, OpenInWindow } from "iconoir-react";
 import yaml from "js-yaml";
 import get from "lodash/get";
@@ -31,6 +30,7 @@ import { deploymentData } from "@src/utils/deploymentData";
 import { getGpusFromAttributes, sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { sshVmImages } from "@src/utils/sdl/data";
+import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 

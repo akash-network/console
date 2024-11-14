@@ -41,6 +41,6 @@ const route = createRoute({
 });
 
 export default new OpenAPIHono().openapi(route, async c => {
-  const response = await cacheResponse(60 * 5, cacheKeys.getTemplates, async () => await getTemplateGallery(), true);
+  const response = await cacheResponse(60 * 5, cacheKeys.getTemplates, async () => await getTemplateGallery());
   return c.json(response);
 });

@@ -16,10 +16,7 @@
         "certificate",
         "dx",
         "config",
-        "stats",
-        "release",
-        "repo",
-        "styling"
+        "stats"
       ]
     ]
   }

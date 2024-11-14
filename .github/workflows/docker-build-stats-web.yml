@@ -24,4 +24,4 @@ jobs:
 
       - name: Build the Docker image
         if: steps.filter.outputs.stats-web == 'true'
-        run: packages/docker/script/dc.sh build stats-web --build-arg DEPLOYMENT_ENV=production
+        run: npm run dc:build -- --build-arg DEPLOYMENT_ENV=production stats-web

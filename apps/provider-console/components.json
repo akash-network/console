@@ -12,6 +12,6 @@
   },
   "aliases": {
     "components": "@src/components",
-    "utils": "@akashnetwork/ui/utils"
+    "utils": "@src/utils/styleUtils"
   }
 }
