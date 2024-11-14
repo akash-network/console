@@ -2,12 +2,6 @@ export * from "./dashboard";
 export * from "./block";
 export * from "./transaction";
 export * from "./coin";
-// export * from "./address";
-// export * from "./snapshots";
-// export * from "./sdlBuilder";
-// export * from "./billing";
-// export * from "./templates";
-// export * from "./providerAttributes";
 
 export type IGraphDataPoint = {
   date: string;
@@ -33,4 +27,5 @@ export type ISidebarRoute = {
   isNew?: boolean;
   rel?: string;
   target?: string;
+  disabled?: boolean;
 };

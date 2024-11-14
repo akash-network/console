@@ -1,8 +1,20 @@
+require("@akashnetwork/env-loader");
 /** @type {import('next').NextConfig} */
+
+const { withSentryConfig } = require("@sentry/nextjs");
+
+try {
+  const { browserEnvSchema } = require("./env-config.schema");
+  browserEnvSchema.parse(process.env);
+} catch (error) {
+  if (error.message.includes("Cannot find module")) {
+    console.warn("No env-config.schema.js found, skipping env validation");
+  }
+}
+
 const nextConfig = {
   reactStrictMode: false,
   compiler: {
-    // Enables the styled-components SWC transform
     styledComponents: true
   },
   images: {
@@ -25,14 +37,19 @@ const nextConfig = {
     defaultLocale: "en-US"
   },
   webpack: config => {
-    // Fixes npm packages that depend on `node:crypto` module
     config.externals.push({
       "node:crypto": "crypto"
     });
     config.externals.push("pino-pretty");
     return config;
-  },
+  }
 };
 
-module.exports = nextConfig;
+const sentryWebpackPluginOptions = {
+  silent: true,
+  dryRun: process.env.NODE_ENV !== "production",
+  release: require("./package.json").version,
+  authToken: process.env.SENTRY_AUTH_TOKEN
+};
 
+module.exports = withSentryConfig(nextConfig, sentryWebpackPluginOptions);
