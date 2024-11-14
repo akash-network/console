@@ -19,8 +19,8 @@ import {
   SelectTrigger,
   Separator } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Plus, Trash } from "iconoir-react";
 import { useAtom } from "jotai";
-import { PlusIcon, TrashIcon } from "lucide-react";
 import { z } from "zod";
 
 import { useControlMachine } from "@src/context/ControlMachineProvider";
@@ -33,9 +33,9 @@ import { ResetProviderForm } from "./ResetProviderProcess";
 const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 
 interface ProviderAttributesProps {
-  stepChange?: () => void;
   existingAttributes?: ProviderAttribute[];
   editMode?: boolean;
+  onComplete?: () => void;
 }
 
 const providerFormSchema = z.object({
@@ -50,7 +50,7 @@ const providerFormSchema = z.object({
 
 type ProviderFormValues = z.infer<typeof providerFormSchema>;
 
-export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps> = ({ stepChange, existingAttributes, editMode }) => {
+export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ existingAttributes, editMode, onComplete }) => {
   const [providerPricing, setProviderPricing] = useAtom(providerProcessStore.providerProcessAtom);
   const form = useForm<ProviderFormValues>({
     resolver: zodResolver(providerFormSchema),
@@ -85,7 +85,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
         }))
       };
       setProviderPricing(updatedProviderPricing);
-      stepChange && stepChange();
+      onComplete && onComplete();
     } else {
       const attributes = data.attributes.map(attr => ({
         key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",
@@ -118,7 +118,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
         </div>
         <div>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(updateProviderAttributesAndProceed)} className="space-y-6">
               <div>
                 <h4 className="mb-2 text-lg font-semibold">Attributes</h4>
                 {fields.map((field, index) => {
@@ -175,13 +175,13 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
                         )}
                       />
                       <Button type="button" variant="outline" size="icon" onClick={() => remove(index)}>
-                        <TrashIcon className="h-4 w-4" />
+                        <Trash className="h-4 w-4" />
                       </Button>
                     </div>
                   );
                 })}
                 <Button type="button" variant="outline" size="sm" onClick={() => append({ key: "", value: "", customKey: "" })}>
-                  <PlusIcon className="mr-2 h-4 w-4" />
+                  <Plus className="mr-2 h-4 w-4" />
                   Add Attribute
                 </Button>
               </div>

@@ -1,3 +1,5 @@
+import "@src/utils/protobuf";
+
 import { getAkashTypeRegistry } from "@akashnetwork/akashjs/build/stargate";
 import { Registry } from "@cosmjs/proto-signing";
 import { defaultRegistryTypes } from "@cosmjs/stargate";
