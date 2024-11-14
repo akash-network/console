@@ -1,21 +1,12 @@
 "use client";
-import { Button } from "@akashnetwork/ui/components";
-import { Menu, Xmark } from "iconoir-react";
 import Link from "next/link";
 
 import useCookieTheme from "@src/hooks/useTheme";
 import { accountBarHeight } from "@src/utils/constants";
-import { UrlService } from "@src/utils/urlUtils";
 import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
 import { WalletStatus } from "./WalletStatus";
 
-export const Nav = ({
-  isMobileOpen,
-  handleDrawerToggle
-}: React.PropsWithChildren<{
-  isMobileOpen: boolean;
-  handleDrawerToggle: () => void;
-}>) => {
+export const Nav = () => {
   const theme = useCookieTheme();
 
   return (
@@ -32,13 +23,6 @@ export const Nav = ({
         )}
 
         <div style={{ height: `${accountBarHeight}px` }} className={`hidden items-center md:flex`}>
-          <div>
-            <Link passHref href={UrlService.getStarted()}>
-              <Button variant="outline" className="relative">
-                Get Started
-              </Button>
-            </Link>
-          </div>
           <div className="flex items-center">
             <div className="ml-4">
               <WalletStatus />

@@ -11,7 +11,6 @@ import { ThemeProvider } from "next-themes";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { PricingProvider } from "@src/context/PricingProvider";
-import { SettingsProvider } from "@src/context/SettingsProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import { queryClient } from "@src/queries";
 import { cn } from "@src/utils/styleUtils";
@@ -25,13 +24,11 @@ export default function App({ Component, pageProps }: AppProps) {
             <ColorModeProvider>
               <PricingProvider>
                 <TooltipProvider>
-                  <SettingsProvider>
-                    <CustomChainProvider>
-                      <WalletProvider>
-                        <Component {...pageProps} />
-                      </WalletProvider>
-                    </CustomChainProvider>
-                  </SettingsProvider>
+                  <CustomChainProvider>
+                    <WalletProvider>
+                      <Component {...pageProps} />
+                    </WalletProvider>
+                  </CustomChainProvider>
                 </TooltipProvider>
               </PricingProvider>
             </ColorModeProvider>

@@ -7,7 +7,7 @@ import { Title } from "../shared/Title";
 
 export interface IFooterProps {}
 
-export const Footer: React.FunctionComponent<IFooterProps> = () => {
+export const Footer: React.FC<IFooterProps> = () => {
   const year = new Date().getFullYear();
 
   return (

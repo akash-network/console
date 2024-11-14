@@ -31,7 +31,6 @@ export function HSLToHex(_hsl: string) {
     s = parseInt(hsl[1].substring(0, hsl[1].length - 1)) / 100,
     l = parseInt(hsl[2].substring(0, hsl[2].length - 1)) / 100;
 
-  // Strip label and convert to degrees (if necessary)
   if (hString.indexOf("deg") > -1) h = parseInt(hString.substring(0, hString.length - 3));
   else if (hString.indexOf("rad") > -1) h = Math.round(parseInt(hString.substring(0, hString.length - 3)) * (180 / Math.PI));
   else if (hString.indexOf("turn") > -1) h = Math.round(parseInt(hString.substring(0, hString.length - 4)) * 360);
@@ -72,12 +71,10 @@ export function HSLToHex(_hsl: string) {
     g = 0;
     b = x;
   }
-  // Having obtained RGB, convert channels to hex
   r = Math.round((r + m) * 255).toString(16);
   g = Math.round((g + m) * 255).toString(16);
   b = Math.round((b + m) * 255).toString(16);
 
-  // Prepend 0s, if necessary
   if (r.length == 1) r = "0" + r;
   if (g.length == 1) g = "0" + g;
   if (b.length == 1) b = "0" + b;

@@ -1,26 +1,27 @@
 "use client";
-import React, { useRef } from "react";
+import React, { useCallback, useRef } from "react";
 import { useEffect, useState } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { useManager } from "@cosmos-kit/react";
 import axios from "axios";
-import { OpenNewWindow } from "iconoir-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SnackbarKey, useSnackbar } from "notistack";
 
 import { TransactionModal } from "@src/components/layout/TransactionModal";
-// import { useAllowance } from "@src/hooks/useAllowance"; TODO
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
-import { getSelectedNetwork, useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
-import { STATS_APP_URL, uAktDenom } from "@src/utils/constants";
-import { customRegistry } from "@src/utils/customRegistry";
+import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
+import authClient from "@src/utils/authClient";
+import { uAktDenom } from "@src/utils/constants";
+import restClient from "@src/utils/restClient";
+import { checkAndRefreshToken } from "@src/utils/tokenUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
+import { getNonceMessage } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
-import { useSettings } from "../SettingsProvider";
 
 type Balances = {
   uakt: number;
@@ -33,11 +34,19 @@ type ContextType = {
   walletBalances: Balances | null;
   isWalletConnected: boolean;
   isWalletLoaded: boolean;
+  isWalletArbitrarySigned: boolean;
   connectWallet: () => Promise<void>;
   logout: () => void;
   setIsWalletLoaded: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsWalletArbitrarySigned: React.Dispatch<React.SetStateAction<boolean>>;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<any>;
   refreshBalances: (address?: string) => Promise<Balances>;
+  isProvider: boolean;
+  isOnline: boolean;
+  provider: any;
+  isProviderStatusFetched: boolean;
+  isProviderOnlineStatusFetched: boolean;
+  handleArbitrarySigning: () => Promise<void>;
 };
 
 const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
@@ -45,59 +54,101 @@ const WalletProviderContext = React.createContext<ContextType>({} as ContextType
 export const WalletProvider = ({ children }) => {
   const [walletBalances, setWalletBalances] = useState<Balances | null>(null);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
+  const [isWalletProvider, setIsWalletProvider] = useState<boolean>(false);
+  const [isWalletProviderOnline, setIsWalletProviderOnline] = useState<boolean>(false);
+  const [isProviderOnlineStatusFetched, setIsProviderOnlineStatusFetched] = useState<boolean>(false);
+  const [provider, setProvider] = useState<any>(null);
+  const [isProviderStatusFetched, setIsProviderStatusFetched] = useState<boolean>(false);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
+  const [isWalletArbitrarySigned, setIsWalletArbitrarySigned] = useState<boolean>(false);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const sigingClient = useRef<SigningStargateClient | null>(null);
   const router = useRouter();
-  const { settings } = useSettings();
   const usdcIbcDenom = useUsdcDenom();
-  const { disconnect, getOfflineSigner, isWalletConnected, address: walletAddress, connect, username, estimateFee, sign, broadcast } = useSelectedChain();
+  const {
+    disconnect,
+    getOfflineSigner,
+    isWalletConnected,
+    address: walletAddress,
+    connect,
+    username,
+    estimateFee,
+    sign,
+    broadcast,
+    signArbitrary
+  } = useSelectedChain();
   const { addEndpoints } = useManager();
-  // const {
-  //   fee: { default: feeGranter }
-  // } = useAllowance();
-
+  const selectedNetwork = useSelectedNetwork();
   useEffect(() => {
-    if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
+    if (!browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL || !browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL) return;
 
     addEndpoints({
-      akash: { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] },
-      "akash-sandbox": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] },
-      "akash-testnet": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] }
+      akash: { rest: [browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL], rpc: [browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL] },
+      "akash-sandbox": { rest: [browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL], rpc: [browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL] },
+      "akash-testnet": { rest: [browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL], rpc: [browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL] }
     });
-  }, [settings.apiEndpoint, settings.rpcEndpoint]);
+  }, [addEndpoints]);
 
-  useEffect(() => {
-    (async () => {
-      if (settings?.rpcEndpoint && isWalletConnected) {
-        sigingClient.current = await createStargateClient();
-      }
-    })();
-  }, [settings?.rpcEndpoint, isWalletConnected]);
-
-  async function createStargateClient() {
+  const createStargateClient = useCallback(async () => {
     const selectedNetwork = getSelectedNetwork();
 
-    const offlineSigner = getOfflineSigner();
-    let rpc = settings?.rpcEndpoint ? settings?.rpcEndpoint : (selectedNetwork.rpcEndpoint as string);
+    const offlineSigner: any = getOfflineSigner();
+    let rpc = browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL ? browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL : (selectedNetwork.rpcEndpoint as string);
 
     try {
       await axios.get(`${rpc}/abci_info`);
     } catch (error) {
-      // If the rpc node has cors enabled, switch to the backup rpc cosmos.directory
       if (error.code === "ERR_NETWORK" || error?.response?.status === 0) {
         rpc = selectedNetwork.rpcEndpoint as string;
       }
     }
 
-    const client = await SigningStargateClient.connectWithSigner(rpc, offlineSigner, {
-      registry: customRegistry,
-      broadcastTimeoutMs: 300_000 // 5min
-    });
+    const client = await SigningStargateClient.connectWithSigner(rpc, offlineSigner);
 
     return client;
-  }
+  }, [getOfflineSigner]);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("walletAddress");
+    resetWalletStats();
+    disconnect();
+    router.push(UrlService.home());
+  }, [disconnect, router]);
+
+  useEffect(() => {
+    async function fetchProviderStatus() {
+      try {
+        const isProviderResponse: any = await restClient.get(`/provider/status/onchain?chainid=${selectedNetwork.chainId}`);
+        setIsWalletProvider(isProviderResponse.provider ? true : false);
+        setProvider(isProviderResponse.provider);
+        setIsProviderStatusFetched(true);
+        if (isProviderResponse.provider) {
+          const isOnlineResponse: any = await restClient.get(`/provider/status/online?chainid=${selectedNetwork.chainId}`);
+          setIsProviderOnlineStatusFetched(true);
+          setIsWalletProviderOnline(isOnlineResponse.online);
+        }
+      } catch (error) {
+        console.error("Error fetching provider status:", error);
+      }
+    }
+
+    (async () => {
+      if (browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL && isWalletConnected) {
+        // sigingClient.current = await createStargateClient();
+        try {
+          const validAccessToken = await checkAndRefreshToken();
+          if (validAccessToken) {
+            await fetchProviderStatus();
+          }
+        } catch (error) {
+          logout();
+        }
+      }
+    })();
+  }, [isWalletConnected, isWalletArbitrarySigned, selectedNetwork.chainId]);
 
   async function getStargateClient() {
     if (!sigingClient.current) {
@@ -107,25 +158,60 @@ export const WalletProvider = ({ children }) => {
     return sigingClient.current;
   }
 
-  function logout() {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+  function resetWalletStats() {
     setWalletBalances(null);
-    disconnect();
-    router.push(UrlService.home());
+    setIsWalletArbitrarySigned(false);
+    setIsProviderStatusFetched(false);
+    setIsProviderOnlineStatusFetched(false);
+    setIsWalletProvider(false);
+    setIsWalletProviderOnline(false);
+    setProvider(null);
   }
 
   async function connectWallet() {
-    console.log("Connecting wallet with CosmosKit...");
-    connect();
-
-    await loadWallet();
+    await connect();
   }
 
-  // Update balances on wallet address change
+  async function handleArbitrarySigning() {
+    if (walletAddress && localStorage.getItem("walletAddress") !== walletAddress) {
+      resetWalletStats();
+      try {
+        const response: any = await authClient.get(`users/nonce/${walletAddress}`);
+        if (response?.data?.nonce) {
+          const message = getNonceMessage(response.data.nonce, walletAddress);
+          const result = await signArbitrary(walletAddress, message);
+
+          if (result) {
+            const verifySign = await authClient.post("auth/verify", { signer: walletAddress, ...result });
+            if (verifySign.data) {
+              localStorage.setItem("accessToken", verifySign.data.access_token);
+              localStorage.setItem("refreshToken", verifySign.data.refresh_token);
+              localStorage.setItem("walletAddress", walletAddress);
+              setIsWalletArbitrarySigned(true);
+            } else {
+              throw new Error("Verification failed");
+            }
+          } else {
+            throw new Error("Signing failed");
+          }
+        } else {
+          if (response.status === "error" && response.error.code === "N4040") {
+            await authClient.post("users", { address: walletAddress });
+            await handleArbitrarySigning();
+          } else {
+            throw new Error("Invalid nonce response");
+          }
+        }
+      } catch (error) {
+        logout();
+      }
+    }
+  }
+
   useEffect(() => {
     if (walletAddress) {
       loadWallet();
+      handleArbitrarySigning();
     }
   }, [walletAddress]);
 
@@ -155,7 +241,6 @@ export const WalletProvider = ({ children }) => {
       const estimatedFees = await estimateFee(msgs);
       const txRaw = await sign(msgs, {
         ...estimatedFees
-        // granter: feeGranter
       });
 
       setIsWaitingForApproval(false);
@@ -241,17 +326,10 @@ export const WalletProvider = ({ children }) => {
     transactionHash: string,
     snackVariant: React.ComponentProps<typeof Snackbar>["iconVariant"]
   ) => {
-    enqueueSnackbar(
-      <Snackbar
-        title={snackTitle}
-        subTitle={<TransactionSnackbarContent snackMessage={snackMessage} transactionHash={transactionHash} />}
-        iconVariant={snackVariant}
-      />,
-      {
-        variant: snackVariant,
-        autoHideDuration: 10000
-      }
-    );
+    enqueueSnackbar(<Snackbar title={snackTitle} iconVariant={snackVariant} />, {
+      variant: snackVariant,
+      autoHideDuration: 10000
+    });
   };
 
   async function refreshBalances(address?: string): Promise<{ uakt: number; usdc: number }> {
@@ -285,13 +363,21 @@ export const WalletProvider = ({ children }) => {
         address: walletAddress as string,
         walletName: username as string,
         walletBalances,
+        isWalletArbitrarySigned,
+        setIsWalletArbitrarySigned,
         isWalletConnected: isWalletConnected,
         isWalletLoaded,
         connectWallet,
         logout,
         setIsWalletLoaded,
         signAndBroadcastTx,
-        refreshBalances
+        refreshBalances,
+        isProvider: isWalletProvider,
+        isOnline: isWalletProviderOnline,
+        provider: provider,
+        isProviderStatusFetched,
+        isProviderOnlineStatusFetched,
+        handleArbitrarySigning
       }}
     >
       {children}
@@ -301,25 +387,6 @@ export const WalletProvider = ({ children }) => {
   );
 };
 
-// Hook
 export function useWallet() {
   return { ...React.useContext(WalletProviderContext) };
 }
-
-const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
-  const selectedNetwork = useSelectedNetwork();
-  const txUrl = transactionHash && `${STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetwork.id}`;
-
-  return (
-    <>
-      {snackMessage}
-      {snackMessage && <br />}
-      {txUrl && (
-        <Link href={txUrl} target="_blank" className="inline-flex items-center space-x-2 !text-white">
-          <span>View transaction</span>
-          <OpenNewWindow className="text-xs" />
-        </Link>
-      )}
-    </>
-  );
-};

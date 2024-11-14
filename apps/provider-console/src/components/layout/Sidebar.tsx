@@ -4,12 +4,13 @@ import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { Discord, Github, Menu, MenuScale, Rocket, X as TwitterX, Youtube } from "iconoir-react";
+import { Calculator, ClipboardCheck, Cloud, Discord, Github, ListSelect, Menu, MenuScale, Rocket, Settings, X as TwitterX, Youtube } from "iconoir-react";
 import { Home, OpenInWindow } from "iconoir-react";
 import getConfig from "next/config";
 import Image from "next/image";
 import Link from "next/link";
 
+import { useWallet } from "@src/context/WalletProvider";
 import { ISidebarGroupMenu } from "@src/types";
 import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
@@ -27,10 +28,10 @@ type Props = {
   isNavOpen: boolean;
 };
 
-export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
+export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
   const [isHovering, setIsHovering] = useState(false);
+  const { isProvider, isOnline } = useWallet();
   const _isNavOpen = isNavOpen || isHovering;
-  // const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
@@ -43,6 +44,40 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           icon: props => <Home {...props} />,
           url: UrlService.home(),
           activeRoutes: [UrlService.home()]
+        },
+        {
+          title: "Deployments",
+          icon: props => <Cloud {...props} />,
+          url: UrlService.deployments(),
+          activeRoutes: [UrlService.deployments()]
+        },
+        {
+          title: "Actions",
+          icon: props => <ClipboardCheck {...props} />,
+          url: "#",
+          activeRoutes: ["#"],
+          disabled: true
+        },
+        {
+          title: "Pricing",
+          icon: props => <Calculator {...props} />,
+          url: "#",
+          activeRoutes: ["#"],
+          disabled: true
+        },
+        {
+          title: "Attributes",
+          icon: props => <ListSelect {...props} />,
+          url: "#",
+          activeRoutes: ["#"],
+          disabled: true
+        },
+        {
+          title: "Settings",
+          icon: props => <Settings {...props} />,
+          url: "#",
+          activeRoutes: ["#"],
+          disabled: true
         }
       ]
     },
@@ -106,15 +141,17 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       className="border-muted-foreground/20 bg-popover dark:bg-background box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] transition-[width] duration-300 ease-in-out md:h-[calc(100%-57px)]"
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: _isNavOpen, ["pb-2 pt-2"]: !_isNavOpen })}>
-        <Link
-          className={cn(buttonVariants({ variant: "default", size: _isNavOpen ? "lg" : "icon" }), "h-[45px] w-full leading-4", {
-            ["h-[45px] w-[45px] min-w-0 pb-2 pt-2"]: !_isNavOpen
-          })}
-          href="#"
-        >
-          {_isNavOpen && "Become Provider "}
-          <Rocket className={cn("rotate-45", { ["ml-4"]: _isNavOpen })} fontSize="small" />
-        </Link>
+        {(!isProvider || !isOnline) && (
+          <Link
+            className={cn(buttonVariants({ variant: "default", size: _isNavOpen ? "lg" : "icon" }), "h-[45px] w-full leading-4", {
+              ["h-[45px] w-[45px] min-w-0 pb-2 pt-2"]: !_isNavOpen
+            })}
+            href="/become-provider"
+          >
+            {_isNavOpen && "Become Provider "}
+            <Rocket className={cn("rotate-45", { ["ml-4"]: _isNavOpen })} fontSize="small" />
+          </Link>
+        )}
 
         {routeGroups.map((g, i) => (
           <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={_isNavOpen} />
@@ -196,7 +233,6 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         ["md:w-[57px]"]: !(_isNavOpen || isHovering)
       })}
     >
-      {/* Mobile Drawer */}
       <Drawer
         variant="temporary"
         open={isMobileOpen}
@@ -204,7 +240,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         onClose={handleDrawerToggle}
         className="block p-4 md:hidden"
         ModalProps={{
-          keepMounted: true // Better open performance on mobile.
+          keepMounted: true
         }}
         sx={{
           display: { xs: "block", sm: "block", md: "none" },
@@ -219,7 +255,6 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         {drawer}
       </Drawer>
 
-      {/* Desktop Drawer */}
       <Drawer
         className="hidden md:block"
         variant="permanent"
@@ -238,4 +273,3 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
     </nav>
   );
 };
-

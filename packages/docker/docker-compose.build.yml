@@ -44,3 +44,13 @@ services:
       target: production
       args:
         WORKSPACE: apps/stats-web
+
+  provider-console:
+    image: ${PROVIDER_CONSOLE_REPO:-console-provider}:${PROVIDER_CONSOLE_TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: packages/docker/Dockerfile.nextjs
+      target: production
+      args:
+        WORKSPACE: apps/provider-console
+        DEPLOYMENT_ENV: ${DEPLOYMENT_ENV}
