@@ -1,6 +1,6 @@
 {
   "name": "console-provider-proxy",
-  "version": "1.0.12",
+  "version": "1.0.11",
   "description": "Proxy that allows communication between the Web UI and providers",
   "license": "Apache-2.0",
   "author": "Akash Network",
@@ -10,9 +10,7 @@
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "start": "npm run build && node ./dist/server.js",
-    "dev": "npm run start",
-    "dev-nodc": "npm run start",
-    "prod": "node ./dist/server.js"
+    "dev": "npm run start"
   },
   "dependencies": {
     "axios": "^1.7.2",

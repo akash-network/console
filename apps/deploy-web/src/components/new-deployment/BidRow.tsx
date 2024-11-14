@@ -1,7 +1,6 @@
 "use client";
 import { useEffect } from "react";
 import { Badge, CustomTooltip, RadioGroup, RadioGroupItem, Spinner, TableCell, TableRow } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import { CloudXmark, WarningTriangle } from "iconoir-react";
 import Link from "next/link";
 
@@ -13,6 +12,7 @@ import { ApiProviderList } from "@src/types/provider";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
+import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { AuditorButton } from "../providers/AuditorButton";
 import { Uptime } from "../providers/Uptime";

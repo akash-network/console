@@ -61,23 +61,21 @@ export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex,
                 </CustomTooltip>
               </div>
             }
-            placeholder="Enter your own pub key: ssh-.."
+            placeholder="ssh-..."
             className="flex-grow"
             inputClassName="pr-[100px]"
             value={field.value}
             onChange={event => field.onChange(event.target.value || "")}
             startIcon={<Key className="ml-2 text-xs text-muted-foreground" />}
+            endIcon={
+              <Button onClick={generateSSHKeys} type="button" size="sm" className="h-full" data-testid="generate-ssh-keys-btn">
+                Generate
+              </Button>
+            }
             data-testid="ssh-public-key-input"
           />
         )}
       />
-
-      <div className="mt-2 flex items-center justify-end space-x-2">
-        <span className="text-sm text-muted-foreground">Or</span>
-        <Button onClick={generateSSHKeys} type="button" size="xs" data-testid="generate-ssh-keys-btn">
-          Generate new key
-        </Button>
-      </div>
 
       {hasGenerated && (
         <div className="mt-2 text-sm text-muted-foreground">

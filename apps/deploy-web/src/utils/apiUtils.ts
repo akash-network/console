@@ -119,9 +119,6 @@ export class ApiUrlService {
   static auditors() {
     return `${this.baseApiUrl}/v1/auditors`;
   }
-  static trialProviders() {
-    return `${this.baseApiUrl}/v1/trial-providers`;
-  }
 
   static get baseApiUrl() {
     return browserApiUrlService.getBaseApiUrlFor(networkStore.selectedNetworkId);

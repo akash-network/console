@@ -1,6 +1,7 @@
 "use client";
-import { cn } from "@akashnetwork/ui/utils";
 import { ArrowDown } from "iconoir-react";
+
+import { cn } from "@src/utils/styleUtils";
 
 interface ExpandMoreProps {
   expand: boolean;

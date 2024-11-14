@@ -1,6 +1,6 @@
 {
-  "name": "@akashnetwork/console-web",
-  "version": "2.21.1-beta.0",
+  "name": "akash-console",
+  "version": "2.16.2",
   "private": true,
   "description": "Web UI to deploy on the Akash Network and view statistic about network usage.",
   "license": "Apache-2.0",
@@ -9,12 +9,10 @@
     "build": "npm run build-env-schemas && next build",
     "build-env-schemas": "tsc src/config/env-config.schema.ts --outDir . --skipLibCheck",
     "dev": "next",
-    "dev-nodc": "next",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
     "start": "next start",
-    "type-check": "tsc",
-    "release": "release-it"
+    "type-check": "tsc"
   },
   "dependencies": {
     "@akashnetwork/akash-api": "^1.3.0",
@@ -61,7 +59,6 @@
     "clsx": "^2.0.0",
     "cosmjs-types": "^0.9.0",
     "date-fns": "^2.29.3",
-    "dotenv": "^16.4.5",
     "file-saver": "^2.0.5",
     "geist": "^1.3.0",
     "http-proxy": "^1.18.1",
@@ -117,9 +114,7 @@
     "@akashnetwork/dev-config": "*",
     "@keplr-wallet/types": "^0.12.111",
     "@next/bundle-analyzer": "^14.0.1",
-    "@octokit/openapi-types": "^22.2.0",
     "@playwright/test": "^1.45.0",
-    "@release-it/conventional-changelog": "github:akash-network/conventional-changelog#feature/pre-release",
     "@types/auth0": "^2.35.3",
     "@types/file-saver": "^2.0.5",
     "@types/js-yaml": "^4.0.5",
@@ -139,7 +134,6 @@
     "postcss-nesting": "^12.0.2",
     "prettier": "^3.3.0",
     "prettier-plugin-tailwindcss": "^0.6.1",
-    "release-it": "^17.6.0",
     "tailwindcss": "^3.4.3",
     "typescript": "5.1.3"
   },

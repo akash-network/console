@@ -1,13 +1,12 @@
 import { AllowanceHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
+import { DbTestingService } from "@test/services/db-testing.service";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
 import { BILLING_CONFIG, BillingConfig } from "@src/billing/providers";
 import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
-
-import { DbTestingService } from "@test/services/db-testing.service";
 
 jest.setTimeout(20000);
 

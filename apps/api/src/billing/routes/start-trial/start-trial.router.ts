@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { WalletResponseOutputSchema } from "@src/billing/http-schemas/wallet.schema";
-import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { OpenApiHonoHandled } from "@src/core/services/open-api-hono-handled/open-api-hono-handled";
 
 export const StartTrialRequestInputSchema = z.object({
   data: z.object({
@@ -39,7 +39,7 @@ const route = createRoute({
     }
   }
 });
-export const startTrialRouter = new OpenApiHonoHandler();
+export const startTrialRouter = new OpenApiHonoHandled();
 
 startTrialRouter.openapi(route, async function routeStartTrial(c) {
   return c.json(await container.resolve(WalletController).create(c.req.valid("json")), 200);

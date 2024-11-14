@@ -1,13 +1,13 @@
 "use client";
 import { useEffect } from "react";
 import { buttonVariants, Spinner } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowLeft } from "iconoir-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
 import { useProviderAttributesSchema, useProviderDetail } from "@src/queries/useProvidersQuery";
 import { getProviderNameFromUri } from "@src/utils/providerUtils";
+import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { EditProviderForm } from "./EditProviderForm";

@@ -3,7 +3,7 @@ import { container } from "tsyringe";
 import { z } from "zod";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
-import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { OpenApiHonoHandled } from "@src/core/services/open-api-hono-handled/open-api-hono-handled";
 
 export const SignTxRequestInputSchema = z.object({
   data: z.object({
@@ -63,7 +63,7 @@ const route = createRoute({
   }
 });
 
-export const signAndBroadcastTxRouter = new OpenApiHonoHandler();
+export const signAndBroadcastTxRouter = new OpenApiHonoHandled();
 
 signAndBroadcastTxRouter.openapi(route, async function routeSignTx(c) {
   const payload = await container.resolve(WalletController).signTx(c.req.valid("json"));

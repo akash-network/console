@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue
 } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
@@ -33,6 +32,7 @@ import { ApiProviderDetail } from "@src/types/provider";
 import { ProviderAttributeSchemaDetailValue, providerAttributesFormValuesSchema, ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { defaultProviderAttributes } from "@src/utils/providerAttributes/data";
 import { getUnknownAttributes, mapFormValuesToAttributes } from "@src/utils/providerAttributes/helpers";
+import { cn } from "@src/utils/styleUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 
 type Props = {

@@ -5,8 +5,6 @@ const coercedBoolean = () => z.enum(["true", "false"]).transform(val => val === 
 
 export const browserEnvSchema = z.object({
   NEXT_PUBLIC_MASTER_WALLET_ADDRESS: z.string(),
-  NEXT_PUBLIC_UAKT_TOP_UP_MASTER_WALLET_ADDRESS: z.string(),
-  NEXT_PUBLIC_USDC_TOP_UP_MASTER_WALLET_ADDRESS: z.string(),
   NEXT_PUBLIC_BILLING_ENABLED: coercedBoolean().optional().default("false"),
   NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: networkId.optional().default("mainnet"),
   NEXT_PUBLIC_DEFAULT_NETWORK_ID: networkId.optional().default("mainnet"),
@@ -20,12 +18,7 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_BASE_API_MAINNET_URL: z.string().url(),
   NEXT_PUBLIC_BASE_API_TESTNET_URL: z.string().url(),
   NEXT_PUBLIC_BASE_API_SANDBOX_URL: z.string().url(),
-  NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional(),
-  NEXT_PUBLIC_REDIRECT_URI: z.string().url(),
-  NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL: z.string().url(),
-  NEXT_PUBLIC_BITBUCKET_CLIENT_ID: z.string().optional(),
-  NEXT_PUBLIC_GITLAB_CLIENT_ID: z.string().optional(),
-  NEXT_PUBLIC_GITHUB_CLIENT_ID: z.string().optional()
+  NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional()
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({
@@ -39,10 +32,7 @@ export const serverEnvSchema = browserEnvSchema.extend({
   AUTH0_SCOPE: z.string(),
   BASE_API_MAINNET_URL: z.string().url(),
   BASE_API_TESTNET_URL: z.string().url(),
-  BASE_API_SANDBOX_URL: z.string().url(),
-  GITHUB_CLIENT_SECRET: z.string(),
-  BITBUCKET_CLIENT_SECRET: z.string(),
-  GITLAB_CLIENT_SECRET: z.string()
+  BASE_API_SANDBOX_URL: z.string().url()
 });
 
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;

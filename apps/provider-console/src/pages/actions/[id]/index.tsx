@@ -1,9 +1,10 @@
 "use client";
 
 import React from "react";
-
-import { Layout } from "@src/components/layout/Layout";
+import { useSearchParams } from "next/navigation";
 import { ProviderActionDetails } from "@src/components/shared/ProviderActionDetails";
+import Layout from "@src/components/layout/Layout";
+import { Separator } from "@akashnetwork/ui/components";
 
 type Props = {
   id: string | null;

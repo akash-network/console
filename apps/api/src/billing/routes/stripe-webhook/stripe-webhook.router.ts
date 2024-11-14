@@ -3,7 +3,7 @@ import { container } from "tsyringe";
 import { z } from "zod";
 
 import { CheckoutController } from "@src/billing/controllers/checkout/checkout.controller";
-import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { OpenApiHonoHandled } from "@src/core/services/open-api-hono-handled/open-api-hono-handled";
 
 const route = createRoute({
   method: "post",
@@ -30,7 +30,7 @@ const route = createRoute({
   }
 });
 
-export const stripeWebhook = new OpenApiHonoHandler();
+export const stripeWebhook = new OpenApiHonoHandled();
 
 stripeWebhook.openapi(route, async function routeStripeWebhook(c) {
   const sig = c.req.header("stripe-signature");

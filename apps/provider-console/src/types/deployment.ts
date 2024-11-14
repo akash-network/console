@@ -324,6 +324,7 @@ export interface RpcDepositParams {
   param: {
     subspace: string;
     key: string;
+    // Array of { denom: string, amount: string }
     value: string;
   };
 }

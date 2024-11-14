@@ -78,7 +78,7 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
                   name={`services.${serviceIndex}.profile.storageUnit`}
                   defaultValue=""
                   render={({ field }) => (
-                    <Select value={field.value?.toLowerCase() || ""} onValueChange={field.onChange}>
+                    <Select value={field.value || ""} onValueChange={field.onChange}>
                       <SelectTrigger className="ml-1 w-[75px]">
                         <SelectValue placeholder="Select unit" />
                       </SelectTrigger>
@@ -86,7 +86,7 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
                         <SelectGroup>
                           {storageUnits.map(t => {
                             return (
-                              <SelectItem key={t.id} value={t.suffix.toLowerCase()}>
+                              <SelectItem key={t.id} value={t.suffix}>
                                 {t.suffix}
                               </SelectItem>
                             );
@@ -102,7 +102,7 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
             <Slider
               value={[field.value || 0]}
               min={1}
-              max={5120}
+              max={512}
               step={1}
               color="secondary"
               aria-label="Storage"

@@ -1,9 +1,9 @@
-import { Deployments } from "@src/components/deployments/Deployments";
-import { Layout } from "@src/components/layout/Layout";
+import Layout from "@src/components/layout/Layout";
+import Deployments from "@src/components/deployments/Deployments";
 import { Title } from "@src/components/shared/Title";
-import { withAuth } from "@src/components/shared/withAuth";
+import withAuth from "@src/components/shared/withAuth";
 
-const DeploymentsPage: React.FC = () => {
+const DeploymentsPage: React.FunctionComponent = () => {
   return (
     <Layout>
       <div className="flex items-center">

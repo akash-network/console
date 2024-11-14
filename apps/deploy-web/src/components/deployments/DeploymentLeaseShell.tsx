@@ -1,8 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Button, Spinner } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
-import { OpenInWindow } from "iconoir-react";
+import { OpenInWindow, OpenNewWindow } from "iconoir-react";
 import Link from "next/link";
 
 import ViewPanel from "@src/components/shared/ViewPanel";
@@ -15,6 +14,7 @@ import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
+import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { LeaseSelect } from "./LeaseSelect";
 import { ServiceSelect } from "./ServiceSelect";

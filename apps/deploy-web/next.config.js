@@ -30,7 +30,7 @@ const moduleExports = {
     styledComponents: true
   },
   images: {
-    domains: ["raw.githubusercontent.com", "avatars.githubusercontent.com"]
+    domains: ["raw.githubusercontent.com"]
   },
   output: "standalone",
   typescript: {

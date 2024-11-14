@@ -1,4 +1,3 @@
-import { LoggerService } from "@akashnetwork/logging";
 import type { StdFee } from "@cosmjs/amino";
 import { toHex } from "@cosmjs/encoding";
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
@@ -10,19 +9,21 @@ import { Sema } from "async-sema";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import DataLoader from "dataloader";
 import assert from "http-assert";
+import { singleton } from "tsyringe";
 
-import { BillingConfig } from "@src/billing/providers";
+import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { BatchSigningStargateClient } from "@src/billing/services/batch-signing-stargate-client/batch-signing-stargate-client";
 import { MasterWalletService } from "@src/billing/services/master-wallet/master-wallet.service";
+import { LoggerService } from "@src/core";
 
 interface ShortAccountInfo {
   accountNumber: number;
   sequence: number;
 }
 
+@singleton()
 export class MasterSigningClientService {
-  private readonly FEES_DENOM = "uakt";
-
   private clientAsPromised: Promise<BatchSigningStargateClient>;
 
   private readonly semaphore = new Sema(1);
@@ -38,13 +39,12 @@ export class MasterSigningClientService {
     { cache: false, batchScheduleFn: callback => setTimeout(callback, this.config.MASTER_WALLET_BATCHING_INTERVAL_MS) }
   );
 
-  private readonly logger = new LoggerService({ context: this.loggerContext });
+  private readonly logger = new LoggerService({ context: MasterWalletService.name });
 
   constructor(
-    private readonly config: BillingConfig,
+    @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly masterWalletService: MasterWalletService,
-    private readonly registry: Registry,
-    private readonly loggerContext = MasterSigningClientService.name
+    @InjectTypeRegistry() private readonly registry: Registry
   ) {
     this.clientAsPromised = this.initClient();
   }
@@ -110,7 +110,7 @@ export class MasterSigningClientService {
 
     while (txIndex < messages.length) {
       txes.push(
-        await client.sign(masterAddress, messages[txIndex], await this.estimateFee(messages[txIndex], this.FEES_DENOM, { mock: true }), "", {
+        await client.sign(masterAddress, messages[txIndex], await this.estimateFee(messages[txIndex], this.config.DEPLOYMENT_GRANT_DENOM, { mock: true }), "", {
           accountNumber: this.accountInfo.accountNumber,
           sequence: this.accountInfo.sequence++,
           chainId: this.chainId
@@ -137,7 +137,7 @@ export class MasterSigningClientService {
   private async estimateFee(messages: readonly EncodeObject[], denom: string, options?: { mock?: boolean }) {
     if (options?.mock) {
       return {
-        amount: [{ denom: this.FEES_DENOM, amount: "15000" }],
+        amount: [{ denom: "uakt", amount: "15000" }],
         gas: "500000"
       };
     }

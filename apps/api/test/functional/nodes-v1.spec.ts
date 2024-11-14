@@ -1,12 +1,11 @@
 import { faker } from "@faker-js/faker";
+import { NodeSeeder } from "@test/seeders/node-seeder";
 import mcache from "memory-cache";
 import nock from "nock";
 
 import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/db/dbConnection";
 import { env } from "@src/utils/env";
-
-import { NodeSeeder } from "@test/seeders/node.seeder";
 
 describe("Nodes API", () => {
   const interceptor = nock(env.NODE_API_BASE_PATH);

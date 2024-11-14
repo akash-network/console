@@ -8,16 +8,11 @@ export class ChainErrorService {
     "insufficient funds": {
       code: 400,
       message: "Insufficient funds"
-    },
-    "provider not authorized": {
-      code: 400,
-      message: "Provider not authorized"
     }
   };
 
   private MESSAGE_ERROR_TITLES: Record<string, string> = {
-    "/akash.deployment.v1beta3.MsgCreateDeployment": "Failed to create deployment",
-    "/akash.market.v1beta4.MsgCreateLease": "Failed to create lease"
+    "/akash.deployment.v1beta3.MsgCreateDeployment": "Failed to create deployment"
   };
 
   public toAppError(error: Error, messages: readonly EncodeObject[]) {

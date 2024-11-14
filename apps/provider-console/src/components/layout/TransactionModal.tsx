@@ -9,7 +9,7 @@ type Props = {
   children?: ReactNode;
 };
 
-export const TransactionModal: React.FC<Props> = ({ state, open, onClose }) => {
+export const TransactionModal: React.FunctionComponent<Props> = ({ state, open, onClose }) => {
   return (
     <Popup
       fullWidth

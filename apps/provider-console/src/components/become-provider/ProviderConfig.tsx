@@ -1,16 +1,15 @@
 "use client";
+import { Button, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Separator, Form } from "@akashnetwork/ui/components";
 import React from "react";
 import { useForm } from "react-hook-form";
-import { Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Separator } from "@akashnetwork/ui/components";
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
-import { z } from "zod";
-
 import providerProcessStore from "@src/store/providerProcessStore";
-import { ResetProviderForm } from "./ResetProviderProcess";
+import ResetProviderForm from "./ResetProviderProcess";
 
 interface ProviderConfigProps {
-  onComplete: () => void;
+  stepChange: () => void;
 }
 
 const providerConfigSchema = z.object({
@@ -22,25 +21,26 @@ const providerConfigSchema = z.object({
       return regex.test(value);
     }, "Invalid domain name format"),
   organizationName: z.string().min(1, "Organization name is required"),
-  emailAddress: z.string().email("Invalid email address").optional().or(z.literal(""))
+  emailAddress: z.string().email("Invalid email address").optional().or(z.literal("")) // Ensure emailAddress is optional
 });
 
 type ProviderConfigValues = z.infer<typeof providerConfigSchema>;
 
-export const ProviderConfig: React.FC<ProviderConfigProps> = ({ onComplete }) => {
+export const ProviderConfig: React.FunctionComponent<ProviderConfigProps> = ({ stepChange }) => {
   const form = useForm<ProviderConfigValues>({
     resolver: zodResolver(providerConfigSchema),
-    mode: "onSubmit",
+    mode: "onSubmit", // Change validation mode to onSubmit
     defaultValues: {
       domainName: "",
       organizationName: "",
-      emailAddress: ""
+      emailAddress: "" // Ensure default value is an empty string
     }
   });
 
   const [, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
 
-  const updateProviderConfigAndProceed = async (formValues: ProviderConfigValues) => {
+  const submitForm = async (formValues: ProviderConfigValues) => {
+    console.log("Hi");
     setProviderProcess(prev => ({
       ...prev,
       config: {
@@ -53,7 +53,7 @@ export const ProviderConfig: React.FC<ProviderConfigProps> = ({ onComplete }) =>
         providerConfig: true
       }
     }));
-    onComplete();
+    stepChange();
   };
 
   return (
@@ -68,7 +68,7 @@ export const ProviderConfig: React.FC<ProviderConfigProps> = ({ onComplete }) =>
         </div>
         <div>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(updateProviderConfigAndProceed)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(submitForm)} className="space-y-6">
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-2">
                   <FormField

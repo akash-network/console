@@ -1,14 +1,12 @@
-import * as Sentry from "@sentry/nextjs";
+// import { notification } from "antd";
 import axios from "axios";
-
-import { browserEnvConfig } from "@src/config/browser-env.config";
 
 const errorNotification = (error = "Error Occurred") => {
   console.log(error);
 };
 
 const consoleClient = axios.create({
-  baseURL: browserEnvConfig.NEXT_PUBLIC_CONSOLE_API_MAINNET_URL,
+  baseURL: `https://api-preview.cloudmos.io`,
   timeout: 60000
 });
 
@@ -17,27 +15,23 @@ consoleClient.interceptors.response.use(
     return response.data;
   },
   async error => {
-    let errorMessage = "An unexpected error occurred";
+    // whatever you want to do with the error
     if (typeof error.response === "undefined") {
-      errorMessage = "Server is not reachable or CORS is not enable on the server!";
       errorNotification("Server is not reachable or CORS is not enable on the server!");
     } else if (error.response) {
-      errorMessage = "Server Error!";
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+
       errorNotification("Server Error!");
     } else if (error.request) {
-      errorMessage = "Server is not responding!";
+      // The request was made but no response was received
+      // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
+      // http.ClientRequest in node.js
       errorNotification("Server is not responding!");
     } else {
-      errorMessage = error.message;
+      // Something happened in setting up the request that triggered an Error
       errorNotification(error.message);
     }
-    Sentry.captureException(error, {
-      extra: {
-        errorMessage,
-        requestUrl: error.config?.url,
-        requestMethod: error.config?.method,
-      },
-    });
     throw error;
   }
 );

@@ -1,0 +1,70 @@
+FROM node:20-alpine AS base
+
+ARG WORKSPACE
+ENV WORKSPACE $WORKSPACE
+
+ARG DEPLOYMENT_ENV
+ENV DEPLOYMENT_ENV $DEPLOYMENT_ENV
+
+ENV NEXT_TELEMETRY_DISABLED 1
+ENV HUSKY 0
+
+WORKDIR /app
+
+FROM base AS development
+
+ENV NODE_ENV development
+
+RUN apk add --no-cache libc6-compat
+
+COPY $WORKSPACE ./$WORKSPACE
+COPY /packages /app/packages
+COPY /$WORKSPACE/package*.json /app/$WORKSPACE
+COPY package*.json /app
+
+RUN npm install
+
+CMD ["npm", "run", "dev", "--workspace", "${WORKSPACE}"]
+
+FROM development AS builder
+
+ENV NODE_ENV production
+
+RUN npm run build -w $WORKSPACE
+
+FROM base AS production
+
+ENV NODE_ENV production
+ENV APP_GROUP_ID 1001
+ENV APP_GROUP nodejs
+ENV APP_USER app
+
+RUN addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
+    && adduser --system --uid $APP_GROUP_ID $APP_USER
+
+COPY --from=builder /app/$WORKSPACE/env ./$WORKSPACE/env
+COPY --from=builder /app/$WORKSPACE/public ./$WORKSPACE/public
+COPY --from=builder /app/$WORKSPACE/.next/standalone ./
+COPY --from=builder /app/$WORKSPACE/.next/static ./$WORKSPACE/.next/static
+
+RUN chown -R $APP_USER:$APP_GROUP /app
+
+WORKDIR /app/$WORKSPACE
+
+USER $APP_USER
+
+CMD ["node", "server.js"]
+
+FROM production AS production-nginx
+
+USER root
+
+RUN apk add --no-cache libcap nginx openssl \
+    && setcap cap_net_bind_service=+ep `readlink -f \`which node\`` \
+    && mkdir -p /etc/nginx/ssl \
+    && openssl req -x509 -newkey rsa:4096 -sha256 -nodes -keyout /etc/nginx/ssl/my_ssl_key.key -out /etc/nginx/ssl/my_ssl_cert.crt -subj "/CN=akash.network" -days 600 \
+    && nginx -t
+
+COPY $WORKSPACE/nginx.conf /etc/nginx/nginx.conf
+
+CMD sed -i "s/127.0.0.1/$(hostname -i)/" /etc/nginx/nginx.conf && nginx && node server.js

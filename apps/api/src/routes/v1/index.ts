@@ -32,7 +32,6 @@ import providerAttributesSchema from "./providerAttributesSchema";
 import providerGraphData from "./providerGraphData";
 import providerRegions from "./providerRegions";
 import templates from "./templates";
-import trialProviders from "./trialProviders";
 
 export default [
   blocks,
@@ -68,6 +67,5 @@ export default [
   deploymentByOwnerDseq,
   providerGraphData,
   graphData,
-  providerActiveLeasesGraphData,
-  trialProviders
+  providerActiveLeasesGraphData
 ];

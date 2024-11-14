@@ -3,7 +3,6 @@ import { setupLeap } from "./fixture/wallet-setup";
 import { DeployHelloWorldPage } from "./pages/DeployHelloWorldPage";
 
 test("deploy hello world", async ({ extPage: page, context }) => {
-  test.setTimeout(300_000);
   await setupLeap(context, page);
 
   const helloWorldPage = new DeployHelloWorldPage(context, page, "new-deployment", "hello-world-card");

@@ -3,6 +3,7 @@ import { roundDecimal } from "./mathHelpers";
 export const averageDaysInMonth = 30.437;
 
 export const epochToDate = (epoch: number) => {
+  // The 0 sets the date to the epoch
   const d = new Date(0);
   d.setUTCSeconds(epoch);
 
@@ -61,8 +62,8 @@ export function getPrettyTimeFromSeconds(seconds: number) {
   const secondsInMinute = 60
   const secondsInHour = 60 * 60
   const secondsInDay = 24 * secondsInHour
-  const secondsInMonth = 30 * secondsInDay
-  const secondsInYear = 365 * secondsInDay
+  const secondsInMonth = 30 * secondsInDay // Assuming an average of 30 days in a month
+  const secondsInYear = 365 * secondsInDay // Assuming 365 days in a year
 
   const years = Math.floor(seconds / secondsInYear)
   const remainingSecondsAfterYears = seconds % secondsInYear
@@ -113,45 +114,4 @@ export function getPrettyTimeFromSeconds(seconds: number) {
   }
 
   return result
-}
-
-
-export function formatLocalTime(utcTime: string | null) {
-  if (!utcTime) return null;
-  const [datePart, timePart] = utcTime.split("T");
-  const [year, month, day] = datePart.split("-").map(Number);
-  const [hours, minutes, seconds] = timePart.split(":").map(Number);
-
-  const utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
-
-  const options: Intl.DateTimeFormatOptions = {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-    timeZoneName: "short"
-  };
-
-  return utcDate.toLocaleString(undefined, options);
-}
-
-export function formatTimeLapse(start: string, end: string | null) {
-  const startDate = new Date(start + "Z");
-  const endDate = end ? new Date(end + "Z") : new Date();
-
-  const durationMs = endDate.getTime() - startDate.getTime();
-  const hours = Math.floor(durationMs / (1000 * 60 * 60));
-  const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  } else if (minutes > 0) {
-    return `${minutes}m ${seconds}s`;
-  } else {
-    return `${seconds}s`;
-  }
 }

@@ -1,23 +1,22 @@
 import React, { useState } from "react";
 import { Popup } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
-
 import providerProcessStore from "@src/store/providerProcessStore";
 
-export const ResetProviderForm: React.FC = () => {
+const ResetProviderForm: React.FunctionComponent = () => {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [, resetProcess] = useAtom(providerProcessStore.resetProviderProcess);
 
-  const openResetModal = () => {
+  const handleReset = () => {
     setIsResetModalOpen(true);
   };
 
-  const resetAndCloseModal = () => {
+  const confirmReset = () => {
     resetProcess();
     setIsResetModalOpen(false);
   };
 
-  const closeModal = () => {
+  const cancelReset = () => {
     setIsResetModalOpen(false);
   };
 
@@ -25,17 +24,17 @@ export const ResetProviderForm: React.FC = () => {
     variant: "confirm",
     title: "Confirm Reset",
     message: "Are you sure you want to reset the provider process?",
-    onValidate: resetAndCloseModal,
-    onCancel: closeModal,
+    onValidate: confirmReset,
+    onCancel: cancelReset,
     open: isResetModalOpen
   };
 
   return (
     <>
-      <button type="button" onClick={openResetModal}>
-        Reset
-      </button>
+      <button type="button" onClick={handleReset}>Reset</button>
       <Popup {...popupProps} variant="confirm" />
     </>
   );
 };
+
+export default ResetProviderForm;

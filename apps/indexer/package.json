@@ -16,7 +16,6 @@
   "scripts": {
     "build": "webpack --config webpack.prod.js",
     "dev": "npm run start",
-    "dev-nodc": "npm run start",
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "prod": "node dist/server.js",

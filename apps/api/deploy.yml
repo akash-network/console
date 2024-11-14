@@ -1,0 +1,71 @@
+---
+version: "2.0"
+
+services:
+  api:
+    image: <IMAGE_NAME>:<IMAGE_TAG>
+    depends-on: cloud-sql-proxy
+    env:
+      - DOPPLER_TOKEN=
+      - SENTRY_SERVER_NAME=
+    expose:
+      - port: 3080
+        as: 80
+        accept:
+          - console-api-sandbox-staging.akash.network
+        to:
+          - global: true
+  cloud-sql-proxy:
+    image: redm4x/cloud-sql-proxy:1.31.2
+    env:
+      - KeyPath=/custom/proxy_key.json
+      - ConnectionName=cloudmos-explorer:us-central1:cloudmos-postgresql
+      - Token=<AUTH>
+    command:
+      - "sh"
+      - "-c"
+    args:
+      - 'echo "${Token}" | base64 --decode > $KeyPath && /cloud_sql_proxy -instances=$ConnectionName=tcp:0.0.0.0:5432 -credential_file=$KeyPath'
+    expose:
+      - port: 5432
+        as: 5432
+        to:
+          - service: api
+
+profiles:
+  compute:
+    api:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 2Gi
+        storage:
+          size: 2Gi
+    cloud-sql-proxy:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512mi
+        storage:
+          size: 2Gi
+  placement:
+    dcloud:
+      pricing:
+        api:
+          denom: uakt
+          amount: 1000
+        cloud-sql-proxy:
+          denom: uakt
+          amount: 1000
+
+deployment:
+  api:
+    dcloud:
+      profile: api
+      count: 1
+  cloud-sql-proxy:
+    dcloud:
+      profile: cloud-sql-proxy
+      count: 1

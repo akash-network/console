@@ -4,7 +4,7 @@ import { SSH_VM_IMAGES } from "@src/utils/sdl/data";
 import { DeployCustomTemplatePage } from "./pages/DeployCustomTemplatePage";
 
 test("create custom template deployment", async ({ page, context }) => {
-  const customTemplatePage = new DeployCustomTemplatePage(context, page, "new-deployment", "custom-container-card");
+  const customTemplatePage = new DeployCustomTemplatePage(context, page, "new-deployment", "build-template-card");
   await customTemplatePage.gotoInteractive();
   await customTemplatePage.fillImageName(SSH_VM_IMAGES["Ubuntu 24.04"]);
 

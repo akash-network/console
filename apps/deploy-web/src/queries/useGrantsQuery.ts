@@ -3,20 +3,20 @@ import axios from "axios";
 
 import { useSettings } from "@src/context/SettingsProvider";
 import { AllowanceType, GrantType } from "@src/types/grant";
-import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
+import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
 async function getGranterGrants(apiEndpoint: string, address: string) {
   if (!address || !apiEndpoint) return undefined;
 
-  const grants = await loadWithPagination<GrantType[]>(ApiUrlService.granterGrants(apiEndpoint, address), "grants", 1000);
-  const filteredGrants = grants.filter(
+  const response = await axios.get(ApiUrlService.granterGrants(apiEndpoint, address));
+  const filteredGrants = response.data.grants.filter(
     x =>
       x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization" ||
       x.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
   );
 
-  return filteredGrants;
+  return filteredGrants as GrantType[];
 }
 
 export function useGranterGrants(address: string, options = {}) {
@@ -28,8 +28,8 @@ export function useGranterGrants(address: string, options = {}) {
 async function getGranteeGrants(apiEndpoint: string, address: string) {
   if (!address || !apiEndpoint) return undefined;
 
-  const grants = await loadWithPagination<GrantType[]>(ApiUrlService.granteeGrants(apiEndpoint, address), "grants", 1000);
-  const filteredGrants = grants.filter(
+  const response = await axios.get(ApiUrlService.granteeGrants(apiEndpoint, address));
+  const filteredGrants = response.data.grants.filter(
     x =>
       // TODO: this is not working
       // Only the v1beta3 authorization are working
@@ -37,7 +37,7 @@ async function getGranteeGrants(apiEndpoint: string, address: string) {
       x.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
   );
 
-  return filteredGrants;
+  return filteredGrants as GrantType[];
 }
 
 export function useGranteeGrants(address: string, options = {}) {
@@ -49,9 +49,9 @@ export function useGranteeGrants(address: string, options = {}) {
 async function getAllowancesIssued(apiEndpoint: string, address: string) {
   if (!address || !apiEndpoint) return undefined;
 
-  const allowances = await loadWithPagination<AllowanceType[]>(ApiUrlService.allowancesIssued(apiEndpoint, address), "allowances", 1000);
+  const response = await axios.get(ApiUrlService.allowancesIssued(apiEndpoint, address));
 
-  return allowances;
+  return response.data.allowances as AllowanceType[];
 }
 
 export function useAllowancesIssued(address: string, options = {}) {
@@ -63,9 +63,9 @@ export function useAllowancesIssued(address: string, options = {}) {
 async function getAllowancesGranted(apiEndpoint: string, address: string) {
   if (!address || !apiEndpoint) return undefined;
 
-  const allowances = await loadWithPagination<AllowanceType[]>(ApiUrlService.allowancesGranted(apiEndpoint, address), "allowances", 1000);
+  const response = await axios.get(ApiUrlService.allowancesGranted(apiEndpoint, address));
 
-  return allowances;
+  return response.data.allowances as AllowanceType[];
 }
 
 export function useAllowancesGranted(address?: string, options = {}): QueryObserverResult<AllowanceType[]> {

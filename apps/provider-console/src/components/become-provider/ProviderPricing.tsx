@@ -1,31 +1,13 @@
 "use client";
-import React, { useCallback, useEffect, useState } from "react";
+import { Button, FormControl, FormDescription, FormField, FormItem, FormLabel, Input, Separator, Slider, Form } from "@akashnetwork/ui/components";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-  Button,
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  Input,
-  Separator,
-  Slider
-} from "@akashnetwork/ui/components";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowDown } from "iconoir-react";
-import { useAtom } from "jotai";
+import { ChevronDownIcon } from "lucide-react";
 import { z } from "zod";
-
-import { useControlMachine } from "@src/context/ControlMachineProvider";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtom } from "jotai";
 import providerProcessStore from "@src/store/providerProcessStore";
-import restClient from "@src/utils/restClient";
-import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
-import { ResetProviderForm } from "./ResetProviderProcess";
+import ResetProviderForm from "./ResetProviderProcess";
 
 interface ProviderPricingProps {
   resources?: {
@@ -35,11 +17,7 @@ interface ProviderPricingProps {
     persistentStorage: number;
     gpu: number;
   };
-  editMode?: boolean;
-  existingPricing?: ProviderPricingValues;
-  disabled?: boolean;
-  providerDetails?: any;
-  onComplete: () => void;
+  stepChange: () => void;
 }
 
 const providerPricingSchema = z.object({
@@ -54,7 +32,7 @@ const providerPricingSchema = z.object({
 
 type ProviderPricingValues = z.infer<typeof providerPricingSchema>;
 
-export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, editMode = false, existingPricing, disabled = false, providerDetails }) => {
+export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const { activeControlMachine } = useControlMachine();
   const [showSuccess, setShowSuccess] = React.useState(false);
@@ -76,45 +54,24 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
         let totalPersistentStorage = 0;
         let totalGpu = 0;
 
-        providerProcess.machines.forEach(machine => {
-          totalCpu += parseInt(machine.systemInfo.cpus, 10);
-          totalMemory += parseInt(machine.systemInfo.memory.replace("Gi", ""), 10);
-          machine.systemInfo.storage.forEach((storage, index) => {
-            if (index === 0) {
-              totalStorage += storage.size / (1024 * 1024 * 1024);
-            } else {
-              totalPersistentStorage += storage.size / (1024 * 1024 * 1024);
-            }
-          });
-          totalGpu += machine.systemInfo.gpu.count;
+      providerProcess.machines.forEach(machine => {
+        totalCpu += parseInt(machine.systemInfo.cpus, 10);
+        totalMemory += parseInt(machine.systemInfo.memory.replace("Gi", ""), 10); // Memory in GiB
+        machine.systemInfo.storage.forEach((storage, index) => {
+          if (index === 0) {
+            totalStorage += storage.size / (1024 * 1024 * 1024); // Convert bytes to GB
+          } else {
+            totalPersistentStorage += storage.size / (1024 * 1024 * 1024); // Convert bytes to GB
+          }
         });
 
-        setResources({
-          cpu: totalCpu,
-          memory: totalMemory,
-          storage: totalStorage,
-          persistentStorage: totalPersistentStorage,
-          gpu: totalGpu
-        });
-      } else if (providerDetails) {
-        const { activeStats, pendingStats, availableStats } = providerDetails;
-
-        // Calculate totals by summing active, pending, and available stats
-        const totalCpu = (activeStats.cpu + pendingStats.cpu + availableStats.cpu) / 1000;
-        const totalGpu = activeStats.gpu + pendingStats.gpu + availableStats.gpu;
-        // Convert memory from bytes to GB
-        const totalMemory = Math.floor((activeStats.memory + pendingStats.memory + availableStats.memory) / (1024 * 1024 * 1024));
-        // Convert storage from bytes to GB
-        const totalStorage = Math.floor((activeStats.storage + pendingStats.storage + availableStats.storage) / (1024 * 1024 * 1024));
-
-        setResources({
-          cpu: totalCpu,
-          memory: totalMemory,
-          storage: totalStorage,
-          persistentStorage: 0, // Using same storage value for persistent storage
-          gpu: totalGpu
-        });
-      }
+      setResources({
+        cpu: totalCpu,
+        memory: totalMemory, // Memory in GiB
+        storage: totalStorage,
+        persistentStorage: totalPersistentStorage,
+        gpu: totalGpu
+      });
     };
 
     calculateResources();
@@ -136,62 +93,44 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
         }
   });
 
-  const watchValues = form.watch();
+  const watchValues = form.watch(); // Watch all form values
 
-  const calculateEstimatedEarnings = useCallback(
-    (values: ProviderPricingValues) => {
-      const { cpu, memory, storage, gpu, persistentStorage, ipScalePrice, endpointBidPrice } = values;
+  const calculateEstimatedEarnings = (values: ProviderPricingValues) => {
+    const { cpu, memory, storage, gpu, persistentStorage, ipScalePrice, endpointBidPrice } = values;
 
-      const totalCpuEarnings = resources.cpu * cpu;
-      const totalMemoryEarnings = resources.memory * memory;
-      const totalStorageEarnings = resources.storage * storage;
-      const totalGpuEarnings = resources.gpu * gpu;
-      const totalPersistentStorageEarnings = resources.persistentStorage * persistentStorage;
-      const totalIpScaleEarnings = ipScalePrice;
-      const totalEndpointBidEarnings = endpointBidPrice;
+    const totalCpuEarnings = resources.cpu * cpu;
+    const totalMemoryEarnings = resources.memory * memory;
+    const totalStorageEarnings = resources.storage * storage;
+    const totalGpuEarnings = resources.gpu * gpu;
+    const totalPersistentStorageEarnings = resources.persistentStorage * persistentStorage;
+    const totalIpScaleEarnings = ipScalePrice; // Assuming a single IP
+    const totalEndpointBidEarnings = endpointBidPrice; // Assuming a single endpoint
 
-      const totalEarnings =
-        totalCpuEarnings +
-        totalMemoryEarnings +
-        totalStorageEarnings +
-        totalGpuEarnings +
-        totalPersistentStorageEarnings +
-        totalIpScaleEarnings +
-        totalEndpointBidEarnings;
+    const totalEarnings =
+      totalCpuEarnings +
+      totalMemoryEarnings +
+      totalStorageEarnings +
+      totalGpuEarnings +
+      totalPersistentStorageEarnings +
+      totalIpScaleEarnings +
+      totalEndpointBidEarnings;
 
-      return totalEarnings * 0.8;
-    },
-    [resources]
-  );
+    return totalEarnings * 0.8;
+  };
 
   const estimatedEarnings = calculateEstimatedEarnings(watchValues);
 
-  const submit = async (data: any) => {
-    setIsLoading(true);
-    if (!editMode) {
-      setProviderProcess(prev => ({
-        ...prev,
-        pricing: data,
-        process: {
-          ...prev.process,
-          providerPricing: true
-        }
-      }));
-      onComplete();
-    } else {
-      // console.log("data", data);
-      const request = {
-        control_machine: sanitizeMachineAccess(activeControlMachine),
-        pricing: data
-      };
-
-      const response = await restClient.post(`/update-provider-pricing`, request);
-      if (response) {
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 20000);
+  const submit = (data: any) => {
+    console.log(data);
+    setProviderProcess(prev => ({
+      ...prev,
+      pricing: data,
+      process: {
+        ...prev.process,
+        providerPricing: true
       }
-    }
-    setIsLoading(false);
+    }));
+    stepChange();
   };
 
   useEffect(() => {
@@ -223,7 +162,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
           <Separator />
         </div>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(updateProviderPricingAndProceed)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(submit)} className="space-y-6">
             <div className="grid grid-cols-5 gap-8">
               <div className="col-span-3 space-y-6">
                 <FormField
@@ -384,7 +323,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                 <div>
                   <Button type="button" variant="outline" disabled={disabled} onClick={() => setShowAdvanced(!showAdvanced)} className="justify-between">
                     Advanced Settings
-                    <ArrowDown className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+                    <ChevronDownIcon className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
                   </Button>
                 </div>
 

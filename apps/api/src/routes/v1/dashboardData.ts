@@ -1,6 +1,6 @@
-import { LoggerService } from "@akashnetwork/logging";
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 
+import { LoggerService } from "@src/core/services/logger/logger.service";
 import { getBlocks } from "@src/services/db/blocksService";
 import { getNetworkCapacity } from "@src/services/db/providerStatusService";
 import { getDashboardData, getProviderGraphData } from "@src/services/db/statsService";

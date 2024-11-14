@@ -2,7 +2,6 @@
 import React, { ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { Button, buttonVariants, ErrorFallback, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowLeft, Refresh } from "iconoir-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useWallet } from "@src/context/WalletProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { ClientProviderDetailWithStatus } from "@src/types/provider";
+import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { Title } from "../shared/Title";
 import { ProviderSummary } from "./ProviderSummary";

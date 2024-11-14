@@ -1,7 +1,6 @@
+import { MachineInformation } from "@src/types/machineAccess";
 import { atom } from 'jotai';
 import { atomWithStorage } from "jotai/utils";
-
-import { MachineInformation } from "@src/types/machineAccess";
 
 interface ProviderSteps {
   serverAccess: boolean,

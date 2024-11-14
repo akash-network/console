@@ -25,4 +25,4 @@ jobs:
 
       - name: Build the Docker image
         if: steps.filter.outputs.indexer == 'true'
-        run: packages/docker/script/dc.sh build indexer
+        run: npm run dc:build -- indexer

@@ -1,41 +1,36 @@
 "use client";
-
-import React from "react";
-import { Controller, SubmitHandler, useFieldArray, useForm } from "react-hook-form";
 import {
   Alert,
   AlertDescription,
   AlertTitle,
   Button,
-  Form,
   FormControl,
   FormField,
   FormItem,
   FormMessage,
   Input,
+  Separator,
   Select,
-  SelectContent,
   SelectItem,
   SelectTrigger,
-  Separator } from "@akashnetwork/ui/components";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash } from "iconoir-react";
-import { useAtom } from "jotai";
+  SelectContent,
+  Form
+} from "@akashnetwork/ui/components";
+import React from "react";
+import { useForm, useFieldArray, Controller, SubmitHandler } from "react-hook-form";
+import { PlusIcon, TrashIcon } from "lucide-react";
 import { z } from "zod";
-
-import { useControlMachine } from "@src/context/ControlMachineProvider";
-import providerProcessStore, { ProviderAttribute } from "@src/store/providerProcessStore";
-import restClient from "@src/utils/restClient";
-import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";
-import { ResetProviderForm } from "./ResetProviderProcess";
+import { useAtom } from "jotai";
+import providerProcessStore from "@src/store/providerProcessStore";
+import ResetProviderForm from "./ResetProviderProcess";
 
+// Extract keys from providerAttributesFormValuesSchema
 const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 
 interface ProviderAttributesProps {
-  existingAttributes?: ProviderAttribute[];
-  editMode?: boolean;
-  onComplete?: () => void;
+  stepChange: () => void;
 }
 
 const providerFormSchema = z.object({
@@ -50,7 +45,7 @@ const providerFormSchema = z.object({
 
 type ProviderFormValues = z.infer<typeof providerFormSchema>;
 
-export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ existingAttributes, editMode, onComplete }) => {
+export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps> = ({ stepChange }) => {
   const [providerPricing, setProviderPricing] = useAtom(providerProcessStore.providerProcessAtom);
   const form = useForm<ProviderFormValues>({
     resolver: zodResolver(providerFormSchema),
@@ -71,37 +66,16 @@ export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ existing
     name: "attributes"
   });
 
-  const { activeControlMachine } = useControlMachine();
-
-  const [showSuccess, setShowSuccess] = React.useState(false);
-
   const onSubmit: SubmitHandler<ProviderFormValues> = async data => {
-    if (!editMode) {
-      const updatedProviderPricing = {
-        ...providerPricing,
-        attributes: data.attributes.map(attr => ({
-          key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",
-          value: attr.value
-        }))
-      };
-      setProviderPricing(updatedProviderPricing);
-      onComplete && onComplete();
-    } else {
-      const attributes = data.attributes.map(attr => ({
-        key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",
-        value: attr.value
-      }));
-      const request = {
-        control_machine: sanitizeMachineAccess(activeControlMachine),
-        attributes
-      };
-
-      const response = await restClient.post(`/update-provider-attributes`, request);
-      if (response) {
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 10000);
-      }
-    }
+    const updatedProviderPricing = {
+      ...providerPricing,
+      attributes: data.attributes.map(attr => ({
+        ...attr,
+        customKey: attr.customKey || "" // Provide a default empty string
+      }))
+    };
+    setProviderPricing(updatedProviderPricing);
+    stepChange();
   };
 
   return (
@@ -118,7 +92,7 @@ export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ existing
         </div>
         <div>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(updateProviderAttributesAndProceed)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div>
                 <h4 className="mb-2 text-lg font-semibold">Attributes</h4>
                 {fields.map((field, index) => {
@@ -175,13 +149,13 @@ export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ existing
                         )}
                       />
                       <Button type="button" variant="outline" size="icon" onClick={() => remove(index)}>
-                        <Trash className="h-4 w-4" />
+                        <TrashIcon className="h-4 w-4" />
                       </Button>
                     </div>
                   );
                 })}
                 <Button type="button" variant="outline" size="sm" onClick={() => append({ key: "", value: "", customKey: "" })}>
-                  <Plus className="mr-2 h-4 w-4" />
+                  <PlusIcon className="mr-2 h-4 w-4" />
                   Add Attribute
                 </Button>
               </div>

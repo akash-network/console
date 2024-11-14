@@ -1,4 +1,4 @@
 import "./config.provider";
-import "./wallet.provider";
+import "./http-sdk.provider";
 
 export * from "./config.provider";
