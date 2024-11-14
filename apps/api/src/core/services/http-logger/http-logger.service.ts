@@ -1,26 +1,28 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { Context, Next } from "hono";
 import { singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core/services/logger/logger.service";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 
 @singleton()
 export class HttpLoggerService implements HonoInterceptor {
-  private readonly logger = new LoggerService({ context: "HTTP" });
+  private readonly logger = LoggerService.forContext("HTTP");
 
   intercept() {
     return async (c: Context, next: Next) => {
       const timer = performance.now();
-      this.logger.info({
-        method: c.req.method,
-        url: c.req.url
-      });
 
       await next();
-
       this.logger.info({
-        status: c.res.status,
-        duration: `${(performance.now() - timer).toFixed(3)}ms`
+        httpRequest: {
+          requestMethod: c.req.method,
+          requestUrl: c.req.url,
+          status: c.res.status,
+          userAgent: c.req.header("user-agent"),
+          referrer: c.req.raw.referrer,
+          protocol: c.req.header("x-forwarded-proto"),
+          duration: `${(performance.now() - timer).toFixed(3)}ms`
+        }
       });
     };
   }

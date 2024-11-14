@@ -19,7 +19,8 @@
         "stats",
         "release",
         "repo",
-        "styling"
+        "styling",
+        "observability"
       ]
     ]
   }

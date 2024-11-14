@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { PromisePool } from "@supercharge/promise-pool";
 import { singleton } from "tsyringe";
 
@@ -5,13 +6,12 @@ import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, WalletInitializerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
-import { LoggerService } from "@src/core";
 import { InjectSentry, Sentry } from "@src/core/providers/sentry.provider";
 import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
 
 @singleton()
 export class RefillService {
-  private readonly logger = new LoggerService({ context: RefillService.name });
+  private readonly logger = LoggerService.forContext(RefillService.name);
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,

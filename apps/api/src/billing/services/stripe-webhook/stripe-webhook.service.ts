@@ -1,14 +1,15 @@
+import { LoggerService } from "@akashnetwork/logging";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
 import { CheckoutSessionRepository } from "@src/billing/repositories";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
-import { LoggerService, WithTransaction } from "@src/core";
+import { WithTransaction } from "@src/core";
 
 @singleton()
 export class StripeWebhookService {
-  private readonly logger = new LoggerService({ context: StripeWebhookService.name });
+  private readonly logger = LoggerService.forContext(StripeWebhookService.name);
 
   constructor(
     private readonly stripe: StripeService,
