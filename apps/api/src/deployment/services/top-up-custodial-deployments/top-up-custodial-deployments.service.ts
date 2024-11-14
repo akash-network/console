@@ -2,11 +2,13 @@ import { AllowanceHttpService, BalanceHttpService, DeploymentAllowance } from "@
 import { LoggerService } from "@akashnetwork/logging";
 import { singleton } from "tsyringe";
 
-import { MasterSigningClientService } from "@src/billing/services";
+import { ExecDepositDeploymentMsgOptions, MasterSigningClientService, RpcMessageService } from "@src/billing/services";
+import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { ErrorService } from "@src/core/services/error/error.service";
-import { DrainingDeploymentOutput } from "@src/deployment/repositories/lease/lease.repository";
+import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { TopUpToolsService } from "@src/deployment/services/top-up-tools/top-up-tools.service";
+import { DeploymentsRefiller, TopUpDeploymentsOptions } from "@src/deployment/types/deployments-refiller";
 
 interface Balances {
   denom: string;
@@ -15,56 +17,106 @@ interface Balances {
   balance: number;
 }
 
+interface TopUpSummary {
+  deploymentCount: number;
+  minPredictedClosedHeight: number;
+  maxPredictedClosedHeight: number;
+  insufficientBalanceCount: number;
+}
+
 @singleton()
-export class TopUpCustodialDeploymentsService {
+export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
   private readonly CONCURRENCY = 10;
 
   private readonly MIN_FEES_AVAILABLE = 5000;
 
-  private readonly logger = new LoggerService({ context: TopUpCustodialDeploymentsService.name });
+  private readonly logger = LoggerService.forContext(TopUpCustodialDeploymentsService.name);
 
   constructor(
     private readonly topUpToolsService: TopUpToolsService,
     private readonly allowanceHttpService: AllowanceHttpService,
     private readonly balanceHttpService: BalanceHttpService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
+    private readonly rpcClientService: RpcMessageService,
+    private readonly blockHttpService: BlockHttpService,
     private readonly errorService: ErrorService
   ) {}
 
-  async topUpDeployments() {
+  async topUpDeployments(options: TopUpDeploymentsOptions) {
+    const summary = new TopUpSummarizer();
+    summary.set("startBlockHeight", await this.blockHttpService.getCurrentHeight());
+
     const topUpAllCustodialDeployments = this.topUpToolsService.pairs.map(async ({ wallet, client }) => {
       const address = await wallet.getFirstAddress();
       await this.allowanceHttpService.paginateDeploymentGrants({ grantee: address, limit: this.CONCURRENCY }, async grants => {
         await Promise.all(
           grants.map(async grant => {
-            await this.errorService.execWithErrorHandler({ grant, event: "TOP_UP_FAILED" }, () => this.topUpForGrant(grant, client));
+            await this.errorService.execWithErrorHandler(
+              { grant, event: "TOP_UP_ERROR" },
+              () => this.topUpForGrant(grant, client, options, summary),
+              () => summary.inc("walletsTopUpErrorCount")
+            );
           })
         );
       });
     });
     await Promise.all(topUpAllCustodialDeployments);
+
+    summary.set("endBlockHeight", await this.blockHttpService.getCurrentHeight());
+    this.logger.info({ event: "TOP_UP_SUMMARY", summary: summary.summarize() });
   }
 
-  private async topUpForGrant(grant: DeploymentAllowance, client: MasterSigningClientService) {
+  private async topUpForGrant(
+    grant: DeploymentAllowance,
+    client: MasterSigningClientService,
+    options: TopUpDeploymentsOptions,
+    summary: TopUpSummarizer
+  ): Promise<TopUpSummary> {
+    summary.inc("walletsCount");
     const owner = grant.granter;
+    const { grantee } = grant;
+    const drainingDeployments = await this.drainingDeploymentService.findDeployments(owner, grant.authorization.spend_limit.denom);
+    summary.inc("deploymentCount", drainingDeployments.length);
+
+    if (!drainingDeployments.length) {
+      return;
+    }
 
     const balances = await this.collectWalletBalances(grant);
-    this.logger.debug({ event: "BALANCES_COLLECTED", granter: owner, grantee: grant.grantee, balances });
 
-    const drainingDeployments = await this.drainingDeploymentService.findDeployments(owner, balances.denom);
     let { deploymentLimit, feesLimit, balance } = balances;
+    let hasTopUp = false;
 
-    for (const deployment of drainingDeployments) {
-      const topUpAmount = await this.drainingDeploymentService.calculateTopUpAmount(deployment);
-      if (!this.canTopUp(topUpAmount, { deploymentLimit, feesLimit, balance })) {
-        this.logger.debug({ event: "INSUFFICIENT_BALANCE", granter: owner, grantee: grant.grantee, balances: { deploymentLimit, feesLimit, balance } });
+    for (const { dseq, denom, blockRate, predictedClosedHeight } of drainingDeployments) {
+      const amount = await this.drainingDeploymentService.calculateTopUpAmount({ blockRate });
+      if (!this.canTopUp(amount, { deploymentLimit, feesLimit, balance })) {
+        this.logger.info({ event: "INSUFFICIENT_BALANCE", granter: owner, grantee, balances: { deploymentLimit, feesLimit, balance } });
+        summary.inc("insufficientBalanceCount");
         break;
       }
-      deploymentLimit -= topUpAmount;
+      deploymentLimit -= amount;
       feesLimit -= this.MIN_FEES_AVAILABLE;
-      balance -= topUpAmount + this.MIN_FEES_AVAILABLE;
+      balance -= amount + this.MIN_FEES_AVAILABLE;
 
-      await this.topUpDeployment(topUpAmount, deployment, client);
+      await this.topUpDeployment(
+        {
+          dseq,
+          amount,
+          denom,
+          owner,
+          grantee
+        },
+        client,
+        options
+      );
+
+      hasTopUp = true;
+      summary.inc("deploymentTopUpCount");
+      summary.ensurePredictedClosedHeight(predictedClosedHeight);
+    }
+
+    if (hasTopUp) {
+      summary.inc("walletsTopUpCount");
     }
   }
 
@@ -95,8 +147,13 @@ export class TopUpCustodialDeploymentsService {
     return balances.deploymentLimit > amount && balances.feesLimit > this.MIN_FEES_AVAILABLE && balances.balance > amount + this.MIN_FEES_AVAILABLE;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async topUpDeployment(amount: number, deployment: DrainingDeploymentOutput, client: MasterSigningClientService) {
-    this.logger.debug({ event: "TOPPING_UP_CUSTODIAL_DEPLOYMENT", amount, deployment, warning: "Not implemented yet" });
+  async topUpDeployment({ grantee, ...messageInput }: ExecDepositDeploymentMsgOptions, client: MasterSigningClientService, options: TopUpDeploymentsOptions) {
+    const message = this.rpcClientService.getExecDepositDeploymentMsg({ grantee, ...messageInput });
+    this.logger.info({ event: "TOP_UP_DEPLOYMENT", params: { ...messageInput, masterWallet: grantee }, dryRun: options.dryRun });
+
+    if (!options.dryRun) {
+      await client.executeTx([message], { fee: { granter: messageInput.owner } });
+      this.logger.info({ event: "TOP_UP_DEPLOYMENT_SUCCESS" });
+    }
   }
 }

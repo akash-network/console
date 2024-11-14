@@ -1,5 +1,37 @@
 
 
+## [2.29.1](https://github.com/akash-network/console/compare/console-api/v2.29.1-beta.0...console-api/v2.29.1) (2024-11-13)
+
+## [2.29.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.29.0...console-api/v2.29.1-beta.0) (2024-11-13)
+
+
+### Bug Fixes
+
+* **deployment:** set owner of custodial wallet as fee granter for top up ([b3b9474](https://github.com/akash-network/console/commit/b3b94745a91c9fdd1f1ac39cb176add2d579aac0)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+## [2.29.0](https://github.com/akash-network/console/compare/console-api/v2.29.0-beta.0...console-api/v2.29.0) (2024-11-12)
+
+## [2.29.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.28.1-beta.0...console-api/v2.29.0-beta.0) (2024-11-12)
+
+
+### Features
+
+* **deployment:** implement auto top up summary logging ([b0a40a2](https://github.com/akash-network/console/commit/b0a40a234a6a2fa380c6fffe230cd1f361e8d322)), closes [#395](https://github.com/akash-network/console/issues/395)
+* **deployment:** implement deployment top up dry run ([be1274b](https://github.com/akash-network/console/commit/be1274b889de555cb4307d746f77af582950460d)), closes [#395](https://github.com/akash-network/console/issues/395)
+* **deployment:** implement top up message sending ([f5d7233](https://github.com/akash-network/console/commit/f5d7233c6ce1e7fc880e817e7d8ff66967b8a547)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+
+### Bug Fixes
+
+* **deployment:** ensure draining deployments result as array ([23234d6](https://github.com/akash-network/console/commit/23234d614fef179b914a264ced64d6575e9152d7)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+## [2.28.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.28.0...console-api/v2.28.1-beta.0) (2024-11-11)
+
+
+### Bug Fixes
+
+* **deployment:** trial provider attributes ([6f5c94d](https://github.com/akash-network/console/commit/6f5c94d41879a8d23ed129857f5d28285d4f9ee9)), closes [#453](https://github.com/akash-network/console/issues/453)
+
 ## [2.28.0](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.10...console-api/v2.28.0) (2024-11-08)
 
 ## [2.28.0-beta.10](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.9...console-api/v2.28.0-beta.10) (2024-11-08)

@@ -1,3 +1,5 @@
+import "@test/mocks/logger-service.mock";
+
 import { BlockHttpService as BlockHttpServiceCommon } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 

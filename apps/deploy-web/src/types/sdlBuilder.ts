@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { memoryUnits, storageUnits, validationConfig } from "@src/utils/akash/units";
-import { endpointNameValidationRegex } from "@src/utils/deploymentData/v1beta3";
+import { ENDPOINT_NAME_VALIDATION_REGEX } from "@src/utils/deploymentData/v1beta3";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
 
@@ -141,7 +141,7 @@ export const ExposeSchema = z.object({
   httpOptions: ServiceExposeHTTPOptionsSchema.optional(),
   ipName: z
     .string()
-    .regex(endpointNameValidationRegex, {
+    .regex(ENDPOINT_NAME_VALIDATION_REGEX, {
       message: "Invalid ip name. It must only be lower case letters, numbers and dashes."
     })
     .regex(/^[a-z]/, { message: "Invalid starting character. It can only start with a lowercase letter." })
