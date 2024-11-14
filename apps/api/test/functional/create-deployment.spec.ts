@@ -1,8 +1,6 @@
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
 import type { Registry } from "@cosmjs/proto-signing";
-import { DbTestingService } from "@test/services/db-testing.service";
-import { WalletTestingService } from "@test/services/wallet-testing.service";
 import axios from "axios";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -13,6 +11,9 @@ import { config } from "@src/billing/config";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import { MasterWalletService } from "@src/billing/services";
+
+import { DbTestingService } from "@test/services/db-testing.service";
+import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(30000);
 

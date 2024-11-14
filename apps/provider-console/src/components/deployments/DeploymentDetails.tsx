@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Card, CardContent } from "@akashnetwork/ui/components";
 
-import consoleClient from "@src/utils/consoleClient";
+import { useDeploymentDetails } from "@src/queries/useProviderQuery";
 import { getPrettyTimeFromSeconds } from "@src/utils/dateUtils";
-import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
 import { formatBytes } from "@src/utils/formatBytes";
 import { uaktToAKT } from "@src/utils/priceUtils";
 
@@ -12,70 +11,15 @@ interface DeploymentDetailsProps {
   owner: string;
 }
 
-interface DeploymentDetails {
-  id: string;
-  status: string;
-  balance: number;
-  denom: string;
-  createdDate: string;
-  expiryDate: string;
-  timeRemaining: string;
-  totalMonthlyCostUDenom: number;
-  leases: Array<{
-    provider: {
-      address: string;
-      hostUri: string;
-    };
-    status: string;
-    monthlyCostUDenom: number;
-    cpuUnits: number;
-    gpuUnits: number;
-    memoryQuantity: number;
-    storageQuantity: number;
-    gseq: number;
-    oseq: number;
-  }>;
-  amountSpent: number;
-  costPerMonth: number;
-  other: any;
-  timeLeft: number;
-  closedHeight: number | null;
-}
-
 export const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owner }) => {
-  const [deploymentDetails, setDeploymentDetails] = useState<DeploymentDetails | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: deploymentDetails, isLoading, error } = useDeploymentDetails(owner, dseq);
 
-  useEffect(() => {
-    const fetchDeploymentDetails = async () => {
-      try {
-        setLoading(true);
-        const response: any = await consoleClient.get(`v1/deployment/${owner}/${dseq}`);
-        const latestBlocks = await consoleClient.get(`/v1/blocks`);
-        const latestBlock = latestBlocks[0].height;
-        const totalAmtSpent = findTotalAmountSpentOnLeases(response.leases, latestBlock, true);
-        const totalCost = totalDeploymentCost(response.leases);
-        const timeLeft = totalDeploymentTimeLeft(response.createdHeight, response.totalMonthlyCostUDenom, latestBlock, response.balance, response.closedHeight);
-        setDeploymentDetails({ ...response, amountSpent: totalAmtSpent, costPerMonth: totalCost, timeLeft: timeLeft });
-        setError(null);
-      } catch (err) {
-        setError("Failed to fetch deployment details");
-        console.error("Error fetching deployment details:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDeploymentDetails();
-  }, [dseq, owner]);
-
-  if (loading) {
+  if (isLoading) {
     return <div>Loading...</div>;
   }
 
   if (error) {
-    return <div>Error: {error}</div>;
+    return <div>Error: {(error as Error).message}</div>;
   }
 
   if (!deploymentDetails) {
@@ -119,26 +63,26 @@ export const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owne
         <Card>
           <CardContent className="p-4">
             <h3 className="mb-2 text-sm text-gray-500">Cost</h3>
-            <p className="font-semibold">{uaktToAKT(deploymentDetails.totalMonthlyCostUDenom).toFixed(3)} AKT</p>
+            <p className="font-semibold">{uaktToAKT(deploymentDetails.totalMonthlyCostUDenom, 2)} AKT</p>
             <p className="text-sm text-gray-500">/month</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <h3 className="mb-2 text-sm text-gray-500">Amount Spent</h3>
-            <p className="font-semibold">{uaktToAKT(deploymentDetails?.amountSpent).toFixed(3)} AKT</p>
+            <p className="font-semibold">{uaktToAKT(deploymentDetails?.amountSpent, 2)} AKT</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <h3 className="mb-2 text-sm text-gray-500">Balance</h3>
-            <p className="font-semibold">{uaktToAKT(deploymentDetails.balance).toFixed(2)} AKT</p>
+            <p className="font-semibold">{uaktToAKT(deploymentDetails.balance, 2)} AKT</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <h3 className="mb-2 text-sm text-gray-500">Transferred</h3>
-            <p className="font-semibold">{uaktToAKT(deploymentDetails.other.escrow_account.transferred.amount).toFixed(3)} AKT</p>
+            <p className="font-semibold">{uaktToAKT(deploymentDetails.other.escrow_account.transferred.amount, 2)} AKT</p>
           </CardContent>
         </Card>
       </div>

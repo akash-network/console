@@ -16,7 +16,8 @@ export class AddressBalanceMonitor {
   }
 
   async updateValue(monitoredValue: MonitoredValue) {
-    const balance = await this.getBalance(monitoredValue.target);
+    const [targetAddress, targetToken] = monitoredValue.target.split("|");
+    const balance = await this.getBalance(targetAddress, targetToken);
 
     if (balance === null) {
       throw new Error("Unable to get balance for " + monitoredValue.target);
@@ -27,17 +28,17 @@ export class AddressBalanceMonitor {
     await monitoredValue.save();
   }
 
-  async getBalance(address: string): Promise<number> {
+  async getBalance(address: string, denom?: string): Promise<number> {
     const response = await axios.get(`https://rest.cosmos.directory/${activeChain.cosmosDirectoryId}/cosmos/bank/v1beta1/balances/${address}`, {
       timeout: 15_000
     });
 
-    const balance = response.data.balances.find(x => x.denom === activeChain.denom || x.denom === activeChain.udenom);
+    const balance = response.data.balances.find(x => x.denom === (denom || activeChain.udenom));
 
     if (!balance) {
       return null;
     }
 
-    return balance.denom === activeChain.udenom ? parseInt(balance.amount) : parseInt(balance.amount) * 1_000_000;
+    return parseInt(balance.amount);
   }
 }

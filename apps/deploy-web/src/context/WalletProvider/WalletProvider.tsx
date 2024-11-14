@@ -25,6 +25,8 @@ import { UrlService } from "@src/utils/urlUtils";
 import { getSelectedStorageWallet, getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { useSettings } from "../SettingsProvider";
+import { useAtom } from "jotai";
+import walletStore from "@src/store/walletStore";
 
 const ERROR_MESSAGES = {
   5: "Insufficient funds",
@@ -75,6 +77,7 @@ export const WalletProvider = ({ children }) => {
   const user = useUser();
   const userWallet = useSelectedChain();
   const { wallet: managedWallet, isLoading, create: createManagedWallet } = useManagedWallet();
+  const [isWalletModalOpen, setIsWalletModelOpen] = useAtom(walletStore.isWalletModalOpen);
   const [selectedWalletType, selectWalletType] = useState<"managed" | "custodial">(
     initialWallet?.selected && initialWallet?.isManaged ? "managed" : "custodial"
   );
@@ -90,8 +93,11 @@ export const WalletProvider = ({ children }) => {
     fee: { default: feeGranter }
   } = useAllowance(walletAddress as string, isManaged);
   const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore({ reloadOnChange: true });
+  const shouldAutoConnectManagedWallet =
+    !isWalletConnected && selectedWalletType === "custodial" && !!managedWallet && !isWalletModalOpen && !userWallet.isWalletConnecting;
 
   useWhen(walletAddress, loadWallet);
+  useWhen(shouldAutoConnectManagedWallet, switchWalletType);
 
   useEffect(() => {
     if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
@@ -109,6 +115,7 @@ export const WalletProvider = ({ children }) => {
     }
 
     if (selectedWalletType === "managed" && !userWallet.isWalletConnected) {
+      setIsWalletModelOpen(true);
       userWallet.connect();
     }
 
