@@ -1,6 +1,7 @@
 "use client";
 import { ReactNode, useMemo, useState } from "react";
 import {
+  Badge,
   Button,
   Checkbox,
   CustomTooltip,
@@ -60,6 +61,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const filteredLeases = leases?.filter(l => l.dseq === deployment.dseq);
   const hasLeases = leases && !!leases.length && leases.some(l => l.dseq === deployment.dseq && l.state === "active");
   const hasActiveLeases = hasLeases && filteredLeases?.some(l => l.state === "active");
+  const isAllLeasesClosed = hasLeases && !filteredLeases?.some(l => l.state === "active");
   const deploymentCost = hasLeases ? filteredLeases?.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) : 0;
   const timeLeft = getTimeLeft(deploymentCost || 0, deployment.escrowBalance);
   const realTimeLeft = useRealTimeLeft(deploymentCost || 0, deployment.escrowBalance, parseFloat(deployment.escrowAccount.settled_at), deployment.createdAt);
@@ -300,6 +302,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
             </div>
           )}
           {isLoadingLeases && <Spinner size="small" />}
+          {!isLoadingLeases && isAllLeasesClosed && <Badge>All leases closed</Badge>}
         </TableCell>
 
         <TableCell>

@@ -8,7 +8,7 @@ import { LoggerService, WithTransaction } from "@src/core";
 
 @singleton()
 export class StripeWebhookService {
-  private readonly logger = new LoggerService({ context: StripeWebhookService.name });
+  private readonly logger = LoggerService.forContext(StripeWebhookService.name);
 
   constructor(
     private readonly stripe: StripeService,

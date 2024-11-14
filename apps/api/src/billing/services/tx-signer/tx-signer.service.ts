@@ -17,7 +17,7 @@ import { ChainErrorService } from "../chain-error/chain-error.service";
 import { TrialValidationService } from "../trial-validation/trial-validation.service";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
-type SimpleSigningStargateClient = {
+export type SimpleSigningStargateClient = {
   signAndBroadcast(messages: readonly EncodeObject[]): Promise<DeliverTxResponse>;
 };
 

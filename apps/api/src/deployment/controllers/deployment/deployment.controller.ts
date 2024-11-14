@@ -1,12 +1,20 @@
 import { singleton } from "tsyringe";
 
-import { TopUpDeploymentsService } from "@src/deployment/services/top-up-deployments/top-up-deployments.service";
+import { StaleManagedDeploymentsCleanerService } from "@src/deployment/services/stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
+import { TopUpCustodialDeploymentsService } from "@src/deployment/services/top-up-custodial-deployments/top-up-custodial-deployments.service";
+import { TopUpManagedDeploymentsService } from "@src/deployment/services/top-up-managed-deployments/top-up-managed-deployments.service";
+import { TopUpDeploymentsOptions } from "@src/deployment/types/deployments-refiller";
 
 @singleton()
 export class TopUpDeploymentsController {
-  constructor(private readonly topUpDeploymentsService: TopUpDeploymentsService) {}
+  constructor(
+    private readonly topUpDeploymentsService: TopUpCustodialDeploymentsService,
+    private readonly topUpManagedDeploymentsService: TopUpManagedDeploymentsService,
+    private readonly staleDeploymentsCleanerService: StaleManagedDeploymentsCleanerService
+  ) {}
 
-  async topUpDeployments() {
-    await this.topUpDeploymentsService.topUpDeployments();
+  async topUpDeployments(options: TopUpDeploymentsOptions) {
+    await this.topUpDeploymentsService.topUpDeployments(options);
+    await this.topUpManagedDeploymentsService.topUpDeployments(options);
   }
 }

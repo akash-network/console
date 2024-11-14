@@ -11,7 +11,7 @@ import { SentryEventService } from "@src/core/services/sentry-event/sentry-event
 
 @singleton()
 export class RefillService {
-  private readonly logger = new LoggerService({ context: RefillService.name });
+  private readonly logger = LoggerService.forContext(RefillService.name);
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,

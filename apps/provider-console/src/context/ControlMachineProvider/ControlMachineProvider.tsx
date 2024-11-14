@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Button, Drawer, DrawerContent, DrawerTrigger } from "@akashnetwork/ui/components";
+import { Drawer, DrawerContent } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { useAtom } from "jotai";
 
@@ -19,11 +19,13 @@ type ContextType = {
   activeControlMachine: ControlMachineWithAddress | null;
   setControlMachine: (controlMachine: ControlMachineWithAddress) => void;
   openControlMachineDrawer: () => void;
+  controlMachineLoading: boolean;
 };
 
 const ControlMachineContext = React.createContext<ContextType>({} as ContextType);
 
 export function ControlMachineProvider({ children }: Props) {
+  const [controlMachineLoading, setControlMachineLoading] = useState(false);
   const [controlMachines, setControlMachines] = useAtom(controlMachineStore.controlMachineAtom);
   const [activeControlMachine, setActiveControlMachine] = useState<ControlMachineWithAddress | null>(null);
   const { address, isWalletArbitrarySigned, isProvider } = useWallet();
@@ -41,16 +43,23 @@ export function ControlMachineProvider({ children }: Props) {
 
       // first check control machine connection
       (async () => {
-        const request = {
-          keyfile: controlMachine.access.file,
-          hostname: controlMachine.access.hostname,
-          port: controlMachine.access.port,
-          username: controlMachine.access.username,
-          password: controlMachine.access.password
-        };
-        const isControlMachineConnected = await restClient.post(`/verify/control-machine`, request);
-        if (isControlMachineConnected) {
-          setActiveControlMachine(controlMachine);
+        try {
+          setControlMachineLoading(true);
+          const request = {
+            keyfile: controlMachine.access.file,
+            hostname: controlMachine.access.hostname,
+            port: controlMachine.access.port,
+            username: controlMachine.access.username,
+            password: controlMachine.access.password
+          };
+          const isControlMachineConnected = await restClient.post(`/verify/control-machine`, request);
+          if (isControlMachineConnected) {
+            setActiveControlMachine(controlMachine);
+          }
+        } catch (error) {
+          console.error(error);
+        } finally {
+          setControlMachineLoading(false);
         }
       })();
     }
@@ -68,6 +77,7 @@ export function ControlMachineProvider({ children }: Props) {
       // Add new control machine if none exists with this address
       return [...prev, controlMachine];
     });
+    setControlMachineDrawerOpen(false);
     setActiveControlMachine(controlMachine);
   }
 
@@ -76,16 +86,16 @@ export function ControlMachineProvider({ children }: Props) {
   }
 
   return (
-    <ControlMachineContext.Provider value={{ activeControlMachine, setControlMachine, openControlMachineDrawer }}>
+    <ControlMachineContext.Provider value={{ activeControlMachine, setControlMachine, openControlMachineDrawer, controlMachineLoading }}>
       <>
         {children}
         <Drawer open={controlMachineDrawerOpen} onOpenChange={setControlMachineDrawerOpen}>
-          <DrawerTrigger asChild>
+          {/* <DrawerTrigger asChild>
             <Button variant="outline">Edit Profile</Button>
-          </DrawerTrigger>
-          <DrawerContent className="z-[200] mb-10 flex items-center">
-            <div className={cn("flex max-w-[500px] justify-center")}>
-              <ServerForm currentServerNumber={0} onSubmit={() => {}} editMode={true} controlMachine={activeControlMachine} />
+          </DrawerTrigger> */}
+          <DrawerContent className="z-[200] flex items-center">
+            <div className={cn("mb-10 flex max-w-[500px] justify-center")}>
+              <ServerForm currentServerNumber={0} onComplete={() => {}} editMode={true} controlMachine={activeControlMachine} />
             </div>
           </DrawerContent>
         </Drawer>

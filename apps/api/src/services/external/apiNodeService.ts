@@ -34,49 +34,35 @@ import { getDeploymentRelatedMessages } from "../db/deploymentService";
 import { getProviderList } from "../db/providerStatusService";
 
 export async function getChainStats() {
-  const logger = new LoggerService({ context: "ApiNode" })
-  const runOrLog = createLoggingExecutor(logger)
+  const logger = LoggerService.forContext("ApiNode");
+  const runOrLog = createLoggingExecutor(logger);
 
   const result = await cacheResponse(
     60 * 5, // 5 minutes
     cacheKeys.getChainStats,
     async () => {
       const bondedTokensAsPromised = await runOrLog(async () => {
-        const bondedTokensQuery = await axios.get<CosmosStakingPoolResponse>(
-          `${apiNodeUrl}/cosmos/staking/v1beta1/pool`
-        );
+        const bondedTokensQuery = await axios.get<CosmosStakingPoolResponse>(`${apiNodeUrl}/cosmos/staking/v1beta1/pool`);
         return parseInt(bondedTokensQuery.data.pool.bonded_tokens);
       });
 
       const totalSupplyAsPromised = await runOrLog(async () => {
-        const supplyQuery = await axios.get<CosmosBankSupplyResponse>(
-          `${apiNodeUrl}/cosmos/bank/v1beta1/supply?pagination.limit=1000`
-        );
-        return parseInt(
-          supplyQuery.data.supply.find((x) => x.denom === "uakt")?.amount || "0"
-        );
+        const supplyQuery = await axios.get<CosmosBankSupplyResponse>(`${apiNodeUrl}/cosmos/bank/v1beta1/supply?pagination.limit=1000`);
+        return parseInt(supplyQuery.data.supply.find(x => x.denom === "uakt")?.amount || "0");
       });
 
       const communityPoolAsPromised = await runOrLog(async () => {
-        const communityPoolQuery = await axios.get<CosmosDistributionCommunityPoolResponse>(
-          `${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`
-        );
-        return parseFloat(
-          communityPoolQuery.data.pool.find((x) => x.denom === "uakt")?.amount || "0"
-        );
+        const communityPoolQuery = await axios.get<CosmosDistributionCommunityPoolResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
+        return parseFloat(communityPoolQuery.data.pool.find(x => x.denom === "uakt")?.amount || "0");
       });
 
       const inflationAsPromised = await runOrLog(async () => {
-        const inflationQuery = await axios.get<CosmosMintInflationResponse>(
-          `${apiNodeUrl}/cosmos/mint/v1beta1/inflation`
-        );
+        const inflationQuery = await axios.get<CosmosMintInflationResponse>(`${apiNodeUrl}/cosmos/mint/v1beta1/inflation`);
         return parseFloat(inflationQuery.data.inflation || "0");
       });
 
       const communityTaxAsPromised = await runOrLog(async () => {
-        const distributionQuery = await axios.get<CosmosDistributionParamsResponse>(
-          `${apiNodeUrl}/cosmos/distribution/v1beta1/params`
-        );
+        const distributionQuery = await axios.get<CosmosDistributionParamsResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/params`);
         return parseFloat(distributionQuery.data.params.community_tax || "0");
       });
 
@@ -93,7 +79,7 @@ export async function getChainStats() {
         inflation,
         communityTax,
         bondedTokens,
-        totalSupply,
+        totalSupply
       };
     },
     true
@@ -101,7 +87,7 @@ export async function getChainStats() {
 
   let stakingAPR: number | undefined;
   if (result.bondedTokens && result.bondedTokens > 0 && result.inflation && result.communityTax && result.totalSupply) {
-    stakingAPR = result.inflation * (1 - result.communityTax) * result.totalSupply / result.bondedTokens
+    stakingAPR = (result.inflation * (1 - result.communityTax) * result.totalSupply) / result.bondedTokens;
   }
 
   return {
@@ -109,7 +95,7 @@ export async function getChainStats() {
     totalSupply: result.totalSupply,
     communityPool: result.communityPool,
     inflation: result.inflation,
-    stakingAPR,
+    stakingAPR
   };
 }
 

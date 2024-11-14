@@ -2,11 +2,7 @@ import "reflect-metadata";
 import "@src/core/providers/sentry.provider";
 
 import { serve } from "@hono/node-server";
-// TODO: find out how to properly import this
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error
-import { sentry } from "@hono/sentry";
-import { Hono } from "hono";
+import { Context, Hono, Next } from "hono";
 import { cors } from "hono/cors";
 import { container } from "tsyringe";
 
@@ -49,16 +45,16 @@ const scheduler = new Scheduler({
 
 appHono.use(container.resolve(HttpLoggerService).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
-appHono.use(
-  "*",
-  sentry({
+appHono.use("*", async (c: Context, next: Next) => {
+  const { sentry } = await import("@hono/sentry");
+  return sentry({
     ...sentryOptions,
     beforeSend: event => {
       event.server_name = config.SENTRY_SERVER_NAME;
       return event;
     }
-  })
-);
+  })(c, next);
+});
 
 appHono.route("/", legacyRouter);
 appHono.route("/", apiRouter);
@@ -105,7 +101,7 @@ function startScheduler() {
   scheduler.start();
 }
 
-const appLogger = new LoggerService({ context: "APP" });
+const appLogger = LoggerService.forContext("APP");
 
 /**
  * Initialize database

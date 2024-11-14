@@ -1,5 +1,65 @@
 
 
+## [2.22.1](https://github.com/akash-network/console/compare/console-web/v2.22.1-beta.0...console-web/v2.22.1) (2024-11-14)
+
+## [2.22.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.22.0...console-web/v2.22.1-beta.0) (2024-11-14)
+
+
+### Bug Fixes
+
+* **wallet:** wallet connect managed to custodial ([037f3f6](https://github.com/akash-network/console/commit/037f3f689a6d7c86ef282771366e481eb6532ba7)), closes [#469](https://github.com/akash-network/console/issues/469)
+
+## [2.22.0](https://github.com/akash-network/console/compare/console-web/v2.22.0-beta.0...console-web/v2.22.0) (2024-11-12)
+
+## [2.22.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.21.1-beta.1...console-web/v2.22.0-beta.0) (2024-11-12)
+
+
+### Features
+
+* **deployment:** implement top up message sending ([f5d7233](https://github.com/akash-network/console/commit/f5d7233c6ce1e7fc880e817e7d8ff66967b8a547)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+## [2.21.1-beta.1](https://github.com/akash-network/console/compare/console-web/v2.21.1-beta.0...console-web/v2.21.1-beta.1) (2024-11-11)
+
+
+### Bug Fixes
+
+* **deployment:** trial provider attributes ([6f5c94d](https://github.com/akash-network/console/commit/6f5c94d41879a8d23ed129857f5d28285d4f9ee9)), closes [#453](https://github.com/akash-network/console/issues/453)
+
+## [2.21.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.21.0...console-web/v2.21.1-beta.0) (2024-11-08)
+
+
+### Bug Fixes
+
+* **auth:** fix logout button not logging out completely ([#446](https://github.com/akash-network/console/issues/446)) ([96f45dd](https://github.com/akash-network/console/commit/96f45dd617ef32fe813de03026c9370498099f34))
+
+## [2.21.0](https://github.com/akash-network/console/compare/console-web/v2.21.0-beta.2...console-web/v2.21.0) (2024-11-08)
+
+## [2.21.0-beta.2](https://github.com/akash-network/console/compare/console-web/v2.21.0-beta.1...console-web/v2.21.0-beta.2) (2024-11-08)
+
+
+### Features
+
+* **deployment:** implement clean up of managed deployments ([882fac4](https://github.com/akash-network/console/commit/882fac457f91d968bd9ecd3129c9a2113c3dd0bf)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+## [2.21.0-beta.1](https://github.com/akash-network/console/compare/console-web/v2.21.0-beta.0...console-web/v2.21.0-beta.1) (2024-11-07)
+
+
+### Features
+
+* **deployment:** improve new deployment page ([3ffc38b](https://github.com/akash-network/console/commit/3ffc38b2e942f11fc1ab11624aaa653745de6637)), closes [#444](https://github.com/akash-network/console/issues/444)
+
+## [2.21.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.20.3...console-web/v2.21.0-beta.0) (2024-11-04)
+
+
+### Features
+
+* **deployment:** enable deployment from git repositories ([dfbaeb7](https://github.com/akash-network/console/commit/dfbaeb78843341633025a0812a2fdb021de12c70)), closes [#417](https://github.com/akash-network/console/issues/417)
+
+
+### Bug Fixes
+
+* **wallet:** init nextPageKey with null when paginating grants ([2698b14](https://github.com/akash-network/console/commit/2698b14fc9ade6eab56e189daab753372677b9de))
+
 ## [2.20.3](https://github.com/akash-network/console/compare/console-web/v2.20.3-beta.0...console-web/v2.20.3) (2024-10-30)
 
 ## [2.20.3-beta.0](https://github.com/akash-network/console/compare/console-web/v2.20.2...console-web/v2.20.3-beta.0) (2024-10-30)

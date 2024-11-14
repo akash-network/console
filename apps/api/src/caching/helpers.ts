@@ -4,7 +4,7 @@ import { differenceInSeconds } from "date-fns";
 import { LoggerService } from "@src/core";
 import MemoryCacheEngine from "./memoryCacheEngine";
 
-const logger = new LoggerService({ context: "Caching" });
+const logger = LoggerService.forContext("Caching");
 
 export const cacheEngine = new MemoryCacheEngine();
 const pendingRequests: { [key: string]: Promise<unknown> } = {};

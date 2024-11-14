@@ -32,7 +32,7 @@ export class ManagedUserWalletService {
 
   private readonly HD_PATH = "m/44'/118'/0'/0";
 
-  private readonly logger = new LoggerService({ context: ManagedUserWalletService.name });
+  private readonly logger = LoggerService.forContext(ManagedUserWalletService.name);
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
