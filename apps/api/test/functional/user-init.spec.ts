@@ -1,6 +1,4 @@
 import { faker } from "@faker-js/faker";
-import { DbTestingService } from "@test/services/db-testing.service";
-import { WalletTestingService } from "@test/services/wallet-testing.service";
 import type { Context, Next } from "hono";
 import first from "lodash/first";
 import omit from "lodash/omit";
@@ -10,6 +8,9 @@ import { app } from "@src/app";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { getCurrentUserId } from "@src/middlewares/userMiddleware";
+
+import { DbTestingService } from "@test/services/db-testing.service";
+import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.mock("../../src/middlewares/userMiddleware.ts", () => ({
   getCurrentUserId: jest.fn(),

@@ -16,6 +16,7 @@ import {
   FormMessage,
   Input,
   Separator,
+  Spinner,
   Tabs,
   TabsContent,
   TabsList,
@@ -23,7 +24,6 @@ import {
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai/react";
-import { Loader2 } from "lucide-react";
 import { z } from "zod";
 
 import { useControlMachine } from "@src/context/ControlMachineProvider";
@@ -57,12 +57,12 @@ type AccountFormValues = z.infer<typeof accountFormSchema>;
 
 interface ServerFormProp {
   currentServerNumber: number;
-  onSubmit: () => void;
+  onComplete: () => void;
   editMode?: boolean;
   controlMachine?: ControlMachineWithAddress | null;
 }
 
-export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onSubmit, editMode = false, controlMachine }) => {
+export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onComplete, editMode = false, controlMachine }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [storedFileContent, setStoredFileContent] = useState<string | null>(null);
@@ -182,7 +182,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onSu
             ...machine
           });
         }
-        onSubmit();
+        onComplete();
       }
     } catch (error: any) {
       setVerificationError({
@@ -364,7 +364,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onSu
                   <Button type="submit" disabled={isVerifying}>
                     {isVerifying ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Spinner />
                         Verifying...
                       </>
                     ) : editMode ? (

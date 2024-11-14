@@ -1,5 +1,102 @@
 
 
+## [2.29.1](https://github.com/akash-network/console/compare/console-api/v2.29.1-beta.0...console-api/v2.29.1) (2024-11-13)
+
+## [2.29.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.29.0...console-api/v2.29.1-beta.0) (2024-11-13)
+
+
+### Bug Fixes
+
+* **deployment:** set owner of custodial wallet as fee granter for top up ([b3b9474](https://github.com/akash-network/console/commit/b3b94745a91c9fdd1f1ac39cb176add2d579aac0)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+## [2.29.0](https://github.com/akash-network/console/compare/console-api/v2.29.0-beta.0...console-api/v2.29.0) (2024-11-12)
+
+## [2.29.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.28.1-beta.0...console-api/v2.29.0-beta.0) (2024-11-12)
+
+
+### Features
+
+* **deployment:** implement auto top up summary logging ([b0a40a2](https://github.com/akash-network/console/commit/b0a40a234a6a2fa380c6fffe230cd1f361e8d322)), closes [#395](https://github.com/akash-network/console/issues/395)
+* **deployment:** implement deployment top up dry run ([be1274b](https://github.com/akash-network/console/commit/be1274b889de555cb4307d746f77af582950460d)), closes [#395](https://github.com/akash-network/console/issues/395)
+* **deployment:** implement top up message sending ([f5d7233](https://github.com/akash-network/console/commit/f5d7233c6ce1e7fc880e817e7d8ff66967b8a547)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+
+### Bug Fixes
+
+* **deployment:** ensure draining deployments result as array ([23234d6](https://github.com/akash-network/console/commit/23234d614fef179b914a264ced64d6575e9152d7)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+## [2.28.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.28.0...console-api/v2.28.1-beta.0) (2024-11-11)
+
+
+### Bug Fixes
+
+* **deployment:** trial provider attributes ([6f5c94d](https://github.com/akash-network/console/commit/6f5c94d41879a8d23ed129857f5d28285d4f9ee9)), closes [#453](https://github.com/akash-network/console/issues/453)
+
+## [2.28.0](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.10...console-api/v2.28.0) (2024-11-08)
+
+## [2.28.0-beta.10](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.9...console-api/v2.28.0-beta.10) (2024-11-08)
+
+
+### Features
+
+* **deployment:** properly log clean up on error ([99e3c04](https://github.com/akash-network/console/commit/99e3c0446665f059b720b36b2c06914a7cf63b28))
+
+## [2.28.0-beta.9](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.8...console-api/v2.28.0-beta.9) (2024-11-08)
+
+
+### Features
+
+* **deployment:** ensure there's sufficient fees allowance on cleanup ([fbbec68](https://github.com/akash-network/console/commit/fbbec68e3e430f41ab12424a5ffb47aff059a79d))
+
+## [2.28.0-beta.8](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.7...console-api/v2.28.0-beta.8) (2024-11-08)
+
+
+### Features
+
+* **deployment:** implement clean up of managed deployments ([882fac4](https://github.com/akash-network/console/commit/882fac457f91d968bd9ecd3129c9a2113c3dd0bf)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+## [2.28.0-beta.7](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.6...console-api/v2.28.0-beta.7) (2024-11-06)
+
+
+### Features
+
+* **deployment:** implements managed deployments top up data collection ([98d8b72](https://github.com/akash-network/console/commit/98d8b72ec82acdb8fab064008758dce7158e76ae)), closes [#395](https://github.com/akash-network/console/issues/395)
+
+## [2.28.0-beta.6](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.5...console-api/v2.28.0-beta.6) (2024-11-06)
+
+
+### Features
+
+* add provider stats endpoint ([#402](https://github.com/akash-network/console/issues/402)) ([0570d24](https://github.com/akash-network/console/commit/0570d24a3ffaf14a59f5a234a68572a852a1f8b0))
+
+## [2.28.0-beta.5](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.4...console-api/v2.28.0-beta.5) (2024-11-06)
+
+
+### Features
+
+* **deployment:** implements custodial deployments top up data collection ([108f073](https://github.com/akash-network/console/commit/108f0736359cc866bb9aa01e3935105c413c8aae)), closes [#39](https://github.com/akash-network/console/issues/39)
+
+## [2.28.0-beta.4](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.3...console-api/v2.28.0-beta.4) (2024-11-06)
+
+
+### Bug Fixes
+
+* **observability:** make sure otl data is added to logs ([820870d](https://github.com/akash-network/console/commit/820870d43203ddec5d3cd101d5c46b4b67e1d16d))
+
+## [2.28.0-beta.3](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.2...console-api/v2.28.0-beta.3) (2024-11-06)
+
+
+### Features
+
+* **package:** extract logger into packages ([bac463b](https://github.com/akash-network/console/commit/bac463b4f4f18ef73a630d69eba7355cb20d4643)), closes [#429](https://github.com/akash-network/console/issues/429)
+
+## [2.28.0-beta.2](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.1...console-api/v2.28.0-beta.2) (2024-11-04)
+
+
+### Bug Fixes
+
+* **wallet:** init nextPageKey with null when paginating grants ([2698b14](https://github.com/akash-network/console/commit/2698b14fc9ade6eab56e189daab753372677b9de))
+
 ## [2.28.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.28.0-beta.0...console-api/v2.28.0-beta.1) (2024-10-31)
 
 

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   Alert,
@@ -17,8 +17,8 @@ import {
   Slider
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowDown } from "iconoir-react";
 import { useAtom } from "jotai";
-import { ChevronDownIcon } from "lucide-react";
 import { z } from "zod";
 
 import { useControlMachine } from "@src/context/ControlMachineProvider";
@@ -35,11 +35,11 @@ interface ProviderPricingProps {
     persistentStorage: number;
     gpu: number;
   };
-  stepChange: () => void;
   editMode?: boolean;
   existingPricing?: ProviderPricingValues;
   disabled?: boolean;
   providerDetails?: any;
+  onComplete?: () => void;
 }
 
 const providerPricingSchema = z.object({
@@ -54,7 +54,7 @@ const providerPricingSchema = z.object({
 
 type ProviderPricingValues = z.infer<typeof providerPricingSchema>;
 
-export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, editMode = false, existingPricing, disabled = false, providerDetails }) => {
+export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, editMode = false, existingPricing, disabled = false, providerDetails }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const { activeControlMachine } = useControlMachine();
   const [showSuccess, setShowSuccess] = React.useState(false);
@@ -138,32 +138,35 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
 
   const watchValues = form.watch();
 
-  const calculateEstimatedEarnings = (values: ProviderPricingValues) => {
-    const { cpu, memory, storage, gpu, persistentStorage, ipScalePrice, endpointBidPrice } = values;
+  const calculateEstimatedEarnings = useCallback(
+    (values: ProviderPricingValues) => {
+      const { cpu, memory, storage, gpu, persistentStorage, ipScalePrice, endpointBidPrice } = values;
 
-    const totalCpuEarnings = resources.cpu * cpu;
-    const totalMemoryEarnings = resources.memory * memory;
-    const totalStorageEarnings = resources.storage * storage;
-    const totalGpuEarnings = resources.gpu * gpu;
-    const totalPersistentStorageEarnings = resources.persistentStorage * persistentStorage;
-    const totalIpScaleEarnings = ipScalePrice;
-    const totalEndpointBidEarnings = endpointBidPrice;
+      const totalCpuEarnings = resources.cpu * cpu;
+      const totalMemoryEarnings = resources.memory * memory;
+      const totalStorageEarnings = resources.storage * storage;
+      const totalGpuEarnings = resources.gpu * gpu;
+      const totalPersistentStorageEarnings = resources.persistentStorage * persistentStorage;
+      const totalIpScaleEarnings = ipScalePrice;
+      const totalEndpointBidEarnings = endpointBidPrice;
 
-    const totalEarnings =
-      totalCpuEarnings +
-      totalMemoryEarnings +
-      totalStorageEarnings +
-      totalGpuEarnings +
-      totalPersistentStorageEarnings +
-      totalIpScaleEarnings +
-      totalEndpointBidEarnings;
+      const totalEarnings =
+        totalCpuEarnings +
+        totalMemoryEarnings +
+        totalStorageEarnings +
+        totalGpuEarnings +
+        totalPersistentStorageEarnings +
+        totalIpScaleEarnings +
+        totalEndpointBidEarnings;
 
-    return totalEarnings * 0.8;
-  };
+      return totalEarnings * 0.8;
+    },
+    [resources]
+  );
 
   const estimatedEarnings = calculateEstimatedEarnings(watchValues);
 
-  const submit = async (data: any) => {
+  const updateProviderPricingAndProceed = async (data: any) => {
     setIsLoading(true);
     if (!editMode) {
       setProviderProcess(prev => ({
@@ -174,9 +177,8 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
           providerPricing: true
         }
       }));
-      stepChange();
+      onComplete && onComplete();
     } else {
-      // console.log("data", data);
       const request = {
         control_machine: sanitizeMachineAccess(activeControlMachine),
         pricing: data
@@ -202,7 +204,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
           <Separator />
         </div>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(submit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(updateProviderPricingAndProceed)} className="space-y-6">
             <div className="grid grid-cols-5 gap-8">
               <div className="col-span-3 space-y-6">
                 <FormField
@@ -363,7 +365,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ stepChange, ed
                 <div>
                   <Button type="button" variant="outline" disabled={disabled} onClick={() => setShowAdvanced(!showAdvanced)} className="justify-between">
                     Advanced Settings
-                    <ChevronDownIcon className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+                    <ArrowDown className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
                   </Button>
                 </div>
 

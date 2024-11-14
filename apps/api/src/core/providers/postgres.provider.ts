@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { DefaultLogger } from "drizzle-orm/logger";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
@@ -6,11 +7,10 @@ import { container, inject } from "tsyringe";
 
 import * as billingSchemas from "@src/billing/model-schemas";
 import { config } from "@src/core/config";
-import { LoggerService } from "@src/core/services/logger/logger.service";
 import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
 import * as userSchemas from "@src/user/model-schemas";
 
-const logger = new LoggerService({ context: "POSTGRES" });
+const logger = LoggerService.forContext("POSTGRES");
 const migrationClient = postgres(config.POSTGRES_DB_URI, { max: 1, onnotice: logger.info.bind(logger) });
 const appClient = postgres(config.POSTGRES_DB_URI, { max: config.POSTGRES_MAX_CONNECTIONS, onnotice: logger.info.bind(logger) });
 

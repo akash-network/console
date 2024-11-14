@@ -1,11 +1,11 @@
-import { AssetList } from "@chain-registry/types";
+import { AssetList, Chain } from "@chain-registry/types";
 
 import { akash, akashAssetList } from "./akash";
 
-export const akashSandbox = {
+export const akashSandbox: Chain = {
   ...akash,
   chain_id: "sandbox-01",
-  network_type: "sandbox",
+  network_type: "devnet",
   chain_name: "akash-sandbox",
   pretty_name: "Akash-Sandbox",
   apis: {
