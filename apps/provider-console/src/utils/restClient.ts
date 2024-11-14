@@ -28,36 +28,15 @@ restClient.interceptors.response.use(
       console.log(error)
       errorNotification("Server is not reachable or CORS is not enable on the server!");
     } else if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-
-      if (error.response.status === 401 && error.response.data.detail !== "Signature has expired") {
-        console.log(error)
-        // purgeStorage();
-
-        // TODO: fix token removal logic
-        // console.log("Removing Tokens")
-        // localStorage.removeItem("accessToken");
-        // localStorage.removeItem("refreshToken");
-        // history.push("/auth/login");
-      }
-
-      // Add more specific error handling
+      Sentry.setContext("api_error", {
+        status: error.response.status,
+        data: error.response.data,
+        url: error.config.url,
+        method: error.config.method,
+      });
       if (error.response.status >= 400 && error.response.status < 500) {
-        Sentry.setContext("api_error", {
-          status: error.response.status,
-          data: error.response.data,
-          url: error.config.url,
-          method: error.config.method,
-        });
         errorNotification(`Client Error: ${error.response.status}`);
       } else if (error.response.status >= 500) {
-        Sentry.setContext("api_error", {
-          status: error.response.status,
-          data: error.response.data,
-          url: error.config.url,
-          method: error.config.method,
-        });
         errorNotification(`Server Error: ${error.response.status}`);
       }
     } else if (error.request) {

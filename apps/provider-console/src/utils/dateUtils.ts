@@ -115,3 +115,44 @@ export function getPrettyTimeFromSeconds(seconds: number) {
 
   return result
 }
+
+
+export function formatLocalTime(utcTime: string | null) {
+  if (!utcTime) return null;
+  const [datePart, timePart] = utcTime.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hours, minutes, seconds] = timePart.split(":").map(Number);
+
+  const utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
+
+  const options: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+    timeZoneName: "short"
+  };
+
+  return utcDate.toLocaleString(undefined, options);
+}
+
+export function formatTimeLapse(start: string, end: string | null) {
+  const startDate = new Date(start + "Z");
+  const endDate = end ? new Date(end + "Z") : new Date();
+
+  const durationMs = endDate.getTime() - startDate.getTime();
+  const hours = Math.floor(durationMs / (1000 * 60 * 60));
+  const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  } else {
+    return `${seconds}s`;
+  }
+}

@@ -1,141 +1,125 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { useQuery } from "react-query";
-import { Button, Card, CardContent, CardHeader, Separator, Spinner } from "@akashnetwork/ui/components";
-import consoleClient from "@src/utils/consoleClient";
-import { Shield, AlertTriangle } from "lucide-react";
+import React, { useCallback, useMemo } from "react";
+import { Button, Separator, Spinner } from "@akashnetwork/ui/components";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@akashnetwork/ui/components";
+import { ShieldCheck, WarningTriangle } from "iconoir-react";
 import Link from "next/link";
 
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
-import restClient from "@src/utils/restClient";
-import ProviderActionList from "@src/components/shared/ProviderActionList";
-import { StatLineCharts } from "@src/components/dashboard/stat-line-charts";
-import { StatPieChart } from "@src/components/dashboard/stat-pie-charts";
+import { withAuth } from "@src/components/shared/withAuth";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
-import { formatBytes } from "@src/utils/formatBytes";
-import withAuth from "@src/components/shared/withAuth";
-import { formatUUsd } from "@src/utils/formatUsd";
-import DashboardCardSkeleton from "@src/components/dashboard/DashboardCardSkeleton";
 import { useWallet } from "@src/context/WalletProvider";
+import { useAKTData } from "@src/queries";
+import { useProviderActions, useProviderDashboard, useProviderDetails } from "@src/queries/useProviderQuery";
+import { formatUUsd } from "@src/utils/formatUsd";
 
-// Moved outside component to avoid recreation on each render
-const fetchAktPrice = async () => {
-  try {
-    const response = await fetch("https://api.coingecko.com/api/v3/coins/akash-network/tickers");
-    const data = await response.json();
-    const coinbasePrice = data.tickers.find((ticker: any) => ticker.market.name === "Coinbase Exchange");
-    return coinbasePrice ? coinbasePrice.converted_last.usd.toFixed(2) : "N/A";
-  } catch (error) {
-    console.error("Error fetching AKT price:", error);
-    return "N/A";
-  }
-};
+const OfflineWarningBanner: React.FC = () => (
+  <div className="mb-4 rounded-md bg-yellow-100 p-4 text-yellow-700">
+    <div className="flex">
+      <WarningTriangle className="mr-2 h-5 w-5" />
+      <p>
+        Warning: Your provider is currently offline.{" "}
+        <Link href="/remedies" className="font-medium underline">
+          Click here for remedies
+        </Link>
+        .
+      </p>
+    </div>
+  </div>
+);
 
-const calculatePercentageChange = (currentPrice: number | null, previousPrice: number | null) => {
-  if (currentPrice === null || previousPrice === null || previousPrice === 0) {
-    return <span className="text-gray-500">0%</span>;
-  }
-
-  const percentageChange = ((currentPrice - previousPrice) / previousPrice) * 100;
-  const formattedChange = Math.abs(percentageChange).toFixed(2);
-
-  if (percentageChange > 0) {
-    return <span className="text-green-500">+{formattedChange}%</span>;
-  } else if (percentageChange < 0) {
-    return <span className="text-red-500">-{formattedChange}%</span>;
-  } else {
-    return <span className="text-gray-500">0%</span>;
-  }
-};
-
-const Dashboard: React.FC = () => {
-  const [providerActions, setProviderActions] = useState<any[]>([]);
-  const [aktPrice, setAktPrice] = useState<string | null>(null);
-  const { address } = useSelectedChain();
-  const { isOnline } = useWallet();
-
-  // Add this query to fetch provider details
-  const { data: providerDetails, isLoading: isLoadingProviderDetails }: { data: any; isLoading: boolean } = useQuery(
-    "providerDetails",
-    () => consoleClient.get(`/v1/providers/${address}`),
-    {
-      // You might want to adjust these options based on your needs
-      refetchOnWindowFocus: false,
-      retry: 3
-    }
-  );
-
-  // Add this new query to fetch provider dashboard details
-  const { data: providerDashboard, isLoading: isLoadingProviderDashboard }: { data: any; isLoading: boolean } = useQuery(
-    "providerDashboard",
-    () => consoleClient.get(`/internal/provider-dashboard/${address}`),
-    {
-      refetchOnWindowFocus: false,
-      retry: 3
-    }
-  );
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const [price, actions]: [string, any] = await Promise.all([fetchAktPrice(), restClient.get("/actions")]);
-      setAktPrice(price);
-      setProviderActions(actions.actions);
-    };
-
-    fetchData();
+const ProviderStatusIndicators: React.FC<{
+  isOnline: boolean;
+  isAudited: boolean;
+  aktPrice: string | null;
+}> = ({ isOnline, isAudited, aktPrice }) => {
+  const handleAktPriceClick = useCallback(() => {
+    window.open("https://www.coingecko.com/en/coins/akash-network", "_blank");
   }, []);
 
   return (
-    <Layout>
-      {providerDetails && !isOnline && (
-        <div className="mb-4 rounded-md bg-yellow-100 p-4 text-yellow-700">
-          <div className="flex">
-            <AlertTriangle className="mr-2 h-5 w-5" />
-            <p>
-              Warning: Your provider is currently offline.{" "}
-              <Link href="/remedies" className="font-medium underline">
-                Click here for remedies
-              </Link>
-              .
-            </p>
-          </div>
+    <>
+      <div className="flex-end mr-4 text-center md:h-auto">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <div className={`h-2 w-2 rounded-full ${isOnline ? "bg-green-500" : "bg-red-500"}`} />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{isOnline ? "Provider is online" : "Provider is offline"}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+      <div className="flex-end mr-4 text-center md:h-auto">
+        <div className={`flex items-center rounded-sm px-3 py-1 ${isAudited ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
+          <ShieldCheck className={`mr-1 h-4 w-4 ${isAudited ? "text-green-500" : "text-yellow-500"}`} />
+          {isAudited ? "Audited" : "Not Audited"}
         </div>
-      )}
+      </div>
+      <div className="flex-end text-center md:h-auto">
+        <Button variant="outline" className="md:h-auto" onClick={handleAktPriceClick}>
+          {aktPrice === null ? "Loading AKT Price..." : `AKT Current Price: $${aktPrice}`}
+        </Button>
+      </div>
+    </>
+  );
+};
+
+const Dashboard: React.FC = () => {
+  const { data: aktData }: any = useAKTData();
+  const { address }: any = useSelectedChain();
+  const { isOnline } = useWallet();
+
+  const { data: providerDetails, isLoading: isLoadingProviderDetails }: any = useProviderDetails(address);
+  const { data: providerDashboard, isLoading: isLoadingProviderDashboard }: any = useProviderDashboard(address);
+  const { data: providerActions, isLoading: isLoadingProviderActions } = useProviderActions();
+
+  const summaryCards = useMemo(
+    () => (
+      <>
+        <FinanceCard
+          title={formatUUsd(providerDashboard?.current.dailyUUsdEarned)}
+          subtitle="Total Paid 24H"
+          currentPrice={providerDashboard?.current.dailyUUsdEarned}
+          previousPrice={providerDashboard?.previous.dailyUUsdEarned}
+          message="Change in total paid compared to 24 hours ago"
+        />
+        <FinanceCard
+          title={formatUUsd(providerDashboard?.current.totalUUsdEarned)}
+          subtitle="Total Paid"
+          currentPrice={providerDashboard?.current.totalUUsdEarned}
+          previousPrice={providerDashboard?.previous.totalUUsdEarned}
+          message="Change in total paid compared to 24 hours ago"
+        />
+        <FinanceCard
+          title={providerDashboard?.current.activeLeaseCount ? `${providerDashboard?.current.activeLeaseCount}` : "0"}
+          subtitle="Active Leases"
+          currentPrice={providerDashboard?.current.activeLeaseCount}
+          previousPrice={providerDashboard?.previous.activeLeaseCount}
+          message="Change in active leases compared to 24 hours ago"
+        />
+        <FinanceCard
+          title={providerDashboard?.current.totalLeaseCount ? `${providerDashboard?.current.totalLeaseCount}` : "0"}
+          subtitle="Total Leases"
+          currentPrice={providerDashboard?.current.totalLeaseCount}
+          previousPrice={providerDashboard?.previous.totalLeaseCount}
+          message="Change in total leases compared to 24 hours ago"
+        />
+      </>
+    ),
+    [providerDashboard]
+  );
+
+  return (
+    <Layout>
+      {providerDetails && !isOnline && <OfflineWarningBanner />}
       <div className="flex items-center">
         <div className="w-10 flex-1">
           <Title>Dashboard</Title>
         </div>
-        <div className="flex-end mr-4 text-center md:h-auto">
-          {providerDetails && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <div className={`h-2 w-2 rounded-full ${isOnline ? "bg-green-500" : "bg-red-500"}`} />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{isOnline ? "Provider is online" : "Provider is offline"}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-        </div>
-        <div className="flex-end mr-4 text-center md:h-auto">
-          {providerDetails && (
-            <div
-              className={`flex items-center rounded-sm px-3 py-1 ${providerDetails.isAudited ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}
-            >
-              <Shield className={`mr-1 h-4 w-4 ${providerDetails.isAudited ? "text-green-500" : "text-yellow-500"}`} />
-              {providerDetails.isAudited ? "Audited" : "Not Audited"}
-            </div>
-          )}
-        </div>
-        <div className="flex-end text-center md:h-auto">
-          <Button variant="outline" className="md:h-auto" onClick={() => window.open("https://www.coingecko.com/en/coins/akash-network", "_blank")}>
-            {aktPrice === null ? "Loading AKT Price..." : `AKT Current Price: $${aktPrice}`}
-          </Button>
-        </div>
+        {providerDetails && <ProviderStatusIndicators isOnline={isOnline} isAudited={providerDetails.isAudited} aktPrice={aktData.aktPrice} />}
       </div>
       <div className="mt-10">
         <div className="text-sm font-semibold">
@@ -153,120 +137,7 @@ const Dashboard: React.FC = () => {
               <DashboardCardSkeleton />
             </>
           ) : (
-            <>
-              <Card>
-                <CardContent className="rounded-lg p-6 shadow-md">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="">
-                      <div className="text-sm font-medium">Total Paid 24H</div>
-                      <div className="text-2xl font-semibold">{formatUUsd(providerDashboard?.current.dailyUUsdEarned)}</div>
-                      <div className="mt-1 text-sm font-medium">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              {calculatePercentageChange(providerDashboard?.current.dailyUUsdEarned, providerDashboard?.previous.dailyUUsdEarned)}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Change in total paid compared to 24 hours ago</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </div>
-                    <div className="col-span-2 flex items-center justify-end">
-                      <div className="w-full overflow-hidden">
-                        {/* <StatLineCharts data={[15, 0, 25, 0, 45, 70]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="rounded-lg p-6 shadow-md">
-                  <div className="grid-cols4 grid gap-4">
-                    <div className="">
-                      <div className="text-sm font-medium">Total Paid</div>
-                      <div className="text-2xl font-semibold">{formatUUsd(providerDashboard?.current.totalUUsdEarned)}</div>
-                      <div className="mt-1 text-sm font-medium">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              {calculatePercentageChange(providerDashboard?.current.totalUUsdEarned, providerDashboard?.previous.totalUUsdEarned)}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Change in total paid compared to 24 hours ago</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </div>
-                    <div className="col-span-2 flex items-center justify-end">
-                      <div className="w-full overflow-hidden">
-                        {/* <StatLineCharts data={[25, 65, 30, 45, 80]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="rounded-lg p-6 shadow-md">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="">
-                      <div className="text-sm font-medium">Active Leases</div>
-                      <div className="text-2xl font-semibold">
-                        {providerDashboard?.current.activeLeaseCount ? `${providerDashboard?.current.activeLeaseCount}` : "0"}
-                      </div>
-                      <div className="mt-1 text-sm font-medium">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              {calculatePercentageChange(providerDashboard?.current.activeLeaseCount, providerDashboard?.previous.activeLeaseCount)}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Change in active leases compared to 24 hours ago</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </div>
-                    <div className="col-span-2 flex items-center justify-end">
-                      <div className="w-full overflow-hidden">
-                        {/* <StatLineCharts data={[10, 34, 20, 60, 75]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="rounded-lg p-6 shadow-md">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="">
-                      <div className="text-sm font-medium">Total Leases</div>
-                      <div className="text-2xl font-semibold">
-                        {providerDashboard?.current.totalLeaseCount ? `${providerDashboard?.current.totalLeaseCount}` : "0"}
-                      </div>
-                      <div className="mt-1 text-sm font-medium">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              {calculatePercentageChange(providerDashboard?.current.totalLeaseCount, providerDashboard?.previous.totalLeaseCount)}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Change in total leases compared to 24 hours ago</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </div>
-                    <div className="col-span-2 flex items-center justify-end">
-                      <div className="w-full overflow-hidden">
-                        {/* <StatLineCharts data={[10, 34, 20, 60, 75]} labels={["Mon", "Tue", "Wed", "Thu", "Fri"]} /> */}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </>
+            summaryCards
           )}
         </div>
       </div>
@@ -296,7 +167,7 @@ const Dashboard: React.FC = () => {
       <div className="mt-8">
         <div className="mt-2">
           <div className="text-sm font-semibold">Recent Provider Actions</div>
-          <ProviderActionList actions={providerActions.slice(0, 5)} />
+          {isLoadingProviderActions ? <Spinner className="mt-4" /> : <ProviderActionList actions={providerActions?.slice(0, 5) || []} />}
         </div>
       </div>
     </Layout>

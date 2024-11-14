@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { Button, Card } from "@akashnetwork/ui/components";
 import { useRouter } from "next/router";
 import { Card } from "@akashnetwork/ui/components";
 
@@ -22,9 +23,9 @@ export function NotAProvider() {
           <li>Benefit from low operational costs and high scalability.</li>
         </ul>
         <div>
-          <button onClick={() => router.push("/become-provider")} className="bg-primary mt-4 rounded px-4 py-2 text-white">
+          <Button onClick={() => router.push("/become-provider")} variant={"default"}>
             Become a Provider
-          </button>
+          </Button>
         </div>
       </Card>
     </div>

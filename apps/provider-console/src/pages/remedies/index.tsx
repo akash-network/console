@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { useRouter } from 'next/router'; // Import useRouter
+import { Button, Card } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 import Layout from "@src/components/layout/Layout";
 import withAuth from "@src/components/shared/withAuth";
@@ -26,9 +26,9 @@ const Remedies: React.FunctionComponent = () => {
           <li>Verify that ports 8443 and 8444 are correctly set and open in your firewall settings.</li>
           <li>Check if the control machine has crashed and restart it if necessary.</li>
         </ul>
-        <button onClick={handleBecomeProvider} className="bg-primary mt-4 rounded px-4 py-2 text-white">
+        <Button onClick={handleBecomeProvider} variant="default">
           Restart Provider Build
-        </button>
+        </Button>
       </Card>
     </Layout>
   );

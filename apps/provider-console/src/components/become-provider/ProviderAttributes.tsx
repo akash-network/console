@@ -16,9 +16,9 @@ import {
   SelectContent,
   Form
 } from "@akashnetwork/ui/components";
-import React from "react";
-import { useForm, useFieldArray, Controller, SubmitHandler } from "react-hook-form";
-import { PlusIcon, TrashIcon } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Plus, Trash } from "iconoir-react";
+import { useAtom } from "jotai";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";
@@ -30,7 +30,9 @@ import ResetProviderForm from "./ResetProviderProcess";
 const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 
 interface ProviderAttributesProps {
-  stepChange: () => void;
+  existingAttributes?: ProviderAttribute[];
+  editMode?: boolean;
+  onComplete?: () => void;
 }
 
 const providerFormSchema = z.object({
@@ -45,7 +47,7 @@ const providerFormSchema = z.object({
 
 type ProviderFormValues = z.infer<typeof providerFormSchema>;
 
-export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps> = ({ stepChange }) => {
+export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps> = ({ onComplete, existingAttributes, editMode }) => {
   const [providerPricing, setProviderPricing] = useAtom(providerProcessStore.providerProcessAtom);
   const form = useForm<ProviderFormValues>({
     resolver: zodResolver(providerFormSchema),
@@ -66,16 +68,37 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
     name: "attributes"
   });
 
-  const onSubmit: SubmitHandler<ProviderFormValues> = async data => {
-    const updatedProviderPricing = {
-      ...providerPricing,
-      attributes: data.attributes.map(attr => ({
-        ...attr,
-        customKey: attr.customKey || "" // Provide a default empty string
-      }))
-    };
-    setProviderPricing(updatedProviderPricing);
-    stepChange();
+  const { activeControlMachine } = useControlMachine();
+
+  const [showSuccess, setShowSuccess] = React.useState(false);
+
+  const updateProviderAttributesAndProceed: SubmitHandler<ProviderFormValues> = async data => {
+    if (!editMode) {
+      const updatedProviderPricing = {
+        ...providerPricing,
+        attributes: data.attributes.map(attr => ({
+          key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",
+          value: attr.value
+        }))
+      };
+      setProviderPricing(updatedProviderPricing);
+      onComplete && onComplete();
+    } else {
+      const attributes = data.attributes.map(attr => ({
+        key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",
+        value: attr.value
+      }));
+      const request = {
+        control_machine: sanitizeMachineAccess(activeControlMachine),
+        attributes
+      };
+
+      const response = await restClient.post(`/update-provider-attributes`, request);
+      if (response) {
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 10000);
+      }
+    }
   };
 
   return (
@@ -92,7 +115,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
         </div>
         <div>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(updateProviderAttributesAndProceed)} className="space-y-6">
               <div>
                 <h4 className="mb-2 text-lg font-semibold">Attributes</h4>
                 {fields.map((field, index) => {
@@ -149,13 +172,13 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
                         )}
                       />
                       <Button type="button" variant="outline" size="icon" onClick={() => remove(index)}>
-                        <TrashIcon className="h-4 w-4" />
+                        <Trash className="h-4 w-4" />
                       </Button>
                     </div>
                   );
                 })}
                 <Button type="button" variant="outline" size="sm" onClick={() => append({ key: "", value: "", customKey: "" })}>
-                  <PlusIcon className="mr-2 h-4 w-4" />
+                  <Plus className="mr-2 h-4 w-4" />
                   Add Attribute
                 </Button>
               </div>

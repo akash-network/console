@@ -2,8 +2,12 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import networkStore from "@src/store/networkStore";
 import type { DepositParams } from "@src/types/deployment";
 import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion } from "./helpers";
+import yaml from "js-yaml";
+import { Attribute } from "@akashnetwork/akash-api/akash/base/v1beta3";
 
-export const endpointNameValidationRegex = /^[a-z]+[-_\da-z]+$/;
+export const ENDPOINT_NAME_VALIDATION_REGEX = /^[a-z]+[-_\da-z]+$/;
+const TRIAL_ATTRIBUTE = "console/trials";
+const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
 export function getManifest(yamlJson, asString: boolean) {
   return Manifest(yamlJson, "beta3", networkStore.selectedNetworkId, asString);
@@ -21,6 +25,58 @@ const getDenomFromSdl = (groups: any[]): string => {
   // TODO handle multiple denoms in an sdl? (different denom for each service?)
   return denoms[0];
 };
+
+export function appendTrialAttribute(yamlStr: string) {
+  const sdl = getSdl(yamlStr, "beta3", networkStore.selectedNetworkId);
+  const placementData = sdl.data?.profiles?.placement || {};
+
+  for (const [, value] of Object.entries(placementData)) {
+    if (!value.attributes) {
+      value.attributes = [];
+    } else if (!Array.isArray(value.attributes)) {
+      value.attributes = Object.entries(value.attributes).map(([key, value]) => ({ key, value: value as string }));
+    }
+
+    const hasTrialAttribute = value.attributes.find(attr => attr.key === TRIAL_ATTRIBUTE);
+    if (!hasTrialAttribute) {
+      value.attributes.push({ key: TRIAL_ATTRIBUTE, value: "true" });
+    }
+
+    if (!value.signedBy?.anyOf || !value.signedBy?.allOf) {
+      value.signedBy = {
+        anyOf: value.signedBy?.anyOf || [],
+        allOf: value.signedBy?.allOf || []
+      };
+    }
+
+    if (!value.signedBy.allOf.includes(AUDITOR)) {
+      value.signedBy.allOf.push(AUDITOR);
+    }
+  }
+
+  const result = yaml.dump(sdl.data, {
+    indent: 2,
+    quotingType: '"',
+    styles: {
+      "!!null": "empty" // dump null as emtpy value
+    },
+    replacer: (key, value) => {
+      const isCurrentKeyProviderAttributes = key === "attributes" && Array.isArray(value) && value.some(attr => attr.key === TRIAL_ATTRIBUTE);
+      if (isCurrentKeyProviderAttributes) {
+        return mapProviderAttributes(value);
+      }
+      return value;
+    }
+  });
+
+  return `---
+${result}`;
+}
+
+// Attributes is a key value pair object, but we store it as an array of objects with key and value
+function mapProviderAttributes(attributes: Attribute[]) {
+  return attributes?.reduce((acc, curr) => ((acc[curr.key] = curr.value), acc), {});
+}
 
 export async function NewDeploymentData(
   apiEndpoint: string,

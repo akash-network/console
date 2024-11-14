@@ -11,7 +11,7 @@ export type CheckoutSessionsOutput = Table["$inferSelect"];
 
 @singleton()
 export class CheckoutSessionRepository extends BaseRepository<Table, CheckoutSessionsInput, CheckoutSessionsOutput> {
-  private readonly logger = new LoggerService({ context: CheckoutSessionRepository.name });
+  private readonly logger = LoggerService.forContext(CheckoutSessionRepository.name);
 
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,

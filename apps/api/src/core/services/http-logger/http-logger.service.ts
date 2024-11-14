@@ -6,7 +6,7 @@ import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 
 @singleton()
 export class HttpLoggerService implements HonoInterceptor {
-  private readonly logger = new LoggerService({ context: "HTTP" });
+  private readonly logger = LoggerService.forContext("HTTP");
 
   intercept() {
     return async (c: Context, next: Next) => {

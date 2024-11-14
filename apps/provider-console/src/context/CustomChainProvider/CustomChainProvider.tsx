@@ -24,7 +24,7 @@ export function CustomChainProvider({ children }: Props) {
       assetLists={assetLists}
       wallets={[...keplr, ...leap]}
       sessionOptions={{
-        duration: 31_556_926_000, // 1 year
+        duration: 31_556_926_000, // 1 Year
         callback: () => {
           console.log("session expired");
           window.localStorage.removeItem("cosmos-kit@2:core//current-wallet");

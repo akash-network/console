@@ -12,7 +12,7 @@ import { SentryEventService } from "@src/core/services/sentry-event/sentry-event
 
 @singleton()
 export class HonoErrorHandlerService {
-  private readonly logger = new LoggerService({ context: "ErrorHandler" });
+  private readonly logger = LoggerService.forContext("ErrorHandler");
 
   constructor(
     @InjectSentry() private readonly sentry: Sentry,

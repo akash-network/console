@@ -17,23 +17,7 @@ const steps: Step[] = [
   { id: 4, name: "5. Import Wallet" }
 ];
 
-// Main stepper component
-export const CustomizedSteppers: React.FC<{ activeStep: number }> = ({ activeStep }) => {
-  return (
-    <nav aria-label="Progress" className="w-full">
-      <ol role="list" className="divide-muted-foreground/20 border-muted-foreground/20 divide-y border md:flex md:divide-y-0">
-        {steps.map(step => (
-          <li key={step.name} className="relative md:flex md:flex-1">
-            {renderStepContent(step, activeStep)}
-          </li>
-        ))}
-      </ol>
-    </nav>
-  );
-};
-
-// Helper function to render the appropriate step content based on its state
-const renderStepContent = (step: Step, activeStep: number) => {
+const StepContent: React.FC<{ step: Step; activeStep: number }> = ({ step, activeStep }) => {
   if (step.id < activeStep) {
     return <CompletedStep step={step} />;
   } else if (step.id === activeStep) {
@@ -43,7 +27,20 @@ const renderStepContent = (step: Step, activeStep: number) => {
   }
 };
 
-// Component for a completed step
+export const CustomizedSteppers: React.FC<{ activeStep: number }> = ({ activeStep }) => {
+  return (
+    <nav aria-label="Progress" className="w-full">
+      <ol role="list" className="divide-muted-foreground/20 border-muted-foreground/20 divide-y border md:flex md:divide-y-0">
+        {steps.map(step => (
+          <li key={step.name} className="relative md:flex md:flex-1">
+            <StepContent step={step} activeStep={activeStep} />
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+};
+
 const CompletedStep: React.FC<{ step: Step }> = ({ step }) => (
   <div className="flex items-center px-6 py-4 text-sm font-medium">
     <span className="bg-primary group-hover:bg-primary/80 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full">

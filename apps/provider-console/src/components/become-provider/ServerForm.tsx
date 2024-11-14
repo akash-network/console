@@ -14,11 +14,20 @@ import {
   FormMessage,
   Input,
   Separator,
+  Spinner,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger
 } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtom } from "jotai/react";
+import { z } from "zod";
+
+import { useControlMachine } from "@src/context/ControlMachineProvider";
+import { useWallet } from "@src/context/WalletProvider";
+import providerProcessStore from "@src/store/providerProcessStore";
+import { ControlMachineWithAddress } from "@src/types/controlMachine";
 import restClient from "@src/utils/restClient";
 import { Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -53,10 +62,12 @@ type AccountFormValues = z.infer<typeof accountFormSchema>;
 
 interface ServerFormProp {
   currentServerNumber: number;
-  onSubmit: () => void;
+  onComplete: () => void;
+  editMode?: boolean;
+  controlMachine?: ControlMachineWithAddress | null;
 }
 
-export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentServerNumber, onSubmit }) => {
+export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onComplete, editMode = false, controlMachine }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [storedFileContent, setStoredFileContent] = useState<string | null>(null);
@@ -167,13 +178,19 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
           const machines = [...(providerProcess?.machines ?? [])];
           machines[currentServerNumber] = machine;
 
-        setProviderProcess({
-          ...providerProcess,
-          machines,
-          storeInformation: currentServerNumber === 0 ? formValues.saveInformation : providerProcess?.storeInformation,
-          process: providerProcess.process
-        });
-        onSubmit();
+          setProviderProcess({
+            ...providerProcess,
+            machines,
+            storeInformation: currentServerNumber === 0 ? formValues.saveInformation : providerProcess?.storeInformation,
+            process: providerProcess.process
+          });
+        } else {
+          setControlMachine({
+            address,
+            ...machine
+          });
+        }
+        onComplete();
       }
     } catch (error: any) {
       setVerificationError({
@@ -356,7 +373,7 @@ export const ServerForm: React.FunctionComponent<ServerFormProp> = ({ currentSer
                   <Button type="submit" disabled={isVerifying}>
                     {isVerifying ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Spinner />
                         Verifying...
                       </>
                     ) : editMode ? (

@@ -15,7 +15,7 @@ import { BalancesService } from "@src/billing/services/balances/balances.service
 import { ChainErrorService } from "../chain-error/chain-error.service";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
-type SimpleSigningStargateClient = {
+export type SimpleSigningStargateClient = {
   signAndBroadcast(messages: readonly EncodeObject[]): Promise<DeliverTxResponse>;
 };
 
