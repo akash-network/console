@@ -1,12 +1,12 @@
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
 import { Validator } from "@akashnetwork/database/dbSchemas/base";
-import { LoggerService } from "@akashnetwork/logging";
 import axios from "axios";
 import fetch from "node-fetch";
 import { Op } from "sequelize";
 
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
+import { LoggerService } from "@src/core/services/logger/logger.service";
 import { getTransactionByAddress } from "@src/services/db/transactionsService";
 import {
   CosmosGovProposalResponse,

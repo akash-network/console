@@ -8,16 +8,16 @@ export const ResetProviderForm: React.FC = () => {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [, resetProcess] = useAtom(providerProcessStore.resetProviderProcess);
 
-  const openResetModal = () => {
+  const handleReset = () => {
     setIsResetModalOpen(true);
   };
 
-  const resetAndCloseModal = () => {
+  const confirmReset = () => {
     resetProcess();
     setIsResetModalOpen(false);
   };
 
-  const closeModal = () => {
+  const cancelReset = () => {
     setIsResetModalOpen(false);
   };
 
@@ -25,14 +25,14 @@ export const ResetProviderForm: React.FC = () => {
     variant: "confirm",
     title: "Confirm Reset",
     message: "Are you sure you want to reset the provider process?",
-    onValidate: resetAndCloseModal,
-    onCancel: closeModal,
+    onValidate: confirmReset,
+    onCancel: cancelReset,
     open: isResetModalOpen
   };
 
   return (
     <>
-      <button type="button" onClick={openResetModal}>
+      <button type="button" onClick={handleReset}>
         Reset
       </button>
       <Popup {...popupProps} variant="confirm" />

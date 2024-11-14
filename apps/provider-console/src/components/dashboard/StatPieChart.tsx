@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React from "react";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@akashnetwork/ui/components";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 
@@ -27,14 +27,11 @@ const chartConfig: ChartConfig = {
 };
 
 export const StatPieChart: React.FC<StatPieChartProps> = ({ activeResources, pendingResources, availableResources }) => {
-  const data = useMemo(
-    () => [
-      { name: "Active", value: activeResources },
-      { name: "Pending", value: pendingResources },
-      { name: "Available", value: availableResources }
-    ],
-    [activeResources, pendingResources, availableResources]
-  );
+  const data = [
+    { name: "Active", value: activeResources },
+    { name: "Pending", value: pendingResources },
+    { name: "Available", value: availableResources }
+  ];
 
   return (
     <div>

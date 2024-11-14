@@ -7,8 +7,6 @@ export type NewDeploymentParams = {
   redeploy?: string | number;
   templateId?: string;
   page?: "new-deployment" | "deploy-linux";
-  gitProvider?: string;
-  gitProviderCode?: string | null;
 };
 
 export const domainName = "https://console.akash.network";
@@ -52,10 +50,11 @@ export class UrlService {
   // Deploy
   static deploymentList = () => `/deployments`;
   static deploymentDetails = (dseq: string, tab?: string, logsMode?: string) => `/deployments/${dseq}${appendSearchParams({ tab, logsMode })}`;
+  static publicDeploymentDetails = (owner: string, dseq: string) => `/deployment/${owner}/${dseq}${appendSearchParams({ network: networkStore.apiVersion })}`;
   static templates = (category?: string, search?: string) => `/templates${appendSearchParams({ category, search })}`;
   static templateDetails = (templateId: string) => `/templates/${templateId}`;
   static providers = (sort?: string) => `/providers${appendSearchParams({ sort })}`;
-  static providerDetail = (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.selectedNetworkId })}`;
+  static providerDetail = (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.marketApiVersion })}`;
   static providerDetailLeases = (owner: string) => `/providers/${owner}/leases`;
   static providerDetailRaw = (owner: string) => `/providers/${owner}/raw`;
   static providerDetailEdit = (owner: string) => `/providers/${owner}/edit`;
@@ -64,9 +63,9 @@ export class UrlService {
 
   // New deployment
   static newDeployment = (params: NewDeploymentParams = {}) => {
-    const { step, dseq, redeploy, templateId, gitProviderCode, gitProvider } = params;
+    const { step, dseq, redeploy, templateId } = params;
     const page = params.page || "new-deployment";
-    return `/${page}${appendSearchParams({ dseq, step, templateId, redeploy, gitProvider, code: gitProviderCode })}`;
+    return `/${page}${appendSearchParams({ dseq, step, templateId, redeploy })}`;
   };
 }
 

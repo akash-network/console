@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { WalletListResponseOutputSchema } from "@src/billing/http-schemas/wallet.schema";
-import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { OpenApiHonoHandled } from "@src/core/services/open-api-hono-handled/open-api-hono-handled";
 
 export const GetWalletRequestQuerySchema = z.object({
   userId: z.string().openapi({}),
@@ -31,7 +31,7 @@ const route = createRoute({
     }
   }
 });
-export const getWalletListRouter = new OpenApiHonoHandler();
+export const getWalletListRouter = new OpenApiHonoHandled();
 
 getWalletListRouter.openapi(route, async function routeGetWallet(c) {
   return c.json(await container.resolve(WalletController).getWallets(c.req.valid("query")), 200);

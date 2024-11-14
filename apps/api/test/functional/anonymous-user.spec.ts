@@ -1,9 +1,8 @@
+import { DbTestingService } from "@test/services/db-testing.service";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
 import { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
-
-import { DbTestingService } from "@test/services/db-testing.service";
 
 describe("Users", () => {
   let user: AnonymousUserResponseOutput["data"];

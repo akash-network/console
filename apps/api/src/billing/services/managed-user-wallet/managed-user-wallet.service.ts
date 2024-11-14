@@ -1,5 +1,4 @@
 import { AllowanceHttpService } from "@akashnetwork/http-sdk";
-import { LoggerService } from "@akashnetwork/logging";
 import { stringToPath } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
@@ -12,6 +11,7 @@ import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { MasterSigningClientService } from "@src/billing/services/master-signing-client/master-signing-client.service";
 import { MasterWalletService } from "@src/billing/services/master-wallet/master-wallet.service";
 import { RpcMessageService, SpendingAuthorizationMsgOptions } from "@src/billing/services/rpc-message-service/rpc-message.service";
+import { LoggerService } from "@src/core";
 
 interface SpendingAuthorizationOptions {
   address: string;
@@ -40,7 +40,9 @@ export class ManagedUserWalletService {
     @InjectSigningClient("MANAGED") private readonly masterSigningClientService: MasterSigningClientService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly allowanceHttpService: AllowanceHttpService
-  ) {}
+  ) {
+    console.log("DEBUG masterSigningClientService", masterSigningClientService);
+  }
 
   async createAndAuthorizeTrialSpending({ addressIndex }: { addressIndex: number }) {
     const { address } = await this.createWallet({ addressIndex });

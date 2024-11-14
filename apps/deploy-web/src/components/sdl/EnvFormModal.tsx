@@ -6,8 +6,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Bin } from "iconoir-react";
 import { nanoid } from "nanoid";
 
-import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
-import { EnvironmentVariableType, RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
+import { EnvironmentVariableType, RentGpusFormValuesType,SdlBuilderFormValuesType } from "@src/types";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
@@ -17,19 +16,9 @@ type Props = {
   control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
   hasSecretOption?: boolean;
   children?: ReactNode;
-  isRemoteDeployEnvHidden?: boolean;
-  isUpdate?: boolean;
 };
 
-export const EnvFormModal: React.FunctionComponent<Props> = ({
-  control,
-  serviceIndex,
-  envs: _envs,
-  onClose,
-  hasSecretOption = true,
-  isRemoteDeployEnvHidden,
-  isUpdate
-}) => {
+export const EnvFormModal: React.FunctionComponent<Props> = ({ control, serviceIndex, envs: _envs, onClose, hasSecretOption = true }) => {
   const {
     fields: envs,
     remove: removeEnv,
@@ -39,14 +28,9 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({
     name: `services.${serviceIndex}.env`,
     keyName: "id"
   });
-  const filteredEnvs = envs?.filter(e => !isRemoteDeployEnvHidden || !(e?.key?.trim() in protectedEnvironmentVariables));
 
   useEffect(() => {
-    const noEnvsExist = _envs.length === 0;
-    const noUserAddedEnvs = _envs.filter(e => !(e?.key?.trim() in protectedEnvironmentVariables)).length === 0;
-    const shouldAddEnv = noEnvsExist || (isRemoteDeployEnvHidden && noUserAddedEnvs && !isUpdate);
-
-    if (shouldAddEnv) {
+    if (_envs.length === 0) {
       onAddEnv();
     }
   }, []);
@@ -96,15 +80,13 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({
       enableCloseOnBackdropClick
     >
       <FormPaper contentClassName="bg-popover">
-        {filteredEnvs?.map((env, envIndex) => {
-          const currentEnvIndex = envs.findIndex(e => e.id === env.id);
-          const isLastEnv = envIndex + 1 === filteredEnvs.length;
+        {envs.map((env, envIndex) => {
           return (
-            <div key={env.id} className={cn("flex", { ["mb-2"]: !isLastEnv })}>
+            <div key={env.id} className={cn("flex", { ["mb-2"]: envIndex + 1 !== envs.length })}>
               <div className="flex flex-grow flex-col items-end sm:flex-row">
                 <FormField
                   control={control}
-                  name={`services.${serviceIndex}.env.${currentEnvIndex}.key`}
+                  name={`services.${serviceIndex}.env.${envIndex}.key`}
                   render={({ field }) => (
                     <div className="basis-[40%]">
                       <FormInput
@@ -121,7 +103,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({
 
                 <FormField
                   control={control}
-                  name={`services.${serviceIndex}.env.${currentEnvIndex}.value`}
+                  name={`services.${serviceIndex}.env.${envIndex}.value`}
                   render={({ field }) => (
                     <div className="ml-2 flex-grow">
                       <FormInput
@@ -144,7 +126,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({
                 })}
               >
                 {envIndex > 0 && (
-                  <Button onClick={() => removeEnv(currentEnvIndex)} size="icon" variant="ghost">
+                  <Button onClick={() => removeEnv(envIndex)} size="icon" variant="ghost">
                     <Bin />
                   </Button>
                 )}
@@ -152,7 +134,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({
                 {hasSecretOption && (
                   <Controller
                     control={control}
-                    name={`services.${serviceIndex}.env.${currentEnvIndex}.isSecret`}
+                    name={`services.${serviceIndex}.env.${envIndex}.isSecret`}
                     render={({ field }) => (
                       <CustomNoDivTooltip
                         title={

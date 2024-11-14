@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Button, Card } from "@akashnetwork/ui/components";
+import { Card } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 import { useRouter } from "next/router";
 
@@ -26,9 +26,9 @@ const Remedies: React.FC = () => {
           <li>Verify that ports 8443 and 8444 are correctly set and open in your firewall settings.</li>
           <li>Check if the control machine has crashed and restart it if necessary.</li>
         </ul>
-        <Button onClick={handleBecomeProvider} variant="default">
+        <button onClick={handleBecomeProvider} className="bg-primary mt-4 rounded px-4 py-2 text-white">
           Restart Provider Build
-        </Button>
+        </button>
       </Card>
     </Layout>
   );

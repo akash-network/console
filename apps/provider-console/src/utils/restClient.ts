@@ -22,15 +22,22 @@ restClient.interceptors.response.use(
     if (typeof error.response === "undefined") {
       errorNotification("Server is not reachable or CORS is not enable on the server!");
     } else if (error.response) {
-      Sentry.setContext("api_error", {
-        status: error.response.status,
-        data: error.response.data,
-        url: error.config.url,
-        method: error.config.method,
-      });
+
       if (error.response.status >= 400 && error.response.status < 500) {
+        Sentry.setContext("api_error", {
+          status: error.response.status,
+          data: error.response.data,
+          url: error.config.url,
+          method: error.config.method,
+        });
         errorNotification(`Client Error: ${error.response.status}`);
       } else if (error.response.status >= 500) {
+        Sentry.setContext("api_error", {
+          status: error.response.status,
+          data: error.response.data,
+          url: error.config.url,
+          method: error.config.method,
+        });
         errorNotification(`Server Error: ${error.response.status}`);
       }
     } else if (error.request) {

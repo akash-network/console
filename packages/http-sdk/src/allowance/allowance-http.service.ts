@@ -3,12 +3,12 @@ import type { AxiosRequestConfig } from "axios";
 import { HttpService } from "../http/http.service";
 import type { Denom } from "../types/denom.type";
 
-export interface SpendLimit {
+type SpendLimit = {
   denom: Denom;
   amount: string;
-}
+};
 
-export interface FeeAllowance {
+interface FeeAllowance {
   granter: string;
   grantee: string;
   allowance: {
@@ -63,23 +63,16 @@ export class AllowanceHttpService extends HttpService {
     return allowances.grants;
   }
 
-  async paginateDeploymentGrants(
-    options: ({ granter: string } | { grantee: string }) & { limit: number },
-    cb: (page: DeploymentAllowanceResponse["grants"]) => Promise<void>
-  ) {
-    let nextPageKey: string | null = null;
-    const side = "granter" in options ? "granter" : "grantee";
-    const address = "granter" in options ? options.granter : options.grantee;
+  async paginateDeploymentGrantsForGrantee(address: string, cb: (page: DeploymentAllowanceResponse["grants"]) => Promise<void>) {
+    let nextPageKey: string | null;
 
     do {
       const response = this.extractData(
         await this.get<DeploymentAllowanceResponse>(
-          `cosmos/authz/v1beta1/grants/${side}/${address}`,
-          nextPageKey
-            ? {
-                params: { "pagination.key": nextPageKey, "pagination.limit": options.limit }
-              }
-            : undefined
+          `cosmos/authz/v1beta1/grants/grantee/${address}`,
+          nextPageKey && {
+            params: { "pagination.key": nextPageKey }
+          }
         )
       );
       nextPageKey = response.pagination.next_key;

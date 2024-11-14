@@ -9,7 +9,7 @@ interface DashboardChartsProps {
   title?: string;
 }
 
-const TEMP_CHAT_DATA = [
+const chartData = [
   { month: "January", desktop: 186, mobile: 80 },
   { month: "February", desktop: 305, mobile: 200 },
   { month: "March", desktop: 237, mobile: 120 },
@@ -32,14 +32,16 @@ const chartConfig = {
 export const StatLineCharts: React.FC<DashboardChartsProps> = () => {
   return (
     <div>
+      {/* <div id="chart">{typeof window !== "undefined" && <Chart options={chartOptions} series={chartvariable.series} type="line" height={125} />}</div> */}
       <ChartContainer config={chartConfig} className="min-h-[150px] w-full">
         <AreaChart
-          data={TEMP_CHAT_DATA}
+          data={chartData}
           margin={{
             left: 12,
             right: 12
           }}
         >
+          {/* <CartesianGrid vertical={false} /> */}
           <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={value => value.slice(0, 3)} />
           <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
           <Area dataKey="desktop" type="natural" fill="var(--color-desktop)" fillOpacity={0.4} stroke="var(--color-desktop)" />

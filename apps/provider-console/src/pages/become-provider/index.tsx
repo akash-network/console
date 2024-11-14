@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback,useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
 
 import { ProviderAttributes } from "@src/components/become-provider/ProviderAttributes";
@@ -17,47 +17,49 @@ const BecomeProvider: React.FC = () => {
   const [activeStep, setActiveStep] = useState<number>(0);
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
 
-  const providerSteps = useMemo(
-    () => [
-      { key: "serverAccess", component: ServerAccess, label: "Server Access" },
-      { key: "providerConfig", component: ProviderConfig, label: "Provider Configuration" },
-      { key: "providerAttribute", component: ProviderAttributes, label: "Provider Attributes" },
-      { key: "providerPricing", component: ProviderPricing, label: "Pricing" },
-      { key: "walletImport", component: WalletImport, label: "Wallet Import" }
-    ],
-    []
-  );
-
   useEffect(() => {
-    const currentStepIndex = providerSteps.findIndex(step => !providerProcess.process[step.key]);
-    setActiveStep(currentStepIndex === -1 ? providerSteps.length : currentStepIndex);
-  }, [providerProcess.process, providerSteps]);
+    const steps = [
+      { key: "serverAccess", component: ServerAccess },
+      { key: "providerConfig", component: ProviderConfig },
+      { key: "providerAttribute", component: ProviderAttributes },
+      { key: "providerPricing", component: ProviderPricing },
+      { key: "walletImport", component: WalletImport }
+    ];
 
-  const handleStepComplete = useCallback(() => {
+    const currentStepIndex = steps.findIndex(step => !providerProcess.process[step.key]);
+    setActiveStep(currentStepIndex === -1 ? steps.length : currentStepIndex);
+  }, [providerProcess.process]);
+
+  const handleStepChange = () => {
     setProviderProcess(prev => ({
       ...prev,
       process: {
         ...prev.process,
-        [providerSteps[activeStep].key]: true
+        [steps[activeStep].key]: true
       }
     }));
-  }, [activeStep, providerSteps, setProviderProcess]);
+  };
 
-  const CurrentStepComponent = useMemo(() => {
-    if (activeStep >= providerSteps.length) {
-      return () => (
-        <div className="mt-4">
-          <ProviderActionDetails actionId={providerProcess.actionId} />
-        </div>
-      );
-    }
-    return providerSteps[activeStep].component;
-  }, [activeStep, providerSteps, providerProcess.actionId]);
+  const steps = [
+    { key: "serverAccess", component: ServerAccess },
+    { key: "providerConfig", component: ProviderConfig },
+    { key: "providerAttribute", component: ProviderAttributes },
+    { key: "providerPricing", component: ProviderPricing },
+    { key: "walletImport", component: WalletImport }
+  ];
 
   return (
     <Layout>
       <CustomizedSteppers activeStep={activeStep} />
-      <CurrentStepComponent onComplete={handleStepComplete} />
+      {activeStep < steps.length ? (
+        React.createElement(steps[activeStep].component, {
+          stepChange: handleStepChange
+        })
+      ) : (
+        <div className="mt-4">
+          <ProviderActionDetails actionId={providerProcess.actionId} />
+        </div>
+      )}
     </Layout>
   );
 };

@@ -1,10 +1,9 @@
-import { LoggerService } from "@akashnetwork/logging";
 import { backOff } from "exponential-backoff";
 import { singleton } from "tsyringe";
 
 import { ApiPgDatabase, ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
-import { TxService } from "@src/core/services";
+import { LoggerService, TxService } from "@src/core/services";
 
 type Table = ApiPgTables["CheckoutSessions"];
 export type CheckoutSessionsInput = Partial<Table["$inferInsert"]>;

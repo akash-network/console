@@ -23,7 +23,7 @@ export function CustomChainProvider({ children }: Props) {
       assetLists={assetLists}
       wallets={[...keplr, ...leap]}
       sessionOptions={{
-        duration: 31_556_926_000, // 1 Year
+        duration: 31_556_926_000,
         callback: () => {
           window.localStorage.removeItem("cosmos-kit@2:core//current-wallet");
           window.location.reload();
@@ -31,7 +31,7 @@ export function CustomChainProvider({ children }: Props) {
       }}
       walletConnectOptions={{
         signClient: {
-          projectId: "ddd1a4b1e48ab0719731d78c55445394"
+          projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID as string
         }
       }}
       endpointOptions={{

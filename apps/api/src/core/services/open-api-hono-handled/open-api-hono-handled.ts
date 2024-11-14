@@ -6,7 +6,7 @@ import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/h
 
 type HonoInit<E extends Env> = ConstructorParameters<typeof Hono>[0] & OpenAPIHonoOptions<E>;
 
-export class OpenApiHonoHandler<E extends Env = Env, S extends Schema = Record<string, never>, BasePath extends string = "/"> extends OpenAPIHono<
+export class OpenApiHonoHandled<E extends Env = Env, S extends Schema = Record<string, never>, BasePath extends string = "/"> extends OpenAPIHono<
   E,
   S,
   BasePath

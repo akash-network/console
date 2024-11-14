@@ -23,17 +23,17 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
       <CardHeader>
         <div className="flex items-center">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={template.logoUrl} alt={template.name} className="object-contain" />
+            <AvatarImage src={template.logoUrl} alt={template.name} />
             <AvatarFallback>
               <MediaImage />
             </AvatarFallback>
           </Avatar>
 
-          <div className="ml-4 truncate text-nowrap font-bold tracking-tight">{template.name}</div>
+          <div className="ml-4 break-all font-bold tracking-tight">{template.name}</div>
         </div>
       </CardHeader>
       <CardContent className="pb-4 pt-0">
-        <p className="text-xs text-muted-foreground">{getShortText(template.summary, 80)}</p>
+        <p className="text-xs text-muted-foreground">{getShortText(template.summary, 128)}</p>
       </CardContent>
     </Link>
   );

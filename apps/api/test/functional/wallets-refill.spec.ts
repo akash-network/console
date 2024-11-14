@@ -1,3 +1,5 @@
+import { DbTestingService } from "@test/services/db-testing.service";
+import { WalletTestingService } from "@test/services/wallet-testing.service";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
@@ -5,9 +7,6 @@ import { WalletController } from "@src/billing/controllers/wallet/wallet.control
 import { BILLING_CONFIG, BillingConfig } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService } from "@src/billing/services";
-
-import { DbTestingService } from "@test/services/db-testing.service";
-import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(240000);
 

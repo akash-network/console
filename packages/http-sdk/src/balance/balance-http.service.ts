@@ -3,7 +3,7 @@ import type { AxiosRequestConfig } from "axios";
 import { HttpService } from "../http/http.service";
 import type { Denom } from "../types/denom.type";
 
-export interface Balance {
+interface Balance {
   amount: string;
   denom: Denom;
 }

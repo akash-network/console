@@ -13,8 +13,7 @@ import { Provider } from "./provider";
     { unique: false, fields: ["closedHeight"] },
     { unique: false, fields: ["predictedClosedHeight"] },
     { unique: false, fields: ["deploymentId"] },
-    { unique: false, fields: ["owner", "dseq", "gseq", "oseq"] },
-    { unique: false, fields: ["providerAddress", "closedHeight", "createdHeight"] }
+    { unique: false, fields: ["owner", "dseq", "gseq", "oseq"] }
   ]
 })
 export class Lease extends Model {

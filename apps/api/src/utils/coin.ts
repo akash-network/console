@@ -1,7 +1,7 @@
-import { LoggerService } from "@akashnetwork/logging";
 import { asset_lists } from "@chain-registry/assets";
 import { Coin } from "cosmjs-types/cosmos/base/v1beta1/coin";
 
+import { LoggerService } from "@src/core";
 
 const logger = new LoggerService({ context: "CoinUtil" });
 

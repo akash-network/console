@@ -1,37 +1,24 @@
-import { context, trace } from "@opentelemetry/api";
 import { isHttpError } from "http-errors";
-import pino, { Bindings, Logger as PinoLogger, LoggerOptions } from "pino";
-import { gcpLogOptions } from "pino-cloud-logging";
+import pino, { Bindings } from "pino";
 import pinoFluentd from "pino-fluentd";
 import pretty from "pino-pretty";
 import { Writable } from "stream";
 
-import { config } from "../../config";
+import { config } from "@src/core/config";
 
-export type Logger = Pick<PinoLogger, "info" | "error" | "warn" | "debug">;
-
-export class LoggerService implements Logger {
-  protected pino: Logger;
+export class LoggerService {
+  protected pino: pino.Logger;
 
   constructor(bindings?: Bindings) {
     this.pino = this.initPino(bindings);
   }
 
-  private initPino(bindings?: Bindings): Logger {
+  private initPino(bindings?: Bindings): pino.Logger {
     const destinations: Writable[] = [];
-
-    let options: LoggerOptions = {
-      level: config.LOG_LEVEL,
-      mixin: () => {
-        const currentSpan = trace.getSpan(context.active());
-        return { ...currentSpan?.spanContext() };
-      }
-    };
 
     if (config.STD_OUT_LOG_FORMAT === "pretty") {
       destinations.push(pretty({ sync: true }));
     } else {
-      options = gcpLogOptions(options as any) as LoggerOptions;
       destinations.push(process.stdout);
     }
 
@@ -41,7 +28,7 @@ export class LoggerService implements Logger {
       destinations.push(fluentd);
     }
 
-    let instance = pino(options, this.combineDestinations(destinations));
+    let instance = pino({ level: config.LOG_LEVEL }, this.combineDestinations(destinations));
 
     if (bindings) {
       instance = instance.child(bindings);

@@ -1,4 +1,3 @@
-import { LoggerService } from "@akashnetwork/logging";
 import { context, trace } from "@opentelemetry/api";
 import type { Event } from "@sentry/types";
 import type { Context, Env } from "hono";
@@ -8,6 +7,7 @@ import { singleton } from "tsyringe";
 import { ZodError } from "zod";
 
 import { InjectSentry, Sentry } from "@src/core/providers/sentry.provider";
+import { LoggerService } from "@src/core/services/logger/logger.service";
 import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
 
 @singleton()

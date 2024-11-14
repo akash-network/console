@@ -2,16 +2,6 @@ require("@akashnetwork/env-loader");
 /** @type {import('next').NextConfig} */
 
 const { withSentryConfig } = require("@sentry/nextjs");
-
-try {
-  const { browserEnvSchema } = require("./env-config.schema");
-  browserEnvSchema.parse(process.env);
-} catch (error) {
-  if (error.message.includes("Cannot find module")) {
-    console.warn("No env-config.schema.js found, skipping env validation");
-  }
-}
-
 const nextConfig = {
   reactStrictMode: false,
   compiler: {
@@ -49,7 +39,7 @@ const sentryWebpackPluginOptions = {
   silent: true,
   dryRun: process.env.NODE_ENV !== "production",
   release: require("./package.json").version,
-  authToken: process.env.SENTRY_AUTH_TOKEN
+  authToken: process.env.NODE_ENV === "production" ? process.env.SENTRY_AUTH_TOKEN : undefined
 };
 
 module.exports = withSentryConfig(nextConfig, sentryWebpackPluginOptions);

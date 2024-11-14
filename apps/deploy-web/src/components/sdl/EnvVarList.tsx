@@ -1,10 +1,8 @@
 "use client";
 import { Dispatch, ReactNode, SetStateAction } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle } from "iconoir-react";
 
-import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { ServiceType } from "@src/types";
 import { FormPaper } from "./FormPaper";
@@ -14,14 +12,12 @@ type Props = {
   serviceIndex?: number;
   children?: ReactNode;
   setIsEditingEnv: Dispatch<SetStateAction<boolean | number>>;
-  isRemoteDeployEnvHidden?: boolean;
 };
 
-export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, setIsEditingEnv, serviceIndex, isRemoteDeployEnvHidden }) => {
+export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, setIsEditingEnv, serviceIndex }) => {
   const { hasComponent } = useSdlBuilder();
-  const currentEnvs = currentService.env?.filter(e => !isRemoteDeployEnvHidden || !(e?.key in protectedEnvironmentVariables));
   return (
-    <FormPaper className={cn("whitespace-break-spaces break-all", isRemoteDeployEnvHidden && "!bg-card")}>
+    <FormPaper className="whitespace-break-spaces break-all">
       <div className="mb-2 flex items-center">
         <strong className="text-sm">Environment Variables</strong>
 
@@ -55,8 +51,8 @@ export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, set
         </span>
       </div>
 
-      {currentEnvs?.length ? (
-        currentEnvs.map((e, i) => (
+      {(currentService.env?.length || 0) > 0 ? (
+        currentService.env?.map((e, i) => (
           <div key={i} className="text-xs">
             {e.key}=<span className="text-muted-foreground">{e.value}</span>
           </div>

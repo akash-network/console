@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.12.1",
-    "pino": "^9.5.0"
+    "pino": "^9.3.2"
   },
   "bin": {
     "detect-env-files": "src/detect-files-stdout.js"
