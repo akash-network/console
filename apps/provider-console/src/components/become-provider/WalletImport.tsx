@@ -16,8 +16,8 @@ import {
   Textarea
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Home } from "iconoir-react";
 import { useAtom } from "jotai";
-import { HomeIcon } from "lucide-react";
 import { useRouter } from "next/router";
 import { z } from "zod";
 
@@ -151,6 +151,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
       setError("An error occurred while processing your request. Please try again.");
     } finally {
       setIsLoading(false);
+      onComplete();
     }
   };
 
