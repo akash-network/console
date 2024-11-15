@@ -7,8 +7,12 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService } from "@src/billing/services";
 import { InjectSentry, Sentry } from "@src/core/providers/sentry.provider";
 import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
+import { DryRunOptions } from "@src/core/types/console";
 import { UserRepository } from "@src/user/repositories";
+import { StaleAnonymousUsersCleanerSummarizer } from "@src/user/services/stale-anonymous-users-cleaner-summarizer/stale-anonymous-users-cleaner-summarizer.service";
 import { UserConfigService } from "@src/user/services/user-config/user-config.service";
+
+export interface StaleAnonymousUsersCleanerOptions extends DryRunOptions {}
 
 @singleton()
 export class StaleAnonymousUsersCleanerService {
@@ -25,7 +29,8 @@ export class StaleAnonymousUsersCleanerService {
     private readonly sentryEventService: SentryEventService
   ) {}
 
-  async cleanUpStaleAnonymousUsers() {
+  async cleanUpStaleAnonymousUsers(options: StaleAnonymousUsersCleanerOptions) {
+    const summary = new StaleAnonymousUsersCleanerSummarizer();
     await this.userRepository.paginateStaleAnonymousUsers(
       { inactivityInDays: this.config.get("STALE_ANONYMOUS_USERS_LIVE_IN_DAYS"), limit: this.CONCURRENCY },
       async users => {
@@ -34,20 +39,30 @@ export class StaleAnonymousUsersCleanerService {
         const { errors } = await PromisePool.withConcurrency(this.CONCURRENCY)
           .for(wallets)
           .process(async wallet => {
-            await this.managedUserWalletService.revokeAll(wallet.address, "USER_INACTIVITY");
+            const result = await this.managedUserWalletService.revokeAll(wallet.address, "USER_INACTIVITY", options);
+            if (result.feeAllowance) {
+              summary.inc("feeAllowanceRevokeCount");
+            }
+            if (result.deploymentGrant) {
+              summary.inc("deploymentGrantRevokeCount");
+            }
           });
         const erroredUserIds = errors.map(({ item }) => item.userId);
         const userIdsToRemove = difference(userIds, erroredUserIds);
 
-        if (userIdsToRemove.length) {
-          await this.userRepository.deleteById(userIdsToRemove);
-          this.logger.debug({ event: "STALE_ANONYMOUS_USERS_CLEANUP", userIds: userIdsToRemove });
-        }
-
         if (errors.length) {
+          summary.inc("revokeErrorCount", errors.length);
           this.logger.debug({ event: "STALE_ANONYMOUS_USERS_REVOKE_ERROR", errors });
           this.sentry.captureEvent(this.sentryEventService.toEvent(errors));
         }
+
+        if (userIdsToRemove.length) {
+          if (!options.dryRun) {
+            await this.userRepository.deleteById(userIdsToRemove);
+          }
+          summary.inc("usersDroppedCount", userIdsToRemove.length);
+        }
+        this.logger.debug({ event: "STALE_ANONYMOUS_USERS_CLEANUP", userIds: userIdsToRemove, summary: summary.summarize(), dryRun: options.dryRun });
       }
     );
   }

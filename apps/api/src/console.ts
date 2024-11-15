@@ -30,8 +30,8 @@ program
 
 program
   .command("top-up-deployments")
-  .option("-d, --dry-run", "Dry run the top up deployments", false)
   .description("Refill deployments with auto top up enabled")
+  .option("-d, --dry-run", "Dry run the top up deployments", false)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       await container.resolve(TopUpDeploymentsController).topUpDeployments({ dryRun: options.dryRun });
@@ -51,9 +51,10 @@ const userConfig = container.resolve(UserConfigService);
 program
   .command("cleanup-stale-anonymous-users")
   .description(`Remove users that have been inactive for ${userConfig.get("STALE_ANONYMOUS_USERS_LIVE_IN_DAYS")} days`)
+  .option("-d, --dry-run", "Dry run the clean up stale anonymous users", false)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
-      await container.resolve(UserController).cleanUpStaleAnonymousUsers();
+      await container.resolve(UserController).cleanUpStaleAnonymousUsers({ dryRun: options.dryRun });
     });
   });
 

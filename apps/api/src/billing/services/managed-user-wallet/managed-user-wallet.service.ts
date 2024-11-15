@@ -12,6 +12,7 @@ import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { MasterSigningClientService } from "@src/billing/services/master-signing-client/master-signing-client.service";
 import { MasterWalletService } from "@src/billing/services/master-wallet/master-wallet.service";
 import { RpcMessageService, SpendingAuthorizationMsgOptions } from "@src/billing/services/rpc-message-service/rpc-message.service";
+import { DryRunOptions } from "@src/core/types/console";
 
 interface SpendingAuthorizationOptions {
   address: string;
@@ -110,25 +111,35 @@ export class ManagedUserWalletService {
     return await this.masterSigningClientService.executeTx([deploymentAllowanceMsg]);
   }
 
-  async revokeAll(grantee: string, reason?: string) {
+  async revokeAll(grantee: string, reason?: string, options?: DryRunOptions) {
     const masterWalletAddress = await this.masterWalletService.getFirstAddress();
     const params = { granter: masterWalletAddress, grantee };
     const messages: EncodeObject[] = [];
-    const revokeTypes: string[] = [];
+    const revokeSummary = {
+      feeAllowance: false,
+      deploymentGrant: false
+    };
 
     if (await this.allowanceHttpService.hasFeeAllowance(params.granter, params.grantee)) {
-      revokeTypes.push("REVOKE_ALLOWANCE");
+      revokeSummary.feeAllowance = true;
       messages.push(this.rpcMessageService.getRevokeAllowanceMsg(params));
     }
 
     if (await this.allowanceHttpService.hasDeploymentGrant(params.granter, params.grantee)) {
-      revokeTypes.push("REVOKE_DEPOSIT_DEPLOYMENT_GRANT");
+      revokeSummary.deploymentGrant = true;
       messages.push(this.rpcMessageService.getRevokeDepositDeploymentGrantMsg(params));
     }
 
-    if (messages.length) {
-      await this.masterSigningClientService.executeTx(messages);
-      this.logger.info({ event: "SPENDING_REVOKED", address: params.grantee, revokeTypes, reason });
+    if (!messages.length) {
+      return;
     }
+
+    if (!options?.dryRun) {
+      await this.masterSigningClientService.executeTx(messages);
+    }
+
+    this.logger.info({ event: "SPENDING_REVOKED", address: params.grantee, revokeSummary, reason });
+
+    return revokeSummary;
   }
 }
