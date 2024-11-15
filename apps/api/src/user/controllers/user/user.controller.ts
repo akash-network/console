@@ -6,7 +6,10 @@ import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.servi
 import { UserRepository } from "@src/user/repositories";
 import { GetUserParams } from "@src/user/routes/get-anonymous-user/get-anonymous-user.router";
 import { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
-import { StaleAnonymousUsersCleanerService } from "@src/user/services/stale-anonymous-users-cleaner/stale-anonymous-users-cleaner.service";
+import {
+  StaleAnonymousUsersCleanerOptions,
+  StaleAnonymousUsersCleanerService
+} from "@src/user/services/stale-anonymous-users-cleaner/stale-anonymous-users-cleaner.service";
 
 @singleton()
 export class UserController {
@@ -34,7 +37,7 @@ export class UserController {
     return { data: user };
   }
 
-  async cleanUpStaleAnonymousUsers() {
-    await this.staleAnonymousUsersCleanerService.cleanUpStaleAnonymousUsers();
+  async cleanUpStaleAnonymousUsers(options: StaleAnonymousUsersCleanerOptions) {
+    await this.staleAnonymousUsersCleanerService.cleanUpStaleAnonymousUsers(options);
   }
 }

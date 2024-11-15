@@ -48,7 +48,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     });
 
     summary.set("endBlockHeight", await this.blockHttpService.getCurrentHeight());
-    this.logger.info({ event: "TOP_UP_SUMMARY", summary: summary.summarize() });
+    this.logger.info({ event: "TOP_UP_SUMMARY", summary: summary.summarize(), dryRun: options.dryRun });
   }
 
   private async topUpForWallet(wallet: UserWalletOutput, options: TopUpDeploymentsOptions, summary: TopUpSummarizer) {

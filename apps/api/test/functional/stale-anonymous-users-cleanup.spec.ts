@@ -54,7 +54,7 @@ describe("Users", () => {
       const reactivate = walletService.getWalletByUserId(reactivated.user.id, reactivated.token);
       await reactivate;
 
-      await controller.cleanUpStaleAnonymousUsers();
+      await controller.cleanUpStaleAnonymousUsers({ dryRun: false });
 
       const [users, wallets] = await Promise.all([userRepository.find(), userWalletRepository.find()]);
 
