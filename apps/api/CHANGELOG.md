@@ -1,5 +1,12 @@
 
 
+## [2.30.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.29.1...console-api/v2.30.0-beta.0) (2024-11-15)
+
+
+### Features
+
+* **user:** implement stale anonymous users cleanup cli command ([a936f44](https://github.com/akash-network/console/commit/a936f44c6e532efc1f559986c352594237ce3691)), closes [#464](https://github.com/akash-network/console/issues/464)
+
 ## [2.29.1](https://github.com/akash-network/console/compare/console-api/v2.29.1-beta.0...console-api/v2.29.1) (2024-11-13)
 
 ## [2.29.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.29.0...console-api/v2.29.1-beta.0) (2024-11-13)
