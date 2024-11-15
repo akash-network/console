@@ -1,5 +1,12 @@
 
 
+## [2.30.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.30.0...console-api/v2.30.1-beta.0) (2024-11-15)
+
+
+### Bug Fixes
+
+* **observability:** bump logger version ([b258c63](https://github.com/akash-network/console/commit/b258c6389d22c0bf57e9c702b51a1280faf74eb7))
+
 ## [2.30.0](https://github.com/akash-network/console/compare/console-api/v2.30.0-beta.0...console-api/v2.30.0) (2024-11-15)
 
 ## [2.30.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.29.1...console-api/v2.30.0-beta.0) (2024-11-15)
