@@ -31,6 +31,7 @@ export class LoggerService implements Logger {
     let options: LoggerOptions = {
       level: config.LOG_LEVEL,
       mixin: LoggerService.mixin,
+      timestamp: () => `,"time":"${new Date().toISOString()}"`,
       ...inputOptions
     };
 
