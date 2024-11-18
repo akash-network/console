@@ -1,6 +1,9 @@
 import { singleton } from "tsyringe";
 
-import { StaleManagedDeploymentsCleanerService } from "@src/deployment/services/stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
+import {
+  CleanUpStaleDeploymentsParams,
+  StaleManagedDeploymentsCleanerService
+} from "@src/deployment/services/stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 import { TopUpCustodialDeploymentsService } from "@src/deployment/services/top-up-custodial-deployments/top-up-custodial-deployments.service";
 import { TopUpManagedDeploymentsService } from "@src/deployment/services/top-up-managed-deployments/top-up-managed-deployments.service";
 import { TopUpDeploymentsOptions } from "@src/deployment/types/deployments-refiller";
@@ -18,7 +21,7 @@ export class TopUpDeploymentsController {
     await this.topUpManagedDeploymentsService.topUpDeployments(options);
   }
 
-  async cleanUpStaleDeployment() {
-    await this.staleDeploymentsCleanerService.cleanup();
+  async cleanUpStaleDeployment(options: CleanUpStaleDeploymentsParams) {
+    await this.staleDeploymentsCleanerService.cleanup(options);
   }
 }

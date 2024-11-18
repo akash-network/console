@@ -11,6 +11,10 @@ import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { averageBlockTime } from "@src/utils/constants";
 
+export interface CleanUpStaleDeploymentsParams {
+  concurrency: number;
+}
+
 @singleton()
 export class StaleManagedDeploymentsCleanerService {
   private readonly logger = LoggerService.forContext(StaleManagedDeploymentsCleanerService.name);
@@ -28,8 +32,8 @@ export class StaleManagedDeploymentsCleanerService {
     private readonly errorService: ErrorService
   ) {}
 
-  async cleanup() {
-    await this.userWalletRepository.paginate({ limit: 10 }, async wallets => {
+  async cleanup(options: CleanUpStaleDeploymentsParams) {
+    await this.userWalletRepository.paginate({ limit: options.concurrency || 10 }, async wallets => {
       const cleanUpAllWallets = wallets.map(async wallet => {
         await this.errorService.execWithErrorHandler(
           {
