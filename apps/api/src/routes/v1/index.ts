@@ -31,7 +31,8 @@ import providerActiveLeasesGraphData from "./providerActiveLeasesGraphData";
 import providerAttributesSchema from "./providerAttributesSchema";
 import providerGraphData from "./providerGraphData";
 import providerRegions from "./providerRegions";
-import templates from "./templates";
+import templateList from "./templates/list";
+import templateById from "./templates/byId";
 import trialProviders from "./trialProviders";
 
 export default [
@@ -53,7 +54,8 @@ export default [
   validatorByAddress,
   proposals,
   proposalById,
-  templates,
+  templateList,
+  templateById,
   networkCapacity,
   marketData,
   dashboardData,
