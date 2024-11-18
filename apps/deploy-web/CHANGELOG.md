@@ -1,5 +1,12 @@
 
 
+## [2.23.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.22.1...console-web/v2.23.0-beta.0) (2024-11-18)
+
+
+### Features
+
+* **deployment:** implement concurrency option for stale deployments cleaner ([54cae5d](https://github.com/akash-network/console/commit/54cae5d0f3c37dd6fe6623bcc249379f99cad247))
+
 ## [2.22.1](https://github.com/akash-network/console/compare/console-web/v2.22.1-beta.0...console-web/v2.22.1) (2024-11-14)
 
 ## [2.22.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.22.0...console-web/v2.22.1-beta.0) (2024-11-14)
