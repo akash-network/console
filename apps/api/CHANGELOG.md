@@ -1,5 +1,13 @@
 
 
+## [2.31.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.30.1...console-api/v2.31.0-beta.0) (2024-11-18)
+
+
+### Features
+
+* **deployment:** implement concurrency option for stale deployments cleaner ([54cae5d](https://github.com/akash-network/console/commit/54cae5d0f3c37dd6fe6623bcc249379f99cad247))
+* **user:** implement dry run and summary logging for stale anonymous users cleaner ([61752e9](https://github.com/akash-network/console/commit/61752e90fecc559eade828c721fa54839d8aef49)), closes [#464](https://github.com/akash-network/console/issues/464)
+
 ## [2.30.1](https://github.com/akash-network/console/compare/console-api/v2.30.1-beta.0...console-api/v2.30.1) (2024-11-15)
 
 ## [2.30.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.30.0...console-api/v2.30.1-beta.0) (2024-11-15)
