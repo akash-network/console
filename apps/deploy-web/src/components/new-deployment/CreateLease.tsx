@@ -18,6 +18,7 @@ import { ArrowRight, BadgeCheck, Bin, InfoCircle, MoreHoriz, Xmark } from "icono
 import yaml from "js-yaml";
 import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { useSnackbar } from "notistack";
 
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
@@ -45,6 +46,7 @@ import ViewPanel from "../shared/ViewPanel";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { BidGroup } from "./BidGroup";
 import Link from "next/link";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 type Props = {
   dseq: string;
@@ -92,6 +94,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         return a as { [key: number]: BidDto };
       }, {} as any) || {};
   const dseqList = Object.keys(groupedBids).map(group => parseInt(group));
+  const muiTheme = useMuiTheme();
+  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   const allClosed = (bids?.length || 0) > 0 && bids?.every(bid => bid.state === "closed");
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
@@ -399,7 +403,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
       <LinearLoadingSkeleton isLoading={isSendingManifest} />
       {dseqList.length > 0 && (
-        <ViewPanel stickToBottom style={{ overflow: "auto", paddingBottom: "2rem" }}>
+        <ViewPanel stickToBottom className="overflow-visible pb-16 md:overflow-auto" style={{ height: smallScreen ? "auto" : "" }}>
           {dseqList.map((gseq, i) => (
             <BidGroup
               key={gseq}
