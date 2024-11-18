@@ -74,6 +74,12 @@ export const SignedBySchema = z.object({
   value: z.string().min(1, { message: "Value is required." })
 });
 
+export const CredentialsSchema = z.object({
+  host: z.enum(['docker.io', 'ghcr.io']).default('docker.io'),
+  username: z.string(),
+  password: z.string(),
+}).optional();
+
 export const ProfileSchema = z
   .object({
     cpu: z.number({ invalid_type_error: "CPU count is required." }).min(0.1, { message: "CPU count is required." }),
@@ -295,6 +301,7 @@ export const ServiceSchema = z
       .regex(/^[a-z]/, { message: "Invalid starting character. It can only start with a lowercase letter." })
       .regex(/[^-]$/, { message: "Invalid ending character. It can only end with a lowercase letter or number" }),
     image: z.string().min(1, { message: "Docker image name is required." }),
+    credentials: CredentialsSchema,
     profile: ProfileSchema,
     expose: z.array(ExposeSchema),
     command: CommandSchema.optional(),

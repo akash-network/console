@@ -18,7 +18,8 @@ export const importSimpleSdl = (yamlStr: string) => {
       const service: Partial<ServiceType> = {
         id: nanoid(),
         title: svcName,
-        image: svc.image
+        image: svc.image,
+        credentials: svc.credentials
       };
 
       const compute = yamlJson.profiles.compute[svcName];

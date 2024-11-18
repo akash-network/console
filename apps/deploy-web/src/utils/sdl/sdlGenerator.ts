@@ -3,12 +3,26 @@ import yaml from "js-yaml";
 import { ExposeType, ProfileGpuModelType, ServiceType } from "@src/types";
 import { defaultHttpOptions } from "./data";
 
+const generateCredentials = (credentials: ServiceType['credentials']) => {
+  if (!credentials || !credentials.username || !credentials.password) {
+    return undefined;
+  }
+
+  return {
+    host: credentials.host,
+    username: credentials.username,
+    password: credentials.password,
+  };
+};
+
 export const generateSdl = (services: ServiceType[], region?: string) => {
   const sdl = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
 
   services.forEach(service => {
     sdl.services[service.title] = {
       image: service.image,
+
+      credentials: generateCredentials(service.credentials),
 
       // Expose
       expose: service.expose.map(e => {

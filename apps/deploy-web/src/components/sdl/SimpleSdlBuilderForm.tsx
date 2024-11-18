@@ -308,6 +308,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
               serviceCollapsed={serviceCollapsed}
               setServiceCollapsed={setServiceCollapsed}
               gpuModels={gpuModels}
+              canChangeCredentials={true}
             />
           ))}
 
