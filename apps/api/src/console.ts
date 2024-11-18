@@ -7,6 +7,7 @@ import { LoggerService } from "@akashnetwork/logging";
 import { context, trace } from "@opentelemetry/api";
 import { Command } from "commander";
 import { container } from "tsyringe";
+import { z } from "zod";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { chainDb } from "@src/db/dbConnection";
@@ -41,9 +42,10 @@ program
 program
   .command("cleanup-stale-deployments")
   .description("Close deployments without leases created at least 10min ago")
+  .option("-c, --concurrency <number>", "How much wallets is processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
-      await container.resolve(TopUpDeploymentsController).cleanUpStaleDeployment();
+      await container.resolve(TopUpDeploymentsController).cleanUpStaleDeployment(options);
     });
   });
 
