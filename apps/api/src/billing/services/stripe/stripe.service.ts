@@ -25,6 +25,7 @@ export class StripeService extends Stripe {
         }
       ],
       mode: "payment",
+      allow_promotion_codes: true,
       customer: options.customerId,
       success_url: `${options.redirectUrl}?session_id={CHECKOUT_SESSION_ID}&payment-success=true`,
       cancel_url: `${options.redirectUrl}?session_id={CHECKOUT_SESSION_ID}&payment-canceled=true`
