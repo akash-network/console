@@ -19,7 +19,9 @@ import yaml from "js-yaml";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { useSnackbar } from "notistack";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useWallet } from "@src/context/WalletProvider";
@@ -92,6 +94,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         return a as { [key: number]: BidDto };
       }, {} as any) || {};
   const dseqList = Object.keys(groupedBids).map(group => parseInt(group));
+  const muiTheme = useMuiTheme();
+  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   const allClosed = (bids?.length || 0) > 0 && bids?.every(bid => bid.state === "closed");
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
@@ -399,7 +403,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
       <LinearLoadingSkeleton isLoading={isSendingManifest} />
       {dseqList.length > 0 && (
-        <ViewPanel stickToBottom style={{ overflow: "auto", paddingBottom: "2rem" }}>
+        <ViewPanel stickToBottom className="overflow-visible pb-16 md:overflow-auto" style={{ height: smallScreen ? "auto" : "" }}>
           {dseqList.map((gseq, i) => (
             <BidGroup
               key={gseq}
@@ -421,8 +425,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
           {isTrialing && (
             <Alert variant="destructive">
-              <AlertTitle className="text-lg">Free Trial!</AlertTitle>
-              <AlertDescription className="space-y-1">
+              <AlertTitle className="text-lg dark:text-white/90">Free Trial!</AlertTitle>
+              <AlertDescription className="space-y-1 dark:text-white/90">
                 <p>You are using a free trial and are limited to only a few providers on the network.</p>
                 <p>
                   <Link href={UrlService.login()} className="font-bold underline">

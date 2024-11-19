@@ -15,7 +15,7 @@ export const MobileSidebarUser: React.FunctionComponent = () => {
 
   return (
     <ul className="w-full overflow-hidden border-0 p-0">
-      <div className="flex items-center justify-center p-2">
+      <div className="flex w-full items-center justify-center p-2">
         <WalletStatus />
       </div>
 
@@ -71,11 +71,7 @@ export const MobileSidebarUser: React.FunctionComponent = () => {
         </div>
       ) : (
         <div className="p-2">
-          <li className="">
-            {/* <Button component={Link} href={UrlService.signup()} color="secondary" variant="contained" fullWidth>
-              Sign up
-            </Button> */}
-
+          <li>
             <Link href={UrlService.signup()} className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}>
               Sign up
             </Link>

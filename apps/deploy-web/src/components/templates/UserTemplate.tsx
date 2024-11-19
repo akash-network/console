@@ -24,6 +24,7 @@ import { bytesToShrink } from "@src/utils/unitUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
+import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 
 type Props = {
   id: string;
@@ -130,7 +131,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
             setDeploySdl({
               title: "",
               category: "",
-              code: "",
+              code: USER_TEMPLATE_CODE,
               description: "",
               content: template.sdl
             });
