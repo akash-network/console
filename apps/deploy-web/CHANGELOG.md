@@ -1,5 +1,12 @@
 
 
+## [2.23.0-beta.2](https://github.com/akash-network/console/compare/console-web/v2.23.0-beta.1...console-web/v2.23.0-beta.2) (2024-11-19)
+
+
+### Bug Fixes
+
+* **deployment:** managed wallet user template ([ab83f2f](https://github.com/akash-network/console/commit/ab83f2f699e84b3a4f90739d2d003a9f8e9d27aa)), closes [#483](https://github.com/akash-network/console/issues/483)
+
 ## [2.23.0-beta.1](https://github.com/akash-network/console/compare/console-web/v2.23.0-beta.0...console-web/v2.23.0-beta.1) (2024-11-19)
 
 
