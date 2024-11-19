@@ -54,7 +54,7 @@ class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
       url.searchParams.delete("payment-canceled");
       url.searchParams.delete("payment-success");
       const newUrl = url.toString();
-      // https://github.com/vercel/next.js/discussions/18072#discussioncomment-109059
+      // TODO: remove this when fixed https://github.com/vercel/next.js/discussions/18072#discussioncomment-109059
       window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, document.title, newUrl);
       this.checkoutSessionId = null;
     }
