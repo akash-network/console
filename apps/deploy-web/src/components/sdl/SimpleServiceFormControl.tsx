@@ -3,7 +3,6 @@ import { Dispatch, SetStateAction, useState } from "react";
 import { Control, UseFormSetValue, UseFormTrigger } from "react-hook-form";
 import {
   Button,
-  buttonVariants,
   Card,
   CardContent,
   CheckboxWithLabel,
@@ -14,8 +13,6 @@ import {
   FormField,
   FormInput,
   FormItem,
-  FormMessage,
-  Input,
   Select,
   SelectContent,
   SelectGroup,
@@ -26,9 +23,8 @@ import {
 import { cn } from "@akashnetwork/ui/utils";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { BinMinusIn, InfoCircle, NavArrowDown, OpenInWindow } from "iconoir-react";
+import { BinMinusIn, InfoCircle, NavArrowDown } from "iconoir-react";
 import Image from "next/legacy/image";
-import Link from "next/link";
 
 import { SSHKeyFormControl } from "@src/components/sdl/SSHKeyFromControl";
 import { UAKT_DENOM } from "@src/config/denom.config";
@@ -49,6 +45,10 @@ import { ExposeFormModal } from "./ExposeFormModal";
 import { ExposeList } from "./ExposeList";
 import { FormPaper } from "./FormPaper";
 import { GpuFormControl } from "./GpuFormControl";
+import { ImageCredentialsHost } from "./ImageCredentialsHost";
+import { ImageCredentialsPassword } from "./ImageCredentialsPassword";
+import { ImageCredentialsUsername } from "./ImageCredentialsUsername";
+import { ImageInput } from "./ImageInput";
 import { MemoryFormControl } from "./MemoryFormControl";
 import { PersistentStorage } from "./PersistentStorage";
 import { PlacementFormModal } from "./PlacementFormModal";
@@ -80,7 +80,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   setValue,
   gpuModels,
   hasSecretOption,
-  isGitProviderTemplate
+  isGitProviderTemplate,
 }) => {
   const [isEditingCommands, setIsEditingCommands] = useState<number | boolean | null>(null);
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(null);
@@ -94,6 +94,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   const _isEditingCommands = serviceIndex === isEditingCommands;
   const _isEditingExpose = serviceIndex === isEditingExpose;
   const _isEditingPlacement = serviceIndex === isEditingPlacement;
+  const _credentials = _services[serviceIndex]?.credentials;
+  const _isGhcr = _credentials?.host === 'ghcr.io';
   const { imageList, hasComponent, toggleCmp } = useSdlBuilder();
   const wallet = useWallet();
   const onExpandClick = () => {
@@ -219,13 +221,13 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                 <div>
                   <div className="grid gap-4">
                     {!isGitProviderTemplate && (
-                      <div className="flex items-end">
-                        <FormField
-                          control={control}
-                          name={`services.${serviceIndex}.image`}
-                          render={({ field, fieldState }) => (
-                            <FormItem className="w-full">
-                              {imageList?.length ? (
+                      (imageList?.length ? (
+                        <div className="flex items-end">
+                          <FormField
+                            control={control}
+                            name={`services.${serviceIndex}.image`}
+                            render={({ field, fieldState }) => (
+                              <FormItem className="w-full">
                                 <div className="flex flex-grow flex-col">
                                   <Select value={field.value} onValueChange={field.onChange}>
                                     <SelectTrigger className={cn("ml-1", { "ring-2 ring-destructive": !!fieldState.error })} data-testid="ssh-image-select">
@@ -247,56 +249,32 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                     </SelectContent>
                                   </Select>
                                 </div>
-                              ) : (
-                                <Input
-                                  type="text"
-                                  label={
-                                    <div className="inline-flex items-center">
-                                      Docker Image / OS
-                                      <CustomTooltip
-                                        title={
-                                          <>
-                                            Docker image of the container.
-                                            <br />
-                                            <br />
-                                            Best practices: avoid using :latest image tags as Akash Providers heavily cache images.
-                                          </>
-                                        }
-                                      >
-                                        <InfoCircle className="ml-2 text-xs text-muted-foreground" />
-                                      </CustomTooltip>
-                                    </div>
-                                  }
-                                  placeholder="Example: mydockerimage:1.01"
-                                  value={field.value}
-                                  error={!!fieldState.error}
-                                  onChange={event => field.onChange((event.target.value || "").toLowerCase())}
-                                  startIconClassName="pl-2"
-                                  startIcon={<Image alt="Docker Logo" src="/images/docker.png" layout="fixed" quality={100} width={24} height={18} priority />}
-                                  endIcon={
-                                    <Link
-                                      href={`https://hub.docker.com/search?q=${currentService.image?.split(":")[0]}&type=image`}
-                                      className={cn(
-                                        buttonVariants({
-                                          variant: "text",
-                                          size: "icon"
-                                        }),
-                                        "text-muted-foreground"
-                                      )}
-                                      target="_blank"
-                                    >
-                                      <OpenInWindow />
-                                    </Link>
-                                  }
-                                  data-testid="image-name-input"
-                                />
-                              )}
-
-                              <FormMessage />
-                            </FormItem>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      ) : (
+                        <FormPaper className="whitespace-break-spaces break-all">
+                          <div className="flex items-end">
+                            <ImageInput control={control} serviceIndex={serviceIndex} credentials={_credentials} setValue={setValue} />
+                          </div>
+                          {_services[serviceIndex]?.hasCredentials && (
+                            <>
+                              <div>
+                                <ImageCredentialsHost control={control} serviceIndex={serviceIndex} />
+                              </div>
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <div>
+                                  <ImageCredentialsUsername control={control} serviceIndex={serviceIndex} />
+                                </div>
+                                <div>
+                                  <ImageCredentialsPassword control={control} serviceIndex={serviceIndex} label={_isGhcr ? 'Personal Access Token' : 'Password'} />
+                                </div>
+                              </div>
+                            </>
                           )}
-                        />
-                      </div>
+                        </FormPaper>
+                      ))
                     )}
 
                     <div>
