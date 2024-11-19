@@ -18,6 +18,7 @@ import { CreateLease } from "./CreateLease";
 import { ManifestEdit } from "./ManifestEdit";
 import { CustomizedSteppers } from "./Stepper";
 import { TemplateList } from "./TemplateList";
+import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 
 export const NewDeploymentContainer: FC = () => {
   const [isGitProviderTemplate, setIsGitProviderTemplate] = useState<boolean>(false);
@@ -69,7 +70,7 @@ export const NewDeploymentContainer: FC = () => {
     if (!templates || (isCreating && !!editedManifest && !!templateId)) return;
 
     const template = getRedeployTemplate() || getGalleryTemplate() || deploySdl;
-    const isUserTemplate = template?.code === "USER_TEMPLATE";
+    const isUserTemplate = template?.code === USER_TEMPLATE_CODE;
     const isUserTemplateInit = isUserTemplate && !!editedManifest;
 
     if ((template && !isUserTemplate) || (template && !isUserTemplateInit)) {

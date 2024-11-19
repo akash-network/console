@@ -27,6 +27,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { ImportSdlModal } from "./ImportSdlModal";
 import { PreviewSdl } from "./PreviewSdl";
 import { SaveTemplateModal } from "./SaveTemplateModal";
+import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 
 const DEFAULT_SERVICES = {
   services: [{ ...defaultService }]
@@ -133,7 +134,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
       setDeploySdl({
         title: "",
         category: "",
-        code: "USER_TEMPLATE",
+        code: USER_TEMPLATE_CODE,
         description: "",
         content: sdl
       });
