@@ -1,5 +1,12 @@
 
 
+## [2.23.0-beta.3](https://github.com/akash-network/console/compare/console-web/v2.23.0-beta.2...console-web/v2.23.0-beta.3) (2024-11-19)
+
+
+### Features
+
+* **sdl:** sdl builder private containers ([95a6e2b](https://github.com/akash-network/console/commit/95a6e2b11353b1c07a23f763ef9c9216855025b1)), closes [#479](https://github.com/akash-network/console/issues/479)
+
 ## [2.23.0-beta.2](https://github.com/akash-network/console/compare/console-web/v2.23.0-beta.1...console-web/v2.23.0-beta.2) (2024-11-19)
 
 
