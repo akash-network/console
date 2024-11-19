@@ -130,7 +130,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
             setDeploySdl({
               title: "",
               category: "",
-              code: "",
+              code: "USER_TEMPLATE",
               description: "",
               content: template.sdl
             });

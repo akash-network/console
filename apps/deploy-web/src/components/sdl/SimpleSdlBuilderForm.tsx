@@ -133,7 +133,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
       setDeploySdl({
         title: "",
         category: "",
-        code: "",
+        code: "USER_TEMPLATE",
         description: "",
         content: sdl
       });

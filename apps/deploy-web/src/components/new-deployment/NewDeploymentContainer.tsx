@@ -68,9 +68,11 @@ export const NewDeploymentContainer: FC = () => {
     const isCreating = !!activeStep && activeStep > getStepIndexByParam(RouteStep.chooseTemplate);
     if (!templates || (isCreating && !!editedManifest && !!templateId)) return;
 
-    const template = getRedeployTemplate() || getGalleryTemplate();
+    const template = getRedeployTemplate() || getGalleryTemplate() || deploySdl;
+    const isUserTemplate = template?.code === "USER_TEMPLATE";
+    const isUserTemplateInit = isUserTemplate && !!editedManifest;
 
-    if (template) {
+    if ((template && !isUserTemplate) || (template && !isUserTemplateInit)) {
       setSelectedTemplate(template as TemplateCreation);
       setEditedManifest(template.content as string);
 
@@ -136,11 +138,6 @@ export const NewDeploymentContainer: FC = () => {
       if (hardCodedTemplate) {
         return hardCodedTemplate;
       }
-    }
-
-    // Jotai state template
-    if (deploySdl) {
-      return deploySdl;
     }
 
     return null;
