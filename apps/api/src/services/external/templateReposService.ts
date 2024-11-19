@@ -4,13 +4,13 @@ import { markdownToTxt } from "markdown-to-txt";
 import fetch from "node-fetch";
 import path from "path";
 
+import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { GithubChainRegistryChainResponse } from "@src/types";
 import { GithubDirectoryItem } from "@src/types/github";
 import { dataFolderPath } from "@src/utils/constants";
 import { getLogoFromPath } from "@src/utils/templateReposLogos";
 import { isUrlAbsolute } from "@src/utils/urls";
 import { getOctokit } from "./githubService";
-import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 
 const generatingTasks: { [key: string]: Promise<Category[]> } = {};
 let lastServedData: FinalCategory[] | null = null;
@@ -132,17 +132,18 @@ export const getTemplateGallery = async () => {
 
 export const getCachedTemplatesGallery = (): Promise<FinalCategory[]> => cacheResponse(60 * 5, cacheKeys.getTemplates, () => getTemplateGallery(), true);
 
-export const getTemplateById = async (id: Required<Template>['id']): Promise<Template | null> => {
-    const templatesByCategory = await getCachedTemplatesGallery();
-    for (const category of templatesByCategory) {
-      const template = category.templates.find(template => template.id === id);
-      if (template) return template;
-    }
+export const getTemplateById = async (id: Required<Template>["id"]): Promise<Template | null> => {
+  const templatesByCategory = await getCachedTemplatesGallery();
+  for (const category of templatesByCategory) {
+    const template = category.templates.find(template => template.id === id);
+    if (template) return template;
+  }
 
-    return null;
+  return null;
 };
 
-export const getCachedTemplateById = (id: Required<Template>['id']) => cacheResponse(60 * 5, `${cacheKeys.getTemplates}.${id}`, () => getTemplateById(id), true);
+export const getCachedTemplateById = (id: Required<Template>["id"]) =>
+  cacheResponse(60 * 5, `${cacheKeys.getTemplates}.${id}`, () => getTemplateById(id), true);
 
 // Fetch latest version of a repo
 export const fetchRepoVersion = async (octokit: Octokit, owner: string, repo: string) => {

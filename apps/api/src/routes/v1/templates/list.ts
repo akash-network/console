@@ -17,17 +17,13 @@ const responseSchema = z.array(
 );
 const route = createRoute({
   method: "get",
-  path: "/templates",
+  path: "/templates-list",
   tags: ["Other"],
-
   responses: {
     200: {
-
       description: "Returns a list of deployment templates grouped by categories",
       content: {
-
         "application/json": {
-
           schema: responseSchema
         }
       }
