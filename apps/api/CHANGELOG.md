@@ -1,5 +1,12 @@
 
 
+## [2.32.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.31.0...console-api/v2.32.0-beta.0) (2024-11-19)
+
+
+### Features
+
+* **billing:** enable promo codes on checkout ([de11211](https://github.com/akash-network/console/commit/de112115d61c189849a9cffa83c620487be38093))
+
 ## [2.31.0](https://github.com/akash-network/console/compare/console-api/v2.31.0-beta.1...console-api/v2.31.0) (2024-11-19)
 
 ## [2.31.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.31.0-beta.0...console-api/v2.31.0-beta.1) (2024-11-19)
