@@ -1,5 +1,12 @@
 
 
+## [2.31.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.31.0-beta.0...console-api/v2.31.0-beta.1) (2024-11-19)
+
+
+### Features
+
+* **analytics:** add user analytics and refactor analytic related logic ([552cd82](https://github.com/akash-network/console/commit/552cd8244634bf1de49875ce0d9b7490466ae5b0))
+
 ## [2.31.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.30.1...console-api/v2.31.0-beta.0) (2024-11-18)
 
 
