@@ -1,4 +1,4 @@
-import type { AxiosRequestConfig } from "axios";
+import { AxiosRequestConfig } from "axios";
 
 import { HttpService } from "../http/http.service";
 import type { Denom } from "../types/denom.type";
@@ -50,17 +50,27 @@ export class AllowanceHttpService extends HttpService {
 
   async getFeeAllowancesForGrantee(address: string) {
     const allowances = this.extractData(await this.get<FeeAllowanceListResponse>(`cosmos/feegrant/v1beta1/allowances/${address}`));
-    return allowances.allowances;
+    return allowances.allowances.filter(allowance => allowance.allowance["@type"] === "/cosmos.feegrant.v1beta1.BasicAllowance");
   }
 
   async getFeeAllowanceForGranterAndGrantee(granter: string, grantee: string) {
     const allowances = this.extractData(await this.get<FeeAllowanceResponse>(`cosmos/feegrant/v1beta1/allowance/${granter}/${grantee}`));
-    return allowances.allowance;
+    return allowances.allowance.allowance["@type"] === "/cosmos.feegrant.v1beta1.BasicAllowance" ? allowances.allowance : undefined;
   }
 
   async getDeploymentAllowancesForGrantee(address: string) {
     const allowances = this.extractData(await this.get<DeploymentAllowanceResponse>(`cosmos/authz/v1beta1/grants/grantee/${address}`));
-    return allowances.grants;
+    return allowances.grants.filter(grant => grant.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization");
+  }
+
+  async hasFeeAllowance(granter: string, grantee: string) {
+    const feeAllowances = await this.getFeeAllowancesForGrantee(grantee);
+    return feeAllowances.some(allowance => allowance.granter === granter);
+  }
+
+  async hasDeploymentGrant(granter: string, grantee: string) {
+    const feeAllowances = await this.getDeploymentAllowancesForGrantee(grantee);
+    return feeAllowances.some(allowance => allowance.granter === granter);
   }
 
   async paginateDeploymentGrants(
@@ -84,7 +94,7 @@ export class AllowanceHttpService extends HttpService {
       );
       nextPageKey = response.pagination.next_key;
 
-      await cb(response.grants);
+      await cb(response.grants.filter(grant => grant.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"));
     } while (nextPageKey);
   }
 }

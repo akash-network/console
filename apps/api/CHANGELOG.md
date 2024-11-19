@@ -1,5 +1,47 @@
 
 
+## [2.32.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.31.0...console-api/v2.32.0-beta.0) (2024-11-19)
+
+
+### Features
+
+* **billing:** enable promo codes on checkout ([de11211](https://github.com/akash-network/console/commit/de112115d61c189849a9cffa83c620487be38093))
+
+## [2.31.0](https://github.com/akash-network/console/compare/console-api/v2.31.0-beta.1...console-api/v2.31.0) (2024-11-19)
+
+## [2.31.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.31.0-beta.0...console-api/v2.31.0-beta.1) (2024-11-19)
+
+
+### Features
+
+* **analytics:** add user analytics and refactor analytic related logic ([552cd82](https://github.com/akash-network/console/commit/552cd8244634bf1de49875ce0d9b7490466ae5b0))
+
+## [2.31.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.30.1...console-api/v2.31.0-beta.0) (2024-11-18)
+
+
+### Features
+
+* **deployment:** implement concurrency option for stale deployments cleaner ([54cae5d](https://github.com/akash-network/console/commit/54cae5d0f3c37dd6fe6623bcc249379f99cad247))
+* **user:** implement dry run and summary logging for stale anonymous users cleaner ([61752e9](https://github.com/akash-network/console/commit/61752e90fecc559eade828c721fa54839d8aef49)), closes [#464](https://github.com/akash-network/console/issues/464)
+
+## [2.30.1](https://github.com/akash-network/console/compare/console-api/v2.30.1-beta.0...console-api/v2.30.1) (2024-11-15)
+
+## [2.30.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.30.0...console-api/v2.30.1-beta.0) (2024-11-15)
+
+
+### Bug Fixes
+
+* **observability:** bump logger version ([b258c63](https://github.com/akash-network/console/commit/b258c6389d22c0bf57e9c702b51a1280faf74eb7))
+
+## [2.30.0](https://github.com/akash-network/console/compare/console-api/v2.30.0-beta.0...console-api/v2.30.0) (2024-11-15)
+
+## [2.30.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.29.1...console-api/v2.30.0-beta.0) (2024-11-15)
+
+
+### Features
+
+* **user:** implement stale anonymous users cleanup cli command ([a936f44](https://github.com/akash-network/console/commit/a936f44c6e532efc1f559986c352594237ce3691)), closes [#464](https://github.com/akash-network/console/issues/464)
+
 ## [2.29.1](https://github.com/akash-network/console/compare/console-api/v2.29.1-beta.0...console-api/v2.29.1) (2024-11-13)
 
 ## [2.29.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.29.0...console-api/v2.29.1-beta.0) (2024-11-13)

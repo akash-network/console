@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const envSchema = z.object({
+export const envSchema = z.object({
   MASTER_WALLET_MNEMONIC: z.string(),
   UAKT_TOP_UP_MASTER_WALLET_MNEMONIC: z.string(),
   USDC_TOP_UP_MASTER_WALLET_MNEMONIC: z.string(),

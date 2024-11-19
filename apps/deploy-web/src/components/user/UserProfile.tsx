@@ -8,8 +8,8 @@ import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUserTemplates } from "@src/queries/useTemplateQuery";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { IUserSetting } from "@src/types/user";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 
@@ -42,7 +42,7 @@ export const UserProfile: React.FunctionComponent<Props> = ({ username, user }) 
                   href={UrlService.sdlBuilder()}
                   onClick={() => {
                     event(AnalyticsEvents.CREATE_SDL_TEMPLATE_LINK, {
-                      category: "profile",
+                      category: AnalyticsCategory.PROFILE,
                       label: "Create SDL template link from profile"
                     });
                   }}
@@ -59,7 +59,7 @@ export const UserProfile: React.FunctionComponent<Props> = ({ username, user }) 
               template={t}
               onClick={() => {
                 event(AnalyticsEvents.USER_PROFILE_CLICK_TEMPLATE, {
-                  category: "profile",
+                  category: AnalyticsCategory.PROFILE,
                   label: "Click on template from templates"
                 });
               }}

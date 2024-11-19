@@ -6,6 +6,7 @@ import { EncodeObject } from "@cosmjs/proto-signing";
 import { useManager } from "@cosmos-kit/react";
 import axios from "axios";
 import { OpenNewWindow } from "iconoir-react";
+import { useAtom } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
@@ -20,13 +21,12 @@ import { useWhen } from "@src/hooks/useWhen";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import { txHttpService } from "@src/services/http/http.service";
 import networkStore from "@src/store/networkStore";
-import { AnalyticsEvents } from "@src/utils/analytics";
+import walletStore from "@src/store/walletStore";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { UrlService } from "@src/utils/urlUtils";
 import { getSelectedStorageWallet, getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { useSettings } from "../SettingsProvider";
-import { useAtom } from "jotai";
-import walletStore from "@src/store/walletStore";
 
 const ERROR_MESSAGES = {
   5: "Insufficient funds",
@@ -140,7 +140,7 @@ export const WalletProvider = ({ children }) => {
     userWallet.disconnect();
 
     event(AnalyticsEvents.DISCONNECT_WALLET, {
-      category: "wallet",
+      category: AnalyticsCategory.WALLET,
       label: "Disconnect wallet"
     });
 
@@ -154,7 +154,7 @@ export const WalletProvider = ({ children }) => {
     await loadWallet();
 
     event(AnalyticsEvents.CONNECT_WALLET, {
-      category: "wallet",
+      category: AnalyticsCategory.WALLET,
       label: "Connect wallet"
     });
   }

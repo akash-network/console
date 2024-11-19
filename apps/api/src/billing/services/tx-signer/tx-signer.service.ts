@@ -39,7 +39,7 @@ export class TxSignerService {
   ) {}
 
   async signAndBroadcast(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
-    const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findByUserId(userId);
+    const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findOneByUserId(userId);
     assert(userWallet, 404, "UserWallet Not Found");
 
     const decodedMessages = this.decodeMessages(messages);
