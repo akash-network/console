@@ -20,7 +20,8 @@
         "release",
         "repo",
         "styling",
-        "observability"
+        "observability",
+        "analytics"
       ]
     ]
   }

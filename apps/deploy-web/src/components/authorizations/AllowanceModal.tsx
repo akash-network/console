@@ -13,8 +13,8 @@ import { LinkTo } from "@src/components/shared/LinkTo";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDenomData } from "@src/hooks/useWalletBalance";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { AllowanceType } from "@src/types/grant";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 
@@ -69,7 +69,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
 
     if (response) {
       event(AnalyticsEvents.AUTHORIZE_SPEND, {
-        category: "deployments",
+        category: AnalyticsCategory.DEPLOYMENTS,
         label: "Authorize wallet to spend on deployment deposits"
       });
 

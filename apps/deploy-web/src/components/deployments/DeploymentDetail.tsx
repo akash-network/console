@@ -18,8 +18,8 @@ import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { extractRepositoryUrl, isImageInYaml } from "@src/services/remote-deploy/remote-deployment-controller.service";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { RouteStep } from "@src/types/route-steps.type";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -135,7 +135,7 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
     }
 
     event(`${AnalyticsEvents.NAVIGATE_TAB}${value}`, {
-      category: "deployments",
+      category: AnalyticsCategory.DEPLOYMENTS,
       label: `Navigate tab ${value} in deployment detail`
     });
   };
