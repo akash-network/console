@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { useSnackbar } from "notistack";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useWallet } from "@src/context/WalletProvider";
@@ -46,8 +47,6 @@ import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import ViewPanel from "../shared/ViewPanel";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { BidGroup } from "./BidGroup";
-import Link from "next/link";
-import useMediaQuery from "@mui/material/useMediaQuery";
 
 type Props = {
   dseq: string;
