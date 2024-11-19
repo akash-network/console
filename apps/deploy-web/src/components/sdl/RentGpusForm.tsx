@@ -22,10 +22,10 @@ import { useGpuModels } from "@src/queries/useGpuQuery";
 import { useDepositParams } from "@src/queries/useSettings";
 import sdlStore from "@src/store/sdlStore";
 import { ApiTemplate, ProfileGpuModelType, RentGpusFormValuesSchema, RentGpusFormValuesType, ServiceType } from "@src/types";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { DepositParams } from "@src/types/deployment";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
 import { RouteStep } from "@src/types/route-steps.type";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { deploymentData } from "@src/utils/deploymentData";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
@@ -275,7 +275,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
         router.push(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
 
         event(AnalyticsEvents.CREATE_GPU_DEPLOYMENT, {
-          category: "deployments",
+          category: AnalyticsCategory.DEPLOYMENTS,
           label: "Create deployment rent gpu form"
         });
       } else {

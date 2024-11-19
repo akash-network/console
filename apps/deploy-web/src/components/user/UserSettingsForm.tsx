@@ -13,8 +13,8 @@ import { LabelValue } from "@src/components/shared/LabelValue";
 import type { RequiredUserConsumer } from "@src/components/user/RequiredUserContainer";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useSaveSettings } from "@src/queries/useSettings";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import type { UserSettings } from "@src/types/user";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import Layout from "../layout/Layout";
 
 const formSchema = z.object({
@@ -89,7 +89,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
     saveSettings(getValues() as UserSettings);
 
     event(AnalyticsEvents.USER_SETTINGS_SAVE, {
-      category: "settings",
+      category: AnalyticsCategory.SETTINGS,
       label: "Save user settings"
     });
   }
