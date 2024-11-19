@@ -19,7 +19,8 @@ export const importSimpleSdl = (yamlStr: string) => {
         id: nanoid(),
         title: svcName,
         image: svc.image,
-        credentials: svc.credentials
+        hasCredentials: !!svc.credentials,
+        credentials: svc.credentials,
       };
 
       const compute = yamlJson.profiles.compute[svcName];

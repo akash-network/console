@@ -17,17 +17,10 @@ export const defaultHttpOptions = {
   nextTimeout: 60000
 };
 
-const defaultCredentials = {
-  host: 'docker.io',
-  username: '',
-  password: '',
-};
-
 export const defaultService: ServiceType = {
   id: nanoid(),
   title: "service-1",
   image: "",
-  credentials: defaultCredentials,
   sshPubKey: "",
   profile: {
     cpu: 0.1,
@@ -109,7 +102,6 @@ export const defaultRentGpuService: ServiceType = {
   id: nanoid(),
   title: "service-1",
   image: "",
-  credentials: defaultCredentials,
   profile: {
     cpu: 0.1,
     gpu: 1,

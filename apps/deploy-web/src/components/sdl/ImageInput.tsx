@@ -1,12 +1,13 @@
 "use client";
-import { Control } from "react-hook-form";
+import { Control, UseFormSetValue } from "react-hook-form";
 import {
   buttonVariants,
+  Checkbox,
   CustomTooltip,
   FormField,
   FormItem,
   FormMessage,
-  Input,
+  Input
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle, OpenInWindow } from "iconoir-react";
@@ -19,12 +20,20 @@ type Props = {
   serviceIndex: number;
   control: Control<SdlBuilderFormValuesType, any>;
   credentials?: ServiceType['credentials'];
+  setValue: UseFormSetValue<SdlBuilderFormValuesType>;
+};
+
+const defaultCredentials = {
+  host: 'docker.io' as 'docker.io' | 'ghcr.io',
+  username: '',
+  password: '',
 };
 
 export const ImageInput: React.FunctionComponent<Props> = ({
   serviceIndex,
   control,
-  credentials
+  credentials,
+  setValue,
 }) => {
   return (
     <FormField
@@ -36,7 +45,7 @@ export const ImageInput: React.FunctionComponent<Props> = ({
             type="text"
             label={
               <div className="inline-flex items-center">
-                Docker Image / OS
+                <strong className="text-sm">Docker Image / OS</strong>
                 <CustomTooltip
                   title={
                     <>
@@ -49,6 +58,29 @@ export const ImageInput: React.FunctionComponent<Props> = ({
                 >
                   <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                 </CustomTooltip>
+                <FormField
+                  control={control}
+                  name={`services.${serviceIndex}.hasCredentials`}
+                  render={({ field }) => (
+                    <>
+                      <Checkbox
+                        id={`hasCredentials-${serviceIndex}`}
+                        checked={field.value}
+                        onCheckedChange={checked => {
+                          field.onChange(checked);
+                          setValue(`services.${serviceIndex}.credentials`, checked ? defaultCredentials : undefined);
+                        }}
+                        className="ml-4"
+                      />
+                      <label
+                        htmlFor={`hasCredentials-${serviceIndex}`}
+                        className="cursor-pointer text-sm ml-2"
+                      >
+                        Private
+                      </label>
+                    </>
+                  )}
+                />
               </div>
             }
             placeholder="Example: mydockerimage:1.01"

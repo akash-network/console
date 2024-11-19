@@ -67,7 +67,6 @@ type Props = {
   gpuModels: GpuVendor[] | undefined;
   hasSecretOption?: boolean;
   isGitProviderTemplate?: boolean;
-  canChangeCredentials?: boolean;
 };
 
 export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
@@ -82,7 +81,6 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   gpuModels,
   hasSecretOption,
   isGitProviderTemplate,
-  canChangeCredentials,
 }) => {
   const [isEditingCommands, setIsEditingCommands] = useState<number | boolean | null>(null);
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(null);
@@ -256,12 +254,12 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                           />
                         </div>
                       ) : (
-                        (canChangeCredentials ?
-                          (
-                            <FormPaper className="whitespace-break-spaces break-all">
-                              <div className="flex items-end">
-                                <ImageInput control={control} serviceIndex={serviceIndex} credentials={_credentials} />
-                              </div>
+                        <FormPaper className="whitespace-break-spaces break-all">
+                          <div className="flex items-end">
+                            <ImageInput control={control} serviceIndex={serviceIndex} credentials={_credentials} setValue={setValue} />
+                          </div>
+                          {_services[serviceIndex]?.hasCredentials && (
+                            <>
                               <div>
                                 <ImageCredentialsHost control={control} serviceIndex={serviceIndex} />
                               </div>
@@ -273,14 +271,9 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                   <ImageCredentialsPassword control={control} serviceIndex={serviceIndex} label={_isGhcr ? 'Personal Access Token' : 'Password'} />
                                 </div>
                               </div>
-                            </FormPaper>
-                          ) :
-                          (
-                            <div className="flex items-end">
-                              <ImageInput control={control} serviceIndex={serviceIndex} />
-                            </div>
-                          )
-                        )
+                            </>
+                          )}
+                        </FormPaper>
                       ))
                     )}
 

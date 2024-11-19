@@ -301,6 +301,7 @@ export const ServiceSchema = z
       .regex(/^[a-z]/, { message: "Invalid starting character. It can only start with a lowercase letter." })
       .regex(/[^-]$/, { message: "Invalid ending character. It can only end with a lowercase letter or number" }),
     image: z.string().min(1, { message: "Docker image name is required." }),
+    hasCredentials: z.boolean().optional(),
     credentials: CredentialsSchema,
     profile: ProfileSchema,
     expose: z.array(ExposeSchema),
