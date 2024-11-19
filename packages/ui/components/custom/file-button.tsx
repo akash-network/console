@@ -1,3 +1,4 @@
+"use client";
 import React, { useRef, ChangeEvent } from "react";
 import { Button, ButtonProps } from "../button";
 
