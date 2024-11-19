@@ -425,8 +425,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
           {isTrialing && (
             <Alert variant="destructive">
-              <AlertTitle className="text-lg">Free Trial!</AlertTitle>
-              <AlertDescription className="space-y-1">
+              <AlertTitle className="text-lg dark:text-white/90">Free Trial!</AlertTitle>
+              <AlertDescription className="space-y-1 dark:text-white/90">
                 <p>You are using a free trial and are limited to only a few providers on the network.</p>
                 <p>
                   <Link href={UrlService.login()} className="font-bold underline">
