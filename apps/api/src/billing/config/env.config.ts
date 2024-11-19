@@ -19,7 +19,8 @@ export const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string(),
   STRIPE_PRICE_ID: z.string(),
   STRIPE_WEBHOOK_SECRET: z.string(),
-  STRIPE_CHECKOUT_REDIRECT_URL: z.string()
+  STRIPE_CHECKOUT_REDIRECT_URL: z.string(),
+  STRIPE_ENABLE_COUPONS: z.enum(["true", "false"]).default("false")
 });
 
 export const envConfig = envSchema.parse(process.env);
