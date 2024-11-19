@@ -23,6 +23,9 @@ export class UserSetting extends Model {
   @Column youtubeUsername?: string;
   @Column twitterUsername?: string;
   @Column githubUsername?: string;
+  @Column({ field: "last_ip" }) lastIp?: string;
+  @Column({ field: "last_user_agent" }) lastUserAgent?: string;
+  @Column({ field: "last_fingerprint" }) lastFingerprint?: string;
 
   @HasMany(() => Template, { foreignKey: "userId", sourceKey: "userId" }) templates: Template[];
 }

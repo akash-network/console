@@ -1,8 +1,10 @@
+import { Context } from "hono";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { UserRepository } from "@src/user/repositories";
 import { GetUserParams } from "@src/user/routes/get-anonymous-user/get-anonymous-user.router";
 import { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
@@ -17,11 +19,20 @@ export class UserController {
     private readonly userRepository: UserRepository,
     private readonly authService: AuthService,
     private readonly anonymousUserAuthService: AuthTokenService,
-    private readonly staleAnonymousUsersCleanerService: StaleAnonymousUsersCleanerService
+    private readonly staleAnonymousUsersCleanerService: StaleAnonymousUsersCleanerService,
+    private readonly executionContextService: ExecutionContextService
   ) {}
 
+  get httpContext(): Context {
+    return this.executionContextService.get("HTTP_CONTEXT");
+  }
+
   async create(): Promise<AnonymousUserResponseOutput> {
-    const user = await this.userRepository.create();
+    const user = await this.userRepository.create({
+      lastIp: this.httpContext.var.clientInfo?.ip,
+      lastUserAgent: this.httpContext.var.clientInfo?.userAgent,
+      lastFingerprint: this.httpContext.var.clientInfo?.fingerprint
+    });
     return {
       data: user,
       token: this.anonymousUserAuthService.signTokenFor({ id: user.id })

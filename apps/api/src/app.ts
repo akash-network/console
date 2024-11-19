@@ -16,6 +16,7 @@ import { RequestContextInterceptor } from "@src/core/services/request-context-in
 import { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import packageJson from "../package.json";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
+import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { apiRouter } from "./routers/apiRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
 import { internalRouter } from "./routers/internalRouter";
@@ -49,6 +50,7 @@ const scheduler = new Scheduler({
 appHono.use(container.resolve(HttpLoggerService).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
 appHono.use(container.resolve<HonoInterceptor>(AuthInterceptor).intercept());
+appHono.use(clientInfoMiddleware);
 appHono.use("*", async (c: Context, next: Next) => {
   const { sentry } = await import("@hono/sentry");
   return sentry({

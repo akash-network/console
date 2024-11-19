@@ -1,6 +1,7 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { ClientInfoContextVariables } from "@src/middlewares/clientInfoMiddleware";
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { AnonymousUserResponseOutputSchema } from "@src/user/schemas/user.schema";
 
@@ -23,7 +24,7 @@ const route = createRoute({
     }
   }
 });
-export const createAnonymousUserRouter = new OpenAPIHono();
+export const createAnonymousUserRouter = new OpenAPIHono<{ Variables: ClientInfoContextVariables }>();
 
 createAnonymousUserRouter.openapi(route, async function routeCreateUser(c) {
   return c.json(await container.resolve(UserController).create(), 200);

@@ -76,5 +76,5 @@ export default new OpenAPIHono().openapi(route, async c => {
 
   const transactions = await getTransactions(limit || defaultLimit);
 
-  return c.json(transactions);
+  return c.json(transactions, 200);
 });

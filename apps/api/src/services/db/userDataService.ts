@@ -71,9 +71,22 @@ type UserInput = {
   email: string;
   emailVerified: boolean;
   subscribedToNewsletter: boolean;
+  ip?: string;
+  userAgent?: string;
+  fingerprint?: string;
 };
 
-export async function getSettingsOrInit({ anonymousUserId, userId, wantedUsername, email, emailVerified, subscribedToNewsletter }: UserInput) {
+export async function getSettingsOrInit({
+  anonymousUserId,
+  userId,
+  wantedUsername,
+  email,
+  emailVerified,
+  subscribedToNewsletter,
+  ip,
+  userAgent,
+  fingerprint
+}: UserInput) {
   let userSettings: UserSetting;
   let isAnonymous = false;
 
@@ -86,7 +99,10 @@ export async function getSettingsOrInit({ anonymousUserId, userId, wantedUsernam
           email: email,
           emailVerified: emailVerified,
           stripeCustomerId: null,
-          subscribedToNewsletter: subscribedToNewsletter
+          subscribedToNewsletter,
+          lastIp: ip,
+          lastUserAgent: userAgent,
+          lastFingerprint: fingerprint
         },
         { where: { id: anonymousUserId, userId: null }, returning: ["*"] }
       );
@@ -125,14 +141,26 @@ export async function getSettingsOrInit({ anonymousUserId, userId, wantedUsernam
       email: email,
       emailVerified: emailVerified,
       stripeCustomerId: null,
-      subscribedToNewsletter: subscribedToNewsletter
+      subscribedToNewsletter,
+      lastIp: ip,
+      lastUserAgent: userAgent,
+      lastFingerprint: fingerprint
     });
     logger.info({ event: "USER_REGISTERED", userId });
   }
 
-  if (userSettings.email !== email || userSettings.emailVerified !== emailVerified) {
+  if (
+    userSettings.email !== email ||
+    userSettings.emailVerified !== emailVerified ||
+    userSettings.lastIp !== ip ||
+    userSettings.lastUserAgent !== userAgent ||
+    userSettings.lastFingerprint !== fingerprint
+  ) {
     userSettings.email = email;
     userSettings.emailVerified = emailVerified;
+    userSettings.lastIp = ip || userSettings.lastIp;
+    userSettings.lastUserAgent = userAgent || userSettings.lastUserAgent;
+    userSettings.lastFingerprint = fingerprint || userSettings.lastFingerprint;
     await userSettings.save();
   }
 
