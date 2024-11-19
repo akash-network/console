@@ -15,9 +15,9 @@ import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderC
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { deploymentData } from "@src/utils/deploymentData";
 import { getDeploymentLocalData, saveDeploymentManifest } from "@src/utils/deploymentLocalDataUtils";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
@@ -168,7 +168,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
         }
 
         event(AnalyticsEvents.UPDATE_DEPLOYMENT, {
-          category: "deployments",
+          category: AnalyticsCategory.DEPLOYMENTS,
           label: "Update deployment"
         });
 

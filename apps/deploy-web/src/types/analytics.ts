@@ -33,7 +33,6 @@ export enum AnalyticsEvents {
   UPDATE_SDL_TEMPLATE = "update_sdl_template",
   CLICK_SDL_PROFILE = "click_sdl_profile",
   CLICK_VIEW_TEMPLATE = "click_view_template",
-  EDIT_SDL_DESCRIPTION = "edit_sdl_description",
   SAVE_SDL_DESCRIPTION = "save_sdl_description",
   ADD_SDL_FAVORITE = "add_sdl_favorite",
   REMOVE_SDL_FAVORITE = "remove_sdl_favorite",
@@ -41,28 +40,22 @@ export enum AnalyticsEvents {
 
   // User Profile
   USER_PROFILE_CLICK_TEMPLATE = "user_profile_click_template",
-  USER_PROFILE_CLICK_TEMPLATE_FAVORITE = "user_profile_click_template_favorite",
   USER_PROFILE_TEMPLATE_TAB = "user_profile_template_tab",
-  USER_PROFILE_FAVORITES_TAB = "user_profile_favorites_tab",
-  USER_PROFILE_SETTINGS_TAB = "user_profile_settings_tab",
-  EDIT_ADDRESS_BOOK = "edit_address_book",
-  ADDRESS_BOOK_SAVE_ADDRESS = "address_book_save_address",
-  ADDRESS_BOOK_ADD_ADDRESS = "address_book_add_address",
-  ADDRESS_BOOK_REMOVE_ADDRESS = "address_book_remove_address",
-  USER_SETTINGS_MANAGE_BILLING = "user_settings_manage_billing",
-  USER_SETTINGS_UPGRADE_PLAN = "user_settings_upgrade_plan",
   USER_SETTINGS_SAVE = "user_settings_save",
+  ANONYMOUS_USER_CREATED = "anonymous_user_created",
+  TRIAL_STARTED = "trial_started"
+}
 
-  // Addresses
-  ADDRESSES_SEND_TOKENS_CLICK = "addresses_send_tokens_click",
-  ADDRESSES_SEND_TOKENS = "addresses_send_tokens",
-  ADDRESSES_ADDRESS_TAB = "addresses_address_tab",
-  ADDRESSES_TRANSACTIONS_TAB = "addresses_transactions_tab",
-  ADDRESSES_DEPLOYMENTS_TAB = "addresses_deployments_tab",
-
-  // Validators
-  VALIDATORS_CLAIM_ALL_REWARDS = "validators_claim_all_rewards",
-  VALIDATORS_CLAIM_REWARDS = "validators_all_rewards",
-  VALIDATORS_DELEGATE_CLICK = "validators_delegate_click",
-  VALIDATORS_DELEGATE = "validators_delegate"
+export enum AnalyticsCategory {
+  USER = "user",
+  BILLING = "billing",
+  DEPLOYMENTS = "deployments",
+  WEB_VITALS = "Web Vitals",
+  NEXT_JS_CUSTOM_METRIC = "Next.js custom metric",
+  WALLET = "wallet",
+  SDL_BUILDER = "sdl_builder",
+  TRANSACTIONS = "transactions",
+  CERTIFICATES = "certificates",
+  PROFILE = "profile",
+  SETTINGS = "settings"
 }

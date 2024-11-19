@@ -2,8 +2,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  AlertTitle,
   AlertDescription,
+  AlertTitle,
   Button,
   Checkbox,
   CustomTooltip,
@@ -16,6 +16,7 @@ import {
 } from "@akashnetwork/ui/components";
 import { ArrowRight, BadgeCheck, Bin, InfoCircle, MoreHoriz, Xmark } from "iconoir-react";
 import yaml from "js-yaml";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
@@ -27,9 +28,9 @@ import { useWhen } from "@src/hooks/useWhen";
 import { useBidList } from "@src/queries/useBidQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { BidDto } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { deploymentData } from "@src/utils/deploymentData";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
@@ -44,7 +45,6 @@ import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import ViewPanel from "../shared/ViewPanel";
 import { BidCountdownTimer } from "./BidCountdownTimer";
 import { BidGroup } from "./BidGroup";
-import Link from "next/link";
 
 type Props = {
   dseq: string;
@@ -111,7 +111,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     const localDeploymentData = getDeploymentLocalData(dseq);
 
     event(AnalyticsEvents.SEND_MANIFEST, {
-      category: "deployments",
+      category: AnalyticsCategory.DEPLOYMENTS,
       label: "Send manifest after creating lease"
     });
 
@@ -201,7 +201,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
       if (!response) throw new Error("Rejected transaction");
 
       event(AnalyticsEvents.CREATE_LEASE, {
-        category: "deployments",
+        category: AnalyticsCategory.DEPLOYMENTS,
         label: "Create lease"
       });
       await sendManifest();

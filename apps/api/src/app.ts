@@ -7,6 +7,7 @@ import { Context, Hono, Next } from "hono";
 import { cors } from "hono/cors";
 import { container } from "tsyringe";
 
+import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
 import { config } from "@src/core/config";
 import { getSentry, sentryOptions } from "@src/core/providers/sentry.provider";
 import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
@@ -23,7 +24,9 @@ import { userRouter } from "./routers/userRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
 import { env } from "./utils/env";
 import { bytesToHumanReadableSize } from "./utils/files";
+import { checkoutRouter, getWalletListRouter, signAndBroadcastTxRouter, startTrialRouter, stripeWebhook } from "./billing";
 import { Scheduler } from "./scheduler";
+import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
 
 const appHono = new Hono();
 appHono.use(
@@ -33,7 +36,7 @@ appHono.use(
   })
 );
 
-const { PORT = 3080, BILLING_ENABLED } = process.env;
+const { PORT = 3080 } = process.env;
 
 const scheduler = new Scheduler({
   healthchecksEnabled: env.HEALTHCHECKS_ENABLED === "true",
@@ -45,6 +48,7 @@ const scheduler = new Scheduler({
 
 appHono.use(container.resolve(HttpLoggerService).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
+appHono.use(container.resolve<HonoInterceptor>(AuthInterceptor).intercept());
 appHono.use("*", async (c: Context, next: Next) => {
   const { sentry } = await import("@hono/sentry");
   return sentry({
@@ -63,23 +67,14 @@ appHono.route("/web3-index", web3IndexRouter);
 appHono.route("/dashboard", dashboardRouter);
 appHono.route("/internal", internalRouter);
 
-// TODO: remove condition once billing is in prod
-if (BILLING_ENABLED === "true") {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { AuthInterceptor } = require("./auth/services/auth.interceptor");
-  appHono.use(container.resolve<HonoInterceptor>(AuthInterceptor).intercept());
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { startTrialRouter, getWalletListRouter, signAndBroadcastTxRouter, checkoutRouter, stripeWebhook } = require("./billing");
-  appHono.route("/", startTrialRouter);
-  appHono.route("/", getWalletListRouter);
-  appHono.route("/", signAndBroadcastTxRouter);
-  appHono.route("/", checkoutRouter);
-  appHono.route("/", stripeWebhook);
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createAnonymousUserRouter, getAnonymousUserRouter } = require("./user");
-  appHono.route("/", createAnonymousUserRouter);
-  appHono.route("/", getAnonymousUserRouter);
-}
+appHono.route("/", startTrialRouter);
+appHono.route("/", getWalletListRouter);
+appHono.route("/", signAndBroadcastTxRouter);
+appHono.route("/", checkoutRouter);
+appHono.route("/", stripeWebhook);
+
+appHono.route("/", createAnonymousUserRouter);
+appHono.route("/", getAnonymousUserRouter);
 
 appHono.get("/status", c => {
   const version = packageJson.version;

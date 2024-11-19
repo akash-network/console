@@ -17,8 +17,8 @@ import { getShortText } from "@src/hooks/useShortText";
 import { useDeleteTemplate } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
 import { ITemplate } from "@src/types";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { RouteStep } from "@src/types/route-steps.type";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -51,7 +51,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
     await deleteTemplate();
 
     event(AnalyticsEvents.DEPLOY_SDL, {
-      category: "sdl_builder",
+      category: AnalyticsCategory.SDL_BUILDER,
       label: "Delete SDL template from detail"
     });
 
@@ -67,7 +67,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
     setIsEditingDescription(false);
 
     event(AnalyticsEvents.SAVE_SDL_DESCRIPTION, {
-      category: "sdl_builder",
+      category: AnalyticsCategory.SDL_BUILDER,
       label: "Save SDL description"
     });
   };
@@ -110,7 +110,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
         <span
           onClick={() => {
             event(AnalyticsEvents.CLICK_SDL_PROFILE, {
-              category: "sdl_builder",
+              category: AnalyticsCategory.SDL_BUILDER,
               label: "Click on SDL user profile in template detail"
             });
           }}
@@ -123,7 +123,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
         <Button
           onClick={() => {
             event(AnalyticsEvents.DEPLOY_SDL, {
-              category: "sdl_builder",
+              category: AnalyticsCategory.SDL_BUILDER,
               label: "Deploy SDL from template detail"
             });
 
@@ -147,7 +147,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
           className={cn(buttonVariants({ variant: "text" }))}
           onClick={() => {
             event(AnalyticsEvents.CLICK_EDIT_SDL_TEMPLATE, {
-              category: "sdl_builder",
+              category: AnalyticsCategory.SDL_BUILDER,
               label: "Click on edit SDL template"
             });
           }}
@@ -160,13 +160,13 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
           id={id}
           onAddFavorite={() => {
             event(AnalyticsEvents.ADD_SDL_FAVORITE, {
-              category: "sdl_builder",
+              category: AnalyticsCategory.SDL_BUILDER,
               label: "Add SDL to favorites"
             });
           }}
           onRemoveFavorite={() => {
             event(AnalyticsEvents.REMOVE_SDL_FAVORITE, {
-              category: "sdl_builder",
+              category: AnalyticsCategory.SDL_BUILDER,
               label: "Remove SDL from favorites"
             });
           }}

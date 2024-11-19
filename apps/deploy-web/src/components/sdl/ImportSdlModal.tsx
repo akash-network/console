@@ -9,7 +9,7 @@ import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { AnalyticsEvents } from "@src/utils/analytics";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { Timer } from "@src/utils/timer";
 
@@ -75,7 +75,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
     });
 
     event(AnalyticsEvents.IMPORT_SDL, {
-      category: "sdl_builder",
+      category: AnalyticsCategory.SDL_BUILDER,
       label: "Import SDL"
     });
 
