@@ -4,6 +4,12 @@ import { CheckoutSessionRepository } from "@src/billing/repositories";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 
+interface CheckoutSessionOptions {
+  user: UserOutput;
+  redirectUrl: string;
+  amount?: string;
+}
+
 @singleton()
 export class CheckoutService {
   constructor(
@@ -12,12 +18,13 @@ export class CheckoutService {
     private readonly checkoutSessionRepository: CheckoutSessionRepository
   ) {}
 
-  async checkoutFor(user: UserOutput, redirectUrl: string) {
+  async checkoutFor({ user, redirectUrl, amount }: CheckoutSessionOptions) {
     const { stripeCustomerId } = await this.ensureCustomer(user);
 
     const session = await this.stripe.startCheckoutSession({
       customerId: stripeCustomerId,
-      redirectUrl
+      redirectUrl,
+      amount
     });
 
     await this.checkoutSessionRepository.create({

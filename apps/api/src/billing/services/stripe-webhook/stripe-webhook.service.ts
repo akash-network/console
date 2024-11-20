@@ -41,7 +41,7 @@ export class StripeWebhookService {
     });
 
     if (checkoutSession.payment_status !== "unpaid") {
-      await this.refillService.topUpWallet(checkoutSession.amount_total, checkoutSessionCache.userId);
+      await this.refillService.topUpWallet(checkoutSession.amount_subtotal, checkoutSessionCache.userId);
       await this.checkoutSessionRepository.deleteBy({ sessionId: event.data.object.id });
     } else {
       this.logger.error({ event: "PAYMENT_NOT_COMPLETED", sessionId });

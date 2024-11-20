@@ -11,6 +11,7 @@ import { Check, HandCard, Rocket, WarningCircle, XmarkCircleSolid } from "iconoi
 import { useAtom } from "jotai";
 import Link from "next/link";
 
+import { TopUpAmountPicker } from "@src/components/top-up-amount-picker/TopUpAmountPicker";
 import { LoginRequiredLink } from "@src/components/user/LoginRequiredLink";
 import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -103,14 +104,16 @@ export const GetStartedStepper: React.FunctionComponent = () => {
 
           <div className="my-4 flex items-center space-x-4">
             {isManagedWallet && (
-              <LoginRequiredLink
-                className={cn("hover:no-underline", buttonVariants({ variant: "outline", className: "mr-2 border-primary" }))}
-                href="/api/proxy/v1/checkout"
-                message="Sign In or Sign Up to add funds to your balance"
-              >
-                <HandCard className="text-xs text-accent-foreground" />
-                <span className="m-2 whitespace-nowrap text-accent-foreground">Add Funds</span>
-              </LoginRequiredLink>
+              <TopUpAmountPicker popoverClassName="absolute md:min-w-max">
+                <LoginRequiredLink
+                  className={cn("hover:no-underline", buttonVariants({ variant: "outline", className: "mr-2 border-primary" }))}
+                  href="/api/proxy/v1/checkout"
+                  message="Sign In or Sign Up to add funds to your balance"
+                >
+                  <HandCard className="text-xs text-accent-foreground" />
+                  <span className="m-2 whitespace-nowrap text-accent-foreground">Add Funds</span>
+                </LoginRequiredLink>
+              </TopUpAmountPicker>
             )}
             <Button variant="default" onClick={handleNext}>
               Next
