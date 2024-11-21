@@ -3,9 +3,7 @@ import { EncodeObject } from "@cosmjs/proto-signing";
 import { singleton } from "tsyringe";
 
 import { UserWalletOutput } from "@src/billing/repositories";
-
-const TRIAL_ATTRIBUTE = "console/trials";
-const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
+import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/utils/constants";
 
 @singleton()
 export class TrialValidationService {
