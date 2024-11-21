@@ -1,5 +1,12 @@
 
 
+## [2.24.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.23.0...console-web/v2.24.0-beta.0) (2024-11-21)
+
+
+### Features
+
+* **billing:** enable checkout options with promo codes ([0cb439d](https://github.com/akash-network/console/commit/0cb439dcf4ca21974d7dacd784570cd032ee9f7b))
+
 ## [2.23.0](https://github.com/akash-network/console/compare/console-web/v2.23.0-beta.3...console-web/v2.23.0) (2024-11-19)
 
 ## [2.23.0-beta.3](https://github.com/akash-network/console/compare/console-web/v2.23.0-beta.2...console-web/v2.23.0-beta.3) (2024-11-19)
