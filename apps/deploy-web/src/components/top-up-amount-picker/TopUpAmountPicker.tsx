@@ -17,7 +17,7 @@ export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ chil
   const user = useUser();
   const { data = [] } = useStripePricesQuery({ enabled: !!user?.userId });
 
-  return data.length ? (
+  return data.length > 1 ? (
     <span className={cn({ "w-full": fullWidth }, "group relative")}>
       <span className={cn({ "w-full": fullWidth }, "inline-flex content-center")}>
         {children}
