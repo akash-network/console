@@ -62,7 +62,7 @@ export class StripeService extends Stripe {
   }
 
   async findPrices(): Promise<StripePrices[]> {
-    const { data: prices } = await this.prices.list();
+    const { data: prices } = await this.prices.list({ active: true });
     const responsePrices = prices.map(price => ({
       unitAmount: price.custom_unit_amount ? undefined : price.unit_amount / 100,
       isCustom: !!price.custom_unit_amount,
