@@ -2,8 +2,8 @@ import { BlockHttpService as BlockHttpServiceCommon } from "@akashnetwork/http-s
 import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
-import { averageBlockTime } from "@src/utils/constants";
 import { BlockRepository } from "@src/chain/repositories/block.repository";
+import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class BlockHttpService {
