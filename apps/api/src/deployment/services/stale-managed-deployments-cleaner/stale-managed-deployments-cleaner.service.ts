@@ -50,7 +50,7 @@ export class StaleManagedDeploymentsCleanerService {
   }
 
   private async cleanUpForWallet(wallet: UserWalletOutput) {
-    const currentHeight = await this.blockHttpService.getCurrentHeight();
+    const currentHeight = await this.blockHttpService.getLatestProcessedHeight();
     const client = await this.txSignerService.getClientForAddressIndex(wallet.id);
     const deployments = await this.deploymentRepository.findStaleDeployments({
       owner: wallet.address,
