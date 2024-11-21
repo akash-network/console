@@ -1,5 +1,12 @@
 
 
+## [2.24.1-beta.2](https://github.com/akash-network/console/compare/console-web/v2.24.1-beta.1...console-web/v2.24.1-beta.2) (2024-11-21)
+
+
+### Bug Fixes
+
+* **deployment:** latest processed height deployment stale ([8d8384f](https://github.com/akash-network/console/commit/8d8384f519ae958e324a81fbf5a2ae00383bddc3)), closes [#491](https://github.com/akash-network/console/issues/491)
+
 ## [2.24.1-beta.1](https://github.com/akash-network/console/compare/console-web/v2.24.1-beta.0...console-web/v2.24.1-beta.1) (2024-11-21)
 
 
