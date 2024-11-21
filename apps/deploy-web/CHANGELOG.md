@@ -1,5 +1,12 @@
 
 
+## [2.24.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.24.0...console-web/v2.24.1-beta.0) (2024-11-21)
+
+
+### Bug Fixes
+
+* **billing:** only show pricing options when available ([6e31276](https://github.com/akash-network/console/commit/6e31276d4fcb56d9a74d7b1b04226a80a5795bec))
+
 ## [2.24.0](https://github.com/akash-network/console/compare/console-web/v2.24.0-beta.0...console-web/v2.24.0) (2024-11-21)
 
 ## [2.24.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.23.0...console-web/v2.24.0-beta.0) (2024-11-21)
