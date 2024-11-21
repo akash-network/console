@@ -1,5 +1,12 @@
 
 
+## [2.24.1-beta.1](https://github.com/akash-network/console/compare/console-web/v2.24.1-beta.0...console-web/v2.24.1-beta.1) (2024-11-21)
+
+
+### Bug Fixes
+
+* **deployment:** git template fetch in deploy ([094aaf4](https://github.com/akash-network/console/commit/094aaf48b7b00ed4af3299fac0fb584a09e12866)), closes [#489](https://github.com/akash-network/console/issues/489)
+
 ## [2.24.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.24.0...console-web/v2.24.1-beta.0) (2024-11-21)
 
 
