@@ -1,5 +1,12 @@
 
 
+## [2.33.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.33.0...console-api/v2.33.1-beta.0) (2024-11-21)
+
+
+### Bug Fixes
+
+* **deployment:** latest processed height deployment stale ([8d8384f](https://github.com/akash-network/console/commit/8d8384f519ae958e324a81fbf5a2ae00383bddc3)), closes [#491](https://github.com/akash-network/console/issues/491)
+
 ## [2.33.0](https://github.com/akash-network/console/compare/console-api/v2.33.0-beta.1...console-api/v2.33.0) (2024-11-21)
 
 ## [2.33.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.33.0-beta.0...console-api/v2.33.0-beta.1) (2024-11-21)
