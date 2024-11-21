@@ -1,5 +1,6 @@
 import { ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
 import { singleton } from "tsyringe";
+
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/utils/constants";
 
 @singleton()

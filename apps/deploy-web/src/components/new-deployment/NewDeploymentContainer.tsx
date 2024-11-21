@@ -3,6 +3,7 @@ import { FC, useEffect, useState } from "react";
 import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
@@ -18,7 +19,6 @@ import { CreateLease } from "./CreateLease";
 import { ManifestEdit } from "./ManifestEdit";
 import { CustomizedSteppers } from "./Stepper";
 import { TemplateList } from "./TemplateList";
-import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 
 export const NewDeploymentContainer: FC = () => {
   const [isGitProviderTemplate, setIsGitProviderTemplate] = useState<boolean>(false);

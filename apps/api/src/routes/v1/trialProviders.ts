@@ -1,7 +1,7 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { container } from "tsyringe";
 
 import { ProviderController } from "@src/deployment/controllers/provider/provider.controller";
-import { container } from "tsyringe";
 
 const route = createRoute({
   method: "get",
