@@ -1,5 +1,12 @@
 
 
+## [2.33.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.33.0-beta.0...console-api/v2.33.0-beta.1) (2024-11-21)
+
+
+### Bug Fixes
+
+* **billing:** only resolve with active stripe prices ([fa32f37](https://github.com/akash-network/console/commit/fa32f37bbdce46a69cbd2f1d2f242de66004f7fb))
+
 ## [2.33.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.32.0...console-api/v2.33.0-beta.0) (2024-11-21)
 
 
