@@ -11,7 +11,7 @@ async function getBidList(apiEndpoint: string, address: string, dseq: string): P
   if (!address || !dseq) return null;
 
   const response = await axios.get<{ bids: RpcBid[] }>(ApiUrlService.bidList(apiEndpoint, address, dseq));
-  const bids = response.data.bids as RpcBid[];
+  const { bids } = response.data;
 
   return bids.map((b: RpcBid) => ({
     id: b.bid.bid_id.provider + b.bid.bid_id.dseq + b.bid.bid_id.gseq + b.bid.bid_id.oseq,
