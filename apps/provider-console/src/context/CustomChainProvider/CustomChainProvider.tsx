@@ -8,7 +8,7 @@ import { wallets as leap } from "@cosmos-kit/leap-extension";
 import { ChainProvider } from "@cosmos-kit/react";
 import { useChain } from "@cosmos-kit/react";
 
-import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
+import { akash, assetLists } from "@src/chains";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { customRegistry } from "@src/utils/customRegistry";
 
@@ -19,7 +19,7 @@ type Props = {
 export function CustomChainProvider({ children }: Props) {
   return (
     <ChainProvider
-      chains={[akash, akashSandbox, akashTestnet]}
+      chains={[akash]}
       assetLists={assetLists}
       wallets={[...keplr, ...leap]}
       sessionOptions={{
