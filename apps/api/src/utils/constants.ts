@@ -23,6 +23,3 @@ export const defaultNodeUrlMapping: { [key: string]: string } = {
 export const apiNodeUrl = env.REST_API_NODE_URL ?? defaultNodeUrlMapping[env.NETWORK] ?? defaultNodeUrlMapping.mainnet;
 export const betaTypeVersion = "v1beta3";
 export const betaTypeVersionMarket = "v1beta4";
-
-export const TRIAL_ATTRIBUTE = "console/trials";
-export const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";

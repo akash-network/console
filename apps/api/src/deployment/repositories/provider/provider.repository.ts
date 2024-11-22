@@ -1,11 +1,11 @@
 import { ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
 import { singleton } from "tsyringe";
 
-import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/utils/constants";
+import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 
 @singleton()
 export class ProviderRepository {
-  async findTrialProviders(): Promise<string[]> {
+  async getTrialProviders(): Promise<string[]> {
     const trialProviders = await ProviderAttributeSignature.findAll({
       attributes: ["provider"],
       where: {

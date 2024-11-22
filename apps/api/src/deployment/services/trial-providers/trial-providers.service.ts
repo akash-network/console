@@ -6,7 +6,7 @@ import { ProviderRepository } from "@src/deployment/repositories/provider/provid
 export class TrialProvidersService {
   constructor(private readonly providerRepository: ProviderRepository) {}
 
-  async findTrialProviders(): Promise<string[]> {
-    return await this.providerRepository.findTrialProviders();
+  async getTrialProviders(): Promise<string[]> {
+    return await this.providerRepository.getTrialProviders();
   }
 }

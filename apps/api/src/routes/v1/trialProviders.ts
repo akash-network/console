@@ -21,6 +21,6 @@ const route = createRoute({
 });
 
 export default new OpenAPIHono().openapi(route, async c => {
-  const response = await container.resolve(ProviderController).findTrialProviders();
+  const response = await container.resolve(ProviderController).getTrialProviders();
   return c.json(response, 200);
 });
