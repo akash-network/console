@@ -1,5 +1,4 @@
 import { QueryObserverResult, useQuery } from "react-query";
-import axios from "axios";
 
 import { useSettings } from "@src/context/SettingsProvider";
 import { AllowanceType, GrantType } from "@src/types/grant";
