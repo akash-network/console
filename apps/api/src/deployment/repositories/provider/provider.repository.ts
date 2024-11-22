@@ -16,6 +16,6 @@ export class ProviderRepository {
       raw: true
     });
 
-    return trialProviders ? (trialProviders.map(provider => provider.provider) as unknown as string[]) : [];
+    return trialProviders.map(provider => provider.provider);
   }
 }
