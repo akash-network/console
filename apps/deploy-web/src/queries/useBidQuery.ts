@@ -10,7 +10,7 @@ import { QueryKeys } from "./queryKeys";
 async function getBidList(apiEndpoint: string, address: string, dseq: string): Promise<Array<BidDto> | null> {
   if (!address || !dseq) return null;
 
-  const response = await axios.get(ApiUrlService.bidList(apiEndpoint, address, dseq));
+  const response = await axios.get<{ bids: RpcBid[] }>(ApiUrlService.bidList(apiEndpoint, address, dseq));
   const bids = response.data.bids as RpcBid[];
 
   return bids.map((b: RpcBid) => ({
