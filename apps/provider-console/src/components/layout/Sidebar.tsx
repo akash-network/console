@@ -4,7 +4,7 @@ import { Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { Calculator, ClipboardCheck, Cloud, Discord, Github, ListSelect, Menu, MenuScale, Rocket, Settings, X as TwitterX, Youtube } from "iconoir-react";
+import { Calculator, ClipboardCheck, Cloud, DatabaseCheck, Discord, Github, ListSelect, Menu, MenuScale, Rocket, Settings, X as TwitterX, Youtube } from "iconoir-react";
 import { Home, OpenInWindow } from "iconoir-react";
 import getConfig from "next/config";
 import Image from "next/image";
@@ -73,6 +73,13 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
           icon: props => <ListSelect {...props} />,
           url: UrlService.attributes(),
           activeRoutes: [UrlService.attributes()],
+          disabled: false
+        },
+        {
+          title: "Persistent Storage",
+          icon: props => <DatabaseCheck {...props} />,
+          url: UrlService.persistentStorage(),
+          activeRoutes: [UrlService.persistentStorage()],
           disabled: false
         },
         {
