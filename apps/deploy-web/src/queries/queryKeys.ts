@@ -60,4 +60,7 @@ export class QueryKeys {
   static getBranchesKey = (repo?: string, accessToken?: string | null) => ["BRANCHES", repo, accessToken];
   static getPackageJsonKey = (repo?: string, branch?: string, subFolder?: string) => ["PACKAGE_JSON", repo, branch, subFolder];
   static getSrcFoldersKey = (repo?: string, branch?: string) => ["SRC_FOLDERS", repo, branch];
+
+  static getDeploymentGrantsKey = (granter: string, grantee: string) => ["DEPLOYMENT_GRANT", granter, grantee];
+  static getFeeAllowancesKey = (granter: string, grantee: string) => ["FEE_ALLOWANCE", granter, grantee];
 }
