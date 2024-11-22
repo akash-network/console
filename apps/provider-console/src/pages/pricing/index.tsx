@@ -48,8 +48,8 @@ const Pricing: React.FunctionComponent = () => {
             </div>
           </div>
         )}
-        
-        <div className={isLoading ? 'pointer-events-none' : ''}>
+
+        <div className={isLoading ? "pointer-events-none" : ""}>
           {!activeControlMachine && !controlMachineLoading && (
             <Alert variant="destructive">
               <AlertTitle>Control Machine Required</AlertTitle>
@@ -81,7 +81,6 @@ const Pricing: React.FunctionComponent = () => {
           <ProviderPricing
             existingPricing={existingPricing}
             editMode={true}
-            stepChange={() => {}}
             disabled={activeControlMachine && existingPricing ? false : true}
             providerDetails={providerDetails}
           />
