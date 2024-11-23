@@ -14,14 +14,14 @@ import {
   Snackbar,
   Spinner
 } from "@akashnetwork/ui/components";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import { ArrowRight, BadgeCheck, Bin, InfoCircle, MoreHoriz, Xmark } from "iconoir-react";
 import yaml from "js-yaml";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
-import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { useSnackbar } from "notistack";
-import useMediaQuery from "@mui/material/useMediaQuery";
 
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useWallet } from "@src/context/WalletProvider";

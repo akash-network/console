@@ -12,6 +12,7 @@ import { EditDescriptionForm } from "@src/components/sdl/EditDescriptionForm";
 import { LeaseSpecDetail } from "@src/components/shared/LeaseSpecDetail";
 import { Title } from "@src/components/shared/Title";
 import { UserFavoriteButton } from "@src/components/shared/UserFavoriteButton";
+import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useDeleteTemplate } from "@src/queries/useTemplateQuery";
@@ -24,7 +25,6 @@ import { bytesToShrink } from "@src/utils/unitUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
-import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 
 type Props = {
   id: string;

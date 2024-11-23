@@ -1,9 +1,10 @@
+import { Attribute } from "@akashnetwork/akash-api/akash/base/v1beta3";
+import yaml from "js-yaml";
+
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import networkStore from "@src/store/networkStore";
 import type { DepositParams } from "@src/types/deployment";
 import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion } from "./helpers";
-import yaml from "js-yaml";
-import { Attribute } from "@akashnetwork/akash-api/akash/base/v1beta3";
 
 export const ENDPOINT_NAME_VALIDATION_REGEX = /^[a-z]+[-_\da-z]+$/;
 const TRIAL_ATTRIBUTE = "console/trials";
