@@ -13,6 +13,7 @@ import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
 import { SimpleServiceFormControl } from "@src/components/sdl/SimpleServiceFormControl";
+import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import useFormPersist from "@src/hooks/useFormPersist";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import sdlStore from "@src/store/sdlStore";
@@ -27,7 +28,6 @@ import { UrlService } from "@src/utils/urlUtils";
 import { ImportSdlModal } from "./ImportSdlModal";
 import { PreviewSdl } from "./PreviewSdl";
 import { SaveTemplateModal } from "./SaveTemplateModal";
-import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 
 const DEFAULT_SERVICES = {
   services: [{ ...defaultService }]
