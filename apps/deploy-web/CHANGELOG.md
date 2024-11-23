@@ -1,5 +1,12 @@
 
 
+## [2.25.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.24.1...console-web/v2.25.0-beta.0) (2024-11-23)
+
+
+### Features
+
+* **provider:** new provider trial endpoint ([2712e38](https://github.com/akash-network/console/commit/2712e380b8f5af0930abbdf9347a1dee3eb75f8a)), closes [#488](https://github.com/akash-network/console/issues/488)
+
 ## [2.24.1](https://github.com/akash-network/console/compare/console-web/v2.24.1-beta.2...console-web/v2.24.1) (2024-11-23)
 
 ## [2.24.1-beta.2](https://github.com/akash-network/console/compare/console-web/v2.24.1-beta.1...console-web/v2.24.1-beta.2) (2024-11-21)
