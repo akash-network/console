@@ -230,7 +230,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
                 </Link>
               )}
               {isManagedWallet && (
-                <TopUpAmountPicker>
+                <TopUpAmountPicker className="mt-4 inline-flex flex-col" mdMode="hover">
                   <LoginRequiredLink
                     className={cn(buttonVariants({ variant: "default" }))}
                     href="/api/proxy/v1/checkout"

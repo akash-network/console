@@ -71,7 +71,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
       )}
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
-        <TopUpAmountPicker fullWidth>
+        <TopUpAmountPicker mdMode="click" className="w-full">
           <Button onClick={whenLoggedIn(goToCheckout, "Sign In or Sign Up to add funds")} variant="outline" className="w-full space-x-2">
             <HandCard />
             <span>Add Funds</span>
