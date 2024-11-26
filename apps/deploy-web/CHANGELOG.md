@@ -1,5 +1,17 @@
 
 
+## [2.25.0-beta.1](https://github.com/akash-network/console/compare/console-web/v2.25.0-beta.0...console-web/v2.25.0-beta.1) (2024-11-26)
+
+
+### Features
+
+* **deployment:** implement ato top up setting ([1301314](https://github.com/akash-network/console/commit/130131485a68f699587415f96283e0dc83072502)), closes [#412](https://github.com/akash-network/console/issues/412)
+
+
+### Bug Fixes
+
+* **billing:** ensure checkout pricing is displayed correctly ([3bcb4a8](https://github.com/akash-network/console/commit/3bcb4a881e3bb58e741de8bb8a0a661dede0d8ae))
+
 ## [2.25.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.24.1...console-web/v2.25.0-beta.0) (2024-11-23)
 
 
