@@ -45,17 +45,3 @@ export async function getAuditors() {
 
   return response;
 }
-
-export async function getTrialProviders() {
-  const response = await cacheResponse(
-    minutesToSeconds(5),
-    cacheKeys.getTrialProviders,
-    async () => {
-      const res = await axios.get<string[]>("https://raw.githubusercontent.com/akash-network/console/main/config/trial-providers.json");
-      return res.data;
-    },
-    true
-  );
-
-  return response;
-}

@@ -1,6 +1,7 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { container } from "tsyringe";
 
-import { getTrialProviders } from "@src/services/external/githubService";
+import { ProviderController } from "@src/deployment/controllers/provider/provider.controller";
 
 const route = createRoute({
   method: "get",
@@ -20,6 +21,6 @@ const route = createRoute({
 });
 
 export default new OpenAPIHono().openapi(route, async c => {
-  const response = await getTrialProviders();
-  return c.json(response);
+  const response = await container.resolve(ProviderController).getTrialProviders();
+  return c.json(response, 200);
 });

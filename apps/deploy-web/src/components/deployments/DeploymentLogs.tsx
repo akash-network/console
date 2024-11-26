@@ -21,8 +21,8 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useThrottledCallback } from "@src/hooks/useThrottle";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { LeaseDto } from "@src/types/deployment";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { LeaseSelect } from "./LeaseSelect";
 
 export type LOGS_MODE = "logs" | "events";
@@ -231,7 +231,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       await downloadLogs(providerInfo.hostUri, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, isLogs);
 
       event(AnalyticsEvents.DOWNLOADED_LOGS, {
-        category: "deployments",
+        category: AnalyticsCategory.DEPLOYMENTS,
         label: isLogs ? "Downloaded deployment logs" : "Downloaded deployment events"
       });
 

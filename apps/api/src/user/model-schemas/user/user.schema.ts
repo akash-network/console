@@ -16,5 +16,6 @@ export const Users = pgTable("userSetting", {
   youtubeUsername: varchar("youtubeUsername", { length: 255 }),
   twitterUsername: varchar("twitterUsername", { length: 255 }),
   githubUsername: varchar("githubUsername", { length: 255 }),
+  lastActiveAt: timestamp("last_active_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow()
 });

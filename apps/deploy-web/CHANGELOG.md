@@ -1,5 +1,88 @@
 
 
+## [2.25.0](https://github.com/akash-network/console/compare/console-web/v2.25.0-beta.1...console-web/v2.25.0) (2024-11-26)
+
+## [2.25.0-beta.1](https://github.com/akash-network/console/compare/console-web/v2.25.0-beta.0...console-web/v2.25.0-beta.1) (2024-11-26)
+
+
+### Features
+
+* **deployment:** implement ato top up setting ([1301314](https://github.com/akash-network/console/commit/130131485a68f699587415f96283e0dc83072502)), closes [#412](https://github.com/akash-network/console/issues/412)
+
+
+### Bug Fixes
+
+* **billing:** ensure checkout pricing is displayed correctly ([3bcb4a8](https://github.com/akash-network/console/commit/3bcb4a881e3bb58e741de8bb8a0a661dede0d8ae))
+
+## [2.25.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.24.1...console-web/v2.25.0-beta.0) (2024-11-23)
+
+
+### Features
+
+* **provider:** new provider trial endpoint ([2712e38](https://github.com/akash-network/console/commit/2712e380b8f5af0930abbdf9347a1dee3eb75f8a)), closes [#488](https://github.com/akash-network/console/issues/488)
+
+## [2.24.1](https://github.com/akash-network/console/compare/console-web/v2.24.1-beta.2...console-web/v2.24.1) (2024-11-23)
+
+## [2.24.1-beta.2](https://github.com/akash-network/console/compare/console-web/v2.24.1-beta.1...console-web/v2.24.1-beta.2) (2024-11-21)
+
+
+### Bug Fixes
+
+* **deployment:** latest processed height deployment stale ([8d8384f](https://github.com/akash-network/console/commit/8d8384f519ae958e324a81fbf5a2ae00383bddc3)), closes [#491](https://github.com/akash-network/console/issues/491)
+
+## [2.24.1-beta.1](https://github.com/akash-network/console/compare/console-web/v2.24.1-beta.0...console-web/v2.24.1-beta.1) (2024-11-21)
+
+
+### Bug Fixes
+
+* **deployment:** git template fetch in deploy ([094aaf4](https://github.com/akash-network/console/commit/094aaf48b7b00ed4af3299fac0fb584a09e12866)), closes [#489](https://github.com/akash-network/console/issues/489)
+
+## [2.24.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.24.0...console-web/v2.24.1-beta.0) (2024-11-21)
+
+
+### Bug Fixes
+
+* **billing:** only show pricing options when available ([6e31276](https://github.com/akash-network/console/commit/6e31276d4fcb56d9a74d7b1b04226a80a5795bec))
+
+## [2.24.0](https://github.com/akash-network/console/compare/console-web/v2.24.0-beta.0...console-web/v2.24.0) (2024-11-21)
+
+## [2.24.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.23.0...console-web/v2.24.0-beta.0) (2024-11-21)
+
+
+### Features
+
+* **billing:** enable checkout options with promo codes ([0cb439d](https://github.com/akash-network/console/commit/0cb439dcf4ca21974d7dacd784570cd032ee9f7b))
+
+## [2.23.0](https://github.com/akash-network/console/compare/console-web/v2.23.0-beta.3...console-web/v2.23.0) (2024-11-19)
+
+## [2.23.0-beta.3](https://github.com/akash-network/console/compare/console-web/v2.23.0-beta.2...console-web/v2.23.0-beta.3) (2024-11-19)
+
+
+### Features
+
+* **sdl:** sdl builder private containers ([95a6e2b](https://github.com/akash-network/console/commit/95a6e2b11353b1c07a23f763ef9c9216855025b1)), closes [#479](https://github.com/akash-network/console/issues/479)
+
+## [2.23.0-beta.2](https://github.com/akash-network/console/compare/console-web/v2.23.0-beta.1...console-web/v2.23.0-beta.2) (2024-11-19)
+
+
+### Bug Fixes
+
+* **deployment:** managed wallet user template ([ab83f2f](https://github.com/akash-network/console/commit/ab83f2f699e84b3a4f90739d2d003a9f8e9d27aa)), closes [#483](https://github.com/akash-network/console/issues/483)
+
+## [2.23.0-beta.1](https://github.com/akash-network/console/compare/console-web/v2.23.0-beta.0...console-web/v2.23.0-beta.1) (2024-11-19)
+
+
+### Features
+
+* **analytics:** add user analytics and refactor analytic related logic ([552cd82](https://github.com/akash-network/console/commit/552cd8244634bf1de49875ce0d9b7490466ae5b0))
+
+## [2.23.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.22.1...console-web/v2.23.0-beta.0) (2024-11-18)
+
+
+### Features
+
+* **deployment:** implement concurrency option for stale deployments cleaner ([54cae5d](https://github.com/akash-network/console/commit/54cae5d0f3c37dd6fe6623bcc249379f99cad247))
+
 ## [2.22.1](https://github.com/akash-network/console/compare/console-web/v2.22.1-beta.0...console-web/v2.22.1) (2024-11-14)
 
 ## [2.22.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.22.0...console-web/v2.22.1-beta.0) (2024-11-14)

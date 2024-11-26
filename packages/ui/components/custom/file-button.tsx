@@ -1,4 +1,6 @@
-import React, { useRef, ChangeEvent } from "react";
+"use client";
+import React, { ChangeEvent,useRef } from "react";
+
 import { Button, ButtonProps } from "../button";
 
 interface FileButtonProps extends Omit<ButtonProps, "onChange"> {

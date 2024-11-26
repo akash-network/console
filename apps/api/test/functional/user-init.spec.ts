@@ -77,7 +77,7 @@ describe("User Init", () => {
       const res = await sendTokenInfo();
 
       expect(res.status).toBe(200);
-      expect(res.body).toMatchObject(omit(existingUser, "createdAt"));
+      expect(res.body).toMatchObject(omit(existingUser, ["createdAt", "lastActiveAt"]));
     });
 
     it("should register an anonymous user", async () => {
@@ -86,7 +86,7 @@ describe("User Init", () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({
-        ...omit(anonymousUser, ["createdAt", "username"]),
+        ...omit(anonymousUser, ["createdAt", "lastActiveAt", "username"]),
         ...omit(auth0Payload, "wantedUsername")
       });
     });

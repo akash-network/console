@@ -7,7 +7,7 @@ import { event } from "nextjs-google-analytics";
 import { z } from "zod";
 
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
-import { AnalyticsEvents } from "@src/utils/analytics";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 
 const formSchema = z.object({
   filePath: z
@@ -39,7 +39,7 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
     downloadFileFromShell(providerInfo.hostUri, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, selectedService, filePath);
 
     event(AnalyticsEvents.DOWNLOADED_SHELL_FILE, {
-      category: "deployments",
+      category: AnalyticsCategory.DEPLOYMENTS,
       label: "Download file from shell"
     });
 

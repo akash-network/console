@@ -11,8 +11,8 @@ import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { DeploymentDto } from "@src/types/deployment";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { DeploymentDepositModal } from "./DeploymentDepositModal";
@@ -59,7 +59,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
       loadDeploymentDetail();
 
       event(AnalyticsEvents.CLOSE_DEPLOYMENT, {
-        category: "deployments",
+        category: AnalyticsCategory.DEPLOYMENTS,
         label: "Close deployment in deployment detail"
       });
     }
@@ -83,7 +83,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
       loadDeploymentDetail();
 
       event(AnalyticsEvents.DEPLOYMENT_DEPOSIT, {
-        category: "deployments",
+        category: AnalyticsCategory.DEPLOYMENTS,
         label: "Deposit deployment in deployment detail"
       });
     }

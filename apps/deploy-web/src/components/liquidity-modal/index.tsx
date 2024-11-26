@@ -8,14 +8,14 @@ import { Modal } from "@mui/material";
 import { event } from "nextjs-google-analytics";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { AnalyticsEvents } from "@src/utils/analytics";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 
 export type NonUndefined<T> = T extends undefined ? never : T;
 
 const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
   const _onClick = () => {
     event(AnalyticsEvents.LEAP_GET_MORE_TOKENS, {
-      category: "wallet",
+      category: AnalyticsCategory.WALLET,
       label: "Open Leap liquidity modal"
     });
 
@@ -135,7 +135,7 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
       onTxnComplete: () => {
         refreshBalances();
         event(AnalyticsEvents.LEAP_TRANSACTION_COMPLETE, {
-          category: "wallet",
+          category: AnalyticsCategory.WALLET,
           label: "Completed a transaction on Leap liquidity modal"
         });
       }

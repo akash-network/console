@@ -41,7 +41,7 @@ const SwitchWithLabel = React.forwardRef<
   );
 
   return (
-    <div className="flex cursor-pointer items-center space-x-2">
+    <div className={cn("flex cursor-pointer items-center space-x-2", className)}>
       {labelPosition === "left" && _label}
       <Switch {...props} id={id} />
       {labelPosition === "right" && _label}

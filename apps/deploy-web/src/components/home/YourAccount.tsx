@@ -9,6 +9,7 @@ import { useAtom } from "jotai";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 
+import { TopUpAmountPicker } from "@src/components/top-up-amount-picker/TopUpAmountPicker";
 import { LoginRequiredLink } from "@src/components/user/LoginRequiredLink";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { UAKT_DENOM } from "@src/config/denom.config";
@@ -229,14 +230,16 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
                 </Link>
               )}
               {isManagedWallet && (
-                <LoginRequiredLink
-                  className={cn("mt-4", buttonVariants({ variant: "default" }))}
-                  href="/api/proxy/v1/checkout"
-                  message="Sign In or Sign Up to add funds to your balance"
-                >
-                  Add Funds
-                  <HandCard className="ml-4 rotate-45 text-sm" />
-                </LoginRequiredLink>
+                <TopUpAmountPicker className="mt-4 inline-flex flex-col" mdMode="hover">
+                  <LoginRequiredLink
+                    className={cn(buttonVariants({ variant: "default" }))}
+                    href="/api/proxy/v1/checkout"
+                    message="Sign In or Sign Up to add funds to your balance"
+                  >
+                    Add Funds
+                    <HandCard className="ml-4 rotate-45 text-sm" />
+                  </LoginRequiredLink>
+                </TopUpAmountPicker>
               )}
             </div>
 

@@ -27,8 +27,8 @@ import { UAKT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { getUsdcDenom, useUsdcDenom } from "@src/hooks/useDenom";
 import { useDenomData } from "@src/hooks/useWalletBalance";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { GrantType } from "@src/types/grant";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -90,7 +90,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
 
     if (response) {
       event(AnalyticsEvents.AUTHORIZE_SPEND, {
-        category: "deployments",
+        category: AnalyticsCategory.DEPLOYMENTS,
         label: "Authorize wallet to spend on deployment deposits"
       });
 

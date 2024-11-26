@@ -1,3 +1,5 @@
+import "@akashnetwork/env-loader";
+
 import { defineConfig } from "drizzle-kit";
 
 import { config } from "./src/core/config";
