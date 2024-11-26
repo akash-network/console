@@ -2,10 +2,10 @@ export interface MachineInformation {
   access: {
     hostname: string;
     username: string;
-    password: string;
-    file: File;
-    passphrase: string;
+    password: string | null;
+    file: File | null;
+    passphrase: string | null;
     port: number;
   }
-  systemInfo: any
+  systemInfo: any | null
 }
