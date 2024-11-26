@@ -8,6 +8,7 @@ import { Provider } from "jotai";
 import type { AppProps } from "next/app";
 import { ThemeProvider } from "next-themes";
 
+import { ControlMachineProvider } from "@src/context/ControlMachineProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { PricingProvider } from "@src/context/PricingProvider";
@@ -26,7 +27,9 @@ export default function App({ Component, pageProps }: AppProps) {
                 <TooltipProvider>
                   <CustomChainProvider>
                     <WalletProvider>
-                      <Component {...pageProps} />
+                      <ControlMachineProvider>
+                        <Component {...pageProps} />
+                      </ControlMachineProvider>
                     </WalletProvider>
                   </CustomChainProvider>
                 </TooltipProvider>

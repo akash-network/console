@@ -26,7 +26,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai/react";
 import { z } from "zod";
 
+import { useControlMachine } from "@src/context/ControlMachineProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
+import { ControlMachineWithAddress } from "@src/types/controlMachine";
 import restClient from "@src/utils/restClient";
 import { ResetProviderForm } from "./ResetProviderProcess";
 
@@ -55,12 +58,16 @@ type AccountFormValues = z.infer<typeof accountFormSchema>;
 interface ServerFormProp {
   currentServerNumber: number;
   onComplete: () => void;
+  editMode?: boolean;
+  controlMachine?: ControlMachineWithAddress | null;
 }
 
-export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onComplete }) => {
+export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onComplete, editMode = false, controlMachine }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [storedFileContent, setStoredFileContent] = useState<string | null>(null);
+  const { setControlMachine } = useControlMachine();
+  const { address } = useWallet();
 
   const getDefaultValues = () => {
     if (currentServerNumber === 0 || !providerProcess?.storeInformation) {
@@ -84,18 +91,18 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
-    defaultValues: getDefaultValues() as any
+    defaultValues: editMode ? controlMachine?.access : (getDefaultValues() as any)
   });
 
   useEffect(() => {
     if (currentServerNumber > 0 && providerProcess?.storeInformation) {
-      const firstServer = providerProcess.machines[0]?.access;
-      if (firstServer.file) {
+      const firstServer = editMode ? controlMachine?.access : providerProcess.machines[0]?.access;
+      if (firstServer?.file) {
         setStoredFileContent(typeof firstServer.file === "string" ? firstServer.file : null);
         form.setValue("authType", "file");
       }
     }
-  }, [currentServerNumber, providerProcess, form]);
+  }, [currentServerNumber, providerProcess, form, editMode, controlMachine]);
 
   const [verificationError, setVerificationError] = useState<{ message: string; details: string[] } | null>(null);
   const [, setVerificationResult] = useState(null);
@@ -127,7 +134,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
       }
 
       let response: any;
-      if (currentServerNumber === 0) {
+      if (currentServerNumber === 0 || editMode) {
         response = await restClient.post("/verify/control-machine", jsonData, {
           headers: { "Content-Type": "application/json" }
         });
@@ -152,21 +159,29 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
       }
 
       if (response.status === "success") {
-        const machines = [...(providerProcess?.machines ?? [])];
-        machines[currentServerNumber] = {
+        const machine = {
           access: {
             ...formValues,
             file: formValues.file && formValues.file[0] ? await readFileAsBase64(formValues.file[0]) : storedFileContent
           },
           systemInfo: response.data.system_info
         };
+        if (!editMode) {
+          const machines = [...(providerProcess?.machines ?? [])];
+          machines[currentServerNumber] = machine;
 
-        setProviderProcess({
-          ...providerProcess,
-          machines,
-          storeInformation: currentServerNumber === 0 ? formValues.saveInformation : providerProcess?.storeInformation,
-          process: providerProcess.process
-        });
+          setProviderProcess({
+            ...providerProcess,
+            machines,
+            storeInformation: currentServerNumber === 0 ? formValues.saveInformation : providerProcess?.storeInformation,
+            process: providerProcess.process
+          });
+        } else {
+          setControlMachine({
+            address,
+            ...machine
+          });
+        }
         onComplete();
       }
     } catch (error: any) {
@@ -206,10 +221,9 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
     <div className="space-y-6">
       <div>
         <h3 className="text-xl font-bold">
-          {currentServerNumber === 0 && "Control Plane Machine Access"}
-          {currentServerNumber !== 0 && "Node Access"}
+          {editMode ? "Control Machine Access" : currentServerNumber === 0 ? "Control Plane Machine Access" : "Node Access"}
         </h3>
-        <p className="text-muted-foreground text-sm">Enter the required details for your control plane setup</p>
+        <p className="text-muted-foreground text-sm">Enter the required details for your {editMode ? "control machine" : "control plane setup"}</p>
       </div>
       <div>
         <Separator />
@@ -345,9 +359,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
             </div>
             <div className="flex justify-end">
               <div className="flex w-full justify-between">
-                <div className="flex justify-start">
-                  <ResetProviderForm />
-                </div>
+                <div className="flex justify-start">{!editMode && <ResetProviderForm />}</div>
                 <div className="flex justify-end">
                   <Button type="submit" disabled={isVerifying}>
                     {isVerifying ? (
@@ -355,6 +367,8 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
                         <Spinner />
                         Verifying...
                       </>
+                    ) : editMode ? (
+                      "Update"
                     ) : (
                       "Next"
                     )}
@@ -379,7 +393,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
                 </Alert>
               )}
             </div>
-            {currentServerNumber === 0 && (
+            {currentServerNumber === 0 && !editMode && (
               <div className="rounded-md border">
                 <div className="space-y-2 p-4">
                   <h4 className="text-lg font-bold">Heads up!</h4>

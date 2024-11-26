@@ -12,13 +12,9 @@ import { WalletNotConnected } from "./WalletNotConnected";
 
 export const HomeContainer: React.FC = () => {
   const router = useRouter();
-  const { isWalletConnected, isWalletArbitrarySigned, isProvider, isOnline, isProviderStatusFetched } = useWallet();
-  const [isLoading, setIsLoading] = useState(false);
+  const { isWalletConnected, isProvider, isOnline, isProviderStatusFetched } = useWallet();
+  const [isLoading] = useState(false);
   const { data: providerActions } = useProviderActions();
-
-  useEffect(() => {
-    setIsLoading(true);
-  }, [isProvider, isOnline, isWalletArbitrarySigned]);
 
   useEffect(() => {
     if (isWalletConnected && isProvider) {
