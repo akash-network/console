@@ -52,7 +52,7 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
         await Promise.all(
           grants.map(async grant => {
             await this.errorService.execWithErrorHandler(
-              { grant, event: "TOP_UP_ERROR" },
+              { context: TopUpCustodialDeploymentsService.name, grant, event: "TOP_UP_ERROR" },
               () => this.topUpForGrant(grant, client, options, summary),
               () => summary.inc("walletsTopUpErrorCount")
             );
