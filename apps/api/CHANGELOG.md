@@ -1,5 +1,12 @@
 
 
+## [2.34.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.34.0-beta.0...console-api/v2.34.0-beta.1) (2024-11-26)
+
+
+### Features
+
+* **deployment:** implement ato top up setting ([1301314](https://github.com/akash-network/console/commit/130131485a68f699587415f96283e0dc83072502)), closes [#412](https://github.com/akash-network/console/issues/412)
+
 ## [2.34.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.33.1...console-api/v2.34.0-beta.0) (2024-11-23)
 
 
