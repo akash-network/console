@@ -1,7 +1,7 @@
 import { singleton } from "tsyringe";
 
-import { TrialProvidersService } from "@src/deployment/services/trial-providers/trial-providers.service";
 import { ProviderCleanupParams, ProviderCleanupService } from "@src/billing/services/provider-cleanup/provider-cleanup.service";
+import { TrialProvidersService } from "@src/deployment/services/trial-providers/trial-providers.service";
 
 @singleton()
 export class ProviderController {
