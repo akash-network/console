@@ -5,9 +5,9 @@ import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, RpcMessageService } from "@src/billing/services";
 import { ErrorService } from "@src/core/services/error/error.service";
+import { ProviderCleanupSummarizer } from "@src/deployment/lib/provider-cleanup-summarizer/provider-cleanup-summarizer";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { TxSignerService } from "../tx-signer/tx-signer.service";
-import { ProviderCleanupSummarizer } from "@src/deployment/lib/provider-cleanup-summarizer/provider-cleanup-summarizer";
 
 export interface ProviderCleanupParams {
   concurrency: number;
