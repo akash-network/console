@@ -54,6 +54,7 @@ program
   .command("cleanup-provider-deployments")
   .description("Close trial deployments for a provider")
   .option("-c, --concurrency <number>", "How many wallets is processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
+  .option("-d, --dry-run", "Dry run the trial provider cleanup", false)
   .option("-p, --provider <string>", "Provider address", value => z.string().parse(value))
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {

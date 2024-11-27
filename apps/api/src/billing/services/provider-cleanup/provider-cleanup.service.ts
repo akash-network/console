@@ -7,10 +7,12 @@ import { ManagedUserWalletService, RpcMessageService } from "@src/billing/servic
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { TxSignerService } from "../tx-signer/tx-signer.service";
+import { ProviderCleanupSummarizer } from "@src/deployment/lib/provider-cleanup-summarizer/provider-cleanup-summarizer";
 
 export interface ProviderCleanupParams {
   concurrency: number;
   providerAddress: string;
+  dryRun: boolean;
 }
 
 @singleton()
@@ -28,6 +30,7 @@ export class ProviderCleanupService {
   ) {}
 
   async cleanup(options: ProviderCleanupParams) {
+    const summary = new ProviderCleanupSummarizer();
     await this.userWalletRepository.paginate({ query: { isTrialing: true }, limit: options.concurrency || 10 }, async wallets => {
       const cleanUpAllWallets = wallets.map(async wallet => {
         await this.errorService.execWithErrorHandler(
@@ -36,15 +39,17 @@ export class ProviderCleanupService {
             event: "PROVIDER_CLEAN_UP_ERROR",
             context: ProviderCleanupService.name
           },
-          () => this.cleanUpForWallet(wallet, options)
+          () => this.cleanUpForWallet(wallet, options, summary)
         );
       });
 
       await Promise.all(cleanUpAllWallets);
     });
+
+    this.logger.info({ event: "PROVIDER_CLEAN_UP_SUMMARY", summary: summary.summarize(), dryRun: options.dryRun });
   }
 
-  private async cleanUpForWallet(wallet: UserWalletOutput, options: ProviderCleanupParams) {
+  private async cleanUpForWallet(wallet: UserWalletOutput, options: ProviderCleanupParams, summary: ProviderCleanupSummarizer) {
     const client = await this.txSignerService.getClientForAddressIndex(wallet.id);
     const deployments = await this.deploymentRepository.findDeploymentsForProvider({
       owner: wallet.address,
@@ -56,22 +61,27 @@ export class ProviderCleanupService {
       this.logger.info({ event: "PROVIDER_CLEAN_UP", params: { owner: wallet.address, dseq: deployment.dseq } });
 
       try {
-        await client.signAndBroadcast([message]);
-        this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
-      } catch (error) {
-        if (error.message.includes("not allowed to pay fees")) {
-          await this.managedUserWalletService.authorizeSpending({
-            address: wallet.address,
-            limits: {
-              fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
-            }
-          });
-
+        if (!options.dryRun) {
           await client.signAndBroadcast([message]);
           this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
+        }
+      } catch (error) {
+        if (error.message.includes("not allowed to pay fees")) {
+          if (!options.dryRun) {
+            await this.managedUserWalletService.authorizeSpending({
+              address: wallet.address,
+              limits: {
+                fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
+              }
+            });
+            await client.signAndBroadcast([message]);
+            this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
+          }
         } else {
           throw error;
         }
+      } finally {
+        summary.inc("deploymentCount");
       }
     });
 
