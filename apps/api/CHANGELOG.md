@@ -1,5 +1,12 @@
 
 
+## [2.35.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.34.0...console-api/v2.35.0-beta.0) (2024-11-27)
+
+
+### Features
+
+* **deployment:** clean up trial deployments for a provider ([41018af](https://github.com/akash-network/console/commit/41018afc0593621c4627369b9f114f849e249e44)), closes [#502](https://github.com/akash-network/console/issues/502)
+
 ## [2.34.0](https://github.com/akash-network/console/compare/console-api/v2.34.0-beta.1...console-api/v2.34.0) (2024-11-26)
 
 ## [2.34.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.34.0-beta.0...console-api/v2.34.0-beta.1) (2024-11-26)
