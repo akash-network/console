@@ -47,7 +47,8 @@ export class DeploymentRepository {
     const deployments = await Deployment.findAll({
       attributes: ["dseq"],
       where: {
-        owner: options.owner
+        owner: options.owner,
+        closedHeight: null
       },
       include: [
         {
