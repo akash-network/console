@@ -1,5 +1,12 @@
 
 
+## [2.35.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.0...console-api/v2.35.1-beta.0) (2024-11-28)
+
+
+### Bug Fixes
+
+* **deployment:** fix console arg to object mapping ([6126106](https://github.com/akash-network/console/commit/6126106a800d7006b726ff98190e09368cc0c130)), closes [#503](https://github.com/akash-network/console/issues/503)
+
 ## [2.35.0](https://github.com/akash-network/console/compare/console-api/v2.35.0-beta.0...console-api/v2.35.0) (2024-11-27)
 
 ## [2.35.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.34.0...console-api/v2.35.0-beta.0) (2024-11-27)
