@@ -1,5 +1,12 @@
 
 
+## [2.35.2-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.1...console-api/v2.35.2-beta.0) (2024-11-28)
+
+
+### Bug Fixes
+
+* **observability:** ensure pino-pretty works in built app ([7f6f9ca](https://github.com/akash-network/console/commit/7f6f9ca7ca4e1ff4bc3b85735270f61cc8120242)), closes [#474](https://github.com/akash-network/console/issues/474)
+
 ## [2.35.1](https://github.com/akash-network/console/compare/console-api/v2.35.1-beta.1...console-api/v2.35.1) (2024-11-28)
 
 ## [2.35.1-beta.1](https://github.com/akash-network/console/compare/console-api/v2.35.1-beta.0...console-api/v2.35.1-beta.1) (2024-11-28)
