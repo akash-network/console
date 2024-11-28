@@ -1,5 +1,12 @@
 
 
+## [2.35.1-beta.1](https://github.com/akash-network/console/compare/console-api/v2.35.1-beta.0...console-api/v2.35.1-beta.1) (2024-11-28)
+
+
+### Bug Fixes
+
+* **deployment:** provider deployments query fix ([4278bbd](https://github.com/akash-network/console/commit/4278bbd718d56a71d49baefd73d1b2d35e427aff)), closes [#504](https://github.com/akash-network/console/issues/504)
+
 ## [2.35.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.0...console-api/v2.35.1-beta.0) (2024-11-28)
 
 
