@@ -3,7 +3,7 @@ import pino from "pino";
 import { gcpLogOptions } from "pino-cloud-logging";
 import type { PinoPretty } from "pino-pretty";
 
-import { config } from "../../config";
+import { Config, config as envConfig } from "../../config";
 
 export type Logger = Pick<pino.Logger, "info" | "error" | "warn" | "debug">;
 
@@ -16,6 +16,15 @@ interface LoggerOptions extends pino.LoggerOptions {
 }
 
 export class LoggerService implements Logger {
+  static config: Config = envConfig;
+
+  static configure(config: Partial<Config>) {
+    this.config = {
+      ...this.config,
+      ...config
+    };
+  }
+
   static forContext(context: string) {
     return new LoggerService().setContext(context);
   }
@@ -30,7 +39,7 @@ export class LoggerService implements Logger {
 
   private initPino(): pino.Logger {
     const options: LoggerOptions = {
-      level: config.LOG_LEVEL,
+      level: LoggerService.config.LOG_LEVEL,
       mixin: LoggerService.mixin,
       timestamp: () => `,"time":"${new Date().toISOString()}"`,
       ...this.options
@@ -46,7 +55,7 @@ export class LoggerService implements Logger {
   }
 
   private getPrettyIfPresent(): PinoPretty.PrettyStream | undefined {
-    if (typeof window !== "undefined" || config.STD_OUT_LOG_FORMAT !== "pretty") {
+    if (typeof window !== "undefined" || LoggerService.config.STD_OUT_LOG_FORMAT !== "pretty") {
       return;
     }
 
