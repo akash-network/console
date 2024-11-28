@@ -1,7 +1,7 @@
-import type { GetServerSideProps } from "next";
 import { z } from "zod";
 
 import { TemplateDetail, TemplateDetailProps } from "@src/components/templates/TemplateDetail";
+import { getValidatedServerSideProps } from "@src/lib/nextjs/getValidatedServerSIdeProps";
 import { services } from "@src/services/http/http-server.service";
 
 export default TemplateDetail;
@@ -11,10 +11,8 @@ const contextSchema = z.object({
     templateId: z.string()
   })
 });
-type Params = z.infer<typeof contextSchema>["params"];
 
-export const getServerSideProps: GetServerSideProps<TemplateDetailProps, Params> = async context => {
-  const { params } = contextSchema.parse(context);
+export const getServerSideProps = getValidatedServerSideProps<TemplateDetailProps>(contextSchema, async ({ params }) => {
   const template = await services.template.findById(params.templateId);
 
   if (!template) {
@@ -29,4 +27,4 @@ export const getServerSideProps: GetServerSideProps<TemplateDetailProps, Params>
       template
     }
   };
-};
+});
