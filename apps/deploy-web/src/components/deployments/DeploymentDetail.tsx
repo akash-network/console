@@ -1,6 +1,7 @@
 "use client";
 
-import { createRef, useEffect, useState } from "react";
+import { createRef, FC, useEffect, useState } from "react";
+import type { TemplateOutput } from "@akashnetwork/http-sdk/src/template/template-http.service";
 import { Alert, Button, buttonVariants, Spinner, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { ArrowLeft } from "iconoir-react";
@@ -9,10 +10,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 import { event } from "nextjs-google-analytics";
 
-import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";
-import { useTemplates } from "@src/context/TemplatesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
@@ -31,7 +30,12 @@ import { DeploymentSubHeader } from "./DeploymentSubHeader";
 import { LeaseRow } from "./LeaseRow";
 import { ManifestUpdate } from "./ManifestUpdate";
 
-export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: string }>) {
+export interface DeploymentDetailProps {
+  dseq: string;
+  remoteDeployTemplate: TemplateOutput;
+}
+
+export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, remoteDeployTemplate }) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
@@ -39,8 +43,6 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
-  const { getTemplateById } = useTemplates();
-  const remoteDeployTemplate = getTemplateById(CI_CD_TEMPLATE_ID);
   const isRemoteDeploy: boolean = !!editedManifest && !!isImageInYaml(editedManifest, remoteDeployTemplate?.deploy);
   const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
 
@@ -255,4 +257,4 @@ export function DeploymentDetail({ dseq }: React.PropsWithChildren<{ dseq: strin
       )}
     </Layout>
   );
-}
+};

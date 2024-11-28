@@ -1,28 +1,21 @@
-import axios from "axios";
+import type { GetServerSideProps } from "next";
+import { z } from "zod";
 
-import { TemplateDetail } from "@src/components/templates/TemplateDetail";
-import { serverEnvConfig } from "@src/config/server-env.config";
-import { ApiTemplate } from "@src/types";
+import { TemplateDetail, TemplateDetailProps } from "@src/components/templates/TemplateDetail";
+import { services } from "@src/services/http/http-server.service";
 
-type Props = {
-  templateId: string;
-  template: ApiTemplate;
-};
+export default TemplateDetail;
 
-const TemplateDetailPage: React.FunctionComponent<Props> = ({ templateId, template }) => {
-  return <TemplateDetail templateId={templateId} template={template} />;
-};
+const contextSchema = z.object({
+  params: z.object({
+    templateId: z.string()
+  })
+});
+type Params = z.infer<typeof contextSchema>["params"];
 
-export default TemplateDetailPage;
-
-export async function getServerSideProps({ params }) {
-  const response = await axios.get(`${serverEnvConfig.BASE_API_MAINNET_URL}/templates`);
-  const categories = response.data.filter(x => (x.templates || []).length > 0);
-  categories.forEach(c => {
-    c.templates.forEach(t => (t.category = c.title));
-  });
-  const templates = categories.flatMap(x => x.templates);
-  const template = templates.find(x => x.id === params?.templateId);
+export const getServerSideProps: GetServerSideProps<TemplateDetailProps, Params> = async context => {
+  const { params } = contextSchema.parse(context);
+  const template = await services.template.findById(params.templateId);
 
   if (!template) {
     return {
@@ -32,8 +25,8 @@ export async function getServerSideProps({ params }) {
 
   return {
     props: {
-      templateId: params?.templateId,
+      templateId: params.templateId,
       template
     }
   };
-}
+};
