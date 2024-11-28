@@ -1,6 +1,7 @@
 import { isHttpError } from "http-errors";
 import pino from "pino";
 import { gcpLogOptions } from "pino-cloud-logging";
+import type { PinoPretty } from "pino-pretty";
 
 import { config } from "../../config";
 
@@ -23,38 +24,49 @@ export class LoggerService implements Logger {
 
   protected pino: pino.Logger;
 
-  constructor(options?: LoggerOptions) {
-    this.pino = this.initPino(options);
+  constructor(private readonly options?: LoggerOptions) {
+    this.pino = this.initPino();
   }
 
-  private initPino(inputOptions: LoggerOptions = {}): pino.Logger {
-    let options: LoggerOptions = {
+  private initPino(): pino.Logger {
+    const options: LoggerOptions = {
       level: config.LOG_LEVEL,
       mixin: LoggerService.mixin,
       timestamp: () => `,"time":"${new Date().toISOString()}"`,
-      ...inputOptions
+      ...this.options
     };
 
-    if (typeof window === "undefined" && config.STD_OUT_LOG_FORMAT === "pretty") {
-      options.transport = {
-        target: "pino-pretty",
-        options: { colorize: true, sync: true }
-      };
-    } else {
-      options = gcpLogOptions(options as any) as LoggerOptions;
+    const pretty = this.getPrettyIfPresent();
+
+    if (pretty) {
+      return pino(options, pretty);
     }
 
-    return pino(options);
+    return pino(gcpLogOptions(options as any));
+  }
+
+  private getPrettyIfPresent(): PinoPretty.PrettyStream | undefined {
+    if (typeof window !== "undefined" || config.STD_OUT_LOG_FORMAT !== "pretty") {
+      return;
+    }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      return require("pino-pretty")({ colorize: true, sync: true });
+    } catch (e) {
+      this.debug({ context: LoggerService.name, message: "Failed to load pino-pretty", error: e });
+      /* empty */
+    }
   }
 
   setContext(context: string) {
-    this.pino.setBindings({ context });
+    this.bind({ context });
 
     return this;
   }
 
   bind(bindings: pino.Bindings) {
-    this.pino.setBindings(bindings);
+    this.pino = this.pino.child(bindings);
 
     return this;
   }
