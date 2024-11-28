@@ -56,7 +56,7 @@ export class DeploymentRepository {
           attributes: [],
           required: true,
           where: {
-            provider: options.provider
+            providerAddress: options.provider
           }
         }
       ],
