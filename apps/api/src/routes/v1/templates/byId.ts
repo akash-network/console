@@ -20,18 +20,20 @@ const route = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            id: z.string(),
-            name: z.string(),
-            path: z.string(),
-            logoUrl: z.string().nullable(),
-            summary: z.string(),
-            readme: z.string().nullable(),
-            deploy: z.string(),
-            persistentStorageEnabled: z.boolean(),
-            guide: z.string().nullable(),
-            githubUrl: z.string(),
-            config: z.object({
-              ssh: z.boolean().optional()
+            data: z.object({
+              id: z.string(),
+              name: z.string(),
+              path: z.string(),
+              logoUrl: z.string().nullable(),
+              summary: z.string(),
+              readme: z.string().nullable(),
+              deploy: z.string(),
+              persistentStorageEnabled: z.boolean(),
+              guide: z.string().nullable(),
+              githubUrl: z.string(),
+              config: z.object({
+                ssh: z.boolean().optional()
+              })
             })
           })
         }
@@ -51,5 +53,5 @@ export default new OpenAPIHono().openapi(route, async c => {
     return c.text("Template not found", 404);
   }
 
-  return c.json(template);
+  return c.json({ data: template });
 });

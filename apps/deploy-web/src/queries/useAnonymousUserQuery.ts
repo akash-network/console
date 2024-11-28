@@ -2,7 +2,7 @@ import { useState } from "react";
 import * as Sentry from "@sentry/nextjs";
 
 import { useWhen } from "@src/hooks/useWhen";
-import { userHttpService } from "@src/services/http/http.service";
+import { userHttpService } from "@src/services/http/http-browser.service";
 
 export interface UserOutput {
   id: string;
