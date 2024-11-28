@@ -11,7 +11,7 @@ import { TxSignerService } from "../tx-signer/tx-signer.service";
 
 export interface ProviderCleanupParams {
   concurrency: number;
-  providerAddress: string;
+  provider: string;
   dryRun: boolean;
 }
 
@@ -53,7 +53,7 @@ export class ProviderCleanupService {
     const client = await this.txSignerService.getClientForAddressIndex(wallet.id);
     const deployments = await this.deploymentRepository.findDeploymentsForProvider({
       owner: wallet.address,
-      provider: options.providerAddress
+      provider: options.provider
     });
 
     const closeAllWalletStaleDeployments = deployments.map(async deployment => {
