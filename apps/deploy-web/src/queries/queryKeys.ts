@@ -42,6 +42,7 @@ export class QueryKeys {
   static getBlockKey = (id: string) => ["BLOCK", id];
   static getBalancesKey = (address?: string) => (address ? ["BALANCES", address] : []);
   static getTemplatesKey = () => ["TEMPLATES"];
+  static getTemplateKey = (id: string) => ["TEMPLATES", id];
   static getProviderAttributesSchema = () => ["PROVIDER_ATTRIBUTES_SCHEMA"];
   static getDepositParamsKey = () => ["DEPOSIT_PARAMS"];
   static getGpuModelsKey = () => ["GPU_MODELS"];
