@@ -1,10 +1,13 @@
 import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions } from "react-query";
+import { UseQueryResult } from "react-query/types/react/types";
+import { TemplateOutput } from "@akashnetwork/http-sdk/src/template/template-http.service";
 import { Snackbar } from "@akashnetwork/ui/components";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { services } from "@src/services/http/http-browser.service";
 import { ITemplate } from "@src/types";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { UrlService } from "@src/utils/urlUtils";
@@ -129,4 +132,8 @@ export function useTemplates(options = {}) {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false
   });
+}
+
+export function useTemplateById(id: string, options: UseQueryOptions<TemplateOutput, Error, any, QueryKey> = {}): UseQueryResult<TemplateOutput> {
+  return useQuery(QueryKeys.getTemplateKey(id), () => services.template.findById(id), options);
 }
