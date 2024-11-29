@@ -55,16 +55,14 @@ export class LoggerService implements Logger {
   }
 
   private getPrettyIfPresent(): PinoPretty.PrettyStream | undefined {
-    if (typeof window !== "undefined" || LoggerService.config.STD_OUT_LOG_FORMAT !== "pretty") {
-      return;
-    }
-
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      return require("pino-pretty")({ colorize: true, sync: true });
-    } catch (e) {
-      this.debug({ context: LoggerService.name, message: "Failed to load pino-pretty", error: e });
-      /* empty */
+    if (typeof window === "undefined" && LoggerService.config.STD_OUT_LOG_FORMAT === "pretty") {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        return require("pino-pretty")({ colorize: true, sync: true });
+      } catch (e) {
+        this.debug({ context: LoggerService.name, message: "Failed to load pino-pretty", error: e });
+        /* empty */
+      }
     }
   }
 

@@ -11,6 +11,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@akashnetwork/logging": "*",
     "@akashnetwork/network-store": "*",
     "@akashnetwork/ui": "*",
     "@cosmjs/encoding": "^0.32.4",

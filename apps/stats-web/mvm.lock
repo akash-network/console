@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@akashnetwork/logging": "2.0.2",
     "@akashnetwork/network-store": "1.0.1",
     "@akashnetwork/ui": "1.0.0"
   },

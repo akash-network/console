@@ -9,7 +9,8 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development"),
   NEXT_PUBLIC_BASE_API_TESTNET_URL: z.string().url(),
   NEXT_PUBLIC_BASE_API_SANDBOX_URL: z.string().url(),
-  NEXT_PUBLIC_BASE_API_MAINNET_URL: z.string().url()
+  NEXT_PUBLIC_BASE_API_MAINNET_URL: z.string().url(),
+  NEXT_PUBLIC_LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).optional().default("info")
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({
