@@ -55,6 +55,7 @@ const providerPricingSchema = z.object({
 type ProviderPricingValues = z.infer<typeof providerPricingSchema>;
 
 export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, editMode = false, existingPricing, disabled = false, providerDetails }) => {
+  console.log(existingPricing)
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const { activeControlMachine } = useControlMachine();
   const [showSuccess, setShowSuccess] = React.useState(false);
