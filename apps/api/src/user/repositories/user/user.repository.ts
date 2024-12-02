@@ -1,4 +1,5 @@
-import { and, eq, isNull } from "drizzle-orm";
+import subDays from "date-fns/subDays";
+import { and, eq, isNull, lte, sql } from "drizzle-orm";
 import first from "lodash/first";
 import { singleton } from "tsyringe";
 
@@ -33,5 +34,16 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
 
   async findAnonymousById(id: UserOutput["id"]) {
     return await this.cursor.query.Users.findFirst({ where: this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.userId))) });
+  }
+
+  async markAsActive(id: UserOutput["id"]) {
+    await this.cursor
+      .update(this.table)
+      .set({ lastActiveAt: sql`now()` })
+      .where(eq(this.table.id, id));
+  }
+
+  async paginateStaleAnonymousUsers({ inactivityInDays, ...params }: { inactivityInDays: number; limit?: number }, cb: (page: UserOutput[]) => Promise<void>) {
+    await this.paginateRaw({ where: and(isNull(this.table.userId), lte(this.table.lastActiveAt, subDays(new Date(), inactivityInDays))), ...params }, cb);
   }
 }

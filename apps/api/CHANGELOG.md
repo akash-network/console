@@ -1,5 +1,131 @@
 
 
+## [2.35.2](https://github.com/akash-network/console/compare/console-api/v2.35.2-beta.0...console-api/v2.35.2) (2024-12-02)
+
+## [2.35.2-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.1...console-api/v2.35.2-beta.0) (2024-11-28)
+
+
+### Bug Fixes
+
+* **observability:** ensure pino-pretty works in built app ([7f6f9ca](https://github.com/akash-network/console/commit/7f6f9ca7ca4e1ff4bc3b85735270f61cc8120242)), closes [#474](https://github.com/akash-network/console/issues/474)
+
+## [2.35.1](https://github.com/akash-network/console/compare/console-api/v2.35.1-beta.1...console-api/v2.35.1) (2024-11-28)
+
+## [2.35.1-beta.1](https://github.com/akash-network/console/compare/console-api/v2.35.1-beta.0...console-api/v2.35.1-beta.1) (2024-11-28)
+
+
+### Bug Fixes
+
+* **deployment:** provider deployments query fix ([4278bbd](https://github.com/akash-network/console/commit/4278bbd718d56a71d49baefd73d1b2d35e427aff)), closes [#504](https://github.com/akash-network/console/issues/504)
+
+## [2.35.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.0...console-api/v2.35.1-beta.0) (2024-11-28)
+
+
+### Bug Fixes
+
+* **deployment:** fix console arg to object mapping ([6126106](https://github.com/akash-network/console/commit/6126106a800d7006b726ff98190e09368cc0c130)), closes [#503](https://github.com/akash-network/console/issues/503)
+
+## [2.35.0](https://github.com/akash-network/console/compare/console-api/v2.35.0-beta.0...console-api/v2.35.0) (2024-11-27)
+
+## [2.35.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.34.0...console-api/v2.35.0-beta.0) (2024-11-27)
+
+
+### Features
+
+* **deployment:** clean up trial deployments for a provider ([41018af](https://github.com/akash-network/console/commit/41018afc0593621c4627369b9f114f849e249e44)), closes [#502](https://github.com/akash-network/console/issues/502)
+
+## [2.34.0](https://github.com/akash-network/console/compare/console-api/v2.34.0-beta.1...console-api/v2.34.0) (2024-11-26)
+
+## [2.34.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.34.0-beta.0...console-api/v2.34.0-beta.1) (2024-11-26)
+
+
+### Features
+
+* **deployment:** implement ato top up setting ([1301314](https://github.com/akash-network/console/commit/130131485a68f699587415f96283e0dc83072502)), closes [#412](https://github.com/akash-network/console/issues/412)
+
+## [2.34.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.33.1...console-api/v2.34.0-beta.0) (2024-11-23)
+
+
+### Features
+
+* **provider:** new provider trial endpoint ([2712e38](https://github.com/akash-network/console/commit/2712e380b8f5af0930abbdf9347a1dee3eb75f8a)), closes [#488](https://github.com/akash-network/console/issues/488)
+
+## [2.33.1](https://github.com/akash-network/console/compare/console-api/v2.33.1-beta.0...console-api/v2.33.1) (2024-11-23)
+
+## [2.33.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.33.0...console-api/v2.33.1-beta.0) (2024-11-21)
+
+
+### Bug Fixes
+
+* **deployment:** latest processed height deployment stale ([8d8384f](https://github.com/akash-network/console/commit/8d8384f519ae958e324a81fbf5a2ae00383bddc3)), closes [#491](https://github.com/akash-network/console/issues/491)
+
+## [2.33.0](https://github.com/akash-network/console/compare/console-api/v2.33.0-beta.1...console-api/v2.33.0) (2024-11-21)
+
+## [2.33.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.33.0-beta.0...console-api/v2.33.0-beta.1) (2024-11-21)
+
+
+### Bug Fixes
+
+* **billing:** only resolve with active stripe prices ([fa32f37](https://github.com/akash-network/console/commit/fa32f37bbdce46a69cbd2f1d2f242de66004f7fb))
+
+## [2.33.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.32.0...console-api/v2.33.0-beta.0) (2024-11-21)
+
+
+### Features
+
+* **billing:** enable checkout options with promo codes ([0cb439d](https://github.com/akash-network/console/commit/0cb439dcf4ca21974d7dacd784570cd032ee9f7b))
+
+## [2.32.0](https://github.com/akash-network/console/compare/console-api/v2.32.0-beta.1...console-api/v2.32.0) (2024-11-19)
+
+## [2.32.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.32.0-beta.0...console-api/v2.32.0-beta.1) (2024-11-19)
+
+
+### Features
+
+* **billing:** enable promo codes on checkout via env var ([18f24f6](https://github.com/akash-network/console/commit/18f24f61d52d19364588545323ab621dcdd3b440))
+
+## [2.32.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.31.0...console-api/v2.32.0-beta.0) (2024-11-19)
+
+
+### Features
+
+* **billing:** enable promo codes on checkout ([de11211](https://github.com/akash-network/console/commit/de112115d61c189849a9cffa83c620487be38093))
+
+## [2.31.0](https://github.com/akash-network/console/compare/console-api/v2.31.0-beta.1...console-api/v2.31.0) (2024-11-19)
+
+## [2.31.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.31.0-beta.0...console-api/v2.31.0-beta.1) (2024-11-19)
+
+
+### Features
+
+* **analytics:** add user analytics and refactor analytic related logic ([552cd82](https://github.com/akash-network/console/commit/552cd8244634bf1de49875ce0d9b7490466ae5b0))
+
+## [2.31.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.30.1...console-api/v2.31.0-beta.0) (2024-11-18)
+
+
+### Features
+
+* **deployment:** implement concurrency option for stale deployments cleaner ([54cae5d](https://github.com/akash-network/console/commit/54cae5d0f3c37dd6fe6623bcc249379f99cad247))
+* **user:** implement dry run and summary logging for stale anonymous users cleaner ([61752e9](https://github.com/akash-network/console/commit/61752e90fecc559eade828c721fa54839d8aef49)), closes [#464](https://github.com/akash-network/console/issues/464)
+
+## [2.30.1](https://github.com/akash-network/console/compare/console-api/v2.30.1-beta.0...console-api/v2.30.1) (2024-11-15)
+
+## [2.30.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.30.0...console-api/v2.30.1-beta.0) (2024-11-15)
+
+
+### Bug Fixes
+
+* **observability:** bump logger version ([b258c63](https://github.com/akash-network/console/commit/b258c6389d22c0bf57e9c702b51a1280faf74eb7))
+
+## [2.30.0](https://github.com/akash-network/console/compare/console-api/v2.30.0-beta.0...console-api/v2.30.0) (2024-11-15)
+
+## [2.30.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.29.1...console-api/v2.30.0-beta.0) (2024-11-15)
+
+
+### Features
+
+* **user:** implement stale anonymous users cleanup cli command ([a936f44](https://github.com/akash-network/console/commit/a936f44c6e532efc1f559986c352594237ce3691)), closes [#464](https://github.com/akash-network/console/issues/464)
+
 ## [2.29.1](https://github.com/akash-network/console/compare/console-api/v2.29.1-beta.0...console-api/v2.29.1) (2024-11-13)
 
 ## [2.29.1-beta.0](https://github.com/akash-network/console/compare/console-api/v2.29.0...console-api/v2.29.1-beta.0) (2024-11-13)

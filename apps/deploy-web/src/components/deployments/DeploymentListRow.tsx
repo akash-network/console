@@ -25,9 +25,9 @@ import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConf
 import { getShortText } from "@src/hooks/useShortText";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { NamedDeploymentDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, getTimeLeft, useRealTimeLeft } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -138,7 +138,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
       refreshDeployments();
 
       event(AnalyticsEvents.DEPLOYMENT_DEPOSIT, {
-        category: "deployments",
+        category: AnalyticsCategory.DEPLOYMENTS,
         label: "Deposit to deployment from list"
       });
     }
@@ -163,7 +163,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
       refreshDeployments();
 
       event(AnalyticsEvents.CLOSE_DEPLOYMENT, {
-        category: "deployments",
+        category: AnalyticsCategory.DEPLOYMENTS,
         label: "Close deployment from list"
       });
     }

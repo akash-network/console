@@ -6,10 +6,14 @@ import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, RpcMessageService } from "@src/billing/services";
 import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
-import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
+import { BlockRepository } from "@src/chain/repositories/block.repository";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { averageBlockTime } from "@src/utils/constants";
+
+export interface CleanUpStaleDeploymentsParams {
+  concurrency: number;
+}
 
 @singleton()
 export class StaleManagedDeploymentsCleanerService {
@@ -20,7 +24,7 @@ export class StaleManagedDeploymentsCleanerService {
   constructor(
     private readonly userWalletRepository: UserWalletRepository,
     private readonly deploymentRepository: DeploymentRepository,
-    private readonly blockHttpService: BlockHttpService,
+    private readonly blockRepository: BlockRepository,
     private readonly rpcMessageService: RpcMessageService,
     private readonly txSignerService: TxSignerService,
     @InjectBillingConfig() private readonly config: BillingConfig,
@@ -28,8 +32,8 @@ export class StaleManagedDeploymentsCleanerService {
     private readonly errorService: ErrorService
   ) {}
 
-  async cleanup() {
-    await this.userWalletRepository.paginate({ limit: 10 }, async wallets => {
+  async cleanup(options: CleanUpStaleDeploymentsParams) {
+    await this.userWalletRepository.paginate({ limit: options.concurrency || 10 }, async wallets => {
       const cleanUpAllWallets = wallets.map(async wallet => {
         await this.errorService.execWithErrorHandler(
           {
@@ -46,7 +50,7 @@ export class StaleManagedDeploymentsCleanerService {
   }
 
   private async cleanUpForWallet(wallet: UserWalletOutput) {
-    const currentHeight = await this.blockHttpService.getCurrentHeight();
+    const currentHeight = await this.blockRepository.getLatestProcessedHeight();
     const client = await this.txSignerService.getClientForAddressIndex(wallet.id);
     const deployments = await this.deploymentRepository.findStaleDeployments({
       owner: wallet.address,

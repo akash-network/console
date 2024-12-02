@@ -22,7 +22,6 @@
     "@mui/icons-material": "^5.11.11",
     "@mui/material": "^5.4.4",
     "@mui/material-nextjs": "^5.15.11",
-    "@opentelemetry/instrumentation-lru-memoizer": "^0.41.0",
     "@radix-ui/react-icons": "^1.3.0",
     "@sentry/nextjs": "^8.34.0",
     "@sentry/tracing": "^7.114.0",

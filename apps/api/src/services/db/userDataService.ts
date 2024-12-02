@@ -4,6 +4,8 @@ import pick from "lodash/pick";
 import { Transaction } from "sequelize";
 import { container } from "tsyringe";
 
+import { UserWalletRepository } from "@src/billing/repositories";
+
 const logger = LoggerService.forContext("UserDataService");
 
 function randomIntFromInterval(min: number, max: number) {
@@ -150,12 +152,6 @@ export async function getSettingsOrInit({ anonymousUserId, userId, wantedUsernam
 }
 
 async function tryToTransferWallet(prevUserId: string, nextUserId: string) {
-  if (process.env.BILLING_ENABLED !== "true") {
-    return;
-  }
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { UserWalletRepository } = require("@src/billing/repositories/user-wallet/user-wallet.repository");
-
   const userWalletRepository = container.resolve<any>(UserWalletRepository);
 
   try {

@@ -1,5 +1,6 @@
 import createHttpError from "http-errors";
-import pino from "pino";
+import { Transform } from "node:stream";
+import pino, { LoggerOptions } from "pino";
 import { gcpLogOptions } from "pino-cloud-logging";
 
 import { config } from "../../config";
@@ -12,6 +13,11 @@ jest.mock("pino-cloud-logging");
 
 describe("LoggerService", () => {
   const defaultLogFormat = config.STD_OUT_LOG_FORMAT;
+  const COMMON_EXPECTED_OPTIONS: LoggerOptions = {
+    level: "info",
+    mixin: undefined,
+    timestamp: expect.any(Function)
+  };
 
   afterEach(() => {
     config.STD_OUT_LOG_FORMAT = defaultLogFormat;
@@ -23,11 +29,7 @@ describe("LoggerService", () => {
       config.STD_OUT_LOG_FORMAT = "pretty";
       new LoggerService();
 
-      expect(pino).toHaveBeenCalledWith({
-        level: "info",
-        mixin: undefined,
-        transport: { target: "pino-pretty", options: { colorize: true, sync: true } }
-      });
+      expect(pino).toHaveBeenCalledWith(COMMON_EXPECTED_OPTIONS, expect.any(Transform));
       expect(gcpLogOptions).not.toHaveBeenCalled();
     });
 
@@ -35,7 +37,11 @@ describe("LoggerService", () => {
       config.STD_OUT_LOG_FORMAT = "json";
       new LoggerService();
 
-      expect(pino).toHaveBeenCalledWith({ level: "info", mixin: undefined });
+      expect(pino).toHaveBeenCalledWith({
+        level: "info",
+        mixin: undefined,
+        timestamp: expect.any(Function)
+      });
       expect(gcpLogOptions).toHaveBeenCalled();
     });
 
@@ -46,7 +52,7 @@ describe("LoggerService", () => {
       LoggerService.mixin = globalMixin;
       new LoggerService();
 
-      expect(pino).toHaveBeenCalledWith({ level: "info", mixin: globalMixin });
+      expect(pino).toHaveBeenCalledWith({ ...COMMON_EXPECTED_OPTIONS, mixin: globalMixin });
 
       LoggerService.mixin = undefined;
     });
@@ -61,7 +67,7 @@ describe("LoggerService", () => {
       LoggerService.mixin = globalMixin;
       new LoggerService({ mixin: localMixin });
 
-      expect(pino).toHaveBeenCalledWith({ level: "info", mixin: localMixin });
+      expect(pino).toHaveBeenCalledWith({ ...COMMON_EXPECTED_OPTIONS, mixin: localMixin });
 
       LoggerService.mixin = undefined;
     });
@@ -69,7 +75,7 @@ describe("LoggerService", () => {
     it("should initialize pino with provided log level overriding global log level", () => {
       new LoggerService({ level: "debug" });
 
-      expect(pino).toHaveBeenCalledWith({ level: "debug" });
+      expect(pino).toHaveBeenCalledWith({ ...COMMON_EXPECTED_OPTIONS, level: "debug" });
 
       LoggerService.mixin = undefined;
     });

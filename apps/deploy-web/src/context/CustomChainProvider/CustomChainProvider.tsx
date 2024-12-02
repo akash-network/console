@@ -2,21 +2,21 @@
 import "@interchain-ui/react/styles";
 import "@interchain-ui/react/globalStyles";
 
+import { useEffect } from "react";
 import { GasPrice } from "@cosmjs/stargate";
+import { WalletModalProps } from "@cosmos-kit/core";
 import { wallets as metamask } from "@cosmos-kit/cosmos-extension-metamask";
 import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
 import { wallets as keplr } from "@cosmos-kit/keplr";
 import { wallets as leap } from "@cosmos-kit/leap";
 import { ChainProvider, DefaultModal } from "@cosmos-kit/react";
 import { useChain } from "@cosmos-kit/react";
+import { useAtom } from "jotai";
 
 import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
 import networkStore from "@src/store/networkStore";
-import { customRegistry } from "@src/utils/customRegistry";
-import { WalletModalProps } from "@cosmos-kit/core";
-import { useAtom } from "jotai";
 import walletStore from "@src/store/walletStore";
-import { useEffect } from "react";
+import { customRegistry } from "@src/utils/customRegistry";
 
 type Props = {
   children: React.ReactNode;
