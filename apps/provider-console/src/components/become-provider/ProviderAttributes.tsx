@@ -3,6 +3,9 @@
 import React from "react";
 import { Controller, SubmitHandler, useFieldArray, useForm } from "react-hook-form";
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
   Button,
   Form,
   FormControl,
@@ -14,22 +17,18 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  Separator,
-  Alert,
-  AlertDescription,
-  AlertTitle
-} from "@akashnetwork/ui/components";
+  Separator } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "iconoir-react";
 import { useAtom } from "jotai";
 import { z } from "zod";
 
+import { useControlMachine } from "@src/context/ControlMachineProvider";
 import providerProcessStore, { ProviderAttribute } from "@src/store/providerProcessStore";
+import restClient from "@src/utils/restClient";
+import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";
 import { ResetProviderForm } from "./ResetProviderProcess";
-import restClient from "@src/utils/restClient";
-import { useControlMachine } from "@src/context/ControlMachineProvider";
-import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 
 const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 

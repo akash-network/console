@@ -1,19 +1,12 @@
 "use client";
+
 import { Layout } from "@src/components/layout/Layout";
 import { ProviderActionList } from "@src/components/shared/ProviderActionList";
-import { useEffect, useState } from "react";
-import restClient from "@src/utils/restClient";
 import { Title } from "@src/components/shared/Title";
+import { useProviderActions } from "@src/queries/useProviderQuery";
 
 const ActionsList: React.FC = () => {
-  const [actions, setActions] = useState<any[]>([]);
-  useEffect(() => {
-    const fetchActions = async () => {
-      const response: any = await restClient.get(`/actions`);
-      setActions(response.actions);
-    };
-    fetchActions();
-  }, []);
+  const { data: actions } = useProviderActions();
   return (
     <Layout>
       <div className="flex items-center">
