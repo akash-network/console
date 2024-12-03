@@ -1,5 +1,12 @@
 
 
+## [2.35.3-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.2...console-api/v2.35.3-beta.0) (2024-12-03)
+
+
+### Bug Fixes
+
+* **deployment:** update the Block import ([5db9f02](https://github.com/akash-network/console/commit/5db9f02d380c63db0dc694eeb7cb7bb5c6aa1c32)), closes [#512](https://github.com/akash-network/console/issues/512)
+
 ## [2.35.2](https://github.com/akash-network/console/compare/console-api/v2.35.2-beta.0...console-api/v2.35.2) (2024-12-02)
 
 ## [2.35.2-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.1...console-api/v2.35.2-beta.0) (2024-11-28)
