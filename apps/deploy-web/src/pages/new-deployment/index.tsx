@@ -18,11 +18,19 @@ export const getServerSideProps = getValidatedServerSideProps<NewDeploymentConta
     return { props: {} };
   }
 
-  const template = await services.template.findById(query.templateId);
+  try {
+    const template = await services.template.findById(query.templateId);
 
-  if (template && query.templateId) {
-    return { props: { template, templateId: query.templateId } };
+    if (template && query.templateId) {
+      return { props: { template, templateId: query.templateId } };
+    }
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      console.log("Template not found");
+    } else {
+      console.error(error);
+    }
   }
 
-  return { props: {} };
+  return { props: { templateId: query.templateId } };
 });
