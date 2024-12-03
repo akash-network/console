@@ -10,6 +10,7 @@ import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { TxMessageRow } from "@/components/transactions/TxMessageRow";
 import { networkId } from "@/config/env-config.schema";
+import { useLogger } from "@/hooks/useLogger";
 import { getSplitText } from "@/hooks/useShortText";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import { TransactionDetail } from "@/types";
@@ -31,18 +32,18 @@ export async function generateMetadata({ params: { hash } }: TransactionDetailPa
   };
 }
 
-async function fetchTransactionData(hash: string, network: Network["id"]): Promise<TransactionDetail | null> {
+async function fetchTransactionData(hash: string, network: Network["id"], logger: ReturnType<typeof useLogger>): Promise<TransactionDetail | null> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
-  console.log("DEBUG apiUrl", apiUrl);
+  logger.debug(`DEBUG apiUrl: ${apiUrl}`);
   const response = await fetch(`${apiUrl}/v1/transactions/${hash}`);
-
+  
   if (!response.ok && response.status !== 404) {
     // This will activate the closest `error.js` Error Boundary
     throw new Error("Error fetching transaction data");
   } else if (response.status === 404) {
     return null;
   }
-
+  
   return response.json();
 }
 
@@ -51,7 +52,9 @@ export default async function TransactionDetailPage(props: TransactionDetailPage
     params: { hash },
     searchParams: { network }
   } = TransactionDetailPageSchema.parse(props);
-  const transaction = await fetchTransactionData(hash, network);
+
+  const transactionLogger = useLogger("apps/stats-web/src/app/transactions/[hash]/page.tsx");
+  const transaction = await fetchTransactionData(hash, network, transactionLogger);
 
   return (
     <PageContainer>

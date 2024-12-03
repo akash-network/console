@@ -1,37 +1,46 @@
-function fallbackCopyTextToClipboard(text: string) {
-  const textArea = document.createElement("textarea");
-  textArea.value = text;
+import { useLogger } from "@/hooks/useLogger";
 
-  // Avoid scrolling to bottom
-  textArea.style.top = "0";
-  textArea.style.left = "0";
-  textArea.style.position = "fixed";
+export const useClipboard = () => {
+  const libLogger = useLogger("apps/stats-web/src/lib/copyClipboard.ts");
 
-  document.body.appendChild(textArea);
-  textArea.focus();
-  textArea.select();
+  const fallbackCopyTextToClipboard = (text: string) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
 
-  try {
-    const successful = document.execCommand("copy");
-    const msg = successful ? "successful" : "unsuccessful";
-    console.log("Fallback: Copying text command was " + msg);
-  } catch (err) {
-    console.error("Fallback: Oops, unable to copy", err);
-  }
+    // Avoid scrolling to bottom
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.position = "fixed";
 
-  document.body.removeChild(textArea);
-}
-export const copyTextToClipboard = (text: string) => {
-  if (!navigator.clipboard) {
-    fallbackCopyTextToClipboard(text);
-    return;
-  }
-  navigator.clipboard.writeText(text).then(
-    () => {
-      console.log("Async: Copying to clipboard was successful!");
-    },
-    err => {
-      console.error("Async: Could not copy text: ", err);
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+      const successful = document.execCommand("copy");
+      const msg = successful ? "successful" : "unsuccessful";
+      libLogger.debug("Fallback: Copying text command was " + msg);
+    } catch (err) {
+      libLogger.debug(`Fallback: Oops, unable to copy: ${err}`);
     }
-  );
+
+    document.body.removeChild(textArea);
+  };
+
+  const copyTextToClipboard = (text: string) => {
+    if (!navigator.clipboard) {
+      fallbackCopyTextToClipboard(text);
+      return;
+    }
+    navigator.clipboard.writeText(text).then(
+      () => {
+        libLogger.debug("Async: Copying to clipboard was successful!");
+      },
+      (err) => {
+        libLogger.debug(`Async: Could not copy text: ${err}`);
+      }
+    );
+  };
+
+  return { copyTextToClipboard };
 };

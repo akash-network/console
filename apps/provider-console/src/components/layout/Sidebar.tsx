@@ -1,6 +1,6 @@
 "use client";
 import React, { ReactNode, useState } from "react";
-import { Button, buttonVariants } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -10,6 +10,7 @@ import getConfig from "next/config";
 import Image from "next/image";
 import Link from "next/link";
 
+import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { ISidebarGroupMenu } from "@src/types";
 import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
@@ -35,6 +36,8 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
+  const { activeControlMachine, openControlMachineDrawer, controlMachineLoading } = useControlMachine();
+
   const routeGroups: ISidebarGroupMenu[] = [
     {
       hasDivider: false,
@@ -54,9 +57,9 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         {
           title: "Actions",
           icon: props => <ClipboardCheck {...props} />,
-          url: "#",
-          activeRoutes: ["#"],
-          disabled: true
+          url: UrlService.actions(),
+          activeRoutes: [UrlService.actions()],
+          disabled: false
         },
         {
           title: "Pricing",
@@ -68,9 +71,9 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         {
           title: "Attributes",
           icon: props => <ListSelect {...props} />,
-          url: "#",
-          activeRoutes: ["#"],
-          disabled: true
+          url: UrlService.attributes(),
+          activeRoutes: [UrlService.attributes()],
+          disabled: false
         },
         {
           title: "Settings",
@@ -162,6 +165,37 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         {_isNavOpen && (
           <div className="space-y-2 pb-4 pl-4 pr-4">
             {/* <NodeStatusBar /> */}
+            {controlMachineLoading ? (
+              <div className="flex flex-col space-y-2">
+                <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                  Machine:
+                  <div className="relative flex items-center gap-2">
+                    <Spinner size="small" />
+                    <div className="text-xs">Connecting...</div>
+                  </div>
+                </div>
+              </div>
+            ) : activeControlMachine ? (
+              <div className="flex flex-col space-y-2">
+                <div className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-2 text-sm" onClick={openControlMachineDrawer}>
+                  Machine:
+                  <div className="relative flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                    {activeControlMachine.access.hostname}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col space-y-2">
+                <div className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-2 text-sm" onClick={openControlMachineDrawer}>
+                  Machine:
+                  <div className="relative flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-red-500" />
+                    <div className="roundedpx-2 py-1 text-xs">Not Connected</div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-center space-x-1 pt-4">
               <Link
@@ -228,7 +262,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
 
   return (
     <nav
-      className={cn("ease bg-header/95 fixed z-[100] md:flex-shrink-0", {
+      className={cn("ease bg-header/95 fixed md:flex-shrink-0", {
         ["md:w-[240px]"]: _isNavOpen || isHovering,
         ["md:w-[57px]"]: !(_isNavOpen || isHovering)
       })}

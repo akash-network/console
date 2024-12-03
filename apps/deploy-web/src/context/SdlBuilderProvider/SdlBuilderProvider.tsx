@@ -68,7 +68,7 @@ export const useSdlBuilder = () => {
 };
 
 export const withSdlBuilder = (options: SdlBuilderProviderProps = {}) =>
-  function wrapWithSdlBuilder<P extends JSX.IntrinsicAttributes>(Component: React.ComponentType<P>): FC<P> | React.ComponentType<P> {
+  function wrapWithSdlBuilder<P extends Record<string, any>>(Component: React.ComponentType<P>): FC<P> | React.ComponentType<P> {
     return function WrappedComponent(props: P) {
       return (
         <SdlBuilderProvider {...options}>

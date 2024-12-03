@@ -19,7 +19,7 @@ import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBalances } from "@src/queries/useBalancesQuery";
-import { txHttpService } from "@src/services/http/http.service";
+import { txHttpService } from "@src/services/http/http-browser.service";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
 import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";

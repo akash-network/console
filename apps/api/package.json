@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/console-api",
-  "version": "2.34.0-beta.0",
+  "version": "2.35.2",
   "description": "Api providing data to the deploy tool",
   "repository": {
     "type": "git",
@@ -54,9 +54,9 @@
     "@hono/swagger-ui": "0.2.1",
     "@hono/zod-openapi": "0.9.5",
     "@octokit/rest": "^18.12.0",
-    "@opentelemetry/instrumentation": "^0.54.0",
-    "@opentelemetry/instrumentation-http": "^0.54.0",
-    "@opentelemetry/sdk-node": "^0.54.0",
+    "@opentelemetry/instrumentation": "^0.54.2",
+    "@opentelemetry/instrumentation-http": "^0.54.2",
+    "@opentelemetry/sdk-node": "^0.54.2",
     "@sentry/node": "^7.55.2",
     "@supercharge/promise-pool": "^3.2.0",
     "@ucast/core": "^1.10.2",

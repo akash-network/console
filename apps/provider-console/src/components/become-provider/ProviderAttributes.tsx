@@ -3,6 +3,9 @@
 import React from "react";
 import { Controller, SubmitHandler, useFieldArray, useForm } from "react-hook-form";
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
   Button,
   Form,
   FormControl,
@@ -14,21 +17,25 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  Separator
-} from "@akashnetwork/ui/components";
+  Separator } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "iconoir-react";
 import { useAtom } from "jotai";
 import { z } from "zod";
 
-import providerProcessStore from "@src/store/providerProcessStore";
+import { useControlMachine } from "@src/context/ControlMachineProvider";
+import providerProcessStore, { ProviderAttribute } from "@src/store/providerProcessStore";
+import restClient from "@src/utils/restClient";
+import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";
 import { ResetProviderForm } from "./ResetProviderProcess";
 
 const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 
 interface ProviderAttributesProps {
-  onComplete: () => void;
+  existingAttributes?: ProviderAttribute[];
+  editMode?: boolean;
+  onComplete?: () => void;
 }
 
 const providerFormSchema = z.object({
@@ -43,40 +50,68 @@ const providerFormSchema = z.object({
 
 type ProviderFormValues = z.infer<typeof providerFormSchema>;
 
-export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ onComplete }) => {
+export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps> = ({ onComplete, existingAttributes, editMode }) => {
   const [providerPricing, setProviderPricing] = useAtom(providerProcessStore.providerProcessAtom);
   const form = useForm<ProviderFormValues>({
     resolver: zodResolver(providerFormSchema),
     defaultValues: {
-      attributes: [{ key: "", value: "", customKey: "" }]
+      attributes: existingAttributes
+        ? existingAttributes.map(attr => ({
+            key: attributeKeys.includes(attr.key) ? attr.key : "unknown-attributes",
+            value: attr.value,
+            customKey: attributeKeys.includes(attr.key) ? "" : attr.key
+          }))
+        : [{ key: "", value: "", customKey: "" }]
     }
   });
 
   const { control } = form;
-
   const { fields, append, remove } = useFieldArray({
     control,
     name: "attributes"
   });
 
+  const { activeControlMachine } = useControlMachine();
+
+  const [showSuccess, setShowSuccess] = React.useState(false);
+
   const updateProviderAttributesAndProceed: SubmitHandler<ProviderFormValues> = async data => {
-    const updatedProviderPricing = {
-      ...providerPricing,
-      attributes: data.attributes.map(attr => ({
-        ...attr,
-        customKey: attr.customKey || ""
-      }))
-    };
-    setProviderPricing(updatedProviderPricing);
-    onComplete();
+    if (!editMode) {
+      const updatedProviderPricing = {
+        ...providerPricing,
+        attributes: data.attributes.map(attr => ({
+          key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",
+          value: attr.value
+        }))
+      };
+      setProviderPricing(updatedProviderPricing);
+      onComplete && onComplete();
+    } else {
+      const attributes = data.attributes.map(attr => ({
+        key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",
+        value: attr.value
+      }));
+      const request = {
+        control_machine: sanitizeMachineAccess(activeControlMachine),
+        attributes
+      };
+
+      const response = await restClient.post(`/update-provider-attributes`, request);
+      if (response) {
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 10000);
+      }
+    }
   };
 
   return (
     <div className="flex w-full flex-col items-center pt-10">
       <div className="w-full max-w-2xl space-y-6">
         <div>
-          <h3 className="text-xl font-bold">Provider Attributes</h3>
-          <p className="text-muted-foreground text-sm">Please enter your provider attributes.</p>
+          <h3 className="text-xl font-bold">{existingAttributes ? "Edit Provider Attributes" : "Provider Attributes"}</h3>
+          <p className="text-muted-foreground text-sm">
+            {existingAttributes ? "Please update your provider attributes." : "Please enter your provider attributes."}
+          </p>
         </div>
         <div>
           <Separator />
@@ -154,16 +189,20 @@ export const ProviderAttributes: React.FC<ProviderAttributesProps> = ({ onComple
                 <Separator />
               </div>
               <div className="flex w-full justify-between">
-                <div className="flex justify-start">
-                  <ResetProviderForm />
-                </div>
+                <div className="flex justify-start">{!editMode && <ResetProviderForm />}</div>
                 <div className="flex justify-end">
-                  <Button type="submit">Next</Button>
+                  <Button type="submit">{editMode ? "Update Attributes" : "Next"}</Button>
                 </div>
               </div>
             </form>
           </Form>
         </div>
+        {showSuccess && (
+          <Alert>
+            <AlertTitle>Success</AlertTitle>
+            <AlertDescription>Provider attributes updated successfully</AlertDescription>
+          </Alert>
+        )}
       </div>
     </div>
   );

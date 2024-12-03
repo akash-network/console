@@ -104,7 +104,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
 
           <div className="my-4 flex items-center space-x-4">
             {isManagedWallet && (
-              <TopUpAmountPicker popoverClassName="absolute md:min-w-max">
+              <TopUpAmountPicker popoverClassName="absolute md:min-w-max" mdMode="hover">
                 <LoginRequiredLink
                   className={cn("hover:no-underline", buttonVariants({ variant: "outline", className: "mr-2 border-primary" }))}
                   href="/api/proxy/v1/checkout"

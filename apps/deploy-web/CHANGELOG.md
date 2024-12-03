@@ -1,5 +1,33 @@
 
 
+## [2.25.1-beta.1](https://github.com/akash-network/console/compare/console-web/v2.25.1-beta.0...console-web/v2.25.1-beta.1) (2024-12-03)
+
+
+### Bug Fixes
+
+* ensure proper schema type on server props getter ([aedf03d](https://github.com/akash-network/console/commit/aedf03d837fd6b2ebd6e76b32a694e043053a441))
+
+## [2.25.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.25.0...console-web/v2.25.1-beta.0) (2024-11-28)
+
+
+### Bug Fixes
+
+* **observability:** ensure pino-pretty works in built app ([7f6f9ca](https://github.com/akash-network/console/commit/7f6f9ca7ca4e1ff4bc3b85735270f61cc8120242)), closes [#474](https://github.com/akash-network/console/issues/474)
+
+## [2.25.0](https://github.com/akash-network/console/compare/console-web/v2.25.0-beta.1...console-web/v2.25.0) (2024-11-26)
+
+## [2.25.0-beta.1](https://github.com/akash-network/console/compare/console-web/v2.25.0-beta.0...console-web/v2.25.0-beta.1) (2024-11-26)
+
+
+### Features
+
+* **deployment:** implement ato top up setting ([1301314](https://github.com/akash-network/console/commit/130131485a68f699587415f96283e0dc83072502)), closes [#412](https://github.com/akash-network/console/issues/412)
+
+
+### Bug Fixes
+
+* **billing:** ensure checkout pricing is displayed correctly ([3bcb4a8](https://github.com/akash-network/console/commit/3bcb4a881e3bb58e741de8bb8a0a661dede0d8ae))
+
 ## [2.25.0-beta.0](https://github.com/akash-network/console/compare/console-web/v2.24.1...console-web/v2.25.0-beta.0) (2024-11-23)
 
 

@@ -5,11 +5,13 @@ import { Button } from "@akashnetwork/ui/components";
 
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
+import { useLogger } from "@/hooks/useLogger";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const transactionLogger = useLogger("apps/stats-web/src/app/transactions/[hash]/errors.tsx");
   useEffect(() => {
     // Log the error to an error reporting service
-    console.error(error);
+    transactionLogger.debug(error);
   }, [error]);
 
   return (

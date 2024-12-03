@@ -25,7 +25,8 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL: z.string().url(),
   NEXT_PUBLIC_BITBUCKET_CLIENT_ID: z.string().optional(),
   NEXT_PUBLIC_GITLAB_CLIENT_ID: z.string().optional(),
-  NEXT_PUBLIC_GITHUB_CLIENT_ID: z.string().optional()
+  NEXT_PUBLIC_GITHUB_CLIENT_ID: z.string().optional(),
+  NEXT_PUBLIC_CI_CD_IMAGE_NAME: z.string()
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({
@@ -42,7 +43,8 @@ export const serverEnvSchema = browserEnvSchema.extend({
   BASE_API_SANDBOX_URL: z.string().url(),
   GITHUB_CLIENT_SECRET: z.string(),
   BITBUCKET_CLIENT_SECRET: z.string(),
-  GITLAB_CLIENT_SECRET: z.string()
+  GITLAB_CLIENT_SECRET: z.string(),
+  NEXT_PUBLIC_CI_CD_IMAGE_NAME: z.string()
 });
 
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;

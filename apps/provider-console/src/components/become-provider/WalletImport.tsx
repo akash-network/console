@@ -21,7 +21,10 @@ import { useAtom } from "jotai";
 import { useRouter } from "next/router";
 import { z } from "zod";
 
+import { useControlMachine } from "@src/context/ControlMachineProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
+import { ControlMachineWithAddress } from "@src/types/controlMachine";
 import restClient from "@src/utils/restClient";
 import { ResetProviderForm } from "./ResetProviderProcess";
 
@@ -77,6 +80,8 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
 
   const [providerProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
+  const { setControlMachine } = useControlMachine();
+  const { address } = useWallet();
 
   const defaultValues: Partial<AppearanceFormValues> = {
     walletMode: "seed"
@@ -95,51 +100,58 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
   };
 
   const submitForm = async (data: SeedFormValues) => {
-    if (!providerProcess.machines || providerProcess.machines.length === 0) {
-      setError("No machine information available");
-    }
     setIsLoading(true);
     setError(null);
     try {
-      const publicKey = providerProcess.machines[0].systemInfo.public_key;
-      const keyId = providerProcess.machines[0].systemInfo.key_id;
-      const encryptedSeedPhrase = await encrypt(data.seedPhrase, publicKey);
+      if (providerProcess.machines && providerProcess.machines.length > 0) {
+        const publicKey = providerProcess.machines[0].systemInfo.public_key;
+        const keyId = providerProcess.machines[0].systemInfo.key_id;
+        const encryptedSeedPhrase = await encrypt(data.seedPhrase, publicKey);
 
-      const finalRequest = {
-        wallet: {
-          key_id: keyId,
-          wallet_phrase: encryptedSeedPhrase
-        },
-        nodes: providerProcess.machines.map(machine => ({
-          hostname: machine.access.hostname,
-          port: machine.access.port,
-          username: machine.access.username,
-          keyfile: machine.access.file,
-          password: machine.access.password,
-          install_gpu_drivers: machine.systemInfo.gpu.count > 0 ? true : false
-        })),
-        provider: {
-          attributes: providerProcess.attributes,
-          pricing: providerProcess.pricing,
-          config: providerProcess.config
+        const finalRequest = {
+          wallet: {
+            key_id: keyId,
+            wallet_phrase: encryptedSeedPhrase
+          },
+          nodes: providerProcess.machines.map(machine => ({
+            hostname: machine.access.hostname,
+            port: machine.access.port,
+            username: machine.access.username,
+            keyfile: machine.access.file,
+            password: machine.access.password,
+            install_gpu_drivers: machine.systemInfo.gpu.count > 0 ? true : false
+          })),
+          provider: {
+            attributes: providerProcess.attributes,
+            pricing: providerProcess.pricing,
+            config: providerProcess.config
+          }
+        };
+
+        const response: any = await restClient.post("/build-provider", finalRequest, {
+          headers: { "Content-Type": "application/json" }
+        });
+
+        if (response.action_id) {
+          const machineWithAddress: ControlMachineWithAddress = {
+            address: address,
+            ...providerProcess.machines[0]
+          };
+          await setControlMachine(machineWithAddress);
+          resetProviderProcess();
+          router.push(`/actions/${response.action_id}`);
+        } else {
+          throw new Error("Invalid response from server");
         }
-      };
-
-      const response: any = await restClient.post("/build-provider", finalRequest, {
-        headers: { "Content-Type": "application/json" }
-      });
-
-      if (response.action_id) {
-        resetProviderProcess();
-        router.push(`/action?id=${response.action_id}`);
       } else {
-        throw new Error("Invalid response from server");
+        throw new Error("No machine information available");
       }
     } catch (error) {
+      console.error("Error during wallet verification:", error);
       setError("An error occurred while processing your request. Please try again.");
     } finally {
-      onComplete();
       setIsLoading(false);
+      onComplete();
     }
   };
 

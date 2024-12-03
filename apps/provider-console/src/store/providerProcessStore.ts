@@ -27,7 +27,7 @@ interface ProviderPricing {
   endpointBidPrice: number
 }
 
-interface ProviderAttribute { key: string, value: string, customKey: string }
+export interface ProviderAttribute { key: string, value: string }
 
 interface ProviderProcess {
   machines: MachineInformation[],
