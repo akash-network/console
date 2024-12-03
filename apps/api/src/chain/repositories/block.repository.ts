@@ -1,4 +1,4 @@
-import { Block } from "@akashnetwork/database/dbSchemas/base";
+import { Block } from "@akashnetwork/database/dbSchemas";
 import { singleton } from "tsyringe";
 
 @singleton()
