@@ -1,5 +1,12 @@
 
 
+## [2.35.4-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.3...console-api/v2.35.4-beta.0) (2024-12-03)
+
+
+### Bug Fixes
+
+* **billing:** filter prices by product ([45eb976](https://github.com/akash-network/console/commit/45eb9762b7c7fd542359bf91b8f92cf7c708b749)), closes [#511](https://github.com/akash-network/console/issues/511)
+
 ## [2.35.3](https://github.com/akash-network/console/compare/console-api/v2.35.3-beta.0...console-api/v2.35.3) (2024-12-03)
 
 ## [2.35.3-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.2...console-api/v2.35.3-beta.0) (2024-12-03)
