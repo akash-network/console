@@ -1,5 +1,12 @@
 
 
+## [2.25.1-beta.1](https://github.com/akash-network/console/compare/console-web/v2.25.1-beta.0...console-web/v2.25.1-beta.1) (2024-12-03)
+
+
+### Bug Fixes
+
+* ensure proper schema type on server props getter ([aedf03d](https://github.com/akash-network/console/commit/aedf03d837fd6b2ebd6e76b32a694e043053a441))
+
 ## [2.25.1-beta.0](https://github.com/akash-network/console/compare/console-web/v2.25.0...console-web/v2.25.1-beta.0) (2024-11-28)
 
 
