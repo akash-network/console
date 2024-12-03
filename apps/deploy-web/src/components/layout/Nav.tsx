@@ -7,13 +7,13 @@ import Link from "next/link";
 
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
 import useCookieTheme from "@src/hooks/useTheme";
 import walletStore from "@src/store/walletStore";
 import { UrlService } from "@src/utils/urlUtils";
 import { AkashConsoleLogoDark, AkashConsoleLogoLight } from "../icons/AkashConsoleLogo";
 import { AccountMenu } from "./AccountMenu";
 import { WalletStatus } from "./WalletStatus";
-import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
 
 export const Nav = ({
   isMobileOpen,

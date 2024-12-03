@@ -13,6 +13,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { useWallet } from "@src/context/WalletProvider";
+import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
 import sdlStore from "@src/store/sdlStore";
 import { ISidebarGroupMenu } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
@@ -20,7 +21,6 @@ import { MobileSidebarUser } from "./MobileSidebarUser";
 import { ModeToggle } from "./ModeToggle";
 import { NodeStatusBar } from "./NodeStatusBar";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
-import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
 
 const { publicRuntimeConfig } = getConfig();
 

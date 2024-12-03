@@ -9,11 +9,11 @@ import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
+import { ConnectManagedWalletButton } from "../wallet/ConnectManagedWalletButton";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
-import { ConnectManagedWalletButton } from "../wallet/ConnectManagedWalletButton";
-import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
 
 type Props = {
   isLoading?: boolean;
