@@ -44,7 +44,7 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
       <div className="w-full space-y-6">
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
-            {actionDetails?.status === "in_progress" && <Spinner className="h-5 w-5 animate-spin text-blue-500" />}
+            {actionDetails?.status === "in_progress" && <Spinner className="text-blue-500" size="small" />}
             {actionDetails?.status === "completed" && <Check className="h-5 w-5 text-green-500" />}
             {actionDetails?.status === "failed" && <Xmark className="h-5 w-5 text-red-500" />}
             <span className="text-xl font-semibold">{actionDetails?.name}</span>
@@ -77,7 +77,7 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
                       </p>
                     )}
                     {task.status === "completed" && <Check className="h-4 w-4 text-green-500" />}
-                    {task.status === "in_progress" && <Spinner className="h-5 w-5 animate-spin text-blue-500" />}
+                    {task.status === "in_progress" && <Spinner className="text-blue-500" size="small" />}
                     {task.status === "not_started" && <div className="h-5 w-5 rounded-full border-2"></div>}
                     {task.status === "failed" && <Xmark className="h-4 w-4 text-red-500" />}
                   </div>

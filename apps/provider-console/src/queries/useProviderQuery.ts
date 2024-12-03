@@ -1,8 +1,10 @@
 import { useQuery } from "react-query";
 
+import { ControlMachineWithAddress } from "@src/types/controlMachine";
 import consoleClient from "@src/utils/consoleClient";
 import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
 import restClient from "@src/utils/restClient";
+import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 
 export const useProviderDeployments = (address: string, status: string, currentPage: number, pageSize: number) => {
   return useQuery({
@@ -82,7 +84,7 @@ export const useProviderActions = () => {
     queryKey: ["providerActions"],
     queryFn: async () => {
       const response: any = await restClient.get("/actions");
-      return response.actions;  
+      return response.actions;
     },
     refetchOnWindowFocus: false,
     retry: 3
@@ -94,7 +96,7 @@ export const useProviderActionStatus = (actionId: string | null) => {
     queryKey: ["providerActionStatus", actionId],
     queryFn: () => restClient.get(`/action/status/${actionId}`),
     enabled: !!actionId,
-    refetchInterval: (data: any) => 
+    refetchInterval: (data: any) =>
       data?.status === "completed" || data?.status === "failed" ? false : 5000,
     retry: 3
   });
@@ -123,6 +125,15 @@ export const useProviderOnlineStatus = (chainId: string, isProvider: boolean) =>
       return response.online;
     },
     enabled: isProvider,
+    retry: 3
+  });
+};
+
+export const usePersistentStorage = (activeControlMachine: ControlMachineWithAddress | null) => {
+  return useQuery({
+    queryKey: ["persistentStorage"],
+    queryFn: () => restClient.post(`/get-unformatted-drives`, { control_machine: sanitizeMachineAccess(activeControlMachine) }),
+    enabled: !!activeControlMachine,
     retry: 3
   });
 };

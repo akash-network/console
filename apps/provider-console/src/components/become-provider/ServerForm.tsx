@@ -364,7 +364,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
                   <Button type="submit" disabled={isVerifying}>
                     {isVerifying ? (
                       <>
-                        <Spinner />
+                        <Spinner size="small" className="mr-2"/>
                         Verifying...
                       </>
                     ) : editMode ? (
