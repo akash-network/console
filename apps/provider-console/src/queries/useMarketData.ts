@@ -25,7 +25,7 @@ export function useAKTData(options?: Omit<UseQueryOptions<{ aktPrice: string }, 
     [...QueryKeys.getFinancialDataKey(), 'akt-price'],
     () => getAKTPrice(),
     {
-      refetchInterval: 5 * 60 * 1000, // 5 minutes in milliseconds
+      refetchInterval: 15 * 60 * 1000, // 15 minutes in milliseconds
       ...options
     }
   );
