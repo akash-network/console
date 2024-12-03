@@ -12,7 +12,7 @@ const contextSchema = z.object({
   })
 });
 
-export const getServerSideProps = getValidatedServerSideProps<TemplateDetailProps>(contextSchema, async ({ params }) => {
+export const getServerSideProps = getValidatedServerSideProps<TemplateDetailProps, typeof contextSchema>(contextSchema, async ({ params }) => {
   const template = await services.template.findById(params.templateId);
 
   if (!template) {
