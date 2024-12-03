@@ -13,6 +13,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { AkashConsoleLogoDark, AkashConsoleLogoLight } from "../icons/AkashConsoleLogo";
 import { AccountMenu } from "./AccountMenu";
 import { WalletStatus } from "./WalletStatus";
+import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
 
 export const Nav = ({
   isMobileOpen,
@@ -24,9 +25,14 @@ export const Nav = ({
   const theme = useCookieTheme();
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const { user } = useCustomUser();
+  const hasCreditCardBanner = useHasCreditCardBanner();
 
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-border bg-popover dark:bg-background">
+    <header
+      className={cn("fixed top-0 z-50 w-full border-b border-border bg-popover dark:bg-background", {
+        "top-[40px]": hasCreditCardBanner
+      })}
+    >
       <div className="flex h-14 items-center justify-between pl-4 pr-4">
         {!!theme && (
           <Link className="flex items-center" href="/">

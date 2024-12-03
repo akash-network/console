@@ -20,6 +20,7 @@ import { MobileSidebarUser } from "./MobileSidebarUser";
 import { ModeToggle } from "./ModeToggle";
 import { NodeStatusBar } from "./NodeStatusBar";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
+import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
 
 const { publicRuntimeConfig } = getConfig();
 
@@ -41,6 +42,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const wallet = useWallet();
+  const hasCreditCardBanner = useHasCreditCardBanner();
 
   const mainRoutes = useMemo(() => {
     const routes = [
@@ -303,7 +305,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         PaperProps={{
           className: cn("border-none ease z-[1000] bg-header/95 transition-[width] duration-300 box-border overflow-hidden mt-[57px]", {
             ["md:w-[240px]"]: _isNavOpen,
-            ["md:w-[57px]"]: !_isNavOpen
+            ["md:w-[57px]"]: !_isNavOpen,
+            ["h-[calc(100%-40px)] mt-[97px]"]: hasCreditCardBanner
           })
         }}
         open
