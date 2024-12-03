@@ -133,7 +133,3 @@ export function useTemplates(options = {}) {
     refetchOnReconnect: false
   });
 }
-
-export function useTemplateById(id: string, options: UseQueryOptions<TemplateOutput, Error, any, QueryKey> = {}): UseQueryResult<TemplateOutput> {
-  return useQuery(QueryKeys.getTemplateKey(id), () => services.template.findById(id), options);
-}
