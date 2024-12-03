@@ -44,7 +44,7 @@ export class StripeService extends Stripe {
   }
 
   private async getPrice(amount?: string) {
-    const { data: prices } = await this.prices.list({ product: this.billingConfig.get("STRIPE_PRODUCT_ID") });
+    const { data: prices } = await this.prices.list({ active: true, product: this.billingConfig.get("STRIPE_PRODUCT_ID") });
 
     const price = prices.find(price => {
       const isCustom = !amount && !!price.custom_unit_amount;
@@ -62,7 +62,7 @@ export class StripeService extends Stripe {
   }
 
   async findPrices(): Promise<StripePrices[]> {
-    const { data: prices } = await this.prices.list({ active: true });
+    const { data: prices } = await this.prices.list({ active: true, product: this.billingConfig.get("STRIPE_PRODUCT_ID") });
     const responsePrices = prices.map(price => ({
       unitAmount: price.custom_unit_amount ? undefined : price.unit_amount / 100,
       isCustom: !!price.custom_unit_amount,
