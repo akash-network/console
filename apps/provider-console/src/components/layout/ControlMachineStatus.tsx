@@ -14,7 +14,7 @@ export const ControlMachineStatus = () => {
         <button
           onClick={openControlMachineDrawer}
           disabled={controlMachineLoading}
-          className={`rounded px-3 py-1 text-xs ${controlMachineLoading ? "cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600"}`}
+          className={`rounded px-3 py-1 text-xs ${controlMachineLoading ? "cursor-not-allowed" : "bg-red-500 hover:bg-red-600"}`}
         >
           {controlMachineLoading ? (
             <span className="flex items-center gap-1">
