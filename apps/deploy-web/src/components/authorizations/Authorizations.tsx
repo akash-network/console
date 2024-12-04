@@ -5,6 +5,7 @@ import { Bank } from "iconoir-react";
 import { NextSeo } from "next-seo";
 
 import { Fieldset } from "@src/components/shared/Fieldset";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllowance } from "@src/hooks/useAllowance";
 import { useAllowancesIssued, useGranteeGrants, useGranterGrants } from "@src/queries/useGrantsQuery";
@@ -26,6 +27,14 @@ type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "
 const defaultRefetchInterval = 30 * 1000;
 const refreshingInterval = 1000;
 
+const MASTER_WALLETS = new Set([
+  browserEnvConfig.NEXT_PUBLIC_USDC_TOP_UP_MASTER_WALLET_ADDRESS,
+  browserEnvConfig.NEXT_PUBLIC_UAKT_TOP_UP_MASTER_WALLET_ADDRESS
+]);
+
+const selectNonMaster = (records: Pick<GrantType, "grantee">[] | Pick<AllowanceType, "grantee">[]) =>
+  records.filter(({ grantee }) => !MASTER_WALLETS.has(grantee));
+
 export const Authorizations: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, isManaged } = useWallet();
   const {
@@ -41,13 +50,15 @@ export const Authorizations: React.FunctionComponent = () => {
   const [selectedGrants, setSelectedGrants] = useState<GrantType[]>([]);
   const [selectedAllowances, setSelectedAllowances] = useState<AllowanceType[]>([]);
   const { data: granterGrants, isLoading: isLoadingGranterGrants } = useGranterGrants(address, {
-    refetchInterval: isRefreshing === "granterGrants" ? refreshingInterval : defaultRefetchInterval
+    refetchInterval: isRefreshing === "granterGrants" ? refreshingInterval : defaultRefetchInterval,
+    select: selectNonMaster
   });
   const { data: granteeGrants, isLoading: isLoadingGranteeGrants } = useGranteeGrants(address, {
     refetchInterval: isRefreshing === "granteeGrants" ? refreshingInterval : defaultRefetchInterval
   });
   const { data: allowancesIssued, isLoading: isLoadingAllowancesIssued } = useAllowancesIssued(address, {
-    refetchInterval: isRefreshing === "allowancesIssued" ? refreshingInterval : defaultRefetchInterval
+    refetchInterval: isRefreshing === "allowancesIssued" ? refreshingInterval : defaultRefetchInterval,
+    select: selectNonMaster
   });
 
   useEffect(() => {

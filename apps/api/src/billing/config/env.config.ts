@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const envSchema = z.object({
+export const envSchema = z.object({
   MASTER_WALLET_MNEMONIC: z.string(),
   UAKT_TOP_UP_MASTER_WALLET_MNEMONIC: z.string(),
   USDC_TOP_UP_MASTER_WALLET_MNEMONIC: z.string(),
@@ -17,9 +17,10 @@ const envSchema = z.object({
   ALLOWANCE_REFILL_BATCH_SIZE: z.number({ coerce: true }).default(10),
   MASTER_WALLET_BATCHING_INTERVAL_MS: z.number().optional().default(1000),
   STRIPE_SECRET_KEY: z.string(),
-  STRIPE_PRICE_ID: z.string(),
+  STRIPE_PRODUCT_ID: z.string(),
   STRIPE_WEBHOOK_SECRET: z.string(),
-  STRIPE_CHECKOUT_REDIRECT_URL: z.string()
+  STRIPE_CHECKOUT_REDIRECT_URL: z.string(),
+  STRIPE_ENABLE_COUPONS: z.enum(["true", "false"]).default("false")
 });
 
 export const envConfig = envSchema.parse(process.env);

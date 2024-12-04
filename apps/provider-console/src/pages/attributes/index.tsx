@@ -12,7 +12,6 @@ const Attributes: React.FunctionComponent = () => {
     "providerDetails",
     () => consoleClient.get(`/v1/providers/${address}`),
     {
-      // You might want to adjust these options based on your needs
       refetchOnWindowFocus: false,
       retry: 3
     }

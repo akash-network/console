@@ -61,7 +61,10 @@ export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ a
           <div className="rounded-md border">
             {actionDetails?.tasks.map((task, index) => (
               <div key={index}>
-                <div className="flex cursor-pointer items-center justify-between p-4" onClick={() => toggleAccordion(index)}>
+                <div
+                  className="flex cursor-pointer items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-600/50"
+                  onClick={() => toggleAccordion(index)}
+                >
                   <div className="flex items-center">
                     {openAccordions[index] ? <ArrowDown className="mr-2 h-5 w-5" /> : <ArrowRight className="mr-2 h-5 w-5" />}
                     <span>{task.description}</span>

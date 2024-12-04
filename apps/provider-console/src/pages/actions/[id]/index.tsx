@@ -29,8 +29,6 @@ const ActionDetailsPage: React.FC<Props> = ({ id }) => {
 
 export default ActionDetailsPage;
 
-// export default withAuth(ActionDetailsPage);
-
 export async function getServerSideProps({ params }) {
   return {
     props: {

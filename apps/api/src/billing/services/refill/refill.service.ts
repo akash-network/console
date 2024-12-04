@@ -68,6 +68,6 @@ export class RefillService {
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: true });
-    this.logger.debug({ event: "WALLET_TOP_UP", limits });
+    this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
   }
 }

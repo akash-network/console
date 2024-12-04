@@ -6,7 +6,7 @@ import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUserFavoriteTemplates } from "@src/queries/useTemplateQuery";
-import { AnalyticsEvents } from "@src/utils/analytics";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import Layout from "../layout/Layout";
 
 export const UserFavorites: React.FunctionComponent = () => {
@@ -36,7 +36,7 @@ export const UserFavorites: React.FunctionComponent = () => {
               template={t}
               onClick={() => {
                 event(AnalyticsEvents.USER_PROFILE_CLICK_TEMPLATE, {
-                  category: "profile",
+                  category: AnalyticsCategory.PROFILE,
                   label: "Click on template from templates"
                 });
               }}

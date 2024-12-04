@@ -10,14 +10,22 @@ export interface FormInputProps extends InputProps {
   label?: string | React.ReactNode;
   description?: string;
   inputClassName?: string;
+  dirty?: boolean;
 }
 
-const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ className, inputClassName, type, label, description, ...props }, ref) => {
+const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({ className, inputClassName, type, label, description, dirty, ...props }, ref) => {
   const { error } = useFormField();
   return (
     <FormItem className={className}>
       <FormControl>
-        <Input type={type} inputClassName={inputClassName} ref={ref} error={!!error} label={label} {...props} />
+        <Input
+          type={type}
+          inputClassName={cn(inputClassName, { "bg-amber-100 dark:bg-amber-900/30": dirty })}
+          ref={ref}
+          error={!!error}
+          label={label}
+          {...props}
+        />
       </FormControl>
       {description && <FormDescription>{description}</FormDescription>}
       <FormMessage />

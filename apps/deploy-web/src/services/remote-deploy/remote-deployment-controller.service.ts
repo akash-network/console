@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 
 export class EnvVarUpdater {
@@ -35,8 +36,8 @@ export function formatUrlWithoutInitialPath(url?: string): string | undefined {
   return url?.split("/").slice(-2).join("/");
 }
 
-export function isImageInYaml(yml: string, cicdYml?: string): boolean | undefined {
-  return cicdYml?.includes(yml?.split("service-1:")?.[1]?.split("expose:")?.[0]?.split("image: ")?.[1]);
+export function isCiCdImageInYaml(yml: string): boolean | undefined {
+  return yml.includes(browserEnvConfig.NEXT_PUBLIC_CI_CD_IMAGE_NAME);
 }
 
 export function extractRepositoryUrl(yml?: string | null): string | null {

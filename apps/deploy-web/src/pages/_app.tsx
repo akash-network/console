@@ -56,6 +56,7 @@ const App: React.FunctionComponent<Props> = props => {
               <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
                 <ColorModeProvider>
                   <CustomSnackbarProvider>
+                    <GoogleAnalytics />
                     <UserProviders>
                       <PricingProvider>
                         <TooltipProvider>
@@ -68,7 +69,6 @@ const App: React.FunctionComponent<Props> = props => {
                                       <BackgroundTaskProvider>
                                         <TemplatesProvider>
                                           <LocalNoteProvider>
-                                            <GoogleAnalytics />
                                             <Component {...pageProps} />
                                           </LocalNoteProvider>
                                         </TemplatesProvider>

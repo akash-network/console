@@ -2,10 +2,13 @@
 
 import { useEffect } from "react";
 
+import { useLogger } from "@/hooks/useLogger";
+
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const blockErrorLogger = useLogger("apps/stats-web/src/app/blocks/[height]/errors.tsx");
   useEffect(() => {
     // Log the error to an error reporting service
-    console.error(error);
+    blockErrorLogger.debug(error);
   }, [error]);
 
   return (
