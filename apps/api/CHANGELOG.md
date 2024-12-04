@@ -1,5 +1,12 @@
 
 
+## [2.36.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.4-beta.0...console-api/v2.36.0-beta.0) (2024-12-04)
+
+
+### Features
+
+* **deployment:** add concurrency for top up deployment  ([0b4abf5](https://github.com/akash-network/console/commit/0b4abf5510eca6986257081ba5481936b6cb54f6)), closes [#519](https://github.com/akash-network/console/issues/519)
+
 ## [2.35.4-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.3...console-api/v2.35.4-beta.0) (2024-12-03)
 
 
