@@ -8,7 +8,7 @@ import { DashboardCardSkeleton } from "@src/components/dashboard/DashboardCardSk
 import { FinanceCard } from "@src/components/dashboard/FinanceCard";
 import { ResourceCards } from "@src/components/dashboard/ResourcesCard";
 import { Layout } from "@src/components/layout/Layout";
-import { ProviderActionList } from "@src/components/shared/ProviderActionList";
+import { ActivityLogList } from "@src/components/shared/ActivityLogList";
 import { Title } from "@src/components/shared/Title";
 import { withAuth } from "@src/components/shared/withAuth";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
@@ -122,8 +122,8 @@ const Dashboard: React.FC = () => {
       <Separator className="mt-10" />
       <div className="mt-8">
         <div className="mt-2">
-          <div className="text-lg font-semibold">Recent Provider Actions</div>
-          {isLoadingProviderActions ? <Spinner className="mt-4" /> : <ProviderActionList actions={providerActions?.slice(0, 5) || []} />}
+          <div className="text-lg font-semibold">Activity Logs</div>
+          {isLoadingProviderActions ? <Spinner className="mt-4" /> : <ActivityLogList actions={providerActions?.slice(0, 5) || []} />}
         </div>
       </div>
     </Layout>

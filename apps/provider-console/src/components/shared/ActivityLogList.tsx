@@ -1,4 +1,5 @@
 import React, { useCallback } from "react";
+import { Separator } from "@akashnetwork/ui/components";
 import { CheckCircle, Play, XmarkCircle } from "iconoir-react";
 import { useRouter } from "next/router";
 
@@ -10,7 +11,7 @@ interface ProviderAction {
   end_time?: string;
 }
 
-interface ProviderActionListProps {
+interface ActivityLogsListProps {
   actions: ProviderAction[];
 }
 
@@ -31,7 +32,7 @@ const StatusIcon: React.FC<StatusIconProps> = ({ status }) => {
   }
 };
 
-export const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions }) => {
+export const ActivityLogList: React.FC<ActivityLogsListProps> = ({ actions }) => {
   const router = useRouter();
 
   const formatDate = useCallback((dateString: string) => {
@@ -60,12 +61,19 @@ export const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions 
   };
 
   return (
-    <div className="w-full">
+    <div className="mt-5 w-full">
+      <div className="mb-4 grid grid-cols-12 items-center gap-4 px-4 text-sm font-medium text-gray-500">
+        <div className="col-span-4">Action</div>
+        <div className="col-span-2">Duration</div>
+        <div className="col-span-4">Timestamp</div>
+        <div className="col-span-2 text-right">Status</div>
+      </div>
+      <Separator />
       <ul className="divide-y divide-gray-200">
         {actions.length > 0 ? (
           actions.map(action => (
             <li key={action.id} className="cursor-pointer py-4 hover:bg-gray-50 dark:hover:bg-gray-600/50" onClick={() => handleRowClick(action.id)}>
-              <div className="grid grid-cols-12 items-center gap-4">
+              <div className="grid grid-cols-12 items-center gap-4 px-4">
                 <div className="col-span-4">
                   <p className="text-sm font-medium">{action.name}</p>
                 </div>

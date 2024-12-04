@@ -5,11 +5,11 @@ import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import {
-  Calculator,
   ClipboardCheck,
   Cloud,
   DatabaseCheck,
   Discord,
+  Dollar,
   Github,
   ListSelect,
   Menu,
@@ -68,15 +68,15 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
           activeRoutes: [UrlService.deployments()]
         },
         {
-          title: "Actions",
+          title: "Activity Logs",
           icon: props => <ClipboardCheck {...props} />,
-          url: UrlService.actions(),
-          activeRoutes: [UrlService.actions()],
+          url: UrlService.activityLogs(),
+          activeRoutes: [UrlService.activityLogs()],
           disabled: false
         },
         {
           title: "Pricing",
-          icon: props => <Calculator {...props} />,
+          icon: props => <Dollar {...props} />,
           url: UrlService.pricing(),
           activeRoutes: [UrlService.pricing()],
           disabled: false

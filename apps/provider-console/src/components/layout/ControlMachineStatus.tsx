@@ -11,19 +11,15 @@ export const ControlMachineStatus = () => {
       <button
         onClick={openControlMachineDrawer}
         disabled={controlMachineLoading}
-        className={`rounded px-3 py-1 text-xs text-white ${
-          controlMachineLoading
-            ? "bg-gray-400 cursor-not-allowed"
-            : activeControlMachine
-            ? "bg-green-500 hover:bg-green-600"
-            : "bg-red-500 hover:bg-red-600"
+        className={`rounded px-3 py-1 text-xs ${
+          controlMachineLoading ? "cursor-not-allowed" : activeControlMachine ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600"
         }`}
       >
         {controlMachineLoading ? (
-          <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1">
             <Spinner size="small" />
             <span>Loading...</span>
-          </div>
+          </span>
         ) : activeControlMachine ? (
           "Disconnect"
         ) : (
