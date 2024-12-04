@@ -1,5 +1,12 @@
 
 
+## [2.25.2-beta.0](https://github.com/akash-network/console/compare/console-web/v2.25.1...console-web/v2.25.2-beta.0) (2024-12-04)
+
+
+### Bug Fixes
+
+* **billing:** banner light mode styling ([a5aa61b](https://github.com/akash-network/console/commit/a5aa61bff15bfbb4f2e4bdf7664f983f79b10f3a)), closes [#520](https://github.com/akash-network/console/issues/520)
+
 ## [2.25.1](https://github.com/akash-network/console/compare/console-web/v2.25.1-beta.2...console-web/v2.25.1) (2024-12-04)
 
 ## [2.25.1-beta.2](https://github.com/akash-network/console/compare/console-web/v2.25.1-beta.1...console-web/v2.25.1-beta.2) (2024-12-04)
