@@ -108,19 +108,3 @@ async function getProviderRegions(): Promise<Array<ApiProviderRegion>> {
 export function useProviderRegions(options = {}) {
   return useQuery(QueryKeys.getProviderRegionsKey(), () => getProviderRegions(), options);
 }
-
-async function getTrialProviders() {
-  const response = await axios.get(ApiUrlService.trialProviders());
-
-  return response.data;
-}
-
-export function useTrialProviders(options = {}) {
-  return useQuery<Array<string>>(QueryKeys.getTrialProvidersKey(), () => getTrialProviders(), {
-    ...options,
-    refetchInterval: false,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false
-  });
-}

@@ -1,0 +1,1 @@
+export const USER_TEMPLATE_CODE = "USER_TEMPLATE";

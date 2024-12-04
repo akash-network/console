@@ -1,12 +1,21 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useStoredAnonymousUser } from "@src/hooks/useStoredAnonymousUser";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { CustomUserProfile } from "@src/types/user";
 
 export const useUser = (): CustomUserProfile => {
   const { user: registeredUser } = useCustomUser();
   const { user: anonymousUser } = useStoredAnonymousUser();
 
-  return useMemo(() => registeredUser || anonymousUser, [registeredUser, anonymousUser]);
+  const user = useMemo(() => registeredUser || anonymousUser, [registeredUser, anonymousUser]);
+
+  useEffect(() => {
+    if (user?.id) {
+      analyticsService.setUser(user?.id);
+    }
+  }, [user?.id]);
+
+  return user;
 };

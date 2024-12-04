@@ -1,7 +1,6 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 
-import { cacheKeys, cacheResponse } from "@src/caching/helpers";
-import { getTemplateGallery } from "@src/services/external/templateReposService";
+import { getCachedTemplatesGallery } from "@src/services/external/templateReposService";
 
 const route = createRoute({
   method: "get",
@@ -9,7 +8,7 @@ const route = createRoute({
   tags: ["Other"],
   responses: {
     200: {
-      description: "Returns a list of deployment templates grouped by cateogories",
+      description: "Returns a list of deployment templates grouped by categories",
       content: {
         "application/json": {
           schema: z.array(
@@ -40,7 +39,10 @@ const route = createRoute({
   }
 });
 
+/**
+ * @deprecated should stay for some time in order to let UI to migrate to shorten list version.
+ */
 export default new OpenAPIHono().openapi(route, async c => {
-  const response = await cacheResponse(60 * 5, cacheKeys.getTemplates, async () => await getTemplateGallery(), true);
-  return c.json(response);
+  const templatesPerCategory = await getCachedTemplatesGallery();
+  return c.json(templatesPerCategory);
 });

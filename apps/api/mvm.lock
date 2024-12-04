@@ -3,6 +3,6 @@
     "@akashnetwork/database": "1.0.0",
     "@akashnetwork/env-loader": "1.0.1",
     "@akashnetwork/http-sdk": "1.0.8",
-    "@akashnetwork/logging": "2.0.0"
+    "@akashnetwork/logging": "2.0.2"
   }
 }

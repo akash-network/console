@@ -6,9 +6,9 @@ import { useSnackbar } from "notistack";
 
 import { EnvFormModal } from "@src/components/sdl/EnvFormModal";
 import { EnvVarList } from "@src/components/sdl/EnvVarList";
-import { CI_CD_TEMPLATE_ID, CURRENT_SERVICE, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
+import { browserEnvConfig } from "@src/config/browser-env.config";
+import { CURRENT_SERVICE, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { SdlBuilderProvider } from "@src/context/SdlBuilderProvider";
-import { useTemplates } from "@src/context/TemplatesProvider";
 import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -26,8 +26,6 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(false);
   const { control, watch, setValue } = useForm<SdlBuilderFormValuesType>({ defaultValues: { services: [defaultService] } });
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
-  const { getTemplateById } = useTemplates();
-  const remoteDeployTemplate = getTemplateById(CI_CD_TEMPLATE_ID);
   const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
 
   useEffect(() => {
@@ -51,10 +49,7 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
 
   const createAndValidateSdl = (yamlStr: string) => {
     try {
-      if (!yamlStr) return [];
-      const services = importSimpleSdl(yamlStr);
-
-      return services;
+      return yamlStr ? importSimpleSdl(yamlStr) : [];
     } catch (err) {
       if (err.name === "YAMLException" || err.name === "CustomValidationError") {
         enqueueSnackbar(<Snackbar title={err.message} />, { variant: "error" });
@@ -65,7 +60,7 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
       }
     }
   };
-  return remoteDeployTemplate?.deploy?.includes(services?.[0]?.image) && services?.[0]?.env && services?.[0]?.env?.length > 0 ? (
+  return services?.[0]?.image.startsWith(browserEnvConfig.NEXT_PUBLIC_CI_CD_IMAGE_NAME) && services?.[0]?.env && services?.[0]?.env?.length > 0 ? (
     <div className="flex flex-col gap-6 rounded border bg-card px-4 py-6 md:px-6">
       <div className="flex flex-col gap-3 rounded border bg-card px-6 py-6 text-card-foreground">
         <div className="flex items-center justify-between gap-5">

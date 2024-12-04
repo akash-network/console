@@ -12,6 +12,9 @@ import proposals from "./proposals/list";
 import providerByAddress from "./providers/byAddress";
 import providerDeployments from "./providers/deployments";
 import providerList from "./providers/list";
+import templateById from "./templates/byId";
+import templateList from "./templates/list";
+import templateListFull from "./templates/list-full";
 import transactionByHash from "./transactions/byHash";
 import transactions from "./transactions/list";
 import validatorByAddress from "./validators/byAddress";
@@ -31,7 +34,6 @@ import providerActiveLeasesGraphData from "./providerActiveLeasesGraphData";
 import providerAttributesSchema from "./providerAttributesSchema";
 import providerGraphData from "./providerGraphData";
 import providerRegions from "./providerRegions";
-import templates from "./templates";
 import trialProviders from "./trialProviders";
 
 export default [
@@ -53,7 +55,9 @@ export default [
   validatorByAddress,
   proposals,
   proposalById,
-  templates,
+  templateListFull,
+  templateList,
+  templateById,
   networkCapacity,
   marketData,
   dashboardData,

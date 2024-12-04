@@ -12,7 +12,7 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
 import { EnvironmentVariableType, ITemplate, ServiceType } from "@src/types";
-import { AnalyticsEvents } from "@src/utils/analytics";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 
 type Props = {
   services: ServiceType[];
@@ -76,12 +76,12 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
 
     if (newTemplateMetadata.id) {
       event(AnalyticsEvents.UPDATE_SDL_TEMPLATE, {
-        category: "sdl_builder",
+        category: AnalyticsCategory.SDL_BUILDER,
         label: "Update SDL template"
       });
     } else {
       event(AnalyticsEvents.CREATE_SDL_TEMPLATE, {
-        category: "sdl_builder",
+        category: AnalyticsCategory.SDL_BUILDER,
         label: "Create SDL template"
       });
     }

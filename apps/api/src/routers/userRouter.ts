@@ -3,6 +3,7 @@ import assert from "http-assert";
 import { container } from "tsyringe";
 import * as uuid from "uuid";
 
+import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
 import { getCurrentUserId, optionalUserMiddleware, requiredUserMiddleware } from "@src/middlewares/userMiddleware";
 import {
   addTemplateFavorite,
@@ -53,12 +54,6 @@ userRequiredRouter.post("/tokenInfo", async c => {
 });
 
 async function extractAnonymousUserId(c: Context) {
-  if (process.env.BILLING_ENABLED !== "true") {
-    return;
-  }
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { AuthTokenService } = require("@src/auth/services/auth-token/auth-token.service");
-
   const anonymousBearer = c.req.header("x-anonymous-authorization");
 
   if (anonymousBearer) {
