@@ -34,7 +34,6 @@ export async function generateMetadata({ params: { hash } }: TransactionDetailPa
 async function fetchTransactionData(hash: string, network: Network["id"]): Promise<TransactionDetail | null> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await fetch(`${apiUrl}/v1/transactions/${hash}`);
-  
   if (!response.ok && response.status !== 404) {
     // This will activate the closest `error.js` Error Boundary
     throw new Error("Error fetching transaction data");
@@ -50,9 +49,7 @@ export default async function TransactionDetailPage(props: TransactionDetailPage
     params: { hash },
     searchParams: { network }
   } = TransactionDetailPageSchema.parse(props);
-
   const transaction = await fetchTransactionData(hash, network);
-
   return (
     <PageContainer>
       <Title className="mb-4">Transaction Details</Title>
