@@ -38,7 +38,12 @@ describe("Users", () => {
       });
       const retrievedUser = await getUserResponse.json();
 
-      expect(retrievedUser).toMatchObject({ data: user });
+      expect(retrievedUser).toMatchObject({
+        data: {
+          ...user,
+          lastActiveAt: expect.any(String)
+        }
+      });
     });
 
     it("should throw 401 provided no auth header", async () => {

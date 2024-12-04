@@ -32,7 +32,7 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDenomData, useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useGranteeGrants } from "@src/queries/useGrantsQuery";
-import { AnalyticsEvents } from "@src/utils/analytics";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { coinToUDenom } from "@src/utils/priceUtils";
 import { LinkTo } from "../shared/LinkTo";
@@ -189,7 +189,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
       }
 
       event(AnalyticsEvents.USE_DEPOSITOR, {
-        category: "deployments",
+        category: AnalyticsCategory.DEPLOYMENTS,
         label: "Use depositor to deposit in deployment"
       });
     } else if (depositData && amountInDenom > depositData?.balance) {

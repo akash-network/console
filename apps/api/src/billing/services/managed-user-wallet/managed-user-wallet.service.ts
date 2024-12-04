@@ -1,7 +1,7 @@
 import { AllowanceHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { stringToPath } from "@cosmjs/crypto";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
 import add from "date-fns/add";
 import { singleton } from "tsyringe";
@@ -12,6 +12,7 @@ import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { MasterSigningClientService } from "@src/billing/services/master-signing-client/master-signing-client.service";
 import { MasterWalletService } from "@src/billing/services/master-wallet/master-wallet.service";
 import { RpcMessageService, SpendingAuthorizationMsgOptions } from "@src/billing/services/rpc-message-service/rpc-message.service";
+import { DryRunOptions } from "@src/core/types/console";
 
 interface SpendingAuthorizationOptions {
   address: string;
@@ -94,11 +95,9 @@ export class ManagedUserWalletService {
   }
 
   private async authorizeFeeSpending(options: Omit<SpendingAuthorizationMsgOptions, "denom">) {
-    const feeAllowances = await this.allowanceHttpService.getFeeAllowancesForGrantee(options.grantee);
-    const feeAllowance = feeAllowances.find(allowance => allowance.granter === options.granter);
     const results: Promise<IndexedTx>[] = [];
 
-    if (feeAllowance) {
+    if (await this.allowanceHttpService.hasFeeAllowance(options.granter, options.grantee)) {
       results.push(this.masterSigningClientService.executeTx([this.rpcMessageService.getRevokeAllowanceMsg(options)]));
     }
 
@@ -110,5 +109,37 @@ export class ManagedUserWalletService {
   private async authorizeDeploymentSpending(options: SpendingAuthorizationMsgOptions) {
     const deploymentAllowanceMsg = this.rpcMessageService.getDepositDeploymentGrantMsg(options);
     return await this.masterSigningClientService.executeTx([deploymentAllowanceMsg]);
+  }
+
+  async revokeAll(grantee: string, reason?: string, options?: DryRunOptions) {
+    const masterWalletAddress = await this.masterWalletService.getFirstAddress();
+    const params = { granter: masterWalletAddress, grantee };
+    const messages: EncodeObject[] = [];
+    const revokeSummary = {
+      feeAllowance: false,
+      deploymentGrant: false
+    };
+
+    if (await this.allowanceHttpService.hasFeeAllowance(params.granter, params.grantee)) {
+      revokeSummary.feeAllowance = true;
+      messages.push(this.rpcMessageService.getRevokeAllowanceMsg(params));
+    }
+
+    if (await this.allowanceHttpService.hasDeploymentGrant(params.granter, params.grantee)) {
+      revokeSummary.deploymentGrant = true;
+      messages.push(this.rpcMessageService.getRevokeDepositDeploymentGrantMsg(params));
+    }
+
+    if (!messages.length) {
+      return;
+    }
+
+    if (!options?.dryRun) {
+      await this.masterSigningClientService.executeTx(messages);
+    }
+
+    this.logger.info({ event: "SPENDING_REVOKED", address: params.grantee, revokeSummary, reason });
+
+    return revokeSummary;
   }
 }

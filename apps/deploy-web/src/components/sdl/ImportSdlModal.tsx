@@ -1,15 +1,16 @@
 "use client";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useCallback, useEffect, useState } from "react";
 import { UseFormSetValue } from "react-hook-form";
 import { Alert, Popup, Snackbar } from "@akashnetwork/ui/components";
 import Editor from "@monaco-editor/react";
 import { ArrowDown } from "iconoir-react";
+import { editor } from 'monaco-editor';
 import { useTheme } from "next-themes";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { AnalyticsEvents } from "@src/utils/analytics";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { Timer } from "@src/utils/timer";
 
@@ -24,6 +25,9 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
   const [parsingError, setParsingError] = useState<string | null>(null);
   const { enqueueSnackbar } = useSnackbar();
   const { resolvedTheme } = useTheme();
+  const onEditorMount = useCallback((editorInstance: editor.IStandaloneCodeEditor) => {
+    editorInstance.focus();
+  }, []);
 
   useEffect(() => {
     const timer = Timer(500);
@@ -75,7 +79,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
     });
 
     event(AnalyticsEvents.IMPORT_SDL, {
-      category: "sdl_builder",
+      category: AnalyticsCategory.SDL_BUILDER,
       label: "Import SDL"
     });
 
@@ -113,7 +117,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
         Paste your sdl here to import <ArrowDown className="ml-4 text-sm" />
       </h6>
       <div className="mb-2">
-        <Editor height="500px" defaultLanguage="yaml" value={sdl} onChange={value => setSdl(value)} theme={resolvedTheme === "dark" ? "vs-dark" : "light"} />
+        <Editor height="500px" defaultLanguage="yaml" value={sdl} onChange={value => setSdl(value)} theme={resolvedTheme === "dark" ? "vs-dark" : "light"} onMount={onEditorMount} />
       </div>
       {parsingError && (
         <Alert className="mt-4" variant="destructive">

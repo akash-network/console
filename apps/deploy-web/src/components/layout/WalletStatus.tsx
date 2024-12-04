@@ -29,13 +29,13 @@ export function WalletStatus() {
     <>
       {isWalletLoaded && !isWalletLoading ? (
         isWalletConnected ? (
-          <div className="flex items-center">
-            <div className="py-2">
+          <div className="flex w-full items-center">
+            <div className="w-full py-2">
               <DropdownMenu modal={false} open={open}>
                 <DropdownMenuTrigger asChild>
                   {!!walletBalance && (
                     <div
-                      className={cn("flex items-center rounded-md border px-4 py-2 text-sm", {
+                      className={cn("flex items-center justify-center rounded-md border px-4 py-2 text-sm", {
                         "border-primary bg-primary/10 text-primary dark:bg-primary dark:text-primary-foreground": isManaged,
                         "bg-background text-foreground": !isManaged
                       })}
@@ -93,7 +93,7 @@ export function WalletStatus() {
             </div>
           </div>
         ) : (
-          <div>
+          <div className="w-full">
             {withBilling && !isSignedInWithTrial && <ConnectManagedWalletButton className="mb-2 mr-2 w-full md:mb-0 md:w-auto" />}
             <ConnectWalletButton className="w-full md:w-auto" />
           </div>

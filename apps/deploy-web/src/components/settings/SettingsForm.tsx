@@ -94,9 +94,7 @@ export const SettingsForm: React.FunctionComponent = () => {
                   control={control}
                   name="apiEndpoint"
                   defaultValue={settings.apiEndpoint}
-                  render={({ field }) => {
-                    return <FormInput {...field} type="text" className="flex-1" />;
-                  }}
+                  render={({ field }) => <FormInput {...field} type="text" className="flex-1" />}
                 />
               ) : (
                 <p className="flex-grow">{settings.apiEndpoint}</p>
@@ -111,9 +109,7 @@ export const SettingsForm: React.FunctionComponent = () => {
                   control={control}
                   name="rpcEndpoint"
                   defaultValue={settings.rpcEndpoint}
-                  render={({ field }) => {
-                    return <FormInput {...field} type="text" className="flex-1" />;
-                  }}
+                  render={({ field }) => <FormInput {...field} type="text" className="flex-1" />}
                 />
               ) : (
                 <p className="flex-grow">{settings.rpcEndpoint}</p>

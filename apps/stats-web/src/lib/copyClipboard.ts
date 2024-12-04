@@ -1,3 +1,7 @@
+import { LoggerService } from "@akashnetwork/logging";
+
+const clipboardLogger = LoggerService.forContext("apps/stats-web/src/lib/copyClipboard.ts");
+
 function fallbackCopyTextToClipboard(text: string) {
   const textArea = document.createElement("textarea");
   textArea.value = text;
@@ -14,9 +18,9 @@ function fallbackCopyTextToClipboard(text: string) {
   try {
     const successful = document.execCommand("copy");
     const msg = successful ? "successful" : "unsuccessful";
-    console.log("Fallback: Copying text command was " + msg);
+    clipboardLogger.debug("Fallback: Copying text command was " + msg);
   } catch (err) {
-    console.error("Fallback: Oops, unable to copy", err);
+    clipboardLogger.debug(`Fallback: Oops, unable to copy: ${err}`);
   }
 
   document.body.removeChild(textArea);
@@ -28,10 +32,10 @@ export const copyTextToClipboard = (text: string) => {
   }
   navigator.clipboard.writeText(text).then(
     () => {
-      console.log("Async: Copying to clipboard was successful!");
+      clipboardLogger.debug("Async: Copying to clipboard was successful!");
     },
     err => {
-      console.error("Async: Could not copy text: ", err);
+      clipboardLogger.debug(`Async: Could not copy text: ${err}`);
     }
   );
 };

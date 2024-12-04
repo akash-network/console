@@ -32,16 +32,13 @@ export function ControlMachineProvider({ children }: Props) {
   const [controlMachineDrawerOpen, setControlMachineDrawerOpen] = useState(false);
 
   useEffect(() => {
-    console.log("isWalletArbitrarySigned", isWalletArbitrarySigned);
     if (isWalletArbitrarySigned || isProvider) {
-      console.log("controlMachines", controlMachines);
       const controlMachine = controlMachines.find(machine => machine.address === address);
 
       if (!controlMachine) {
         return;
       }
 
-      // first check control machine connection
       (async () => {
         try {
           setControlMachineLoading(true);
@@ -69,12 +66,10 @@ export function ControlMachineProvider({ children }: Props) {
     setControlMachines(prev => {
       const existingIndex = prev.findIndex(machine => machine.address === controlMachine.address);
       if (existingIndex !== -1) {
-        // Update existing control machine
         const updated = [...prev];
         updated[existingIndex] = controlMachine;
         return updated;
       }
-      // Add new control machine if none exists with this address
       return [...prev, controlMachine];
     });
     setControlMachineDrawerOpen(false);

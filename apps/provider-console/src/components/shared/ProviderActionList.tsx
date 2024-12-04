@@ -64,7 +64,7 @@ export const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions 
       <ul className="divide-y divide-gray-200">
         {actions.length > 0 ? (
           actions.map(action => (
-            <li key={action.id} className="cursor-pointer py-4 hover:bg-gray-50" onClick={() => handleRowClick(action.id)}>
+            <li key={action.id} className="cursor-pointer py-4 hover:bg-gray-50 dark:hover:bg-gray-600/50" onClick={() => handleRowClick(action.id)}>
               <div className="grid grid-cols-12 items-center gap-4">
                 <div className="col-span-4">
                   <p className="text-base font-medium">{action.name}</p>

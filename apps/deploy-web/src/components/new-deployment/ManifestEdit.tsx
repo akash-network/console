@@ -23,10 +23,11 @@ import { useWhen } from "@src/hooks/useWhen";
 import { useDepositParams } from "@src/queries/useSettings";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import type { DepositParams } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { deploymentData } from "@src/utils/deploymentData";
+import { appendTrialAttribute } from "@src/utils/deploymentData/v1beta3";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
@@ -42,7 +43,6 @@ import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import ViewPanel from "../shared/ViewPanel";
 import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
-import { appendTrialAttribute } from "@src/utils/deploymentData/v1beta3";
 
 type Props = {
   onTemplateSelected: Dispatch<TemplateCreation | null>;
@@ -286,7 +286,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         router.replace(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
 
         event(AnalyticsEvents.CREATE_DEPLOYMENT, {
-          category: "deployments",
+          category: AnalyticsCategory.DEPLOYMENTS,
           label: "Create deployment in wizard"
         });
       } else {

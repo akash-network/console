@@ -10,6 +10,8 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
     sdl.services[service.title] = {
       image: service.image,
 
+      credentials: service.hasCredentials ? service.credentials : undefined,
+
       // Expose
       expose: service.expose.map(e => {
         // Port

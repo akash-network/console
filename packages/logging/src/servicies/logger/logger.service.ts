@@ -1,8 +1,9 @@
 import { isHttpError } from "http-errors";
 import pino from "pino";
 import { gcpLogOptions } from "pino-cloud-logging";
+import type { PinoPretty } from "pino-pretty";
 
-import { config } from "../../config";
+import { Config, config as envConfig } from "../../config";
 
 export type Logger = Pick<pino.Logger, "info" | "error" | "warn" | "debug">;
 
@@ -15,6 +16,15 @@ interface LoggerOptions extends pino.LoggerOptions {
 }
 
 export class LoggerService implements Logger {
+  static config: Config = envConfig;
+
+  static configure(config: Partial<Config>) {
+    this.config = {
+      ...this.config,
+      ...config
+    };
+  }
+
   static forContext(context: string) {
     return new LoggerService().setContext(context);
   }
@@ -23,37 +33,47 @@ export class LoggerService implements Logger {
 
   protected pino: pino.Logger;
 
-  constructor(options?: LoggerOptions) {
-    this.pino = this.initPino(options);
+  constructor(private readonly options?: LoggerOptions) {
+    this.pino = this.initPino();
   }
 
-  private initPino(inputOptions: LoggerOptions = {}): pino.Logger {
-    let options: LoggerOptions = {
-      level: config.LOG_LEVEL,
+  private initPino(): pino.Logger {
+    const options: LoggerOptions = {
+      level: LoggerService.config.LOG_LEVEL,
       mixin: LoggerService.mixin,
-      ...inputOptions
+      timestamp: () => `,"time":"${new Date().toISOString()}"`,
+      ...this.options
     };
 
-    if (typeof window === "undefined" && config.STD_OUT_LOG_FORMAT === "pretty") {
-      options.transport = {
-        target: "pino-pretty",
-        options: { colorize: true, sync: true }
-      };
-    } else {
-      options = gcpLogOptions(options as any) as LoggerOptions;
+    const pretty = this.getPrettyIfPresent();
+
+    if (pretty) {
+      return pino(options, pretty);
     }
 
-    return pino(options);
+    return pino(gcpLogOptions(options as any));
+  }
+
+  private getPrettyIfPresent(): PinoPretty.PrettyStream | undefined {
+    if (typeof window === "undefined" && LoggerService.config.STD_OUT_LOG_FORMAT === "pretty") {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        return require("pino-pretty")({ colorize: true, sync: true });
+      } catch (e) {
+        this.debug({ context: LoggerService.name, message: "Failed to load pino-pretty", error: e });
+        /* empty */
+      }
+    }
   }
 
   setContext(context: string) {
-    this.pino.setBindings({ context });
+    this.bind({ context });
 
     return this;
   }
 
   bind(bindings: pino.Bindings) {
-    this.pino.setBindings(bindings);
+    this.pino = this.pino.child(bindings);
 
     return this;
   }
