@@ -67,7 +67,7 @@ export const ProviderActionList: React.FC<ProviderActionListProps> = ({ actions 
             <li key={action.id} className="cursor-pointer py-4" onClick={() => handleRowClick(action.id)}>
               <div className="grid grid-cols-12 items-center gap-4">
                 <div className="col-span-4">
-                  <p className="text-base font-medium">{action.name}</p>
+                  <p className="text-sm font-medium">{action.name}</p>
                 </div>
                 <div className="col-span-2">
                   <p className="text-sm text-gray-500">{calculateTimeLapse(action.start_time, action.end_time)}</p>

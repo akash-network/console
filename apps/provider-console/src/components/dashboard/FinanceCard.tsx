@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Card, CardContent, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@akashnetwork/ui/components";
+import { Card, CardContent, Tooltip, TooltipContent, TooltipTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 
 interface PercentChangeProps {
@@ -28,13 +28,14 @@ const PercentChange: React.FC<PercentChangeProps> = ({ currentPrice, previousPri
   }, [currentPrice, previousPrice]);
 
   const isZero = currentPrice === null || previousPrice === null || previousPrice === 0 || percentageChange === 0;
-  const value = percentageChange !== 0 ? formattedChange : 0;
+  console.log(isZero);
+  const value = percentageChange !== 0 ? `${formattedChange}%` : "";
   const prefix = !isZero && percentageChange > 0 ? "+" : "-";
 
   return (
     <span className={cn({ "text-gray-500": isZero, "text-green-500": percentageChange > 0, "text-red-500": percentageChange < 0 })}>
       {prefix}
-      {value}%
+      {value}
     </span>
   );
 };
@@ -48,16 +49,14 @@ export const FinanceCard: React.FC<FinanceCardProps> = ({ title, subtitle, curre
             <div className="text-sm font-medium">{subtitle}</div>
             <div className="text-2xl font-semibold">{title}</div>
             <div className="mt-1 text-sm font-medium">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <PercentChange currentPrice={currentPrice} previousPrice={previousPrice} />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{message}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <PercentChange currentPrice={currentPrice} previousPrice={previousPrice} />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{message}</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           </div>
           <div className="col-span-2 flex items-center justify-end">
