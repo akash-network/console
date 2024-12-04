@@ -18,13 +18,13 @@ export const ProviderStatus: React.FC = () => {
 
   return (
     <>
-      <div>
+      <div className="text-sm">
         Status:
         <span onClick={routeToRemedies} className={`${!isOnline ? "cursor-pointer" : ""}`}>
           {isOnline ? <span className="ml-2 text-green-500">Online</span> : <span className="ml-2 text-red-500">Offline</span>}
         </span>
       </div>
-      <div className="flex-end mr-4 md:h-auto">
+      <div className="flex-end mr-4 md:h-auto text-sm">
         Audited: <span className={providerDetails?.isAudited ? "text-green-500" : "text-red-500"}>{providerDetails?.isAudited ? "Yes" : "No"}</span>
       </div>
     </>
