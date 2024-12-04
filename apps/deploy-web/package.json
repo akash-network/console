@@ -21,6 +21,7 @@
     "@akashnetwork/akashjs": "^0.10.0",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/http-sdk": "*",
+    "@akashnetwork/logging": "*",
     "@akashnetwork/network-store": "*",
     "@akashnetwork/ui": "*",
     "@auth0/nextjs-auth0": "^3.5.0",

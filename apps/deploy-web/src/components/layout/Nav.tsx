@@ -1,6 +1,7 @@
 "use client";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
+import type { ClassValue } from "clsx";
 import { Menu, Xmark } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -16,17 +17,19 @@ import { WalletStatus } from "./WalletStatus";
 
 export const Nav = ({
   isMobileOpen,
-  handleDrawerToggle
+  handleDrawerToggle,
+  className
 }: React.PropsWithChildren<{
   isMobileOpen: boolean;
   handleDrawerToggle: () => void;
+  className?: ClassValue;
 }>) => {
   const theme = useCookieTheme();
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const { user } = useCustomUser();
 
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-border bg-popover dark:bg-background">
+    <header className={cn("fixed top-0 z-50 w-full border-b border-border bg-popover dark:bg-background", className)}>
       <div className="flex h-14 items-center justify-between pl-4 pr-4">
         {!!theme && (
           <Link className="flex items-center" href="/">
