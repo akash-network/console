@@ -11,7 +11,7 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
-import { ConnectManagedWalletButton } from "../wallet/ConnectManagedWalletButton";
+import { CreditCardBanner } from "./CreditCardBanner";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
 
@@ -53,7 +53,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
-  const { isWalletLoaded, hasManagedWallet } = useWallet();
+  const { isWalletLoaded } = useWallet();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const hasCreditCardBanner = useHasCreditCardBanner();
 
@@ -88,16 +88,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
 
   return (
     <div className="flex h-full">
-      {/* Banner for Free Trial and Credit Card payments */}
-      {hasCreditCardBanner && (
-        <>
-          <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center space-x-4 bg-primary px-3 py-2">
-            <span className="text-sm font-semibold text-white">Credit Card payments are now available!</span>
-
-            {!hasManagedWallet && <ConnectManagedWalletButton className="mb-2 mr-2 w-full md:mb-0 md:w-auto" size="sm" />}
-          </div>
-        </>
-      )}
+      {hasCreditCardBanner && <CreditCardBanner />}
 
       <div className="w-full flex-1" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasCreditCardBanner ? 40 : 0)}px` }}>
         <div className="h-full">

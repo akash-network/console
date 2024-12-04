@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { z } from "zod";
 
 import { NewDeploymentContainer, NewDeploymentContainerProps } from "@src/components/new-deployment/NewDeploymentContainer";
@@ -13,6 +14,8 @@ const contextSchema = z.object({
   })
 });
 
+const logger = LoggerService.forContext(NewDeploymentContainer.name);
+
 export const getServerSideProps = getValidatedServerSideProps<NewDeploymentContainerProps, typeof contextSchema>(contextSchema, async ({ query }) => {
   if (!query.templateId) {
     return { props: {} };
@@ -26,9 +29,9 @@ export const getServerSideProps = getValidatedServerSideProps<NewDeploymentConta
     }
   } catch (error) {
     if (error?.response?.status === 404) {
-      console.log("Template not found");
+      logger.info(`Template not found: ${query.templateId}`);
     } else {
-      console.error(error);
+      logger.error(error);
     }
   }
 
