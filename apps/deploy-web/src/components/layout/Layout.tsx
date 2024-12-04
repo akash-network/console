@@ -53,7 +53,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
-  const { isWalletLoaded } = useWallet();
+  const { isWalletLoaded, hasManagedWallet } = useWallet();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const hasCreditCardBanner = useHasCreditCardBanner();
 
@@ -94,7 +94,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
           <div className="fixed top-0 flex h-[40px] w-full items-center justify-center space-x-4 bg-primary px-3 py-2">
             <span className="text-sm font-semibold text-white">Credit Card payments are now available!</span>
 
-            <ConnectManagedWalletButton className="mb-2 mr-2 w-full md:mb-0 md:w-auto" size="sm" />
+            {!hasManagedWallet && <ConnectManagedWalletButton className="mb-2 mr-2 w-full md:mb-0 md:w-auto" size="sm" />}
           </div>
           <style jsx global>{`
             body {
