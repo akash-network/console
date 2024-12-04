@@ -23,9 +23,20 @@ export class CheckoutController {
       return c.redirect(`${redirectUrl}?unauthorized=true`);
     }
 
-    const session = await this.checkoutService.checkoutFor(currentUser, redirectUrl);
+    try {
+      const session = await this.checkoutService.checkoutFor({
+        user: currentUser,
+        redirectUrl,
+        amount: c.req.query("amount")
+      });
 
-    return c.redirect(session.url);
+      return c.redirect(session.url);
+    } catch (error) {
+      if (error.message === "Price invalid") {
+        return c.redirect(`${redirectUrl}?invalid-price=true`);
+      }
+      return c.redirect(`${redirectUrl}?unknown-error=true`);
+    }
   }
 
   async webhook(signature: string, input: string) {

@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 import { validateStaticEnvVars } from "./env-config.schema";
 
 export const browserEnvConfig = validateStaticEnvVars({
@@ -23,5 +21,7 @@ export const browserEnvConfig = validateStaticEnvVars({
   NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL: process.env.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL,
   NEXT_PUBLIC_BITBUCKET_CLIENT_ID: process.env.NEXT_PUBLIC_BITBUCKET_CLIENT_ID,
   NEXT_PUBLIC_GITLAB_CLIENT_ID: process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID,
-  NEXT_PUBLIC_GITHUB_CLIENT_ID: process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
+  NEXT_PUBLIC_GITHUB_CLIENT_ID: process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID,
+  NEXT_PUBLIC_GA_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
+  NEXT_PUBLIC_CI_CD_IMAGE_NAME: process.env.NEXT_PUBLIC_CI_CD_IMAGE_NAME
 });

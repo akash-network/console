@@ -18,9 +18,9 @@ export class DeploymentGrantSeeder {
           spend_limit: {
             denom: DenomSeeder.create(),
             amount: faker.number.int({ min: 0, max: 10000000 }).toString()
-          },
-          expiration: faker.date.future().toISOString()
-        }
+          }
+        },
+        expiration: faker.date.future().toISOString()
       },
       input
     );

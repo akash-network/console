@@ -3,6 +3,7 @@ import { FormattedNumber } from "react-intl";
 import { Button, Separator } from "@akashnetwork/ui/components";
 import { CoinsSwap, HandCard } from "iconoir-react";
 
+import { TopUpAmountPicker } from "@src/components/top-up-amount-picker/TopUpAmountPicker";
 import { useWallet } from "@src/context/WalletProvider";
 import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
@@ -70,10 +71,12 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
       )}
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
-        <Button onClick={whenLoggedIn(goToCheckout, "Sign In or Sign Up to add funds")} variant="outline" className="w-full space-x-2">
-          <HandCard />
-          <span>Add Funds</span>
-        </Button>
+        <TopUpAmountPicker mdMode="click" className="w-full">
+          <Button onClick={whenLoggedIn(goToCheckout, "Sign In or Sign Up to add funds")} variant="outline" className="w-full space-x-2">
+            <HandCard />
+            <span>Add Funds</span>
+          </Button>
+        </TopUpAmountPicker>
         <Button onClick={switchWalletType} variant="outline" className="w-full space-x-2">
           <CoinsSwap />
           <span>Switch to Wallet Payments</span>

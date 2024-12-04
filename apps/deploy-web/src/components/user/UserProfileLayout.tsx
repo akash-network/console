@@ -5,7 +5,7 @@ import { useRouter } from "next/router";
 import { event } from "nextjs-google-analytics";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { AnalyticsEvents } from "@src/utils/analytics";
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { UrlService } from "@src/utils/urlUtils";
 
 type UserProfileTab = "templates" | "favorites" | "settings";
@@ -22,7 +22,7 @@ export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, childr
 
   const handleTabChange = (newValue: string) => {
     event(AnalyticsEvents.USER_PROFILE_TEMPLATE_TAB, {
-      category: "profile",
+      category: AnalyticsCategory.PROFILE,
       label: `Click on ${newValue} tab`
     });
 

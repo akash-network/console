@@ -5,8 +5,8 @@ import { Snackbar } from "@akashnetwork/ui/components";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
+import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { RestApiCertificate } from "@src/types/certificate";
-import { AnalyticsEvents } from "@src/utils/analytics";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { getStorageWallets, updateWallet } from "@src/utils/walletUtils";
@@ -191,7 +191,7 @@ export const CertificateProvider = ({ children }) => {
         setSelectedCertificate(currentCert as ChainCertificate);
 
         event(AnalyticsEvents.CREATE_CERTIFICATE, {
-          category: "certificates",
+          category: AnalyticsCategory.CERTIFICATES,
           label: "Created certificate"
         });
       }
@@ -229,7 +229,7 @@ export const CertificateProvider = ({ children }) => {
         setSelectedCertificate(currentCert as ChainCertificate);
 
         event(AnalyticsEvents.REGENERATE_CERTIFICATE, {
-          category: "certificates",
+          category: AnalyticsCategory.CERTIFICATES,
           label: "Regenerated certificate"
         });
       }
@@ -264,7 +264,7 @@ export const CertificateProvider = ({ children }) => {
       }
 
       event(AnalyticsEvents.REVOKE_CERTIFICATE, {
-        category: "certificates",
+        category: AnalyticsCategory.CERTIFICATES,
         label: "Revoked certificate"
       });
     }
@@ -290,7 +290,7 @@ export const CertificateProvider = ({ children }) => {
       setSelectedCertificate(null);
 
       event(AnalyticsEvents.REVOKE_ALL_CERTIFICATE, {
-        category: "certificates",
+        category: AnalyticsCategory.CERTIFICATES,
         label: "Revoked all certificates"
       });
     }

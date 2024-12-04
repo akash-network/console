@@ -1,19 +1,20 @@
+import { z } from "zod";
+
 import { DeploymentDetail } from "@src/components/deployments/DeploymentDetail";
+import { getValidatedServerSideProps } from "@src/lib/nextjs/getValidatedServerSIdeProps";
 
-type Props = {
-  dseq: string;
-};
+export default DeploymentDetail;
 
-const DeploymentDetailPage: React.FunctionComponent<Props> = ({ dseq }) => {
-  return <DeploymentDetail dseq={dseq} />;
-};
+const contextSchema = z.object({
+  params: z.object({
+    dseq: z.string().regex(/^\d+$/)
+  })
+});
 
-export default DeploymentDetailPage;
-
-export async function getServerSideProps({ params }) {
+export const getServerSideProps = getValidatedServerSideProps(contextSchema, async ({ params }) => {
   return {
     props: {
-      dseq: params?.dseq
+      dseq: params.dseq
     }
   };
-}
+});
