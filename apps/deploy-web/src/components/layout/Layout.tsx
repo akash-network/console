@@ -87,33 +87,30 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   };
 
   return (
-    <div className="h-full">
+    <div className="flex h-full">
       {/* Banner for Free Trial and Credit Card payments */}
       {hasCreditCardBanner && (
         <>
-          <div className="fixed top-0 flex h-[40px] w-full items-center justify-center space-x-4 bg-primary px-3 py-2">
+          <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center space-x-4 bg-primary px-3 py-2">
             <span className="text-sm font-semibold text-white">Credit Card payments are now available!</span>
 
             {!hasManagedWallet && <ConnectManagedWalletButton className="mb-2 mr-2 w-full md:mb-0 md:w-auto" size="sm" />}
           </div>
-          <style jsx global>{`
-            body {
-              height: calc(100% - 97px) !important;
-            }
-
-            html {
-              scroll-padding-top: 97px;
-            }
-          `}</style>
         </>
       )}
 
-      <div className="h-full w-full" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasCreditCardBanner ? 40 : 0)}px` }}>
+      <div className="w-full flex-1" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasCreditCardBanner ? 40 : 0)}px` }}>
         <div className="h-full">
-          <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} />
+          <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} className={{ "top-[40px]": hasCreditCardBanner }} />
 
           <div className="block h-full w-full flex-grow rounded-none md:flex">
-            <Sidebar onOpenMenuClick={onOpenMenuClick} isNavOpen={isNavOpen} handleDrawerToggle={handleDrawerToggle} isMobileOpen={isMobileOpen} />
+            <Sidebar
+              onOpenMenuClick={onOpenMenuClick}
+              isNavOpen={isNavOpen}
+              handleDrawerToggle={handleDrawerToggle}
+              isMobileOpen={isMobileOpen}
+              mdDrawerClassName={{ ["h-[calc(100%-40px)] mt-[97px]"]: hasCreditCardBanner }}
+            />
 
             <div
               className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300", {
