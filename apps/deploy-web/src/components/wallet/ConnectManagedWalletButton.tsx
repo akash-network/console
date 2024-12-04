@@ -22,7 +22,7 @@ export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ cla
       {...rest}
       disabled={isWalletLoading}
     >
-      {isWalletLoading ? <Spinner size="small" className="mr-2" /> : <Rocket className="rotate-45 text-xs" />}
+      {isWalletLoading ? <Spinner size="small" className="mr-2" variant="dark" /> : <Rocket className="rotate-45 text-xs" />}
       <span className="m-2 whitespace-nowrap">{hasManagedWallet ? "Switch to USD Payments" : "Start Trial"}</span>
     </Button>
   );
