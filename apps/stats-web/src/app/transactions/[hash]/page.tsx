@@ -34,13 +34,13 @@ export async function generateMetadata({ params: { hash } }: TransactionDetailPa
 async function fetchTransactionData(hash: string, network: Network["id"]): Promise<TransactionDetail | null> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await fetch(`${apiUrl}/v1/transactions/${hash}`);
+  
   if (!response.ok && response.status !== 404) {
     // This will activate the closest `error.js` Error Boundary
     throw new Error("Error fetching transaction data");
   } else if (response.status === 404) {
     return null;
   }
-  
   return response.json();
 }
 
