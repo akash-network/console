@@ -9,11 +9,8 @@ import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.servi
 import { BlockRepository } from "@src/chain/repositories/block.repository";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
+import { CleanUpStaleDeploymentsParams } from "@src/deployment/types/state-deployments";
 import { averageBlockTime } from "@src/utils/constants";
-
-export interface CleanUpStaleDeploymentsParams {
-  concurrency: number;
-}
 
 @singleton()
 export class StaleManagedDeploymentsCleanerService {
