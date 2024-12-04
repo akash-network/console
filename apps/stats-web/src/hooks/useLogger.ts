@@ -1,3 +1,5 @@
+import "../config/logger.config";
+
 import { useMemo } from "react";
 import { LoggerService } from "@akashnetwork/logging";
 
