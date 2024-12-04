@@ -9,10 +9,11 @@ import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
+import { CreditCardBanner } from "./CreditCardBanner";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
-import { WelcomeModal } from "./WelcomeModal";
 
 type Props = {
   isLoading?: boolean;
@@ -49,12 +50,12 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
 
 const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName = "" }) => {
   const muiTheme = useMuiTheme();
-  const [isShowingWelcome, setIsShowingWelcome] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
+  const hasCreditCardBanner = useHasCreditCardBanner();
 
   useEffect(() => {
     const _isNavOpen = localStorage.getItem("isNavOpen");
@@ -71,22 +72,6 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
       clearInterval(refreshNodeIntervalId);
     };
   }, [refreshNodeStatuses]);
-
-  useEffect(() => {
-    const agreedToTerms = localStorage.getItem("agreedToTerms") === "true";
-
-    if (!agreedToTerms) {
-      setIsShowingWelcome(true);
-    }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const onWelcomeClose = () => {
-    localStorage.setItem("agreedToTerms", "true");
-    setIsShowingWelcome(false);
-  };
-
   const onOpenMenuClick = () => {
     setIsNavOpen(prev => {
       const newValue = !prev;
@@ -102,42 +87,46 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   };
 
   return (
-    <>
-      <WelcomeModal open={isShowingWelcome} onClose={onWelcomeClose} />
+    <div className="flex h-full">
+      {hasCreditCardBanner && <CreditCardBanner />}
 
-      <div className="h-full">
-        <div className="h-full w-full" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT}px` }}>
-          <div className="h-full">
-            <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} />
+      <div className="w-full flex-1" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasCreditCardBanner ? 40 : 0)}px` }}>
+        <div className="h-full">
+          <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} className={{ "top-[40px]": hasCreditCardBanner }} />
 
-            <div className="block h-full w-full flex-grow rounded-none md:flex">
-              <Sidebar onOpenMenuClick={onOpenMenuClick} isNavOpen={isNavOpen} handleDrawerToggle={handleDrawerToggle} isMobileOpen={isMobileOpen} />
+          <div className="block h-full w-full flex-grow rounded-none md:flex">
+            <Sidebar
+              onOpenMenuClick={onOpenMenuClick}
+              isNavOpen={isNavOpen}
+              handleDrawerToggle={handleDrawerToggle}
+              isMobileOpen={isMobileOpen}
+              mdDrawerClassName={{ ["h-[calc(100%-40px)] mt-[97px]"]: hasCreditCardBanner }}
+            />
 
-              <div
-                className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300", {
-                  ["md:ml-[240px]"]: isNavOpen,
-                  ["md:ml-[57px]"]: !isNavOpen
-                })}
-              >
-                {isLoading !== undefined && <LinearLoadingSkeleton isLoading={isLoading} />}
+            <div
+              className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300", {
+                ["md:ml-[240px]"]: isNavOpen,
+                ["md:ml-[57px]"]: !isNavOpen
+              })}
+            >
+              {isLoading !== undefined && <LinearLoadingSkeleton isLoading={isLoading} />}
 
-                <ErrorBoundary FallbackComponent={ErrorFallback}>
-                  {!isUsingSettings || isSettingsInit ? (
-                    !isUsingWallet || isWalletLoaded ? (
-                      <div className={cn({ ["container pb-8 pt-4"]: !disableContainer }, containerClassName)}>{children}</div>
-                    ) : (
-                      <Loading text="Loading wallet..." />
-                    )
+              <ErrorBoundary FallbackComponent={ErrorFallback}>
+                {!isUsingSettings || isSettingsInit ? (
+                  !isUsingWallet || isWalletLoaded ? (
+                    <div className={cn({ ["container pb-8 pt-4"]: !disableContainer }, containerClassName)}>{children}</div>
                   ) : (
-                    <Loading text="Loading settings..." />
-                  )}
-                </ErrorBoundary>
-              </div>
+                    <Loading text="Loading wallet..." />
+                  )
+                ) : (
+                  <Loading text="Loading settings..." />
+                )}
+              </ErrorBoundary>
             </div>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
