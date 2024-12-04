@@ -10,7 +10,6 @@ import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { TxMessageRow } from "@/components/transactions/TxMessageRow";
 import { networkId } from "@/config/env-config.schema";
-import { useLogger } from "@/hooks/useLogger";
 import { getSplitText } from "@/hooks/useShortText";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import { TransactionDetail } from "@/types";
@@ -32,9 +31,8 @@ export async function generateMetadata({ params: { hash } }: TransactionDetailPa
   };
 }
 
-async function fetchTransactionData(hash: string, network: Network["id"], logger: ReturnType<typeof useLogger>): Promise<TransactionDetail | null> {
+async function fetchTransactionData(hash: string, network: Network["id"]): Promise<TransactionDetail | null> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
-  logger.debug(`DEBUG apiUrl: ${apiUrl}`);
   const response = await fetch(`${apiUrl}/v1/transactions/${hash}`);
   
   if (!response.ok && response.status !== 404) {
@@ -53,8 +51,7 @@ export default async function TransactionDetailPage(props: TransactionDetailPage
     searchParams: { network }
   } = TransactionDetailPageSchema.parse(props);
 
-  const transactionLogger = useLogger("apps/stats-web/src/app/transactions/[hash]/page.tsx");
-  const transaction = await fetchTransactionData(hash, network, transactionLogger);
+  const transaction = await fetchTransactionData(hash, network);
 
   return (
     <PageContainer>

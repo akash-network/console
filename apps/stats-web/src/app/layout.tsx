@@ -1,4 +1,5 @@
 import "@akashnetwork/ui/styles";
+import "../config/logger.config";
 import "../styles/index.css";
 
 import { cn } from "@akashnetwork/ui/utils";
