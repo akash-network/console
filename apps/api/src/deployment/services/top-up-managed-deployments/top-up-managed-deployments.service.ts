@@ -15,8 +15,6 @@ import { DeploymentsRefiller, TopUpDeploymentsOptions } from "@src/deployment/ty
 
 @singleton()
 export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
-  private readonly CONCURRENCY = 10;
-
   private readonly logger = LoggerService.forContext(TopUpManagedDeploymentsService.name);
 
   constructor(
@@ -35,7 +33,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     const summary = new TopUpSummarizer();
     summary.set("startBlockHeight", await this.blockHttpService.getCurrentHeight());
 
-    await this.userWalletRepository.paginate({ limit: this.CONCURRENCY }, async wallets => {
+    await this.userWalletRepository.paginate({ limit: options.concurrency || 10 }, async wallets => {
       await Promise.all(
         wallets.map(async wallet => {
           await this.errorService.execWithErrorHandler(
