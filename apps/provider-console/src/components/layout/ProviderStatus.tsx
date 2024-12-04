@@ -20,7 +20,7 @@ export const ProviderStatus: React.FC = () => {
     <>
       <div>
         Status:
-        <span onClick={routeToRemedies} className={`${!isOnline ? "cursor-pointer underline" : ""}`}>
+        <span onClick={routeToRemedies} className={`${!isOnline ? "cursor-pointer" : ""}`}>
           {isOnline ? <span className="ml-2 text-green-500">Online</span> : <span className="ml-2 text-red-500">Offline</span>}
         </span>
       </div>
