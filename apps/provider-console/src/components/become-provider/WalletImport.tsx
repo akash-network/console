@@ -107,35 +107,49 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
     setMode(data.walletMode);
   };
 
-  const submitForm = async (data: SeedFormValues) => {
+  const createFinalRequest = (wallet: any) => ({
+    wallet,
+    nodes: providerProcess.machines.map(machine => ({
+      hostname: machine.access.hostname,
+      port: machine.access.port,
+      username: machine.access.username,
+      keyfile: machine.access.file,
+      password: machine.access.password,
+      install_gpu_drivers: machine.systemInfo.gpu.count > 0
+    })),
+    provider: {
+      attributes: providerProcess.attributes,
+      pricing: providerProcess.pricing,
+      config: providerProcess.config
+    }
+  });
+
+  const submitForm = async (data: SeedFormValues | null = null) => {
     setIsLoading(true);
     setError(null);
     try {
       if (providerProcess.machines && providerProcess.machines.length > 0) {
-        const publicKey = providerProcess.machines[0].systemInfo.public_key;
         const keyId = providerProcess.machines[0].systemInfo.key_id;
-        const encryptedSeedPhrase = await encrypt(data.seedPhrase, publicKey);
+        let finalRequest: any;
+        if (mode === "seed") {
+          const publicKey = providerProcess.machines[0].systemInfo.public_key;
+          const encryptedSeedPhrase = await encrypt(data?.seedPhrase || "", publicKey);
 
-        const finalRequest = {
-          wallet: {
+          const wallet = {
             key_id: keyId,
-            wallet_phrase: encryptedSeedPhrase
-          },
-          nodes: providerProcess.machines.map(machine => ({
-            hostname: machine.access.hostname,
-            port: machine.access.port,
-            username: machine.access.username,
-            keyfile: machine.access.file,
-            password: machine.access.password,
-            install_gpu_drivers: machine.systemInfo.gpu.count > 0 ? true : false
-          })),
-          provider: {
-            attributes: providerProcess.attributes,
-            pricing: providerProcess.pricing,
-            config: providerProcess.config
-          }
-        };
+            wallet_phrase: encryptedSeedPhrase,
+            import_mode: "auto"
+          };
 
+          finalRequest = createFinalRequest(wallet);
+        } else {
+          const wallet = {
+            key_id: keyId,
+            import_mode: "manual"
+          };
+
+          finalRequest = createFinalRequest(wallet);
+        }
         const response: any = await restClient.post("/build-provider", finalRequest, {
           headers: { "Content-Type": "application/json" }
         });
@@ -251,6 +265,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                   <div className="flex justify-start">
                     <ResetProviderForm />
                   </div>
+
                   <div className="flex justify-end">
                     <Button type="button" onClick={form.handleSubmit(submitData)}>
                       Next
@@ -297,17 +312,16 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                   <div className="flex justify-start">
                     <ResetProviderForm />
                   </div>
-                  <div className="flex justify-end">
-                    <Button type="submit" disabled={isLoading}>
-                      {isLoading ? "Loading..." : "Next"}
-                    </Button>
-                  </div>
-                  {error && (
-                    <div className="mt-4 w-full">
-                      <p className="text-sm text-red-500">{error || "An error occurred during wallet import."}</p>
-                    </div>
-                  )}
+
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? "Loading..." : "Next"}
+                  </Button>
                 </div>
+                {error && (
+                  <div className="mt-4 w-full">
+                    <p className="text-sm text-red-500">{error || "An error occurred during wallet import."}</p>
+                  </div>
+                )}
               </div>
             </form>
           </Form>
@@ -352,7 +366,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
               </li>
               <li>
                 Enter Your Wallet Details:
-                <ol className="list-decimal space-y-2 pl-6 mt-2">
+                <ol className="mt-2 list-decimal space-y-2 pl-6">
                   <li>
                     First, it will ask for your 12 or 24-word mnemonic phrase. <br />
                     Type or paste the seed phrase for the wallet you want to import and press Enter. <br />
@@ -379,15 +393,15 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
           <div>
             <Separator />
           </div>
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              onClick={() => {
-                // TODO: Verify Manual Wallet Import
-                console.log("Manual Wallet Import");
-              }}
-            >
-              Verify Wallet Import
+          <div className="flex w-full justify-between">
+            <div className="flex justify-start">
+              <ResetProviderForm />
+            </div>
+            <button type="button" onClick={() => setMode("seed")} className="hover:text-primary/80 text-sm">
+              Switch to auto import
+            </button>
+            <Button type="button" onClick={() => submitForm()} disabled={isLoading}>
+              {isLoading ? "Loading..." : "Verify Wallet Import"}
             </Button>
           </div>
         </div>
