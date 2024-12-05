@@ -23,7 +23,7 @@ export const HomeContainer: React.FC = () => {
   }, [isWalletConnected, isProvider, isOnline, providerActions, router]);
 
   return (
-    <Layout containerClassName="flex h-full flex-col justify-between" isLoading={!isProviderStatusFetched || isLoading}>
+    <Layout containerClassName="flex h-full flex-col justify-between" isLoading={isWalletConnected && (!isProviderStatusFetched || isLoading)}>
       <div className="flex flex-grow items-center justify-center">
         <div className="mb-4">
           {(!isProviderStatusFetched || isLoading) && isWalletConnected ? (

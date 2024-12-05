@@ -5,6 +5,7 @@ import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 
 import { accountBarHeight } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
+import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
 
@@ -40,7 +41,7 @@ export const Layout: React.FC<Props> = ({ children, isLoading, isUsingSettings, 
   );
 };
 
-const LayoutApp: React.FC<Props> = ({ children, disableContainer, containerClassName = "" }) => {
+const LayoutApp: React.FC<Props> = ({ children, isLoading, disableContainer, containerClassName = "" }) => {
   const muiTheme = useMuiTheme();
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -68,6 +69,7 @@ const LayoutApp: React.FC<Props> = ({ children, disableContainer, containerClass
     setIsMobileOpen(!isMobileOpen);
   };
 
+  console.log(isLoading);
   return (
     <>
       <div className="bg-card min-h-full">
@@ -82,6 +84,7 @@ const LayoutApp: React.FC<Props> = ({ children, disableContainer, containerClass
                   ["md:ml-[57px]"]: !isNavOpen
                 })}
               >
+                {isLoading !== undefined && <LinearLoadingSkeleton isLoading={isLoading} />}
                 <div className={cn({ ["container pb-8 pt-4 sm:pt-8"]: !disableContainer }, containerClassName)}>{children}</div>
               </div>
             </div>

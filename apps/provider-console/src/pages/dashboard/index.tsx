@@ -33,7 +33,7 @@ const OfflineWarningBanner: React.FC = () => (
 
 const Dashboard: React.FC = () => {
   const { address }: any = useSelectedChain();
-  const { isOnline } = useWallet();
+  const { isOnline, isProviderOnlineStatusFetched } = useWallet();
 
   const { data: providerDetails, isLoading: isLoadingProviderDetails }: any = useProviderDetails(address);
   const { data: providerDashboard, isLoading: isLoadingProviderDashboard }: any = useProviderDashboard(address);
@@ -76,7 +76,7 @@ const Dashboard: React.FC = () => {
   );
 
   return (
-    <Layout>
+    <Layout isLoading={!isProviderOnlineStatusFetched}>
       {providerDetails && !isOnline && <OfflineWarningBanner />}
       <div className="flex items-center">
         <div className="w-10 flex-1">
