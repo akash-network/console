@@ -1,5 +1,12 @@
 
 
+## [2.37.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.36.0...console-api/v2.37.0-beta.0) (2024-12-05)
+
+
+### Features
+
+* **deployment:** auto top up managed deployment with available amount ([644332f](https://github.com/akash-network/console/commit/644332ffb6b7dffab2150f4ec6dfb70601df6816))
+
 ## [2.36.0](https://github.com/akash-network/console/compare/console-api/v2.36.0-beta.0...console-api/v2.36.0) (2024-12-04)
 
 ## [2.36.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.4-beta.0...console-api/v2.36.0-beta.0) (2024-12-04)
