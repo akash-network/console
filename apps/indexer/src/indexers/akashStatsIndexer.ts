@@ -939,14 +939,24 @@ export class AkashStatsIndexer extends Indexer {
     height: number,
     blockGroupTransaction: DbTransaction
   ) {
-    await ProviderAttributeSignature.destroy({
-      where: {
-        provider: decodedMessage.owner,
-        auditor: decodedMessage.auditor,
-        key: { [Op.in]: decodedMessage.keys }
-      },
-      transaction: blockGroupTransaction
-    });
+    if (decodedMessage.keys.length > 0) {
+      await ProviderAttributeSignature.destroy({
+        where: {
+          provider: decodedMessage.owner,
+          auditor: decodedMessage.auditor,
+          key: { [Op.in]: decodedMessage.keys }
+        },
+        transaction: blockGroupTransaction
+      });
+    } else {
+      await ProviderAttributeSignature.destroy({
+        where: {
+          provider: decodedMessage.owner,
+          auditor: decodedMessage.auditor
+        },
+        transaction: blockGroupTransaction
+      });
+    }
   }
 
   seed(): Promise<void> {
