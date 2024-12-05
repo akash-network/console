@@ -326,10 +326,18 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
           <div className="space-y-4">
             <h4 className="text-lg font-semibold">Instructions:</h4>
             <ol className="list-decimal space-y-2 pl-6">
-              <li>Open a terminal on your machine.</li>
-              <li>Navigate to your control machine's directory root.</li>
+              <li>Open a Terminal: On your computer, open the terminal app.</li>
               <li>
-                Run the following command to import your wallet:
+                Go to your control node's root directory
+                <div className="bg-secondary relative mt-2 rounded-md p-4">
+                  <code className="text-sm">cd ~</code>
+                  <Button variant="ghost" size="sm" className="absolute right-2 top-2" onClick={() => handleCopy("cd ~", setCopiedCommand)}>
+                    {copiedCommand ? <Check className="text-green-500" /> : <Copy />}
+                  </Button>
+                </div>
+              </li>
+              <li>
+                Run This Command: Copy and paste the following command into the terminal, then press Enter:
                 <div className="bg-secondary relative mt-2 rounded-md p-4">
                   <code className="text-sm">~/bin/provider-services keys add provider --recover --keyring-backend file</code>
                   <Button
@@ -343,18 +351,28 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                 </div>
               </li>
               <li>
-                When prompted, enter your wallet passphrase:
-                <div className="bg-secondary relative mt-2 rounded-md p-4">
-                  <code className="text-sm">{providerProcess?.machines[0]?.systemInfo?.key_id}</code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-2 top-2"
-                    onClick={() => handleCopy(providerProcess?.machines[0]?.systemInfo?.key_id || "", setCopiedPassphrase)}
-                  >
-                    {copiedPassphrase ? <Check className="text-green-500" /> : <Copy />}
-                  </Button>
-                </div>
+                Enter Your Wallet Details:
+                <ol className="list-decimal space-y-2 pl-6 mt-2">
+                  <li>
+                    First, it will ask for your 12 or 24-word mnemonic phrase. <br />
+                    Type or paste the seed phrase for the wallet you want to import and press Enter. <br />
+                    Next, it will ask for your wallet passphrase.{" "}
+                  </li>
+                  <li>
+                    Copy and paste the passphrase below and press Enter:
+                    <div className="bg-secondary relative mt-2 rounded-md p-4">
+                      <code className="text-sm">{providerProcess?.machines[0]?.systemInfo?.key_id}</code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-2"
+                        onClick={() => handleCopy(providerProcess?.machines[0]?.systemInfo?.key_id || "", setCopiedPassphrase)}
+                      >
+                        {copiedPassphrase ? <Check className="text-green-500" /> : <Copy />}
+                      </Button>
+                    </div>
+                  </li>
+                </ol>
               </li>
             </ol>
           </div>
