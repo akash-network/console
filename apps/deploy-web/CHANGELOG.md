@@ -1,5 +1,12 @@
 
 
+## [2.25.3-beta.0](https://github.com/akash-network/console/compare/console-web/v2.25.2...console-web/v2.25.3-beta.0) (2024-12-05)
+
+
+### Bug Fixes
+
+* **billing:** mobile banner styling ([566d941](https://github.com/akash-network/console/commit/566d9416149698d195e2463f32903496ff497a22)), closes [#525](https://github.com/akash-network/console/issues/525)
+
 ## [2.25.2](https://github.com/akash-network/console/compare/console-web/v2.25.2-beta.0...console-web/v2.25.2) (2024-12-04)
 
 ## [2.25.2-beta.0](https://github.com/akash-network/console/compare/console-web/v2.25.1...console-web/v2.25.2-beta.0) (2024-12-04)
