@@ -1,6 +1,6 @@
 "use client";
 import React, { ReactNode, useState } from "react";
-import { Button, buttonVariants } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -185,9 +185,11 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         {_isNavOpen && (
           <div className="space-y-2 pb-4 pl-4 pr-4">
             {/* <NodeStatusBar /> */}
-            <ProviderStatus />
-            <ControlMachineStatus />
-
+            <div className="px-2">
+              <ProviderStatus />
+              <ControlMachineStatus />
+            </div>
+            <Separator />
             <div className="flex items-center justify-center space-x-1 pt-4">
               <Link
                 target="_blank"
