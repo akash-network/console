@@ -17,7 +17,8 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  Separator } from "@akashnetwork/ui/components";
+  Separator
+} from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -109,9 +110,8 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
       <div className="w-full max-w-2xl space-y-6">
         <div>
           <h3 className="text-xl font-bold">{existingAttributes ? "Edit Provider Attributes" : "Provider Attributes"}</h3>
-          <p className="text-muted-foreground text-sm">
-            {existingAttributes ? "Please update your provider attributes." : "Please enter your provider attributes."}
-          </p>
+          <p className="text-muted-foreground text-sm">Attributes choosen here will be displayed publicly to the Console.</p>
+          <p className="text-muted-foreground text-sm">It will be used for filtering and querying providers during bid process.</p>
         </div>
         <div>
           <Separator />

@@ -8,7 +8,6 @@ import {
   Button,
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -31,7 +30,7 @@ interface ProviderPricingProps {
   resources?: {
     cpu: number;
     memory: number;
-    storage: string;
+    storage: number;
     persistentStorage: number;
     gpu: number;
   };
@@ -126,10 +125,10 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
     defaultValues: editMode
       ? existingPricing
       : {
+          gpu: 100,
           cpu: 1.6,
           memory: 0.8,
           storage: 0.02,
-          gpu: 100,
           persistentStorage: 0.3,
           ipScalePrice: 5,
           endpointBidPrice: 0.5
@@ -172,6 +171,41 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
 
   const estimatedEarnings = calculateEstimatedEarnings(watchValues);
 
+  const calculateDefaultEarnings = useCallback(() => {
+    const defaultPricing = {
+      gpu: 100,
+      cpu: 1.6,
+      memory: 0.8,
+      storage: 0.02,
+      persistentStorage: 0.3,
+      ipScalePrice: 5,
+      endpointBidPrice: 0.5
+    };
+
+    const { cpu, memory, storage, gpu, persistentStorage, ipScalePrice, endpointBidPrice } = defaultPricing;
+
+    const totalCpuEarnings = resources.cpu * cpu;
+    const totalMemoryEarnings = resources.memory * memory;
+    const totalStorageEarnings = resources.storage * storage;
+    const totalGpuEarnings = resources.gpu * gpu;
+    const totalPersistentStorageEarnings = resources.persistentStorage * persistentStorage;
+    const totalIpScaleEarnings = ipScalePrice;
+    const totalEndpointBidEarnings = endpointBidPrice;
+
+    const totalEarnings =
+      totalCpuEarnings +
+      totalMemoryEarnings +
+      totalStorageEarnings +
+      totalGpuEarnings +
+      totalPersistentStorageEarnings +
+      totalIpScaleEarnings +
+      totalEndpointBidEarnings;
+
+    return totalEarnings * 0.8;
+  }, [resources]);
+
+  const competitiveEarnings = calculateDefaultEarnings();
+
   const updateProviderPricingAndProceed = async (data: any) => {
     setIsLoading(true);
     if (!editMode) {
@@ -204,7 +238,9 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
       <div className="w-full max-w-5xl space-y-6">
         <div>
           <h3 className="text-2xl font-bold">Provider Pricing</h3>
-          <p className="text-muted-foreground text-sm">Set Provider Pricing to earn rewards</p>
+          <p className="text-muted-foreground text-sm">
+            The prices you set here determine the price your provider bids with and total revenue it earns for you.
+          </p>
         </div>
         <div className="">
           <Separator />
@@ -215,104 +251,10 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
               <div className="col-span-3 space-y-6">
                 <FormField
                   control={form.control}
-                  name="cpu"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-lg font-semibold">CPU</FormLabel>
-                      <FormDescription>Scale Bid Price - USD/thread-month</FormDescription>
-                      <FormControl>
-                        <div className="flex items-center space-x-4">
-                          <Slider
-                            disabled={disabled}
-                            value={[field.value]}
-                            onValueChange={([newValue]) => field.onChange(newValue)}
-                            max={4}
-                            step={0.01}
-                            className="w-full"
-                          />
-                          <Input
-                            disabled={disabled}
-                            type="number"
-                            {...field}
-                            onChange={e => field.onChange(parseFloat(e.target.value))}
-                            className="w-32"
-                            step="0.001"
-                          />
-                        </div>
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="memory"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-lg font-semibold">Memory</FormLabel>
-                      <FormDescription>Scale Bid Price - USD/GB-month</FormDescription>
-                      <FormControl>
-                        <div className="flex items-center space-x-4">
-                          <Slider
-                            disabled={disabled}
-                            value={[field.value]}
-                            onValueChange={([newValue]) => field.onChange(newValue)}
-                            max={4}
-                            step={0.001}
-                            className="w-full"
-                          />
-                          <Input
-                            disabled={disabled}
-                            type="number"
-                            {...field}
-                            onChange={e => field.onChange(parseFloat(e.target.value))}
-                            className="w-32"
-                            step="0.001"
-                          />
-                        </div>
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="storage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-lg font-semibold">Storage</FormLabel>
-                      <FormDescription>Scale Bid Price - USD/GB-month</FormDescription>
-                      <FormControl>
-                        <div className="flex items-center space-x-4">
-                          <Slider
-                            disabled={disabled}
-                            value={[field.value]}
-                            onValueChange={([newValue]) => field.onChange(newValue)}
-                            max={0.1}
-                            step={0.001}
-                            className="w-full"
-                          />
-                          <Input
-                            disabled={disabled}
-                            type="number"
-                            {...field}
-                            onChange={e => field.onChange(parseFloat(e.target.value))}
-                            className="w-32"
-                            step="0.001"
-                          />
-                        </div>
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
                   name="gpu"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-lg font-semibold">GPU</FormLabel>
-                      <FormDescription>Scale Bid Price - USD/GPU-month</FormDescription>
                       <FormControl>
                         <div className="flex items-center space-x-4">
                           <Slider
@@ -328,8 +270,102 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                             type="number"
                             {...field}
                             onChange={e => field.onChange(parseFloat(e.target.value))}
-                            className="w-32"
+                            className="w-72"
                             step="0.01"
+                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/GPU-month</span>}
+                          />
+                        </div>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="cpu"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg font-semibold">CPU</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center space-x-4">
+                          <Slider
+                            disabled={disabled}
+                            value={[field.value]}
+                            onValueChange={([newValue]) => field.onChange(newValue)}
+                            max={4}
+                            step={0.01}
+                            className="w-full"
+                          />
+                          <Input
+                            disabled={disabled}
+                            type="number"
+                            {...field}
+                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            className="w-72"
+                            step="0.001"
+                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/thread-month</span>}
+                          />
+                        </div>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="memory"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg font-semibold">Memory</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center space-x-4">
+                          <Slider
+                            disabled={disabled}
+                            value={[field.value]}
+                            onValueChange={([newValue]) => field.onChange(newValue)}
+                            max={4}
+                            step={0.001}
+                            className="w-full"
+                          />
+                          <Input
+                            disabled={disabled}
+                            type="number"
+                            {...field}
+                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            className="w-72"
+                            step="0.001"
+                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/GB-month</span>}
+                          />
+                        </div>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="storage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg font-semibold">Ephemeral Storage</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center space-x-4">
+                          <Slider
+                            disabled={disabled}
+                            value={[field.value]}
+                            onValueChange={([newValue]) => field.onChange(newValue)}
+                            max={0.1}
+                            step={0.001}
+                            className="w-full"
+                          />
+                          <Input
+                            disabled={disabled}
+                            type="number"
+                            {...field}
+                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            className="w-72"
+                            step="0.001"
+                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/GB-month</span>}
                           />
                         </div>
                       </FormControl>
@@ -343,7 +379,6 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-lg font-semibold">Persistent Storage</FormLabel>
-                      <FormDescription>Scale Bid Price - USD/GB-month</FormDescription>
                       <FormControl>
                         <div className="flex items-center space-x-4">
                           <Slider
@@ -359,8 +394,9 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                             type="number"
                             {...field}
                             onChange={e => field.onChange(parseFloat(e.target.value))}
-                            className="w-32"
+                            className="w-72"
                             step="0.01"
+                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/GB-month</span>}
                           />
                         </div>
                       </FormControl>
@@ -383,7 +419,6 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-lg font-semibold">IP Scale Price</FormLabel>
-                          <FormDescription>Scale Bid Price - USD/leased IP-month</FormDescription>
                           <FormControl>
                             <div className="flex items-center space-x-4">
                               <Slider
@@ -399,8 +434,9 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                                 type="number"
                                 {...field}
                                 onChange={e => field.onChange(parseFloat(e.target.value))}
-                                className="w-32"
+                                className="w-72"
                                 step="0.1"
+                                endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/IP-month</span>}
                               />
                             </div>
                           </FormControl>
@@ -414,7 +450,6 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-lg font-semibold">Endpoint Bid Price</FormLabel>
-                          <FormDescription>Scale Bid Price - USD/port-month</FormDescription>
                           <FormControl>
                             <div className="flex items-center space-x-4">
                               <Slider
@@ -430,8 +465,9 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                                 type="number"
                                 {...field}
                                 onChange={e => field.onChange(parseFloat(e.target.value))}
-                                className="w-32"
+                                className="w-72"
                                 step="0.01"
+                                endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/port-month</span>}
                               />
                             </div>
                           </FormControl>
@@ -445,18 +481,24 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                 <div className="bg-secondary rounded-lg p-6">
                   <h4 className="mb-4 text-lg font-semibold">Resources</h4>
                   {Object.entries(resources).length > 0 ? (
-                    Object.entries(resources).map(([key, value]) => (
-                      <div key={key} className="resource-item mb-2 rounded-sm border text-xs">
-                        <div className="flex justify-between">
-                          <span className="rounded-l-sm p-2 capitalize" style={{ width: 150 }}>
-                            {key.replace(/([A-Z])/g, " $1").trim()}
-                          </span>
-                          <span className="rounded-l-sm p-2 font-bold">
-                            {key === "cpu" || key === "gpu" ? value : Math.round(Number(value))} {key === "cpu" || key === "gpu" ? "" : "GB"}
-                          </span>
+                    Object.entries(resources)
+                      .sort(([keyA], [keyB]) => (keyA === "gpu" ? -1 : keyB === "gpu" ? 1 : 0))
+                      .map(([key, value]) => (
+                        <div key={key} className="resource-item mb-2 rounded-sm border text-xs">
+                          <div className="flex justify-between">
+                            <span className="rounded-l-sm p-2 capitalize">
+                              {key === "storage"
+                                ? "Ephemeral Storage"
+                                : key === "cpu" || key === "gpu"
+                                  ? key.toUpperCase()
+                                  : key.replace(/([A-Z])/g, " $1").trim()}
+                            </span>
+                            <span className="rounded-l-sm p-2 font-bold">
+                              {key === "cpu" || key === "gpu" ? value : Math.round(Number(value))} {key === "cpu" || key === "gpu" ? "" : "GB"}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      ))
                   ) : (
                     <p className="text-muted-foreground text-sm">No resources information available.</p>
                   )}
@@ -474,7 +516,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                   </p>
                   <div>
                     <span className="text-sm">Benchmark Price</span>
-                    <div className="text-2xl font-bold">$19.05/month</div>
+                    <div className="text-2xl font-bold">${competitiveEarnings.toFixed(2)}/month</div>
                   </div>
                 </div>
               </div>

@@ -73,7 +73,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
     if (currentServerNumber === 0 || !providerProcess?.storeInformation) {
       return {
         hostname: "",
-        authType: "password",
+        authType: "file",
         username: "root",
         port: 22
       };
@@ -91,7 +91,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
-    defaultValues: editMode ? controlMachine?.access : (getDefaultValues() as any)
+    defaultValues: editMode ? { ...controlMachine?.access, username: "root" } : (getDefaultValues() as any)
   });
 
   useEffect(() => {
@@ -278,9 +278,9 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
                   name="username"
                   render={({ field }) => (
                     <FormItem className="flex flex-col space-y-2">
-                      <FormLabel>Username</FormLabel>
+                      <FormLabel>SSH Username</FormLabel>
                       <FormControl>
-                        <Input placeholder="Input your username" {...field} />
+                        <Input placeholder="Input your SSH username" {...field} />
                       </FormControl>
                       <FormDescription>The username must be "root" for proper setup.</FormDescription>
                       <FormMessage />
@@ -300,11 +300,11 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
                   onValueChange={value => form.setValue("authType", value as "password" | "file")}
                 >
                   <TabsList className="ml-auto">
-                    <TabsTrigger value="password" className="text-zinc-600 dark:text-zinc-200">
-                      Password
-                    </TabsTrigger>
                     <TabsTrigger value="file" className="text-zinc-600 dark:text-zinc-200">
                       File
+                    </TabsTrigger>
+                    <TabsTrigger value="password" className="text-zinc-600 dark:text-zinc-200">
+                      Password
                     </TabsTrigger>
                   </TabsList>
                   <TabsContent value="password">
@@ -328,7 +328,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
                       name="file"
                       render={({ field }) => (
                         <FormItem className="flex flex-col">
-                          <FormLabel>Password File</FormLabel>
+                          <FormLabel>SSH Private Key File</FormLabel>
                           <FormControl>
                             <Input id="file" type="file" onChange={e => fileChange(e, field)} />
                           </FormControl>
@@ -356,6 +356,27 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
                   </TabsContent>
                 </Tabs>
               </div>
+              {currentServerNumber === 0 && !editMode && (
+                <div className="pt-2">
+                  <FormField
+                    control={form.control}
+                    name="saveInformation"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center space-x-2">
+                        <FormControl>
+                          <Checkbox id="saveInformation" checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                        <FormLabel htmlFor="saveInformation" className="text-sm font-medium leading-none">
+                          Apply this config to all nodes?
+                        </FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="">
+              <Separator />
             </div>
             <div className="flex justify-end">
               <div className="flex w-full justify-between">
@@ -364,7 +385,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
                   <Button type="submit" disabled={isVerifying}>
                     {isVerifying ? (
                       <>
-                        <Spinner size="small" className="mr-2"/>
+                        <Spinner size="small" className="mr-2" />
                         Verifying...
                       </>
                     ) : editMode ? (
@@ -393,31 +414,6 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
                 </Alert>
               )}
             </div>
-            {currentServerNumber === 0 && !editMode && (
-              <div className="rounded-md border">
-                <div className="space-y-2 p-4">
-                  <h4 className="text-lg font-bold">Heads up!</h4>
-                  <p className="text-sm">You can apply information from Control Plane 1 to all remaining nodes by checking the option below.</p>
-                  <div>
-                    <FormField
-                      control={form.control}
-                      name="saveInformation"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center space-x-2">
-                          <FormControl>
-                            <Checkbox id="saveInformation" checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                          <FormLabel htmlFor="saveInformation" className="text-sm font-medium leading-none">
-                            Yes
-                          </FormLabel>
-                        </FormItem>
-                      )}
-                    />
-                    <FormMessage />
-                  </div>
-                </div>
-              </div>
-            )}
           </form>
         </Form>
       </div>
