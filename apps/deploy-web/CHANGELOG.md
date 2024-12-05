@@ -1,5 +1,12 @@
 
 
+## [2.25.3-beta.1](https://github.com/akash-network/console/compare/console-web/v2.25.3-beta.0...console-web/v2.25.3-beta.1) (2024-12-05)
+
+
+### Bug Fixes
+
+* **config:** increase nginx large header buffer limit ([#526](https://github.com/akash-network/console/issues/526)) ([192b9a2](https://github.com/akash-network/console/commit/192b9a27d1f43f88762cca625ff19460281a9995))
+
 ## [2.25.3-beta.0](https://github.com/akash-network/console/compare/console-web/v2.25.2...console-web/v2.25.3-beta.0) (2024-12-05)
 
 
