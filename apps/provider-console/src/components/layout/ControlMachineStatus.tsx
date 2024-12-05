@@ -21,7 +21,6 @@ export const ControlMachineStatus = () => {
           {controlMachineLoading ? (
             <span className="flex items-center gap-1">
               <Spinner size="xSmall" />
-              <span>Loading...</span>
             </span>
           ) : (
             "Connect"
