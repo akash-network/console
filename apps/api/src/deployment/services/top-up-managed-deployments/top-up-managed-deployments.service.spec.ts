@@ -83,7 +83,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
   const data = [
     seedFor({}),
-    seedFor({ balance: "5000000", expectedDeploymentsTopUpCount: 1 }),
+    seedFor({ balance: "50000000", expectedDeploymentsTopUpCount: 2 }),
+    seedFor({ balance: "1408022", expectedDeploymentsTopUpCount: 1 }),
     seedFor({ hasDeployments: false }),
     seedFor({ balance: "0", expectedDeploymentsTopUpCount: 0 })
   ];
