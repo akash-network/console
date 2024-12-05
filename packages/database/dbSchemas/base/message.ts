@@ -12,6 +12,7 @@ export const tableConfig = {
     { unique: false, fields: ["txId"] },
     { unique: false, fields: ["height"] },
     { unique: false, fields: ["txId", "isProcessed"] },
+    { unique: false, fields: ["height", "type"] },
     { unique: false, fields: ["height", "isNotificationProcessed"], where: { isNotificationProcessed: false } },
     { unique: false, fields: ["height"], where: { isNotificationProcessed: false }, name: "message_height_is_notification_processed_false" },
     { unique: false, fields: ["height"], where: { isNotificationProcessed: true }, name: "message_height_is_notification_processed_true" }
