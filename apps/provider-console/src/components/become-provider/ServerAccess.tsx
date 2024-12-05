@@ -2,7 +2,6 @@
 import React, { useCallback, useState } from "react";
 import { Button, Input, Separator } from "@akashnetwork/ui/components";
 
-import { ResetProviderForm } from "./ResetProviderProcess";
 import { ServerForm } from "./ServerForm";
 
 interface ServerAccessProps {
@@ -30,18 +29,26 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
     <div className="flex flex-col items-center pt-10">
       {!activateServerForm ? (
         <div className="space-y-6">
-          <div>
-            <h3 className="text-xl font-bold">Specify Number of Servers</h3>
-            <p className="text-muted-foreground text-sm">Tell us how many servers you'll be using in your setup.</p>
+          <div className="flex items-center space-x-4">
+            <h3 className="text-xl font-bold">Server Count</h3>
+            <Input
+              type="number"
+              placeholder="1"
+              value={numberOfServers}
+              onChange={handleNumberOfServersChange}
+              min={1}
+              className="w-20 rounded-md border-2 text-center"
+            />
           </div>
-          <Input type="number" placeholder="1" value={numberOfServers} onChange={handleNumberOfServersChange} min={1} />
+          <p className="text-sm">
+            How many servers will you be using to set up this provider? <br />
+            (Include all nodes - control nodes, etcd, worker nodes)
+          </p>
           <div className="">
             <Separator />
           </div>
           <div className="flex w-full justify-between">
-            <div className="flex justify-start">
-              <ResetProviderForm />
-            </div>
+            <div className="flex justify-start"></div>
             <div className="flex justify-end">
               <Button onClick={() => setActivateServerForm(true)}>Next</Button>
             </div>
