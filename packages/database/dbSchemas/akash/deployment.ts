@@ -6,7 +6,17 @@ import { Required } from "../decorators/requiredDecorator";
 import { DeploymentGroup } from "./deploymentGroup";
 import { Lease } from "./lease";
 
-@Table({ modelName: "deployment" })
+@Table({
+  modelName: "deployment",
+  indexes: [
+    {
+      fields: ["createdHeight", "closedHeight"]
+    },
+    {
+      fields: ["owner"]
+    }
+  ]
+})
 export class Deployment extends Model {
   @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id: string;
   @Required @Column owner: string;
