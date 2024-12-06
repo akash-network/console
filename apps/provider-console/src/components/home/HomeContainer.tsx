@@ -14,7 +14,7 @@ export const HomeContainer: React.FC = () => {
   const { data: providerActions } = useProviderActions();
 
   useEffect(() => {
-    if (isWalletConnected && isProvider) {
+    if (isWalletConnected && isProviderStatusFetched && isProvider) {
       router.push("/dashboard");
     }
   }, [isWalletConnected, isProvider, isOnline, providerActions, router]);
