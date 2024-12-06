@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import useCookieTheme from "@src/hooks/useTheme";
 import { accountBarHeight } from "@src/utils/constants";
-import { AkashConsoleBetaLogoDark, AkashConsoleBetaLogoLight } from "../icons/AkashConsoleLogo";
+import { AkashConsoleLogoDark, AkashConsoleLogoLight } from "../icons/AkashConsoleLogo";
 import { WalletStatus } from "./WalletStatus";
 
 export const Nav = () => {
@@ -14,11 +14,7 @@ export const Nav = () => {
       <div className="flex h-14 items-center justify-between pl-4 pr-4">
         {!!theme && (
           <Link className="flex items-center" href="/">
-            {theme === "light" ? (
-              <AkashConsoleBetaLogoLight className="h-[19px] max-w-[200px]" />
-            ) : (
-              <AkashConsoleBetaLogoDark className="h-[19px] max-w-[200px]" />
-            )}
+            {theme === "light" ? <AkashConsoleLogoLight className="h-[19px] max-w-[200px]" /> : <AkashConsoleLogoDark className="h-[19px] max-w-[200px]" />}
           </Link>
         )}
 
