@@ -1,5 +1,7 @@
 
 
+## [2.37.0](https://github.com/akash-network/console/compare/console-api/v2.37.0-beta.0...console-api/v2.37.0) (2024-12-06)
+
 ## [2.37.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.36.0...console-api/v2.37.0-beta.0) (2024-12-05)
 
 
