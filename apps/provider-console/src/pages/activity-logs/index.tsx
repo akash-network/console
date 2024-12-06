@@ -3,6 +3,7 @@
 import { Layout } from "@src/components/layout/Layout";
 import { ActivityLogList } from "@src/components/shared/ActivityLogList";
 import { Title } from "@src/components/shared/Title";
+import { withAuth } from "@src/components/shared/withAuth";
 import { useProviderActions } from "@src/queries/useProviderQuery";
 
 const ActivityLogs: React.FC = () => {
@@ -25,4 +26,4 @@ const ActivityLogs: React.FC = () => {
   );
 };
 
-export default ActivityLogs;
+export default withAuth({ WrappedComponent: ActivityLogs, authLevel: "wallet" });

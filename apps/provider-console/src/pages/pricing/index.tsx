@@ -3,6 +3,7 @@ import { Alert, AlertDescription, AlertTitle, Spinner } from "@akashnetwork/ui/c
 
 import { ProviderPricing } from "@src/components/become-provider/ProviderPricing";
 import { Layout } from "@src/components/layout/Layout";
+import { withAuth } from "@src/components/shared/withAuth";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useProvider } from "@src/context/ProviderContext";
 import restClient from "@src/utils/restClient";
@@ -90,4 +91,4 @@ const Pricing: React.FunctionComponent = () => {
   );
 };
 
-export default Pricing;
+export default withAuth({ WrappedComponent: Pricing, authLevel: "provider" });

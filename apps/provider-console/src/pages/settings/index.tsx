@@ -111,4 +111,4 @@ const SettingsPage: React.FC = () => {
   );
 };
 
-export default withAuth(SettingsPage);
+export default withAuth({ WrappedComponent: SettingsPage, authLevel: "provider" });

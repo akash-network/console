@@ -4,6 +4,7 @@ import React from "react";
 
 import { Layout } from "@src/components/layout/Layout";
 import { ActivityLogDetails } from "@src/components/shared/ActivityLogDetails";
+import { withAuth } from "@src/components/shared/withAuth";
 
 type Props = {
   id: string | null;
@@ -27,7 +28,7 @@ const ActivityLogDetailsPage: React.FC<Props> = ({ id }) => {
   );
 };
 
-export default ActivityLogDetailsPage;
+export default withAuth({ WrappedComponent: ActivityLogDetailsPage, authLevel: "wallet" });
 
 export async function getServerSideProps({ params }) {
   return {
