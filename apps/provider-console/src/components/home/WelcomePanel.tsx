@@ -57,7 +57,9 @@ export const WelcomePanel: React.FC = () => {
                 </Avatar>
 
                 <div className="flex flex-col">
-                  <Link href={UrlService.getStarted()}>Know more about Providers on Akash.</Link>
+                  <Link href="https://console.akash.network/providers" target="_blank">
+                    Know more about Providers on Akash.
+                  </Link>
                   <span className="text-muted-foreground text-sm">Find out all about Akash Providers.</span>
                 </div>
               </li>
