@@ -43,7 +43,7 @@ const PercentChange: React.FC<PercentChangeProps> = ({ currentPrice, previousPri
 export const FinanceCard: React.FC<FinanceCardProps> = ({ title, subtitle, currentPrice, previousPrice, message }) => {
   return (
     <Card>
-      <CardContent className="rounded-lg p-6 shadow-md">
+      <CardContent className="p-6">
         <div className="grid grid-cols-2 gap-4">
           <div className="">
             <div className="text-sm font-medium">{subtitle}</div>

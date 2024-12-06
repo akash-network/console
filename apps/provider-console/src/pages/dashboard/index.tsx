@@ -41,7 +41,7 @@ const Dashboard: React.FC = () => {
 
   const summaryCards = useMemo(
     () => (
-      <>
+      <div className="grid grid-cols-3 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <FinanceCard
           title={formatUUsd(providerDashboard?.current.dailyUUsdEarned)}
           subtitle="Earned (last 24H)"
@@ -70,7 +70,7 @@ const Dashboard: React.FC = () => {
           previousPrice={providerDashboard?.previous.totalLeaseCount}
           message="Change in total leases compared to 24 hours ago"
         />
-      </>
+      </div>
     ),
     [providerDashboard]
   );
@@ -90,14 +90,14 @@ const Dashboard: React.FC = () => {
             {isLoadingProviderDashboard && <Spinner className="mb-2 ml-2 h-5 w-5" />}
           </div>
         </div>
-        <div className="mt-2 grid grid-cols-4 gap-4">
+        <div className="mt-2">
           {isLoadingProviderDashboard ? (
-            <>
+            <div className="grid grid-cols-3 gap-4">
               <DashboardCardSkeleton />
               <DashboardCardSkeleton />
               <DashboardCardSkeleton />
               <DashboardCardSkeleton />
-            </>
+            </div>
           ) : (
             summaryCards
           )}
