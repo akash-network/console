@@ -1,7 +1,8 @@
 "use client";
 import React, { useCallback, useState } from "react";
-import { Button, Input, Separator } from "@akashnetwork/ui/components";
+import { Button, Input, Popup, Separator } from "@akashnetwork/ui/components";
 
+import { useWallet } from "@src/context/WalletProvider";
 import { ServerForm } from "./ServerForm";
 
 interface ServerAccessProps {
@@ -12,6 +13,16 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
   const [numberOfServers, setNumberOfServers] = useState(1);
   const [activateServerForm, setActivateServerForm] = useState(false);
   const [currentServer, setCurrentServer] = useState(0);
+  const [showBalancePopup, setShowBalancePopup] = useState(false);
+
+  const { walletBalances } = useWallet();
+  const hasEnoughBalance = (walletBalances?.uakt || 0) >= 5000000;
+
+  React.useEffect(() => {
+    if (!hasEnoughBalance) {
+      setShowBalancePopup(true);
+    }
+  }, [hasEnoughBalance]);
 
   const handleServerFormSubmit = useCallback(() => {
     if (currentServer + 1 >= numberOfServers) {
@@ -23,6 +34,18 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
   const handleNumberOfServersChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const value = Math.max(1, parseInt(event.target.value, 10) || 1);
     setNumberOfServers(value);
+  }, []);
+
+  const handleNextClick = useCallback(() => {
+    if (!hasEnoughBalance) {
+      setShowBalancePopup(true);
+      return;
+    }
+    setActivateServerForm(true);
+  }, [hasEnoughBalance]);
+
+  const handleClosePopup = useCallback(() => {
+    setShowBalancePopup(false);
   }, []);
 
   return (
@@ -50,13 +73,46 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
           <div className="flex w-full justify-between">
             <div className="flex justify-start"></div>
             <div className="flex justify-end">
-              <Button onClick={() => setActivateServerForm(true)}>Next</Button>
+              <Button onClick={handleNextClick}>Next</Button>
             </div>
           </div>
         </div>
       ) : (
         <ServerForm key={currentServer} currentServerNumber={currentServer} onComplete={handleServerFormSubmit} />
       )}
+
+      <Popup
+        fullWidth
+        open={showBalancePopup}
+        variant="custom"
+        actions={[
+          {
+            label: "Close",
+            color: "primary",
+            variant: "ghost",
+            side: "left",
+            onClick: handleClosePopup
+          }
+        ]}
+        onClose={handleClosePopup}
+        maxWidth="xs"
+        enableCloseOnBackdropClick
+        title="Insufficient Balance"
+      >
+        <div>
+          <div className="pb-2">
+            <p>
+              You need at least <strong>5 AKT</strong> to become a provider. Please add more funds to your wallet to continue.
+            </p>
+          </div>
+          <Separator />
+          <div>
+            <p className="pt-2">
+              You currently have <strong>{(walletBalances?.uakt || 0) / 1000000} AKT</strong>.
+            </p>
+          </div>
+        </div>
+      </Popup>
     </div>
   );
 };
