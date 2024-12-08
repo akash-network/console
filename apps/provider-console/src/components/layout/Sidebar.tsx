@@ -173,7 +173,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
             })}
             href="/become-provider"
           >
-            {_isNavOpen && "Become Provider "}
+            {_isNavOpen && "Create Provider "}
             <Rocket className={cn("rotate-45", { ["ml-4"]: _isNavOpen })} fontSize="small" />
           </Link>
         )}
