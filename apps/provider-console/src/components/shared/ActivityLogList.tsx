@@ -57,7 +57,7 @@ export const ActivityLogList: React.FC<ActivityLogsListProps> = ({ actions }) =>
   };
 
   const handleRowClick = (actionId: string) => {
-    router.push(`/actions/${actionId}`);
+    router.push(`/activity-logs/${actionId}`);
   };
 
   return (
