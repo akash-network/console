@@ -1,7 +1,7 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { Button, Separator } from "@akashnetwork/ui/components";
-import { CoinsSwap, HandCard } from "iconoir-react";
+import { Alert, AlertDescription, Button, Separator } from "@akashnetwork/ui/components";
+import { CoinsSwap, HandCard, WarningCircle } from "iconoir-react";
 
 import { TopUpAmountPicker } from "@src/components/top-up-amount-picker/TopUpAmountPicker";
 import { useWallet } from "@src/context/WalletProvider";
@@ -9,12 +9,14 @@ import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHa
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
 import { WalletBalance } from "@src/hooks/useWalletBalance";
 import { LinkTo } from "../shared/LinkTo";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 
 interface ManagedWalletPopupProps extends React.PropsWithChildren {
   walletBalance: WalletBalance;
 }
 
 export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance }) => {
+  const { user } = useCustomUser();
   const { switchWalletType, isManaged, isTrialing } = useWallet();
   const whenLoggedIn = useLoginRequiredEventHandler();
   const { showManagedEscrowFaqModal } = useManagedEscrowFaqModal();
@@ -22,6 +24,8 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
   const goToCheckout = () => {
     window.location.href = "/api/proxy/v1/checkout";
   };
+
+  console.log(user);
 
   return (
     <div className="w-[300px] p-2">
@@ -71,8 +75,22 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
       )}
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
+        {!user?.emailVerified && (
+          <Alert variant="warning">
+            <AlertDescription className="flex items-center space-x-2">
+              <WarningCircle className="text-lg" />
+              <span>Verify your email to add funds to your balance.</span>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <TopUpAmountPicker mdMode="click" className="w-full">
-          <Button onClick={whenLoggedIn(goToCheckout, "Sign In or Sign Up to add funds")} variant="outline" className="w-full space-x-2">
+          <Button
+            onClick={whenLoggedIn(goToCheckout, "Sign In or Sign Up to add funds")}
+            variant="outline"
+            className="w-full space-x-2"
+            disabled={!user?.emailVerified}
+          >
             <HandCard />
             <span>Add Funds</span>
           </Button>

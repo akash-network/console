@@ -19,7 +19,7 @@ export class CheckoutController {
     const { currentUser } = this.authService;
     const redirectUrl = this.billingConfig.STRIPE_CHECKOUT_REDIRECT_URL;
 
-    if (!currentUser?.userId) {
+    if (!currentUser?.userId || !currentUser?.emailVerified) {
       return c.redirect(`${redirectUrl}?unauthorized=true`);
     }
 
