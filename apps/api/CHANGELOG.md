@@ -1,5 +1,12 @@
 
 
+## [2.38.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.37.0...console-api/v2.38.0-beta.0) (2024-12-09)
+
+
+### Features
+
+* **deployment:** add context to top up error logging ([d8ab845](https://github.com/akash-network/console/commit/d8ab845a3ab6f337f2eefeacec5534a7d90c5837))
+
 ## [2.37.0](https://github.com/akash-network/console/compare/console-api/v2.37.0-beta.0...console-api/v2.37.0) (2024-12-06)
 
 ## [2.37.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.36.0...console-api/v2.37.0-beta.0) (2024-12-05)
