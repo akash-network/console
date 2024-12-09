@@ -7,6 +7,7 @@ import { BlockHttpService } from "@src/chain/services/block-http/block-http.serv
 import { ErrorService } from "@src/core/services/error/error.service";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import { TopUpCustodialBalanceService } from "@src/deployment/services/top-up-custodial-balance/top-up-custodial-balance.service";
 import { TopUpToolsService } from "@src/deployment/services/top-up-tools/top-up-tools.service";
 import { DeploymentsRefiller, TopUpDeploymentsOptions } from "@src/deployment/types/deployments-refiller";
 
@@ -15,6 +16,7 @@ interface Balances {
   feesLimit: number;
   deploymentLimit: number;
   balance: number;
+  feesBalance?: number;
 }
 
 interface TopUpSummary {
@@ -82,21 +84,19 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
       return;
     }
 
-    const balances = await this.collectWalletBalances(grant);
-
-    let { deploymentLimit, feesLimit, balance } = balances;
+    const balancesService = new TopUpCustodialBalanceService(await this.collectWalletBalances(grant));
     let hasTopUp = false;
 
     for (const { dseq, denom, blockRate, predictedClosedHeight } of drainingDeployments) {
-      const amount = await this.drainingDeploymentService.calculateTopUpAmount({ blockRate });
-      if (!this.canTopUp(amount, { deploymentLimit, feesLimit, balance })) {
-        this.logger.info({ event: "INSUFFICIENT_BALANCE", granter: owner, grantee, balances: { deploymentLimit, feesLimit, balance } });
+      const amount = await this.calculateTopUpAmount(blockRate, balancesService.balances);
+
+      if (!this.canTopUp(amount, balancesService.balances)) {
+        this.logger.info({ event: "INSUFFICIENT_BALANCE", granter: owner, grantee, balances: balancesService.balances });
         summary.inc("insufficientBalanceCount");
         break;
       }
-      deploymentLimit -= amount;
-      feesLimit -= this.MIN_FEES_AVAILABLE;
-      balance -= amount + this.MIN_FEES_AVAILABLE;
+
+      balancesService.recordTx(amount, this.MIN_FEES_AVAILABLE);
 
       await this.topUpDeployment(
         {
@@ -124,27 +124,50 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
     const denom = grant.authorization.spend_limit.denom;
     const deploymentLimit = parseFloat(grant.authorization.spend_limit.amount);
 
-    const feesLimit = await this.retrieveFeesLimit(grant.granter, grant.grantee, denom);
-    const { amount } = await this.balanceHttpService.getBalance(grant.granter, denom);
-    const balance = parseFloat(amount);
+    const feesLimit = await this.retrieveFeesLimit(grant.granter, grant.grantee);
+    const [{ amount: balance }, feesBalance] = await Promise.all([
+      this.balanceHttpService.getBalance(grant.granter, denom),
+      denom !== "uakt" && this.balanceHttpService.getBalance(grant.granter, "uakt")
+    ]);
 
     return {
       denom,
       feesLimit,
       deploymentLimit,
-      balance
+      balance,
+      feesBalance: feesBalance?.amount
     };
   }
 
-  private async retrieveFeesLimit(granter: string, grantee: string, denom: string) {
+  private async retrieveFeesLimit(granter: string, grantee: string) {
     const feesAllowance = await this.allowanceHttpService.getFeeAllowanceForGranterAndGrantee(granter, grantee);
-    const feesSpendLimit = feesAllowance.allowance.spend_limit.find(limit => limit.denom === denom);
+    const feesSpendLimit = feesAllowance.allowance.spend_limit.find(limit => limit.denom === "uakt");
 
     return feesSpendLimit ? parseFloat(feesSpendLimit.amount) : 0;
   }
 
-  private canTopUp(amount: number, balances: Pick<Balances, "balance" | "deploymentLimit" | "feesLimit">) {
-    return balances.deploymentLimit > amount && balances.feesLimit > this.MIN_FEES_AVAILABLE && balances.balance > amount + this.MIN_FEES_AVAILABLE;
+  private async calculateTopUpAmount(blockRate: number, balances: Balances) {
+    const amount = await this.drainingDeploymentService.calculateTopUpAmount({ blockRate });
+
+    if (balances.denom === "uakt") {
+      const smallestAmount = Math.min(amount, balances.deploymentLimit - this.MIN_FEES_AVAILABLE, balances.balance - this.MIN_FEES_AVAILABLE);
+      return Math.max(smallestAmount, 0);
+    }
+
+    return Math.min(amount, balances.deploymentLimit, balances.balance);
+  }
+
+  private canTopUp(amount: number, balances: Balances) {
+    if (!amount) {
+      return false;
+    }
+
+    const hasSufficientDeploymentLimit = amount <= balances.deploymentLimit;
+    const hasSufficientFeesLimit = balances.feesLimit >= this.MIN_FEES_AVAILABLE;
+    const hasSufficientFeesBalance = typeof balances.feesBalance === "undefined" || balances.feesBalance >= this.MIN_FEES_AVAILABLE;
+    const hasSufficientBalance = balances.balance >= (balances.denom === "uakt" ? amount + this.MIN_FEES_AVAILABLE : amount);
+
+    return hasSufficientDeploymentLimit && hasSufficientFeesLimit && hasSufficientFeesBalance && hasSufficientBalance;
   }
 
   async topUpDeployment({ grantee, ...messageInput }: ExecDepositDeploymentMsgOptions, client: MasterSigningClientService, options: TopUpDeploymentsOptions) {
