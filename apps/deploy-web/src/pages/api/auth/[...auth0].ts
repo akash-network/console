@@ -20,7 +20,6 @@ export default handleAuth({
         refetch: true,
         afterRefetch: async (req, res, session) => {
           try {
-            // TODO: Fix for console
             const user_metadata = session.user["https://console.akash.network/user_metadata"];
             const headers = new AxiosHeaders({
               Authorization: `Bearer ${session.accessToken}`
@@ -44,9 +43,6 @@ export default handleAuth({
                 headers: headers.toJSON()
               }
             );
-
-            // session.user["user_metadata"] = { ...session.user["https://console.akash.network/user_metadata"] };
-            // delete session.user["https://console.akash.network/user_metadata"];
 
             session.user = { ...session.user, ...userSettings.data };
           } catch (err) {

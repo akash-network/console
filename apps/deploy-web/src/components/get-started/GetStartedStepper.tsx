@@ -18,6 +18,7 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { useIsEmailVerified } from "@src/hooks/useRequiredEmailVerified";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import walletStore from "@src/store/walletStore";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -26,6 +27,7 @@ import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import LiquidityModal from "../liquidity-modal";
 import { ExternalLink } from "../shared/ExternalLink";
+import { VerifyEmail } from "../shared/VerifyEmail";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
 
@@ -38,6 +40,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
   const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const { user } = useCustomUser();
+  const isEmailVerified = useIsEmailVerified();
 
   useEffect(() => {
     const getStartedStep = localStorage.getItem("getStartedStep");
@@ -104,26 +107,32 @@ export const GetStartedStepper: React.FunctionComponent = () => {
 
           <div className="my-4 flex items-center space-x-4">
             {isManagedWallet && (
-              <TopUpAmountPicker popoverClassName="absolute md:min-w-max" mdMode="hover">
-                <LoginRequiredLink
-                  className={cn("hover:no-underline", buttonVariants({ variant: "outline", className: "mr-2 border-primary" }))}
-                  href="/api/proxy/v1/checkout"
-                  message="Sign In or Sign Up to add funds to your balance"
-                >
-                  <HandCard className="text-xs text-accent-foreground" />
-                  <span className="m-2 whitespace-nowrap text-accent-foreground">Add Funds</span>
-                </LoginRequiredLink>
-              </TopUpAmountPicker>
-            )}
-            <Button variant="default" onClick={handleNext}>
-              Next
-            </Button>
-            {!isManagedWallet && (
-              <Link className={cn(buttonVariants({ variant: "text" }))} href={UrlService.getStartedWallet()}>
-                Learn how
-              </Link>
+              <div className="flex flex-col items-start space-y-2">
+                <VerifyEmail />
+
+                <TopUpAmountPicker popoverClassName="absolute md:min-w-max" mdMode="hover">
+                  <LoginRequiredLink
+                    className={cn("hover:no-underline", buttonVariants({ variant: "outline", className: "mr-2 border-primary" }))}
+                    href="/api/proxy/v1/checkout"
+                    message="Sign In or Sign Up to add funds to your balance"
+                    disabled={!isEmailVerified}
+                  >
+                    <HandCard className="text-xs text-accent-foreground" />
+                    <span className="m-2 whitespace-nowrap text-accent-foreground">Add Funds</span>
+                  </LoginRequiredLink>
+                </TopUpAmountPicker>
+              </div>
             )}
           </div>
+
+          <Button variant="default" onClick={handleNext}>
+            Next
+          </Button>
+          {!isManagedWallet && (
+            <Link className={cn(buttonVariants({ variant: "text" }))} href={UrlService.getStartedWallet()}>
+              Learn how
+            </Link>
+          )}
 
           {isWalletConnected && isTrialing && (
             <div className="my-4 flex items-center space-x-2">
