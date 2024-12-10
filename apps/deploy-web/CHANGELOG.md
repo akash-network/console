@@ -1,5 +1,12 @@
 
 
+## [2.25.4-beta.0](https://github.com/akash-network/console/compare/console-web/v2.25.3...console-web/v2.25.4-beta.0) (2024-12-10)
+
+
+### Bug Fixes
+
+* **billing:** check for email verified to add funds ([e1cfa10](https://github.com/akash-network/console/commit/e1cfa10835ad29938f12812f8b28d582213850ec)), closes [#535](https://github.com/akash-network/console/issues/535)
+
 ## [2.25.3](https://github.com/akash-network/console/compare/console-web/v2.25.3-beta.1...console-web/v2.25.3) (2024-12-05)
 
 ## [2.25.3-beta.1](https://github.com/akash-network/console/compare/console-web/v2.25.3-beta.0...console-web/v2.25.3-beta.1) (2024-12-05)
