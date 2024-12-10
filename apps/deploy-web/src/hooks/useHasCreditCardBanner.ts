@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAtom } from "jotai";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
-import { useUser } from "./useUser";
-import { useAtom } from "jotai";
 import walletStore from "@src/store/walletStore";
+import { useUser } from "./useUser";
 
 const withBilling = browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
