@@ -1,0 +1,84 @@
+name: Create GitHub Release
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: 'The app to release'
+        required: true
+        type: string
+    outputs:
+      version:
+        description: 'The version released'
+        value: ${{ jobs.release.outputs.version }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.app }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.bumps.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get Version and Changelog Updates
+        id: bumps
+        run: |
+          package_file="apps/${{ inputs.app }}/package.json"
+          
+          if [ ! -f "$package_file" ]; then
+            echo "Error: Package file $package_file does not exist."
+            exit 1
+          fi
+          
+          current_version=$(jq -r '.version' "$package_file")
+          git_tag=$current_version
+          
+          if [ "${{ inputs.app }}" = "deploy-web" ]; then
+            git_tag="console-web/v$git_tag"
+          elif [ "${{ inputs.app }}" = "api" ]; then
+            git_tag="console-api/v$git_tag"
+          else
+            echo "Error: Unsupported app type '${{ inputs.app }}'."
+            exit 1
+          fi
+          
+          has_tag=$(git rev-parse "$git_tag" >/dev/null 2>&1 && echo "true" || echo "false")
+          
+          if [ "$has_tag" = "false" ]; then
+            echo "version=$git_tag" >> $GITHUB_OUTPUT
+            echo "version=$git_tag"
+          
+            changelog=$(script/extract-changelog.sh "$current_version" "apps/${{ inputs.app }}/CHANGELOG.md")
+
+            if [ -n "$changelog" ]; then
+              echo "changelog=$changelog"
+              echo "changelog<<EOF" >> $GITHUB_OUTPUT
+              echo "$changelog" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Create Release
+        if: ${{ steps.bumps.outputs.version != '' }}
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.bumps.outputs.version }}
+          release_name: ${{ steps.bumps.outputs.version }}
+          body: ${{ steps.bumps.outputs.changelog }}
+          prerelease: true
