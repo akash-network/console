@@ -1,5 +1,7 @@
 
 
+## [2.38.0](https://github.com/akash-network/console/compare/console-api/v2.38.0-beta.2...console-api/v2.38.0) (2024-12-10)
+
 ## [2.38.0-beta.2](https://github.com/akash-network/console/compare/console-api/v2.38.0-beta.1...console-api/v2.38.0-beta.2) (2024-12-10)
 
 
