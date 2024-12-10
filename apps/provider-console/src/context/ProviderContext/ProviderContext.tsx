@@ -2,12 +2,13 @@
 import React from "react";
 import { useQuery } from "react-query";
 
+import { ProviderDashoard, ProviderDetails } from "@src/types/provider";
 import consoleClient from "@src/utils/consoleClient";
 import { useWallet } from "../WalletProvider";
 
 type ContextType = {
-  providerDetails: any;
-  providerDashboard: any;
+  providerDetails: ProviderDetails | undefined;
+  providerDashboard: ProviderDashoard | undefined;
   isLoadingProviderDetails: boolean;
   isLoadingProviderDashboard: boolean;
 };
@@ -17,9 +18,12 @@ const ProviderContext = React.createContext<ContextType>({} as ContextType);
 export const ProviderContextProvider = ({ children }) => {
   const { address } = useWallet();
 
-  const { data: providerDetails, isLoading: isLoadingProviderDetails } = useQuery(
-    "providerDetails",
-    () => consoleClient.get(`/v1/providers/${address}`),
+  const { 
+    data: providerDetails, 
+    isLoading: isLoadingProviderDetails 
+  } = useQuery<ProviderDetails>(
+    "providerDetails", 
+    async () => (await consoleClient.get(`/v1/providers/${address}`)).data,
     {
       refetchOnWindowFocus: false,
       retry: 3,
@@ -27,9 +31,9 @@ export const ProviderContextProvider = ({ children }) => {
     }
   );
 
-  const { data: providerDashboard, isLoading: isLoadingProviderDashboard } = useQuery(
+  const { data: providerDashboard, isLoading: isLoadingProviderDashboard } = useQuery<ProviderDashoard>(
     "providerDashboard",
-    () => consoleClient.get(`/internal/provider-dashboard/${address}`),
+    async () => (await consoleClient.get(`/internal/provider-dashboard/${address}`)),
     {
       refetchOnWindowFocus: false,
       retry: 3,

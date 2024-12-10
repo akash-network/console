@@ -5,12 +5,13 @@ import { ProviderPricing } from "@src/components/become-provider/ProviderPricing
 import { Layout } from "@src/components/layout/Layout";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useProvider } from "@src/context/ProviderContext";
+import { ProviderPricingType } from "@src/types/provider";
 import restClient from "@src/utils/restClient";
 import { convertFromPricingAPI, sanitizeMachineAccess } from "@src/utils/sanityUtils";
 
 const Pricing: React.FunctionComponent = () => {
   const { activeControlMachine, controlMachineLoading } = useControlMachine();
-  const [existingPricing, setExistingPricing] = useState<any>(null);
+  const [existingPricing, setExistingPricing] = useState<ProviderPricingType | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const { providerDetails } = useProvider();
 
@@ -48,8 +49,8 @@ const Pricing: React.FunctionComponent = () => {
             </div>
           </div>
         )}
-        
-        <div className={isLoading ? 'pointer-events-none' : ''}>
+
+        <div className={isLoading ? "pointer-events-none" : ""}>
           {!activeControlMachine && !controlMachineLoading && (
             <Alert variant="destructive">
               <AlertTitle>Control Machine Required</AlertTitle>
