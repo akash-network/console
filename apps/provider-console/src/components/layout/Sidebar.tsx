@@ -64,9 +64,9 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         {
           title: "Pricing",
           icon: props => <Calculator {...props} />,
-          url: "#",
-          activeRoutes: ["#"],
-          disabled: true
+          url: UrlService.pricing(),
+          activeRoutes: [UrlService.pricing()],
+          disabled: false
         },
         {
           title: "Attributes",

@@ -12,11 +12,11 @@ import { Layout } from "@src/components/layout/Layout";
 import { ProviderActionList } from "@src/components/shared/ProviderActionList";
 import { Title } from "@src/components/shared/Title";
 import { withAuth } from "@src/components/shared/withAuth";
-import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAKTData } from "@src/queries";
 import { useProviderActions, useProviderDashboard, useProviderDetails } from "@src/queries/useProviderQuery";
 import { formatUUsd } from "@src/utils/formatUsd";
+import { useSelectedChain } from "@src/context/CustomChainProvider";
 
 const OfflineWarningBanner: React.FC = () => (
   <div className="mb-4 rounded-md bg-yellow-100 p-4 text-yellow-700">
@@ -145,25 +145,21 @@ const Dashboard: React.FC = () => {
           )}
         </div>
       </div>
-      {isOnline && providerDetails && (
-        <>
-          <div className="mt-8">
-            <div className="text-sm font-semibold">Resources Leased Summary</div>
-            <div className="mt-2">
-              {isLoadingProviderDetails ? (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  <DashboardCardSkeleton />
-                  <DashboardCardSkeleton />
-                  <DashboardCardSkeleton />
-                  <DashboardCardSkeleton />
-                </div>
-              ) : (
-                <ResourceCards providerDetails={providerDetails} />
-              )}
+      <div className="mt-8">
+        <div className="text-sm font-semibold">Resources Leased Summary</div>
+        <div className="mt-2">
+          {isLoadingProviderDetails ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <DashboardCardSkeleton />
+              <DashboardCardSkeleton />
+              <DashboardCardSkeleton />
+              <DashboardCardSkeleton />
             </div>
-          </div>
-        </>
-      )}
+          ) : (
+            <ResourceCards providerDetails={providerDetails} />
+          )}
+        </div>
+      </div>
 
       <Separator className="mt-10" />
       <div className="mt-8">
