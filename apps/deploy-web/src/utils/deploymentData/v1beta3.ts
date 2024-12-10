@@ -59,7 +59,7 @@ export function appendTrialAttribute(yamlStr: string) {
     indent: 2,
     quotingType: '"',
     styles: {
-      "!!null": "empty" // dump null as emtpy value
+      "!!null": "empty" // dump null as empty value
     },
     replacer: (key, value) => {
       const isCurrentKeyProviderAttributes = key === "attributes" && Array.isArray(value) && value.some(attr => attr.key === TRIAL_ATTRIBUTE);
