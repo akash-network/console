@@ -7,14 +7,17 @@ import { TopUpAmountPicker } from "@src/components/top-up-amount-picker/TopUpAmo
 import { useWallet } from "@src/context/WalletProvider";
 import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
+import { useIsEmailVerified } from "@src/hooks/useRequiredEmailVerified";
 import { WalletBalance } from "@src/hooks/useWalletBalance";
 import { LinkTo } from "../shared/LinkTo";
+import { VerifyEmail } from "../shared/VerifyEmail";
 
 interface ManagedWalletPopupProps extends React.PropsWithChildren {
   walletBalance: WalletBalance;
 }
 
 export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance }) => {
+  const isEmailVerified = useIsEmailVerified();
   const { switchWalletType, isManaged, isTrialing } = useWallet();
   const whenLoggedIn = useLoginRequiredEventHandler();
   const { showManagedEscrowFaqModal } = useManagedEscrowFaqModal();
@@ -71,8 +74,10 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
       )}
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
+        <VerifyEmail />
+
         <TopUpAmountPicker mdMode="click" className="w-full">
-          <Button onClick={whenLoggedIn(goToCheckout, "Sign In or Sign Up to add funds")} variant="outline" className="w-full space-x-2">
+          <Button onClick={whenLoggedIn(goToCheckout, "Sign In or Sign Up to add funds")} variant="outline" className="w-full space-x-2" disabled={!isEmailVerified}>
             <HandCard />
             <span>Add Funds</span>
           </Button>
