@@ -1,5 +1,12 @@
 
 
+## [2.38.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.38.0-beta.0...console-api/v2.38.0-beta.1) (2024-12-10)
+
+
+### Features
+
+* **deployment:** auto top up custodial deployment with available amount ([0792a36](https://github.com/akash-network/console/commit/0792a367f64d83ed040043c021b98e5be2d82c80)), closes [#524](https://github.com/akash-network/console/issues/524)
+
 ## [2.38.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.37.0...console-api/v2.38.0-beta.0) (2024-12-09)
 
 
