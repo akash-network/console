@@ -10,6 +10,7 @@
     "dc": "./script/dc.sh"
   },
   "dependencies": {
-    "yargs-parser": "^21.1.1"
+    "@release-it/conventional-changelog": "github:akash-network/conventional-changelog#feature/pre-release",
+    "release-it": "^17.6.0"
   }
 }

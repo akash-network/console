@@ -59,21 +59,12 @@ if [[ -z "$REPO" || -z "$TAG" || -z "$APP" ]]; then
   exit 1
 fi
 
-commits=$(git log -n 10 --pretty=format:"%H %s" -- "$(git rev-parse --show-toplevel)"/apps/${APP})
-
-while IFS= read -r commit; do
-  MESSAGE=$(echo $commit | cut -d' ' -f2-)
-
-if [[ ! $MESSAGE =~ ^chore\(release\):\ released\ version && ! $MESSAGE =~ ^chore\(deploy\):\ update\ deployment\ state ]]; then
-  echo "Base commit: $commit"
-  SHA=$(echo $commit | awk '{print $1}')
-  break
-fi
-done <<< "$commits"
+commit=$(git log -n 1 --pretty=format:"%H %s" -- "$(git rev-parse --show-toplevel)"/apps/${APP})
+SHA=$(echo $commit | awk '{print $1}')
 
 SCRIPTS_DIR="$(dirname "$(readlink -f "$0")")"
 BASE_IMAGE="${REPO}:${SHA}"
-echo "using base image: ${BASE_IMAGE}"
+echo "using base image ${BASE_IMAGE} for commit: \"$(echo $commit | cut -d' ' -f2-)\""
 
 IS_BUILT_FOR_SHA=1
 if [ -n "$SHA" ]; then
@@ -81,47 +72,51 @@ if [ -n "$SHA" ]; then
 fi
 
 TAGGED_IMAGE="${REPO}:${TAG}"
+
+if [[ "${IS_BUILT_FOR_SHA}" -eq 0 ]]; then
+  echo "image is already built for sha: ${SHA}"
+fi
+
 IS_BUILT_FOR_TAG=$(docker manifest inspect "${TAGGED_IMAGE}" > /dev/null 2>&1; echo $?)
 
-echo "is built for sha: ${IS_BUILT_FOR_SHA}"
-echo "is built for tag: ${IS_BUILT_FOR_TAG}"
-
 if [[ "${IS_BUILT_FOR_TAG}" -eq 0 ]]; then
-    echo 'image is already tagged, skipping build'
-else
-  if [[ "${IS_BUILT_FOR_SHA}" -eq 0 ]]; then
-    echo 'image is already tagged for sha. using existing one'
-    docker pull "${BASE_IMAGE}"
-    docker image tag "${REPO}:${SHA}" "${TAGGED_IMAGE}"
-  else
-    echo 'building new image'
-    ENV_PREFIX=$(echo $APP | tr '[:lower:]' '[:upper:]')
-    ENV_PREFIX=$(echo $ENV_PREFIX | tr '-' '_')
-    export ${ENV_PREFIX}_TAG=$TAG
-    export ${ENV_PREFIX}_REPO=$REPO
-    DEPLOYMENT_ENV="${DEPLOYMENT_ENV:-}"
-
-    if [[ "${TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-      DEPLOYMENT_ENV='production'
-    elif [[ "${TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]]; then
-      DEPLOYMENT_ENV='staging'
-    elif [[ "${TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+$ ]]; then
-      DEPLOYMENT_ENV='development'
-    fi
-    export DEPLOYMENT_ENV=$DEPLOYMENT_ENV
-
-    echo "building image for ${APP} with tag ${TAG} and deployment env ${DEPLOYMENT_ENV}"
-
-    $SCRIPTS_DIR/dc.sh build $APP
-
-    if [[ "${FORCE_BUILD}" == false ]]; then
-      docker image tag "${TAGGED_IMAGE}" "${REPO}:${SHA}"
-    fi
-  fi
-
-  if [[ "${TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    docker image tag "${TAGGED_IMAGE}" "${REPO}:latest"
-  fi
-
-  docker push "${REPO}" --all-tags
+  echo "image is already built for tag: ${TAG}. skipping build"
+  exit 0
 fi
+
+
+if [[ "${IS_BUILT_FOR_SHA}" -eq 0 ]] && [[ "${FORCE_BUILD}" == false ]]; then
+  echo 'image is already tagged for sha. using existing one'
+  docker pull "${BASE_IMAGE}"
+  docker image tag "${REPO}:${SHA}" "${TAGGED_IMAGE}"
+  docker push "${TAGGED_IMAGE}"
+  exit 0
+fi
+
+if [[ "${IS_BUILT_FOR_SHA}" -eq 0 ]] && [[ "${FORCE_BUILD}" == true ]]; then
+  echo 're-building image as forced'
+else
+  echo 'image is not built for sha. building a new one'
+fi
+
+echo 'building new image'
+ENV_PREFIX=$(echo $APP | tr '[:lower:]' '[:upper:]')
+ENV_PREFIX=$(echo $ENV_PREFIX | tr '-' '_')
+export ${ENV_PREFIX}_TAG=$TAG
+export ${ENV_PREFIX}_REPO=$REPO
+DEPLOYMENT_ENV="${DEPLOYMENT_ENV:-}"
+
+export DEPLOYMENT_ENV=$DEPLOYMENT_ENV
+
+echo "building image for ${APP} with tag ${TAG} and deployment env ${DEPLOYMENT_ENV}"
+
+$SCRIPTS_DIR/dc.sh build $APP
+
+if [[ "${FORCE_BUILD}" == false ]]; then
+  docker image tag "${TAGGED_IMAGE}" "${REPO}:${SHA}"
+fi
+
+docker image tag "${TAGGED_IMAGE}" "${REPO}:latest"
+
+docker push "${TAGGED_IMAGE}"
+docker push "${REPO}:latest"

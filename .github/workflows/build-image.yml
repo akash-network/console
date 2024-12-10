@@ -1,0 +1,75 @@
+name: Build Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build'
+        required: true
+        type: string
+      deployment-env:
+        description: 'Deployment environment'
+        type: choice
+        options:
+          - staging
+          - production
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Tag to build'
+        required: true
+        type: string
+      deployment-env:
+        description: 'Deployment environment'
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine registry and app
+        id: determine
+        run: |
+          tag=${{ inputs.tag }}
+          force_build=""
+
+          if [[ "$tag" == console-api/* ]]; then
+            echo "registry=${{ vars.API_REGISTRY }}" >> $GITHUB_ENV
+            echo "app=api" >> $GITHUB_ENV
+          elif [[ "$tag" == console-web/* ]]; then
+            echo "registry=${{ vars.WEB_REGISTRY }}" >> $GITHUB_ENV
+            echo "app=deploy-web" >> $GITHUB_ENV
+            echo "force_build=-f" >> $GITHUB_ENV
+          else
+            echo "Error: Unknown tag format"
+            exit 1
+          fi
+
+          tag="${tag#*/}"
+          tag="${tag#v}"
+          echo "tag=$tag" >> $GITHUB_ENV
+
+      - name: Build Docker image
+        env:
+          DEPLOYMENT_ENV: ${{ inputs.deployment-env }}
+        run: |
+          ./packages/docker/script/build.sh -r ${{ env.registry }} -t ${{ env.tag }} -a ${{ env.app }} ${{ env.force_build }}

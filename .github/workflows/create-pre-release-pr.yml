@@ -1,0 +1,92 @@
+name: Create Pre-Release PR
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+env:
+  NODE_VERSION: 20.14.0
+  GITHUB_EMAIL: "ci@akash.network"
+  GITHUB_NAME: "CI"
+
+jobs:
+  check-releasability:
+    name: Check if is Releasable
+    runs-on: ubuntu-latest
+    outputs:
+      is-releasable: ${{ steps.check.outputs.is-releasable }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check if is Releasable
+        id: check
+        run: |
+          last_commit=$(git log -1 --pretty=%B)
+          if [[ $last_commit == "chore(release): released version"* ]]; then
+            echo "is-releasable=false" >> $GITHUB_OUTPUT
+          else
+            echo "is-releasable=true" >> $GITHUB_OUTPUT
+          fi
+
+  create-pr:
+    name: Create Pre-Release PR with Updated Changelogs and Versions
+    needs: check-releasability
+    if: needs.check-releasability.outputs.is-releasable == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore root node_modules cache
+        uses: actions/cache@v4
+        id: cache
+        with:
+          path: |
+            node_modules
+            apps/api/node_modules
+            apps/deploy-web/node_modules
+            packages/*/node_modules
+          key: common-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci -w packages/releaser
+
+      - name: Generate releases and build docker images
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.email "${{ env.GITHUB_EMAIL }}"
+          git config --global user.name "${{ env.GITHUB_NAME }}"
+          npm run release -w apps/api -- --verbose --ci
+          npm run release -w apps/deploy-web -- --verbose --ci
+
+      - name: Cleanup Previous Release Branch
+        run: |
+          git branch -D release/bumps || true
+
+      - name: Commit and Create PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: '${{ github.token }}'
+          branch: release/bumps
+          base: main
+          title: "Release bumps"
+          body: "This is an automated PR to update the changelogs and versions for the next release. Merging it will trigger release adn build workflows"

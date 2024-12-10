@@ -1,0 +1,27 @@
+name: Release API
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/api/package.json'
+
+jobs:
+  release:
+    name: Create Release
+    uses: ./.github/workflows/create-github-release.yml
+    secrets: inherit
+    with:
+      app: api
+
+  build:
+    needs: release
+    name: Build Docker image
+    uses: ./.github/workflows/build-image.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+    with:
+      tag: ${{ needs.release.outputs.version }}
