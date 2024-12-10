@@ -1,5 +1,12 @@
 
 
+## [2.38.0-beta.2](https://github.com/akash-network/console/compare/console-api/v2.38.0-beta.1...console-api/v2.38.0-beta.2) (2024-12-10)
+
+
+### Bug Fixes
+
+* **billing:** check for email verified to add funds ([e1cfa10](https://github.com/akash-network/console/commit/e1cfa10835ad29938f12812f8b28d582213850ec)), closes [#535](https://github.com/akash-network/console/issues/535)
+
 ## [2.38.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.38.0-beta.0...console-api/v2.38.0-beta.1) (2024-12-10)
 
 
