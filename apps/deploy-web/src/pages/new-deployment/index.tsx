@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { z } from "zod";
 
 import { NewDeploymentContainer, NewDeploymentContainerProps } from "@src/components/new-deployment/NewDeploymentContainer";
@@ -13,16 +14,26 @@ const contextSchema = z.object({
   })
 });
 
+const logger = LoggerService.forContext(NewDeploymentContainer.name);
+
 export const getServerSideProps = getValidatedServerSideProps<NewDeploymentContainerProps, typeof contextSchema>(contextSchema, async ({ query }) => {
   if (!query.templateId) {
     return { props: {} };
   }
 
-  const template = await services.template.findById(query.templateId);
+  try {
+    const template = await services.template.findById(query.templateId);
 
-  if (template && query.templateId) {
-    return { props: { template, templateId: query.templateId } };
+    if (template && query.templateId) {
+      return { props: { template, templateId: query.templateId } };
+    }
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      logger.info(`Template not found: ${query.templateId}`);
+    } else {
+      logger.error(error);
+    }
   }
 
-  return { props: {} };
+  return { props: { templateId: query.templateId } };
 });

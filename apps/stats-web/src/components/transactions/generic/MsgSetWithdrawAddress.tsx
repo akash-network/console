@@ -10,7 +10,7 @@ type TxMessageProps = {
 export const MsgSetWithdrawAddress: React.FunctionComponent<TxMessageProps> = ({ message }) => {
   return (
     <>
-      <LabelValue label="Delegator Adrress" value={<AddressLink address={message?.data?.delegatorAddress} />} />
+      <LabelValue label="Delegator Address" value={<AddressLink address={message?.data?.delegatorAddress} />} />
       <LabelValue label="Withdraw Address" value={<AddressLink address={message?.data?.withdrawAddress} />} />
     </>
   );

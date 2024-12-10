@@ -1,6 +1,7 @@
 import { singleton } from "tsyringe";
 
-import { ProviderCleanupParams, ProviderCleanupService } from "@src/billing/services/provider-cleanup/provider-cleanup.service";
+import { ProviderCleanupService } from "@src/billing/services/provider-cleanup/provider-cleanup.service";
+import { ProviderCleanupParams } from "@src/billing/types/provider-cleanup";
 import { TrialProvidersService } from "@src/deployment/services/trial-providers/trial-providers.service";
 
 @singleton()

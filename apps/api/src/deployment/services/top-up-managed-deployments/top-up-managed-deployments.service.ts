@@ -15,8 +15,6 @@ import { DeploymentsRefiller, TopUpDeploymentsOptions } from "@src/deployment/ty
 
 @singleton()
 export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
-  private readonly CONCURRENCY = 10;
-
   private readonly logger = LoggerService.forContext(TopUpManagedDeploymentsService.name);
 
   constructor(
@@ -35,7 +33,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     const summary = new TopUpSummarizer();
     summary.set("startBlockHeight", await this.blockHttpService.getCurrentHeight());
 
-    await this.userWalletRepository.paginate({ limit: this.CONCURRENCY }, async wallets => {
+    await this.userWalletRepository.paginate({ limit: options.concurrency || 10 }, async wallets => {
       await Promise.all(
         wallets.map(async wallet => {
           await this.errorService.execWithErrorHandler(
@@ -48,10 +46,11 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     });
 
     summary.set("endBlockHeight", await this.blockHttpService.getCurrentHeight());
-    this.logger.info({ event: "TOP_UP_SUMMARY", summary: summary.summarize(), dryRun: options.dryRun });
+    this.logger.info({ context: TopUpManagedDeploymentsService.name, event: "TOP_UP_SUMMARY", summary: summary.summarize(), dryRun: options.dryRun });
   }
 
   private async topUpForWallet(wallet: UserWalletOutput, options: TopUpDeploymentsOptions, summary: TopUpSummarizer) {
+    const depositor = await this.managedMasterWalletService.getFirstAddress();
     summary.inc("walletsCount");
     const owner = wallet.address;
     const denom = this.billingConfig.DEPLOYMENT_GRANT_DENOM;
@@ -63,14 +62,15 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     }
 
     const signer = await this.txSignerService.getClientForAddressIndex(wallet.id);
-    const depositor = await this.managedMasterWalletService.getFirstAddress();
 
     let balance = await this.balancesService.retrieveAndCalcDeploymentLimit(wallet);
     let hasTopUp = false;
 
     for (const deployment of drainingDeployments) {
-      const amount = await this.drainingDeploymentService.calculateTopUpAmount(deployment);
-      if (amount > balance) {
+      let amount = await this.drainingDeploymentService.calculateTopUpAmount(deployment);
+      amount = Math.min(amount, balance);
+
+      if (amount <= 0) {
         this.logger.info({ event: "INSUFFICIENT_BALANCE", owner, balance, amount });
         summary.inc("insufficientBalanceCount");
         break;

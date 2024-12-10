@@ -212,7 +212,7 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
     indent: 2,
     quotingType: '"',
     styles: {
-      "!!null": "empty" // dump null as emtpy value
+      "!!null": "empty" // dump null as empty value
     }
   });
 

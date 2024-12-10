@@ -5,6 +5,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import type { ClassValue } from "clsx";
 import { Discord, Github, Menu, MenuScale, Rocket, X as TwitterX, Youtube } from "iconoir-react";
 import { Cloud, HelpCircle, Home, MultiplePages, OpenInWindow, Server, Settings, Tools } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -29,12 +30,13 @@ type Props = {
   handleDrawerToggle: () => void;
   onOpenMenuClick: () => void;
   isNavOpen: boolean;
+  mdDrawerClassName?: ClassValue;
 };
 
 const DRAWER_WIDTH = 240;
 const CLOSED_DRAWER_WIDTH = 57;
 
-export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
+export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick, mdDrawerClassName }) => {
   const [isHovering, setIsHovering] = useState(false);
   const _isNavOpen = isNavOpen || isHovering;
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
@@ -301,10 +303,14 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         onMouseEnter={onDrawerHover}
         onMouseLeave={() => setIsHovering(false)}
         PaperProps={{
-          className: cn("border-none ease z-[1000] bg-header/95 transition-[width] duration-300 box-border overflow-hidden mt-[57px]", {
-            ["md:w-[240px]"]: _isNavOpen,
-            ["md:w-[57px]"]: !_isNavOpen
-          })
+          className: cn(
+            "border-none ease z-[1000] bg-header/95 transition-[width] duration-300 box-border overflow-hidden mt-[57px]",
+            {
+              ["md:w-[240px]"]: _isNavOpen,
+              ["md:w-[57px]"]: !_isNavOpen
+            },
+            mdDrawerClassName
+          )
         }}
         open
       >

@@ -123,15 +123,25 @@ async function getGpuPrices(debug: boolean) {
     where: { createdHeight: { [Op.gte]: minHeight } },
     include: [
       {
+        attributes: [],
         model: DeploymentGroup,
         required: true,
-        include: [{ model: DeploymentGroupResource, required: true, where: { gpuUnits: 1 } }]
+        include: [
+          {
+            attributes: [],
+            model: DeploymentGroupResource,
+            required: true,
+            where: { gpuUnits: 1 }
+          }
+        ]
       },
       {
+        attributes: ["height", "data"],
         model: AkashMessage,
         as: "relatedMessages",
         where: {
-          type: "/akash.market.v1beta4.MsgCreateBid"
+          type: "/akash.market.v1beta4.MsgCreateBid",
+          height: { [Op.gte]: minHeight }
         },
         include: [
           { model: Block, attributes: ["height", "dayId", "datetime"], required: true },
@@ -148,7 +158,7 @@ async function getGpuPrices(debug: boolean) {
   const gpuBids: GpuBidType[] = deployments
     .flatMap(d =>
       d.relatedMessages.map(x => {
-        const day = days.find(d => d.id === x.block.dayId);
+        const day = days.find(day => day.id === x.block.dayId);
         const decodedBid = decodeMsg("/akash.market.v1beta4.MsgCreateBid", x.data) as MsgCreateBid;
 
         if (!day || !day.aktPrice) return null; // Ignore bids for days where we don't have the AKT price

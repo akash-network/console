@@ -1,5 +1,34 @@
 
 
+## [2.25.3](https://github.com/akash-network/console/compare/console-web/v2.25.3-beta.1...console-web/v2.25.3) (2024-12-05)
+
+## [2.25.3-beta.1](https://github.com/akash-network/console/compare/console-web/v2.25.3-beta.0...console-web/v2.25.3-beta.1) (2024-12-05)
+
+
+### Bug Fixes
+
+* **config:** increase nginx large header buffer limit ([#526](https://github.com/akash-network/console/issues/526)) ([192b9a2](https://github.com/akash-network/console/commit/192b9a27d1f43f88762cca625ff19460281a9995))
+
+## [2.25.3-beta.0](https://github.com/akash-network/console/compare/console-web/v2.25.2...console-web/v2.25.3-beta.0) (2024-12-05)
+
+
+### Bug Fixes
+
+* **billing:** mobile banner styling ([566d941](https://github.com/akash-network/console/commit/566d9416149698d195e2463f32903496ff497a22)), closes [#525](https://github.com/akash-network/console/issues/525)
+
+## [2.25.2](https://github.com/akash-network/console/compare/console-web/v2.25.2-beta.0...console-web/v2.25.2) (2024-12-04)
+
+## [2.25.2-beta.0](https://github.com/akash-network/console/compare/console-web/v2.25.1...console-web/v2.25.2-beta.0) (2024-12-04)
+
+
+### Bug Fixes
+
+* **billing:** banner light mode styling ([a5aa61b](https://github.com/akash-network/console/commit/a5aa61bff15bfbb4f2e4bdf7664f983f79b10f3a)), closes [#520](https://github.com/akash-network/console/issues/520)
+
+## [2.25.1](https://github.com/akash-network/console/compare/console-web/v2.25.1-beta.2...console-web/v2.25.1) (2024-12-04)
+
+## [2.25.1-beta.2](https://github.com/akash-network/console/compare/console-web/v2.25.1-beta.1...console-web/v2.25.1-beta.2) (2024-12-04)
+
 ## [2.25.1-beta.1](https://github.com/akash-network/console/compare/console-web/v2.25.1-beta.0...console-web/v2.25.1-beta.1) (2024-12-03)
 
 

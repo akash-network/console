@@ -33,10 +33,11 @@ program
 program
   .command("top-up-deployments")
   .description("Refill deployments with auto top up enabled")
+  .option("-c, --concurrency <number>", "How many wallets is processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
   .option("-d, --dry-run", "Dry run the top up deployments", false)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
-      await container.resolve(TopUpDeploymentsController).topUpDeployments({ dryRun: options.dryRun });
+      await container.resolve(TopUpDeploymentsController).topUpDeployments(options);
     });
   });
 

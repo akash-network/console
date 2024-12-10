@@ -1,5 +1,37 @@
 
 
+## [2.38.0-beta.1](https://github.com/akash-network/console/compare/console-api/v2.38.0-beta.0...console-api/v2.38.0-beta.1) (2024-12-10)
+
+
+### Features
+
+* **deployment:** auto top up custodial deployment with available amount ([0792a36](https://github.com/akash-network/console/commit/0792a367f64d83ed040043c021b98e5be2d82c80)), closes [#524](https://github.com/akash-network/console/issues/524)
+
+## [2.38.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.37.0...console-api/v2.38.0-beta.0) (2024-12-09)
+
+
+### Features
+
+* **deployment:** add context to top up error logging ([d8ab845](https://github.com/akash-network/console/commit/d8ab845a3ab6f337f2eefeacec5534a7d90c5837))
+
+## [2.37.0](https://github.com/akash-network/console/compare/console-api/v2.37.0-beta.0...console-api/v2.37.0) (2024-12-06)
+
+## [2.37.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.36.0...console-api/v2.37.0-beta.0) (2024-12-05)
+
+
+### Features
+
+* **deployment:** auto top up managed deployment with available amount ([644332f](https://github.com/akash-network/console/commit/644332ffb6b7dffab2150f4ec6dfb70601df6816))
+
+## [2.36.0](https://github.com/akash-network/console/compare/console-api/v2.36.0-beta.0...console-api/v2.36.0) (2024-12-04)
+
+## [2.36.0-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.4-beta.0...console-api/v2.36.0-beta.0) (2024-12-04)
+
+
+### Features
+
+* **deployment:** add concurrency for top up deployment  ([0b4abf5](https://github.com/akash-network/console/commit/0b4abf5510eca6986257081ba5481936b6cb54f6)), closes [#519](https://github.com/akash-network/console/issues/519)
+
 ## [2.35.4-beta.0](https://github.com/akash-network/console/compare/console-api/v2.35.3...console-api/v2.35.4-beta.0) (2024-12-03)
 
 
