@@ -20,7 +20,6 @@ const SettingsPage: React.FC = () => {
   const [isRestartLoading, setIsRestartLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Assume these are your API functions
   const { providerDetails } = useProvider();
   const { activeControlMachine } = useControlMachine();
 
@@ -28,7 +27,7 @@ const SettingsPage: React.FC = () => {
     try {
       urlSchema.parse(url);
 
-      // call api here
+      // TODO: call update provider url api here
       setUrlError("");
     } catch (error) {
       setUrlError("Please enter a valid URL");
@@ -36,7 +35,6 @@ const SettingsPage: React.FC = () => {
   };
 
   const restartProvider = async () => {
-    // call api here
     try {
       setIsRestartLoading(true);
       const request = {
@@ -55,7 +53,7 @@ const SettingsPage: React.FC = () => {
   };
 
   const upgradeProvider = () => {
-    // call api here
+    // TODO: call upgrade provider api here
   };
 
   if (!activeControlMachine) {
@@ -97,7 +95,7 @@ const SettingsPage: React.FC = () => {
           <p className="mt-2 text-gray-600">Update the URL for your provider service.</p>
           <div className="mt-4 flex gap-4">
             <Input
-              value={url || stripProviderPrefixAndPort(providerDetails?.hostUri)}
+              value={url || stripProviderPrefixAndPort(providerDetails?.hostUri || "")}
               onChange={e => setUrl(e.target.value)}
               placeholder={"Enter new URL"}
               error={urlError ? true : undefined}
