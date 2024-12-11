@@ -1,4 +1,5 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
+import { LoggerService } from "@akashnetwork/logging";
 import fs from "fs";
 import { ungzip } from "node-gzip";
 import path from "path";
@@ -7,6 +8,8 @@ import { dataFolderPath } from "@src/shared/constants";
 import { download } from "@src/shared/utils/download";
 import { IGenesis } from "./genesisTypes";
 
+const logger = LoggerService.forContext("GenesisImports");
+
 export async function getGenesis(): Promise<IGenesis> {
   const ext = path.extname(activeChain.genesisFileUrl);
   const filename = path.basename(activeChain.genesisFileUrl);
@@ -14,12 +17,12 @@ export async function getGenesis(): Promise<IGenesis> {
   let genesisLocalPath = dataFolderPath + "/" + filename;
 
   if (!fs.existsSync(genesisLocalPath)) {
-    console.log("Downloading genesis file: " + activeChain.genesisFileUrl);
+    logger.info("Downloading genesis file: " + activeChain.genesisFileUrl);
     await download(activeChain.genesisFileUrl, genesisLocalPath);
   }
 
   if (ext === ".gz") {
-    console.log("Extracting genesis file...");
+    logger.info("Extracting genesis file...");
     const decompressed = await ungzip(fs.readFileSync(genesisLocalPath).buffer);
     genesisLocalPath = genesisLocalPath.replace(".gz", "");
     fs.writeFileSync(genesisLocalPath, decompressed);

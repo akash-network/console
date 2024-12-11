@@ -1,10 +1,12 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { LoggerService } from "@akashnetwork/logging";
 import axios from "axios";
 import dns from "dns/promises";
 
 import { sleep } from "@src/shared/utils/delay";
 
 const IpLookupDelay = 2_000;
+const logger = LoggerService.forContext("IpLocationProvider");
 
 async function getIpLocation(ip: string) {
   const response = await axios.get(`http://ip-api.com/json/${ip}`);
@@ -30,7 +32,7 @@ export async function updateProvidersLocation() {
     }
   });
 
-  console.log(`${providers.length} providers to lookup`);
+  logger.info(`${providers.length} providers to lookup`);
 
   for (const provider of providers) {
     try {
@@ -38,20 +40,20 @@ export async function updateProvidersLocation() {
       const ips = await dns.resolve4(parsedUri.hostname);
 
       if (ips.length === 0) {
-        console.log(`Could not resolve ip for ${provider.hostUri}`);
+        logger.info(`Could not resolve ip for ${provider.hostUri}`);
         continue;
       }
 
       const ip = ips.sort()[0]; // Always use the first ip
 
       if (provider.ip === ip) {
-        console.log(`Ip for ${provider.hostUri} is the same`);
+        logger.info(`Ip for ${provider.hostUri} is the same`);
         continue;
       }
 
       const location = await getIpLocation(ip);
 
-      console.log(`${provider.hostUri} ip lookup: ${location.region}, ${location.country}`);
+      logger.info(`${provider.hostUri} ip lookup: ${location.region}, ${location.country}`);
 
       if (location) {
         await provider.update({
@@ -67,7 +69,7 @@ export async function updateProvidersLocation() {
 
       await sleep(IpLookupDelay);
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     }
   }
 }

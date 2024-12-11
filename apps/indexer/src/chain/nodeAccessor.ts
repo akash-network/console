@@ -1,4 +1,5 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
+import { LoggerService } from "@akashnetwork/logging";
 import fs from "fs";
 
 import { concurrentNodeQuery, dataFolderPath } from "@src/shared/constants";
@@ -10,7 +11,7 @@ interface NodeAccessorSettings {
 }
 
 const savedNodeInfoPath = dataFolderPath + "/nodeStatus.json";
-
+const logger = LoggerService.forContext("NodeAccessor");
 class NodeAccessor {
   private nodes: NodeInfo[];
   private settings: NodeAccessorSettings;
@@ -21,7 +22,7 @@ class NodeAccessor {
   }
 
   private async saveNodeStatus() {
-    console.log("Saving node status...");
+    logger.info("Saving node status...");
     const statuses = this.nodes.map(x => x.getSavedNodeInfo());
 
     await fs.promises.writeFile(savedNodeInfoPath, JSON.stringify(statuses, null, 2));
@@ -35,13 +36,13 @@ class NodeAccessor {
 
   public async loadNodeStatus() {
     if (!fs.existsSync(savedNodeInfoPath)) {
-      console.log("No saved node status found");
+      logger.info("No saved node status found");
       await this.refetchNodeStatus();
       await this.saveNodeStatus();
       return;
     }
 
-    console.log("Loading saved node status...");
+    logger.info("Loading saved node status...");
     const file = await fs.promises.readFile(savedNodeInfoPath, "utf-8");
     const savedNodes = JSON.parse(file) as SavedNodeInfo[];
 

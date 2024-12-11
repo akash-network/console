@@ -1,7 +1,8 @@
 {
   "dependencies": {
     "@akashnetwork/database": "1.0.0",
-    "@akashnetwork/env-loader": "1.0.1"
+    "@akashnetwork/env-loader": "1.0.1",
+    "@akashnetwork/logging": "2.0.2"
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "1.0.0"

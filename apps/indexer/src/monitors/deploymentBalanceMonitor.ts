@@ -1,7 +1,10 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { MonitoredValue } from "@akashnetwork/database/dbSchemas/base/monitoredValue";
+import { LoggerService } from "@akashnetwork/logging";
 import * as Sentry from "@sentry/node";
 import axios from "axios";
+
+const logger = LoggerService.forContext("DeploymentBalanceMonitor");
 
 export class DeploymentBalanceMonitor {
   async run() {
@@ -13,7 +16,7 @@ export class DeploymentBalanceMonitor {
 
     await Promise.allSettled(monitoredValues.map(x => this.updateValue(x)));
 
-    console.log("Refreshed balances for " + monitoredValues.length + " deployments.");
+    logger.info("Refreshed balances for " + monitoredValues.length + " deployments.");
   }
 
   async updateValue(monitoredValue: MonitoredValue) {
@@ -28,7 +31,7 @@ export class DeploymentBalanceMonitor {
       monitoredValue.lastUpdateDate = new Date();
       await monitoredValue.save();
     } catch (err) {
-      console.error(err);
+      logger.error(err);
 
       Sentry.captureException(err, { tags: { target: monitoredValue.target } });
     }

@@ -2,6 +2,7 @@ import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
 import { AkashMessage } from "@akashnetwork/database/dbSchemas/akash";
 import { Transaction } from "@akashnetwork/database/dbSchemas/base";
+import { LoggerService } from "@akashnetwork/logging";
 import { fromBase64 } from "@cosmjs/encoding";
 import { decodeTxRaw } from "@cosmjs/proto-signing";
 import { sha256 } from "js-sha256";
@@ -16,11 +17,13 @@ import { decodeMsg } from "@src/shared/utils/protobuf";
 import { setMissingBlock } from "./chainSync";
 import { getGenesis } from "./genesisImporter";
 
+const logger = LoggerService.forContext("StatsProcessor");
+
 class StatsProcessor {
   private cacheInitialized: boolean = false;
 
   public async rebuildStatsTables() {
-    console.log('Setting "isProcessed" to false');
+    logger.info('Setting "isProcessed" to false');
     await Message.update(
       {
         isProcessed: false,
@@ -41,7 +44,7 @@ class StatsProcessor {
       { where: { isProcessed: true } }
     );
 
-    console.log("Rebuilding stats tables...");
+    logger.info("Rebuilding stats tables...");
 
     for (const indexer of activeIndexers) {
       await indexer.recreateTables();
@@ -58,7 +61,7 @@ class StatsProcessor {
   }
 
   public async processMessages() {
-    console.log("Querying unprocessed messages...");
+    logger.info("Querying unprocessed messages...");
 
     const shouldProcessEveryBlocks = activeIndexers.some(indexer => indexer.runForEveryBlocks);
 
@@ -78,7 +81,7 @@ class StatsProcessor {
     const hasNewBlocks = !previousProcessedBlock || maxDbHeight > previousProcessedBlock.height;
 
     if (!hasNewBlocks) {
-      console.log("No new blocks to process");
+      logger.info("No new blocks to process");
       return;
     }
 
@@ -94,7 +97,7 @@ class StatsProcessor {
     let firstBlockToProcess = firstUnprocessedHeight;
     let lastBlockToProcess = Math.min(maxDbHeight, firstBlockToProcess + groupSize, lastBlockToSync);
     while (firstBlockToProcess <= Math.min(maxDbHeight, lastBlockToSync)) {
-      console.log(`Loading blocks ${firstBlockToProcess} to ${lastBlockToProcess}`);
+      logger.info(`Loading blocks ${firstBlockToProcess} to ${lastBlockToProcess}`);
 
       const getBlocksTimer = benchmark.startTimer("getBlocks");
       const blocks = await Block.findAll({
@@ -150,7 +153,7 @@ class StatsProcessor {
             decodeTimer.end();
 
             for (const msg of transaction.messages) {
-              console.log(`Processing message ${msg.type} - Block #${block.height}`);
+              logger.info(`Processing message ${msg.type} - Block #${block.height}`);
 
               const encodedMessage = decodedTx.body.messages[msg.index].value;
 

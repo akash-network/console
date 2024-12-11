@@ -1,3 +1,7 @@
+import { LoggerService } from "@akashnetwork/logging";
+
+const logger = LoggerService.forContext("Query");
+
 export async function loadWithPagination(baseUrl: string, dataKey: string, limit: number) {
   let items = [];
   let nextKey = null;
@@ -9,7 +13,7 @@ export async function loadWithPagination(baseUrl: string, dataKey: string, limit
     if (nextKey) {
       queryUrl += "&pagination.key=" + encodeURIComponent(nextKey);
     }
-    console.log(`Querying ${dataKey} [${callCount}] from : ${queryUrl}`);
+    logger.info(`Querying ${dataKey} [${callCount}] from : ${queryUrl}`);
     const response = await fetch(queryUrl);
     const data = await response.json();
 
@@ -21,7 +25,7 @@ export async function loadWithPagination(baseUrl: string, dataKey: string, limit
     nextKey = data.pagination.next_key;
     callCount++;
 
-    console.log(`Got ${items.length} of ${totalCount}`);
+    logger.info(`Got ${items.length} of ${totalCount}`);
   } while (nextKey);
 
   return items.filter(item => item);

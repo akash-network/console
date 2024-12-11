@@ -1,11 +1,14 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { LoggerService } from "@akashnetwork/logging";
 import { secondsInDay } from "date-fns";
 import { QueryTypes } from "sequelize";
 
 import { sequelize } from "@src/db/dbConnection";
 
+const logger = LoggerService.forContext("ProviderUptimeTracker");
+
 export async function updateProviderUptime() {
-  console.log("Updating provider uptimes.");
+  logger.info("Updating provider uptimes.");
   console.time("updateProviderUptimes");
 
   const providers = await Provider.findAll();

@@ -1,5 +1,6 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { Day } from "@akashnetwork/database/dbSchemas/base";
+import { LoggerService } from "@akashnetwork/logging";
 import { isSameDay } from "date-fns";
 import fetch from "node-fetch";
 
@@ -9,15 +10,17 @@ interface PriceHistoryResponse {
   total_volumes: Array<Array<number>>;
 }
 
+const logger = LoggerService.forContext("PriceHistoryProvider");
+
 export const syncPriceHistory = async () => {
   if (!activeChain.coinGeckoId) {
-    console.log("No coin gecko id defined for this chain. Skipping price history sync.");
+    logger.info("No coin gecko id defined for this chain. Skipping price history sync.");
     return;
   }
 
   const endpointUrl = `https://api.coingecko.com/api/v3/coins/${activeChain.coinGeckoId}/market_chart?vs_currency=usd&days=360`;
 
-  console.log("Fetching latest market data from " + endpointUrl);
+  logger.info("Fetching latest market data from " + endpointUrl);
 
   const response = await fetch(endpointUrl);
   const data: PriceHistoryResponse = await response.json();
@@ -26,7 +29,7 @@ export const syncPriceHistory = async () => {
     price: pDate[1]
   }));
 
-  console.log(`There are ${apiPrices.length} prices to update.`);
+  logger.info(`There are ${apiPrices.length} prices to update.`);
 
   const days = await Day.findAll();
 

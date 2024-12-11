@@ -1,3 +1,7 @@
+import { LoggerService } from "@akashnetwork/logging";
+
+const logger = LoggerService.forContext("Files");
+
 export const bytesToHumanReadableSize = function (bytes) {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
 
@@ -47,7 +51,7 @@ export function parseSizeStr(str: string) {
       return parseFloat(str);
     }
   } catch (err) {
-    console.error(err);
+    logger.error(err);
     throw new Error("Error while parsing size: " + str);
   }
 }
@@ -74,7 +78,7 @@ export function parseDecimalKubernetesString(str: string) {
       return parseFloat(str);
     }
   } catch (err) {
-    console.error(err);
+    logger.error(err);
     throw new Error("Error while parsing size: " + str);
   }
 }
