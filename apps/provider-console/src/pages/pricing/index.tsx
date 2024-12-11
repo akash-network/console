@@ -5,6 +5,7 @@ import { ProviderPricing } from "@src/components/become-provider/ProviderPricing
 import { Layout } from "@src/components/layout/Layout";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useProvider } from "@src/context/ProviderContext";
+import { useLogger } from "@src/hooks/useLogger";
 import { ProviderPricingType } from "@src/types/provider";
 import restClient from "@src/utils/restClient";
 import { convertFromPricingAPI, sanitizeMachineAccess } from "@src/utils/sanityUtils";
@@ -14,6 +15,7 @@ const Pricing: React.FunctionComponent = () => {
   const [existingPricing, setExistingPricing] = useState<ProviderPricingType | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const { providerDetails } = useProvider();
+  const logger = useLogger("apps/provider-console/src/pages/pricing/index.tsx");
 
   const fetchPricing = async () => {
     try {
@@ -26,7 +28,7 @@ const Pricing: React.FunctionComponent = () => {
         setExistingPricing(convertFromPricingAPI(response.pricing));
       }
     } catch (error) {
-      console.error(error);
+      logger.debug(error);
     } finally {
       setIsLoading(false);
     }
@@ -82,7 +84,6 @@ const Pricing: React.FunctionComponent = () => {
           <ProviderPricing
             existingPricing={existingPricing}
             editMode={true}
-            stepChange={() => {}}
             disabled={activeControlMachine && existingPricing ? false : true}
             providerDetails={providerDetails}
           />

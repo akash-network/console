@@ -23,6 +23,7 @@ import { z } from "zod";
 
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useLogger } from "@src/hooks/useLogger";
 import providerProcessStore from "@src/store/providerProcessStore";
 import { ControlMachineWithAddress } from "@src/types/controlMachine";
 import restClient from "@src/utils/restClient";
@@ -77,10 +78,11 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-
+  
   const [providerProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
   const { setControlMachine } = useControlMachine();
+  const logger = useLogger("apps/provider-console/src/components/become-provider/WalletImport.tsx");
   const { address } = useWallet();
 
   const defaultValues: Partial<AppearanceFormValues> = {
@@ -147,7 +149,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
         throw new Error("No machine information available");
       }
     } catch (error) {
-      console.error("Error during wallet verification:", error);
+      logger.debug(`Error during wallet verification: ${error}`);
       setError("An error occurred while processing your request. Please try again.");
     } finally {
       setIsLoading(false);
@@ -332,7 +334,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
               type="button"
               onClick={() => {
                 // TODO: Verify Manual Wallet Import
-                console.log("Manual Wallet Import");
+                logger.debug("Manual Wallet Import");
               }}
             >
               Verify Wallet Import

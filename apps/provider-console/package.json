@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@akashnetwork/ui": "*",
+    "@akashnetwork/logging": "*",
     "@chain-registry/types": "^0.50.1",
     "@cosmos-kit/cosmostation-extension": "^2.12.2",
     "@cosmos-kit/keplr": "^2.12.2",

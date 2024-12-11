@@ -1,6 +1,9 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { jwtDecode } from 'jwt-decode';
 
 import authClient from './authClient';
+
+const logger = LoggerService.forContext("apps/provider-console/src/utils/tokenUtils.ts");
 
 interface DecodedToken {
   exp: number;
@@ -45,7 +48,7 @@ export async function checkAndRefreshToken(): Promise<string | null> {
       throw new Error('Refresh token failed');
     }
   } catch (error) {
-    console.error('Error checking or refreshing token:', error);
+    logger.debug(`Error checking or refreshing token: ${error}`);
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('walletAddress');

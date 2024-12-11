@@ -1,10 +1,13 @@
+import { LoggerService } from "@akashnetwork/logging";
 import * as Sentry from "@sentry/nextjs";
 import axios from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 
+const logger = LoggerService.forContext("apps/provider-console/src/utils/consoleClient.ts");
+
 const errorNotification = (error = "Error Occurred") => {
-  console.log(error);
+  logger.debug(error);
 };
 
 const consoleClient = axios.create({
