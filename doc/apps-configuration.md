@@ -94,6 +94,20 @@ DATABASE_HOST=https://prod-db.example.com
 SECRET_KEY=PROD_SECRET_KEY
 ```
 
+#### Sample Local Environment Variables
+
+To facilitate local development, some applications include a `.env.local.sample` file containing environment variables specific to local setups. Sensitive values in these files are set to dummy placeholders, enabling the app to start up and support most features during development.
+
+However, certain functionalities may require real values to work properly. For example:
+
+- **Authentication**: Features dependent on Auth0 will not function unless you provide real Auth0 credentials in the `deploy-web` application's `.env.local` file.
+- **Managed Wallet Operations**: Wallet-related functionality will not work unless you create wallets and supply the necessary addresses, mnemonics, etc.
+
+#### Using the Sample Files
+
+1. Copy the `.env.local.sample` file to `.env.local` in the appropriate directory.
+2. Update the placeholder values with the actual values as needed.
+
 ### Sample Environment Variables Template
 
 A template for setting up the required environment variables is provided in the `env/.env.sample` file for both types of applications. This file contains examples of all the necessary environment variables.
