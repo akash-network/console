@@ -1,7 +1,9 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { stringToPath } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, GasPrice, SigningStargateClient } from "@cosmjs/stargate";
 import { DeliverTxResponse } from "@cosmjs/stargate/build/stargateclient";
+import { backOff } from "exponential-backoff";
 import assert from "http-assert";
 import pick from "lodash/pick";
 import { singleton } from "tsyringe";
@@ -26,6 +28,8 @@ export class TxSignerService {
   private readonly HD_PATH = "m/44'/118'/0'/0";
 
   private readonly PREFIX = "akash";
+
+  private readonly logger = LoggerService.forContext(TxSignerService.name);
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
@@ -72,25 +76,50 @@ export class TxSignerService {
 
   async getClientForAddressIndex(addressIndex: number): Promise<SimpleSigningStargateClient> {
     const wallet = await this.getWalletForAddressIndex(addressIndex);
-    const client = await SigningStargateClient.connectWithSigner(this.config.RPC_NODE_ENDPOINT, wallet, {
-      registry: this.registry
-    });
+    let client = await this.createClient(wallet);
     const walletAddress = (await wallet.getAccounts())[0].address;
     const granter = await this.masterWalletService.getFirstAddress();
 
     return {
       signAndBroadcast: async (messages: readonly EncodeObject[]) => {
         try {
-          const gasEstimation = await client.simulate(walletAddress, messages, "managed wallet gas estimation");
-          const estimatedGas = Math.round(gasEstimation * this.config.GAS_SAFETY_MULTIPLIER);
-          const fee = calculateFee(estimatedGas, GasPrice.fromString("0.025uakt"));
+          return await backOff(
+            async () => {
+              const gasEstimation = await client.simulate(walletAddress, messages, "managed wallet gas estimation");
+              const estimatedGas = Math.round(gasEstimation * this.config.GAS_SAFETY_MULTIPLIER);
+              const fee = calculateFee(estimatedGas, GasPrice.fromString("0.025uakt"));
 
-          return await client.signAndBroadcast(walletAddress, messages, { ...fee, granter }, "managed wallet tx");
+              return await client.signAndBroadcast(walletAddress, messages, { ...fee, granter }, "managed wallet tx");
+            },
+            {
+              maxDelay: 5000,
+              numOfAttempts: 3,
+              jitter: "full",
+              retry: async (error: Error, attempt) => {
+                const isSequenceMismatch = error?.message?.includes("account sequence mismatch");
+
+                if (isSequenceMismatch) {
+                  client = await this.createClient(wallet);
+                  this.logger.warn({ event: "ACCOUNT_SEQUENCE_MISMATCH", address: walletAddress, attempt });
+
+                  return true;
+                }
+
+                return false;
+              }
+            }
+          );
         } catch (error) {
           throw this.chainErrorService.toAppError(error, messages);
         }
       }
     };
+  }
+
+  private async createClient(wallet: DirectSecp256k1HdWallet) {
+    return await SigningStargateClient.connectWithSigner(this.config.RPC_NODE_ENDPOINT, wallet, {
+      registry: this.registry
+    });
   }
 
   private async getWalletForAddressIndex(addressIndex: number) {

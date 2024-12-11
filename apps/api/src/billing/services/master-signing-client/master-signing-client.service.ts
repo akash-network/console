@@ -9,6 +9,7 @@ import { BroadcastTxSyncResponse } from "@cosmjs/tendermint-rpc/build/comet38";
 import { Sema } from "async-sema";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import DataLoader from "dataloader";
+import { backOff } from "exponential-backoff";
 import assert from "http-assert";
 
 import { BillingConfig } from "@src/billing/providers";
@@ -97,16 +98,23 @@ export class MasterSigningClientService {
   private async executeTxBatchBlocking(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
     await this.semaphore.acquire();
     try {
-      return await this.executeTxBatch(inputs);
-    } catch (error) {
-      if (error.message.includes("account sequence mismatch")) {
-        this.logger.debug("Account sequence mismatch, retrying...");
+      return await backOff(() => this.executeTxBatch(inputs), {
+        maxDelay: 5000,
+        numOfAttempts: 3,
+        jitter: "full",
+        retry: async (error: Error, attempt) => {
+          const isSequenceMismatch = error?.message?.includes("account sequence mismatch");
 
-        this.clientAsPromised = this.initClient();
-        return await this.executeTxBatch(inputs);
-      }
+          if (isSequenceMismatch) {
+            this.clientAsPromised = this.initClient();
+            this.logger.warn({ event: "ACCOUNT_SEQUENCE_MISMATCH", address: await this.masterWalletService.getFirstAddress(), attempt });
 
-      throw error;
+            return true;
+          }
+
+          return false;
+        }
+      });
     } finally {
       this.semaphore.release();
     }
