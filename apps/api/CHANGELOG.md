@@ -1,5 +1,12 @@
 
 
+## [2.39.0](https://github.com/akash-network/console/compare/console-api/v2.38.0...console-api/v2.39.0) (2024-12-11)
+
+
+### Features
+
+* **billing:** improve account mismatch error retry and logging ([df56e07](https://github.com/akash-network/console/commit/df56e072496fecabcfc54a242b8ad493226de8b8))
+
 ## [2.38.0](https://github.com/akash-network/console/compare/console-api/v2.38.0-beta.2...console-api/v2.38.0) (2024-12-10)
 
 ## [2.38.0-beta.2](https://github.com/akash-network/console/compare/console-api/v2.38.0-beta.1...console-api/v2.38.0-beta.2) (2024-12-10)
