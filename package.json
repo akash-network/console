@@ -39,7 +39,7 @@
     "cross-env": "^7.0.3",
     "husky": "^9.1.6",
     "release-it": "^17.6.0",
-    "turbo": "^2.0.3"
+    "turbo": "^2.3.3"
   },
   "engines": {
     "node": "20.14.0",
