@@ -54,30 +54,27 @@ export class StaleManagedDeploymentsCleanerService {
       createdHeight: currentHeight - this.MAX_LIVE_BLOCKS
     });
 
-    const closeAllWalletStaleDeployments = deployments.map(async deployment => {
-      const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.dseq);
-      this.logger.info({ event: "DEPLOYMENT_CLEAN_UP", params: { owner: wallet.address, dseq: deployment.dseq } });
+    const messages = deployments.map(deployment => this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.dseq));
 
-      try {
-        await client.signAndBroadcast([message]);
-        this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS" });
-      } catch (error) {
-        if (error.message.includes("not allowed to pay fees")) {
-          await this.managedUserWalletService.authorizeSpending({
-            address: wallet.address,
-            limits: {
-              fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
-            }
-          });
+    this.logger.info({ event: "DEPLOYMENT_CLEAN_UP", owner: wallet.address });
 
-          await client.signAndBroadcast([message]);
-          this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS" });
-        } else {
-          throw error;
-        }
+    try {
+      await client.signAndBroadcast(messages);
+      this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address });
+    } catch (error) {
+      if (error.message.includes("not allowed to pay fees")) {
+        await this.managedUserWalletService.authorizeSpending({
+          address: wallet.address,
+          limits: {
+            fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
+          }
+        });
+
+        await client.signAndBroadcast(messages);
+        this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address });
+      } else {
+        throw error;
       }
-    });
-
-    await Promise.all(closeAllWalletStaleDeployments);
+    }
   }
 }
