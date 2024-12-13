@@ -1,7 +1,7 @@
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { UserWalletInput, UserWalletRepository } from "@src/billing/repositories";
+import { UserWalletInput, UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService } from "@src/billing/services";
 
 @singleton()
@@ -13,16 +13,15 @@ export class WalletInitializerService {
   ) {}
 
   async initializeAndGrantTrialLimits(userId: UserWalletInput["userId"]) {
-    const currentUserWallet = await this.userWalletRepository.findOneByUserId(userId);
+    let userWallet = await this.userWalletRepository.findOneByUserId(userId);
 
-    if (currentUserWallet) {
-      return this.userWalletRepository.toPublic(currentUserWallet);
+    if (!userWallet) {
+      userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "create").create({ userId });
     }
 
-    const { id } = await this.userWalletRepository.accessibleBy(this.authService.ability, "create").create({ userId });
-    const wallet = await this.walletManager.createAndAuthorizeTrialSpending({ addressIndex: id });
-    const userWallet = await this.userWalletRepository.updateById(
-      id,
+    const wallet = await this.walletManager.createAndAuthorizeTrialSpending({ addressIndex: userWallet.id });
+    userWallet = await this.userWalletRepository.updateById(
+      userWallet.id,
       {
         address: wallet.address,
         deploymentAllowance: wallet.limits.deployment,
