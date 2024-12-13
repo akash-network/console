@@ -129,7 +129,7 @@ export class MasterSigningClientService {
 
     while (txIndex < inputs.length) {
       const { messages, options } = inputs[txIndex];
-      const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee.granter, { mock: true });
+      const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee.granter);
       txes.push(
         await client.sign(masterAddress, messages, fee, "", {
           accountNumber: this.accountInfo.accountNumber,
