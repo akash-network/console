@@ -13,6 +13,12 @@ export class WalletInitializerService {
   ) {}
 
   async initializeAndGrantTrialLimits(userId: UserWalletInput["userId"]) {
+    const currentUserWallet = await this.userWalletRepository.findOneByUserId(userId);
+
+    if (currentUserWallet) {
+      return this.userWalletRepository.toPublic(currentUserWallet);
+    }
+
     const { id } = await this.userWalletRepository.accessibleBy(this.authService.ability, "create").create({ userId });
     const wallet = await this.walletManager.createAndAuthorizeTrialSpending({ addressIndex: id });
     const userWallet = await this.userWalletRepository.updateById(
