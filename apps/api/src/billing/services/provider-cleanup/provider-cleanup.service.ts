@@ -4,11 +4,11 @@ import { singleton } from "tsyringe";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, RpcMessageService } from "@src/billing/services";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { ProviderCleanupParams } from "@src/billing/types/provider-cleanup";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { ProviderCleanupSummarizer } from "@src/deployment/lib/provider-cleanup-summarizer/provider-cleanup-summarizer";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
-import { TxSignerService } from "../tx-signer/tx-signer.service";
 
 @singleton()
 export class ProviderCleanupService {
@@ -18,7 +18,7 @@ export class ProviderCleanupService {
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly managedUserWalletService: ManagedUserWalletService,
-    private readonly txSignerService: TxSignerService,
+    private readonly managedSignerService: ManagedSignerService,
     private readonly deploymentRepository: DeploymentRepository,
     private readonly rpcMessageService: RpcMessageService,
     private readonly errorService: ErrorService
@@ -45,7 +45,6 @@ export class ProviderCleanupService {
   }
 
   private async cleanUpForWallet(wallet: UserWalletOutput, options: ProviderCleanupParams, summary: ProviderCleanupSummarizer) {
-    const client = await this.txSignerService.getClientForAddressIndex(wallet.id);
     const deployments = await this.deploymentRepository.findDeploymentsForProvider({
       owner: wallet.address,
       provider: options.provider
@@ -57,7 +56,7 @@ export class ProviderCleanupService {
 
       try {
         if (!options.dryRun) {
-          await client.signAndBroadcast([message]);
+          await this.managedSignerService.executeManagedTx(wallet.id, [message]);
           this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
         }
       } catch (error) {
@@ -69,7 +68,7 @@ export class ProviderCleanupService {
                 fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
               }
             });
-            await client.signAndBroadcast([message]);
+            await this.managedSignerService.executeManagedTx(wallet.id, [message]);
             this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
           }
         } else {

@@ -2,15 +2,13 @@ import { AllowanceHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { stringToPath } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
-import { IndexedTx } from "@cosmjs/stargate";
 import add from "date-fns/add";
 import { singleton } from "tsyringe";
 
+import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { InjectSigningClient } from "@src/billing/providers/signing-client.provider";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
-import { MasterSigningClientService } from "@src/billing/services/master-signing-client/master-signing-client.service";
-import { MasterWalletService } from "@src/billing/services/master-wallet/master-wallet.service";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService, SpendingAuthorizationMsgOptions } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { DryRunOptions } from "@src/core/types/console";
 
@@ -37,8 +35,8 @@ export class ManagedUserWalletService {
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
-    @InjectWallet("MANAGED") private readonly masterWalletService: MasterWalletService,
-    @InjectSigningClient("MANAGED") private readonly masterSigningClientService: MasterSigningClientService,
+    @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
+    private readonly managedSignerService: ManagedSignerService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly allowanceHttpService: AllowanceHttpService
   ) {}
@@ -71,7 +69,7 @@ export class ManagedUserWalletService {
   }
 
   async authorizeSpending(options: SpendingAuthorizationOptions) {
-    const masterWalletAddress = await this.masterWalletService.getFirstAddress();
+    const masterWalletAddress = await this.masterWallet.getFirstAddress();
     const msgOptions = {
       granter: masterWalletAddress,
       grantee: options.address,
@@ -95,24 +93,24 @@ export class ManagedUserWalletService {
   }
 
   private async authorizeFeeSpending(options: Omit<SpendingAuthorizationMsgOptions, "denom">) {
-    const results: Promise<IndexedTx>[] = [];
+    const messages: EncodeObject[] = [];
 
     if (await this.allowanceHttpService.hasFeeAllowance(options.granter, options.grantee)) {
-      results.push(this.masterSigningClientService.executeTx([this.rpcMessageService.getRevokeAllowanceMsg(options)]));
+      messages.push(this.rpcMessageService.getRevokeAllowanceMsg(options));
     }
 
-    results.push(this.masterSigningClientService.executeTx([this.rpcMessageService.getFeesAllowanceGrantMsg(options)]));
+    messages.push(this.rpcMessageService.getFeesAllowanceGrantMsg(options));
 
-    return await Promise.all(results);
+    return await this.managedSignerService.executeRootTx(messages);
   }
 
   private async authorizeDeploymentSpending(options: SpendingAuthorizationMsgOptions) {
     const deploymentAllowanceMsg = this.rpcMessageService.getDepositDeploymentGrantMsg(options);
-    return await this.masterSigningClientService.executeTx([deploymentAllowanceMsg]);
+    return await this.managedSignerService.executeRootTx([deploymentAllowanceMsg]);
   }
 
   async revokeAll(grantee: string, reason?: string, options?: DryRunOptions) {
-    const masterWalletAddress = await this.masterWalletService.getFirstAddress();
+    const masterWalletAddress = await this.masterWallet.getFirstAddress();
     const params = { granter: masterWalletAddress, grantee };
     const messages: EncodeObject[] = [];
     const revokeSummary = {
@@ -135,7 +133,7 @@ export class ManagedUserWalletService {
     }
 
     if (!options?.dryRun) {
-      await this.masterSigningClientService.executeTx(messages);
+      await this.managedSignerService.executeRootTx(messages);
     }
 
     this.logger.info({ event: "SPENDING_REVOKED", address: params.grantee, revokeSummary, reason });

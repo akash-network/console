@@ -2,33 +2,33 @@ import { singleton } from "tsyringe";
 
 import { InjectSigningClient } from "@src/billing/providers/signing-client.provider";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
-import { MasterSigningClientService, MasterWalletService } from "@src/billing/services";
+import { BatchSigningClientService, Wallet } from "@src/billing/services";
 import { TopUpMasterWalletType } from "@src/billing/types/wallet.type";
 
 @singleton()
 export class TopUpToolsService {
   readonly TYPES: TopUpMasterWalletType[] = ["UAKT_TOP_UP", "USDC_TOP_UP"];
 
-  readonly pairs: { wallet: MasterWalletService; client: MasterSigningClientService }[];
+  readonly pairs: { wallet: Wallet; client: BatchSigningClientService }[];
 
-  private readonly wallets: Record<TopUpMasterWalletType, MasterWalletService>;
+  private readonly wallets: Record<TopUpMasterWalletType, Wallet>;
 
-  private readonly clients: Record<TopUpMasterWalletType, MasterSigningClientService>;
+  private readonly clients: Record<TopUpMasterWalletType, BatchSigningClientService>;
 
   constructor(
-    @InjectWallet("UAKT_TOP_UP") private readonly uaktMasterWalletService: MasterWalletService,
-    @InjectWallet("USDC_TOP_UP") private readonly usdtMasterWalletService: MasterWalletService,
-    @InjectSigningClient("UAKT_TOP_UP") private readonly uaktMasterSigningClientService: MasterSigningClientService,
-    @InjectSigningClient("USDC_TOP_UP") private readonly usdtMasterSigningClientService: MasterSigningClientService
+    @InjectWallet("UAKT_TOP_UP") private readonly uaktWallet: Wallet,
+    @InjectWallet("USDC_TOP_UP") private readonly usdtWallet: Wallet,
+    @InjectSigningClient("UAKT_TOP_UP") private readonly uaktBatchSigningClientService: BatchSigningClientService,
+    @InjectSigningClient("USDC_TOP_UP") private readonly usdtBatchSigningClientService: BatchSigningClientService
   ) {
     this.wallets = {
-      UAKT_TOP_UP: this.uaktMasterWalletService,
-      USDC_TOP_UP: this.usdtMasterWalletService
+      UAKT_TOP_UP: this.uaktWallet,
+      USDC_TOP_UP: this.usdtWallet
     };
 
     this.clients = {
-      UAKT_TOP_UP: this.uaktMasterSigningClientService,
-      USDC_TOP_UP: this.usdtMasterSigningClientService
+      UAKT_TOP_UP: this.uaktBatchSigningClientService,
+      USDC_TOP_UP: this.usdtBatchSigningClientService
     };
 
     this.pairs = this.TYPES.map(walletType => ({
@@ -37,11 +37,11 @@ export class TopUpToolsService {
     }));
   }
 
-  walletFor(walletType: TopUpMasterWalletType): MasterWalletService {
+  walletFor(walletType: TopUpMasterWalletType): Wallet {
     return this.wallets[walletType];
   }
 
-  clientFor(walletType: TopUpMasterWalletType): MasterSigningClientService {
+  clientFor(walletType: TopUpMasterWalletType): BatchSigningClientService {
     return this.clients[walletType];
   }
 }

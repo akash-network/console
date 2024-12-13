@@ -5,7 +5,7 @@ import { singleton } from "tsyringe";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, RpcMessageService } from "@src/billing/services";
-import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { BlockRepository } from "@src/chain/repositories/block.repository";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
@@ -23,7 +23,7 @@ export class StaleManagedDeploymentsCleanerService {
     private readonly deploymentRepository: DeploymentRepository,
     private readonly blockRepository: BlockRepository,
     private readonly rpcMessageService: RpcMessageService,
-    private readonly txSignerService: TxSignerService,
+    private readonly managedSignerService: ManagedSignerService,
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly errorService: ErrorService
@@ -48,7 +48,6 @@ export class StaleManagedDeploymentsCleanerService {
 
   private async cleanUpForWallet(wallet: UserWalletOutput) {
     const currentHeight = await this.blockRepository.getLatestProcessedHeight();
-    const client = await this.txSignerService.getClientForAddressIndex(wallet.id);
     const deployments = await this.deploymentRepository.findStaleDeployments({
       owner: wallet.address,
       createdHeight: currentHeight - this.MAX_LIVE_BLOCKS
@@ -59,7 +58,7 @@ export class StaleManagedDeploymentsCleanerService {
     this.logger.info({ event: "DEPLOYMENT_CLEAN_UP", owner: wallet.address });
 
     try {
-      await client.signAndBroadcast(messages);
+      await this.managedSignerService.executeManagedTx(wallet.id, messages);
       this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address });
     } catch (error) {
       if (error.message.includes("not allowed to pay fees")) {
@@ -70,7 +69,7 @@ export class StaleManagedDeploymentsCleanerService {
           }
         });
 
-        await client.signAndBroadcast(messages);
+        await this.managedSignerService.executeManagedTx(wallet.id, messages);
         this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address });
       } else {
         throw error;

@@ -4,9 +4,8 @@ import { faker } from "@faker-js/faker";
 
 import { BillingConfig } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
-import { MasterWalletService, RpcMessageService } from "@src/billing/services";
+import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
-import { SimpleSigningStargateClient, TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { config } from "@src/deployment/config";
@@ -25,10 +24,9 @@ describe(TopUpManagedDeploymentsService.name, () => {
   const balancesService = stub<BalancesService>({ retrieveAndCalcDeploymentLimit: jest.fn() });
   const userWalletRepository = stub<UserWalletRepository>({ paginate: jest.fn() });
   const blockHttpService = stub<BlockHttpService>({ getCurrentHeight: () => CURRENT_BLOCK_HEIGHT });
-  const client = stub<SimpleSigningStargateClient>({ signAndBroadcast: jest.fn() });
-  const txSignerService = stub<TxSignerService>({ getClientForAddressIndex: jest.fn(() => client) });
+  const managedSignerService = stub<ManagedSignerService>({ executeManagedTx: jest.fn() });
   const billingConfig = stub<BillingConfig>({ DEPLOYMENT_GRANT_DENOM: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1" });
-  const managedMasterWalletService = stub<MasterWalletService>({
+  const managedMasterWalletService = stub<Wallet>({
     getFirstAddress: async () => MANAGED_MASTER_WALLET_ADDRESS
   });
 
@@ -36,7 +34,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
   const errorService = stub<ErrorService>({ execWithErrorHandler: (params: any, cb: () => any) => cb() });
   const topUpDeploymentsService = new TopUpManagedDeploymentsService(
     userWalletRepository,
-    txSignerService,
+    managedSignerService,
     billingConfig,
     drainingDeploymentService,
     managedMasterWalletService,
@@ -107,7 +105,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     data.forEach(({ wallet, drainingDeployments }) => {
       drainingDeployments.forEach(({ isExpectedToTopUp, deployment }) => {
         if (isExpectedToTopUp) {
-          expect(client.signAndBroadcast).toHaveBeenCalledWith([
+          expect(managedSignerService.executeManagedTx).toHaveBeenCalledWith(wallet.id, [
             {
               typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
               value: {
@@ -127,6 +125,6 @@ describe(TopUpManagedDeploymentsService.name, () => {
         }
       });
     });
-    expect(client.signAndBroadcast).toHaveBeenCalledTimes(count);
+    expect(managedSignerService.executeManagedTx).toHaveBeenCalledTimes(count);
   });
 });

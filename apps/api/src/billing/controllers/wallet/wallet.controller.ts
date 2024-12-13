@@ -6,8 +6,8 @@ import type { WalletListOutputResponse, WalletOutputResponse } from "@src/billin
 import type { SignTxRequestInput, SignTxResponseOutput, StartTrialRequestInput } from "@src/billing/routes";
 import { GetWalletQuery } from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
 import { WalletInitializerService } from "@src/billing/services";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
-import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
 import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { WithTransaction } from "@src/core";
 
@@ -15,7 +15,7 @@ import { WithTransaction } from "@src/core";
 export class WalletController {
   constructor(
     private readonly walletInitializer: WalletInitializerService,
-    private readonly signerService: TxSignerService,
+    private readonly signerService: ManagedSignerService,
     private readonly refillService: RefillService,
     private readonly walletReaderService: WalletReaderService
   ) {}
@@ -38,7 +38,7 @@ export class WalletController {
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async signTx({ data: { userId, messages } }: SignTxRequestInput): Promise<SignTxResponseOutput> {
     return {
-      data: await this.signerService.signAndBroadcast(userId, messages as EncodeObject[])
+      data: await this.signerService.executeEncodedTxByUserId(userId, messages as EncodeObject[])
     };
   }
 
