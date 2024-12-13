@@ -4,9 +4,9 @@ import { singleton } from "tsyringe";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
-import { MasterWalletService, RpcMessageService } from "@src/billing/services";
+import { RpcMessageService, Wallet } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
-import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
@@ -19,10 +19,10 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
 
   constructor(
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly txSignerService: TxSignerService,
+    private readonly managedSignerService: ManagedSignerService,
     @InjectBillingConfig() private readonly billingConfig: BillingConfig,
     private readonly drainingDeploymentService: DrainingDeploymentService,
-    @InjectWallet("MANAGED") private readonly managedMasterWalletService: MasterWalletService,
+    @InjectWallet("MANAGED") private readonly managedMasterWallet: Wallet,
     private readonly balancesService: BalancesService,
     private readonly rpcClientService: RpcMessageService,
     private readonly blockHttpService: BlockHttpService,
@@ -50,7 +50,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
   }
 
   private async topUpForWallet(wallet: UserWalletOutput, options: TopUpDeploymentsOptions, summary: TopUpSummarizer) {
-    const depositor = await this.managedMasterWalletService.getFirstAddress();
+    const depositor = await this.managedMasterWallet.getFirstAddress();
     summary.inc("walletsCount");
     const owner = wallet.address;
     const denom = this.billingConfig.DEPLOYMENT_GRANT_DENOM;
@@ -60,8 +60,6 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     if (!drainingDeployments.length) {
       return;
     }
-
-    const signer = await this.txSignerService.getClientForAddressIndex(wallet.id);
 
     let balance = await this.balancesService.retrieveAndCalcDeploymentLimit(wallet);
     let hasTopUp = false;
@@ -81,7 +79,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
       this.logger.info({ event: "TOP_UP_DEPLOYMENT", params: messageInput, dryRun: options.dryRun });
 
       if (!options.dryRun) {
-        await signer.signAndBroadcast([message]);
+        await this.managedSignerService.executeManagedTx(wallet.id, [message]);
         this.logger.info({ event: "TOP_UP_SUCCESS" });
       }
 

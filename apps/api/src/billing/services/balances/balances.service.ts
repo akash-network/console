@@ -4,14 +4,14 @@ import { singleton } from "tsyringe";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletInput, UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
-import { MasterWalletService } from "@src/billing/services";
+import { Wallet } from "@src/billing/services";
 
 @singleton()
 export class BalancesService {
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
-    @InjectWallet("MANAGED") private readonly masterWalletService: MasterWalletService,
+    @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly allowanceHttpService: AllowanceHttpService
   ) {}
 
@@ -51,7 +51,7 @@ export class BalancesService {
 
   private async retrieveAndCalcFeeLimit(userWallet: UserWalletOutput): Promise<number> {
     const feeAllowance = await this.allowanceHttpService.getFeeAllowancesForGrantee(userWallet.address);
-    const masterWalletAddress = await this.masterWalletService.getFirstAddress();
+    const masterWalletAddress = await this.masterWallet.getFirstAddress();
 
     return feeAllowance.reduce((acc, allowance) => {
       if (allowance.granter !== masterWalletAddress) {
@@ -70,7 +70,7 @@ export class BalancesService {
 
   async retrieveAndCalcDeploymentLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
     const deploymentAllowance = await this.allowanceHttpService.getDeploymentAllowancesForGrantee(userWallet.address);
-    const masterWalletAddress = await this.masterWalletService.getFirstAddress();
+    const masterWalletAddress = await this.masterWallet.getFirstAddress();
 
     return deploymentAllowance.reduce((acc, allowance) => {
       if (allowance.granter !== masterWalletAddress || allowance.authorization.spend_limit.denom !== this.config.DEPLOYMENT_GRANT_DENOM) {

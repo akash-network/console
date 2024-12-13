@@ -10,7 +10,7 @@ import { app } from "@src/app";
 import { config } from "@src/billing/config";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
-import { MasterWalletService } from "@src/billing/services";
+import { Wallet } from "@src/billing/services";
 
 import { DbTestingService } from "@test/services/db-testing.service";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
@@ -23,7 +23,7 @@ const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.ym
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
-  const masterWalletService = container.resolve<MasterWalletService>(MANAGED_MASTER_WALLET);
+  const masterWallet = container.resolve<Wallet>(MANAGED_MASTER_WALLET);
   const dbService = container.resolve(DbTestingService);
 
   afterEach(async () => {
@@ -41,7 +41,7 @@ describe("Tx Sign", () => {
       const result = await res.json();
 
       expect(res.status).toBe(200);
-      expect(result).toMatchObject({ data: { code: 0, transactionHash: expect.any(String) } });
+      expect(result).toMatchObject({ data: { code: 0, transactionHash: expect.any(String), hash: expect.any(String) } });
     });
   });
 
@@ -72,7 +72,7 @@ describe("Tx Sign", () => {
               groups: sdl.groups(),
               version: await sdl.manifestVersion(),
               deposit: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: "5000000" },
-              depositor: await masterWalletService.getFirstAddress()
+              depositor: await masterWallet.getFirstAddress()
             }
           }
         ].map(message => ({ typeUrl: message.typeUrl, value: Buffer.from(registry.encode(message)).toString("base64") }))
