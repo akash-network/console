@@ -1,5 +1,12 @@
 
 
+## [2.40.0](https://github.com/akash-network/console/compare/console-api/v2.39.0...console-api/v2.40.0) (2024-12-13)
+
+
+### Features
+
+* **deployment:** sign same wallet transactions in a batch ([c336d5f](https://github.com/akash-network/console/commit/c336d5fff182efeb3f490e66998b211ef66457c7))
+
 ## [2.39.0](https://github.com/akash-network/console/compare/console-api/v2.38.0...console-api/v2.39.0) (2024-12-11)
 
 
