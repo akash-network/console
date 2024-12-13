@@ -1,7 +1,7 @@
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { UserWalletInput, UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
+import { UserWalletInput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService } from "@src/billing/services";
 
 @singleton()
