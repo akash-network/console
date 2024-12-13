@@ -5,12 +5,12 @@ import type { BroadcastTxSyncResponse } from "@cosmjs/tendermint-rpc/build/comet
 
 export type { BroadcastTxSyncResponse };
 
-export class BatchSigningStargateClient extends SigningStargateClient {
+export class SyncSigningStargateClient extends SigningStargateClient {
   public static async connectWithSigner(
     endpoint: string | HttpEndpoint,
     signer: OfflineSigner,
     options: SigningStargateClientOptions = {}
-  ): Promise<BatchSigningStargateClient> {
+  ): Promise<SyncSigningStargateClient> {
     const cometClient = await connectComet(endpoint);
     return this.createWithSigner(cometClient, signer, options);
   }
@@ -19,8 +19,8 @@ export class BatchSigningStargateClient extends SigningStargateClient {
     cometClient: CometClient,
     signer: OfflineSigner,
     options: SigningStargateClientOptions = {}
-  ): Promise<BatchSigningStargateClient> {
-    return new BatchSigningStargateClient(cometClient, signer, options);
+  ): Promise<SyncSigningStargateClient> {
+    return new SyncSigningStargateClient(cometClient, signer, options);
   }
 
   protected constructor(

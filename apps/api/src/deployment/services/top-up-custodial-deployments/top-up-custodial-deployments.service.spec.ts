@@ -9,7 +9,7 @@ import { container } from "tsyringe";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { UAKT_TOP_UP_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
-import { MasterSigningClientService, MasterWalletService, RpcMessageService } from "@src/billing/services";
+import { BatchSigningClientService, RpcMessageService, Wallet } from "@src/billing/services";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { config } from "@src/deployment/config";
@@ -31,13 +31,13 @@ describe(TopUpCustodialDeploymentsService.name, () => {
   const CURRENT_BLOCK_HEIGHT = 7481457;
   const UAKT_TOP_UP_MASTER_WALLET_ADDRESS = AkashAddressSeeder.create();
   const USDT_TOP_UP_MASTER_WALLET_ADDRESS = AkashAddressSeeder.create();
-  const mockManagedWalletService = (address: string) => {
-    return stub<MasterWalletService>({
+  const mockManagedWallet = (address: string) => {
+    return stub<Wallet>({
       getFirstAddress: async () => address
     });
   };
-  const mockMasterSigningClientService = () => {
-    return stub<MasterSigningClientService>({
+  const mockMasterSigningClient = () => {
+    return stub<BatchSigningClientService>({
       executeTx: jest.fn()
     });
   };
@@ -45,16 +45,11 @@ describe(TopUpCustodialDeploymentsService.name, () => {
   const allowanceHttpService = new AllowanceHttpService();
   const balanceHttpService = new BalanceHttpService();
   const blockHttpService = stub<BlockHttpService>({ getCurrentHeight: jest.fn() });
-  const uaktMasterWalletService = mockManagedWalletService(UAKT_TOP_UP_MASTER_WALLET_ADDRESS);
-  const usdtMasterWalletService = mockManagedWalletService(USDT_TOP_UP_MASTER_WALLET_ADDRESS);
-  const uaktMasterSigningClientService = mockMasterSigningClientService();
-  const usdtMasterSigningClientService = mockMasterSigningClientService();
-  const topUpToolsService = new TopUpToolsService(
-    uaktMasterWalletService,
-    usdtMasterWalletService,
-    uaktMasterSigningClientService,
-    usdtMasterSigningClientService
-  );
+  const uaktMasterWallet = mockManagedWallet(UAKT_TOP_UP_MASTER_WALLET_ADDRESS);
+  const usdtMasterWallet = mockManagedWallet(USDT_TOP_UP_MASTER_WALLET_ADDRESS);
+  const uaktMasterSigningClient = mockMasterSigningClient();
+  const usdtMasterSigningClient = mockMasterSigningClient();
+  const topUpToolsService = new TopUpToolsService(uaktMasterWallet, usdtMasterWallet, uaktMasterSigningClient, usdtMasterSigningClient);
 
   jest.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(CURRENT_BLOCK_HEIGHT);
 
@@ -223,7 +218,7 @@ describe(TopUpCustodialDeploymentsService.name, () => {
       drainingDeployments.forEach(({ isExpectedToTopUp, deployment }) => {
         if (isExpectedToTopUp) {
           const isAkt = deployment.denom === "uakt";
-          const client = isAkt ? uaktMasterSigningClientService : usdtMasterSigningClientService;
+          const client = isAkt ? uaktMasterSigningClient : usdtMasterSigningClient;
           uaktCount += isAkt ? 1 : 0;
           usdtCount += isAkt ? 0 : 1;
 
@@ -248,8 +243,8 @@ describe(TopUpCustodialDeploymentsService.name, () => {
       });
     });
 
-    expect(uaktMasterSigningClientService.executeTx).toHaveBeenCalledTimes(uaktCount);
-    expect(usdtMasterSigningClientService.executeTx).toHaveBeenCalledTimes(usdtCount);
+    expect(uaktMasterSigningClient.executeTx).toHaveBeenCalledTimes(uaktCount);
+    expect(usdtMasterSigningClient.executeTx).toHaveBeenCalledTimes(usdtCount);
   });
 
   xdescribe("actual top up deployment tx on demand", () => {
@@ -259,8 +254,8 @@ describe(TopUpCustodialDeploymentsService.name, () => {
       const denom = "uakt";
       const owner = "<REPLACE_WITH_OWNER_ADDRESS>";
       const dseq = "<REPLACE_WITH_DEPLOYMENT_DSEQ_NUMBER>" as unknown as number;
-      const wallet = container.resolve<MasterWalletService>(UAKT_TOP_UP_MASTER_WALLET);
-      const signer = new MasterSigningClientService(container.resolve(BILLING_CONFIG), wallet, container.resolve(TYPE_REGISTRY));
+      const wallet = container.resolve<Wallet>(UAKT_TOP_UP_MASTER_WALLET);
+      const signer = new BatchSigningClientService(container.resolve(BILLING_CONFIG), wallet, container.resolve(TYPE_REGISTRY));
       const grantee = await wallet.getFirstAddress();
 
       try {

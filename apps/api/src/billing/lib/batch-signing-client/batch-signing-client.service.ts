@@ -1,9 +1,7 @@
 import { LoggerService } from "@akashnetwork/logging";
-import type { StdFee } from "@cosmjs/amino";
 import { toHex } from "@cosmjs/encoding";
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, GasPrice } from "@cosmjs/stargate";
-import type { SignerData } from "@cosmjs/stargate/build/signingstargateclient";
 import { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
 import { BroadcastTxSyncResponse } from "@cosmjs/tendermint-rpc/build/comet38";
 import { Sema } from "async-sema";
@@ -12,16 +10,16 @@ import DataLoader from "dataloader";
 import { backOff } from "exponential-backoff";
 import assert from "http-assert";
 
-import { BillingConfig } from "@src/billing/providers";
-import { BatchSigningStargateClient } from "@src/billing/services/batch-signing-stargate-client/batch-signing-stargate-client";
-import { MasterWalletService } from "@src/billing/services/master-wallet/master-wallet.service";
+import { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
+import { Wallet } from "@src/billing/lib/wallet/wallet";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 
 interface ShortAccountInfo {
   accountNumber: number;
   sequence: number;
 }
 
-interface ExecuteTxOptions {
+export interface ExecuteTxOptions {
   fee: {
     granter: string;
   };
@@ -32,10 +30,10 @@ interface ExecuteTxInput {
   options?: ExecuteTxOptions;
 }
 
-export class MasterSigningClientService {
+export class BatchSigningClientService {
   private readonly FEES_DENOM = "uakt";
 
-  private clientAsPromised: Promise<BatchSigningStargateClient>;
+  private clientAsPromised: Promise<SyncSigningStargateClient>;
 
   private readonly semaphore = new Sema(1);
 
@@ -47,44 +45,31 @@ export class MasterSigningClientService {
     async (batchedInputs: ExecuteTxInput[]) => {
       return this.executeTxBatchBlocking(batchedInputs);
     },
-    { cache: false, batchScheduleFn: callback => setTimeout(callback, this.config.MASTER_WALLET_BATCHING_INTERVAL_MS) }
+    { cache: false, batchScheduleFn: callback => setTimeout(callback, this.config.get("WALLET_BATCHING_INTERVAL_MS")) }
   );
 
   private readonly logger = LoggerService.forContext(this.loggerContext);
 
+  get hasPendingTransactions() {
+    return this.semaphore.nrWaiting() > 0;
+  }
+
   constructor(
-    private readonly config: BillingConfig,
-    private readonly masterWalletService: MasterWalletService,
+    private readonly config: BillingConfigService,
+    private readonly wallet: Wallet,
     private readonly registry: Registry,
-    private readonly loggerContext = MasterSigningClientService.name
+    private readonly loggerContext = BatchSigningClientService.name
   ) {
     this.clientAsPromised = this.initClient();
   }
 
   private async initClient() {
-    return BatchSigningStargateClient.connectWithSigner(this.config.RPC_NODE_ENDPOINT, this.masterWalletService, {
+    return SyncSigningStargateClient.connectWithSigner(this.config.get("RPC_NODE_ENDPOINT"), this.wallet, {
       registry: this.registry
     }).then(async client => {
-      this.accountInfo = await client.getAccount(await this.masterWalletService.getFirstAddress()).then(account => ({
-        accountNumber: account.accountNumber,
-        sequence: account.sequence
-      }));
       this.chainId = await client.getChainId();
-
       return client;
     });
-  }
-
-  async signAndBroadcast(messages: readonly EncodeObject[], fee: StdFee | "auto" | number, memo?: string) {
-    return (await this.clientAsPromised).signAndBroadcast(await this.masterWalletService.getFirstAddress(), messages, fee, memo);
-  }
-
-  async sign(messages: readonly EncodeObject[], fee: StdFee, memo: string, explicitSignerData?: SignerData) {
-    return (await this.clientAsPromised).sign(await this.masterWalletService.getFirstAddress(), messages, fee, memo, explicitSignerData);
-  }
-
-  async simulate(messages: readonly EncodeObject[], memo: string) {
-    return (await this.clientAsPromised).simulate(await this.masterWalletService.getFirstAddress(), messages, memo);
   }
 
   async executeTx(messages: readonly EncodeObject[], options?: ExecuteTxOptions) {
@@ -107,7 +92,7 @@ export class MasterSigningClientService {
 
           if (isSequenceMismatch) {
             this.clientAsPromised = this.initClient();
-            this.logger.warn({ event: "ACCOUNT_SEQUENCE_MISMATCH", address: await this.masterWalletService.getFirstAddress(), attempt });
+            this.logger.warn({ event: "ACCOUNT_SEQUENCE_MISMATCH", address: await this.wallet.getFirstAddress(), attempt });
 
             return true;
           }
@@ -125,13 +110,15 @@ export class MasterSigningClientService {
     let txIndex: number = 0;
 
     const client = await this.clientAsPromised;
-    const masterAddress = await this.masterWalletService.getFirstAddress();
+    await this.updateAccountInfo();
+
+    const address = await this.wallet.getFirstAddress();
 
     while (txIndex < inputs.length) {
       const { messages, options } = inputs[txIndex];
       const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee.granter);
       txes.push(
-        await client.sign(masterAddress, messages, fee, "", {
+        await client.sign(address, messages, fee, "", {
           accountNumber: this.accountInfo.accountNumber,
           sequence: this.accountInfo.sequence++,
           chainId: this.chainId
@@ -155,6 +142,14 @@ export class MasterSigningClientService {
     return await Promise.all(hashes.map(hash => client.getTx(hash)));
   }
 
+  private async updateAccountInfo() {
+    const client = await this.clientAsPromised;
+    this.accountInfo = await client.getAccount(await this.wallet.getFirstAddress()).then(account => ({
+      accountNumber: account.accountNumber,
+      sequence: account.sequence
+    }));
+  }
+
   private async estimateFee(messages: readonly EncodeObject[], denom: string, granter?: string, options?: { mock?: boolean }) {
     if (options?.mock) {
       return {
@@ -165,8 +160,14 @@ export class MasterSigningClientService {
     }
 
     const gasEstimation = await this.simulate(messages, "");
-    const estimatedGas = Math.round(gasEstimation * this.config.GAS_SAFETY_MULTIPLIER);
+    const estimatedGas = Math.round(gasEstimation * this.config.get("GAS_SAFETY_MULTIPLIER"));
 
-    return calculateFee(estimatedGas, GasPrice.fromString(`0.025${denom}`));
+    const fee = calculateFee(estimatedGas, GasPrice.fromString(`0.025${denom}`));
+
+    return granter ? { ...fee, granter } : fee;
+  }
+
+  private async simulate(messages: readonly EncodeObject[], memo: string) {
+    return (await this.clientAsPromised).simulate(await this.wallet.getFirstAddress(), messages, memo);
   }
 }

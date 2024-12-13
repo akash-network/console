@@ -2,7 +2,7 @@ import { AllowanceHttpService, BalanceHttpService, DeploymentAllowance } from "@
 import { LoggerService } from "@akashnetwork/logging";
 import { singleton } from "tsyringe";
 
-import { ExecDepositDeploymentMsgOptions, MasterSigningClientService, RpcMessageService } from "@src/billing/services";
+import { BatchSigningClientService, ExecDepositDeploymentMsgOptions, RpcMessageService } from "@src/billing/services";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
@@ -70,7 +70,7 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
 
   private async topUpForGrant(
     grant: DeploymentAllowance,
-    client: MasterSigningClientService,
+    client: BatchSigningClientService,
     options: TopUpDeploymentsOptions,
     summary: TopUpSummarizer
   ): Promise<TopUpSummary> {
@@ -170,7 +170,7 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
     return hasSufficientDeploymentLimit && hasSufficientFeesLimit && hasSufficientFeesBalance && hasSufficientBalance;
   }
 
-  async topUpDeployment({ grantee, ...messageInput }: ExecDepositDeploymentMsgOptions, client: MasterSigningClientService, options: TopUpDeploymentsOptions) {
+  async topUpDeployment({ grantee, ...messageInput }: ExecDepositDeploymentMsgOptions, client: BatchSigningClientService, options: TopUpDeploymentsOptions) {
     const message = this.rpcClientService.getExecDepositDeploymentMsg({ grantee, ...messageInput });
     this.logger.info({ event: "TOP_UP_DEPLOYMENT", params: { ...messageInput, masterWallet: grantee }, dryRun: options.dryRun });
 
