@@ -61,8 +61,9 @@ export const GetStartedStepper: React.FunctionComponent = () => {
         </StepLabel>
 
         <StepContent>
-          <p>To begin the process, ensure you have at least 5 AKT tokens in your wallet.</p>
+          <p>To begin the process</p>
           <ul className="list-inside list-disc">
+            <li>You need to have at least 25 AKT tokens in your wallet in order to bid on workloads.</li>
             <li>Every lease created on the Akash network requires 5 AKT to be locked in escrow.</li>
             <li>These tokens are returned when the lease is closed.</li>
             <li>Verify your wallet balance and fund it if necessary.</li>
@@ -187,7 +188,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
       </Step>
 
       <Step>
-        <StepLabel StepIconComponent={QontoStepIcon} classes={{ label: cn("text-xl tracking-tight", { ["!font-bold"]: activeStep === 2 }) }}>
+        <StepLabel StepIconComponent={QontoStepIcon} classes={{ label: cn("text-xl tracking-tight", { ["!font-bold"]: activeStep === 3 }) }}>
           Provider Attributes
         </StepLabel>
         <StepContent>
@@ -204,7 +205,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
         </StepContent>
       </Step>
       <Step>
-        <StepLabel StepIconComponent={QontoStepIcon} classes={{ label: cn("text-xl tracking-tight", { ["!font-bold"]: activeStep === 2 }) }}>
+        <StepLabel StepIconComponent={QontoStepIcon} classes={{ label: cn("text-xl tracking-tight", { ["!font-bold"]: activeStep === 4 }) }}>
           Setting Pricing
         </StepLabel>
         <StepContent>
@@ -222,7 +223,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
       </Step>
 
       <Step>
-        <StepLabel StepIconComponent={QontoStepIcon} classes={{ label: cn("text-xl tracking-tight", { ["!font-bold"]: activeStep === 2 }) }}>
+        <StepLabel StepIconComponent={QontoStepIcon} classes={{ label: cn("text-xl tracking-tight", { ["!font-bold"]: activeStep === 5 }) }}>
           Wallet Import
         </StepLabel>
         <StepContent>
