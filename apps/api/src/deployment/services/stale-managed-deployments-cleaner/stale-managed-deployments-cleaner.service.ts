@@ -55,6 +55,10 @@ export class StaleManagedDeploymentsCleanerService {
 
     const messages = deployments.map(deployment => this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.dseq));
 
+    if (!messages.length) {
+      return;
+    }
+
     this.logger.info({ event: "DEPLOYMENT_CLEAN_UP", owner: wallet.address });
 
     try {
