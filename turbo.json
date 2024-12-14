@@ -16,5 +16,6 @@
     "update-apps-local-deps": {
       "outputs": ["mvm.lock"]
     }
-  }
+  },
+  "ui": "tui"
 }
