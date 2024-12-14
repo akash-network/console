@@ -1,9 +1,9 @@
+import { Sema } from "async-sema";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserWalletInput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService } from "@src/billing/services";
-import { Sema } from "async-sema";
 
 @singleton()
 export class WalletInitializerService {
