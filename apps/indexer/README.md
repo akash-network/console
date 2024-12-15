@@ -51,7 +51,7 @@ Tasks can be configured to report their execution to healthcheck endpoints autom
 
 ## Data Flow
 
-![Index Data Flow](../indexer-flow.drawio.png)
+![Index Data Flow](indexer-flow.drawio.png)
 
 ### **Step #1 - Download Blocks**
 
