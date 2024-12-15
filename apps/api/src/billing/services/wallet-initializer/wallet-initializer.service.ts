@@ -62,6 +62,7 @@ export class WalletInitializerService {
       return this.userWalletRepository.toPublic(userWallet);
     } finally {
       semaphore.release();
+      this.semaphores.delete(userId);
     }
   }
 
