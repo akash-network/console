@@ -18,9 +18,16 @@ export class UrlService {
   static home = () => "/";
   static deployments = () => "/deployments";
   static attributes = () => "/attributes";
+  static settings = () => "/settings";
   static getStarted = () => "/get-started";
   static privacyPolicy = () => "/privacy-policy";
   static termsOfService = () => "/terms-of-service";
   static actions = () => "/actions";
   static pricing = () => "/pricing";
 }
+
+export const stripProviderPrefixAndPort = (url: string) => {
+  return url
+    .replace(/^https?:\/\/provider\./, '') // Remove https://provider. or http://provider.
+    .replace(/:\d+$/, ''); // Remove port number at the end
+};
