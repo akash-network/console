@@ -43,15 +43,8 @@ const BecomeProvider: React.FC = () => {
   }, [activeStep, providerSteps, setProviderProcess]);
 
   const CurrentStepComponent = useMemo(() => {
-    // if (activeStep >= providerSteps.length) {
-    //   return () => (
-    //     <div className="mt-4">
-    //       <ProviderActionDetails actionId={providerProcess.actionId} />
-    //     </div>
-    //   );
-    // }
     return providerSteps[activeStep].component;
-  }, [activeStep, providerSteps, providerProcess.actionId]);
+  }, [activeStep, providerSteps]);
 
   return (
     <Layout>
