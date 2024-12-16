@@ -1,5 +1,12 @@
 
 
+## [2.41.1](https://github.com/akash-network/console/compare/console-api/v2.41.0...console-api/v2.41.1) (2024-12-16)
+
+
+### Bug Fixes
+
+* **wallet:** start trial duplicate ([001ee9c](https://github.com/akash-network/console/commit/001ee9c6e99ff12c4337e5e4f9da94be6b121346)), closes [#560](https://github.com/akash-network/console/issues/560)
+
 ## [2.41.0](https://github.com/akash-network/console/compare/console-api/v2.40.0...console-api/v2.41.0) (2024-12-16)
 
 
