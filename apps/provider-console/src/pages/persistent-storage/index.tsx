@@ -90,12 +90,10 @@ const PersistentStoragePage: React.FC = () => {
           }))
         }
       };
-      console.log("Payload to send:", payload);
 
       const pstorageResponse: any = await restClient.post("/persistent-storage", payload);
 
       if (pstorageResponse) {
-        console.log(pstorageResponse);
         if (pstorageResponse.action_id) {
           router.push(`/actions/${pstorageResponse.action_id}`);
         }
