@@ -16,7 +16,7 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
   const [showBalancePopup, setShowBalancePopup] = useState(false);
 
   const { walletBalances } = useWallet();
-  const hasEnoughBalance = (walletBalances?.uakt || 0) >= 5000000;
+  const hasEnoughBalance = (walletBalances?.uakt || 0) >= 30000000;
 
   React.useEffect(() => {
     if (!hasEnoughBalance) {
@@ -102,7 +102,7 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
         <div>
           <div className="pb-2">
             <p>
-              You need at least <strong>5 AKT</strong> to become a provider. Please add more funds to your wallet to continue.
+              You need at least <strong>30 AKT</strong> to become a provider. Please add more funds to your wallet to continue.
             </p>
           </div>
           <Separator />
