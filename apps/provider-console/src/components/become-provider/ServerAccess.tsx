@@ -102,7 +102,11 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
         <div>
           <div className="pb-2">
             <p>
-              You need at least <strong>30 AKT</strong> to become a provider. Please add more funds to your wallet to continue.
+              You need at least <strong>30 AKT</strong> to become a provider.
+              <br />
+              Every lease created on the Akash network requires <strong>5 AKT</strong> to be locked in escrow.
+              <br />
+              Please ensure you have enough funds to cover your resources.
             </p>
           </div>
           <Separator />
