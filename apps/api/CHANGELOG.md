@@ -1,5 +1,17 @@
 
 
+## [2.41.0](https://github.com/akash-network/console/compare/console-api/v2.40.0...console-api/v2.41.0) (2024-12-16)
+
+
+### Features
+
+* **billing:** simulate tx to estimate fees on master wallet ([3d61b6a](https://github.com/akash-network/console/commit/3d61b6a1a83e5ed5e254cb5beb7b7622d33606a3)), closes [#426](https://github.com/akash-network/console/issues/426)
+
+
+### Bug Fixes
+
+* **deployment:** skip stale deployment cleanup tx if no found ([b5d799d](https://github.com/akash-network/console/commit/b5d799d9a7daa8e40a8ba59d8a3be44a5294fe72))
+
 ## [2.40.0](https://github.com/akash-network/console/compare/console-api/v2.39.0...console-api/v2.40.0) (2024-12-13)
 
 
