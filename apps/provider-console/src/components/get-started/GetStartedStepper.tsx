@@ -63,8 +63,10 @@ export const GetStartedStepper: React.FunctionComponent = () => {
         <StepContent>
           <p>To begin the process</p>
           <ul className="list-inside list-disc">
-            <li>You need to have at least 25 AKT tokens in your wallet in order to bid on workloads.</li>
-            <li>Every lease created on the Akash network requires 5 AKT to be locked in escrow.</li>
+            <li>You need to have at least 30 AKT tokens in your wallet in order to bid on workloads.</li>
+            <li>
+              Every lease created on the Akash network requires 5 AKT to be locked in escrow. Please ensure you have enough funds to cover your resources.
+            </li>
             <li>These tokens are returned when the lease is closed.</li>
             <li>Verify your wallet balance and fund it if necessary.</li>
           </ul>
