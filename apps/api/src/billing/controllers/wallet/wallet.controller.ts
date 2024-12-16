@@ -10,6 +10,7 @@ import { RefillService } from "@src/billing/services/refill/refill.service";
 import { TxSignerService } from "@src/billing/services/tx-signer/tx-signer.service";
 import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { WithTransaction } from "@src/core";
+import { Semaphore } from "@src/core/lib/semaphore.decorator";
 
 @scoped(Lifecycle.ResolutionScoped)
 export class WalletController {
@@ -20,6 +21,7 @@ export class WalletController {
     private readonly walletReaderService: WalletReaderService
   ) {}
 
+  @Semaphore()
   @WithTransaction()
   @Protected([{ action: "create", subject: "UserWallet" }])
   async create({ data: { userId } }: StartTrialRequestInput): Promise<WalletOutputResponse> {
