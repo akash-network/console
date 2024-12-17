@@ -69,11 +69,17 @@ export function useSelectedChain() {
 }
 
 const ModalWrapper = (props: WalletModalProps) => {
-  const [, setIsWalletModalOpen] = useAtom(walletStore.isWalletModalOpen);
+  const { isWalletConnected } = useSelectedChain();
+  const [isWalletModalOpen, setIsWalletModalOpen] = useAtom(walletStore.isWalletModalOpen);
+  const [, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
 
   useEffect(() => {
     setIsWalletModalOpen(props.isOpen);
-  }, [props.isOpen]);
+
+    if (isWalletModalOpen && !props.isOpen && isWalletConnected) {
+      setSelectedWalletType("custodial");
+    }
+  }, [isWalletModalOpen, props.isOpen, isWalletConnected]);
 
   return <DefaultModal {...props} isOpen={props.isOpen} setOpen={props.setOpen} />;
 };
