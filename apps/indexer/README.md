@@ -53,6 +53,10 @@ Tasks can be configured to report their execution to healthcheck endpoints autom
 
 ![Index Data Flow](/indexer-flow.drawio.png)
 
+## Database Migrations
+
+If you are running from an old database snapshot, you may need to run database migrations to ensure your schema is up to date. See [UPGRADE.md](./UPGRADE.md) for migration instructions.
+
 ### **Step #1 - Download Blocks**
 
 Using our [nodeAccessor](./src/chain/nodeAccessor.ts) missing blocks are downloaded from RPC nodes. A list of rpc node is setup in the [chainDefinition](../shared/chainDefinitions.ts#L39) file and their status is then kept updated (earliest/latest available block, rate limiting, etc). The blocks are saved on disk inside a leveldb database (see [File Structure](#block-cache-structure)).
