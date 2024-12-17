@@ -19,7 +19,16 @@ export const ProviderContextProvider = ({ children }) => {
 
   const { data: providerDetails, isLoading: isLoadingProviderDetails } = useQuery(
     "providerDetails",
-    () => consoleClient.get(`/v1/providers/${address}`),
+    async () => {
+      try {
+        return await consoleClient.get(`/v1/providers/${address}`);
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          return null; // Return null for non-existent providers
+        }
+        throw error;
+      }
+    },
     {
       refetchOnWindowFocus: false,
       retry: 3,
@@ -29,7 +38,16 @@ export const ProviderContextProvider = ({ children }) => {
 
   const { data: providerDashboard, isLoading: isLoadingProviderDashboard } = useQuery(
     "providerDashboard",
-    () => consoleClient.get(`/internal/provider-dashboard/${address}`),
+    async () => {
+      try {
+        return await consoleClient.get(`/internal/provider-dashboard/${address}`);
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          return null; // Return null for non-existent dashboard data
+        }
+        throw error; // Re-throw other errors
+      }
+    },
     {
       refetchOnWindowFocus: false,
       retry: 3,
