@@ -1,10 +1,5 @@
 [
   {
-    "id": "cryptoandcoffee.com",
-    "api": "https://akash-api.global.ssl.fastly.net",
-    "rpc": "https://akash-rpc.global.ssl.fastly.net"
-  },
-  {
     "id": "akashnet.net",
     "api": "https://api.akashnet.net:443",
     "rpc": "https://rpc.akashnet.net:443"
