@@ -10,8 +10,6 @@ const route = createRoute({
   path: "/gpu-models",
   summary:
     "Get a list of gpu models per vendor. Based on the content from https://raw.githubusercontent.com/akash-network/provider-configs/main/devices/pcie/gpus.json.",
-  deprecated: true,
-  description: "This endpoint is deprecated. Please use the new endpoint /v1/gpu-models instead.",
   responses: {
     200: {
       description: "List of gpu models per.",

@@ -11,8 +11,6 @@ const route = createRoute({
   method: "get",
   path: "/provider-dashboard/{owner}",
   summary: "Get dashboard data for provider console.",
-  deprecated: true,
-  description: "This endpoint is deprecated. Please use the new endpoint /v1/provider-dashboard instead.",
   request: {
     params: z.object({
       owner: z.string().openapi({ example: openApiExampleProviderAddress })

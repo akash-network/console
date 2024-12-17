@@ -12,8 +12,6 @@ const route = createRoute({
   method: "get",
   path: "/gpu",
   summary: "Get a list of gpu models and their availability.",
-  deprecated: true,
-  description: "This endpoint is deprecated. Please use the new endpoint /v1/gpu instead.",
   request: {
     query: z.object({
       provider: z.string().optional(),

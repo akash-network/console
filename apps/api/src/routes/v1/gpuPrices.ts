@@ -18,8 +18,6 @@ const route = createRoute({
   method: "get",
   path: "/gpu-prices",
   summary: "Get a list of gpu models with their availability and pricing.",
-  deprecated: true,
-  description: "This endpoint is deprecated. Please use the new endpoint /v1/gpu-prices instead.",
   responses: {
     200: {
       description: "List of gpu models with their availability and pricing.",

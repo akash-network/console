@@ -10,8 +10,6 @@ const route = createRoute({
   method: "get",
   path: "/leases-duration/{owner}",
   summary: "Get leases durations.",
-  deprecated: true,
-  description: "This endpoint is deprecated. Please use the new endpoint /v1/leases-duration instead.",
   request: {
     params: z.object({
       owner: z.string().openapi({ example: openApiExampleAddress })

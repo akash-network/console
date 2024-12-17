@@ -12,8 +12,6 @@ const route = createRoute({
   method: "get",
   path: "/provider-versions",
   summary: "Get providers grouped by version.",
-  deprecated: true,
-  description: "This endpoint is deprecated. Please use the new endpoint /v1/provider-versions instead.",
   responses: {
     200: {
       description: "List of providers grouped by version.",
