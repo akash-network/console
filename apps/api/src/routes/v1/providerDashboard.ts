@@ -11,6 +11,7 @@ const route = createRoute({
   method: "get",
   path: "/provider-dashboard/{owner}",
   summary: "Get dashboard data for provider console.",
+  tags: ["Providers"],
   request: {
     params: z.object({
       owner: z.string().openapi({ example: openApiExampleProviderAddress })

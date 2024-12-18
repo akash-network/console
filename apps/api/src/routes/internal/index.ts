@@ -1,8 +1,8 @@
-import gpu from "./gpu";
-import gpuModels from "./gpuModels";
-import gpuPrices from "./gpuPrices";
-import leasesDuration from "./leasesDuration";
-import providerDashboard from "./providerDashboard";
-import providerVersions from "./providerVersions";
+import gpu from "../v1/gpu";
+import gpuModels from "../v1/gpuModels";
+import gpuPrices from "../v1/gpuPrices";
+import leasesDuration from "../v1/leasesDuration";
+import providerDashboard from "../v1/providerDashboard";
+import providerVersions from "../v1/providerVersions";
 
 export default [providerVersions, gpu, leasesDuration, gpuModels, gpuPrices, providerDashboard];
