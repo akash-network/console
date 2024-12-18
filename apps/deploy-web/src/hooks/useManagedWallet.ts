@@ -24,7 +24,7 @@ export const useManagedWallet = () => {
     refetch
   } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined, {
     onSuccess: wallet => {
-      if (selectedWalletType === "custodial" && wallet && !userWallet.isWalletConnected) {
+      if (selectedWalletType === "custodial" && wallet && !userWallet.isWalletConnected && !userWallet.isWalletConnecting) {
         setSelectedWalletType("managed");
       }
     }
