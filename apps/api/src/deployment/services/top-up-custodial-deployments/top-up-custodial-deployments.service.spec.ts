@@ -1,6 +1,6 @@
 import "@test/mocks/logger-service.mock";
 
-import { AllowanceHttpService, BalanceHttpService, Denom } from "@akashnetwork/http-sdk";
+import { AuthzHttpService, BalanceHttpService, Denom } from "@akashnetwork/http-sdk";
 import { MsgExec } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 import { secondsInWeek } from "date-fns/constants";
 import { describe } from "node:test";
@@ -42,7 +42,7 @@ describe(TopUpCustodialDeploymentsService.name, () => {
     });
   };
 
-  const allowanceHttpService = new AllowanceHttpService();
+  const authzHttpService = new AuthzHttpService();
   const balanceHttpService = new BalanceHttpService();
   const blockHttpService = stub<BlockHttpService>({ getCurrentHeight: jest.fn() });
   const uaktMasterWallet = mockManagedWallet(UAKT_TOP_UP_MASTER_WALLET_ADDRESS);
@@ -58,7 +58,7 @@ describe(TopUpCustodialDeploymentsService.name, () => {
 
   const topUpDeploymentsService = new TopUpCustodialDeploymentsService(
     topUpToolsService,
-    allowanceHttpService,
+    authzHttpService,
     balanceHttpService,
     drainingDeploymentService,
     new RpcMessageService(),
@@ -177,10 +177,10 @@ describe(TopUpCustodialDeploymentsService.name, () => {
     })
   ];
 
-  jest.spyOn(allowanceHttpService, "paginateDeploymentGrants").mockImplementation(async (params, cb) => {
+  jest.spyOn(authzHttpService, "paginateDepositDeploymentGrants").mockImplementation(async (params, cb) => {
     return await cb(data.filter(({ grant }) => "grantee" in params && grant.grantee === params.grantee).map(({ grant }) => grant));
   });
-  jest.spyOn(allowanceHttpService, "getFeeAllowanceForGranterAndGrantee").mockImplementation(async (granter: string, grantee: string) => {
+  jest.spyOn(authzHttpService, "getFeeAllowanceForGranterAndGrantee").mockImplementation(async (granter: string, grantee: string) => {
     return data.find(({ grant }) => grant.granter === granter && grant.grantee === grantee)?.feeAllowance;
   });
   jest.spyOn(balanceHttpService, "getBalance").mockImplementation(async (address: string, denom: Denom) => {
@@ -271,7 +271,6 @@ describe(TopUpCustodialDeploymentsService.name, () => {
           ],
           { fee: { granter: owner } }
         );
-
         console.log("DEBUG res", res);
       } catch (e) {
         console.log("DEBUG e", e);

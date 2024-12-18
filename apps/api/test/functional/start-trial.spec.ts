@@ -1,4 +1,4 @@
-import { AllowanceHttpService } from "@akashnetwork/http-sdk";
+import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
@@ -16,7 +16,7 @@ describe("start trial", () => {
   const config = container.resolve<BillingConfig>(BILLING_CONFIG);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsQuery = db.query.UserWallets;
-  const allowanceHttpService = container.resolve(AllowanceHttpService);
+  const authzHttpService = container.resolve(AuthzHttpService);
   const dbService = container.resolve(DbTestingService);
 
   afterEach(async () => {
@@ -42,8 +42,8 @@ describe("start trial", () => {
       const getWalletsResponse = await app.request(`/v1/wallets?userId=${userId}`, { headers });
       const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
       const allowances = await Promise.all([
-        allowanceHttpService.getDeploymentAllowancesForGrantee(userWallet.address),
-        allowanceHttpService.getFeeAllowancesForGrantee(userWallet.address)
+        authzHttpService.getDepositDeploymentGrantsForGrantee(userWallet.address),
+        authzHttpService.getFeeAllowancesForGrantee(userWallet.address)
       ]);
 
       expect(createWalletResponse.status).toBe(200);

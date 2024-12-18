@@ -61,7 +61,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
       return;
     }
 
-    let balance = await this.balancesService.retrieveAndCalcDeploymentLimit(wallet);
+    let balance = await this.balancesService.retrieveDeploymentLimit(wallet);
     let hasTopUp = false;
 
     for (const deployment of drainingDeployments) {

@@ -5,7 +5,11 @@ import { QueryKeys } from "@src/queries/queryKeys";
 
 export function useExactDeploymentGrantsQuery(granter: string, grantee: string, { enabled = true } = {}) {
   const allowanceHttpService = useAllowanceService();
-  return useQuery(QueryKeys.getDeploymentGrantsKey(granter, grantee), () => allowanceHttpService.getDeploymentGrantsForGranterAndGrantee(granter, grantee), {
-    enabled
-  });
+  return useQuery(
+    QueryKeys.getDeploymentGrantsKey(granter, grantee),
+    () => allowanceHttpService.getDepositDeploymentGrantsForGranterAndGrantee(granter, grantee),
+    {
+      enabled
+    }
+  );
 }

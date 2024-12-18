@@ -1,4 +1,4 @@
-import { AllowanceHttpService } from "@akashnetwork/http-sdk";
+import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import subDays from "date-fns/subDays";
 import { container } from "tsyringe";
 
@@ -19,7 +19,7 @@ describe("Users", () => {
   const userWalletRepository = container.resolve(UserWalletRepository);
   const walletService = new WalletTestingService(app);
   const controller = container.resolve(UserController);
-  const allowanceHttpService = container.resolve(AllowanceHttpService);
+  const authzHttpService = container.resolve(AuthzHttpService);
   const masterWalletService = resolveWallet("MANAGED");
   let masterAddress: string;
 
@@ -71,14 +71,14 @@ describe("Users", () => {
       );
 
       await Promise.all([
-        expect(allowanceHttpService.hasFeeAllowance(recent.wallet.address, masterAddress)).resolves.toBeFalsy(),
-        expect(allowanceHttpService.hasDeploymentGrant(recent.wallet.address, masterAddress)).resolves.toBeFalsy(),
+        expect(authzHttpService.hasValidFeeAllowance(recent.wallet.address, masterAddress)).resolves.toBeFalsy(),
+        expect(authzHttpService.hasValidDepositDeploymentGrant(recent.wallet.address, masterAddress)).resolves.toBeFalsy(),
 
-        expect(allowanceHttpService.hasFeeAllowance(reactivated.wallet.address, masterAddress)).resolves.toBeFalsy(),
-        expect(allowanceHttpService.hasDeploymentGrant(reactivated.wallet.address, masterAddress)).resolves.toBeFalsy(),
+        expect(authzHttpService.hasValidFeeAllowance(reactivated.wallet.address, masterAddress)).resolves.toBeFalsy(),
+        expect(authzHttpService.hasValidDepositDeploymentGrant(reactivated.wallet.address, masterAddress)).resolves.toBeFalsy(),
 
-        expect(allowanceHttpService.hasFeeAllowance(stale.wallet.address, masterAddress)).resolves.toBeFalsy(),
-        expect(allowanceHttpService.hasDeploymentGrant(stale.wallet.address, masterAddress)).resolves.toBeFalsy()
+        expect(authzHttpService.hasValidFeeAllowance(stale.wallet.address, masterAddress)).resolves.toBeFalsy(),
+        expect(authzHttpService.hasValidDepositDeploymentGrant(stale.wallet.address, masterAddress)).resolves.toBeFalsy()
       ]);
     });
   });
