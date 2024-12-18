@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useAtom } from "jotai";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
+import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useUser } from "@src/hooks/useUser";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
 import walletStore from "@src/store/walletStore";
@@ -14,7 +15,20 @@ const isBillingEnabled = NEXT_PUBLIC_BILLING_ENABLED;
 export const useManagedWallet = () => {
   const user = useUser();
   const { user: signedInUser } = useCustomUser();
-  const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined);
+  const userWallet = useSelectedChain();
+  const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
+  const {
+    data: queried,
+    isFetched,
+    isLoading: isFetching,
+    refetch
+  } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined, {
+    onSuccess: wallet => {
+      if (selectedWalletType === "custodial" && wallet && !userWallet.isWalletConnected) {
+        setSelectedWalletType("managed");
+      }
+    }
+  });
   const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => queried || created, [queried, created]);
   const isLoading = isFetching || isCreating;
