@@ -18,6 +18,7 @@ const route = createRoute({
   method: "get",
   path: "/gpu-prices",
   summary: "Get a list of gpu models with their availability and pricing.",
+  tags: ["Gpu"],
   responses: {
     200: {
       description: "List of gpu models with their availability and pricing.",

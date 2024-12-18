@@ -24,7 +24,11 @@ import versionSandbox from "./version/sandbox";
 import versionTestnet from "./version/testnet";
 import auditors from "./auditors";
 import dashboardData from "./dashboardData";
+import gpu from "./gpu";
+import gpuModels from "./gpuModels";
+import gpuPrices from "./gpuPrices";
 import graphData from "./graphData";
+import leasesDuration from "./leasesDuration";
 import marketData from "./marketData";
 import networkCapacity from "./networkCapacity";
 import predictedBlockDate from "./predictedBlockDate";
@@ -32,8 +36,10 @@ import predictedDateHeight from "./predictedDateHeight";
 import pricing from "./pricing";
 import providerActiveLeasesGraphData from "./providerActiveLeasesGraphData";
 import providerAttributesSchema from "./providerAttributesSchema";
+import providerDashboard from "./providerDashboard";
 import providerGraphData from "./providerGraphData";
 import providerRegions from "./providerRegions";
+import providerVersions from "./providerVersions";
 import trialProviders from "./trialProviders";
 
 export default [
@@ -73,5 +79,11 @@ export default [
   providerGraphData,
   graphData,
   providerActiveLeasesGraphData,
-  trialProviders
+  trialProviders,
+  leasesDuration,
+  providerDashboard,
+  providerVersions,
+  gpu,
+  gpuModels,
+  gpuPrices
 ];
