@@ -1,10 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from "react-query";
+import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions } from "react-query";
+import { ApiWalletOutput } from "@akashnetwork/http-sdk";
 
 import { managedWalletHttpService } from "@src/services/managed-wallet-http/managed-wallet-http.service";
 
 const MANAGED_WALLET = "MANAGED_WALLET";
 
-export function useManagedWalletQuery(userId?: string) {
+export function useManagedWalletQuery(userId?: string, options?: Omit<UseQueryOptions<ApiWalletOutput, Error, any, QueryKey>, "queryKey" | "queryFn">) {
   return useQuery(
     [MANAGED_WALLET, userId],
     async () => {
@@ -14,7 +15,8 @@ export function useManagedWalletQuery(userId?: string) {
     },
     {
       enabled: !!userId,
-      staleTime: Infinity
+      staleTime: Infinity,
+      ...options
     }
   );
 }
