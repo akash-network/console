@@ -21,7 +21,7 @@ import { stub } from "@test/services/stub";
 describe(TopUpManagedDeploymentsService.name, () => {
   const CURRENT_BLOCK_HEIGHT = 7481457;
   const MANAGED_MASTER_WALLET_ADDRESS = AkashAddressSeeder.create();
-  const balancesService = stub<BalancesService>({ retrieveAndCalcDeploymentLimit: jest.fn() });
+  const balancesService = stub<BalancesService>({ retrieveDeploymentLimit: jest.fn() });
   const userWalletRepository = stub<UserWalletRepository>({ paginate: jest.fn() });
   const blockHttpService = stub<BlockHttpService>({ getCurrentHeight: () => CURRENT_BLOCK_HEIGHT });
   const managedSignerService = stub<ManagedSignerService>({ executeManagedTx: jest.fn() });
@@ -93,7 +93,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     return data.find(({ wallet }) => wallet.address == owner)?.drainingDeployments?.map(({ deployment }) => deployment) || [];
   });
   jest.spyOn(drainingDeploymentService, "calculateTopUpAmount").mockImplementation(async () => faker.number.int({ min: 3500000, max: 4000000 }));
-  balancesService.retrieveAndCalcDeploymentLimit.mockImplementation(async wallet => {
+  balancesService.retrieveDeploymentLimit.mockImplementation(async wallet => {
     return parseInt(data.find(({ wallet: w }) => w.address == wallet.address)?.balance);
   });
 
