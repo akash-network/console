@@ -1,5 +1,12 @@
 
 
+## [2.42.0](https://github.com/akash-network/console/compare/console-api/v2.41.1...console-api/v2.42.0) (2024-12-18)
+
+
+### Features
+
+* **dx:** move internal endpoints to v1 ([6e98471](https://github.com/akash-network/console/commit/6e984717882c6c167f2cfb0b79b2f5768c57fc53)), closes [#571](https://github.com/akash-network/console/issues/571)
+
 ## [2.41.1](https://github.com/akash-network/console/compare/console-api/v2.41.0...console-api/v2.41.1) (2024-12-16)
 
 
