@@ -12,6 +12,7 @@ const route = createRoute({
   method: "get",
   path: "/gpu",
   summary: "Get a list of gpu models and their availability.",
+  tags: ["Gpu"],
   request: {
     query: z.object({
       provider: z.string().optional(),

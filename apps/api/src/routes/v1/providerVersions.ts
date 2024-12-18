@@ -12,6 +12,7 @@ const route = createRoute({
   method: "get",
   path: "/provider-versions",
   summary: "Get providers grouped by version.",
+  tags: ["Providers"],
   responses: {
     200: {
       description: "List of providers grouped by version.",

@@ -10,6 +10,7 @@ const route = createRoute({
   path: "/gpu-models",
   summary:
     "Get a list of gpu models per vendor. Based on the content from https://raw.githubusercontent.com/akash-network/provider-configs/main/devices/pcie/gpus.json.",
+  tags: ["Gpu"],
   responses: {
     200: {
       description: "List of gpu models per.",

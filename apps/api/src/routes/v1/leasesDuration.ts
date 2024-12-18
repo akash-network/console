@@ -10,6 +10,7 @@ const route = createRoute({
   method: "get",
   path: "/leases-duration/{owner}",
   summary: "Get leases durations.",
+  tags: ["Analytics"],
   request: {
     params: z.object({
       owner: z.string().openapi({ example: openApiExampleAddress })
