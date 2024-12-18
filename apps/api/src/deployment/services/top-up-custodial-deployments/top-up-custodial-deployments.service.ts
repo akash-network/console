@@ -1,4 +1,4 @@
-import { AllowanceHttpService, BalanceHttpService, DeploymentAllowance } from "@akashnetwork/http-sdk";
+import { AuthzHttpService, BalanceHttpService, DepositDeploymentGrant } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { singleton } from "tsyringe";
 
@@ -36,7 +36,7 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
 
   constructor(
     private readonly topUpToolsService: TopUpToolsService,
-    private readonly allowanceHttpService: AllowanceHttpService,
+    private readonly authzHttpService: AuthzHttpService,
     private readonly balanceHttpService: BalanceHttpService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly rpcClientService: RpcMessageService,
@@ -50,7 +50,7 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
 
     const topUpAllCustodialDeployments = this.topUpToolsService.pairs.map(async ({ wallet, client }) => {
       const address = await wallet.getFirstAddress();
-      await this.allowanceHttpService.paginateDeploymentGrants({ grantee: address, limit: this.CONCURRENCY }, async grants => {
+      await this.authzHttpService.paginateDepositDeploymentGrants({ grantee: address, limit: this.CONCURRENCY }, async grants => {
         await Promise.all(
           grants.map(async grant => {
             await this.errorService.execWithErrorHandler(
@@ -69,7 +69,7 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
   }
 
   private async topUpForGrant(
-    grant: DeploymentAllowance,
+    grant: DepositDeploymentGrant,
     client: BatchSigningClientService,
     options: TopUpDeploymentsOptions,
     summary: TopUpSummarizer
@@ -120,7 +120,7 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
     }
   }
 
-  private async collectWalletBalances(grant: DeploymentAllowance): Promise<Balances> {
+  private async collectWalletBalances(grant: DepositDeploymentGrant): Promise<Balances> {
     const denom = grant.authorization.spend_limit.denom;
     const deploymentLimit = parseFloat(grant.authorization.spend_limit.amount);
 
@@ -140,7 +140,7 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
   }
 
   private async retrieveFeesLimit(granter: string, grantee: string) {
-    const feesAllowance = await this.allowanceHttpService.getFeeAllowanceForGranterAndGrantee(granter, grantee);
+    const feesAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(granter, grantee);
     const feesSpendLimit = feesAllowance.allowance.spend_limit.find(limit => limit.denom === "uakt");
 
     return feesSpendLimit ? parseFloat(feesSpendLimit.amount) : 0;

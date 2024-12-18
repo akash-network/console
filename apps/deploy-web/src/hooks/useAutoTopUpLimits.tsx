@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { ExactDeploymentAllowance, FeeAllowance } from "@akashnetwork/http-sdk";
+import { ExactDepositDeploymentGrant, FeeAllowance } from "@akashnetwork/http-sdk";
 import { isFuture } from "date-fns";
 import invokeMap from "lodash/invokeMap";
 
@@ -62,7 +62,7 @@ export const useAutoTopUpLimits = () => {
   };
 };
 
-function extractDeploymentLimit(deploymentGrant?: ExactDeploymentAllowance) {
+function extractDeploymentLimit(deploymentGrant?: ExactDepositDeploymentGrant) {
   if (!deploymentGrant) {
     return undefined;
   }

@@ -1,4 +1,4 @@
-import { AllowanceHttpService } from "@akashnetwork/http-sdk";
+import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { stringToPath } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
@@ -38,7 +38,7 @@ export class ManagedUserWalletService {
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly managedSignerService: ManagedSignerService,
     private readonly rpcMessageService: RpcMessageService,
-    private readonly allowanceHttpService: AllowanceHttpService
+    private readonly authzHttpService: AuthzHttpService
   ) {}
 
   async createAndAuthorizeTrialSpending({ addressIndex }: { addressIndex: number }) {
@@ -94,8 +94,9 @@ export class ManagedUserWalletService {
 
   private async authorizeFeeSpending(options: Omit<SpendingAuthorizationMsgOptions, "denom">) {
     const messages: EncodeObject[] = [];
+    const hasValidFeeAllowance = await this.authzHttpService.hasValidFeeAllowance(options.granter, options.grantee);
 
-    if (await this.allowanceHttpService.hasFeeAllowance(options.granter, options.grantee)) {
+    if (hasValidFeeAllowance) {
       messages.push(this.rpcMessageService.getRevokeAllowanceMsg(options));
     }
 
@@ -118,12 +119,12 @@ export class ManagedUserWalletService {
       deploymentGrant: false
     };
 
-    if (await this.allowanceHttpService.hasFeeAllowance(params.granter, params.grantee)) {
+    if (await this.authzHttpService.hasValidFeeAllowance(params.granter, params.grantee)) {
       revokeSummary.feeAllowance = true;
       messages.push(this.rpcMessageService.getRevokeAllowanceMsg(params));
     }
 
-    if (await this.allowanceHttpService.hasDeploymentGrant(params.granter, params.grantee)) {
+    if (await this.authzHttpService.hasValidDepositDeploymentGrant(params.granter, params.grantee)) {
       revokeSummary.deploymentGrant = true;
       messages.push(this.rpcMessageService.getRevokeDepositDeploymentGrantMsg(params));
     }

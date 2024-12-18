@@ -1,4 +1,4 @@
-import { AllowanceHttpService } from "@akashnetwork/http-sdk";
+import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
@@ -12,7 +12,7 @@ export class BalancesService {
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
-    private readonly allowanceHttpService: AllowanceHttpService
+    private readonly authzHttpService: AuthzHttpService
   ) {}
 
   async refreshUserWalletLimits(userWallet: UserWalletOutput, options?: { endTrial: boolean }): Promise<void> {
@@ -45,39 +45,29 @@ export class BalancesService {
   }
 
   async getFreshLimits(userWallet: UserWalletOutput): Promise<{ fee: number; deployment: number }> {
-    const [fee, deployment] = await Promise.all([this.retrieveAndCalcFeeLimit(userWallet), this.retrieveAndCalcDeploymentLimit(userWallet)]);
+    const [fee, deployment] = await Promise.all([this.retrieveAndCalcFeeLimit(userWallet), this.retrieveDeploymentLimit(userWallet)]);
     return { fee, deployment };
   }
 
   private async retrieveAndCalcFeeLimit(userWallet: UserWalletOutput): Promise<number> {
-    const feeAllowance = await this.allowanceHttpService.getFeeAllowancesForGrantee(userWallet.address);
     const masterWalletAddress = await this.masterWallet.getFirstAddress();
+    const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(masterWalletAddress, userWallet.address);
 
-    return feeAllowance.reduce((acc, allowance) => {
-      if (allowance.granter !== masterWalletAddress) {
-        return acc;
-      }
+    if (!feeAllowance) {
+      return 0;
+    }
 
-      return allowance.allowance.spend_limit.reduce((acc, { denom, amount }) => {
-        if (denom !== "uakt") {
-          return acc;
-        }
-
-        return acc + parseInt(amount);
-      }, 0);
-    }, 0);
+    return feeAllowance.allowance.spend_limit.reduce((acc, { denom, amount }) => (denom === "uakt" ? acc + parseInt(amount) : acc), 0);
   }
 
-  async retrieveAndCalcDeploymentLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
-    const deploymentAllowance = await this.allowanceHttpService.getDeploymentAllowancesForGrantee(userWallet.address);
+  async retrieveDeploymentLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
     const masterWalletAddress = await this.masterWallet.getFirstAddress();
+    const depositDeploymentGrant = await this.authzHttpService.getDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address);
 
-    return deploymentAllowance.reduce((acc, allowance) => {
-      if (allowance.granter !== masterWalletAddress || allowance.authorization.spend_limit.denom !== this.config.DEPLOYMENT_GRANT_DENOM) {
-        return acc;
-      }
+    if (!depositDeploymentGrant || depositDeploymentGrant.authorization.spend_limit.denom !== this.config.DEPLOYMENT_GRANT_DENOM) {
+      return 0;
+    }
 
-      return acc + parseInt(allowance.authorization.spend_limit.amount);
-    }, 0);
+    return parseInt(depositDeploymentGrant.authorization.spend_limit.amount);
   }
 }
