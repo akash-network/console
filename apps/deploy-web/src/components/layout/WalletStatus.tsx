@@ -21,13 +21,15 @@ const withBilling = browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
 export function WalletStatus() {
   const { walletName, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing } = useWallet();
-  const { balance: walletBalance } = useWalletBalance();
+  const { balance: walletBalance, isLoading: isWalletBalanceLoading } = useWalletBalance();
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const [open, setOpen] = useState(false);
+  const isLoadingBalance = isWalletBalanceLoading && !walletBalance;
+  const isInit = isWalletLoaded && !isWalletLoading && !isLoadingBalance;
 
   return (
     <>
-      {isWalletLoaded && !isWalletLoading ? (
+      {isInit ? (
         isWalletConnected ? (
           <div className="flex w-full items-center">
             <div className="w-full py-2">

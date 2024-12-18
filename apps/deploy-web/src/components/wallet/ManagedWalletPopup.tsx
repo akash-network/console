@@ -4,6 +4,7 @@ import { Button, Separator } from "@akashnetwork/ui/components";
 import { CoinsSwap, HandCard } from "iconoir-react";
 
 import { TopUpAmountPicker } from "@src/components/top-up-amount-picker/TopUpAmountPicker";
+import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
@@ -18,9 +19,10 @@ interface ManagedWalletPopupProps extends React.PropsWithChildren {
 
 export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance }) => {
   const isEmailVerified = useIsEmailVerified();
-  const { switchWalletType, isManaged, isTrialing } = useWallet();
+  const { isManaged, isTrialing, switchWalletType } = useWallet();
   const whenLoggedIn = useLoginRequiredEventHandler();
   const { showManagedEscrowFaqModal } = useManagedEscrowFaqModal();
+  const { connect, isWalletConnected } = useSelectedChain();
 
   const goToCheckout = () => {
     window.location.href = "/api/proxy/v1/checkout";
@@ -77,12 +79,17 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
         <VerifyEmail />
 
         <TopUpAmountPicker mdMode="click" className="w-full">
-          <Button onClick={whenLoggedIn(goToCheckout, "Sign In or Sign Up to add funds")} variant="outline" className="w-full space-x-2" disabled={!isEmailVerified}>
+          <Button
+            onClick={whenLoggedIn(goToCheckout, "Sign In or Sign Up to add funds")}
+            variant="outline"
+            className="w-full space-x-2"
+            disabled={!isEmailVerified}
+          >
             <HandCard />
             <span>Add Funds</span>
           </Button>
         </TopUpAmountPicker>
-        <Button onClick={switchWalletType} variant="outline" className="w-full space-x-2">
+        <Button onClick={isWalletConnected ? switchWalletType : connect} variant="outline" className="w-full space-x-2">
           <CoinsSwap />
           <span>Switch to Wallet Payments</span>
         </Button>

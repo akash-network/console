@@ -24,7 +24,7 @@ import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
 import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { UrlService } from "@src/utils/urlUtils";
-import { getSelectedStorageWallet, getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
+import { getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { useSettings } from "../SettingsProvider";
 
@@ -66,8 +66,6 @@ const MESSAGE_STATES: Record<string, LoadingState> = {
   "/akash.deployment.v1beta3.MsgDepositDeployment": "depositingDeployment"
 };
 
-const initialWallet = getSelectedStorageWallet();
-
 export const WalletProvider = ({ children }) => {
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
   const [loadingState, setLoadingState] = useState<LoadingState | undefined>(undefined);
@@ -76,11 +74,9 @@ export const WalletProvider = ({ children }) => {
   const { settings } = useSettings();
   const user = useUser();
   const userWallet = useSelectedChain();
-  const { wallet: managedWallet, isLoading, create: createManagedWallet } = useManagedWallet();
-  const [isWalletModalOpen, setIsWalletModelOpen] = useAtom(walletStore.isWalletModalOpen);
-  const [selectedWalletType, selectWalletType] = useState<"managed" | "custodial">(
-    initialWallet?.selected && initialWallet?.isManaged ? "managed" : "custodial"
-  );
+  const { wallet: managedWallet, isLoading: isManagedWalletLoading, create: createManagedWallet } = useManagedWallet();
+  const [, setIsWalletModelOpen] = useAtom(walletStore.isWalletModalOpen);
+  const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
   const {
     address: walletAddress,
     username,
@@ -93,11 +89,9 @@ export const WalletProvider = ({ children }) => {
     fee: { default: feeGranter }
   } = useAllowance(walletAddress as string, isManaged);
   const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore({ reloadOnChange: true });
-  const shouldAutoConnectManagedWallet =
-    !isWalletConnected && selectedWalletType === "custodial" && !!managedWallet && !isWalletModalOpen && !userWallet.isWalletConnecting;
+  const isLoading = (selectedWalletType === "managed" && isManagedWalletLoading) || (selectedWalletType === "custodial" && userWallet.isWalletConnecting);
 
   useWhen(walletAddress, loadWallet);
-  useWhen(shouldAutoConnectManagedWallet, switchWalletType);
 
   useEffect(() => {
     if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
@@ -126,14 +120,14 @@ export const WalletProvider = ({ children }) => {
       });
     }
 
-    selectWalletType(prev => (prev === "custodial" ? "managed" : "custodial"));
+    setSelectedWalletType(prev => (prev === "custodial" ? "managed" : "custodial"));
   }
 
   function connectManagedWallet() {
     if (!managedWallet) {
       createManagedWallet();
     }
-    selectWalletType("managed");
+    setSelectedWalletType("managed");
   }
 
   function logout() {
@@ -145,6 +139,10 @@ export const WalletProvider = ({ children }) => {
     });
 
     router.push(UrlService.home());
+
+    if (managedWallet) {
+      setSelectedWalletType("managed");
+    }
   }
 
   async function connectWallet() {
