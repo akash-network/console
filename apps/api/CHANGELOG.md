@@ -1,5 +1,12 @@
 
 
+## [2.43.0](https://github.com/akash-network/console/compare/console-api/v2.42.0...console-api/v2.43.0) (2024-12-19)
+
+
+### Features
+
+* **billing:** resolve with valid only grants and allowances from http service ([77a0ffc](https://github.com/akash-network/console/commit/77a0ffcfe0ce912814d3e3803af6b1ac803cde71))
+
 ## [2.42.0](https://github.com/akash-network/console/compare/console-api/v2.41.1...console-api/v2.42.0) (2024-12-18)
 
 
