@@ -4,5 +4,6 @@ import gpuPrices from "../v1/gpuPrices";
 import leasesDuration from "../v1/leasesDuration";
 import providerDashboard from "../v1/providerDashboard";
 import providerVersions from "../v1/providerVersions";
+import financial from "./financial";
 
-export default [providerVersions, gpu, leasesDuration, gpuModels, gpuPrices, providerDashboard];
+export default [providerVersions, gpu, leasesDuration, gpuModels, gpuPrices, providerDashboard, financial];
