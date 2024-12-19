@@ -19,10 +19,6 @@ export class AddressBalanceMonitor {
     const [targetAddress, targetToken] = monitoredValue.target.split("|");
     const balance = await this.getBalance(targetAddress, targetToken);
 
-    if (balance === null) {
-      throw new Error("Unable to get balance for " + monitoredValue.target);
-    }
-
     monitoredValue.value = balance.toString();
     monitoredValue.lastUpdateDate = new Date();
     await monitoredValue.save();
@@ -36,7 +32,7 @@ export class AddressBalanceMonitor {
     const balance = response.data.balances.find(x => x.denom === (denom || activeChain.udenom));
 
     if (!balance) {
-      return null;
+      return 0;
     }
 
     return parseInt(balance.amount);
