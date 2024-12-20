@@ -1,5 +1,4 @@
-import * as v1beta1 from "@akashnetwork/akash-api/v1beta1";
-import * as v1beta2 from "@akashnetwork/akash-api/v1beta2";
+import * as v1 from "@akashnetwork/akash-api/v1";
 import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
 import * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
 import { GeneratedType, isTsProtoGeneratedType, Registry } from "@cosmjs/proto-signing";
@@ -7,12 +6,15 @@ import { defaultRegistryTypes } from "@cosmjs/stargate";
 import { MsgUnjail } from "cosmjs-types/cosmos/slashing/v1beta1/tx";
 import omit from "lodash/omit";
 
-const akashTypes: ReadonlyArray<[string, GeneratedType]> = [
-  ...Object.values(v1beta1),
-  ...Object.values(omit(v1beta2, "Storage")),
-  ...Object.values(omit(v1beta3, ["DepositDeploymentAuthorization", "GPU"])),
-  ...Object.values(v1beta4)
-].map(x => ["/" + x.$type, x]);
+const akashTypes: ReadonlyArray<[string, GeneratedType]> = [...Object.values(v1), ...Object.values(omit(v1beta3, ["GPU"])), ...Object.values(v1beta4)].reduce(
+  (acc, akashType) => {
+    if ("$type" in akashType) {
+      acc.push(["/" + akashType.$type, akashType]);
+    }
+    return acc;
+  },
+  []
+);
 const missingTypes: ReadonlyArray<[string, GeneratedType]> = [["/cosmos.slashing.v1beta1.MsgUnjail", MsgUnjail]];
 
 export function decodeMsg(type: string, msg: Uint8Array) {

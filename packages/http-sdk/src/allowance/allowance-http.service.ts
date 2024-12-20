@@ -20,7 +20,7 @@ export interface FeeAllowance {
 
 export interface ExactDeploymentAllowance {
   authorization: {
-    "@type": "/akash.deployment.v1beta3.DepositDeploymentAuthorization";
+    "@type": "/akash.deployment.v1.DepositAuthorization";
     spend_limit: SpendLimit;
   };
   expiration: string;
@@ -71,7 +71,7 @@ export class AllowanceHttpService extends HttpService {
 
   async getDeploymentAllowancesForGrantee(address: string) {
     const allowances = this.extractData(await this.get<DeploymentAllowanceResponse>(`cosmos/authz/v1beta1/grants/grantee/${address}`));
-    return allowances.grants.filter(grant => grant.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization");
+    return allowances.grants.filter(grant => grant.authorization["@type"] === "/akash.deployment.v1.DepositAuthorization");
   }
 
   async getDeploymentGrantsForGranterAndGrantee(granter: string, grantee: string) {
@@ -83,7 +83,7 @@ export class AllowanceHttpService extends HttpService {
         }
       })
     );
-    return allowances.grants.find(grant => grant.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization");
+    return allowances.grants.find(grant => grant.authorization["@type"] === "/akash.deployment.v1.DepositAuthorization");
   }
 
   async hasFeeAllowance(granter: string, grantee: string) {
@@ -117,7 +117,7 @@ export class AllowanceHttpService extends HttpService {
       );
       nextPageKey = response.pagination.next_key;
 
-      await cb(response.grants.filter(grant => grant.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"));
+      await cb(response.grants.filter(grant => grant.authorization["@type"] === "/akash.deployment.v1.DepositAuthorization"));
     } while (nextPageKey);
   }
 }

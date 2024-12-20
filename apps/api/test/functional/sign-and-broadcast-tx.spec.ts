@@ -66,11 +66,11 @@ describe("Tx Sign", () => {
     const { cert, publicKey } = certificateManager.generatePEM(address);
 
     const message = {
-      typeUrl: "/akash.cert.v1beta3.MsgCreateCertificate",
+      typeUrl: "/akash.cert.v1.MsgCreateCertificate",
       value: {
         owner: address,
-        cert: Buffer.from(cert).toString("base64"),
-        pubkey: Buffer.from(publicKey).toString("base64")
+        cert: Buffer.from(cert),
+        pubkey: Buffer.from(publicKey)
       }
     };
 

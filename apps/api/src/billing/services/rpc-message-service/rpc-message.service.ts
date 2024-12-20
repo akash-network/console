@@ -1,4 +1,5 @@
-import { DepositDeploymentAuthorization, MsgCloseDeployment, MsgDepositDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { DepositAuthorization, MsgDepositDeployment } from "@akashnetwork/akash-api/v1";
+import { MsgCloseDeployment } from "@akashnetwork/akash-api/v1beta4";
 import { MsgExec, MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 import { BasicAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
 import { MsgGrantAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
@@ -68,9 +69,9 @@ export class RpcMessageService {
         grantee,
         grant: {
           authorization: {
-            typeUrl: `/${DepositDeploymentAuthorization.$type}`,
-            value: DepositDeploymentAuthorization.encode(
-              DepositDeploymentAuthorization.fromPartial({
+            typeUrl: `/${DepositAuthorization.$type}`,
+            value: DepositAuthorization.encode(
+              DepositAuthorization.fromPartial({
                 spendLimit: {
                   denom,
                   amount: limit.toString()
@@ -106,7 +107,7 @@ export class RpcMessageService {
       value: MsgRevoke.fromPartial({
         granter: granter,
         grantee: grantee,
-        msgTypeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment"
+        msgTypeUrl: `/${MsgDepositDeployment.$type}`
       })
     };
   }
@@ -125,7 +126,7 @@ export class RpcMessageService {
 
   getDepositDeploymentMsg({ owner, dseq, amount, denom, depositor }: DepositDeploymentMsgOptions) {
     return {
-      typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
+      typeUrl: `/${MsgDepositDeployment.$type}`,
       value: {
         id: {
           owner,

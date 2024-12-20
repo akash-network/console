@@ -42,7 +42,7 @@ describe("Users", () => {
         walletService.createUser()
       ]);
 
-      const staleParams = { lastActiveAt: subDays(new Date(), 91) };
+      const staleParams = { lastActiveAt: subDays(new Date(), 100) };
       await Promise.all([
         userRepository.updateById(stale.user.id, staleParams),
         userRepository.updateById(staleNoWallet.user.id, staleParams),

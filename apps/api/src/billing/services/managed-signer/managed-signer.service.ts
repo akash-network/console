@@ -56,20 +56,25 @@ export class ManagedSignerService {
       throw this.chainErrorService.toAppError(error, decodedMessages);
     }
 
-    const tx = await this.executeManagedTx(userWallet.id, decodedMessages);
+    try {
+      const tx = await this.executeManagedTx(userWallet.id, decodedMessages);
 
-    await this.balancesService.refreshUserWalletLimits(userWallet);
+      await this.balancesService.refreshUserWalletLimits(userWallet);
 
-    const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]);
+      const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]);
 
-    if (result.hash) {
-      return {
-        ...result,
-        transactionHash: result.hash
-      };
+      if (result.hash) {
+        return {
+          ...result,
+          transactionHash: result.hash
+        };
+      }
+
+      return result;
+    } catch (error) {
+      console.log("DEBUG error", error);
+      throw error;
     }
-
-    return result;
   }
 
   private decodeMessages(messages: StringifiedEncodeObject[]): EncodeObject[] {

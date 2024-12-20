@@ -34,8 +34,8 @@
     "test:watch": "jest --selectProjects unit functional --watch"
   },
   "dependencies": {
-    "@akashnetwork/akash-api": "^1.3.0",
-    "@akashnetwork/akashjs": "^0.10.0",
+    "@akashnetwork/akash-api": "file:../../../../go-projects/akash-api/ts",
+    "@akashnetwork/akashjs": "file:../../../akashjs",
     "@akashnetwork/database": "*",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/http-sdk": "*",

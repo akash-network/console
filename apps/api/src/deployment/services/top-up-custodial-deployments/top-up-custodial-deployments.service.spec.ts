@@ -230,8 +230,8 @@ describe(TopUpCustodialDeploymentsService.name, () => {
                   grantee: grant.grantee,
                   msgs: [
                     {
-                      typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
-                      value: expect.any(Buffer)
+                      typeUrl: "/akash.deployment.v1.MsgDepositDeployment",
+                      value: expect.any(Uint8Array)
                     }
                   ]
                 }

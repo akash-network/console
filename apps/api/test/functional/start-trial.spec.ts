@@ -82,7 +82,7 @@ describe("start trial", () => {
             granter: expect.any(String),
             grantee: userWallet.address,
             authorization: {
-              "@type": "/akash.deployment.v1beta3.DepositDeploymentAuthorization",
+              "@type": "/akash.deployment.v1.DepositAuthorization",
               spend_limit: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: String(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT) }
             },
             expiration: expect.any(String)

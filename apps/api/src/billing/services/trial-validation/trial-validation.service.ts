@@ -1,4 +1,4 @@
-import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
+import { MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta4";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { singleton } from "tsyringe";
 
@@ -8,8 +8,8 @@ import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config
 @singleton()
 export class TrialValidationService {
   async validateLeaseProviders(decoded: EncodeObject, userWallet: UserWalletOutput) {
-    if (userWallet.isTrialing && decoded.typeUrl === "/akash.deployment.v1beta3.MsgCreateDeployment") {
-      const value = decoded.value as v1beta3.MsgCreateDeployment;
+    if (userWallet.isTrialing && decoded.typeUrl === "/akash.deployment.v1beta4.MsgCreateDeployment") {
+      const value = decoded.value as MsgCreateDeployment;
 
       value.groups.forEach(group => {
         const hasTrial = group.requirements.attributes.some(attribute => {

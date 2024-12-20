@@ -1,7 +1,9 @@
+import { MsgCreateDeployment } from "@akashnetwork/akash-api/akash/deployment/v1beta4";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
 import type { Registry } from "@cosmjs/proto-signing";
-import axios from "axios";
+import { faker } from "@faker-js/faker";
+import Long from "long";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { container } from "tsyringe";
@@ -16,7 +18,6 @@ import { DbTestingService } from "@test/services/db-testing.service";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(30000);
-
 const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
 // TODO: finish this test to create a lease and then close the deployment
@@ -49,40 +50,35 @@ describe("Tx Sign", () => {
     const { cert, publicKey } = certificateManager.generatePEM(address);
 
     const sdl = SDL.fromString(yml, "beta3", "sandbox");
+    const { $type, ...message } = MsgCreateDeployment.fromPartial({
+      id: {
+        owner: address,
+        dseq: Long.fromString(faker.number.int({ min: 0, max: 999999 }).toString(), true)
+      },
+      hash: await sdl.manifestVersion(),
+      groups: sdl.groups(),
+      deposit: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: "5000000" },
+      depositor: await masterWallet.getFirstAddress()
+    });
 
     return JSON.stringify({
       data: {
         userId: userId,
         messages: [
           {
-            typeUrl: "/akash.cert.v1beta3.MsgCreateCertificate",
+            typeUrl: "/akash.cert.v1.MsgCreateCertificate",
             value: {
               owner: address,
-              cert: Buffer.from(cert).toString("base64"),
-              pubkey: Buffer.from(publicKey).toString("base64")
+              cert: Buffer.from(cert),
+              pubkey: Buffer.from(publicKey)
             }
           },
           {
-            typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
-            value: {
-              id: {
-                owner: address,
-                dseq: await getCurrentHeight()
-              },
-              groups: sdl.groups(),
-              version: await sdl.manifestVersion(),
-              deposit: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: "5000000" },
-              depositor: await masterWallet.getFirstAddress()
-            }
+            typeUrl: `/${$type}`,
+            value: message
           }
         ].map(message => ({ typeUrl: message.typeUrl, value: Buffer.from(registry.encode(message)).toString("base64") }))
       }
     });
-  }
-
-  async function getCurrentHeight() {
-    // TODO: extract this base url to env var
-    const response = await axios.get(`https://api.sandbox-01.aksh.pw/blocks/latest`);
-    return response.data.block.header.height;
   }
 });

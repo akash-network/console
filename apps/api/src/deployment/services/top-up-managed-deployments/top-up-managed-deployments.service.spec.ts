@@ -1,5 +1,6 @@
 import "@test/mocks/logger-service.mock";
 
+import { MsgDepositDeployment } from "@akashnetwork/akash-api/v1";
 import { faker } from "@faker-js/faker";
 
 import { BillingConfig } from "@src/billing/providers";
@@ -107,7 +108,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         if (isExpectedToTopUp) {
           expect(managedSignerService.executeManagedTx).toHaveBeenCalledWith(wallet.id, [
             {
-              typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
+              typeUrl: `/${MsgDepositDeployment.$type}`,
               value: {
                 id: {
                   owner: wallet.address,
