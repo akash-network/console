@@ -7,6 +7,7 @@ import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
 import { ProviderActiveLeasesStats, ProviderStats, ProviderStatsKey } from "@src/types/graph";
 import { env } from "@src/utils/env";
+import { getGpuUtilization } from "./gpuBreakdownService";
 
 type GraphData = {
   currentValue: number;
@@ -90,7 +91,8 @@ type AuthorizedGraphDataName =
   | "activeCPU"
   | "activeGPU"
   | "activeMemory"
-  | "activeStorage";
+  | "activeStorage"
+  | "gpuUtilization";
 
 export const AuthorizedGraphDataNames: AuthorizedGraphDataName[] = [
   "dailyUAktSpent",
@@ -105,7 +107,8 @@ export const AuthorizedGraphDataNames: AuthorizedGraphDataName[] = [
   "activeCPU",
   "activeGPU",
   "activeMemory",
-  "activeStorage"
+  "activeStorage",
+  "gpuUtilization"
 ];
 
 export function isValidGraphDataName(x: string): x is AuthorizedGraphDataName {
@@ -113,8 +116,6 @@ export function isValidGraphDataName(x: string): x is AuthorizedGraphDataName {
 }
 
 export async function getGraphData(dataName: AuthorizedGraphDataName): Promise<GraphData> {
-  console.log("getGraphData: " + dataName);
-
   let attributes: (keyof Block)[] = [];
   let isRelative = false;
   let getter: (block: Block) => number = null;
@@ -144,6 +145,8 @@ export async function getGraphData(dataName: AuthorizedGraphDataName): Promise<G
       attributes = ["activeEphemeralStorage", "activePersistentStorage"];
       getter = (block: Block) => block.activeEphemeralStorage + block.activePersistentStorage;
       break;
+    case "gpuUtilization":
+      return await getGpuUtilization();
     default:
       attributes = [dataName];
       getter = (block: Block) => block[dataName];
