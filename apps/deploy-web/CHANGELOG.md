@@ -1,5 +1,13 @@
 
 
+## [2.27.2](https://github.com/akash-network/console/compare/console-web/v2.27.0...console-web/v2.27.2) (2024-12-27)
+
+
+### Bug Fixes
+
+* disable grantee grants temporarily ([1a992c1](https://github.com/akash-network/console/commit/1a992c1031ca8b17d6c0c613d9eba4286e54175b))
+* update package version ([a873df7](https://github.com/akash-network/console/commit/a873df7dcc77b57c065ac1bb5783603e921bf673))
+
 ## [2.27.1](https://github.com/akash-network/console/compare/console-web/v2.27.0...console-web/v2.27.1) (2024-12-27)
 
 
