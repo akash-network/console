@@ -1,5 +1,12 @@
 
 
+## [2.27.5](https://github.com/akash-network/console/compare/console-web/v2.27.4...console-web/v2.27.5) (2024-12-27)
+
+
+### Bug Fixes
+
+* make sure to deposit with 0 balance ([8246395](https://github.com/akash-network/console/commit/8246395ba15e622ba5c82824548e18b16ffc0101))
+
 ## [2.27.4](https://github.com/akash-network/console/compare/console-web/v2.27.3...console-web/v2.27.4) (2024-12-27)
 
 
