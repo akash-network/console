@@ -4,7 +4,7 @@ import axios from "axios";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { getUsdcDenom } from "@src/hooks/useDenom";
 import { Balances } from "@src/types";
-import { RestApiAuthzGrantsResponseType, RestApiBalancesResponseType } from "@src/types";
+import { RestApiBalancesResponseType } from "@src/types";
 import { RpcDeployment } from "@src/types/deployment";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
@@ -17,23 +17,28 @@ async function getBalances(apiEndpoint: string, address?: string): Promise<Balan
   const usdcIbcDenom = getUsdcDenom();
 
   const balancePromise = axios.get<RestApiBalancesResponseType>(ApiUrlService.balance(apiEndpoint, address));
-  const authzBalancePromise = axios.get<RestApiAuthzGrantsResponseType>(ApiUrlService.granteeGrants(apiEndpoint, address));
+  // const authzBalancePromise = axios.get<RestApiAuthzGrantsResponseType>(ApiUrlService.granteeGrants(apiEndpoint, address));
   const activeDeploymentsPromise = loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList(apiEndpoint, address, true), "deployments", 1000);
 
-  const [balanceResponse, authzBalanceResponse, activeDeploymentsResponse] = await Promise.all([balancePromise, authzBalancePromise, activeDeploymentsPromise]);
+  const [balanceResponse, activeDeploymentsResponse] = await Promise.all([balancePromise, activeDeploymentsPromise]);
 
   // Authz Grants
-  const deploymentGrants = authzBalanceResponse.data.grants.filter(
-    b => b.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
-  );
-  const deploymentGrantsUAKT = parseFloat(
-    deploymentGrants.find(b => b.authorization.spend_limit.denom === UAKT_DENOM)?.authorization.spend_limit.amount || "0"
-  );
+  // const deploymentGrants = authzBalanceResponse.data.grants.filter(
+  //   b => b.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
+  // );
+  // const deploymentGrants = authzBalanceResponse.data.grants.filter(
+  //   b => b.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
+  // );
+  // const deploymentGrantsUAKT = parseFloat(
+  //   deploymentGrants.find(b => b.authorization.spend_limit.denom === UAKT_DENOM)?.authorization.spend_limit.amount || "0"
+  // );
+  //
+  // const deploymentGrantsUUSDC = parseFloat(
+  //   deploymentGrants.find(b => b.authorization.spend_limit.denom === usdcIbcDenom)?.authorization.spend_limit.amount || "0"
+  // );
+  const deploymentGrantsUAKT = 0;
 
-  const deploymentGrantsUUSDC = parseFloat(
-    deploymentGrants.find(b => b.authorization.spend_limit.denom === usdcIbcDenom)?.authorization.spend_limit.amount || "0"
-  );
-
+  const deploymentGrantsUUSDC = 0;
   // Balance
   const balanceData = balanceResponse.data;
   const balanceUAKT =
@@ -60,7 +65,7 @@ async function getBalances(apiEndpoint: string, address?: string): Promise<Balan
     deploymentGrantsUAKT,
     deploymentGrantsUUSDC,
     activeDeployments,
-    deploymentGrants
+    deploymentGrants: []
   };
 }
 

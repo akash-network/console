@@ -27,7 +27,8 @@ export function useGranterGrants(address: string, options = {}) {
 async function getGranteeGrants(apiEndpoint: string, address: string) {
   if (!address || !apiEndpoint) return undefined;
 
-  const grants = await loadWithPagination<GrantType[]>(ApiUrlService.granteeGrants(apiEndpoint, address), "grants", 1000);
+  // const grants = await loadWithPagination<GrantType[]>(ApiUrlService.granteeGrants(apiEndpoint, address), "grants", 1000);
+  const grants: GrantType[] = [];
   const filteredGrants = grants.filter(
     x =>
       // TODO: this is not working
