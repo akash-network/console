@@ -8,5 +8,15 @@
     "id": "polkachu.com",
     "api": "https://akash-api.polkachu.com:443",
     "rpc": "https://akash-rpc.polkachu.com:443"
+  },
+  {
+    "id": "cosmos.directory",
+    "api": "https://rest.cosmos.directory/akash",
+    "rpc": "https://rpc.cosmos.directory/akash"
+  },
+  {
+    "id": "console",
+    "api": "https://consoleapi.akashnet.net",
+    "rpc": "https://consolerpc.akashnet.net"
   }
 ]
