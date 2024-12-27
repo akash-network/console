@@ -44,34 +44,34 @@ export const useManagedDeploymentConfirm = () => {
         title: "Confirm deployment creation?",
         message: (
           <div className="space-y-2">
-            {!hasEnoughForDeposit && (
-              <Alert variant="destructive" className="text-primary">
-                <AlertTitle className="font-bold">Insufficient funds</AlertTitle>
-                <AlertDescription>
-                  <p>
-                    You need more than{" "}
-                    <FormattedNumber
-                      value={minDeposit.usdc}
-                      // eslint-disable-next-line react/style-prop-object
-                      style="currency"
-                      currency="USD"
-                    />{" "}
-                    available to create a deployment.
-                  </p>
-                  <p>
-                    Current available balance:{" "}
-                    <span className="font-bold">
-                      <FormattedNumber
-                        value={walletBalance?.totalDeploymentGrantsUSD || 0}
-                        // eslint-disable-next-line react/style-prop-object
-                        style="currency"
-                        currency="USD"
-                      />
-                    </span>
-                  </p>
-                </AlertDescription>
-              </Alert>
-            )}
+            {/*{!hasEnoughForDeposit && (*/}
+            {/*  <Alert variant="destructive" className="text-primary">*/}
+            {/*    <AlertTitle className="font-bold">Insufficient funds</AlertTitle>*/}
+            {/*    <AlertDescription>*/}
+            {/*      <p>*/}
+            {/*        You need more than{" "}*/}
+            {/*        <FormattedNumber*/}
+            {/*          value={minDeposit.usdc}*/}
+            {/*          // eslint-disable-next-line react/style-prop-object*/}
+            {/*          style="currency"*/}
+            {/*          currency="USD"*/}
+            {/*        />{" "}*/}
+            {/*        available to create a deployment.*/}
+            {/*      </p>*/}
+            {/*      <p>*/}
+            {/*        Current available balance:{" "}*/}
+            {/*        <span className="font-bold">*/}
+            {/*          <FormattedNumber*/}
+            {/*            value={walletBalance?.totalDeploymentGrantsUSD || 0}*/}
+            {/*            // eslint-disable-next-line react/style-prop-object*/}
+            {/*            style="currency"*/}
+            {/*            currency="USD"*/}
+            {/*          />*/}
+            {/*        </span>*/}
+            {/*      </p>*/}
+            {/*    </AlertDescription>*/}
+            {/*  </Alert>*/}
+            {/*)}*/}
 
             {services.map(service => {
               return (
