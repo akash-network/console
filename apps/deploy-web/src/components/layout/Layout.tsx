@@ -55,7 +55,8 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
-  const hasCreditCardBanner = useHasCreditCardBanner();
+  // const hasCreditCardBanner = useHasCreditCardBanner();
+  const hasCreditCardBanner = true;
 
   useEffect(() => {
     const _isNavOpen = localStorage.getItem("isNavOpen");
