@@ -1,5 +1,12 @@
 
 
+## [2.27.3](https://github.com/akash-network/console/compare/console-web/v2.27.2...console-web/v2.27.3) (2024-12-27)
+
+
+### Bug Fixes
+
+* update balance warning ([ec004a7](https://github.com/akash-network/console/commit/ec004a78631cc32bc281b50d1af3c0225faf2f19))
+
 ## [2.27.2](https://github.com/akash-network/console/compare/console-web/v2.27.0...console-web/v2.27.2) (2024-12-27)
 
 
