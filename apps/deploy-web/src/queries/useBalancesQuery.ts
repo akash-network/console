@@ -17,10 +17,11 @@ async function getBalances(apiEndpoint: string, address?: string): Promise<Balan
   const usdcIbcDenom = getUsdcDenom();
 
   const balancePromise = axios.get<RestApiBalancesResponseType>(ApiUrlService.balance(apiEndpoint, address));
-  const authzBalancePromise = axios.get<RestApiAuthzGrantsResponseType>(ApiUrlService.granteeGrants(apiEndpoint, address));
+  // const authzBalancePromise = axios.get<RestApiAuthzGrantsResponseType>(ApiUrlService.granteeGrants(apiEndpoint, address));
   const activeDeploymentsPromise = loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList(apiEndpoint, address, true), "deployments", 1000);
 
-  const [balanceResponse, authzBalanceResponse, activeDeploymentsResponse] = await Promise.all([balancePromise, authzBalancePromise, activeDeploymentsPromise]);
+  const [balanceResponse, activeDeploymentsResponse] = await Promise.all([balancePromise, activeDeploymentsPromise]);
+  const authzBalanceResponse: { data: RestApiAuthzGrantsResponseType } = { data: { grants: [] } as unknown as RestApiAuthzGrantsResponseType };
 
   // Authz Grants
   const deploymentGrants = authzBalanceResponse.data.grants.filter(
