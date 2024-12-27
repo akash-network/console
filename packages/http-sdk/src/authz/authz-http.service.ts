@@ -74,9 +74,11 @@ export class AuthzHttpService extends HttpService {
     }
   }
 
-  async getDepositDeploymentGrantsForGrantee(address: string) {
-    const response = this.extractData(await this.get<DepositDeploymentGrantResponse>(`cosmos/authz/v1beta1/grants/grantee/${address}`));
-    return response.grants.filter(grant => this.isValidDepositDeploymentGrant(grant));
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getDepositDeploymentGrantsForGrantee(address: string): Promise<DepositDeploymentGrantResponse['grants']> {
+    // const response = this.extractData(await this.get<DepositDeploymentGrantResponse>(`cosmos/authz/v1beta1/grants/grantee/${address}`));
+    // return response.grants.filter(grant => this.isValidDepositDeploymentGrant(grant));
+    return []
   }
 
   async getDepositDeploymentGrantsForGranterAndGrantee(granter: string, grantee: string): Promise<ExactDepositDeploymentGrant | undefined> {
