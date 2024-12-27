@@ -193,8 +193,8 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
         label: "Use depositor to deposit in deployment"
       });
     } else if (depositData && amountInDenom > depositData?.balance) {
-      setError(`You can't deposit more than you currently have in your balance. Current balance is: ${depositData?.balance} ${depositData?.label}.`);
-      return;
+      // setError(`You can't deposit more than you currently have in your balance. Current balance is: ${depositData?.balance} ${depositData?.label}.`);
+      // return;
     }
 
     onDeploymentDeposit(deposit, isManaged ? browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS : (depositorAddress as string));
@@ -218,7 +218,6 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
           color: "secondary",
           variant: "default",
           side: "right",
-          disabled: !amount || isCheckingDepositor,
           isLoading: isCheckingDepositor,
           onClick: onDepositClick,
           "data-testid": "deposit-modal-continue-button"
