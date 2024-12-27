@@ -218,7 +218,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
           color: "secondary",
           variant: "default",
           side: "right",
-          disabled: !amount || isCheckingDepositor || (useDepositor && validGrants.length === 0) || !walletBalance,
+          disabled: !amount || isCheckingDepositor,
           isLoading: isCheckingDepositor,
           onClick: onDepositClick,
           "data-testid": "deposit-modal-continue-button"
