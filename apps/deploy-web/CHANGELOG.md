@@ -1,5 +1,12 @@
 
 
+## [2.27.1](https://github.com/akash-network/console/compare/console-web/v2.27.0...console-web/v2.27.1) (2024-12-27)
+
+
+### Bug Fixes
+
+* disable authz request temporarily ([a1a6664](https://github.com/akash-network/console/commit/a1a6664034828217020ca400ccc7bd4ffc90ea25))
+
 ## [2.27.0](https://github.com/akash-network/console/compare/console-web/v2.26.0...console-web/v2.27.0) (2024-12-19)
 
 
