@@ -1,5 +1,12 @@
 
 
+## [2.43.1](https://github.com/akash-network/console/compare/console-api/v2.43.0...console-api/v2.43.1) (2024-12-27)
+
+
+### Bug Fixes
+
+* update package version ([a873df7](https://github.com/akash-network/console/commit/a873df7dcc77b57c065ac1bb5783603e921bf673))
+
 ## [2.43.0](https://github.com/akash-network/console/compare/console-api/v2.42.0...console-api/v2.43.0) (2024-12-19)
 
 
