@@ -74,13 +74,6 @@ export class AuthzHttpService extends HttpService {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async getDepositDeploymentGrantsForGrantee(address: string): Promise<DepositDeploymentGrantResponse['grants']> {
-    // const response = this.extractData(await this.get<DepositDeploymentGrantResponse>(`cosmos/authz/v1beta1/grants/grantee/${address}`));
-    // return response.grants.filter(grant => this.isValidDepositDeploymentGrant(grant));
-    return []
-  }
-
   async getDepositDeploymentGrantsForGranterAndGrantee(granter: string, grantee: string): Promise<ExactDepositDeploymentGrant | undefined> {
     const response = this.extractData(
       await this.get<DepositDeploymentGrantResponse<ExactDepositDeploymentGrant>>("cosmos/authz/v1beta1/grants", {
@@ -99,8 +92,7 @@ export class AuthzHttpService extends HttpService {
   }
 
   async hasValidDepositDeploymentGrant(granter: string, grantee: string) {
-    const depositDeploymentGrants = await this.getDepositDeploymentGrantsForGrantee(grantee);
-    return depositDeploymentGrants.some(allowance => allowance.granter === granter);
+    return !!(await this.getDepositDeploymentGrantsForGranterAndGrantee(granter, grantee))
   }
 
   async paginateDepositDeploymentGrants(
