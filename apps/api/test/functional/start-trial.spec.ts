@@ -5,6 +5,7 @@ import { container } from "tsyringe";
 
 import { app } from "@src/app";
 import { BILLING_CONFIG, BillingConfig } from "@src/billing/providers";
+import { resolveWallet } from "@src/billing/providers/wallet.provider";
 import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 
 import { DbTestingService } from "@test/services/db-testing.service";
@@ -41,8 +42,9 @@ describe("start trial", () => {
       });
       const getWalletsResponse = await app.request(`/v1/wallets?userId=${userId}`, { headers });
       const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
+      const masterWalletAddress = await resolveWallet("MANAGED").getFirstAddress();
       const allowances = await Promise.all([
-        authzHttpService.getDepositDeploymentGrantsForGrantee(userWallet.address),
+        authzHttpService.getDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address),
         authzHttpService.getFeeAllowancesForGrantee(userWallet.address)
       ]);
 
@@ -77,17 +79,13 @@ describe("start trial", () => {
         isTrialing: true
       });
       expect(allowances).toMatchObject([
-        [
-          {
-            granter: expect.any(String),
-            grantee: userWallet.address,
-            authorization: {
-              "@type": "/akash.deployment.v1beta3.DepositDeploymentAuthorization",
-              spend_limit: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: String(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT) }
-            },
-            expiration: expect.any(String)
-          }
-        ],
+        {
+          authorization: {
+            "@type": "/akash.deployment.v1beta3.DepositDeploymentAuthorization",
+            spend_limit: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: String(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT) }
+          },
+          expiration: expect.any(String)
+        },
         [
           {
             granter: expect.any(String),
