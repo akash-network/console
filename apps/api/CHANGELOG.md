@@ -1,5 +1,12 @@
 
 
+## [2.43.2](https://github.com/akash-network/console/compare/console-api/v2.43.1...console-api/v2.43.2) (2024-12-28)
+
+
+### Bug Fixes
+
+* **billing:** use specific endpoint to check managed wallet grants ([a8f265b](https://github.com/akash-network/console/commit/a8f265b345da62cfa33c5c57c274d691a8062ed1))
+
 ## [2.43.1](https://github.com/akash-network/console/compare/console-api/v2.43.0...console-api/v2.43.1) (2024-12-27)
 
 
