@@ -82,7 +82,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   const [isCheckingDepositor, setIsCheckingDepositor] = useState(false);
   const { address, isManaged, isCustodial } = useWallet();
   const { balance: walletBalance } = useWalletBalance();
-  const { data: granteeGrants } = useGranteeGrants(address);
+  const { data: granteeGrants } = useGranteeGrants(address, { enabled: !isManaged });
   const pricing = usePricing();
   const depositData = useDenomData(denom);
   const form = useForm<z.infer<typeof formSchema>>({
