@@ -1,5 +1,12 @@
 
 
+## [2.27.7](https://github.com/akash-network/console/compare/console-web/v2.27.6...console-web/v2.27.7) (2024-12-30)
+
+
+### Bug Fixes
+
+* **billing:** enable balances fetching back ([eaa42a5](https://github.com/akash-network/console/commit/eaa42a5ecd04db87bcbd5f4d9ac75771f4e20244))
+
 ## [2.27.6](https://github.com/akash-network/console/compare/console-web/v2.27.5...console-web/v2.27.6) (2024-12-30)
 
 
