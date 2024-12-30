@@ -1,5 +1,12 @@
 
 
+## [2.27.9](https://github.com/akash-network/console/compare/console-web/v2.27.8...console-web/v2.27.9) (2024-12-30)
+
+
+### Bug Fixes
+
+* **billing:** properly check fee grant before tx ([b721141](https://github.com/akash-network/console/commit/b72114172847514cbccbd831db3503d20f533aed))
+
 ## [2.27.8](https://github.com/akash-network/console/compare/console-web/v2.27.7...console-web/v2.27.8) (2024-12-30)
 
 
