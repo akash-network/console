@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
@@ -38,6 +38,21 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
   const { data: balances, isFetching: isLoadingBalances, refetch } = useBalances(address);
   const [walletBalance, setWalletBalance] = useState<WalletBalance | null>(null);
 
+  const udenomToUsd = useCallback(
+    (amount: string, denom: string) => {
+      let value = 0;
+
+      if (denom === UAKT_DENOM) {
+        value = uaktToAKT(parseFloat(amount), 6) * (price || 0);
+      } else if (denom === usdcIbcDenom) {
+        value = udenomToDenom(parseFloat(amount), 6);
+      }
+
+      return value;
+    },
+    [price, usdcIbcDenom]
+  );
+
   useEffect(() => {
     if (isLoaded && balances && price) {
       const aktUsdValue = uaktToAKT(balances.balanceUAKT, 6) * price;
@@ -49,44 +64,26 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
           udenomToUsd(d.escrowAccount.balance.amount, d.escrowAccount.balance.denom),
         0
       );
-      const totalDeploymentGrantsUSD = balances.deploymentGrants.reduce(
-        (acc, d) => acc + udenomToUsd(d.authorization.spend_limit.amount, d.authorization.spend_limit.denom),
-        0
-      );
-      const totalGrantsUAKT = balances.deploymentGrants
-        .filter(d => d.authorization.spend_limit.denom === UAKT_DENOM)
-        .reduce((acc, d) => acc + parseFloat(d.authorization.spend_limit.amount), 0);
-      const totalGrantsUUSDC = balances.deploymentGrants
-        .filter(d => d.authorization.spend_limit.denom === usdcIbcDenom)
-        .reduce((acc, d) => acc + parseFloat(d.authorization.spend_limit.amount), 0);
+      const { deploymentGrant, deploymentGrantsUAKT, deploymentEscrowUAKT } = balances;
+      const totalDeploymentGrantsUSD = deploymentGrant
+        ? udenomToUsd(deploymentGrant.authorization.spend_limit.amount, deploymentGrant.authorization.spend_limit.denom)
+        : 0;
 
       setWalletBalance({
         totalUsd: aktUsdValue + totalUsdcValue + totalDeploymentEscrowUSD + totalDeploymentGrantsUSD,
-        balanceUAKT: balances.balanceUAKT + totalGrantsUAKT,
-        balanceUUSDC: balances.balanceUUSDC + totalGrantsUUSDC,
-        totalUAKT: balances.balanceUAKT + balances.deploymentEscrowUAKT + totalGrantsUAKT,
-        totalUUSDC: balances.balanceUUSDC + balances.deploymentEscrowUUSDC + totalGrantsUUSDC,
+        balanceUAKT: balances.balanceUAKT + deploymentGrantsUAKT,
+        balanceUUSDC: balances.balanceUUSDC + deploymentEscrowUAKT,
+        totalUAKT: balances.balanceUAKT + balances.deploymentEscrowUAKT + deploymentGrantsUAKT,
+        totalUUSDC: balances.balanceUUSDC + balances.deploymentEscrowUUSDC + deploymentEscrowUAKT,
         totalDeploymentEscrowUAKT: balances.deploymentEscrowUAKT,
         totalDeploymentEscrowUUSDC: balances.deploymentEscrowUUSDC,
         totalDeploymentEscrowUSD: totalDeploymentEscrowUSD,
-        totalDeploymentGrantsUAKT: totalGrantsUAKT,
-        totalDeploymentGrantsUUSDC: totalGrantsUUSDC,
+        totalDeploymentGrantsUAKT: deploymentGrantsUAKT,
+        totalDeploymentGrantsUUSDC: deploymentEscrowUAKT,
         totalDeploymentGrantsUSD: totalDeploymentGrantsUSD
       });
     }
-  }, [isLoaded, price, balances, isManaged]);
-
-  const udenomToUsd = (amount: string, denom: string) => {
-    let value = 0;
-
-    if (denom === UAKT_DENOM) {
-      value = uaktToAKT(parseFloat(amount), 6) * (price || 0);
-    } else if (denom === usdcIbcDenom) {
-      value = udenomToDenom(parseFloat(amount), 6);
-    }
-
-    return value;
-  };
+  }, [isLoaded, price, balances, isManaged, udenomToUsd]);
 
   return {
     balance: walletBalance,
