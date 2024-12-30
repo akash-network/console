@@ -94,7 +94,7 @@ export class ManagedUserWalletService {
 
   private async authorizeFeeSpending(options: Omit<SpendingAuthorizationMsgOptions, "denom">) {
     const messages: EncodeObject[] = [];
-    const hasValidFeeAllowance = await this.authzHttpService.hasValidFeeAllowance(options.granter, options.grantee);
+    const hasValidFeeAllowance = await this.authzHttpService.hasFeeAllowance(options.granter, options.grantee);
 
     if (hasValidFeeAllowance) {
       messages.push(this.rpcMessageService.getRevokeAllowanceMsg(options));
@@ -119,7 +119,7 @@ export class ManagedUserWalletService {
       deploymentGrant: false
     };
 
-    if (await this.authzHttpService.hasValidFeeAllowance(params.granter, params.grantee)) {
+    if (await this.authzHttpService.hasFeeAllowance(params.granter, params.grantee)) {
       revokeSummary.feeAllowance = true;
       messages.push(this.rpcMessageService.getRevokeAllowanceMsg(params));
     }
