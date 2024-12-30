@@ -1,4 +1,5 @@
-import { Grant } from "./balances";
+import { ExactDepositDeploymentGrant } from "@akashnetwork/http-sdk";
+
 import { DeploymentDto } from "./deployment";
 import { TransactionDetail } from "./transaction";
 import { IValidatorAddess } from "./validator";
@@ -45,5 +46,5 @@ export interface Balances {
   deploymentGrantsUAKT: number;
   deploymentGrantsUUSDC: number;
   activeDeployments: DeploymentDto[];
-  deploymentGrants: Grant[];
+  deploymentGrant?: ExactDepositDeploymentGrant;
 }

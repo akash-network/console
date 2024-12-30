@@ -98,7 +98,7 @@ export class AuthzHttpService extends HttpService {
   async paginateDepositDeploymentGrants(
     options: ({ granter: string } | { grantee: string }) & { limit: number },
     cb: (page: DepositDeploymentGrantResponse["grants"]) => Promise<void>
-  ) {
+  ): Promise<void> {
     let nextPageKey: string | null = null;
     const side = "granter" in options ? "granter" : "grantee";
     const address = "granter" in options ? options.granter : options.grantee;
@@ -107,17 +107,27 @@ export class AuthzHttpService extends HttpService {
       const response = this.extractData(
         await this.get<DepositDeploymentGrantResponse>(
           `cosmos/authz/v1beta1/grants/${side}/${address}`,
-          nextPageKey
-            ? {
+            {
                 params: { "pagination.key": nextPageKey, "pagination.limit": options.limit }
               }
-            : undefined
         )
       );
       nextPageKey = response.pagination.next_key;
 
       await cb(response.grants.filter(grant => this.isValidDepositDeploymentGrant(grant)));
     } while (nextPageKey);
+  }
+
+  async getAllDepositDeploymentGrants(
+    options: ({ granter: string } | { grantee: string }) & { limit: number },
+  ): Promise<DepositDeploymentGrant[]> {
+    const result: DepositDeploymentGrant[] = [];
+
+    await this.paginateDepositDeploymentGrants(options, async (page) => {
+      result.push(...page);
+    })
+
+    return result;
   }
 
   private isValidFeeAllowance({ allowance }: FeeAllowance) {
