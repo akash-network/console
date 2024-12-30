@@ -1,5 +1,12 @@
 
 
+## [2.27.6](https://github.com/akash-network/console/compare/console-web/v2.27.5...console-web/v2.27.6) (2024-12-30)
+
+
+### Bug Fixes
+
+* **billing:** use specific endpoint to check managed wallet grants ([d87d79f](https://github.com/akash-network/console/commit/d87d79fbe29350c57c625e61e7f9805c5dc0b6ea))
+
 ## [2.27.5](https://github.com/akash-network/console/compare/console-web/v2.27.4...console-web/v2.27.5) (2024-12-27)
 
 
