@@ -1,5 +1,12 @@
 
 
+## [2.27.10](https://github.com/akash-network/console/compare/console-web/v2.27.9...console-web/v2.27.10) (2024-12-30)
+
+
+### Bug Fixes
+
+* **billing:** fix usdc balance calculation ([18b6ef3](https://github.com/akash-network/console/commit/18b6ef3a0785f115651eec5afcbe25ab433af386))
+
 ## [2.27.9](https://github.com/akash-network/console/compare/console-web/v2.27.8...console-web/v2.27.9) (2024-12-30)
 
 
