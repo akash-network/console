@@ -1,5 +1,12 @@
 
 
+## [2.43.4](https://github.com/akash-network/console/compare/console-api/v2.43.3...console-api/v2.43.4) (2024-12-30)
+
+
+### Bug Fixes
+
+* **billing:** properly check fee grant before tx ([b721141](https://github.com/akash-network/console/commit/b72114172847514cbccbd831db3503d20f533aed))
+
 ## [2.43.3](https://github.com/akash-network/console/compare/console-api/v2.43.2...console-api/v2.43.3) (2024-12-30)
 
 
