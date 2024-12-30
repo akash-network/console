@@ -5,6 +5,7 @@ import { IntlProvider } from "react-intl";
 import { ErrorFallback, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
+import { millisecondsInMinute } from "date-fns/constants";
 
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useSettings } from "@src/context/SettingsProvider";
@@ -55,8 +56,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
-  // const hasCreditCardBanner = useHasCreditCardBanner();
-  const hasCreditCardBanner = true;
+  const hasCreditCardBanner = useHasCreditCardBanner();
 
   useEffect(() => {
     const _isNavOpen = localStorage.getItem("isNavOpen");
@@ -67,7 +67,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
 
     const refreshNodeIntervalId = setInterval(async () => {
       await refreshNodeStatuses();
-    }, 60_000); // refresh every 1min
+    }, millisecondsInMinute);
 
     return () => {
       clearInterval(refreshNodeIntervalId);
