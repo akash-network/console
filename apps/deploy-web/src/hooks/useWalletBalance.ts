@@ -64,22 +64,22 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
           udenomToUsd(d.escrowAccount.balance.amount, d.escrowAccount.balance.denom),
         0
       );
-      const { deploymentGrant, deploymentGrantsUAKT, deploymentEscrowUAKT } = balances;
+      const { deploymentGrant } = balances;
       const totalDeploymentGrantsUSD = deploymentGrant
         ? udenomToUsd(deploymentGrant.authorization.spend_limit.amount, deploymentGrant.authorization.spend_limit.denom)
         : 0;
 
       setWalletBalance({
         totalUsd: aktUsdValue + totalUsdcValue + totalDeploymentEscrowUSD + totalDeploymentGrantsUSD,
-        balanceUAKT: balances.balanceUAKT + deploymentGrantsUAKT,
-        balanceUUSDC: balances.balanceUUSDC + deploymentEscrowUAKT,
-        totalUAKT: balances.balanceUAKT + balances.deploymentEscrowUAKT + deploymentGrantsUAKT,
-        totalUUSDC: balances.balanceUUSDC + balances.deploymentEscrowUUSDC + deploymentEscrowUAKT,
+        balanceUAKT: balances.balanceUAKT + balances.deploymentGrantsUAKT,
+        balanceUUSDC: balances.balanceUUSDC + balances.deploymentGrantsUUSDC,
+        totalUAKT: balances.balanceUAKT + balances.deploymentEscrowUAKT + balances.deploymentGrantsUAKT,
+        totalUUSDC: balances.balanceUUSDC + balances.deploymentEscrowUUSDC + balances.deploymentGrantsUUSDC,
         totalDeploymentEscrowUAKT: balances.deploymentEscrowUAKT,
         totalDeploymentEscrowUUSDC: balances.deploymentEscrowUUSDC,
-        totalDeploymentEscrowUSD: totalDeploymentEscrowUSD,
-        totalDeploymentGrantsUAKT: deploymentGrantsUAKT,
-        totalDeploymentGrantsUUSDC: deploymentEscrowUAKT,
+        totalDeploymentEscrowUSD: balances.totalDeploymentEscrowUSD,
+        totalDeploymentGrantsUAKT: balances.deploymentGrantsUAKT,
+        totalDeploymentGrantsUUSDC: balances.deploymentEscrowUAKT,
         totalDeploymentGrantsUSD: totalDeploymentGrantsUSD
       });
     }
