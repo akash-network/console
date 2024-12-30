@@ -56,9 +56,6 @@ export class ApiUrlService {
   static unbonding(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/cosmos/staking/v1beta1/delegators/${address}/unbonding_delegations`;
   }
-  static granteeGrants(apiEndpoint: string, address: string) {
-    return `${apiEndpoint}/cosmos/authz/v1beta1/grants/grantee/${address}`;
-  }
   static granterGrants(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/cosmos/authz/v1beta1/grants/granter/${address}`;
   }
@@ -128,6 +125,8 @@ export class ApiUrlService {
   }
 }
 
+// TODO: implement proper pagination on clients
+//   Issue: https://github.com/akash-network/console/milestone/7
 export async function loadWithPagination<T>(baseUrl: string, dataKey: string, limit: number) {
   let items = [];
   let nextKey = null;
