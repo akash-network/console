@@ -1,5 +1,12 @@
 
 
+## [2.27.8](https://github.com/akash-network/console/compare/console-web/v2.27.7...console-web/v2.27.8) (2024-12-30)
+
+
+### Bug Fixes
+
+* **billing:** disable grantee grants query for managed deployments deposit modal ([91bf940](https://github.com/akash-network/console/commit/91bf9401bf8d9558465f009a0c01b39afef6a349))
+
 ## [2.27.7](https://github.com/akash-network/console/compare/console-web/v2.27.6...console-web/v2.27.7) (2024-12-30)
 
 
