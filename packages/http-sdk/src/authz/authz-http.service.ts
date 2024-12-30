@@ -58,7 +58,12 @@ export class AuthzHttpService extends HttpService {
 
   async getFeeAllowancesForGrantee(address: string) {
     const allowances = this.extractData(await this.get<FeeAllowanceListResponse>(`cosmos/feegrant/v1beta1/allowances/${address}`));
-    return allowances.allowances.filter(allowance => this.isValidFeeAllowance(allowance));
+    return allowances.allowances;
+  }
+
+  async getValidFeeAllowancesForGrantee(address: string) {
+    const allowances = await this.getFeeAllowancesForGrantee(address);
+    return allowances.filter(allowance => this.isValidFeeAllowance(allowance));
   }
 
   async getFeeAllowanceForGranterAndGrantee(granter: string, grantee: string): Promise<FeeAllowance | undefined> {
@@ -86,8 +91,13 @@ export class AuthzHttpService extends HttpService {
     return response.grants.find(grant => this.isValidDepositDeploymentGrant(grant));
   }
 
-  async hasValidFeeAllowance(granter: string, grantee: string) {
+  async hasFeeAllowance(granter: string, grantee: string) {
     const feeAllowances = await this.getFeeAllowancesForGrantee(grantee);
+    return feeAllowances.some(allowance => allowance.granter === granter);
+  }
+
+  async hasValidFeeAllowance(granter: string, grantee: string) {
+    const feeAllowances = await this.getValidFeeAllowancesForGrantee(grantee);
     return feeAllowances.some(allowance => allowance.granter === granter);
   }
 

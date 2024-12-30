@@ -45,7 +45,7 @@ describe("start trial", () => {
       const masterWalletAddress = await resolveWallet("MANAGED").getFirstAddress();
       const allowances = await Promise.all([
         authzHttpService.getDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address),
-        authzHttpService.getFeeAllowancesForGrantee(userWallet.address)
+        authzHttpService.getValidFeeAllowancesForGrantee(userWallet.address)
       ]);
 
       expect(createWalletResponse.status).toBe(200);

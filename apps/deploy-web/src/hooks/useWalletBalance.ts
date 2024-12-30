@@ -144,7 +144,7 @@ export const useDenomData = (denom: string) => {
 
       setDepositData(depositData);
     }
-  }, [denom, isLoaded, price, walletBalance, usdcIbcDenom, minDeposit]);
+  }, [denom, isLoaded, price, walletBalance, usdcIbcDenom, minDeposit, isManaged, txFeeBuffer, aktToUSD]);
 
   return depositData;
 };
