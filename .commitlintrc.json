@@ -22,7 +22,8 @@
         "styling",
         "observability",
         "analytics",
-        "template"
+        "template",
+        "authorization"
       ]
     ]
   }
