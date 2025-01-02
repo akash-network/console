@@ -1,5 +1,12 @@
 
 
+## [2.44.1](https://github.com/akash-network/console/compare/console-api/v2.44.0...console-api/v2.44.1) (2025-01-02)
+
+
+### Bug Fixes
+
+* **user:** coerce env var properly ([8f473f0](https://github.com/akash-network/console/commit/8f473f0347585588f3b6607851965292137217a0))
+
 ## [2.44.0](https://github.com/akash-network/console/compare/console-api/v2.43.4...console-api/v2.44.0) (2025-01-02)
 
 
