@@ -9,9 +9,9 @@ export class ChainErrorService {
       code: 400,
       message: "Insufficient funds"
     },
-    "provider not authorized": {
+    "Deposit too low": {
       code: 400,
-      message: "Provider not authorized"
+      message: "Deposit too low"
     }
   };
 

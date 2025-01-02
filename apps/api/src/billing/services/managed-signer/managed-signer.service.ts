@@ -50,26 +50,26 @@ export class ManagedSignerService {
 
     const decodedMessages = this.decodeMessages(messages);
 
+    await Promise.all(decodedMessages.map(message => this.anonymousValidateService.validateLeaseProviders(message, userWallet)));
+
     try {
-      await Promise.all(decodedMessages.map(message => this.anonymousValidateService.validateLeaseProviders(message, userWallet)));
+      const tx = await this.executeManagedTx(userWallet.id, decodedMessages);
+
+      await this.balancesService.refreshUserWalletLimits(userWallet);
+
+      const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]);
+
+      if (result.hash) {
+        return {
+          ...result,
+          transactionHash: result.hash
+        };
+      }
+
+      return result;
     } catch (error) {
       throw this.chainErrorService.toAppError(error, decodedMessages);
     }
-
-    const tx = await this.executeManagedTx(userWallet.id, decodedMessages);
-
-    await this.balancesService.refreshUserWalletLimits(userWallet);
-
-    const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]);
-
-    if (result.hash) {
-      return {
-        ...result,
-        transactionHash: result.hash
-      };
-    }
-
-    return result;
   }
 
   private decodeMessages(messages: StringifiedEncodeObject[]): EncodeObject[] {

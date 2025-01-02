@@ -1,5 +1,6 @@
 import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
 import { EncodeObject } from "@cosmjs/proto-signing";
+import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { UserWalletOutput } from "@src/billing/repositories";
@@ -19,10 +20,7 @@ export class TrialValidationService {
         const hasSignedByAllOf = group.requirements.signedBy.allOf.every(signedBy => {
           return signedBy === AUDITOR;
         });
-
-        if (!hasTrial || !hasSignedByAllOf) {
-          throw new Error(`provider not authorized: ${group.requirements.attributes}`);
-        }
+        assert(hasTrial && hasSignedByAllOf, 400, `provider not authorized: ${group.requirements.attributes}`);
       });
     }
 
