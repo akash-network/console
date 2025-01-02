@@ -1,5 +1,12 @@
 
 
+## [2.28.1](https://github.com/akash-network/console/compare/console-web/v2.28.0...console-web/v2.28.1) (2025-01-02)
+
+
+### Bug Fixes
+
+* **user:** revoke stale users expired grants ([21cbfa6](https://github.com/akash-network/console/commit/21cbfa654d2a3effa11b8b83404158256142c1d5))
+
 ## [2.28.0](https://github.com/akash-network/console/compare/console-web/v2.27.10...console-web/v2.28.0) (2025-01-02)
 
 
