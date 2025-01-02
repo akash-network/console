@@ -20,7 +20,7 @@ async function getBalances(apiEndpoint: string, address?: string): Promise<Balan
 
   const [balanceResponse, deploymentGrant, activeDeploymentsResponse] = await Promise.all([
     axios.get<RestApiBalancesResponseType>(ApiUrlService.balance(apiEndpoint, address)),
-    authzHttpService.getDepositDeploymentGrantsForGranterAndGrantee(browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS, address),
+    authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS, address),
     loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList(apiEndpoint, address, true), "deployments", 1000)
   ]);
 
