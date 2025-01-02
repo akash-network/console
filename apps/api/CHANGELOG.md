@@ -1,5 +1,12 @@
 
 
+## [2.44.0](https://github.com/akash-network/console/compare/console-api/v2.43.4...console-api/v2.44.0) (2025-01-02)
+
+
+### Features
+
+* **billing:** handle too low deposit error from chain ([65125ba](https://github.com/akash-network/console/commit/65125ba76455b167bf5572db34638812e377b6a6))
+
 ## [2.43.4](https://github.com/akash-network/console/compare/console-api/v2.43.3...console-api/v2.43.4) (2024-12-30)
 
 
