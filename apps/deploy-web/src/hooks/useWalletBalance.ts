@@ -77,7 +77,7 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
         totalUUSDC: balances.balanceUUSDC + balances.deploymentEscrowUUSDC + balances.deploymentGrantsUUSDC,
         totalDeploymentEscrowUAKT: balances.deploymentEscrowUAKT,
         totalDeploymentEscrowUUSDC: balances.deploymentEscrowUUSDC,
-        totalDeploymentEscrowUSD: balances.totalDeploymentEscrowUSD,
+        totalDeploymentEscrowUSD: totalDeploymentEscrowUSD,
         totalDeploymentGrantsUAKT: balances.deploymentGrantsUAKT,
         totalDeploymentGrantsUUSDC: balances.deploymentEscrowUAKT,
         totalDeploymentGrantsUSD: totalDeploymentGrantsUSD
