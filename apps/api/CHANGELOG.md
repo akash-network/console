@@ -1,5 +1,12 @@
 
 
+## [2.44.2](https://github.com/akash-network/console/compare/console-api/v2.44.1...console-api/v2.44.2) (2025-01-02)
+
+
+### Bug Fixes
+
+* **user:** ensure proper revoke method result ([8e65fc2](https://github.com/akash-network/console/commit/8e65fc217dd6d730317eef6b3bd9ad699b55e88b))
+
 ## [2.44.1](https://github.com/akash-network/console/compare/console-api/v2.44.0...console-api/v2.44.1) (2025-01-02)
 
 
