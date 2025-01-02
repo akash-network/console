@@ -1,5 +1,17 @@
 
 
+## [2.28.0](https://github.com/akash-network/console/compare/console-web/v2.27.10...console-web/v2.28.0) (2025-01-02)
+
+
+### Features
+
+* **user:** remove anonymous user from localstorage if it's removed ([36298ee](https://github.com/akash-network/console/commit/36298ee0ba4426d5fe2e70cf741b90e26773fc01))
+
+
+### Bug Fixes
+
+* **billing:** properly reference a var in balances hook ([ba53d6b](https://github.com/akash-network/console/commit/ba53d6b70341f0bb03aaa609a05b8a73931b5120))
+
 ## [2.27.10](https://github.com/akash-network/console/compare/console-web/v2.27.9...console-web/v2.27.10) (2024-12-30)
 
 
