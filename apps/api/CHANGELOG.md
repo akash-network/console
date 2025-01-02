@@ -1,5 +1,12 @@
 
 
+## [2.44.3](https://github.com/akash-network/console/compare/console-api/v2.44.2...console-api/v2.44.3) (2025-01-02)
+
+
+### Bug Fixes
+
+* **user:** revoke stale users expired grants ([21cbfa6](https://github.com/akash-network/console/commit/21cbfa654d2a3effa11b8b83404158256142c1d5))
+
 ## [2.44.2](https://github.com/akash-network/console/compare/console-api/v2.44.1...console-api/v2.44.2) (2025-01-02)
 
 
