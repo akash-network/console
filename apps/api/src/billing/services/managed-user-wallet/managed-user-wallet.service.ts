@@ -130,7 +130,7 @@ export class ManagedUserWalletService {
     }
 
     if (!messages.length) {
-      return;
+      return revokeSummary;
     }
 
     if (!options?.dryRun) {

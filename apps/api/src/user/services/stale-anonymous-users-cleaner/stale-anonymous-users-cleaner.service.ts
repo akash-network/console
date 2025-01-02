@@ -62,8 +62,9 @@ export class StaleAnonymousUsersCleanerService {
           }
           summary.inc("usersDroppedCount", userIdsToRemove.length);
         }
-        this.logger.debug({ event: "STALE_ANONYMOUS_USERS_CLEANUP", userIds: userIdsToRemove, summary: summary.summarize(), dryRun: options.dryRun });
       }
     );
+
+    this.logger.debug({ event: "STALE_ANONYMOUS_USERS_CLEANUP", summary: summary.summarize(), dryRun: options.dryRun });
   }
 }
