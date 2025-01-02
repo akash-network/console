@@ -44,7 +44,7 @@ describe("start trial", () => {
       const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
       const masterWalletAddress = await resolveWallet("MANAGED").getFirstAddress();
       const allowances = await Promise.all([
-        authzHttpService.getDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address),
+        authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address),
         authzHttpService.getValidFeeAllowancesForGrantee(userWallet.address)
       ]);
 

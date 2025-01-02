@@ -88,6 +88,18 @@ export class AuthzHttpService extends HttpService {
         }
       })
     );
+    return response.grants.find(grant => this.isDepositDeploymentGrant(grant));
+  }
+
+  async getValidDepositDeploymentGrantsForGranterAndGrantee(granter: string, grantee: string): Promise<ExactDepositDeploymentGrant | undefined> {
+    const response = this.extractData(
+      await this.get<DepositDeploymentGrantResponse<ExactDepositDeploymentGrant>>("cosmos/authz/v1beta1/grants", {
+        params: {
+          grantee: grantee,
+          granter: granter
+        }
+      })
+    );
     return response.grants.find(grant => this.isValidDepositDeploymentGrant(grant));
   }
 
@@ -101,8 +113,12 @@ export class AuthzHttpService extends HttpService {
     return feeAllowances.some(allowance => allowance.granter === granter);
   }
 
-  async hasValidDepositDeploymentGrant(granter: string, grantee: string) {
+  async hasDepositDeploymentGrant(granter: string, grantee: string) {
     return !!(await this.getDepositDeploymentGrantsForGranterAndGrantee(granter, grantee))
+  }
+
+  async hasValidDepositDeploymentGrant(granter: string, grantee: string) {
+    return !!(await this.getValidDepositDeploymentGrantsForGranterAndGrantee(granter, grantee))
   }
 
   async paginateDepositDeploymentGrants(
@@ -140,11 +156,15 @@ export class AuthzHttpService extends HttpService {
     return result;
   }
 
-  private isValidFeeAllowance({ allowance }: FeeAllowance) {
-    return allowance["@type"] === this.FEE_ALLOWANCE_TYPE && (!allowance.expiration || isFuture(new Date(allowance.expiration)));
+  private isValidFeeAllowance(allowance: FeeAllowance) {
+    return (!allowance.allowance.expiration || isFuture(new Date(allowance.allowance.expiration)));
   }
 
-  private isValidDepositDeploymentGrant({ authorization, expiration }: ExactDepositDeploymentGrant) {
-    return authorization["@type"] === this.DEPOSIT_DEPLOYMENT_GRANT_TYPE && (!expiration || isFuture(new Date(expiration)));
+  private isValidDepositDeploymentGrant(grant: ExactDepositDeploymentGrant) {
+    return this.isDepositDeploymentGrant(grant) && (!grant.expiration || isFuture(new Date(grant.expiration)));
+  }
+
+  private isDepositDeploymentGrant({ authorization }: ExactDepositDeploymentGrant) {
+    return authorization["@type"] === this.DEPOSIT_DEPLOYMENT_GRANT_TYPE;
   }
 }

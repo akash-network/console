@@ -124,7 +124,7 @@ export class ManagedUserWalletService {
       messages.push(this.rpcMessageService.getRevokeAllowanceMsg(params));
     }
 
-    if (await this.authzHttpService.hasValidDepositDeploymentGrant(params.granter, params.grantee)) {
+    if (await this.authzHttpService.hasDepositDeploymentGrant(params.granter, params.grantee)) {
       revokeSummary.deploymentGrant = true;
       messages.push(this.rpcMessageService.getRevokeDepositDeploymentGrantMsg(params));
     }
