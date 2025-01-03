@@ -1,5 +1,12 @@
 
 
+## [2.44.4](https://github.com/akash-network/console/compare/console-api/v2.44.3...console-api/v2.44.4) (2025-01-03)
+
+
+### Bug Fixes
+
+* **user:** paginate users by id as a cursor when deleting stale ones ([6fcd4ab](https://github.com/akash-network/console/commit/6fcd4ab0cd9f0b142a6384bcaffe8a25d9085b84))
+
 ## [2.44.3](https://github.com/akash-network/console/compare/console-api/v2.44.2...console-api/v2.44.3) (2025-01-02)
 
 
