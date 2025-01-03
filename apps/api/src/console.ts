@@ -33,7 +33,7 @@ program
 program
   .command("top-up-deployments")
   .description("Refill deployments with auto top up enabled")
-  .option("-c, --concurrency <number>", "How many wallets is processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
+  .option("-c, --concurrency <number>", "How many wallets are processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
   .option("-d, --dry-run", "Dry run the top up deployments", false)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
@@ -54,7 +54,7 @@ program
 program
   .command("cleanup-provider-deployments")
   .description("Close trial deployments for a provider")
-  .option("-c, --concurrency <number>", "How many wallets is processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
+  .option("-c, --concurrency <number>", "How many wallets are processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
   .option("-d, --dry-run", "Dry run the trial provider cleanup", false)
   .option("-p, --provider <string>", "Provider address", value => z.string().parse(value))
   .action(async (options, command) => {
@@ -67,10 +67,11 @@ const userConfig = container.resolve(UserConfigService);
 program
   .command("cleanup-stale-anonymous-users")
   .description(`Remove users that have been inactive for ${userConfig.get("STALE_ANONYMOUS_USERS_LIVE_IN_DAYS")} days`)
+  .option("-c, --concurrency <number>", "How many users are processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
   .option("-d, --dry-run", "Dry run the clean up stale anonymous users", false)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
-      await container.resolve(UserController).cleanUpStaleAnonymousUsers({ dryRun: options.dryRun });
+      await container.resolve(UserController).cleanUpStaleAnonymousUsers(options);
     });
   });
 

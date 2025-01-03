@@ -11,7 +11,7 @@ import { UserRepository } from "@src/user/repositories";
 import { DbTestingService } from "@test/services/db-testing.service";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
-jest.setTimeout(50000);
+jest.setTimeout(100000);
 
 describe("Users", () => {
   const dbService = container.resolve(DbTestingService);
@@ -33,18 +33,18 @@ describe("Users", () => {
 
   describe("stale anonymous users cleanup", () => {
     it("should remove anonymous users inactive for defined period", async () => {
-      const [stale, reactivated, recent, invalidAddress, staleNoWallet, recentNoWallet] = await Promise.all([
-        walletService.createUserAndWallet(),
+      const [reactivated, recent, invalidAddress, staleNoWallet, recentNoWallet, ...staleUsers] = await Promise.all([
         walletService.createUserAndWallet(),
         walletService.createUserAndWallet(),
         walletService.createUserAndWallet(),
         walletService.createUser(),
-        walletService.createUser()
+        walletService.createUser(),
+        ...Array.from({ length: 10 }).map(() => walletService.createUserAndWallet())
       ]);
 
       const staleParams = { lastActiveAt: subDays(new Date(), 91) };
       await Promise.all([
-        userRepository.updateById(stale.user.id, staleParams),
+        ...staleUsers.map(user => userRepository.updateById(user.user.id, staleParams)),
         userRepository.updateById(staleNoWallet.user.id, staleParams),
         userRepository.updateById(reactivated.user.id, staleParams),
         userRepository.updateById(invalidAddress.user.id, staleParams),
@@ -54,7 +54,7 @@ describe("Users", () => {
       const reactivate = walletService.getWalletByUserId(reactivated.user.id, reactivated.token);
       await reactivate;
 
-      await controller.cleanUpStaleAnonymousUsers({ dryRun: false });
+      await controller.cleanUpStaleAnonymousUsers({ dryRun: false, concurrency: 4 });
 
       const [users, wallets] = await Promise.all([userRepository.find(), userWalletRepository.find()]);
 
@@ -71,14 +71,18 @@ describe("Users", () => {
       );
 
       await Promise.all([
-        expect(authzHttpService.hasValidFeeAllowance(recent.wallet.address, masterAddress)).resolves.toBeFalsy(),
-        expect(authzHttpService.hasValidDepositDeploymentGrant(recent.wallet.address, masterAddress)).resolves.toBeFalsy(),
+        expect(authzHttpService.hasFeeAllowance(recent.wallet.address, masterAddress)).resolves.toBeFalsy(),
+        expect(authzHttpService.hasDepositDeploymentGrant(recent.wallet.address, masterAddress)).resolves.toBeFalsy(),
 
         expect(authzHttpService.hasValidFeeAllowance(reactivated.wallet.address, masterAddress)).resolves.toBeFalsy(),
-        expect(authzHttpService.hasValidDepositDeploymentGrant(reactivated.wallet.address, masterAddress)).resolves.toBeFalsy(),
+        expect(authzHttpService.hasDepositDeploymentGrant(reactivated.wallet.address, masterAddress)).resolves.toBeFalsy(),
 
-        expect(authzHttpService.hasValidFeeAllowance(stale.wallet.address, masterAddress)).resolves.toBeFalsy(),
-        expect(authzHttpService.hasValidDepositDeploymentGrant(stale.wallet.address, masterAddress)).resolves.toBeFalsy()
+        ...staleUsers
+          .map(user => [
+            expect(authzHttpService.hasFeeAllowance(user.wallet.address, masterAddress)).resolves.toBeFalsy(),
+            expect(authzHttpService.hasDepositDeploymentGrant(user.wallet.address, masterAddress)).resolves.toBeFalsy()
+          ])
+          .flat()
       ]);
     });
   });
