@@ -1,6 +1,7 @@
 import subDays from "date-fns/subDays";
-import { and, eq, isNull, lte, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, lte, sql } from "drizzle-orm";
 import first from "lodash/first";
+import last from "lodash/last";
 import { singleton } from "tsyringe";
 
 import { ApiPgDatabase, ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -43,7 +44,25 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       .where(eq(this.table.id, id));
   }
 
-  async paginateStaleAnonymousUsers({ inactivityInDays, ...params }: { inactivityInDays: number; limit?: number }, cb: (page: UserOutput[]) => Promise<void>) {
-    await this.paginateRaw({ where: and(isNull(this.table.userId), lte(this.table.lastActiveAt, subDays(new Date(), inactivityInDays))), ...params }, cb);
+  async paginateStaleAnonymousUsers(
+    { inactivityInDays, limit = 100 }: { inactivityInDays: number; limit?: number },
+    cb: (page: UserOutput[]) => Promise<void>
+  ) {
+    let lastId: string | undefined;
+
+    do {
+      const clauses = [isNull(this.table.userId), lte(this.table.lastActiveAt, subDays(new Date(), inactivityInDays))];
+
+      if (lastId) {
+        clauses.push(lt(this.table.id, lastId));
+      }
+
+      const items = this.toOutputList(await this.cursor.query.Users.findMany({ where: and(...clauses), limit, orderBy: [desc(this.table.id)] }));
+      lastId = last(items)?.id;
+
+      if (items.length) {
+        await cb(items);
+      }
+    } while (lastId);
   }
 }
