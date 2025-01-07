@@ -60,8 +60,8 @@ interface ServerFormProps {
   onComplete: () => void;
   editMode?: boolean;
   controlMachine?: ControlMachineWithAddress | null;
-  isControlPlane: boolean;
-  nodeNumber: number;
+  isControlPlane?: boolean;
+  nodeNumber?: number;
 }
 
 export const ServerForm: React.FC<ServerFormProps> = ({ 
