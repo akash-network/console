@@ -17,7 +17,11 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  Separator
+  Separator,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "iconoir-react";
@@ -32,6 +36,8 @@ import { providerAttributesFormValuesSchema } from "../../types/providerAttribut
 import { ResetProviderForm } from "./ResetProviderProcess";
 
 const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
+
+const DEFAULT_ATTRIBUTES = ['host', 'tier'];
 
 interface ProviderAttributesProps {
   existingAttributes?: ProviderAttribute[];
@@ -52,17 +58,23 @@ const providerFormSchema = z.object({
 type ProviderFormValues = z.infer<typeof providerFormSchema>;
 
 export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps> = ({ onComplete, existingAttributes, editMode }) => {
-  const [providerPricing, setProviderPricing] = useAtom(providerProcessStore.providerProcessAtom);
+  const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
+  const organizationName = providerProcess.config?.organization;
+
   const form = useForm<ProviderFormValues>({
     resolver: zodResolver(providerFormSchema),
     defaultValues: {
       attributes: existingAttributes
         ? existingAttributes.map(attr => ({
-            key: attributeKeys.includes(attr.key) ? attr.key : "unknown-attributes",
-            value: attr.value,
-            customKey: attributeKeys.includes(attr.key) ? "" : attr.key
-          }))
-        : [{ key: "", value: "", customKey: "" }]
+          key: attributeKeys.includes(attr.key) ? attr.key : "unknown-attributes",
+          value: attr.value,
+          customKey: attributeKeys.includes(attr.key) ? "" : attr.key
+        }))
+        : [
+          { key: "host", value: "akash", customKey: "" },
+          { key: "tier", value: "community", customKey: "" },
+          { key: "organization", value: organizationName || "", customKey: "" }
+        ]
     }
   });
 
@@ -78,14 +90,14 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
 
   const updateProviderAttributesAndProceed: SubmitHandler<ProviderFormValues> = async data => {
     if (!editMode) {
-      const updatedProviderPricing = {
-        ...providerPricing,
+      const updatedProviderProcess = {
+        ...providerProcess,
         attributes: data.attributes.map(attr => ({
           key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",
           value: attr.value
         }))
       };
-      setProviderPricing(updatedProviderPricing);
+      setProviderProcess(updatedProviderProcess);
       onComplete && onComplete();
     } else {
       const attributes = data.attributes.map(attr => ({
@@ -124,30 +136,48 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
                 {fields.map((field, index) => {
                   const selectedKeys = form.watch("attributes").map(attr => attr.key);
                   const availableKeys = attributeKeys.filter(key => !selectedKeys.includes(key) || key === field.key || key === "unknown-attributes");
+                  const isDefaultAttribute = DEFAULT_ATTRIBUTES.includes(field.key);
 
                   return (
                     <div key={field.id} className="mb-2 flex space-x-2">
-                      <Controller
-                        control={form.control}
-                        name={`attributes.${index}.key`}
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <FormControl>
-                              <Select value={field.value} onValueChange={value => field.onChange(value)}>
-                                <SelectTrigger>{field.value || "Select Key"}</SelectTrigger>
-                                <SelectContent>
-                                  {availableKeys.map(key => (
-                                    <SelectItem key={key} value={key}>
-                                      {key}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <TooltipProvider>
+                        <Controller
+                          control={form.control}
+                          name={`attributes.${index}.key`}
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormControl>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div>
+                                      <Select 
+                                        value={field.value} 
+                                        onValueChange={value => field.onChange(value)}
+                                        disabled={isDefaultAttribute}
+                                      >
+                                        <SelectTrigger>{field.value || "Select Key"}</SelectTrigger>
+                                        <SelectContent>
+                                          {availableKeys.map(key => (
+                                            <SelectItem key={key} value={key}>
+                                              {key}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </TooltipTrigger>
+                                  {isDefaultAttribute && (
+                                    <TooltipContent>
+                                      <p>This is a default attribute and cannot be modified</p>
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </TooltipProvider>
                       {form.watch(`attributes.${index}.key`) === "unknown-attributes" && (
                         <FormField
                           control={form.control}
@@ -168,13 +198,34 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
                         render={({ field }) => (
                           <FormItem className="flex-1">
                             <FormControl>
-                              <Input placeholder="Value" {...field} />
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div>
+                                    <Input 
+                                      placeholder="Value" 
+                                      {...field} 
+                                      disabled={isDefaultAttribute}
+                                    />
+                                  </div>
+                                </TooltipTrigger>
+                                {isDefaultAttribute && (
+                                  <TooltipContent>
+                                    <p>This is a default attribute and cannot be modified</p>
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                      <Button type="button" variant="outline" size="icon" onClick={() => remove(index)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => remove(index)}
+                        disabled={isDefaultAttribute}
+                      >
                         <Trash className="h-4 w-4" />
                       </Button>
                     </div>
