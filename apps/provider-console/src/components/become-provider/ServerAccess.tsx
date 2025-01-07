@@ -9,11 +9,22 @@ interface ServerAccessProps {
   onComplete: () => void;
 }
 
+interface NodeCounts {
+  controlPlane: number;
+  workerNodes: number;
+}
+
+interface ServerTypeInfo {
+  isControlPlane: boolean;
+  nodeNumber: number;
+}
+
 export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
   const [numberOfServers, setNumberOfServers] = useState(1);
   const [activateServerForm, setActivateServerForm] = useState(false);
   const [currentServer, setCurrentServer] = useState(0);
   const [showBalancePopup, setShowBalancePopup] = useState(false);
+  const [showNodeDistribution, setShowNodeDistribution] = useState(false);
 
   const { walletBalances } = useWallet();
   const hasEnoughBalance = (walletBalances?.uakt || 0) >= 30000000;
@@ -36,21 +47,56 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
     setNumberOfServers(value);
   }, []);
 
+  const calculateNodeDistribution = useCallback((totalNodes: number): NodeCounts => {
+    if (totalNodes <= 3) {
+      return { controlPlane: 1, workerNodes: totalNodes - 1 };
+    }
+    if (totalNodes <= 5) {
+      return { controlPlane: 3, workerNodes: totalNodes - 3 };
+    }
+
+    const baseControlPlane = 3;
+    const additionalPairs = Math.floor((totalNodes - 1) / 50);
+    const controlPlane = Math.min(baseControlPlane + (additionalPairs * 2), 11); // Cap at 11 control plane nodes
+    return { controlPlane, workerNodes: totalNodes - controlPlane };
+  }, []);
+
   const handleNextClick = useCallback(() => {
     if (!hasEnoughBalance) {
       setShowBalancePopup(true);
       return;
     }
-    setActivateServerForm(true);
+    setShowNodeDistribution(true);
   }, [hasEnoughBalance]);
+
+  const handleDistributionNext = useCallback(() => {
+    setShowNodeDistribution(false);
+    setActivateServerForm(true);
+  }, []);
 
   const handleClosePopup = useCallback(() => {
     setShowBalancePopup(false);
   }, []);
 
+  const getCurrentServerType = useCallback((serverIndex: number): ServerTypeInfo => {
+    const { controlPlane, workerNodes } = calculateNodeDistribution(numberOfServers);
+
+    if (serverIndex < controlPlane) {
+      return {
+        isControlPlane: true,
+        nodeNumber: serverIndex + 1
+      };
+    }
+
+    return {
+      isControlPlane: false,
+      nodeNumber: serverIndex - controlPlane + 1
+    };
+  }, [calculateNodeDistribution, numberOfServers]);
+
   return (
     <div className="flex flex-col items-center pt-10">
-      {!activateServerForm ? (
+      {!activateServerForm && !showNodeDistribution ? (
         <div className="space-y-6">
           <div className="flex items-center space-x-4">
             <h3 className="text-xl font-bold">Server Count</h3>
@@ -77,8 +123,33 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
             </div>
           </div>
         </div>
+      ) : showNodeDistribution ? (
+        <div className="space-y-6">
+          <div className="flex gap-6">
+            <div className="rounded-lg border p-6 text-center">
+              <p className="text-3xl font-bold mb-4">{calculateNodeDistribution(numberOfServers).controlPlane}</p>
+              <h3 className="text-xl font-bold mb-2">Control Plane Nodes</h3>
+              <p className="text-sm">Manages the cluster operations & run your workloads</p>
+            </div>
+            <div className="rounded-lg border p-6 text-center">
+              <p className="text-3xl font-bold mb-4">{calculateNodeDistribution(numberOfServers).workerNodes}</p>
+              <h3 className="text-xl font-bold mb-2">Worker Nodes</h3>
+              <p className="text-sm">Runs your workloads</p>
+            </div>
+          </div>
+          <div className="flex w-full justify-between">
+            <Button variant="ghost" onClick={() => setShowNodeDistribution(false)}>Back</Button>
+            <Button onClick={handleDistributionNext}>Next</Button>
+          </div>
+        </div>
       ) : (
-        <ServerForm key={currentServer} currentServerNumber={currentServer} onComplete={handleServerFormSubmit} />
+        <ServerForm
+          key={currentServer}
+          currentServerNumber={currentServer}
+          onComplete={handleServerFormSubmit}
+          isControlPlane={getCurrentServerType(currentServer).isControlPlane}
+          nodeNumber={getCurrentServerType(currentServer).nodeNumber}
+        />
       )}
 
       <Popup
@@ -104,7 +175,7 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
             <p>
               You need at least <strong>30 AKT</strong> to become a provider.
               <br />
-              Every lease created on the Akash network requires <strong>5 AKT</strong> to be locked in escrow.
+              Every lease created on the Akash network requires <strong>0.5 AKT</strong> to be locked in escrow.
               <br />
               Please ensure you have enough funds to cover your resources.
             </p>
