@@ -4,6 +4,7 @@
 **/.git
 
 **/.env.local
+**/.env.local.*
 **/.env.test
 **/.env.*.local
 **/.env.*.test
