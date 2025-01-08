@@ -71,6 +71,7 @@ apps/provider-proxy/.env
 apps/stats-web/.env
 .env.*.local
 .env.local
+.env.local.*
 .env.test
 
 # IDE files

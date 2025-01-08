@@ -192,7 +192,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
         category: AnalyticsCategory.DEPLOYMENTS,
         label: "Use depositor to deposit in deployment"
       });
-    } else if (depositData && amountInDenom > depositData?.balance) {
+    } else if (depositData && amount > depositData?.balance) {
       setError(`You can't deposit more than you currently have in your balance. Current balance is: ${depositData?.balance} ${depositData?.label}.`);
       return;
     }
