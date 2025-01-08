@@ -1,5 +1,12 @@
 
 
+## [2.28.2](https://github.com/akash-network/console/compare/console-web/v2.28.1...console-web/v2.28.2) (2025-01-08)
+
+
+### Bug Fixes
+
+* **deployment:** validate max deposit amount correctly ([44c0274](https://github.com/akash-network/console/commit/44c02745635510b8b5eb6bb4f9462b232543f393)), closes [#603](https://github.com/akash-network/console/issues/603)
+
 ## [2.28.1](https://github.com/akash-network/console/compare/console-web/v2.28.0...console-web/v2.28.1) (2025-01-02)
 
 
