@@ -46,23 +46,31 @@ const denomMapping = {
 export class AkashStatsIndexer extends Indexer {
   private totalLeaseCount = 0;
   private activeProviderCount = 0;
-  private deploymentIdCache: { [key: string]: string } = {};
-  private deploymentGroupIdCache: { [key: string]: string } = {};
+  private deploymentIdCache: Map<string, string> = new Map();
+  private deploymentGroupIdCache: Map<string, string> = new Map();
   private totalResources: ITotalResources;
   private predictedClosedHeights: number[];
 
+  private getDeploymentIdCacheKey(owner: string, dseq: string) {
+    return owner + "_" + dseq;
+  }
+
+  private getDeploymentGroupIdCacheKey(owner: string, dseq: string, gseq: number) {
+    return owner + "_" + dseq + "_" + gseq;
+  }
+
   private addToDeploymentIdCache(owner: string, dseq: string, id: string) {
-    this.deploymentIdCache[owner + "_" + dseq] = id;
+    this.deploymentIdCache.set(this.getDeploymentIdCacheKey(owner, dseq), id);
   }
   private getDeploymentIdFromCache(owner: string, dseq: string) {
-    return this.deploymentIdCache[owner + "_" + dseq];
+    return this.deploymentIdCache.get(this.getDeploymentIdCacheKey(owner, dseq));
   }
 
   private addToDeploymentGroupIdCache(owner: string, dseq: string, gseq: number, id: string) {
-    this.deploymentGroupIdCache[owner + "_" + dseq + "_" + gseq] = id;
+    this.deploymentGroupIdCache.set(this.getDeploymentGroupIdCacheKey(owner, dseq, gseq), id);
   }
-  private getDeploymentGroupIdFromCache(owner: string, dseq: string, gseq: number): string {
-    return this.deploymentGroupIdCache[owner + "_" + dseq + "_" + gseq];
+  private getDeploymentGroupIdFromCache(owner: string, dseq: string, gseq: number) {
+    return this.deploymentGroupIdCache.get(this.getDeploymentGroupIdCacheKey(owner, dseq, gseq));
   }
 
   constructor() {
@@ -163,14 +171,14 @@ export class AkashStatsIndexer extends Indexer {
       raw: true
     });
 
-    existingDeployments.forEach(d => this.addToDeploymentIdCache(d.owner, d.dseq, d.id));
+    this.deploymentIdCache = new Map(existingDeployments.map(d => [this.getDeploymentIdCacheKey(d.owner, d.dseq), d.id]));
 
     const existingDeploymentGroups = await DeploymentGroup.findAll({
       attributes: ["id", "owner", "dseq", "gseq"],
       raw: true
     });
 
-    existingDeploymentGroups.forEach(d => this.addToDeploymentGroupIdCache(d.owner, d.dseq, d.gseq, d.id));
+    this.deploymentGroupIdCache = new Map(existingDeploymentGroups.map(d => [this.getDeploymentGroupIdCacheKey(d.owner, d.dseq, d.gseq), d.id]));
 
     this.totalLeaseCount = await Lease.count();
     this.activeProviderCount = await Provider.count();
