@@ -19,7 +19,8 @@ import { Lease } from "./lease";
       fields: ["createdHeight", "closedHeight"]
     },
     {
-      fields: ["owner"]
+      unique: true,
+      fields: ["owner", "dseq"]
     }
   ]
 })

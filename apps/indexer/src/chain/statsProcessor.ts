@@ -1,7 +1,7 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
 import { AkashMessage } from "@akashnetwork/database/dbSchemas/akash";
-import { Transaction } from "@akashnetwork/database/dbSchemas/base";
+import { Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
 import { fromBase64 } from "@cosmjs/encoding";
 import { decodeTxRaw } from "@cosmjs/proto-signing";
 import { sha256 } from "js-sha256";
@@ -128,6 +128,31 @@ class StatsProcessor {
           ["transactions", "messages", "index", "ASC"]
         ]
       });
+
+      let allTransactionEvents: TransactionEvent[] = [];
+
+      await sequelize.transaction(async dbTransaction => {
+        // Disable seqscan to make sure the query planner uses the index
+        await sequelize.query("SET LOCAL enable_seqscan = OFF;", { transaction: dbTransaction });
+
+        allTransactionEvents = await TransactionEvent.findAll({
+          where: {
+            height: { [Op.gte]: firstBlockToProcess, [Op.lte]: lastBlockToProcess }
+          },
+          include: [
+            {
+              model: TransactionEventAttribute,
+              required: false
+            }
+          ],
+          order: [
+            ["index", "ASC"],
+            ["attributes", "index", "ASC"]
+          ],
+          transaction: dbTransaction
+        });
+      });
+
       getBlocksTimer.end();
 
       const blockGroupTransaction = await sequelize.transaction();
@@ -149,6 +174,8 @@ class StatsProcessor {
             const decodedTx = decodeTxRaw(fromBase64(tx));
             decodeTimer.end();
 
+            const transactionEvents = allTransactionEvents.filter(e => e.txId === transaction.id);
+
             for (const msg of transaction.messages) {
               console.log(`Processing message ${msg.type} - Block #${block.height}`);
 
@@ -166,7 +193,7 @@ class StatsProcessor {
             }
 
             for (const indexer of activeIndexers) {
-              await indexer.afterEveryTransaction(decodedTx, transaction, blockGroupTransaction);
+              await indexer.afterEveryTransaction(decodedTx, transaction, blockGroupTransaction, transactionEvents);
             }
 
             await benchmark.measureAsync("saveTransaction", async () => {

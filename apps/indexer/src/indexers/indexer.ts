@@ -1,4 +1,4 @@
-import { Block, Message, Transaction } from "@akashnetwork/database/dbSchemas/base";
+import { Block, Message, Transaction, TransactionEvent } from "@akashnetwork/database/dbSchemas/base";
 import { DecodedTxRaw } from "@cosmjs/proto-signing";
 import { Transaction as DbTransaction } from "sequelize";
 
@@ -38,5 +38,10 @@ export abstract class Indexer {
 
   abstract afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction: DbTransaction): Promise<void>;
 
-  abstract afterEveryTransaction(rawTx: DecodedTxRaw, currentTransaction: Transaction, dbTransaction: DbTransaction): Promise<void>;
+  abstract afterEveryTransaction(
+    rawTx: DecodedTxRaw,
+    currentTransaction: Transaction,
+    dbTransaction: DbTransaction,
+    txEvents: TransactionEvent[]
+  ): Promise<void>;
 }

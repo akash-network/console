@@ -16,7 +16,7 @@ import { Lease } from "./lease";
   modelName: "deploymentGroup",
   indexes: [
     {
-      unique: false,
+      unique: true,
       fields: ["owner", "dseq", "gseq"]
     }
   ]

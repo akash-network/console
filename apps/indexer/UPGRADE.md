@@ -308,3 +308,74 @@ ALTER TABLE public.lease ALTER COLUMN denom DROP DEFAULT;
 ALTER TABLE IF EXISTS public.transaction
     ALTER COLUMN "fee" TYPE numeric(30,0);
 ```
+
+## v1.11.0
+
+Add support for transaction events & attributes indexing ([PR #772](https://github.com/akash-network/console/pull/772))
+
+```
+-- Create transaction_event and transaction_event_attribute tables
+
+CREATE TABLE IF NOT EXISTS public.transaction_event
+(
+    id uuid NOT NULL,
+    height integer NOT NULL,
+    tx_id uuid NOT NULL,
+    index integer NOT NULL,
+    type character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT transaction_event_pkey PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS transaction_event_height
+    ON public.transaction_event USING btree
+    (height ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+CREATE UNIQUE INDEX IF NOT EXISTS transaction_event_tx_id_index
+    ON public.transaction_event USING btree
+    (tx_id ASC NULLS LAST, index ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+CREATE TABLE IF NOT EXISTS public.transaction_event_attribute
+(
+    id uuid NOT NULL,
+    transaction_event_id uuid NOT NULL,
+    index integer NOT NULL,
+    key character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    value text COLLATE pg_catalog."default",
+    CONSTRAINT transaction_event_attribute_pkey PRIMARY KEY (id),
+    CONSTRAINT transaction_event_attribute_transaction_event_id_transaction_ev FOREIGN KEY (transaction_event_id)
+        REFERENCES public.transaction_event (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+ALTER TABLE IF EXISTS public.transaction_event_attribute
+    ALTER COLUMN transaction_event_id SET STATISTICS 1000;
+
+CREATE UNIQUE INDEX IF NOT EXISTS transaction_event_attribute_transaction_event_id_index
+    ON public.transaction_event_attribute USING btree
+    (transaction_event_id ASC NULLS LAST, index ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+-- Update other indexes
+CREATE UNIQUE INDEX IF NOT EXISTS deployment_owner_dseq
+    ON public.deployment USING btree
+    (owner COLLATE pg_catalog."default" ASC NULLS LAST, dseq COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+DROP INDEX IF EXISTS deployment_owner;
+DROP INDEX IF EXISTS deployment_group_owner_dseq_gseq;
+
+CREATE UNIQUE INDEX IF NOT EXISTS deployment_group_owner_dseq_gseq
+    ON public."deploymentGroup" USING btree
+    (owner COLLATE pg_catalog."default" ASC NULLS LAST, dseq COLLATE pg_catalog."default" ASC NULLS LAST, gseq ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+CREATE UNIQUE INDEX IF NOT EXISTS lease_owner_dseq_gseq_oseq_provider_address
+    ON public.lease USING btree
+    (owner COLLATE pg_catalog."default" ASC NULLS LAST, dseq COLLATE pg_catalog."default" ASC NULLS LAST, gseq ASC NULLS LAST, oseq ASC NULLS LAST, "providerAddress" COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+DROP INDEX IF EXISTS lease_owner_dseq_gseq_oseq;
+```
