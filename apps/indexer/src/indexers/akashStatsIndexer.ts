@@ -159,13 +159,15 @@ export class AkashStatsIndexer extends Indexer {
     console.log("Fetching deployment id cache...");
 
     const existingDeployments = await Deployment.findAll({
-      attributes: ["id", "owner", "dseq"]
+      attributes: ["id", "owner", "dseq"],
+      raw: true
     });
 
     existingDeployments.forEach(d => this.addToDeploymentIdCache(d.owner, d.dseq, d.id));
 
     const existingDeploymentGroups = await DeploymentGroup.findAll({
-      attributes: ["id", "owner", "dseq", "gseq"]
+      attributes: ["id", "owner", "dseq", "gseq"],
+      raw: true
     });
 
     existingDeploymentGroups.forEach(d => this.addToDeploymentGroupIdCache(d.owner, d.dseq, d.gseq, d.id));
