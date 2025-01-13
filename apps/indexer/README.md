@@ -51,7 +51,11 @@ Tasks can be configured to report their execution to healthcheck endpoints autom
 
 ## Data Flow
 
-![Index Data Flow](../indexer-flow.drawio.png)
+![Index Data Flow](/indexer-flow.drawio.png)
+
+### Database Migrations
+
+If you are running from an old database snapshot, you may need to run database migrations to ensure your schema is up to date. See [UPGRADE.md](./UPGRADE.md) for migration instructions.
 
 ### **Step #1 - Download Blocks**
 
