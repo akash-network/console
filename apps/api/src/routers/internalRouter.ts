@@ -1,6 +1,7 @@
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 
+import { privateMiddleware } from "@src/middlewares/privateMiddleware";
 import { env } from "@src/utils/env";
 import routes from "../routes/internal";
 
@@ -19,5 +20,7 @@ internalRouter.doc(`/doc`, {
 const swaggerInstance = swaggerUI({ url: `/internal/doc` });
 
 internalRouter.get(`/swagger`, swaggerInstance);
+
+internalRouter.use("/financial", privateMiddleware);
 
 routes.forEach(route => internalRouter.route(`/`, route));

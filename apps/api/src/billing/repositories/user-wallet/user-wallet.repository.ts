@@ -1,4 +1,4 @@
-import { eq, inArray, lte } from "drizzle-orm";
+import { count, eq, inArray, lte } from "drizzle-orm";
 import first from "lodash/first";
 import omit from "lodash/omit";
 import pick from "lodash/pick";
@@ -71,6 +71,11 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   async findByUserId(userId: UserWalletOutput["userId"] | UserWalletOutput["userId"][]) {
     const where = Array.isArray(userId) ? inArray(this.table.userId, userId) : eq(this.table.userId, userId);
     return this.toOutputList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(where) }));
+  }
+
+  async payingUserCount() {
+    const [{ count: payingUserCount }] = await this.cursor.select({ count: count() }).from(this.table).where(eq(this.table.isTrialing, false));
+    return payingUserCount;
   }
 
   protected toOutput(dbOutput: DbUserWalletOutput): UserWalletOutput {
