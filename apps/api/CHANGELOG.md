@@ -1,5 +1,12 @@
 
 
+## [2.45.0](https://github.com/akash-network/console/compare/console-api/v2.44.4...console-api/v2.45.0) (2025-01-14)
+
+
+### Features
+
+* **user:** save last ip, user-agent and fingerprint on users ([4663cae](https://github.com/akash-network/console/commit/4663cae6209f59e990a7115c8d1f45516e672340)), closes [#499](https://github.com/akash-network/console/issues/499)
+
 ## [2.44.4](https://github.com/akash-network/console/compare/console-api/v2.44.3...console-api/v2.44.4) (2025-01-03)
 
 
