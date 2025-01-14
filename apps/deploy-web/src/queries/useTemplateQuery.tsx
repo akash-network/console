@@ -1,14 +1,15 @@
-import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions } from "react-query";
 import { Snackbar } from "@akashnetwork/ui/components";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
+import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions, UseQueryResult } from "react-query";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { services } from "@src/services/http/http-browser.service";
 import { ITemplate } from "@src/types";
-import { ApiUrlService } from "@src/utils/apiUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { QueryKeys } from "./queryKeys";
+import type { TemplateCategory, TemplateOutputSummary } from "@akashnetwork/http-sdk";
 
 async function getUserTemplates(username: string): Promise<ITemplate[]> {
   const response = await axios.get(`/api/proxy/user/templates/${username}`);
@@ -106,22 +107,40 @@ export function useRemoveFavoriteTemplate(id: string) {
 }
 
 async function getTemplates() {
-  const response = await axios.get(ApiUrlService.templates());
+  const response = await services.template.findGroupedByCategory();
 
   if (!response.data) {
     return { categories: [], templates: [] };
   }
 
-  const categories = response.data.filter(x => (x.templates || []).length > 0);
-  categories.forEach(c => {
-    c.templates.forEach(t => (t.category = c.title));
-  });
-  const templates = categories.flatMap(x => x.templates);
+  const categories = response.data.filter(x => !!x.templates?.length);
+  const modifiedCategories = categories.map(category => {
+    const templatesWithCategory = category.templates.map(template => ({
+      ...template,
+      category: category.title,
+    }));
 
-  return { categories, templates };
+    return { ...category, templates: templatesWithCategory };
+  });
+  const templates = modifiedCategories.flatMap(category => category.templates);
+
+  return { categories: modifiedCategories, templates };
 }
 
-export function useTemplates(options = {}) {
+export interface EnhancedTemplateCategory extends Omit<TemplateCategory, 'templates'> {
+  templates: TemplateOutputSummaryWithCategory[];
+}
+
+export interface TemplateOutputSummaryWithCategory extends TemplateOutputSummary { 
+  category: TemplateCategory['title'] 
+}
+
+export interface CategoriesAndTemplates {
+  categories: EnhancedTemplateCategory[];
+  templates: TemplateOutputSummaryWithCategory[];
+}
+
+export function useTemplates(options = {}): UseQueryResult<CategoriesAndTemplates> {
   return useQuery(QueryKeys.getTemplatesKey(), () => getTemplates(), {
     ...options,
     refetchInterval: 60000 * 2, // Refetch templates every 2 minutes

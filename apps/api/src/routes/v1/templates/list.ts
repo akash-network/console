@@ -11,6 +11,7 @@ const responseSchema = z.array(
         name: z.string(),
         logoUrl: z.string().nullable(),
         summary: z.string(),
+        deploy: z.string(),
       })
     )
   })
@@ -24,7 +25,9 @@ const route = createRoute({
       description: "Returns a list of deployment templates grouped by categories",
       content: {
         "application/json": {
-          schema: responseSchema
+          schema: z.object({
+            data: responseSchema
+          })
         }
       }
     }
@@ -38,5 +41,5 @@ export default new OpenAPIHono().openapi(route, async c => {
   const response = filteredTemplatesPerCategory.success
     ? filteredTemplatesPerCategory.data
     : templatesPerCategory;
-  return c.json(response);
+  return c.json({ data: response });
 });

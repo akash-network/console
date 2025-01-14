@@ -4,12 +4,12 @@ import { cn } from "@akashnetwork/ui/utils";
 import { MediaImage } from "iconoir-react";
 import Link from "next/link";
 
-import { ApiTemplate } from "@src/types";
+import { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import { getShortText } from "@src/utils/stringUtils";
 import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
-  template: ApiTemplate;
+  template: TemplateOutputSummaryWithCategory;
   linkHref?: string;
   children?: React.ReactNode;
 };
@@ -23,7 +23,7 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
       <CardHeader>
         <div className="flex items-center">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={template.logoUrl} alt={template.name} className="object-contain" />
+            <AvatarImage src={template.logoUrl || undefined} alt={template.name} className="object-contain" />
             <AvatarFallback>
               <MediaImage />
             </AvatarFallback>

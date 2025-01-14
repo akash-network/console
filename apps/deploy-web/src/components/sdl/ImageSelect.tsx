@@ -1,6 +1,4 @@
 "use client";
-import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Control, Controller } from "react-hook-form";
 import { buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
@@ -11,22 +9,25 @@ import TextField from "@mui/material/TextField";
 import { InfoCircle, OpenNewWindow } from "iconoir-react";
 import Image from "next/image";
 import Link from "next/link";
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Control, Controller } from "react-hook-form";
 
 import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
-import { ApiTemplate, RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
+import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 
 type Props = {
   children?: ReactNode;
   control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
   currentService: ServiceType;
-  onSelectTemplate: (template: ApiTemplate) => void;
+  onSelectTemplate: (template: TemplateOutputSummaryWithCategory) => void;
 };
 
 export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentService, onSelectTemplate }) => {
   const muiTheme = useMuiTheme();
   const { gpuTemplates } = useGpuTemplates();
-  const [hoveredTemplate, setHoveredTemplate] = useState<ApiTemplate | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<ApiTemplate | null>(null);
+  const [hoveredTemplate, setHoveredTemplate] = useState<TemplateOutputSummaryWithCategory | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateOutputSummaryWithCategory | null>(null);
   const [popperWidth, setPopperWidth] = useState<number | null>(null);
   const eleRefs = useRef(null);
   const textFieldRef = useRef<HTMLInputElement>(null);
@@ -97,7 +98,7 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
     }
   };
 
-  const _onSelectTemplate = (template: ApiTemplate) => {
+  const _onSelectTemplate = (template: TemplateOutputSummaryWithCategory) => {
     setAnchorEl(null);
 
     onSelectTemplate(template);
