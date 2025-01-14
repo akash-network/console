@@ -1,5 +1,12 @@
 
 
+## [2.46.0](https://github.com/akash-network/console/compare/console-api/v2.45.0...console-api/v2.46.0) (2025-01-14)
+
+
+### Features
+
+* **analytics:** add financial endpoint ([#579](https://github.com/akash-network/console/issues/579)) ([92dc463](https://github.com/akash-network/console/commit/92dc463d54629ef06d35798b9d4b347ab1ff4f92))
+
 ## [2.45.0](https://github.com/akash-network/console/compare/console-api/v2.44.4...console-api/v2.45.0) (2025-01-14)
 
 
