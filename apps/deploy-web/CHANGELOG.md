@@ -1,5 +1,12 @@
 
 
+## [2.28.3](https://github.com/akash-network/console/compare/console-web/v2.28.2...console-web/v2.28.3) (2025-01-14)
+
+
+### Bug Fixes
+
+* **deployment:** provider label ([#632](https://github.com/akash-network/console/issues/632)) ([f96c570](https://github.com/akash-network/console/commit/f96c570cf31b4ab3cb6470dc1ad043a7173c3792))
+
 ## [2.28.2](https://github.com/akash-network/console/compare/console-web/v2.28.1...console-web/v2.28.2) (2025-01-08)
 
 
