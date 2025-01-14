@@ -214,7 +214,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
             />
 
             <LabelValueOld
-              label="Price:"
+              label="Provider:"
               value={
                 <>
                   {isLeaseActive && isLoadingProviderStatus && <Spinner size="small" className="mr-2" />}
