@@ -17,7 +17,7 @@ const PersistentStoragePage: React.FC = () => {
   const router = useRouter();
   const { activeControlMachine } = useControlMachine();
   const { data: persistentDrives }: any = usePersistentStorage(activeControlMachine);
-  const { address }: any = useSelectedChain();
+  const { address } = useSelectedChain();
   const { data: providerDetails }: any = useProviderDetails(address);
 
   const [selectedDrives, setSelectedDrives] = useState<{ [key: string]: string[] }>({});

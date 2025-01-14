@@ -59,7 +59,7 @@ export const useDeploymentDetails = (owner: string, dseq: string) => {
   });
 };
 
-export const useProviderDetails = (address: string) => {
+export const useProviderDetails = (address: string | undefined) => {
   return useQuery({
     queryKey: ["providerDetails", address],
     queryFn: () => consoleClient.get(`/v1/providers/${address}`),
