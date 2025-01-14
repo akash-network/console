@@ -1,14 +1,14 @@
-import { AssetList } from "@chain-registry/types";
+import { AssetList, Chain } from "@chain-registry/types";
 import { assets } from "chain-registry";
 
-// Obtained from https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/chain.json
-export const akash = {
+export const akash: Chain = {
   $schema: "../chain.schema.json",
   chain_name: "akash",
   status: "live",
   network_type: "mainnet",
   website: "https://akash.network/",
   pretty_name: "Akash",
+  chain_type: "cosmos",
   chain_id: "akashnet-2",
   bech32_prefix: "akash",
   daemon_name: "akash",
@@ -18,7 +18,10 @@ export const akash = {
     fee_tokens: [
       {
         denom: "uakt",
-        fixed_min_gas_price: 0
+        fixed_min_gas_price: 0.00025,
+        low_gas_price: 0.00025,
+        average_gas_price: 0.0025,
+        high_gas_price: 0.025
       }
     ]
   },
@@ -31,11 +34,17 @@ export const akash = {
   },
   codebase: {
     git_repo: "https://github.com/akash-network/node/",
-    recommended_version: "v0.26.2",
-    compatible_versions: ["v0.26.1", "v0.26.2"],
+    recommended_version: "v0.36.0",
+    compatible_versions: ["v0.36.0"],
     binaries: {
-      "linux/amd64": "https://github.com/akash-network/node/releases/download/v0.26.2/akash_linux_amd64.zip",
-      "linux/arm64": "https://github.com/akash-network/node/releases/download/v0.26.2/akash_linux_arm64.zip"
+      "linux/amd64": "https://github.com/akash-network/node/releases/download/v0.36.0/akash_linux_amd64.zip",
+      "linux/arm64": "https://github.com/akash-network/node/releases/download/v0.36.0/akash_linux_arm64.zip"
+    },
+    consensus: {
+      type: "cometbft",
+      version: "v0.34.27",
+      repo: "https://github.com/akash-network/cometbft",
+      tag: "v0.34.27-akash"
     },
     genesis: {
       genesis_url: "https://raw.githubusercontent.com/akash-network/net/master/mainnet/genesis.json"
@@ -71,9 +80,118 @@ export const akash = {
           "linux/amd64": "https://github.com/akash-network/node/releases/download/v0.26.2/akash_linux_amd64.zip",
           "linux/arm64": "https://github.com/akash-network/node/releases/download/v0.26.2/akash_linux_arm64.zip"
         },
-        next_version_name: ""
+        next_version_name: "v0.28.0"
+      },
+      {
+        name: "v0.28.0",
+        recommended_version: "v0.28.2",
+        compatible_versions: ["v0.28.2"],
+        proposal: 237,
+        height: 13759618,
+        binaries: {
+          "linux/amd64": "https://github.com/akash-network/node/releases/download/v0.28.2/akash_linux_amd64.zip",
+          "linux/arm64": "https://github.com/akash-network/node/releases/download/v0.28.2/akash_linux_arm64.zip"
+        },
+        next_version_name: "v0.30.0"
+      },
+      {
+        name: "v0.30.0",
+        recommended_version: "v0.30.0",
+        compatible_versions: ["v0.30.0"],
+        proposal: 238,
+        height: 1388074,
+        binaries: {
+          "linux/amd64": "https://github.com/akash-network/node/releases/download/v0.30.0/akash_linux_amd64.zip",
+          "linux/arm64": "https://github.com/akash-network/node/releases/download/v0.30.0/akash_linux_arm64.zip"
+        },
+        next_version_name: "v0.32.0"
+      },
+      {
+        name: "v0.32.0",
+        recommended_version: "v0.32.1",
+        compatible_versions: ["v0.32.1"],
+        proposal: 249,
+        height: 15414427,
+        binaries: {
+          "linux/amd64": "https://github.com/akash-network/node/releases/download/v0.32.1/akash_linux_amd64.zip",
+          "linux/arm64": "https://github.com/akash-network/node/releases/download/v0.32.1238/akash_linux_arm64.zip"
+        },
+        consensus: {
+          type: "cometbft",
+          version: "v0.34.27",
+          repo: "https://github.com/akash-network/cometbft",
+          tag: "v0.34.27-akash"
+        },
+        next_version_name: "v0.34.0",
+        sdk: {
+          type: "cosmos",
+          version: "v0.45.16"
+        },
+        ibc: {
+          type: "go",
+          version: "v4.4.2"
+        }
+      },
+      {
+        name: "v0.34.0",
+        recommended_version: "v0.34.1",
+        compatible_versions: ["v0.34.1"],
+        proposal: 256,
+        height: 16133283,
+        binaries: {
+          "linux/amd64": "https://github.com/akash-network/node/releases/download/v0.34.1/akash_linux_amd64.zip",
+          "linux/arm64": "https://github.com/akash-network/node/releases/download/v0.34.1/akash_linux_arm64.zip"
+        },
+        consensus: {
+          type: "cometbft",
+          version: "v0.34.27",
+          repo: "https://github.com/akash-network/cometbft",
+          tag: "v0.34.27-akash"
+        },
+        next_version_name: "v0.36.0",
+        sdk: {
+          type: "cosmos",
+          version: "v0.45.16"
+        },
+        ibc: {
+          type: "go",
+          version: "v4.6.0"
+        }
+      },
+      {
+        name: "v0.36.0",
+        recommended_version: "v0.36.0",
+        compatible_versions: ["v0.36.0"],
+        proposal: 257,
+        height: 16708237,
+        binaries: {
+          "linux/amd64": "https://github.com/akash-network/node/releases/download/v0.36.0/akash_linux_amd64.zip",
+          "linux/arm64": "https://github.com/akash-network/node/releases/download/v0.36.0/akash_linux_arm64.zip"
+        },
+        consensus: {
+          type: "cometbft",
+          version: "v0.34.27",
+          repo: "https://github.com/akash-network/cometbft",
+          tag: "v0.34.27-akash"
+        },
+        sdk: {
+          type: "cosmos",
+          version: "v0.45.16"
+        },
+        ibc: {
+          type: "go",
+          version: "v4.6.0"
+        }
       }
-    ]
+    ],
+    sdk: {
+      type: "cosmos",
+      version: "v0.45.16"
+    },
+    ibc: {
+      type: "go",
+      version: "v4.6.0"
+    }
   },
   logo_URIs: {
     png: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.png",
@@ -114,19 +232,23 @@ export const akash = {
         address: "rpc.la.akash.farm:26656"
       },
       {
-        id: "e1b058e5cfa2b836ddaa496b10911da62dcf182e",
-        address: "akash-seed-de.allnodes.me:26656",
-        provider: "Allnodes.com ⚡️ Nodes & Staking"
-      },
-      {
-        id: "e726816f42831689eab9378d5d577f1d06d25716",
-        address: "akash-seed-us.allnodes.me:26656",
-        provider: "Allnodes.com ⚡️ Nodes & Staking"
+        id: "8542cd7e6bf9d260fef543bc49e59be5a3fa9074",
+        address: "seed.publicnode.com:26656",
+        provider: "Allnodes ⚡️ Nodes & Staking"
       },
       {
         id: "9aa4c9097c818871e45aaca4118a9fe5e86c60e2",
         address: "seed-akash-01.stakeflow.io:1506",
         provider: "Stakeflow"
+      },
+      {
+        id: "61686e588f0af938484579adbc2093adff06c7aa",
+        address: "europlots.com:26656"
+      },
+      {
+        id: "c28827cb96c14c905b127b92065a3fb4cd77d7f6",
+        address: "seeds.whispernode.com:12856",
+        provider: "WhisperNode 🤐"
       }
     ],
     persistent_peers: [
@@ -155,6 +277,11 @@ export const akash = {
         id: "9aa4c9097c818871e45aaca4118a9fe5e86c60e2",
         address: "peer-akash-01.stakeflow.io:1506",
         provider: "Stakeflow"
+      },
+      {
+        id: "73ef1c0f9bc77fd925decf7fa41f22a35b5dc76d",
+        address: "akash.declab.pro:26603",
+        provider: "Decloud Nodes Lab"
       }
     ]
   },
@@ -169,7 +296,7 @@ export const akash = {
         provider: "ecostake"
       },
       {
-        address: "https://akash-rpc.lavenderfive.com:443",
+        address: "https://rpc.lavenderfive.com:443/akash",
         provider: "Lavender.Five Nodes"
       },
       {
@@ -177,32 +304,12 @@ export const akash = {
         provider: "Polkachu"
       },
       {
-        address: "https://rpc-akash.cosmos-spaces.cloud",
-        provider: "Cosmos Spaces"
-      },
-      {
-        address: "https://rpc-akash-ia.cosmosia.notional.ventures:443",
-        provider: "Notional"
-      },
-      {
         address: "http://akash.c29r3.xyz:80/rpc",
         provider: "c29r3"
       },
       {
-        address: "https://akash-mainnet-rpc.autostake.com:443",
-        provider: "AutoStake 🛡️ Slash Protected"
-      },
-      {
-        address: "https://akash.rpc.interchain.ivaldilabs.xyz",
-        provider: "ivaldilabs"
-      },
-      {
         address: "https://akash-rpc.kleomedes.network",
         provider: "Kleomedes"
-      },
-      {
-        address: "https://rpc-akash-01.stakeflow.io",
-        provider: "Stakeflow"
       },
       {
         address: "https://akash-mainnet-rpc.cosmonautstakes.com:443",
@@ -213,12 +320,16 @@ export const akash = {
         provider: "w3coins"
       },
       {
-        address: "https://akash-rpc.publicnode.com",
-        provider: "Allnodes.com ⚡️ Nodes & Staking"
+        address: "https://akash-rpc.publicnode.com:443",
+        provider: "Allnodes ⚡️ Nodes & Staking"
       },
       {
-        address: "https://akash-rpc.validatornode.com",
-        provider: "ValidatorNode"
+        address: "https://akash.declab.pro:26601",
+        provider: "Decloud Nodes Lab"
+      },
+      {
+        address: "https://rpc.akash.bronbro.io:443",
+        provider: "Bro_n_Bro"
       }
     ],
     rest: [
@@ -231,7 +342,7 @@ export const akash = {
         provider: "ecostake"
       },
       {
-        address: "https://akash-api.lavenderfive.com:443",
+        address: "https://rest.lavenderfive.com:443/akash",
         provider: "Lavender.Five Nodes"
       },
       {
@@ -255,10 +366,6 @@ export const akash = {
         provider: "AutoStake 🛡️ Slash Protected"
       },
       {
-        address: "https://akash.rest.interchain.ivaldilabs.xyz",
-        provider: "ivaldilabs"
-      },
-      {
         address: "https://akash-api.kleomedes.network",
         provider: "Kleomedes"
       },
@@ -276,11 +383,27 @@ export const akash = {
       },
       {
         address: "https://akash-rest.publicnode.com",
-        provider: "Allnodes.com ⚡️ Nodes & Staking"
+        provider: "Allnodes ⚡️ Nodes & Staking"
       },
       {
         address: "https://akash-api.validatornode.com",
         provider: "ValidatorNode"
+      },
+      {
+        address: "https://api-akash.whispernode.com:443",
+        provider: "WhisperNode 🤐"
+      },
+      {
+        address: "https://public.stakewolle.com/cosmos/akash/rest",
+        provider: "Stakewolle"
+      },
+      {
+        address: "https://akash.declab.pro:443",
+        provider: "Decloud Nodes Lab"
+      },
+      {
+        address: "https://lcd.akash.bronbro.io:443",
+        provider: "Bro_n_Bro"
       }
     ],
     grpc: [
@@ -289,7 +412,7 @@ export const akash = {
         provider: "Notional"
       },
       {
-        address: "akash-grpc.lavenderfive.com:443",
+        address: "akash.lavenderfive.com:443",
         provider: "Lavender.Five Nodes 🐝"
       },
       {
@@ -305,10 +428,6 @@ export const akash = {
         provider: "Cosmos Spaces"
       },
       {
-        address: "akash.grpc.interchain.ivaldilabs.xyz:443",
-        provider: "ivaldilabs"
-      },
-      {
         address: "grpc-akash-01.stakeflow.io:1502",
         provider: "Stakeflow"
       },
@@ -318,16 +437,28 @@ export const akash = {
       },
       {
         address: "akash-grpc.publicnode.com:443",
-        provider: "Allnodes.com ⚡️ Nodes & Staking"
+        provider: "Allnodes ⚡️ Nodes & Staking"
+      },
+      {
+        address: "https://akash.declab.pro:9001",
+        provider: "Decloud Nodes Lab"
+      },
+      {
+        address: "grpc-akash.whispernode.com:443",
+        provider: "WhisperNode 🤐"
+      },
+      {
+        address: "https://grpc.akash.bronbro.io:443",
+        provider: "Bro_n_Bro"
       }
     ]
   },
   explorers: [
     {
-      kind: "EZ Staking",
-      url: "https://app.ezstaking.io/akash",
-      tx_page: "https://app.ezstaking.io/akash/txs/${txHash}",
-      account_page: "https://app.ezstaking.io/akash/account/${accountAddress}"
+      kind: "ezstaking",
+      url: "https://ezstaking.app/akash",
+      tx_page: "https://ezstaking.app/akash/txs/${txHash}",
+      account_page: "https://ezstaking.app/akash/account/${accountAddress}"
     },
     {
       kind: "mintscan",
@@ -341,9 +472,10 @@ export const akash = {
       tx_page: "https://ping.pub/akash-network/tx/${txHash}"
     },
     {
-      kind: "bigdipper",
-      url: "https://akash.bigdipper.live/",
-      tx_page: "https://akash.bigdipper.live/transactions/${txHash}"
+      kind: "staking-explorer.com",
+      url: "https://staking-explorer.com/explorer/akash",
+      tx_page: "https://staking-explorer.com/transaction.php?chain=akash&tx=${txHash}",
+      account_page: "https://staking-explorer.com/account.php?chain=akash&addr=${accountAddress}"
     },
     {
       kind: "atomscan",
@@ -352,9 +484,9 @@ export const akash = {
       account_page: "https://atomscan.com/akash/accounts/${accountAddress}"
     },
     {
-      kind: "Akash Stats",
-      url: "https://stats.akash.network/blocks",
-      tx_page: "https://stats.akash.network/transactions/${txHash}"
+      kind: "cloudmos",
+      url: "https://cloudmos.io/blocks",
+      tx_page: "https://cloudmos.io/transactions/${txHash}"
     },
     {
       kind: "Stakeflow",
@@ -365,12 +497,26 @@ export const akash = {
       kind: "ValidatorNode",
       url: "https://explorer.validatornode.com/akash-network",
       tx_page: "https://explorer.validatornode.com/akash-network/tx/${txHash}"
+    },
+    {
+      kind: "Decloud Nodes Lab",
+      url: "https://explorer.declab.pro/Akash",
+      tx_page: "https://explorer.declab.pro/Akash/tx/${txHash}"
+    },
+    {
+      kind: "WhisperNode 🤐",
+      url: "https://mainnet.whispernode.com/akash",
+      tx_page: "https://mainnet.whispernode.com/akash/tx/${txHash}",
+      account_page: "https://mainnet.whispernode.com/akash/account/${accountAddress}"
     }
   ],
   images: [
     {
       png: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.png",
-      svg: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg"
+      svg: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
+      theme: {
+        primary_color_hex: "#bc342c"
+      }
     }
   ]
 };

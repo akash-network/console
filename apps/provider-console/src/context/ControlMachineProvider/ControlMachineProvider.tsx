@@ -6,6 +6,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { useAtom } from "jotai";
 
 import { ServerForm } from "@src/components/become-provider/ServerForm";
+import { useLogger } from "@src/hooks/useLogger";
 import controlMachineStore from "@src/store/controlMachineStore";
 import { ControlMachineWithAddress } from "@src/types/controlMachine";
 import restClient from "@src/utils/restClient";
@@ -25,11 +26,13 @@ type ContextType = {
 const ControlMachineContext = React.createContext<ContextType>({} as ContextType);
 
 export function ControlMachineProvider({ children }: Props) {
+  
   const [controlMachineLoading, setControlMachineLoading] = useState(false);
   const [controlMachines, setControlMachines] = useAtom(controlMachineStore.controlMachineAtom);
   const [activeControlMachine, setActiveControlMachine] = useState<ControlMachineWithAddress | null>(null);
   const { address, isWalletArbitrarySigned, isProvider } = useWallet();
   const [controlMachineDrawerOpen, setControlMachineDrawerOpen] = useState(false);
+  const logger = useLogger("apps/provider-console/src/context/ControlMachineProvider/ControlMachineProvider.tsx");
 
   useEffect(() => {
     if (isWalletArbitrarySigned || isProvider) {
@@ -54,7 +57,7 @@ export function ControlMachineProvider({ children }: Props) {
             setActiveControlMachine(controlMachine);
           }
         } catch (error) {
-          console.error(error);
+          logger.debug(error);
         } finally {
           setControlMachineLoading(false);
         }

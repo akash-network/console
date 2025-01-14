@@ -1,9 +1,12 @@
+import { LoggerService } from "@akashnetwork/logging";
 import axios from "axios";
 import { atom } from "jotai";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { Network } from "@src/types/network";
 import { mainnetId, } from "@src/utils/constants";
+
+const logger = LoggerService.forContext("apps/provider-console/src/store/networkStore.ts");
 
 export let networks: Network[] = [
   {
@@ -31,7 +34,7 @@ export const initiateNetworkData = async () => {
         const response = await axios.get(network.versionUrl, { timeout: 10000 });
         version = response.data;
       } catch (error) {
-        console.log(error);
+        logger.debug(error);
       }
 
       return {

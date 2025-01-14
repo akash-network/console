@@ -12,6 +12,7 @@ import { SnackbarKey, useSnackbar } from "notistack";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
+import { useLogger } from "@src/hooks/useLogger";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import authClient from "@src/utils/authClient";
@@ -66,6 +67,7 @@ export const WalletProvider = ({ children }) => {
   const sigingClient = useRef<SigningStargateClient | null>(null);
   const router = useRouter();
   const usdcIbcDenom = useUsdcDenom();
+  const logger = useLogger("apps/provider-console/src/context/WalletProvider/WalletProvider.tsx");
   const {
     disconnect,
     getOfflineSigner,
@@ -131,7 +133,7 @@ export const WalletProvider = ({ children }) => {
           setIsWalletProviderOnline(isOnlineResponse.online);
         }
       } catch (error) {
-        console.error("Error fetching provider status:", error);
+        logger.debug(`Error fetching provider status: ${error}`);
       }
     }
 
@@ -265,7 +267,7 @@ export const WalletProvider = ({ children }) => {
 
       return true;
     } catch (err) {
-      console.error(err);
+      logger.debug(err);
 
       const transactionHash = err.txHash;
       let errorMsg = "An error has occured";
@@ -303,7 +305,7 @@ export const WalletProvider = ({ children }) => {
             errorMsg += `. ${log}`;
           }
         } catch (err) {
-          console.error(err);
+          logger.debug(err);
         }
       }
 

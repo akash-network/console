@@ -1,8 +1,8 @@
-import { AssetList } from "@chain-registry/types";
+import { AssetList, Chain } from "@chain-registry/types";
 
 import { akash, akashAssetList } from "./akash";
 
-export const akashTestnet = {
+export const akashTestnet: Chain = {
   ...akash,
   chain_id: "testnet-02",
   network_type: "testnet",

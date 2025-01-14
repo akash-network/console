@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { useEventListener } from "usehooks-ts";
 
 import { useWallet } from "@src/context/WalletProvider";
+import { useLogger } from "@src/hooks/useLogger";
 
 export const useLocalStorage = () => {
   const { address } = useWallet();
-
+  
   const getLocalStorageItem = (key: string) => {
     const selectedNetworkId = localStorage.getItem("selectedNetworkId");
 
@@ -31,6 +32,7 @@ export const useLocalStorage = () => {
 };
 
 export function useCustomLocalStorage<T>(key: string, initialValue: T) {
+  const logger = useLogger("apps/provider-console/src/hooks/useLocalStorage.ts");
   const readValue = () => {
     if (typeof window === "undefined") {
       return initialValue;
@@ -40,7 +42,7 @@ export function useCustomLocalStorage<T>(key: string, initialValue: T) {
       const item = window.localStorage.getItem(key);
       return item ? (parseJSON(item) as T) : initialValue;
     } catch (error) {
-      console.warn(`Error reading localStorage key “${key}”:`, error);
+      logger.debug(`Error reading localStorage key “${key}”: ${error}`);
       return initialValue;
     }
   };
@@ -49,7 +51,7 @@ export function useCustomLocalStorage<T>(key: string, initialValue: T) {
 
   const setValue = (value: T | ((newValue: T) => T)) => {
     if (typeof window == "undefined") {
-      console.warn(`Tried setting localStorage key “${key}” even though environment is not a client`);
+      logger.debug(`Tried setting localStorage key “${key}” even though environment is not a client`);
     }
 
     try {
@@ -58,7 +60,7 @@ export function useCustomLocalStorage<T>(key: string, initialValue: T) {
       setStoredValue(newValue);
       window.dispatchEvent(new Event("local-storage"));
     } catch (error) {
-      console.warn(`Error setting localStorage key “${key}”:`, error);
+      logger.debug(`Error setting localStorage key “${key}”: ${error}`);
     }
   };
 
