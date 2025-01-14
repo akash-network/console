@@ -4,6 +4,7 @@ import { container } from "tsyringe";
 import * as uuid from "uuid";
 
 import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
+import { ClientInfoContextVariables } from "@src/middlewares/clientInfoMiddleware";
 import { getCurrentUserId, optionalUserMiddleware, requiredUserMiddleware } from "@src/middlewares/userMiddleware";
 import {
   addTemplateFavorite,
@@ -19,7 +20,7 @@ import { checkUsernameAvailable, getSettingsOrInit, getUserByUsername, subscribe
 
 export const userRouter = new Hono();
 
-const userRequiredRouter = new Hono();
+const userRequiredRouter = new Hono<{ Variables: ClientInfoContextVariables }>();
 userRequiredRouter.use("*", requiredUserMiddleware);
 
 const userOptionalRouter = new Hono();
@@ -47,7 +48,10 @@ userRequiredRouter.post("/tokenInfo", async c => {
     wantedUsername,
     email: email,
     emailVerified: !!emailVerified,
-    subscribedToNewsletter: subscribedToNewsletter
+    subscribedToNewsletter: subscribedToNewsletter,
+    ip: c.var.clientInfo?.ip,
+    userAgent: c.var.clientInfo?.userAgent,
+    fingerprint: c.var.clientInfo?.fingerprint
   });
 
   return c.json(settings);

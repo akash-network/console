@@ -16,7 +16,7 @@ const PAYLOAD_KEY = "verifyRsaJwtPayload";
 export function verifyRsaJwt(config?: VerifyRsaJwtConfig): MiddlewareHandler {
   return async (ctx: Context, next) => {
     try {
-      const jwtToken = ctx.req.headers.get("Authorization")?.replace(/Bearer\s+/i, "");
+      const jwtToken = ctx.req.header("Authorization")?.replace(/Bearer\s+/i, "");
       if (!jwtToken || jwtToken.length === 0) {
         throw new Error("JWT token not found in Authorization header");
       }

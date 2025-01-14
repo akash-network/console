@@ -1,5 +1,4 @@
-import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
-import { z } from "zod";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 
 import { getPredictedBlockDate } from "@src/services/db/blocksService";
 
@@ -67,9 +66,12 @@ export default new OpenAPIHono().openapi(route, async c => {
 
   const date = await getPredictedBlockDate(height, blockWindow);
 
-  return c.json({
-    predictedDate: date,
-    height: height,
-    blockWindow: blockWindow
-  });
+  return c.json(
+    {
+      predictedDate: date,
+      height: height,
+      blockWindow: blockWindow
+    },
+    200
+  );
 });

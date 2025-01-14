@@ -17,5 +17,8 @@ export const Users = pgTable("userSetting", {
   twitterUsername: varchar("twitterUsername", { length: 255 }),
   githubUsername: varchar("githubUsername", { length: 255 }),
   lastActiveAt: timestamp("last_active_at").defaultNow(),
+  lastIp: varchar("last_ip", { length: 255 }),
+  lastUserAgent: varchar("last_user_agent", { length: 255 }),
+  lastFingerprint: varchar("last_fingerprint", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow()
 });
