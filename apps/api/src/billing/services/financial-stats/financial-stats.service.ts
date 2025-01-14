@@ -8,7 +8,7 @@ import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { chainDb } from "@src/db/dbConnection";
-import { RestCosmosBankBalancesResponse, CosmosDistributionCommunityPoolResponse } from "@src/types/rest";
+import { CosmosDistributionCommunityPoolResponse, RestCosmosBankBalancesResponse } from "@src/types/rest";
 import { apiNodeUrl } from "@src/utils/constants";
 
 @singleton()
