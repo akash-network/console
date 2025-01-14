@@ -94,14 +94,14 @@ const route = createRoute({
 export default new OpenAPIHono().openapi(route, async c => {
   const skip = parseInt(c.req.valid("param").skip);
   const limit = Math.min(maxLimit, parseInt(c.req.valid("param").limit));
-  const statusParam = c.req.query("status") as "active" | "closed" | undefined;
+  const statusParam = c.req.query("status");
   // TODO: Validate skip/limit
   if (statusParam && statusParam !== "active" && statusParam !== "closed") {
     return c.text(`Invalid status filter: "${statusParam}". Valid values are "active" and "closed".`, 400);
   }
 
-  const deploymentCountQuery = getProviderDeploymentsCount(c.req.valid("param").provider, statusParam);
-  const deploymentsQuery = getProviderDeployments(c.req.valid("param").provider, skip, limit, statusParam);
+  const deploymentCountQuery = getProviderDeploymentsCount(c.req.valid("param").provider, statusParam as "active" | "closed");
+  const deploymentsQuery = getProviderDeployments(c.req.valid("param").provider, skip, limit, statusParam as "active" | "closed");
 
   const [deploymentCount, deployments] = await Promise.all([deploymentCountQuery, deploymentsQuery]);
 
