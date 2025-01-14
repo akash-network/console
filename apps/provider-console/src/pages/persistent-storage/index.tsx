@@ -11,6 +11,7 @@ import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { usePersistentStorage, useProviderDetails } from "@src/queries/useProviderQuery";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
+import { formatBytes } from "@src/utils/formatBytes";
 
 const PersistentStoragePage: React.FC = () => {
   const router = useRouter();
@@ -23,13 +24,6 @@ const PersistentStoragePage: React.FC = () => {
   const [selectedType, setSelectedType] = useState<string | null>(null);
 
   const [loading, setLoading] = useState<boolean>(false);
-
-  const formatBytes = (bytes: number) => {
-    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-    if (bytes === 0) return "0 Byte";
-    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)).toString());
-    return Math.round(bytes / Math.pow(1024, i)) + " " + sizes[i];
-  };
 
   const handleDriveSelection = (nodeName: string, driveName: string, driveType: string) => {
     setSelectedDrives(prev => {
