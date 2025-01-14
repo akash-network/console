@@ -12,11 +12,11 @@ import { Layout } from "@src/components/layout/Layout";
 import { ProviderActionList } from "@src/components/shared/ProviderActionList";
 import { Title } from "@src/components/shared/Title";
 import { withAuth } from "@src/components/shared/withAuth";
+import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAKTData } from "@src/queries";
 import { useProviderActions, useProviderDashboard, useProviderDetails } from "@src/queries/useProviderQuery";
 import { formatUUsd } from "@src/utils/formatUsd";
-import { useSelectedChain } from "@src/context/CustomChainProvider";
 
 const OfflineWarningBanner: React.FC = () => (
   <div className="mb-4 rounded-md bg-yellow-100 p-4 text-yellow-700">
