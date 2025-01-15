@@ -28,7 +28,6 @@ const PercentChange: React.FC<PercentChangeProps> = ({ currentPrice, previousPri
   }, [currentPrice, previousPrice]);
 
   const isZero = currentPrice === null || previousPrice === null || previousPrice === 0 || percentageChange === 0;
-  console.log(isZero);
   const value = percentageChange !== 0 ? `${formattedChange}%` : "";
   const prefix = !isZero && percentageChange > 0 ? "+" : "-";
 

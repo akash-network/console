@@ -158,8 +158,6 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
     }
   };
 
-  console.log(isProviderStatusFetched, isProviderOnlineStatusFetched);
-
   const drawer = (
     <div
       style={{ width: _isNavOpen ? drawerWidth : closedDrawerWidth }}
