@@ -109,3 +109,23 @@ export interface ProviderPricingType {
     ipScalePrice: number;
     endpointBidPrice: number;
 }
+
+interface BlockDevice {
+    name: string;
+    size: number;
+    type: string;
+    fstype: string | null;
+    mountpoint: string | null;
+    rota: boolean;
+    storage_type: 'hdd' | 'ssd';
+}
+
+interface NodeDrives {
+    blockdevices: BlockDevice[];
+}
+
+export interface PersistentStorageResponse {
+    unformatted_drives: {
+        [nodeName: string]: NodeDrives;
+    };
+}

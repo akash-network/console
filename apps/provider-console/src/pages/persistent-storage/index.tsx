@@ -9,16 +9,16 @@ import { withAuth } from "@src/components/shared/withAuth";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { usePersistentStorage, useProviderDetails } from "@src/queries/useProviderQuery";
+import { formatBytes } from "@src/utils/formatBytes";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
-import { formatBytes } from "@src/utils/formatBytes";
 
 const PersistentStoragePage: React.FC = () => {
   const router = useRouter();
   const { activeControlMachine } = useControlMachine();
-  const { data: persistentDrives }: any = usePersistentStorage(activeControlMachine);
+  const { data: persistentDrives } = usePersistentStorage(activeControlMachine);
   const { address } = useSelectedChain();
-  const { data: providerDetails }: any = useProviderDetails(address);
+  const { data: providerDetails } = useProviderDetails(address);
 
   const [selectedDrives, setSelectedDrives] = useState<{ [key: string]: string[] }>({});
   const [selectedType, setSelectedType] = useState<string | null>(null);

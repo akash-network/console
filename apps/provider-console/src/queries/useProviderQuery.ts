@@ -1,6 +1,7 @@
 import { useQuery } from "react-query";
 
 import { ControlMachineWithAddress } from "@src/types/controlMachine";
+import { PersistentStorageResponse, ProviderDetails } from "@src/types/provider";
 import consoleClient from "@src/utils/consoleClient";
 import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
 import restClient from "@src/utils/restClient";
@@ -60,7 +61,7 @@ export const useDeploymentDetails = (owner: string, dseq: string) => {
 };
 
 export const useProviderDetails = (address: string | undefined) => {
-  return useQuery({
+  return useQuery<ProviderDetails>({
     queryKey: ["providerDetails", address],
     queryFn: () => consoleClient.get(`/v1/providers/${address}`),
     refetchOnWindowFocus: false,
@@ -130,7 +131,7 @@ export const useProviderOnlineStatus = (chainId: string, isProvider: boolean) =>
 };
 
 export const usePersistentStorage = (activeControlMachine: ControlMachineWithAddress | null) => {
-  return useQuery({
+  return useQuery<PersistentStorageResponse>({
     queryKey: ["persistentStorage"],
     queryFn: () => restClient.post(`/get-unformatted-drives`, { control_machine: sanitizeMachineAccess(activeControlMachine) }),
     enabled: !!activeControlMachine,
