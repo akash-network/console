@@ -8,8 +8,8 @@ import { useProviderDetails } from "@src/queries/useProviderQuery";
 export const ProviderStatus: React.FC = () => {
   const router = useRouter();
   const { isOnline } = useWallet();
-  const { address }: any = useSelectedChain();
-  const { data: providerDetails }: any = useProviderDetails(address);
+  const { address } = useSelectedChain();
+  const { data: providerDetails } = useProviderDetails(address);
 
   const routeToRemedies = () => {
     if (!isOnline) {

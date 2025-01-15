@@ -32,11 +32,11 @@ const OfflineWarningBanner: React.FC = () => (
 );
 
 const Dashboard: React.FC = () => {
-  const { address }: any = useSelectedChain();
+  const { address } = useSelectedChain();
   const { isOnline, isProviderOnlineStatusFetched } = useWallet();
 
-  const { data: providerDetails, isLoading: isLoadingProviderDetails }: any = useProviderDetails(address);
-  const { data: providerDashboard, isLoading: isLoadingProviderDashboard }: any = useProviderDashboard(address);
+  const { data: providerDetails, isLoading: isLoadingProviderDetails } = useProviderDetails(address);
+  const { data: providerDashboard, isLoading: isLoadingProviderDashboard } = useProviderDashboard(address);
   const { data: providerActions, isLoading: isLoadingProviderActions } = useProviderActions();
 
   const summaryCards = useMemo(
@@ -45,29 +45,29 @@ const Dashboard: React.FC = () => {
         <FinanceCard
           title={formatUUsd(providerDashboard?.current.dailyUUsdEarned)}
           subtitle="Earned (last 24H)"
-          currentPrice={providerDashboard?.current.dailyUUsdEarned}
-          previousPrice={providerDashboard?.previous.dailyUUsdEarned}
+          currentPrice={providerDashboard?.current.dailyUUsdEarned ?? null}
+          previousPrice={providerDashboard?.previous.dailyUUsdEarned ?? null}
           message="Change in earned paid compared to 24 hours ago"
         />
         <FinanceCard
           title={formatUUsd(providerDashboard?.current.totalUUsdEarned)}
           subtitle="Earned (Total)"
-          currentPrice={providerDashboard?.current.totalUUsdEarned}
-          previousPrice={providerDashboard?.previous.totalUUsdEarned}
+          currentPrice={providerDashboard?.current.totalUUsdEarned ?? null}
+          previousPrice={providerDashboard?.previous.totalUUsdEarned ?? null}
           message="Change in total earned compared to 24 hours ago"
         />
         <FinanceCard
           title={providerDashboard?.current.activeLeaseCount ? `${providerDashboard?.current.activeLeaseCount}` : "0"}
           subtitle="Active Leases"
-          currentPrice={providerDashboard?.current.activeLeaseCount}
-          previousPrice={providerDashboard?.previous.activeLeaseCount}
+          currentPrice={providerDashboard?.current.activeLeaseCount ?? null}
+          previousPrice={providerDashboard?.previous.activeLeaseCount ?? null }
           message="Change in active leases compared to 24 hours ago"
         />
         <FinanceCard
           title={providerDashboard?.current.totalLeaseCount ? `${providerDashboard?.current.totalLeaseCount}` : "0"}
           subtitle="Total Leases"
-          currentPrice={providerDashboard?.current.totalLeaseCount}
-          previousPrice={providerDashboard?.previous.totalLeaseCount}
+          currentPrice={providerDashboard?.current.totalLeaseCount ?? null}
+          previousPrice={providerDashboard?.previous.totalLeaseCount ?? null}
           message="Change in total leases compared to 24 hours ago"
         />
       </>
