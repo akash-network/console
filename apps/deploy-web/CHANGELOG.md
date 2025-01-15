@@ -1,5 +1,12 @@
 
 
+## [2.29.0](https://github.com/akash-network/console/compare/console-web/v2.28.3...console-web/v2.29.0) (2025-01-15)
+
+
+### Features
+
+* **auth:** add a turnstile widget ([d485fbb](https://github.com/akash-network/console/commit/d485fbbf292a8a671d478eb1f03cfc208cda5e6f)), closes [#627](https://github.com/akash-network/console/issues/627)
+
 ## [2.28.3](https://github.com/akash-network/console/compare/console-web/v2.28.2...console-web/v2.28.3) (2025-01-14)
 
 
