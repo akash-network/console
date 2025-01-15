@@ -5,14 +5,14 @@ import { cn } from "@akashnetwork/ui/utils";
 import Drawer from "@mui/material/Drawer";
 import { Xmark } from "iconoir-react";
 
-import { ApiTemplate } from "@src/types";
+import { EnhancedTemplateCategory, TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 
 type Props = {
   children?: ReactNode;
   isOpen: boolean;
   handleDrawerToggle: () => void;
-  categories: Array<{ title: string; templates: Array<ApiTemplate> }>;
-  templates: Array<ApiTemplate>;
+  categories: EnhancedTemplateCategory[];
+  templates: TemplateOutputSummaryWithCategory[];
   selectedCategoryTitle: string | null;
   onCategoryClick: (categoryTitle: string | null) => void;
 };

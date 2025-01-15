@@ -1,15 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
-import { MdSearchOff } from "react-icons/md";
 import { Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import { FilterList, Xmark } from "iconoir-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { MdSearchOff } from "react-icons/md";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
-import { ApiTemplate } from "@src/types";
+import { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { useTemplates } from "../../context/TemplatesProvider";
 import Layout from "../layout/Layout";
@@ -23,7 +23,7 @@ let timeoutId: NodeJS.Timeout | null = null;
 export const TemplateGallery: React.FunctionComponent = () => {
   const [selectedCategoryTitle, setSelectedCategoryTitle] = useState<string | null>(null);
   const [searchTerms, setSearchTerms] = useState("");
-  const [shownTemplates, setShownTemplates] = useState<ApiTemplate[]>([]);
+  const [shownTemplates, setShownTemplates] = useState<TemplateOutputSummaryWithCategory[]>([]);
   const { isLoading: isLoadingTemplates, categories, templates } = useTemplates();
   const router = useRouter();
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -43,9 +43,9 @@ export const TemplateGallery: React.FunctionComponent = () => {
   }, []);
 
   useEffect(() => {
-    const queryCategory = searchParams?.get("category") as string;
-    const querySearch = searchParams?.get("search") as string;
-    let _templates: ApiTemplate[] = [];
+    const queryCategory = searchParams?.get("category");
+    const querySearch = searchParams?.get("search");
+    let _templates: TemplateOutputSummaryWithCategory[] = [];
 
     if (queryCategory) {
       const selectedCategory = categories.find(x => x.title === queryCategory);
@@ -55,8 +55,9 @@ export const TemplateGallery: React.FunctionComponent = () => {
     }
 
     if (querySearch) {
+      // TODO: use minisearch instead https://lucaong.github.io/minisearch/
       const searchTermsSplit = querySearch?.split(" ").map(x => x.toLowerCase());
-      _templates = templates.filter(x => searchTermsSplit.some(s => x.name?.toLowerCase().includes(s) || x.readme?.toLowerCase().includes(s)));
+      _templates = templates.filter(x => searchTermsSplit.some(s => x.name?.toLowerCase().includes(s) || x.summary?.toLowerCase().includes(s)));
     }
 
     setShownTemplates(_templates);
