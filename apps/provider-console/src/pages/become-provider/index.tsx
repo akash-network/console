@@ -9,7 +9,6 @@ import { ServerAccess } from "@src/components/become-provider/ServerAccess";
 import { CustomizedSteppers } from "@src/components/become-provider/Stepper";
 import { WalletImport } from "@src/components/become-provider/WalletImport";
 import { Layout } from "@src/components/layout/Layout";
-import { ProviderActionDetails } from "@src/components/shared/ProviderActionDetails";
 import { withAuth } from "@src/components/shared/withAuth";
 import providerProcessStore from "@src/store/providerProcessStore";
 
@@ -44,15 +43,8 @@ const BecomeProvider: React.FC = () => {
   }, [activeStep, providerSteps, setProviderProcess]);
 
   const CurrentStepComponent = useMemo(() => {
-    if (activeStep >= providerSteps.length) {
-      return () => (
-        <div className="mt-4">
-          <ProviderActionDetails actionId={providerProcess.actionId} />
-        </div>
-      );
-    }
     return providerSteps[activeStep].component;
-  }, [activeStep, providerSteps, providerProcess.actionId]);
+  }, [activeStep, providerSteps]);
 
   return (
     <Layout>
