@@ -40,6 +40,7 @@
     "@emotion/server": "^11.4.0",
     "@emotion/styled": "^11.8.1",
     "@hookform/resolvers": "^3.9.0",
+    "@marsidev/react-turnstile": "^1.1.0",
     "@monaco-editor/react": "^4.6.0",
     "@mui/icons-material": "^5.11.11",
     "@mui/material": "^5.4.4",
