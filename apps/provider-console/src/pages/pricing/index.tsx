@@ -82,7 +82,6 @@ const Pricing: React.FunctionComponent = () => {
           <ProviderPricing
             existingPricing={existingPricing}
             editMode={true}
-            stepChange={() => {}}
             disabled={activeControlMachine && existingPricing ? false : true}
             providerDetails={providerDetails}
           />

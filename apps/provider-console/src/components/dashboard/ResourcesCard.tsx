@@ -20,18 +20,23 @@ const summarizeStatuses = ({
   const total = active + pending + available;
   if (total === 0) return null;
 
+  const formatValue = (value: number) => {
+    if (isBytes) return formatBytes(value);
+    return Number.isInteger(value) ? value : value.toFixed(2);
+  };
+
   const activePercentage = (active / total) * 100;
   const pendingPercentage = (pending / total) * 100;
   const availablePercentage = (available / total) * 100;
 
   return {
-    active: isBytes ? formatBytes(active) : active,
+    active: formatValue(active),
     activePercentage,
-    pending: isBytes ? formatBytes(pending) : pending,
+    pending: formatValue(pending),
     pendingPercentage,
-    available: isBytes ? formatBytes(available) : available,
+    available: formatValue(available),
     availablePercentage,
-    total: isBytes ? formatBytes(total) : total
+    total: formatValue(total)
   };
 };
 

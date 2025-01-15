@@ -24,6 +24,7 @@ export class UrlService {
   static termsOfService = () => "/terms-of-service";
   static actions = () => "/actions";
   static pricing = () => "/pricing";
+  static persistentStorage = () => "/persistent-storage";
 }
 
 export const stripProviderPrefixAndPort = (url: string) => {
