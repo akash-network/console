@@ -1,22 +1,37 @@
 "use client";
 import React, { ReactNode, useState } from "react";
-import { Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { Calculator, ClipboardCheck, Cloud, DatabaseCheck, Discord, Github, ListSelect, Menu, MenuScale, Rocket, Settings, X as TwitterX, Youtube } from "iconoir-react";
+import {
+  ClipboardCheck,
+  Cloud,
+  DatabaseCheck,
+  Discord,
+  Dollar,
+  Github,
+  ListSelect,
+  Menu,
+  MenuScale,
+  Rocket,
+  Settings,
+  X as TwitterX,
+  Youtube
+} from "iconoir-react";
 import { Home, OpenInWindow } from "iconoir-react";
 import getConfig from "next/config";
 import Image from "next/image";
 import Link from "next/link";
 
-import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { ISidebarGroupMenu } from "@src/types";
 import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
+import { ControlMachineStatus } from "./ControlMachineStatus";
 import { ModeToggle } from "./ModeToggle";
+import { ProviderStatus } from "./ProviderStatus";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
 
 const { publicRuntimeConfig } = getConfig();
@@ -31,12 +46,10 @@ type Props = {
 
 export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
   const [isHovering, setIsHovering] = useState(false);
-  const { isProvider, isOnline } = useWallet();
+  const { isProvider, isOnline, isProviderStatusFetched, isProviderOnlineStatusFetched } = useWallet();
   const _isNavOpen = isNavOpen || isHovering;
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
-
-  const { activeControlMachine, openControlMachineDrawer, controlMachineLoading } = useControlMachine();
 
   const routeGroups: ISidebarGroupMenu[] = [
     {
@@ -55,15 +68,15 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
           activeRoutes: [UrlService.deployments()]
         },
         {
-          title: "Actions",
+          title: "Activity Logs",
           icon: props => <ClipboardCheck {...props} />,
-          url: UrlService.actions(),
-          activeRoutes: [UrlService.actions()],
+          url: UrlService.activityLogs(),
+          activeRoutes: [UrlService.activityLogs()],
           disabled: false
         },
         {
           title: "Pricing",
-          icon: props => <Calculator {...props} />,
+          icon: props => <Dollar {...props} />,
           url: UrlService.pricing(),
           activeRoutes: [UrlService.pricing()],
           disabled: false
@@ -151,7 +164,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
       className="border-muted-foreground/20 bg-popover dark:bg-background box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] transition-[width] duration-300 ease-in-out md:h-[calc(100%-57px)]"
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: _isNavOpen, ["pb-2 pt-2"]: !_isNavOpen })}>
-        {(!isProvider || !isOnline) && (
+        {(isProviderStatusFetched || isProviderOnlineStatusFetched) && (!isProvider || !isOnline) && (
           <Link
             className={cn(buttonVariants({ variant: "default", size: _isNavOpen ? "lg" : "icon" }), "h-[45px] w-full leading-4", {
               ["h-[45px] w-[45px] min-w-0 pb-2 pt-2"]: !_isNavOpen
@@ -172,38 +185,11 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         {_isNavOpen && (
           <div className="space-y-2 pb-4 pl-4 pr-4">
             {/* <NodeStatusBar /> */}
-            {controlMachineLoading ? (
-              <div className="flex flex-col space-y-2">
-                <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                  Machine:
-                  <div className="relative flex items-center gap-2">
-                    <Spinner size="small" />
-                    <div className="text-xs">Connecting...</div>
-                  </div>
-                </div>
-              </div>
-            ) : activeControlMachine ? (
-              <div className="flex flex-col space-y-2">
-                <div className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-2 text-sm" onClick={openControlMachineDrawer}>
-                  Machine:
-                  <div className="relative flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-green-500" />
-                    {activeControlMachine.access.hostname}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col space-y-2">
-                <div className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-2 text-sm" onClick={openControlMachineDrawer}>
-                  Machine:
-                  <div className="relative flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-red-500" />
-                    <div className="roundedpx-2 py-1 text-xs">Not Connected</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
+            <div className="px-2">
+              <ProviderStatus />
+              <ControlMachineStatus />
+            </div>
+            <Separator />
             <div className="flex items-center justify-center space-x-1 pt-4">
               <Link
                 target="_blank"

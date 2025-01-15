@@ -5,7 +5,6 @@ import {
   Button,
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -16,7 +15,7 @@ import {
   Textarea
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Home } from "iconoir-react";
+import { Check, Copy, QuestionMark, RefreshDouble } from "iconoir-react";
 import { useAtom } from "jotai";
 import { useRouter } from "next/router";
 import { z } from "zod";
@@ -95,39 +94,62 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
     resolver: zodResolver(seedFormSchema)
   });
 
+  const [copiedCommand, setCopiedCommand] = useState(false);
+  const [copiedPassphrase, setCopiedPassphrase] = useState(false);
+
+  const handleCopy = (text: string, setCopied: React.Dispatch<React.SetStateAction<boolean>>) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 5000);
+  };
+
   const submitData = async (data: AppearanceFormValues) => {
     setMode(data.walletMode);
   };
 
-  const submitForm = async (data: SeedFormValues) => {
+  const createFinalRequest = (wallet: any) => ({
+    wallet,
+    nodes: providerProcess.machines.map(machine => ({
+      hostname: machine.access.hostname,
+      port: machine.access.port,
+      username: machine.access.username,
+      keyfile: machine.access.file,
+      password: machine.access.password,
+      install_gpu_drivers: machine.systemInfo.gpu.count > 0
+    })),
+    provider: {
+      attributes: providerProcess.attributes,
+      pricing: providerProcess.pricing,
+      config: providerProcess.config
+    }
+  });
+
+  const submitForm = async (data: SeedFormValues | null = null) => {
     setIsLoading(true);
     setError(null);
     try {
       if (providerProcess.machines && providerProcess.machines.length > 0) {
-        const publicKey = providerProcess.machines[0].systemInfo.public_key;
         const keyId = providerProcess.machines[0].systemInfo.key_id;
-        const encryptedSeedPhrase = await encrypt(data.seedPhrase, publicKey);
+        let finalRequest: any;
+        if (mode === "seed") {
+          const publicKey = providerProcess.machines[0].systemInfo.public_key;
+          const encryptedSeedPhrase = await encrypt(data?.seedPhrase || "", publicKey);
 
-        const finalRequest = {
-          wallet: {
+          const wallet = {
             key_id: keyId,
-            wallet_phrase: encryptedSeedPhrase
-          },
-          nodes: providerProcess.machines.map(machine => ({
-            hostname: machine.access.hostname,
-            port: machine.access.port,
-            username: machine.access.username,
-            keyfile: machine.access.file,
-            password: machine.access.password,
-            install_gpu_drivers: machine.systemInfo.gpu.count > 0 ? true : false
-          })),
-          provider: {
-            attributes: providerProcess.attributes,
-            pricing: providerProcess.pricing,
-            config: providerProcess.config
-          }
-        };
+            wallet_phrase: encryptedSeedPhrase,
+            import_mode: "auto"
+          };
 
+          finalRequest = createFinalRequest(wallet);
+        } else {
+          const wallet = {
+            key_id: keyId,
+            import_mode: "manual"
+          };
+
+          finalRequest = createFinalRequest(wallet);
+        }
         const response: any = await restClient.post("/build-provider", finalRequest, {
           headers: { "Content-Type": "application/json" }
         });
@@ -172,7 +194,9 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
               <div className="space-y-8">
                 <div>
                   <h3 className="text-xl font-bold">Import Wallet</h3>
-                  <p className="text-muted-foreground text-sm">Provider needs to import their wallet into their control machine in order to become provider.</p>
+                  <p className="text-muted-foreground text-sm">
+                    A wallet is necessary in order to bid on workloads and to receive funds from deployments (tenants/users).
+                  </p>
                 </div>
                 <div className="">
                   <Separator />
@@ -183,8 +207,6 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                     name="walletMode"
                     render={({ field }) => (
                       <FormItem className="space-y-1">
-                        <FormLabel>Wallet Mode</FormLabel>
-                        <FormDescription>Choose which mode do you want to use to import wallet</FormDescription>
                         <FormMessage />
                         <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid max-w-md grid-cols-2 gap-8 pt-2">
                           <FormItem>
@@ -194,10 +216,15 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                               </FormControl>
                               <div className="border-muted hover:border-accent items-center rounded-md border-2 p-1">
                                 <div className="space-y-2 rounded-sm p-2">
-                                  <div className="space-y-2 rounded-md p-4 shadow-sm">
-                                    <Home />
-                                    <h4 className="text-md">Seed Phrase Mode</h4>
-                                    <p>Provider Console will auto import using secure end-to-end encryption. Seed Phrase is Required.</p>
+                                  <div
+                                    className={`space-y-2 rounded-sm p-4 ${field.value === "seed" ? "bg-slate-900 text-white" : "bg-slate-700 text-gray-300"}`}
+                                  >
+                                    <RefreshDouble />
+                                    <h4 className="text-md">Auto Import</h4>
+                                    <p>
+                                      Console will auto import your wallet into your control node of the provider. Please have wallet seed phrase handy to enter
+                                      in the next screen.
+                                    </p>
                                   </div>
                                 </div>
                               </div>
@@ -208,12 +235,19 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                               <FormControl>
                                 <RadioGroupItem value="manual" className="sr-only" />
                               </FormControl>
-                              <div className="border-muted bg-popover hover:bg-accent hover:text-accent-foreground items-center rounded-md border-2 p-1">
-                                <div className="space-y-2 rounded-sm bg-slate-950 p-2">
-                                  <div className="space-y-2 rounded-sm bg-slate-800 p-4 text-white">
-                                    <Home />
-                                    <h4 className="text-md">Manual Mode</h4>
-                                    <p>You need to login to control machine and follow the instruction to import wallet. Seed Phrase is not Required.</p>
+                              <div className="border-muted hover:border-accent items-center rounded-md border-2 p-1">
+                                <div className="space-y-2 rounded-sm p-2">
+                                  <div
+                                    className={`space-y-2 rounded-sm p-4 ${
+                                      field.value === "manual" ? "bg-slate-900 text-white" : "bg-slate-700 text-gray-300"
+                                    }`}
+                                  >
+                                    <QuestionMark />
+                                    <h4 className="text-md">Manual Import</h4>
+                                    <p>
+                                      You will need to manually import your wallet into your control node of the provider. Please follow the instruction in the
+                                      next screen.
+                                    </p>
                                   </div>
                                 </div>
                               </div>
@@ -231,6 +265,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                   <div className="flex justify-start">
                     <ResetProviderForm />
                   </div>
+
                   <div className="flex justify-end">
                     <Button type="button" onClick={form.handleSubmit(submitData)}>
                       Next
@@ -249,8 +284,8 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
             <form onSubmit={seedForm.handleSubmit(submitForm)} className="space-y-6">
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-xl font-bold">Seed Mode - Import Wallet</h3>
-                  <p className="text-muted-foreground text-sm">Seed Mode uses end-to-end encryption to ensure secure wallet import in your machine.</p>
+                  <h3 className="text-xl font-bold">Auto Import Wallet</h3>
+                  <p className="text-muted-foreground text-sm">Uses secure end-to-end encryption to import your wallet into control node of your provider.</p>
                 </div>
                 <div className="">
                   <Separator />
@@ -277,17 +312,16 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                   <div className="flex justify-start">
                     <ResetProviderForm />
                   </div>
-                  <div className="flex justify-end">
-                    <Button type="submit" disabled={isLoading}>
-                      {isLoading ? "Loading..." : "Next"}
-                    </Button>
-                  </div>
-                  {error && (
-                    <div className="mt-4 w-full">
-                      <p className="text-sm text-red-500">{error || "An error occurred during wallet import."}</p>
-                    </div>
-                  )}
+
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? "Loading..." : "Next"}
+                  </Button>
                 </div>
+                {error && (
+                  <div className="mt-4 w-full">
+                    <p className="text-sm text-red-500">{error || "An error occurred during wallet import."}</p>
+                  </div>
+                )}
               </div>
             </form>
           </Form>
@@ -297,8 +331,8 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
       {mode === "manual" && (
         <div className="space-y-6">
           <div>
-            <h3 className="text-xl font-bold">Manual Mode - Import Wallet</h3>
-            <p className="text-muted-foreground text-sm">Follow these instructions to manually import your wallet on your machine.</p>
+            <h3 className="text-xl font-bold">Manual Import</h3>
+            <p className="text-muted-foreground text-sm">Follow these instructions to manually import your wallet on the control node of your provider.</p>
           </div>
           <div>
             <Separator />
@@ -306,36 +340,68 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
           <div className="space-y-4">
             <h4 className="text-lg font-semibold">Instructions:</h4>
             <ol className="list-decimal space-y-2 pl-6">
-              <li>Open a terminal on your machine.</li>
-              <li>Navigate to your control machine's directory root.</li>
+              <li>Open a Terminal: On your computer, open the terminal app.</li>
               <li>
-                Run the following command to import your wallet:
-                <div className="bg-secondary mt-2 rounded-md p-4">
-                  <code className="text-sm">~/bin/provider-services --keyring-backend file keys add wallet_name --recover</code>
+                Go to your control node's root directory
+                <div className="bg-secondary relative mt-2 rounded-md p-4">
+                  <code className="text-sm">cd ~</code>
+                  <Button variant="ghost" size="sm" className="absolute right-2 top-2" onClick={() => handleCopy("cd ~", setCopiedCommand)}>
+                    {copiedCommand ? <Check className="text-green-500" /> : <Copy />}
+                  </Button>
                 </div>
               </li>
               <li>
-                Run the following command to import your wallet:
-                <div className="bg-secondary mt-2 rounded-md p-4">
-                  <code className="text-sm">echo passphrase &gt; ~/.praetor/wallet_phrase_password.txt</code>
+                Run This Command: Copy and paste the following command into the terminal, then press Enter:
+                <div className="bg-secondary relative mt-2 rounded-md p-4">
+                  <code className="text-sm">~/bin/provider-services keys add provider --recover --keyring-backend file</code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-2"
+                    onClick={() => handleCopy("~/bin/provider-services keys add provider --recover --keyring-backend file", setCopiedCommand)}
+                  >
+                    {copiedCommand ? <Check className="text-green-500" /> : <Copy />}
+                  </Button>
                 </div>
+              </li>
+              <li>
+                Enter Your Wallet Details:
+                <ol className="mt-2 list-decimal space-y-2 pl-6">
+                  <li>
+                    First, it will ask for your 12 or 24-word mnemonic phrase. <br />
+                    Type or paste the seed phrase for the wallet you want to import and press Enter. <br />
+                    Next, it will ask for your wallet passphrase.{" "}
+                  </li>
+                  <li>
+                    Copy and paste the passphrase below and press Enter:
+                    <div className="bg-secondary relative mt-2 rounded-md p-4">
+                      <code className="text-sm">{providerProcess?.machines[0]?.systemInfo?.key_id}</code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-2"
+                        onClick={() => handleCopy(providerProcess?.machines[0]?.systemInfo?.key_id || "", setCopiedPassphrase)}
+                      >
+                        {copiedPassphrase ? <Check className="text-green-500" /> : <Copy />}
+                      </Button>
+                    </div>
+                  </li>
+                </ol>
               </li>
             </ol>
-            <p className="text-muted-foreground text-sm">Replace "/path/to/your/keyfile" with the actual path to your keyfile.</p>
-            <p className="text-sm">You will be prompted to enter your keyfile password. Enter it carefully.</p>
           </div>
           <div>
             <Separator />
           </div>
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              onClick={() => {
-                // TODO: Verify Manual Wallet Import
-                console.log("Manual Wallet Import");
-              }}
-            >
-              Verify Wallet Import
+          <div className="flex w-full justify-between">
+            <div className="flex justify-start">
+              <ResetProviderForm />
+            </div>
+            <button type="button" onClick={() => setMode("seed")} className="hover:text-primary/80 text-sm">
+              Switch to auto import
+            </button>
+            <Button type="button" onClick={() => submitForm()} disabled={isLoading}>
+              {isLoading ? "Loading..." : "Verify Wallet Import"}
             </Button>
           </div>
         </div>

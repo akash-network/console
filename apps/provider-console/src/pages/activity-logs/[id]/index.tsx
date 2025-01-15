@@ -3,13 +3,13 @@
 import React from "react";
 
 import { Layout } from "@src/components/layout/Layout";
-import { ProviderActionDetails } from "@src/components/shared/ProviderActionDetails";
+import { ActivityLogDetails } from "@src/components/shared/ActivityLogDetails";
 
 type Props = {
   id: string | null;
 };
 
-const ActionDetailsPage: React.FC<Props> = ({ id }) => {
+const ActivityLogDetailsPage: React.FC<Props> = ({ id }) => {
   if (!id) {
     return (
       <Layout>
@@ -21,13 +21,13 @@ const ActionDetailsPage: React.FC<Props> = ({ id }) => {
   return (
     <Layout>
       <div className="container mx-auto">
-        <ProviderActionDetails actionId={id} />
+        <ActivityLogDetails actionId={id} />
       </div>
     </Layout>
   );
 };
 
-export default ActionDetailsPage;
+export default ActivityLogDetailsPage;
 
 export async function getServerSideProps({ params }) {
   return {
