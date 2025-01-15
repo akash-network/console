@@ -1,6 +1,4 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { Alert, Button, Form, Spinner } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
@@ -9,6 +7,8 @@ import { Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { event } from "nextjs-google-analytics";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
@@ -20,8 +20,9 @@ import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import { useDepositParams } from "@src/queries/useSettings";
+import { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
-import { ApiTemplate, ProfileGpuModelType, RentGpusFormValuesSchema, RentGpusFormValuesType, ServiceType } from "@src/types";
+import { ProfileGpuModelType, RentGpusFormValuesSchema, RentGpusFormValuesType, ServiceType } from "@src/types";
 import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { DepositParams } from "@src/types/deployment";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
@@ -170,7 +171,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
     }
   };
 
-  const onSelectTemplate = (template: ApiTemplate) => {
+  const onSelectTemplate = (template: TemplateOutputSummaryWithCategory) => {
     const result = createAndValidateSdl(template?.deploy);
 
     if (!result) return;

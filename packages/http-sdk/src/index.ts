@@ -7,3 +7,4 @@ export * from "./user-http/user-http.service";
 export * from "./balance/balance-http.service";
 export * from "./block/block-http.service";
 export * from "./types/denom.type";
+export * from './template/template-http.service';
