@@ -22,7 +22,7 @@ export class UrlService {
   static getStarted = () => "/get-started";
   static privacyPolicy = () => "/privacy-policy";
   static termsOfService = () => "/terms-of-service";
-  static actions = () => "/actions";
+  static activityLogs = () => "/activity-logs";
   static pricing = () => "/pricing";
   static persistentStorage = () => "/persistent-storage";
 }

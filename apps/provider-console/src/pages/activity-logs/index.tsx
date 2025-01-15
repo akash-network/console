@@ -1,23 +1,23 @@
 "use client";
 
 import { Layout } from "@src/components/layout/Layout";
-import { ProviderActionList } from "@src/components/shared/ProviderActionList";
+import { ActivityLogList } from "@src/components/shared/ActivityLogList";
 import { Title } from "@src/components/shared/Title";
 import { useProviderActions } from "@src/queries/useProviderQuery";
 
-const ActionsList: React.FC = () => {
+const ActivityLogs: React.FC = () => {
   const { data: actions } = useProviderActions();
   return (
     <Layout>
       <div className="flex items-center">
         <div className="w-10 flex-1">
-          <Title>User Actions</Title>
+          <Title>Activity Logs</Title>
         </div>
       </div>
       <div className="mt-10">
         <div className="text-sm font-semibold">
           <div className="items-center space-x-2">
-            <ProviderActionList actions={actions} />
+            <ActivityLogList actions={actions} />
           </div>
         </div>
       </div>
@@ -25,4 +25,4 @@ const ActionsList: React.FC = () => {
   );
 };
 
-export default ActionsList;
+export default ActivityLogs;

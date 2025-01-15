@@ -1,7 +1,7 @@
 import { useQuery } from "react-query";
 
 import { ControlMachineWithAddress } from "@src/types/controlMachine";
-import { PersistentStorageResponse, ProviderDetails } from "@src/types/provider";
+import { PersistentStorageResponse, ProviderDashoard, ProviderDetails } from "@src/types/provider";
 import consoleClient from "@src/utils/consoleClient";
 import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
 import restClient from "@src/utils/restClient";
@@ -70,8 +70,8 @@ export const useProviderDetails = (address: string | undefined) => {
   });
 };
 
-export const useProviderDashboard = (address: string) => {
-  return useQuery({
+export const useProviderDashboard = (address: string | undefined) => {
+  return useQuery<ProviderDashoard>({
     queryKey: ["providerDashboard", address],
     queryFn: () => consoleClient.get(`/internal/provider-dashboard/${address}`),
     refetchOnWindowFocus: false,

@@ -4,7 +4,9 @@
  * @param decimals The number of decimal places to show (default: 2)
  * @returns Formatted USD string
  */
-export function formatUUsd(amount: number, decimals: number = 2): string {
+export function formatUUsd(amount: number | undefined, decimals: number = 2): string {
+  if (!amount) return "$0";
+
   const dollars = amount / 1000000; 
 
   if (dollars >= 1000000) {

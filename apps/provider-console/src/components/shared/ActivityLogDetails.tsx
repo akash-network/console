@@ -6,7 +6,7 @@ import { ArrowDown, ArrowRight, Check, Xmark } from "iconoir-react";
 import { useProviderActionStatus } from "@src/queries/useProviderQuery";
 import { formatLocalTime, formatTimeLapse } from "@src/utils/dateUtils";
 
-export const ProviderActionDetails: React.FC<{ actionId: string | null }> = ({ actionId }) => {
+export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ actionId }) => {
   const [openAccordions, setOpenAccordions] = useState<boolean[]>([]);
   const { data: actionDetails, isLoading } = useProviderActionStatus(actionId);
 
