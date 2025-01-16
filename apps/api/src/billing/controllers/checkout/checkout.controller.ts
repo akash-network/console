@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import type { Context } from "hono";
 import { singleton } from "tsyringe";
 
@@ -8,6 +9,8 @@ import { StripeWebhookService } from "@src/billing/services/stripe-webhook/strip
 
 @singleton()
 export class CheckoutController {
+  private readonly logger = LoggerService.forContext(CheckoutController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly checkoutService: CheckoutService,
@@ -35,6 +38,9 @@ export class CheckoutController {
       if (error.message === "Price invalid") {
         return c.redirect(`${redirectUrl}?invalid-price=true`);
       }
+
+      this.logger.error(error);
+
       return c.redirect(`${redirectUrl}?unknown-error=true`);
     }
   }
