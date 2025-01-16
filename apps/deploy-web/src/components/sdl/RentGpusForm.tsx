@@ -1,4 +1,6 @@
 "use client";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { Alert, Button, Form, Spinner } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
@@ -7,8 +9,6 @@ import { Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { event } from "nextjs-google-analytics";
-import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";

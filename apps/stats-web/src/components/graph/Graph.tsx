@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { useIntl } from "react-intl";
 import { format } from "date-fns";
 import { createChart } from "lightweight-charts";
@@ -7,7 +7,7 @@ import { useTheme } from "next-themes";
 
 import { customColors } from "@/lib/colors";
 import { nFormatter, roundDecimal } from "@/lib/mathHelpers";
-import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@/types";
+import { GraphResponse, ISnapshotMetadata, SnapshotValue } from "@/types";
 
 interface IGraphProps {
   rangedData: SnapshotValue[];

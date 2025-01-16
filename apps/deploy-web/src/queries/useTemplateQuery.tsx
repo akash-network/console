@@ -1,15 +1,15 @@
+import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions, UseQueryResult } from "react-query";
+import type { TemplateCategory, TemplateOutputSummary } from "@akashnetwork/http-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
-import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions, UseQueryResult } from "react-query";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { services } from "@src/services/http/http-browser.service";
 import { ITemplate } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import { QueryKeys } from "./queryKeys";
-import type { TemplateCategory, TemplateOutputSummary } from "@akashnetwork/http-sdk";
 
 async function getUserTemplates(username: string): Promise<ITemplate[]> {
   const response = await axios.get(`/api/proxy/user/templates/${username}`);
@@ -117,7 +117,7 @@ async function getTemplates() {
   const modifiedCategories = categories.map(category => {
     const templatesWithCategory = category.templates.map(template => ({
       ...template,
-      category: category.title,
+      category: category.title
     }));
 
     return { ...category, templates: templatesWithCategory };
@@ -127,12 +127,12 @@ async function getTemplates() {
   return { categories: modifiedCategories, templates };
 }
 
-export interface EnhancedTemplateCategory extends Omit<TemplateCategory, 'templates'> {
+export interface EnhancedTemplateCategory extends Omit<TemplateCategory, "templates"> {
   templates: TemplateOutputSummaryWithCategory[];
 }
 
-export interface TemplateOutputSummaryWithCategory extends TemplateOutputSummary { 
-  category: TemplateCategory['title'] 
+export interface TemplateOutputSummaryWithCategory extends TemplateOutputSummary {
+  category: TemplateCategory["title"];
 }
 
 export interface CategoriesAndTemplates {

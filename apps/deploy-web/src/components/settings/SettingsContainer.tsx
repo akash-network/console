@@ -5,7 +5,6 @@ import { Edit } from "iconoir-react";
 import { useRouter } from "next/navigation";
 import { NextSeo } from "next-seo";
 
-import { AutoTopUpSetting } from "@src/components/settings/AutoTopUpSetting/AutoTopUpSetting";
 import { AutoTopUpSettingContainer } from "@src/components/settings/AutoTopUpSetting/AutoTopUpSettingContainer";
 import { LocalDataManager } from "@src/components/settings/LocalDataManager";
 import { Fieldset } from "@src/components/shared/Fieldset";

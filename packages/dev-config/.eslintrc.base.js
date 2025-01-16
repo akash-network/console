@@ -7,7 +7,7 @@ module.exports = {
   plugins: ["simple-import-sort"],
   ignorePatterns: ["node_modules", "dist", "build", "public", "Leap"],
   rules: {
-    "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true }],
+    "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true, argsIgnorePattern: "^_" }],
     "simple-import-sort/imports": [
       "error",
       {

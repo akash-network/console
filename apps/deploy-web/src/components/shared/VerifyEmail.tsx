@@ -1,5 +1,4 @@
 import { Alert, AlertDescription } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import { WarningCircle } from "iconoir-react";
 
 import { useIsEmailVerified } from "@src/hooks/useRequiredEmailVerified";
