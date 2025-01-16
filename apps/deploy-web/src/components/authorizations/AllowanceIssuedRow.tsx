@@ -19,6 +19,8 @@ type Props = {
 };
 
 export const AllowanceIssuedRow: React.FunctionComponent<Props> = ({ allowance, checked, onEditAllowance, setDeletingAllowance, onSelectAllowance }) => {
+  const limit = allowance?.allowance?.spend_limit?.[0];
+
   return (
     <TableRow className="[&>td]:px-2 [&>td]:py-1">
       <TableCell>{getAllowanceTitleByType(allowance)}</TableCell>
@@ -26,7 +28,13 @@ export const AllowanceIssuedRow: React.FunctionComponent<Props> = ({ allowance, 
         <Address address={allowance.grantee} isCopyable />
       </TableCell>
       <TableCell align="center">
-        <AKTAmount uakt={coinToUDenom(allowance.allowance.spend_limit[0])} /> AKT
+        {limit ? (
+          <>
+            <AKTAmount uakt={coinToUDenom(limit)} /> AKT
+          </>
+        ) : (
+          <span>Unlimited</span>
+        )}
       </TableCell>
       <TableCell align="center">
         <FormattedTime year="numeric" month={"numeric"} day={"numeric"} value={allowance.allowance.expiration} />
