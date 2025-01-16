@@ -28,7 +28,13 @@ const route = createRoute({
             totalCPU: z.number(),
             totalGPU: z.number(),
             totalMemory: z.number(),
-            totalStorage: z.number()
+            totalStorage: z.number(),
+            activeEphemeralStorage: z.number(),
+            pendingEphemeralStorage: z.number(),
+            availableEphemeralStorage: z.number(),
+            activePersistentStorage: z.number(),
+            pendingPersistentStorage: z.number(),
+            availablePersistentStorage: z.number(),
           })
         }
       }

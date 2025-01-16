@@ -1,7 +1,7 @@
 import { Provider, ProviderSnapshot, ProviderSnapshotNode } from "@akashnetwork/database/dbSchemas/akash";
 import semver from "semver";
 
-import { Auditor, ProviderAttributesSchema, ProviderList } from "@src/types/provider";
+import { Auditor, ProviderAttributesSchema, ProviderList, StatsItem } from "@src/types/provider";
 import { createFilterUnique } from "../array/array";
 
 export const mapProviderToList = (
@@ -10,9 +10,18 @@ export const mapProviderToList = (
   auditors: Array<Auditor>,
   lastSuccessfulSnapshot?: ProviderSnapshot
 ): ProviderList => {
-  const isValidVersion = provider.cosmosSdkVersion ? semver.gte(provider.cosmosSdkVersion, "v0.45.9") : false;
+  const isValidSdkVersion = provider.cosmosSdkVersion ? semver.gte(provider.cosmosSdkVersion, "v0.45.9") : false;
   const name = provider.isOnline ? new URL(provider.hostUri).hostname : null;
   const gpuModels = getDistinctGpuModelsFromNodes(lastSuccessfulSnapshot?.nodes || []);
+  const stats: ProviderList['stats'] = {
+    cpu: buildStatsItem('CPU', lastSuccessfulSnapshot, isValidSdkVersion),
+    gpu: buildStatsItem('GPU', lastSuccessfulSnapshot, isValidSdkVersion),
+    memory: buildStatsItem('Memory', lastSuccessfulSnapshot, isValidSdkVersion),
+    storage: {
+      ephemeral: buildStatsItem('EphemeralStorage', lastSuccessfulSnapshot, isValidSdkVersion),
+      persistent: buildStatsItem('PersistentStorage', lastSuccessfulSnapshot, isValidSdkVersion),
+    },
+  };
 
   return {
     owner: provider.owner,
@@ -32,29 +41,15 @@ export const mapProviderToList = (
     ipCountryCode: provider.ipCountryCode,
     ipLat: provider.ipLat,
     ipLon: provider.ipLon,
-    activeStats: {
-      cpu: lastSuccessfulSnapshot?.activeCPU,
-      gpu: lastSuccessfulSnapshot?.activeGPU,
-      memory: lastSuccessfulSnapshot?.activeMemory,
-      storage: lastSuccessfulSnapshot?.activeEphemeralStorage + lastSuccessfulSnapshot?.activePersistentStorage
-    },
-    pendingStats: {
-      cpu: isValidVersion ? lastSuccessfulSnapshot?.pendingCPU : 0,
-      gpu: isValidVersion ? lastSuccessfulSnapshot?.pendingGPU : 0,
-      memory: isValidVersion ? lastSuccessfulSnapshot?.pendingMemory : 0,
-      storage: isValidVersion ? lastSuccessfulSnapshot?.pendingEphemeralStorage + lastSuccessfulSnapshot?.pendingPersistentStorage : 0
-    },
-    availableStats: {
-      cpu: isValidVersion ? lastSuccessfulSnapshot?.availableCPU : 0,
-      gpu: isValidVersion ? lastSuccessfulSnapshot?.availableGPU : 0,
-      memory: isValidVersion ? lastSuccessfulSnapshot?.availableMemory : 0,
-      storage: isValidVersion ? lastSuccessfulSnapshot?.availableEphemeralStorage + lastSuccessfulSnapshot?.availablePersistentStorage : 0
-    },
+    stats,
+    activeStats: buildLegacyStatsItem(stats, 'active'),
+    pendingStats: buildLegacyStatsItem(stats, 'pending'),
+    availableStats: buildLegacyStatsItem(stats, 'pending'),
     gpuModels: gpuModels,
     uptime1d: provider.uptime1d,
     uptime7d: provider.uptime7d,
     uptime30d: provider.uptime30d,
-    isValidVersion,
+    isValidVersion: isValidSdkVersion,
     isOnline: provider.isOnline,
     lastOnlineDate: lastSuccessfulSnapshot?.checkDate,
     isAudited: provider.providerAttributeSignatures.some(a => auditors.some(y => y.address === a.auditor)),
@@ -93,6 +88,32 @@ export const mapProviderToList = (
   } as ProviderList;
 };
 
+type StatsEntry = 'CPU' | 'GPU' | 'Memory' | 'PersistentStorage' | 'EphemeralStorage';
+function buildStatsItem<T extends StatsEntry>(suffix: T, snapshot: ProviderSnapshot | undefined | null, isValidSdkVersion: boolean): StatsItem {
+  if (!isValidSdkVersion) {
+    return {
+      active: snapshot?.[`active${suffix}`] || 0,
+      available: 0,
+      pending: 0,
+    };
+  }
+
+  return {
+    active: snapshot?.[`active${suffix}`] || 0,
+    available: snapshot?.[`available${suffix}`] || 0,
+    pending: snapshot?.[`pending${suffix}`] || 0,
+  };
+}
+
+function buildLegacyStatsItem(stats: ProviderList['stats'], type: keyof StatsItem) {
+  return {
+    cpu: stats.cpu[type],
+    gpu: stats.gpu[type],
+    memory: stats.memory[type],
+    storage: stats.storage.ephemeral[type] + stats.storage.persistent[type],
+  };
+}
+
 function getDistinctGpuModelsFromNodes(nodes: ProviderSnapshotNode[]) {
   const gpuModels = nodes.flatMap(x => x.gpus).map(x => ({ vendor: x.vendor, model: x.name, ram: x.memorySize, interface: x.interface }));
   const distinctGpuModels = gpuModels.filter(
@@ -102,8 +123,8 @@ function getDistinctGpuModelsFromNodes(nodes: ProviderSnapshotNode[]) {
   return distinctGpuModels;
 }
 
-export const getProviderAttributeValue = (
-  key: keyof ProviderAttributesSchema,
+export const getProviderAttributeValue = <TKey extends keyof ProviderAttributesSchema>(
+  key: TKey,
   provider: Provider,
   providerAttributeSchema: ProviderAttributesSchema
 ): string | string[] | boolean | number | null => {

@@ -1,13 +1,16 @@
 "use client";
 import { useIntl } from "react-intl";
-import { ResponsivePie } from "@nivo/pie";
+import { ComputedDatum, PieTooltipProps, ResponsivePie } from "@nivo/pie";
+import { BasicTooltip } from "@nivo/tooltip";
 import { useTheme } from "next-themes";
 
 import useTailwind from "@src/hooks/useTailwind";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
 
-type Props = {
+const getPieChartEntryColor = (datum: ComputedDatum<{ color: string }>) => datum.data.color;
+
+export interface Props {
   activeCPU: number;
   pendingCPU: number;
   totalCPU: number;
@@ -20,51 +23,43 @@ type Props = {
   activeStorage: number;
   pendingStorage: number;
   totalStorage: number;
-};
+  activeEphemeralStorage: number;
+  pendingEphemeralStorage: number;
+  availableEphemeralStorage: number;
+  activePersistentStorage: number;
+  pendingPersistentStorage: number;
+  availablePersistentStorage: number;
+}
 
-const NetworkCapacity: React.FunctionComponent<Props> = ({
-  activeCPU,
-  pendingCPU,
-  totalCPU,
-  activeGPU,
-  pendingGPU,
-  totalGPU,
-  activeMemory,
-  pendingMemory,
-  totalMemory,
-  activeStorage,
-  pendingStorage,
-  totalStorage
-}) => {
-  const { resolvedTheme } = useTheme();
-  const tw = useTailwind();
+const NetworkCapacity: React.FunctionComponent<Props> = props => {
+  const {
+    activeCPU,
+    pendingCPU,
+    totalCPU,
+    activeGPU,
+    pendingGPU,
+    totalGPU,
+    activeMemory,
+    pendingMemory,
+    totalMemory,
+    activeStorage,
+    pendingStorage,
+    totalStorage
+  } = props;
   const activeMemoryBytes = activeMemory + pendingMemory;
   const availableMemoryBytes = totalMemory - (activeMemory + pendingMemory);
   const activeStorageBytes = activeStorage + pendingStorage;
-  const availableStorageBytes = totalStorage - (activeStorage + pendingStorage);
   const _activeMemory = bytesToShrink(activeMemoryBytes);
   const _totalMemory = bytesToShrink(totalMemory);
   const _availableMemory = bytesToShrink(availableMemoryBytes);
   const _activeStorage = bytesToShrink(activeStorageBytes);
-  const _availableStorage = bytesToShrink(availableStorageBytes);
   const _totalStorage = bytesToShrink(totalStorage);
   const cpuData = useData(activeCPU + pendingCPU, totalCPU - activeCPU - pendingCPU);
   const gpuData = useData(activeGPU + pendingGPU, totalGPU - activeGPU - pendingGPU);
   const memoryData = useData(activeMemoryBytes, availableMemoryBytes);
-  const storageData = useData(activeStorageBytes, availableStorageBytes);
+  const storageData = useStorageData(props);
   const pieTheme = usePieTheme();
   const intl = useIntl();
-
-  const _getColor = bar => getColor(bar.id);
-
-  const colors = {
-    active: tw.theme.colors["primary"].DEFAULT,
-    available: resolvedTheme === "dark" ? tw.theme.colors.neutral[800] : tw.theme.colors.neutral[500]
-  };
-
-  const getColor = (id: string) => {
-    return colors[id];
-  };
 
   return (
     <div className="flex flex-col items-start md:flex-row md:items-center">
@@ -81,7 +76,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
             padAngle={2}
             cornerRadius={4}
             activeOuterRadiusOffset={8}
-            colors={_getColor}
+            colors={getPieChartEntryColor}
             borderWidth={0}
             borderColor={{
               from: "color",
@@ -95,8 +90,9 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
               })} CPU`
             }
             enableArcLinkLabels={false}
-            arcLabelsSkipAngle={10}
+            arcLabelsSkipAngle={30}
             theme={pieTheme}
+            tooltip={TooltipLabel}
           />
         </div>
       </div>
@@ -114,7 +110,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
             padAngle={2}
             cornerRadius={4}
             activeOuterRadiusOffset={8}
-            colors={_getColor}
+            colors={getPieChartEntryColor}
             borderWidth={0}
             borderColor={{
               from: "color",
@@ -127,8 +123,9 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
               })} GPU`
             }
             enableArcLinkLabels={false}
-            arcLabelsSkipAngle={10}
+            arcLabelsSkipAngle={30}
             theme={pieTheme}
+            tooltip={TooltipLabel}
           />
         </div>
       </div>
@@ -146,7 +143,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
             padAngle={2}
             cornerRadius={4}
             activeOuterRadiusOffset={8}
-            colors={_getColor}
+            colors={getPieChartEntryColor}
             borderWidth={0}
             borderColor={{
               from: "color",
@@ -158,8 +155,9 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
                 : `${roundDecimal(_availableMemory.value, 2)} ${_availableMemory.unit}`
             }
             enableArcLinkLabels={false}
-            arcLabelsSkipAngle={10}
+            arcLabelsSkipAngle={30}
             theme={pieTheme}
+            tooltip={TooltipLabel}
           />
         </div>
       </div>
@@ -177,20 +175,20 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
             padAngle={2}
             cornerRadius={4}
             activeOuterRadiusOffset={8}
-            colors={_getColor}
+            colors={getPieChartEntryColor}
             borderWidth={0}
             borderColor={{
               from: "color",
               modifiers: [["darker", 0.2]]
             }}
-            valueFormat={value =>
-              value === activeStorageBytes
-                ? `${roundDecimal(_activeStorage.value, 2)} ${_activeStorage.unit}`
-                : `${roundDecimal(_availableStorage.value, 2)} ${_availableStorage.unit}`
-            }
+            valueFormat={value => {
+              const formatted = bytesToShrink(value);
+              return `${roundDecimal(formatted.value, 2)} ${formatted.unit}`;
+            }}
             enableArcLinkLabels={false}
-            arcLabelsSkipAngle={10}
+            arcLabelsSkipAngle={30}
             theme={pieTheme}
+            tooltip={TooltipLabel}
           />
         </div>
       </div>
@@ -199,6 +197,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = ({
 };
 
 const useData = (active: number, available: number) => {
+  const { resolvedTheme } = useTheme();
   const tw = useTailwind();
 
   return [
@@ -212,12 +211,42 @@ const useData = (active: number, available: number) => {
       id: "available",
       label: "Available",
       value: available,
-      // TODO
-      // color: tw.theme.colors["success"].DEFAULT
-      color: tw.theme.colors.green[600]
+      color: resolvedTheme === "dark" ? tw.theme.colors.neutral[800] : tw.theme.colors.neutral[500]
     }
   ];
 };
+
+function useStorageData(props: Props) {
+  const { resolvedTheme } = useTheme();
+  const tw = useTailwind();
+
+  return [
+    {
+      id: "active-ephemeral",
+      label: "Active emphemeral",
+      color: tw.theme.colors["primary"].DEFAULT,
+      value: props.activeEphemeralStorage + props.pendingEphemeralStorage
+    },
+    {
+      id: "active-persistent",
+      label: "Active persistent",
+      color: tw.theme.colors["primary"].visited,
+      value: props.activePersistentStorage + props.pendingPersistentStorage
+    },
+    {
+      id: "available-emphemeral",
+      label: "Available emphemeral",
+      color: resolvedTheme === "dark" ? tw.theme.colors.neutral[800] : tw.theme.colors.neutral[500],
+      value: props.availableEphemeralStorage
+    },
+    {
+      id: "available-persistent",
+      label: "Available persistent",
+      color: resolvedTheme === "dark" ? tw.theme.colors.neutral[600] : tw.theme.colors.neutral[300],
+      value: props.availablePersistentStorage
+    }
+  ];
+}
 
 const usePieTheme = () => {
   const { resolvedTheme } = useTheme();
@@ -237,5 +266,9 @@ const usePieTheme = () => {
     }
   };
 };
+
+const TooltipLabel = <R,>({ datum }: PieTooltipProps<R>) => (
+  <BasicTooltip id={datum.label} value={datum.formattedValue} enableChip={true} color={datum.color} />
+);
 
 export default NetworkCapacity;

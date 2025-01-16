@@ -200,20 +200,7 @@ export const ProviderList: React.FunctionComponent = () => {
 
       {providers && networkCapacity && (
         <div className="mb-8">
-          <NetworkCapacity
-            activeCPU={networkCapacity.activeCPU}
-            pendingCPU={networkCapacity.pendingCPU}
-            totalCPU={networkCapacity.totalCPU}
-            activeGPU={networkCapacity.activeGPU}
-            pendingGPU={networkCapacity.pendingGPU}
-            totalGPU={networkCapacity.totalGPU}
-            activeMemory={networkCapacity.activeMemory}
-            pendingMemory={networkCapacity.pendingMemory}
-            totalMemory={networkCapacity.totalMemory}
-            activeStorage={networkCapacity.activeStorage}
-            pendingStorage={networkCapacity.pendingStorage}
-            totalStorage={networkCapacity.totalStorage}
-          />
+          <NetworkCapacity {...networkCapacity} />
         </div>
       )}
 

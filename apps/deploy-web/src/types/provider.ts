@@ -208,24 +208,36 @@ export interface ApiProviderList {
   lastOnlineDate: string;
   isAudited: boolean;
   gpuModels: { vendor: string; model: string; ram: string; interface: string }[];
+  /** @deprecated use `stats` instead */
   activeStats: {
     cpu: number;
     gpu: number;
     memory: number;
     storage: number;
   };
+  /** @deprecated use `stats` instead */
   pendingStats: {
     cpu: number;
     gpu: number;
     memory: number;
     storage: number;
   };
+  /** @deprecated use `stats` instead */
   availableStats: {
     cpu: number;
     gpu: number;
     memory: number;
     storage: number;
   };
+  stats: {
+    cpu: StatsItem;
+    gpu: StatsItem;
+    memory: StatsItem;
+    storage: {
+      ephemeral: StatsItem;
+      persistent: StatsItem;
+    };
+  },
   attributes: Array<{
     key: string;
     value: string;
@@ -291,4 +303,10 @@ export interface ApiProviderRegion {
   key: string;
   description: string;
   providers: string[];
+}
+
+export interface StatsItem {
+  active: number;
+  available: number;
+  pending: number;
 }

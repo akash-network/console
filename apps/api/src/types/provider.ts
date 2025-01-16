@@ -24,18 +24,30 @@ export interface ProviderList {
   lastOnlineDate: Date;
   isAudited: boolean;
   gpuModels: { vendor: string; model: string; ram: string; interface: string }[];
+  stats: {
+    cpu: StatsItem;
+    gpu: StatsItem;
+    memory: StatsItem;
+    storage: {
+      ephemeral: StatsItem;
+      persistent: StatsItem;
+    },
+  };
+  /** @deprecated use `stats` instead */
   activeStats: {
     cpu: number;
     gpu: number;
     memory: number;
     storage: number;
   };
+  /** @deprecated use `stats` instead */
   pendingStats: {
     cpu: number;
     gpu: number;
     memory: number;
     storage: number;
   };
+  /** @deprecated use `stats` instead */
   availableStats: {
     cpu: number;
     gpu: number;
@@ -130,3 +142,9 @@ export type Auditor = {
   address: string;
   website: string;
 };
+
+export interface StatsItem {
+  active: number;
+  available: number;
+  pending: number;
+}
