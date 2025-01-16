@@ -1,17 +1,17 @@
 import { getSession } from "@auth0/nextjs-auth0";
 import httpProxy from "http-proxy";
+import type { NextApiHandler } from "next";
 
 import { serverEnvConfig } from "@src/config/server-env.config";
 
-export default async (req, res) => {
-  // removes the api prefix from url
-  req.url = req.url.replace(/^\/api\/proxy/, "");
+const proxyToApi: NextApiHandler = async (req, res) => {
+  req.url = req.url?.replace(/^\/api\/proxy/, "");
 
   console.log("proxy:", req.url);
   const session = await getSession(req, res);
 
-  // don't forward the cookies to the target server
-  req.headers.cookie = "";
+  const cfClearanceCookie = req.cookies["cf_clearance"];
+  req.headers.cookie = cfClearanceCookie ? `cf_clearance=${cfClearanceCookie}` : "";
 
   if (session?.accessToken) {
     req.headers.authorization = `Bearer ${session.accessToken}`;
@@ -41,3 +41,5 @@ export const config = {
     bodyParser: false
   }
 };
+
+export default proxyToApi;
