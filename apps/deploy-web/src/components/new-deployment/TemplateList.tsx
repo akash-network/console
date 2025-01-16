@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useTemplates } from "@src/context/TemplatesProvider";
+import { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -17,7 +18,6 @@ import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";
-import { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 
 const previewTemplateIds = [
   "akash-network-awesome-akash-Llama-3.1-8B",

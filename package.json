@@ -28,8 +28,8 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "npm run lint:fix",
-      "npm run format"
+      "eslint --fix",
+      "prettier --write"
     ],
     "package.json": [
       "node_modules/.bin/sort-package-json"
