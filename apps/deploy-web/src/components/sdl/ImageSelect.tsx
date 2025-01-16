@@ -1,4 +1,6 @@
 "use client";
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Control, Controller } from "react-hook-form";
 import { buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
@@ -9,8 +11,6 @@ import TextField from "@mui/material/TextField";
 import { InfoCircle, OpenNewWindow } from "iconoir-react";
 import Image from "next/image";
 import Link from "next/link";
-import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Control, Controller } from "react-hook-form";
 
 import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
 import { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
