@@ -29,7 +29,6 @@ enum GetWalletSection {
 
 const GetStartedWallet: React.FunctionComponent = () => {
   const router = useRouter();
-  // Fallback to null if the section is not valid
   const currentSection = Object.values(GetWalletSection).includes(router.query.section as GetWalletSection) ? router.query.section : null;
 
   const sections = [
