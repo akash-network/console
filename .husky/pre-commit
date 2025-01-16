@@ -8,4 +8,6 @@ if [[ "$CI" != "true" ]]; then
     npm run update-apps-local-deps -w packages/network-store
     npm run update-apps-local-deps -w packages/logging
     git add ./apps/*/mvm.lock
+
+    npx lint-staged
 fi
