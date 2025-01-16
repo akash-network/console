@@ -33,7 +33,7 @@ const appHono = new Hono();
 appHono.use(
   "/*",
   cors({
-    allowHeaders: ["GET", "HEAD", "PUT", "POST", "DELETE", "PATCH", "OPTIONS"],
+    allowMethods: ["GET", "HEAD", "PUT", "POST", "DELETE", "PATCH", "OPTIONS"],
     origin: env.CORS_WEBSITE_URLS?.split(",") || ["http://localhost:3000", "http://localhost:3001"],
     credentials: true
   })
