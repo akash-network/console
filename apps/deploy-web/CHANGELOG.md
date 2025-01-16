@@ -1,5 +1,12 @@
 
 
+## [2.29.2](https://github.com/akash-network/console/compare/console-web/v2.29.1...console-web/v2.29.2) (2025-01-16)
+
+
+### Code Refactoring
+
+* **dx:** fix linting issues ([1115a60](https://github.com/akash-network/console/commit/1115a609ba6a080e4c91331f45fb0d12b48c5504))
+
 ## [2.29.1](https://github.com/akash-network/console/compare/console-web/v2.29.0...console-web/v2.29.1) (2025-01-16)
 
 
