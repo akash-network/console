@@ -1,5 +1,12 @@
 
 
+## [2.50.0](https://github.com/akash-network/console/compare/console-api/v2.49.0...console-api/v2.50.0) (2025-01-16)
+
+
+### Features
+
+* **auth:** forward cf clearance cookie to api via auth proxy ([bd81f2f](https://github.com/akash-network/console/commit/bd81f2f36c8f8f53e01d5dd4c879f99de1b9d151))
+
 ## [2.49.0](https://github.com/akash-network/console/compare/console-api/v2.48.0...console-api/v2.49.0) (2025-01-16)
 
 
