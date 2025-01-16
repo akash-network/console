@@ -1,5 +1,12 @@
 
 
+## [2.30.1](https://github.com/akash-network/console/compare/console-web/v2.30.0...console-web/v2.30.1) (2025-01-16)
+
+
+### Bug Fixes
+
+* **auth:** revert cf clearance cookie forwarding to api via auth proxy ([ac6aca5](https://github.com/akash-network/console/commit/ac6aca5752fd66d144fcb6c5eafbe69c6bc91401))
+
 ## [2.30.0](https://github.com/akash-network/console/compare/console-web/v2.29.2...console-web/v2.30.0) (2025-01-16)
 
 
