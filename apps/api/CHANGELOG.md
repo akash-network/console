@@ -1,5 +1,12 @@
 
 
+## [2.47.0](https://github.com/akash-network/console/compare/console-api/v2.46.0...console-api/v2.47.0) (2025-01-16)
+
+
+### Features
+
+* **auth:** enable credentials on api and start-trial client ([c64d15e](https://github.com/akash-network/console/commit/c64d15ecd02fc9ae632bd4cc2abdfff591be6a08)), closes [#627](https://github.com/akash-network/console/issues/627)
+
 ## [2.46.0](https://github.com/akash-network/console/compare/console-api/v2.45.0...console-api/v2.46.0) (2025-01-14)
 
 
