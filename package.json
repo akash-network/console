@@ -9,6 +9,7 @@
     "console:dev": "turbo dev --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/provider-proxy/\"",
     "console:dev:full-no-db": "cross-env SKIP_DC_DB=true turbo dev-nodc --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/indexer\" --filter=\"./apps/provider-proxy/\"",
     "console:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev-nodc --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/provider-proxy/\"",
+    "dc": "dc",
     "dc:build": "dc build",
     "dc:down": "dc down",
     "dc:up:db": "dc up:db",
@@ -17,14 +18,22 @@
     "format": "prettier --write ./*.{js,json} **/*.{ts,tsx,js,json}",
     "indexer:dev": "turbo dev --filter=\"./apps/indexer\"",
     "lint": "eslint .",
-    "lint:fix": "npm run lint -- --fix",
     "lint:api": "eslint ./apps/api",
+    "lint:fix": "npm run lint -- --fix",
+    "prepare": "husky || true",
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
     "stats:dev": "turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
     "stats:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
-    "update-apps-local-deps": "turbo update-apps-local-deps --filter=\"./packages/*\"",
-    "prepare": "husky || true",
-    "dc": "dc"
+    "update-apps-local-deps": "turbo update-apps-local-deps --filter=\"./packages/*\""
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "npm run lint:fix",
+      "npm run format"
+    ],
+    "package.json": [
+      "node_modules/.bin/sort-package-json"
+    ]
   },
   "dependencies": {
     "drizzle-orm": "^0.31.2",
@@ -38,14 +47,16 @@
     "@release-it/conventional-changelog": "github:akash-network/conventional-changelog#feature/pre-release",
     "cross-env": "^7.0.3",
     "husky": "^9.1.6",
+    "lint-staged": "^15.4.0",
     "release-it": "^17.6.0",
+    "sort-package-json": "^2.14.0",
     "turbo": "^2.3.3"
   },
+  "packageManager": "npm@10.7.0",
   "engines": {
     "node": "20.14.0",
     "npm": "10.7.0"
   },
-  "packageManager": "npm@10.7.0",
   "volta": {
     "node": "20.14.0",
     "npm": "10.7.0"
