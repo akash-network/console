@@ -33,7 +33,8 @@ const appHono = new Hono();
 appHono.use(
   "/*",
   cors({
-    origin: env.CORS_WEBSITE_URLS?.split(",") || ["http://localhost:3000", "http://localhost:3001"]
+    origin: env.CORS_WEBSITE_URLS?.split(",") || ["http://localhost:3000", "http://localhost:3001"],
+    credentials: true
   })
 );
 
