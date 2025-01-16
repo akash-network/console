@@ -16,7 +16,7 @@ export const Turnstile: FC = () => {
   const turnstileRef = useRef<TurnstileInstance>();
   const [status, setStatus] = useState<TurnstileStatus>("uninitialized");
   const [isTimingOut, setIsTimingOut] = useState(false);
-  const isVisible = useMemo(() => !!browserEnvConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY && VISIBILITY_STATUSES.includes(status), [status]);
+  const isVisible = useMemo(() => !!browserEnvConfig.NEXT_PUBLIC_TURNSTILE_ENABLED && VISIBILITY_STATUSES.includes(status), [status]);
   const hasActions = useMemo(() => isTimingOut || status === "error", [isTimingOut, status]);
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export const Turnstile: FC = () => {
     }
   }, [isVisible]);
 
-  return browserEnvConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? (
+  return browserEnvConfig.NEXT_PUBLIC_TURNSTILE_ENABLED ? (
     <>
       <div className={classnames({ hidden: !isVisible }, "fixed inset-0 z-[101] flex content-center items-center justify-center bg-white bg-opacity-90")}>
         <div className="flex flex-col items-center">
