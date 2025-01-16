@@ -1,5 +1,12 @@
 
 
+## [2.29.1](https://github.com/akash-network/console/compare/console-web/v2.29.0...console-web/v2.29.1) (2025-01-16)
+
+
+### Bug Fixes
+
+* **auth:** ensure turnstile widget is only shown initially on when interactive ([71f7ea8](https://github.com/akash-network/console/commit/71f7ea8ae843bade1a8fb4bbe7f71cc0731cf42e)), closes [#627](https://github.com/akash-network/console/issues/627)
+
 ## [2.29.0](https://github.com/akash-network/console/compare/console-web/v2.28.3...console-web/v2.29.0) (2025-01-15)
 
 
