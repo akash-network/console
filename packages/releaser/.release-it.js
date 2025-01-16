@@ -1,16 +1,28 @@
 const { addBangNotes } = require("conventional-changelog-conventionalcommits/utils");
-const { DEFAULT_COMMIT_TYPES } = require("conventional-changelog-conventionalcommits");
 
 const version = "${version}";
 const packageName = process.env.npm_package_name;
 const scope = packageName.split("/")[1];
+const COMMIT_TYPES = [
+  { type: "feat", section: "Features" },
+  { type: "fix", section: "Bug Fixes" },
+  { type: "refactor", section: "Code Refactoring" },
+  { type: "perf", section: "Performance Improvements" },
+  { type: "test",  hidden: true },
+  { type: "chore", hidden: true },
+  { type: "docs",  hidden: true },
+  { type: "style", hidden: true },
+];
 
 module.exports = {
   plugins: {
     "@release-it/conventional-changelog": {
       path: ".",
       infile: "CHANGELOG.md",
-      preset: "conventionalcommits",
+      preset: {
+        name: "conventionalcommits",
+        types: COMMIT_TYPES,
+      },
       gitRawCommitsOpts: {
         path: "."
       },
@@ -21,7 +33,7 @@ module.exports = {
         let features = 0;
 
         commits.forEach(commit => {
-          const isHiddenType = DEFAULT_COMMIT_TYPES.find(type => type.type === commit.type)?.hidden || false;
+          const isHiddenType = COMMIT_TYPES.find(type => type.type === commit.type)?.hidden || false;
           addBangNotes(commit);
           if (commit.notes.length > 0) {
             breakings += commit.notes.length;
