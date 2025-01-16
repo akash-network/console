@@ -8,9 +8,9 @@ import classnames from "classnames";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 
-type TurnstileStatus = "uninitialized" | "solved" | "expired" | "error" | "dismissed";
+type TurnstileStatus = "uninitialized" | "solved" | "interactive" | "expired" | "error" | "dismissed";
 
-const VISIBILITY_STATUSES: TurnstileStatus[] = ["uninitialized", "expired", "error"];
+const VISIBILITY_STATUSES: TurnstileStatus[] = ["uninitialized", "interactive", "error"];
 
 export const Turnstile: FC = () => {
   const turnstileRef = useRef<TurnstileInstance>();
@@ -29,7 +29,7 @@ export const Turnstile: FC = () => {
     }
   }, [isVisible]);
 
-  return (
+  return browserEnvConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? (
     <>
       <div className={classnames({ hidden: !isVisible }, "fixed inset-0 z-[101] flex content-center items-center justify-center bg-white bg-opacity-90")}>
         <div className="flex flex-col items-center">
@@ -42,6 +42,7 @@ export const Turnstile: FC = () => {
               onError={() => setStatus("error")}
               onExpire={() => setStatus("expired")}
               onSuccess={() => setStatus("solved")}
+              onBeforeInteractive={() => setStatus("interactive")}
             />
           </div>
           {status === "error" && <p className="text-red-600">Some error occurred</p>}
@@ -71,5 +72,5 @@ export const Turnstile: FC = () => {
         </div>
       </div>
     </>
-  );
+  ) : null;
 };

@@ -27,7 +27,7 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_GITLAB_CLIENT_ID: z.string().optional(),
   NEXT_PUBLIC_GITHUB_CLIENT_ID: z.string().optional(),
   NEXT_PUBLIC_CI_CD_IMAGE_NAME: z.string(),
-  NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string()
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional()
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({
