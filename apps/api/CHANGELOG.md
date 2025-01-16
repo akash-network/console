@@ -1,5 +1,12 @@
 
 
+## [2.48.0](https://github.com/akash-network/console/compare/console-api/v2.47.0...console-api/v2.48.0) (2025-01-16)
+
+
+### Features
+
+* **auth:** add OPTIONS to the allowed headers ([aefa7a9](https://github.com/akash-network/console/commit/aefa7a9aaf776bc8cf6453d46eb1a42e15e3d00a))
+
 ## [2.47.0](https://github.com/akash-network/console/compare/console-api/v2.46.0...console-api/v2.47.0) (2025-01-16)
 
 
