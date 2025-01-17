@@ -215,8 +215,10 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
               ps."activeEphemeralStorage" + COALESCE(ps."activePersistentStorage", 0) AS "activeStorage", ps."pendingEphemeralStorage" + COALESCE(ps."pendingPersistentStorage", 0) AS "pendingStorage", ps."availableEphemeralStorage" + COALESCE(ps."availablePersistentStorage", 0) AS "availableStorage", 
               ps."isOnline"
             FROM "providerSnapshot" ps
+            INNER JOIN "day" d ON d."date" = DATE(ps."checkDate")
+            INNER JOIN "block" b ON b.height=d."lastBlockHeightYet"
             INNER JOIN "provider" ON "provider"."owner"=ps."owner"
-            WHERE ps."isLastSuccessOfDay" = TRUE AND ps."checkDate" >= DATE(ps."checkDate")::timestamp + INTERVAL '1 day' - (:grace_duration * INTERVAL '1 minutes')
+            WHERE ps."isLastSuccessOfDay" = TRUE AND ps."checkDate" >= b."datetime" - (:grace_duration * INTERVAL '1 minutes')
             ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
          ) "dailyProviderStats"
          ON DATE(d."date")="dailyProviderStats"."date"
