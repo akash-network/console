@@ -8,10 +8,10 @@ const COMMIT_TYPES = [
   { type: "fix", section: "Bug Fixes" },
   { type: "refactor", section: "Code Refactoring" },
   { type: "perf", section: "Performance Improvements" },
-  { type: "test",  hidden: true },
+  { type: "test", hidden: true },
   { type: "chore", hidden: true },
-  { type: "docs",  hidden: true },
-  { type: "style", hidden: true },
+  { type: "docs", hidden: true },
+  { type: "style", hidden: true }
 ];
 
 module.exports = {
@@ -21,7 +21,7 @@ module.exports = {
       infile: "CHANGELOG.md",
       preset: {
         name: "conventionalcommits",
-        types: COMMIT_TYPES,
+        types: COMMIT_TYPES
       },
       gitRawCommitsOpts: {
         path: "."
@@ -64,7 +64,9 @@ module.exports = {
     tagName: `${scope}/v${version}`,
     commitsPath: ".",
     commitMessage: `chore(release): released version ${scope}/v${version}`,
-    requireCommitsFail: false
+    requireCommitsFail: false,
+    commit: false,
+    requireCleanWorkingDir: false
   },
   npm: {
     publish: false,
