@@ -1,5 +1,12 @@
 
 
+## [2.31.0](https://github.com/akash-network/console/compare/console-web/v2.30.1...console-web/v2.31.0) (2025-01-17)
+
+
+### Features
+
+* **auth:** improve turnstile widget UX ([#666](https://github.com/akash-network/console/issues/666)) ([b42714e](https://github.com/akash-network/console/commit/b42714e77fc0feed65af6f959cd0dc27e750994a))
+
 ## [2.30.1](https://github.com/akash-network/console/compare/console-web/v2.30.0...console-web/v2.30.1) (2025-01-16)
 
 
