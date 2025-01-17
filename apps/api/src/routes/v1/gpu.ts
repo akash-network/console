@@ -74,6 +74,12 @@ export default new OpenAPIHono().openapi(route, async c => {
     }
   }
 
+  const response = await getGpuModelsAvailability(vendor, model, memory_size, provider_address, provider_hosturi);
+
+  return c.json(response);
+});
+
+export async function getGpuModelsAvailability(vendor?: string, model?: string, memory_size?: string, provider_address?: string, provider_hosturi?: string) {
   const gpuNodes = await chainDb.query<{
     hostUri: string;
     name: string;
@@ -159,5 +165,5 @@ export default new OpenAPIHono().openapi(route, async c => {
     );
   }
 
-  return c.json(response);
-});
+  return response;
+}
