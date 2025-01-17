@@ -1,5 +1,12 @@
 
 
+## [2.50.1](https://github.com/akash-network/console/compare/console-api/v2.50.0...console-api/v2.50.1) (2025-01-17)
+
+
+### Bug Fixes
+
+* **analytics:** fix provider graph grace period calculation ([8fcad27](https://github.com/akash-network/console/commit/8fcad27b7b09df457228e0f9ef888abc1459aeb0))
+
 ## [2.50.0](https://github.com/akash-network/console/compare/console-api/v2.49.0...console-api/v2.50.0) (2025-01-16)
 
 
