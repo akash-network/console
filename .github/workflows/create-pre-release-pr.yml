@@ -8,85 +8,133 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
+permissions:
+  contents: write
+  pull-requests: write
+
 env:
   NODE_VERSION: 20.14.0
-  GITHUB_EMAIL: "ci@akash.network"
-  GITHUB_NAME: "CI"
+  RELEASE_BRANCH: release/bumps
+  BASE_BRANCH: main
 
 jobs:
-  check-releasability:
-    name: Check if is Releasable
+  check-releasable:
+    name: Check if Releasable
     runs-on: ubuntu-latest
     outputs:
-      is-releasable: ${{ steps.check.outputs.is-releasable }}
+      is-releasable: ${{ steps.check-commit.outputs.is-releasable }}
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Check if is Releasable
-        id: check
+      - name: Check Last Commit
+        id: check-commit
         run: |
           last_commit=$(git log -1 --pretty=%B)
-          if [[ $last_commit == "chore(release): released version"* ]]; then
+          if [[ $last_commit == "chore(release): update versions and changelogs" ]]; then
             echo "is-releasable=false" >> $GITHUB_OUTPUT
           else
             echo "is-releasable=true" >> $GITHUB_OUTPUT
           fi
 
-  create-pr:
-    name: Create Pre-Release PR with Updated Changelogs and Versions
-    needs: check-releasability
-    if: needs.check-releasability.outputs.is-releasable == 'true'
+  create-release-pr:
+    name: Create Release PR
+    needs: check-releasable
+    if: needs.check-releasable.outputs.is-releasable == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ env.BASE_BRANCH }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Restore root node_modules cache
+      - name: Restore Dependencies Cache
         uses: actions/cache@v4
-        id: cache
+        id: deps-cache
         with:
           path: |
             node_modules
-            apps/api/node_modules
-            apps/deploy-web/node_modules
-            packages/*/node_modules
-          key: common-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+            packages/releaser/node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-      - name: Install dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
+      - name: Install Dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
         run: npm ci -w packages/releaser
 
-      - name: Generate releases and build docker images
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate Release Changes
         run: |
-          git config --global user.email "${{ env.GITHUB_EMAIL }}"
-          git config --global user.name "${{ env.GITHUB_NAME }}"
           npm run release -w apps/api -- --verbose --ci
           npm run release -w apps/deploy-web -- --verbose --ci
 
-      - name: Cleanup Previous Release Branch
+      - name: Get Base Branch SHA
+        id: get-base-sha
         run: |
-          git branch -D release/bumps || true
+          echo "Getting base branch SHA..."
+          SHA=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/git/refs/heads/${{ env.BASE_BRANCH }}" | \
+            jq -r .object.sha)
+          echo "base_sha=$SHA" >> $GITHUB_ENV
 
-      - name: Commit and Create PR
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: '${{ github.token }}'
-          branch: release/bumps
-          base: main
-          title: "Release bumps"
-          body: "This is an automated PR to update the changelogs and versions for the next release. Merging it will trigger release adn build workflows"
+      - name: Check Existing PR
+        id: check-pr
+        run: |
+          echo "Checking for existing PR..."
+          PR_NUMBER=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:${{ env.RELEASE_BRANCH }}&state=open" | \
+            jq '.[0].number')
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_ENV
+
+      - name: Commit Changes
+        run: |
+          echo "Creating release commit..."
+          FILES_CHANGED=$(git status --porcelain | awk '{print $2}')
+          TREE_ITEMS="["
+          COMMA=""
+          for file in $FILES_CHANGED; do
+            MODE=$(git ls-files --stage "$file" | awk '{print $1}' || echo "100644")
+            CONTENT=$(cat "$file" | jq -Rs .)
+            TREE_ITEMS="${TREE_ITEMS}${COMMA}{\"path\":\"$file\",\"mode\":\"${MODE}\",\"type\":\"blob\",\"content\":${CONTENT}}"
+            COMMA=","
+          done
+          TREE_ITEMS="${TREE_ITEMS}]"
+
+          TREE_SHA=$(curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -d "{\"base_tree\":\"${{ env.base_sha }}\",\"tree\":${TREE_ITEMS}}" \
+            "https://api.github.com/repos/${{ github.repository }}/git/trees" | jq -r .sha)
+
+          COMMIT_SHA=$(curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -d "{\"message\":\"chore(release): update versions and changelogs\",\"tree\":\"${TREE_SHA}\",\"parents\":[\"${{ env.base_sha }}\"]}" \
+            "https://api.github.com/repos/${{ github.repository }}/git/commits" | jq -r .sha)
+
+          BRANCH_RESPONSE=$(curl -s -X PATCH -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -d "{\"sha\":\"${COMMIT_SHA}\",\"force\":true}" \
+            "https://api.github.com/repos/${{ github.repository }}/git/refs/heads/${{ env.RELEASE_BRANCH }}")
+
+          if [[ $(echo "$BRANCH_RESPONSE" | jq -r '.message // empty') == "Reference does not exist" ]]; then
+            echo "Creating release branch..."
+            curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -d "{\"ref\":\"refs/heads/${{ env.RELEASE_BRANCH }}\",\"sha\":\"${COMMIT_SHA}\"}" \
+              "https://api.github.com/repos/${{ github.repository }}/git/refs"
+          else
+            echo "Updated release branch"
+          fi
+
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_ENV
+
+      - name: Create Pull Request
+        if: env.pr_number == 'null'
+        run: |
+          echo "Creating release PR..."
+          curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -d "{\"title\":\"chore(release): update versions and changelogs\", \"head\":\"${{ env.RELEASE_BRANCH }}\", \"base\":\"${{ env.BASE_BRANCH }}\", \"body\":\"This PR updates versions and changelogs for the next release. Merging will trigger release workflows.\"}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls"
