@@ -7,8 +7,11 @@ export const providerAttributeSchemaDetailValueSchema = z.object({
 });
 
 export const providerAttributesFormValuesSchema = z.object({
-  website: z.string().optional(),
+  host: z.string().min(1, { message: "Host is required." }),
   tier: z.string().optional(),
+  email: z.string().email({ message: "Email is invalid." }).optional(),
+  organization: z.string().optional(),
+  website: z.string().optional(),
   "status-page": z.string().optional(),
   "location-region": z.string().min(1, { message: "Location region is required." }),
   country: z.string().min(2, { message: "Country must be 2 letter code." }).max(2, { message: "Country must be 2 letter code." }),

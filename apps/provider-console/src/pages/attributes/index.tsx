@@ -3,6 +3,7 @@ import { useQuery } from "react-query";
 
 import { ProviderAttributes } from "@src/components/become-provider/ProviderAttributes";
 import { Layout } from "@src/components/layout/Layout";
+import { withAuth } from "@src/components/shared/withAuth";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import consoleClient from "@src/utils/consoleClient";
 
@@ -30,4 +31,4 @@ const Attributes: React.FunctionComponent = () => {
   );
 };
 
-export default Attributes;
+export default withAuth({ WrappedComponent: Attributes, authLevel: "provider" });

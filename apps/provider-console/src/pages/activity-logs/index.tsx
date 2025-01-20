@@ -7,7 +7,7 @@ import { withAuth } from "@src/components/shared/withAuth";
 import { useProviderActions } from "@src/queries/useProviderQuery";
 
 const ActivityLogs: React.FC = () => {
-  const { data: actions } = useProviderActions();
+  const { data: actions = [] } = useProviderActions();
   return (
     <Layout>
       <div className="flex items-center">

@@ -89,7 +89,7 @@ const PersistentStoragePage: React.FC = () => {
 
       if (pstorageResponse) {
         if (pstorageResponse.action_id) {
-          router.push(`/actions/${pstorageResponse.action_id}`);
+          router.push(`/activity-logs/${pstorageResponse.action_id}`);
         }
       }
     } catch (error) {

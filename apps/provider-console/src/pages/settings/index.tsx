@@ -12,25 +12,35 @@ import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 import { stripProviderPrefixAndPort } from "@src/utils/urlUtils";
 
-const urlSchema = z.string().url();
+const urlSchema = z.string().refine(value => {
+  const regex = /^(?!:\/\/)([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$/;
+  return regex.test(value);
+}, "Invalid domain name format");
 
 const SettingsPage: React.FC = () => {
-  const [url, setUrl] = useState("");
   const [urlError, setUrlError] = useState("");
   const [isRestartLoading, setIsRestartLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const { providerDetails } = useProvider();
   const { activeControlMachine } = useControlMachine();
+  const [url, setUrl] = useState(() => stripProviderPrefixAndPort(providerDetails?.hostUri ?? "") || "");
 
-  const handleUrlUpdate = () => {
+  const handleUrlUpdate = async () => {
     try {
       urlSchema.parse(url);
-
-      // TODO: call update provider url api here
+      const request = {
+        domain: url,
+        control_machine: sanitizeMachineAccess(activeControlMachine)
+      };
+      const response = await restClient.post("/update-provider-domain", request);
+      if (response) {
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 20000);
+      }
       setUrlError("");
     } catch (error) {
-      setUrlError("Please enter a valid URL");
+      setUrlError("Please enter a valid domain name");
     }
   };
 
@@ -95,7 +105,7 @@ const SettingsPage: React.FC = () => {
           <p className="mt-2 text-gray-600">Update the URL for your provider service.</p>
           <div className="mt-4 flex gap-4">
             <Input
-              value={url || stripProviderPrefixAndPort(providerDetails?.hostUri || "")}
+              value={url}
               onChange={e => setUrl(e.target.value)}
               placeholder={"Enter new URL"}
               error={urlError ? true : undefined}

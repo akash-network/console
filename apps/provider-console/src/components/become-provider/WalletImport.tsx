@@ -161,7 +161,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
           };
           await setControlMachine(machineWithAddress);
           resetProviderProcess();
-          router.push(`/actions/${response.action_id}`);
+          router.push(`/activity-logs/${response.action_id}`);
         } else {
           throw new Error("Invalid response from server");
         }

@@ -55,14 +55,16 @@ const accountFormSchema = z.discriminatedUnion("authType", [passwordSchema, file
 
 type AccountFormValues = z.infer<typeof accountFormSchema>;
 
-interface ServerFormProp {
+interface ServerFormProps {
   currentServerNumber: number;
   onComplete: () => void;
   editMode?: boolean;
   controlMachine?: ControlMachineWithAddress | null;
+  isControlPlane?: boolean;
+  nodeNumber?: number;
 }
 
-export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onComplete, editMode = false, controlMachine }) => {
+export const ServerForm: React.FC<ServerFormProps> = ({ currentServerNumber, onComplete, editMode = false, controlMachine, isControlPlane, nodeNumber }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [storedFileContent, setStoredFileContent] = useState<string | null>(null);
@@ -217,13 +219,27 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
     });
   };
 
+  const getTitle = () => {
+    if (editMode) return "Control Machine Access";
+    if (isControlPlane) {
+      return `Control Plane Node #${nodeNumber} Access`;
+    }
+    return `Worker Node #${nodeNumber} Access`;
+  };
+
+  const getDescription = () => {
+    if (editMode) return "Enter the required details for your control machine";
+    if (isControlPlane) {
+      return "Configure access for your control plane node that manages cluster operations";
+    }
+    return "Configure access for your worker node that runs workloads";
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-xl font-bold">
-          {editMode ? "Control Machine Access" : currentServerNumber === 0 ? "Control Plane Machine Access" : "Node Access"}
-        </h3>
-        <p className="text-muted-foreground text-sm">Enter the required details for your {editMode ? "control machine" : "control plane setup"}</p>
+        <h3 className="text-xl font-bold">{getTitle()}</h3>
+        <p className="text-muted-foreground text-sm">{getDescription()}</p>
       </div>
       <div>
         <Separator />
@@ -282,7 +298,7 @@ export const ServerForm: React.FC<ServerFormProp> = ({ currentServerNumber, onCo
                       <FormControl>
                         <Input placeholder="Input your SSH username" {...field} />
                       </FormControl>
-                      <FormDescription>The username must be "root" for proper setup.</FormDescription>
+                      <FormDescription>The username must be &quot;root&quot; for proper setup.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
