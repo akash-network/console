@@ -1,5 +1,12 @@
 
 
+## [2.51.0](https://github.com/akash-network/console/compare/console-api/v2.50.1...console-api/v2.51.0) (2025-01-20)
+
+
+### Features
+
+* **stats:** shows ephemeral and persistent storage separately on pie chart ([#647](https://github.com/akash-network/console/issues/647)) ([7512198](https://github.com/akash-network/console/commit/75121983391db0b932b324656a939370c47827c7)), closes [#645](https://github.com/akash-network/console/issues/645) [#665](https://github.com/akash-network/console/issues/665)
+
 ## [2.50.1](https://github.com/akash-network/console/compare/console-api/v2.50.0...console-api/v2.50.1) (2025-01-20)
 
 
