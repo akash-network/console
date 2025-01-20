@@ -13,12 +13,13 @@ import { LabelValue } from "@src/components/shared/LabelValue";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderAttributesSchema, useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
-import { ApiProviderDetail, ClientProviderDetailWithStatus } from "@src/types/provider";
+import { ApiProviderDetail, ClientProviderDetailWithStatus, StatsItem } from "@src/types/provider";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { Title } from "../shared/Title";
 import { ActiveLeasesGraph } from "./ActiveLeasesGraph";
+import type { Props as NetworkCapacityProps } from "./NetworkCapacity";
 import ProviderDetailLayout, { ProviderDetailTabs } from "./ProviderDetailLayout";
 import { ProviderSpecs } from "./ProviderSpecs";
 
@@ -68,6 +69,29 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
       setProvider(provider => ({ ...provider, userLeases: numberOfDeployments, userActiveLeases: numberOfActiveLeases }));
     }
   }, [leases]);
+
+  const networkCapacity = useMemo<NetworkCapacityProps>(() => {
+    return {
+      activeCPU: provider.stats.cpu.active / 1000,
+      pendingCPU: provider.stats.cpu.pending / 1000,
+      totalCPU: collectTotals(provider.stats.cpu) / 1000,
+      activeGPU: provider.stats.gpu.active,
+      pendingGPU: provider.stats.gpu.pending,
+      totalGPU: collectTotals(provider.stats.gpu),
+      activeMemory: provider.stats.memory.active,
+      pendingMemory: provider.stats.memory.pending,
+      totalMemory: collectTotals(provider.stats.memory),
+      activeStorage: provider.stats.storage.ephemeral.active + provider.stats.storage.persistent.active,
+      pendingStorage: provider.stats.storage.ephemeral.pending + provider.stats.storage.persistent.pending,
+      totalStorage: collectTotals(provider.stats.storage.ephemeral) + collectTotals(provider.stats.storage.persistent),
+      activeEphemeralStorage: provider.stats.storage.ephemeral.active,
+      pendingEphemeralStorage: provider.stats.storage.ephemeral.pending,
+      availableEphemeralStorage: provider.stats.storage.ephemeral.available,
+      activePersistentStorage: provider.stats.storage.persistent.active,
+      pendingPersistentStorage: provider.stats.storage.persistent.pending,
+      availablePersistentStorage: provider.stats.storage.persistent.available
+    };
+  }, [provider]);
 
   const refresh = () => {
     getProviderDetail();
@@ -119,23 +143,10 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
           </Alert>
         )}
 
-        {provider && wasRecentlyOnline && (
+        {networkCapacity && wasRecentlyOnline && (
           <>
             <div className="mb-4">
-              <NetworkCapacity
-                activeCPU={provider.activeStats.cpu / 1000}
-                activeGPU={provider.activeStats.gpu}
-                activeMemory={provider.activeStats.memory}
-                activeStorage={provider.activeStats.storage}
-                pendingCPU={provider.pendingStats.cpu / 1000}
-                pendingGPU={provider.pendingStats.gpu}
-                pendingMemory={provider.pendingStats.memory}
-                pendingStorage={provider.pendingStats.storage}
-                totalCPU={(provider.availableStats.cpu + provider.pendingStats.cpu + provider.activeStats.cpu) / 1000}
-                totalGPU={provider.availableStats.gpu + provider.pendingStats.gpu + provider.activeStats.gpu}
-                totalMemory={provider.availableStats.memory + provider.pendingStats.memory + provider.activeStats.memory}
-                totalStorage={provider.availableStats.storage + provider.pendingStats.storage + provider.activeStats.storage}
-              />
+              <NetworkCapacity {...networkCapacity} />
             </div>
 
             <div className="grid grid-cols-1 gap-4 space-y-4 lg:grid-cols-2">
@@ -253,3 +264,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
     </Layout>
   );
 };
+
+function collectTotals(item: StatsItem): number {
+  return item.active + item.available + item.pending;
+}
