@@ -7,6 +7,7 @@ interface TopUpSummary {
   minPredictedClosedHeight: number;
   maxPredictedClosedHeight: number;
   walletsTopUpErrorCount: number;
+  deploymentTopUpErrorCount: number;
   startBlockHeight: number;
   endBlockHeight: number;
 }
@@ -23,6 +24,8 @@ export class TopUpSummarizer {
   private walletsTopUpCount = 0;
 
   private walletsTopUpErrorCount = 0;
+
+  private deploymentTopUpErrorCount = 0;
 
   private minPredictedClosedHeight: number;
 
@@ -62,6 +65,7 @@ export class TopUpSummarizer {
       walletsTopUpCount: this.walletsTopUpCount,
       insufficientBalanceCount: this.insufficientBalanceCount,
       walletsTopUpErrorCount: this.walletsTopUpErrorCount,
+      deploymentTopUpErrorCount: this.deploymentTopUpErrorCount,
       deploymentCount: this.deploymentCount,
       deploymentTopUpCount: this.deploymentTopUpCount,
       minPredictedClosedHeight: this.minPredictedClosedHeight,

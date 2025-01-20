@@ -7,7 +7,8 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import { ErrorService } from "@src/core/services/error/error.service";
+import { Sentry } from "@src/core/providers/sentry.provider";
+import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
 import { config } from "@src/deployment/config";
 import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
@@ -31,7 +32,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
   });
 
   const drainingDeploymentService = new DrainingDeploymentService(blockHttpService, stub<LeaseRepository>(), config);
-  const errorService = stub<ErrorService>({ execWithErrorHandler: (params: any, cb: () => any) => cb() });
+  const sentry = stub<Sentry>({ captureEvent: jest.fn() });
+  const sentryEventService = stub<SentryEventService>({ toEvent: jest.fn() });
   const topUpDeploymentsService = new TopUpManagedDeploymentsService(
     userWalletRepository,
     managedSignerService,
@@ -41,7 +43,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
     balancesService,
     new RpcMessageService(),
     blockHttpService,
-    errorService
+    sentry,
+    sentryEventService
   );
 
   type SeedParams = {
