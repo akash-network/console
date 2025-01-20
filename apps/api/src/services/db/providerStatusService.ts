@@ -1,6 +1,7 @@
 import { Provider, ProviderAttribute, ProviderAttributeSignature, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
 import { add, sub } from "date-fns";
+import uniqBy from "lodash/uniqBy";
 import { Op } from "sequelize";
 
 import { ProviderDetail } from "@src/types/provider";
@@ -24,31 +25,58 @@ export async function getNetworkCapacity() {
     ]
   });
 
-  const filteredProviders = providers.filter((value, index, self) => self.map(x => x.hostUri).indexOf(value.hostUri) === index);
+  const filteredProviders = uniqBy(providers, provider => provider.hostUri);
+  const stats = filteredProviders.reduce(
+    (all, provider) => {
+      stats.activeCPU += provider.lastSuccessfulSnapshot.activeCPU;
+      stats.pendingCPU += provider.lastSuccessfulSnapshot.pendingCPU;
+      stats.availableCPU += provider.lastSuccessfulSnapshot.availableCPU;
 
-  const stats = {
-    activeProviderCount: filteredProviders.length,
-    activeCPU: filteredProviders.map(x => x.lastSuccessfulSnapshot.activeCPU).reduce((a, b) => a + b, 0),
-    activeGPU: filteredProviders.map(x => x.lastSuccessfulSnapshot.activeGPU).reduce((a, b) => a + b, 0),
-    activeMemory: filteredProviders.map(x => x.lastSuccessfulSnapshot.activeMemory).reduce((a, b) => a + b, 0),
-    activeStorage: filteredProviders
-      .map(x => x.lastSuccessfulSnapshot.activeEphemeralStorage + x.lastSuccessfulSnapshot.activePersistentStorage)
-      .reduce((a, b) => a + b, 0),
-    pendingCPU: filteredProviders.map(x => x.lastSuccessfulSnapshot.pendingCPU).reduce((a, b) => a + b, 0),
-    pendingGPU: filteredProviders.map(x => x.lastSuccessfulSnapshot.pendingGPU).reduce((a, b) => a + b, 0),
-    pendingMemory: filteredProviders.map(x => x.lastSuccessfulSnapshot.pendingMemory).reduce((a, b) => a + b, 0),
-    pendingStorage: filteredProviders
-      .map(x => x.lastSuccessfulSnapshot.pendingEphemeralStorage + x.lastSuccessfulSnapshot.pendingPersistentStorage)
-      .reduce((a, b) => a + b, 0),
-    availableCPU: filteredProviders.map(x => x.lastSuccessfulSnapshot.availableCPU).reduce((a, b) => a + b, 0),
-    availableGPU: filteredProviders.map(x => x.lastSuccessfulSnapshot.availableGPU).reduce((a, b) => a + b, 0),
-    availableMemory: filteredProviders.map(x => x.lastSuccessfulSnapshot.availableMemory).reduce((a, b) => a + b, 0),
-    availableStorage: filteredProviders
-      .map(x => x.lastSuccessfulSnapshot.availableEphemeralStorage + x.lastSuccessfulSnapshot.availablePersistentStorage)
-      .reduce((a, b) => a + b, 0)
-  };
+      stats.activeGPU += provider.lastSuccessfulSnapshot.activeGPU;
+      stats.pendingGPU += provider.lastSuccessfulSnapshot.pendingGPU;
+      stats.availableGPU += provider.lastSuccessfulSnapshot.availableGPU;
+
+      stats.activeMemory += provider.lastSuccessfulSnapshot.activeMemory;
+      stats.pendingMemory += provider.lastSuccessfulSnapshot.pendingMemory;
+      stats.availableMemory += provider.lastSuccessfulSnapshot.availableMemory;
+
+      stats.activeEphemeralStorage += provider.lastSuccessfulSnapshot.activeEphemeralStorage;
+      stats.pendingEphemeralStorage += provider.lastSuccessfulSnapshot.pendingEphemeralStorage;
+      stats.availableEphemeralStorage += provider.lastSuccessfulSnapshot.availableEphemeralStorage;
+
+      stats.activePersistentStorage += provider.lastSuccessfulSnapshot.activePersistentStorage;
+      stats.pendingPersistentStorage += provider.lastSuccessfulSnapshot.pendingPersistentStorage;
+      stats.availablePersistentStorage += provider.lastSuccessfulSnapshot.availablePersistentStorage;
+
+      return all;
+    },
+    {
+      activeCPU: 0,
+      pendingCPU: 0,
+      availableCPU: 0,
+      activeGPU: 0,
+      pendingGPU: 0,
+      availableGPU: 0,
+      activeMemory: 0,
+      pendingMemory: 0,
+      availableMemory: 0,
+      activeStorage: 0,
+      pendingStorage: 0,
+      availableStorage: 0,
+      activeEphemeralStorage: 0,
+      pendingEphemeralStorage: 0,
+      availableEphemeralStorage: 0,
+      activePersistentStorage: 0,
+      pendingPersistentStorage: 0,
+      availablePersistentStorage: 0
+    }
+  );
 
   return {
+    activeProviderCount: filteredProviders.length,
+    activeStorage: stats.activeEphemeralStorage + stats.activePersistentStorage,
+    pendingStorage: stats.pendingEphemeralStorage + stats.pendingPersistentStorage,
+    availableStorage: stats.availableEphemeralStorage + stats.availablePersistentStorage,
     ...stats,
     totalCPU: stats.activeCPU + stats.pendingCPU + stats.availableCPU,
     totalGPU: stats.activeGPU + stats.pendingGPU + stats.availableGPU,
@@ -96,10 +124,8 @@ export const getProviderList = async () => {
   });
 
   const distinctProviders = providersWithAttributesAndAuditors.filter((value, index, self) => self.map(x => x.hostUri).lastIndexOf(value.hostUri) === index);
-  const providerAttributeSchemaQuery = getProviderAttributesSchema();
-  const auditorsQuery = getAuditors();
 
-  const [auditors, providerAttributeSchema] = await Promise.all([auditorsQuery, providerAttributeSchemaQuery]);
+  const [auditors, providerAttributeSchema] = await Promise.all([getAuditors(), getProviderAttributesSchema()]);
 
   return distinctProviders.map(x => {
     const lastSuccessfulSnapshot = providerWithNodes.find(p => p.owner === x.owner)?.lastSuccessfulSnapshot;
@@ -151,10 +177,7 @@ export const getProviderDetail = async (address: string): Promise<ProviderDetail
       })
     : null;
 
-  const providerAttributeSchemaQuery = getProviderAttributesSchema();
-  const auditorsQuery = getAuditors();
-
-  const [auditors, providerAttributeSchema] = await Promise.all([auditorsQuery, providerAttributeSchemaQuery]);
+  const [auditors, providerAttributeSchema] = await Promise.all([getAuditors(), getProviderAttributesSchema()]);
 
   return {
     ...mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot),
