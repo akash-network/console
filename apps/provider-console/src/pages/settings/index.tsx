@@ -24,7 +24,7 @@ const SettingsPage: React.FC = () => {
 
   const { providerDetails } = useProvider();
   const { activeControlMachine } = useControlMachine();
-  const [url, setUrl] = useState(() => stripProviderPrefixAndPort(providerDetails?.hostUri) || "");
+  const [url, setUrl] = useState(() => stripProviderPrefixAndPort(providerDetails?.hostUri ?? "") || "");
 
   const handleUrlUpdate = async () => {
     try {
