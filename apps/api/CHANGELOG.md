@@ -1,5 +1,13 @@
 
 
+## [2.50.1](https://github.com/akash-network/console/compare/console-api/v2.50.0...console-api/v2.50.1) (2025-01-20)
+
+
+### Bug Fixes
+
+* **analytics:** fix provider graph grace period calculation ([8fcad27](https://github.com/akash-network/console/commit/8fcad27b7b09df457228e0f9ef888abc1459aeb0))
+* **deployment:** ensure a single deployment top up error doesn't prevent others ([#675](https://github.com/akash-network/console/issues/675)) ([1d57578](https://github.com/akash-network/console/commit/1d57578b9a804a17497af8d21aa82dbd982c7e7f))
+
 ## [2.50.0](https://github.com/akash-network/console/compare/console-api/v2.49.0...console-api/v2.50.0) (2025-01-16)
 
 
