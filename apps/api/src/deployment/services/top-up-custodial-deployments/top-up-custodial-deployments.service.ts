@@ -4,7 +4,8 @@ import { singleton } from "tsyringe";
 
 import { BatchSigningClientService, ExecDepositDeploymentMsgOptions, RpcMessageService } from "@src/billing/services";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import { ErrorService } from "@src/core/services/error/error.service";
+import { InjectSentry, Sentry } from "@src/core/providers/sentry.provider";
+import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { TopUpCustodialBalanceService } from "@src/deployment/services/top-up-custodial-balance/top-up-custodial-balance.service";
@@ -41,31 +42,31 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly rpcClientService: RpcMessageService,
     private readonly blockHttpService: BlockHttpService,
-    private readonly errorService: ErrorService
+    @InjectSentry() private readonly sentry: Sentry,
+    private readonly sentryEventService: SentryEventService
   ) {}
 
   async topUpDeployments(options: TopUpDeploymentsOptions) {
-    const summary = new TopUpSummarizer();
-    summary.set("startBlockHeight", await this.blockHttpService.getCurrentHeight());
+    const summarizer = new TopUpSummarizer();
+    summarizer.set("startBlockHeight", await this.blockHttpService.getCurrentHeight());
 
     const topUpAllCustodialDeployments = this.topUpToolsService.pairs.map(async ({ wallet, client }) => {
       const address = await wallet.getFirstAddress();
       await this.authzHttpService.paginateDepositDeploymentGrants({ grantee: address, limit: this.CONCURRENCY }, async grants => {
-        await Promise.all(
-          grants.map(async grant => {
-            await this.errorService.execWithErrorHandler(
-              { context: TopUpCustodialDeploymentsService.name, grant, event: "TOP_UP_ERROR" },
-              () => this.topUpForGrant(grant, client, options, summary),
-              () => summary.inc("walletsTopUpErrorCount")
-            );
-          })
-        );
+        await Promise.all(grants.map(async grant => this.topUpForGrant(grant, client, options, summarizer)));
       });
     });
     await Promise.all(topUpAllCustodialDeployments);
 
-    summary.set("endBlockHeight", await this.blockHttpService.getCurrentHeight());
-    this.logger.info({ event: "TOP_UP_SUMMARY", summary: summary.summarize() });
+    summarizer.set("endBlockHeight", await this.blockHttpService.getCurrentHeight());
+
+    const summary = summarizer.summarize();
+    this.logger.info({ event: "TOP_UP_SUMMARY", summary, dryRun: options.dryRun });
+
+    if (summary.walletsTopUpErrorCount || summary.deploymentTopUpErrorCount) {
+      const eventId = this.sentry.captureEvent(this.sentryEventService.toEvent({ message: "Top up deployments error", summary }));
+      this.logger.debug({ event: "SENTRY_EVENT_REPORTED", eventId });
+    }
   }
 
   private async topUpForGrant(
@@ -86,6 +87,7 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
 
     const balancesService = new TopUpCustodialBalanceService(await this.collectWalletBalances(grant));
     let hasTopUp = false;
+    let hasError = false;
 
     for (const { dseq, denom, blockRate, predictedClosedHeight } of drainingDeployments) {
       const amount = await this.calculateTopUpAmount(blockRate, balancesService.balances);
@@ -97,26 +99,36 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
       }
 
       balancesService.recordTx(amount, this.MIN_FEES_AVAILABLE);
+      const topUpParams = {
+        dseq,
+        amount,
+        denom,
+        owner,
+        grantee
+      };
+      const logParams = { params: { topUpParams, masterWallet: grantee }, dryRun: options.dryRun };
 
-      await this.topUpDeployment(
-        {
-          dseq,
-          amount,
-          denom,
-          owner,
-          grantee
-        },
-        client,
-        options
-      );
+      try {
+        await this.topUpDeployment(topUpParams, client, options);
 
-      hasTopUp = true;
-      summary.inc("deploymentTopUpCount");
-      summary.ensurePredictedClosedHeight(predictedClosedHeight);
+        hasTopUp = true;
+        summary.inc("deploymentTopUpCount");
+        summary.ensurePredictedClosedHeight(predictedClosedHeight);
+
+        this.logger.info({ event: "TOP_UP_DEPLOYMENT_SUCCESS", ...logParams });
+      } catch (error) {
+        this.logger.error({ event: "TOP_UP_DEPLOYMENT_ERROR", message: error.message, stack: error.stack, ...logParams });
+        summary.inc("deploymentTopUpErrorCount");
+        hasError = true;
+      }
     }
 
     if (hasTopUp) {
       summary.inc("walletsTopUpCount");
+    }
+
+    if (hasError) {
+      summary.inc("walletsTopUpErrorCount");
     }
   }
 
@@ -172,11 +184,9 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
 
   async topUpDeployment({ grantee, ...messageInput }: ExecDepositDeploymentMsgOptions, client: BatchSigningClientService, options: TopUpDeploymentsOptions) {
     const message = this.rpcClientService.getExecDepositDeploymentMsg({ grantee, ...messageInput });
-    this.logger.info({ event: "TOP_UP_DEPLOYMENT", params: { ...messageInput, masterWallet: grantee }, dryRun: options.dryRun });
 
     if (!options.dryRun) {
       await client.executeTx([message], { fee: { granter: messageInput.owner } });
-      this.logger.info({ event: "TOP_UP_DEPLOYMENT_SUCCESS" });
     }
   }
 }

@@ -20,6 +20,8 @@ jest.mock("../../src/middlewares/userMiddleware.ts", () => ({
 
 jest.setTimeout(30000);
 
+const PRIVATE_USER_FIELDS = ["createdAt", "lastActiveAt", "lastFingerprint", "lastIp", "lastUserAgent"];
+
 describe("User Init", () => {
   const usersTable = resolveTable("Users");
   const userWalletRepository = container.resolve(UserWalletRepository);
@@ -77,7 +79,7 @@ describe("User Init", () => {
       const res = await sendTokenInfo();
 
       expect(res.status).toBe(200);
-      expect(res.body).toMatchObject(omit(existingUser, ["createdAt", "lastActiveAt"]));
+      expect(res.body).toMatchObject(omit(existingUser, PRIVATE_USER_FIELDS));
     });
 
     it("should register an anonymous user", async () => {
@@ -86,8 +88,9 @@ describe("User Init", () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({
-        ...omit(anonymousUser, ["createdAt", "lastActiveAt", "username"]),
-        ...omit(auth0Payload, "wantedUsername")
+        ...omit(anonymousUser, PRIVATE_USER_FIELDS),
+        ...omit(auth0Payload, "wantedUsername"),
+        username: expect.any(String)
       });
     });
 

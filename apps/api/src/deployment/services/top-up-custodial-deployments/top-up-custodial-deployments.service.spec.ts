@@ -11,7 +11,8 @@ import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { UAKT_TOP_UP_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import { BatchSigningClientService, RpcMessageService, Wallet } from "@src/billing/services";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import { ErrorService } from "@src/core/services/error/error.service";
+import { Sentry } from "@src/core/providers/sentry.provider";
+import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
 import { config } from "@src/deployment/config";
 import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
@@ -54,7 +55,8 @@ describe(TopUpCustodialDeploymentsService.name, () => {
   jest.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(CURRENT_BLOCK_HEIGHT);
 
   const drainingDeploymentService = new DrainingDeploymentService(blockHttpService, stub<LeaseRepository>(), config);
-  const errorService = stub<ErrorService>({ execWithErrorHandler: (params: any, cb: () => any) => cb() });
+  const sentry = stub<Sentry>({ captureEvent: jest.fn() });
+  const sentryEventService = stub<SentryEventService>({ toEvent: jest.fn() });
 
   const topUpDeploymentsService = new TopUpCustodialDeploymentsService(
     topUpToolsService,
@@ -63,7 +65,8 @@ describe(TopUpCustodialDeploymentsService.name, () => {
     drainingDeploymentService,
     new RpcMessageService(),
     blockHttpService,
-    errorService
+    sentry,
+    sentryEventService
   );
 
   type SeedParams = {
