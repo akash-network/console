@@ -1,5 +1,17 @@
 
 
+## [2.32.0](https://github.com/akash-network/console/compare/console-web/v2.31.0...console-web/v2.32.0) (2025-01-20)
+
+
+### Features
+
+* **stats:** shows ephemeral and persistent storage separately on pie chart ([#647](https://github.com/akash-network/console/issues/647)) ([7512198](https://github.com/akash-network/console/commit/75121983391db0b932b324656a939370c47827c7)), closes [#645](https://github.com/akash-network/console/issues/645) [#665](https://github.com/akash-network/console/issues/665)
+
+
+### Bug Fixes
+
+* **wallet:** crash when spend limit not set ([0280e58](https://github.com/akash-network/console/commit/0280e58e09427f115ea1a73b614388af075b20b1)), closes [#651](https://github.com/akash-network/console/issues/651)
+
 ## [2.31.0](https://github.com/akash-network/console/compare/console-web/v2.30.1...console-web/v2.31.0) (2025-01-17)
 
 
